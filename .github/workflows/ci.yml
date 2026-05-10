@@ -28,7 +28,7 @@ jobs:
       - run: dotnet restore Planora.sln
       - run: dotnet build Planora.sln --no-restore --configuration Release
       - run: dotnet test Planora.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --settings coverage.runsettings --results-directory ./coverage/backend
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: backend-coverage-report
           path: ./coverage/backend
@@ -50,7 +50,7 @@ jobs:
       - run: npm run type-check
       - run: npm run test:coverage
       - run: npm run build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage-report
           path: frontend/coverage
