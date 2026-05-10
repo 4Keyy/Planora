@@ -37,7 +37,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^11.15.0",
-    "lucide-react": "^0.468.0",
+    "lucide-react": "^1.14.0",
     "next": "^15.5.15",
     "ogl": "^1.0.11",
     "radix-ui": "^1.4.3",
