@@ -173,6 +173,10 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                         CategoryName = hiddenCat?.Name,
                         CategoryColor = hiddenCat?.Color,
                         CategoryIcon = hiddenCat?.Icon,
+                        WorkerCount = item.Workers.Count,
+                        WorkerUserIds = item.Workers.Select(w => w.UserId).ToList(),
+                        RequiredWorkers = item.RequiredWorkers,
+                        IsWorking = item.UserId != userId && item.Workers.Any(w => w.UserId == userId),
                     });
                     continue;
                 }
@@ -184,6 +188,10 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                     CategoryName = null,
                     CategoryColor = null,
                     CategoryIcon = null,
+                    WorkerCount = item.Workers.Count,
+                    WorkerUserIds = item.Workers.Select(w => w.UserId).ToList(),
+                    RequiredWorkers = item.RequiredWorkers,
+                    IsWorking = item.UserId != userId && item.Workers.Any(w => w.UserId == userId),
                 };
 
                 if (effectiveCategoryId.HasValue && categoryCache.TryGetValue(effectiveCategoryId.Value, out var cat))

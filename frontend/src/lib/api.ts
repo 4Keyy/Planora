@@ -4,7 +4,7 @@ import { getCsrfToken, shouldIncludeCsrfToken, clearCsrfToken, CSRF_HEADER_NAME 
 import { refreshAccessToken } from "@/lib/auth-public"
 import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
 import { getApiBaseUrl } from "@/lib/config"
-import type { Todo } from "@/types/todo"
+import type { Todo, TodoComment } from "@/types/todo"
 import type { AuthTokenDto } from "@/types/auth"
 
 const BASE_URL = getApiBaseUrl()
@@ -279,4 +279,51 @@ export const setViewerPreference = async (
 export const fetchTaskById = async (id: string): Promise<Todo> => {
   const { data } = await api.get<ApiResponse<Todo>>(`/todos/api/v1/todos/${id}`)
   return parseApiResponse(data)
+}
+
+export const joinTodo = async (id: string): Promise<Todo> => {
+  const { data } = await api.post<ApiResponse<Todo>>(`/todos/api/v1/todos/${id}/join`)
+  return parseApiResponse(data)
+}
+
+export const leaveTodo = async (id: string): Promise<void> => {
+  await api.post(`/todos/api/v1/todos/${id}/leave`)
+}
+
+type PagedCommentsResponse = { items: TodoComment[]; totalCount: number }
+
+export const fetchComments = async (
+  todoId: string,
+  pageNumber = 1,
+  pageSize = 50,
+): Promise<PagedCommentsResponse> => {
+  const { data } = await api.get<ApiResponse<PagedCommentsResponse>>(
+    `/todos/api/v1/todos/${todoId}/comments`,
+    { params: { pageNumber, pageSize } },
+  )
+  return parseApiResponse(data)
+}
+
+export const addComment = async (todoId: string, content: string): Promise<TodoComment> => {
+  const { data } = await api.post<ApiResponse<TodoComment>>(
+    `/todos/api/v1/todos/${todoId}/comments`,
+    { content },
+  )
+  return parseApiResponse(data)
+}
+
+export const updateComment = async (
+  todoId: string,
+  commentId: string,
+  content: string,
+): Promise<TodoComment> => {
+  const { data } = await api.put<ApiResponse<TodoComment>>(
+    `/todos/api/v1/todos/${todoId}/comments/${commentId}`,
+    { content },
+  )
+  return parseApiResponse(data)
+}
+
+export const deleteComment = async (todoId: string, commentId: string): Promise<void> => {
+  await api.delete(`/todos/api/v1/todos/${todoId}/comments/${commentId}`)
 }

@@ -13,5 +13,6 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
         DateTime? ExpectedDate,
         TodoPriority Priority = TodoPriority.Medium,
         bool IsPublic = false,
-        IReadOnlyList<Guid>? SharedWithUserIds = null) : ICommand<Result<TodoItemDto>>;
+        IReadOnlyList<Guid>? SharedWithUserIds = null,
+        int? RequiredWorkers = null) : ICommand<Result<TodoItemDto>>;
 }

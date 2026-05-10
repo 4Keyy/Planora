@@ -32,6 +32,10 @@ namespace Planora.Todo.Application.DTOs
         public IReadOnlyList<Guid> SharedWithUserIds { get; init; } = Array.Empty<Guid>();
         public bool? HasSharedAudience { get; init; }
         public bool? IsVisuallyUrgent { get; init; }
+        public int? RequiredWorkers { get; init; }
+        public int WorkerCount { get; init; }
+        public bool IsWorking { get; init; }
+        public IReadOnlyList<Guid> WorkerUserIds { get; init; } = Array.Empty<Guid>();
     }
 
     public class TodoItemMappingProfile : Profile
@@ -56,7 +60,15 @@ namespace Planora.Todo.Application.DTOs
                 .ForMember(dst => dst.HasSharedAudience,
                     opt => opt.MapFrom(src => src.IsPublic || src.SharedWith.Any()))
                 .ForMember(dst => dst.IsVisuallyUrgent,
-                    opt => opt.MapFrom(src => TodoViewerStateResolver.IsVisuallyUrgent(src, null)));
+                    opt => opt.MapFrom(src => TodoViewerStateResolver.IsVisuallyUrgent(src, null)))
+                .ForMember(dst => dst.RequiredWorkers,
+                    opt => opt.MapFrom(src => src.RequiredWorkers))
+                .ForMember(dst => dst.WorkerCount,
+                    opt => opt.MapFrom(src => src.Workers.Count))
+                .ForMember(dst => dst.WorkerUserIds,
+                    opt => opt.MapFrom(src => src.Workers.Select(w => w.UserId).ToList()))
+                .ForMember(dst => dst.IsWorking,
+                    opt => opt.MapFrom(src => false));
         }
     }
 }

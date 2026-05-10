@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, CheckCircle2, ChevronRight, History, SlidersHorizontal, X } from "lucide-react"
-import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse } from "@/lib/api"
+import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -728,6 +728,18 @@ export default function TodosPage() {
                     onDelete={() => setDeletingTodo(todo)}
                     onEdit={() => setEditingTodo(todo)}
                     onToggleHidden={() => handleToggleHidden(todo.id)}
+                    onJoin={async () => {
+                      const updated = await joinTodo(todo.id)
+                      setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
+                    }}
+                    onLeave={async () => {
+                      await leaveTodo(todo.id)
+                      setTodos((prev) => prev.map((t) =>
+                        t.id === todo.id
+                          ? { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }
+                          : t
+                      ))
+                    }}
                   />
                 )}
               />

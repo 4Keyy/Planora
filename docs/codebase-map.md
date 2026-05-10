@@ -82,13 +82,26 @@ Critical files:
 - `Controllers/TodosController.cs`
 - `Features/Todos/Queries/GetUserTodos/GetUserTodosQueryHandler.cs`
 - `Features/Todos/Queries/GetTodoById/GetTodoByIdQueryHandler.cs`
+- `Features/Todos/Queries/GetComments/GetCommentsQueryHandler.cs`
 - `Features/Todos/Commands/CreateTodo/CreateTodoCommandHandler.cs`
 - `Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs`
+- `Features/Todos/Commands/JoinTodo/JoinTodoCommandHandler.cs`
+- `Features/Todos/Commands/LeaveTodo/LeaveTodoCommandHandler.cs`
+- `Features/Todos/Commands/AddComment/AddCommentCommandHandler.cs`
+- `Features/Todos/Commands/UpdateComment/UpdateCommentCommandHandler.cs`
+- `Features/Todos/Commands/DeleteComment/DeleteCommentCommandHandler.cs`
 - `Features/Todos/Commands/SetTodoHidden/SetTodoHiddenCommandHandler.cs`
 - `Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs`
 - `Features/Todos/TodoViewerStateResolver.cs`
 - `Features/Todos/HiddenTodoDtoFactory.cs`
+- `Domain/Entities/TodoItem.cs` — aggregate root with `Workers`, `RequiredWorkers`, `IsCapacityFull`
+- `Domain/Entities/TodoItemWorker.cs`
+- `Domain/Entities/TodoItemComment.cs`
+- `Domain/Repositories/ITodoCommentRepository.cs`
 - `Persistence/TodoDbContext.cs`
+- `Persistence/Repositories/TodoCommentRepository.cs`
+- `Persistence/Configurations/TodoItemWorkerConfiguration.cs`
+- `Persistence/Configurations/TodoItemCommentConfiguration.cs`
 
 ## Category Service
 

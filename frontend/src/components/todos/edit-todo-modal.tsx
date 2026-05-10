@@ -17,6 +17,7 @@ import { useAuthStore } from "@/store/auth"
 import { FriendMultiSelect } from "@/components/todos/friend-multi-select"
 import { useFriends } from "@/hooks/use-friends"
 import { SPRING_STANDARD } from "@/lib/animations"
+import { TaskComments } from "@/components/todos/task-comments"
 
 /**
  * Priority level options with styling
@@ -98,7 +99,9 @@ export function EditTodoModal({
   const friends = useFriends(true)
   const [isPublic, setIsPublic] = useState(todo.isPublic)
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>(todo.sharedWithUserIds ?? [])
+  const [requiredWorkers, setRequiredWorkers] = useState<number | null>(todo.requiredWorkers ?? null)
   const [saving, setSaving] = useState(false)
+  const hasSharedAudience = isPublic || selectedFriendIds.length > 0
 
   // New category creation form state
   const [newCatName, setNewCatName] = useState("")
@@ -114,6 +117,7 @@ export function EditTodoModal({
     setCategoryId(todo.categoryId ?? "__none")
     setIsPublic(todo.isPublic)
     setSelectedFriendIds(todo.sharedWithUserIds ?? [])
+    setRequiredWorkers(todo.requiredWorkers ?? null)
 
     // Reset inline category creation state
     setNewCatName("")
@@ -170,6 +174,8 @@ export function EditTodoModal({
           categoryId: finalCategoryId || null,
           isPublic,
           sharedWithUserIds: selectedFriendIds,
+          requiredWorkers: requiredWorkers,
+          clearRequiredWorkers: requiredWorkers === null,
         })
       } else {
         await onSaveViewerPreference({
@@ -428,7 +434,42 @@ export function EditTodoModal({
                 ? "Choose all friends or pick specific people. Leave empty to keep this task private."
                 : "Sharing is controlled by the task owner."}
             </p>
+            {isOwner && hasSharedAudience && (
+              <div className="flex items-center gap-2 pt-1">
+                <label className="text-[11px] font-black uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                  Max workers
+                </label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={isPublic ? undefined : 1 + selectedFriendIds.length}
+                  value={requiredWorkers ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setRequiredWorkers(v === "" ? null : Math.max(1, parseInt(v, 10)))
+                  }}
+                  placeholder="No limit"
+                  className="h-8 rounded-lg text-xs w-28 border-gray-200 bg-white"
+                />
+              </div>
+            )}
           </motion.div>
+
+          {/* Comments */}
+          {hasSharedAudience && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.26 }}
+              className="rounded-2xl border border-gray-100 bg-gray-50/50 p-3.5"
+            >
+              <TaskComments
+                todoId={todo.id}
+                isOwner={isOwner}
+                canComment={isOwner || (todo.isWorking ?? false)}
+              />
+            </motion.div>
+          )}
 
           {/* Footer Actions */}
           <motion.div

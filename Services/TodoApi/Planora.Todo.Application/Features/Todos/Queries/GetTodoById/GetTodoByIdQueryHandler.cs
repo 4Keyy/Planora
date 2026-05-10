@@ -97,6 +97,10 @@ public sealed class GetTodoByIdQueryHandler : IQueryHandler<GetTodoByIdQuery, Re
             CategoryName = null,
             CategoryColor = null,
             CategoryIcon = null,
+            WorkerCount = todoItem.Workers.Count,
+            WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
+            RequiredWorkers = todoItem.RequiredWorkers,
+            IsWorking = todoItem.UserId != userId && todoItem.Workers.Any(w => w.UserId == userId),
         };
 
         // Enrich with category data via gRPC so the full DTO always includes CategoryName/Color/Icon

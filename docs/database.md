@@ -101,22 +101,38 @@ Default schema: `todo`
 | `TodoItems` | task core data |
 | `todo_tags` | owned collection for todo tags |
 | `todo_item_shares` | explicit shared-with users |
+| `todo_item_workers` | non-owner participants (workers) on public/shared tasks |
+| `todo_item_comments` | comment thread on public/shared tasks; soft-deletable |
 | `user_todo_view_preferences` | viewer-specific hidden/category preferences |
 
 ### Important Configuration
 
 | Entity | Important fields/indexes | Code |
 |---|---|---|
-| `TodoItem` | title max 200; description max 2000; status stored as string; priority stored as int; user/category ids; `IsPublic`; `Hidden`; soft delete; indexes by user/category/status/delete/created | `Persistence/Configurations/TodoItemConfiguration.cs` |
+| `TodoItem` | title max 200; description max 2000; status stored as string; priority stored as int; user/category ids; `IsPublic`; `Hidden`; `RequiredWorkers` (nullable int, total headcount including owner); soft delete; indexes by user/category/status/delete/created | `Persistence/Configurations/TodoItemConfiguration.cs` |
 | `TodoTag` | owned table `todo_tags`, tag name max 50 | `TodoItemConfiguration.cs` |
 | `TodoItemShare` | table `todo_item_shares`, composite key `(TodoItemId, SharedWithUserId)`, index by shared user | `Persistence/Configurations/TodoItemShareConfiguration.cs` |
+| `TodoItemWorker` | table `todo_item_workers`, composite PK `(TodoItemId, UserId)`, `JoinedAt` default `now()`, cascade FK to `TodoItems`; indexes on `UserId` and `TodoItemId` | `Persistence/Configurations/TodoItemWorkerConfiguration.cs` |
+| `TodoItemComment` | table `todo_item_comments`, PK `Id`, `AuthorId`, `AuthorName` max 200, `Content` max 2000, soft delete, cascade FK to `TodoItems`; composite index `(TodoItemId, CreatedAt)` | `Persistence/Configurations/TodoItemCommentConfiguration.cs` |
 | `UserTodoViewPreference` | table `todo.user_todo_view_preferences`, composite key `(ViewerId, TodoItemId)`, `HiddenByViewer`, optional `ViewerCategoryId`, index `(TodoItemId, ViewerId)` | `Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs` |
+
+### Worker Capacity Semantics
+
+`RequiredWorkers` = total headcount including the owner. A task with `RequiredWorkers = 2` allows one non-owner worker slot. The owner is **never** stored in `todo_item_workers`; they implicitly always participate. Capacity is full when `Workers.Count >= RequiredWorkers - 1`.
+
+When access changes (task made private, `SharedWith` list shrunk, or capacity reduced), workers who lose access are evicted automatically inside the domain model. Eviction on capacity reduction uses LIFO order (most-recently-joined workers are removed first).
 
 ### Todo Schema Bootstrap
 
-Committed migrations are not stored in the repository. Todo schema is derived from `TodoDbContext` plus configuration classes under `Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations`.
+A committed EF migration `AddWorkersAndComments` (generated 2026-05-10) is stored at `Services/TodoApi/Planora.Todo.Infrastructure/Migrations/`. Runtime startup applies it automatically via `DatabaseStartup.EnsureReadyAsync`.
 
-Runtime startup applies user-created migrations if they exist; otherwise it creates the schema from the current model.
+To apply manually:
+
+```powershell
+dotnet ef database update `
+  --project Services/TodoApi/Planora.Todo.Infrastructure `
+  --startup-project Services/TodoApi/Planora.Todo.Api
+```
 
 ### Important Caveat
 

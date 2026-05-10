@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import {
-  Trash, Check, Calendar, AlertTriangle, Share2, Eye, Clock, Zap,
+  Trash, Check, Calendar, AlertTriangle, Share2, Eye, Clock, Zap, Users,
 } from "lucide-react"
 import { ICON_MAP } from "@/lib/icon-map"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,6 +12,7 @@ import { formatDate, isPastDate, truncateText, formatPublicName, cn } from "@/li
 import { useAuthStore } from "@/store/auth"
 import { EASE_OUT_EXPO, SPRING_RESPONSIVE, VARIANTS_CARD, TAP_CARD } from "@/lib/animations"
 import { CompletionCelebration } from "@/components/animated/celebration"
+import { WorkerJoinButton } from "@/components/todos/worker-join-button"
 
 const PRIORITY_CONFIG: Record<string, { color: string; num: number }> = {
   "1": { color: "#9ca3af", num: 1 },
@@ -58,6 +59,8 @@ interface TodoCardProps {
   onDelete: () => void
   onEdit: () => void
   onToggleHidden?: () => Promise<void>
+  onJoin?: () => Promise<void>
+  onLeave?: () => Promise<void>
   variant?: "default" | "completed"
 }
 
@@ -70,6 +73,8 @@ export function TodoCard({
   onDelete,
   onEdit,
   onToggleHidden,
+  onJoin,
+  onLeave,
   variant = "default",
 }: TodoCardProps) {
   const shouldReduceMotion = useReducedMotion()
@@ -604,8 +609,37 @@ export function TodoCard({
                           {!isOwner && publicBadgeLabel}
                         </motion.span>
                       )}
+                      {showShareBadge && (todo.workerCount !== undefined || todo.requiredWorkers) && (
+                        <motion.span
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-indigo-50 text-indigo-700 whitespace-nowrap shadow-sm border border-indigo-200/80 flex items-center gap-1"
+                        >
+                          <Users className="h-3 w-3" />
+                          {(todo.workerCount ?? 0) + 1}
+                          {todo.requiredWorkers ? `/${todo.requiredWorkers}` : ""} working
+                          {todo.isWorking && " · You"}
+                        </motion.span>
+                      )}
                     </motion.div>
                   </div>
+                  {showShareBadge && !isOwner && !isCompleted && onJoin && onLeave && (
+                    <div
+                      className="mt-2"
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseEnter={() => setIsControlHover(true)}
+                      onMouseLeave={() => setIsControlHover(false)}
+                    >
+                      <WorkerJoinButton
+                        todoId={todo.id}
+                        isOwner={isOwner}
+                        isWorking={todo.isWorking ?? false}
+                        isFull={!!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1}
+                        onJoin={onJoin}
+                        onLeave={onLeave}
+                      />
+                    </div>
+                  )}
                   {!isCompleted && todo.description && (
                     <motion.p
                       initial={{ opacity: 0 }}

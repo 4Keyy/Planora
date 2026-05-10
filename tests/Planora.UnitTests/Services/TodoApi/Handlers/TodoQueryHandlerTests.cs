@@ -554,20 +554,19 @@ public class TodoQueryHandlerTests
         fixture.ViewerPreferences
             .Setup(x => x.GetHiddenTodoIdsAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Guid> { hiddenTodoId });
-        fixture.GenericRepository
-            .Setup(x => x.GetPagedAsync(
-                It.IsAny<int>(),
-                It.IsAny<int>(),
+        fixture.Repository
+            .Setup(x => x.FindPageWithIncludesAsync(
                 It.IsAny<Expression<Func<TodoItem, bool>>>(),
-                It.IsAny<Expression<Func<TodoItem, object>>>(),
-                false,
+                It.IsAny<bool>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((int _, int _, Expression<Func<TodoItem, bool>>? predicate, Expression<Func<TodoItem, object>>? _, bool _, CancellationToken _) =>
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, bool _, int _, int _, CancellationToken _) =>
             {
                 var items = new[] { friendTodo, otherFriendTodo, privateFriendTodo }
-                    .Where(predicate!.Compile())
+                    .Where(predicate.Compile())
                     .ToList();
-                return (items, items.Count);
+                return ((IReadOnlyList<TodoItem>)items, items.Count);
             });
 
         var friendOnly = await fixture.CreateGetPublicTodosHandler().Handle(
@@ -666,7 +665,7 @@ public class TodoQueryHandlerTests
 
         public GetPublicTodosQueryHandler CreateGetPublicTodosHandler()
             => new(
-                GenericRepository.Object,
+                Repository.Object,
                 _mapper.Object,
                 Mock.Of<ILogger<GetPublicTodosQueryHandler>>(),
                 CurrentUserContext.Object,

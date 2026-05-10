@@ -83,7 +83,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
                     request.ExpectedDate,
                     request.Priority,
                     request.IsPublic,
-                    sharedWith);
+                    sharedWith,
+                    request.RequiredWorkers);
 
             await _repository.AddAsync(todoItem, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

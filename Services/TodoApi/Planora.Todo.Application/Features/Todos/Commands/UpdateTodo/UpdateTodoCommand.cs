@@ -15,5 +15,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
         TodoPriority? Priority = null,
         bool? IsPublic = null,
         IReadOnlyList<Guid>? SharedWithUserIds = null,
-        string? Status = null) : ICommand<Result<TodoItemDto>>;
+        string? Status = null,
+        int? RequiredWorkers = null,
+        bool ClearRequiredWorkers = false) : ICommand<Result<TodoItemDto>>;
 }

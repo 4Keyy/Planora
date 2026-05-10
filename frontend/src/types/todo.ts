@@ -96,11 +96,27 @@ export type Todo = {
   sharedWithUserIds?: string[] | null
   hasSharedAudience?: boolean | null
   isVisuallyUrgent?: boolean | null
+  requiredWorkers?: number | null
+  workerCount?: number
+  isWorking?: boolean
+  workerUserIds?: string[] | null
 }
 
 export type PagedTodosResponse = {
   items: Todo[]
   totalCount: number
+}
+
+export type TodoComment = {
+  id: string
+  todoItemId: string
+  authorId: string
+  authorName: string
+  content: string
+  createdAt: string
+  updatedAt?: string | null
+  isOwn: boolean
+  isEdited: boolean
 }
 
 export type CreateTodoPayload = {
@@ -113,6 +129,7 @@ export type CreateTodoPayload = {
   isPublic?: boolean
   sharedWithUserIds?: string[]
   tags?: string[]
+  requiredWorkers?: number | null
 }
 
 export type UpdateTodoPayload = {
@@ -124,6 +141,8 @@ export type UpdateTodoPayload = {
   isPublic?: boolean
   sharedWithUserIds?: string[]
   status?: "todo" | "inprogress" | "done"
+  requiredWorkers?: number | null
+  clearRequiredWorkers?: boolean
 }
 
 const EMPTY_GUID = "00000000-0000-0000-0000-000000000000"

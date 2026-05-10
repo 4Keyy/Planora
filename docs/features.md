@@ -190,6 +190,82 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 - When the user removes a category during task edit, `applyCategoryPatch` (`frontend/src/utils/todo-utils.ts`) zeroes all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) in local state after the PUT — necessary because the backend treats `categoryId: null` as a no-op and echoes back the old values.
 - Todo, dashboard, and completed-task pages enrich author names for public friend tasks as well as direct shared tasks.
 
+## Task Workers ("В работе")
+
+### Purpose
+
+Allow friends to claim participation slots on public or shared tasks. The task owner sets an optional `RequiredWorkers` capacity. Workers join voluntarily and can leave at any time.
+
+### Implementation
+
+- `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs` — `AddWorker`, `RemoveWorker`, `SetRequiredWorkers`, `CleanupWorkersOnAccessChange`
+- `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItemWorker.cs`
+- `Services/TodoApi/Planora.Todo.Domain/Events/TodoWorkerJoinedDomainEvent.cs`
+- `Services/TodoApi/Planora.Todo.Domain/Events/TodoWorkerLeftDomainEvent.cs`
+- `Services/TodoApi/Planora.Todo.Domain/Events/TodoWorkerRemovedDomainEvent.cs`
+- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/JoinTodo/`
+- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/LeaveTodo/`
+- `frontend/src/components/todos/worker-join-button.tsx`
+
+### Key Rules
+
+| Rule | Detail |
+|---|---|
+| Owner is never stored as a worker | Owner implicitly participates on their own task |
+| `RequiredWorkers` semantics | Total headcount including owner; `null` means unlimited |
+| Capacity check | Full when `Workers.Count >= RequiredWorkers - 1` |
+| Join guards | Must not be owner; must have task access (public or shared); must be friends with owner; must not be at capacity; must not already be a worker |
+| Leave guard | Owner cannot leave; leaving a task where user is not a worker throws `EntityNotFoundException` |
+| Eviction on access change | Removing a user from `SharedWith`, making a task private, or reducing `RequiredWorkers` below current worker count triggers automatic eviction (LIFO for capacity reduction) |
+| Worker fields in DTO | `workerCount`, `workerUserIds`, `requiredWorkers`, `isWorking` patched on every GET/mutation response |
+
+### Frontend Behavior
+
+- `WorkerJoinButton` renders nothing for the owner; shows "Join" (indigo) for eligible friends; shows disabled "Full" with a lock icon when at capacity; shows "Leave" (outlined) when already working.
+- Worker count badge appears in the card badge row for tasks with a shared audience.
+- `onJoin` / `onLeave` callbacks on `TodoCard` optimistically update `isWorking` and `workerCount` in local state.
+
+## Task Comments
+
+### Purpose
+
+Provide a persistent discussion thread on public and shared tasks. Only the owner and active workers can post; anyone with task access can read.
+
+### Implementation
+
+- `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItemComment.cs`
+- `Services/TodoApi/Planora.Todo.Domain/Events/TodoCommentAddedDomainEvent.cs`
+- `Services/TodoApi/Planora.Todo.Domain/Repositories/ITodoCommentRepository.cs`
+- `Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoCommentRepository.cs`
+- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/AddComment/`
+- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateComment/`
+- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteComment/`
+- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetComments/`
+- `frontend/src/components/todos/task-comments.tsx`
+
+### Key Rules
+
+| Rule | Detail |
+|---|---|
+| Read access | owner, any user with task access (public/shared) who is also friends with the owner |
+| Write access | owner or active worker (in `todo_item_workers`) |
+| Content limits | max 2000 characters; cannot be empty |
+| `AuthorName` | denormalized at write time from JWT `name` or `given_name` claim, falling back to email then userId |
+| Edit rules | only the comment author can edit their own comment |
+| Delete rules | comment author OR task owner can delete; results in soft delete |
+| `IsEdited` | true when `UpdatedAt > CreatedAt + 5 seconds` |
+| `UpdatedAt` on create | not set on creation; only set when content is actually updated via `UpdateContent` |
+| Cascade delete | todo soft-delete also soft-deletes all comments via `SoftDeleteByTodoIdAsync` |
+| Pagination | `GET {id}/comments` accepts `pageNumber` (default 1) and `pageSize` (default 50); sorted oldest-first |
+
+### Frontend Behavior
+
+- `TaskComments` renders inside the edit modal for tasks with a shared audience.
+- Comments are fetched oldest-first (chat style) on mount; "Load earlier" button appends the next page.
+- `isOwn` controls edit/delete button visibility; `isEdited` renders "(edited)" label.
+- Ctrl+Enter submits the draft; a 2000-character counter warns at the input edge.
+- Soft-deleted comments are removed from local state immediately without a full refetch.
+
 ## Shared Todos And Hidden Viewer Preferences
 
 ### Purpose

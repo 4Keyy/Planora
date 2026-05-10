@@ -552,6 +552,7 @@ public class TodoCommandHandlerExpandedTests
     {
         public Mock<IRepository<TodoItem>> GenericRepository { get; } = new();
         public Mock<ITodoRepository> TodoRepository { get; } = new();
+        public Mock<ITodoCommentRepository> CommentRepository { get; } = new();
         public Mock<IUnitOfWork> UnitOfWork { get; } = new();
         public Mock<IMapper> Mapper { get; } = new();
         public Mock<ICurrentUserContext> CurrentUser { get; } = new();
@@ -609,6 +610,7 @@ public class TodoCommandHandlerExpandedTests
         public DeleteTodoCommandHandler CreateDeleteHandler()
             => new(
                 GenericRepository.Object,
+                CommentRepository.Object,
                 UnitOfWork.Object,
                 Mock.Of<ILogger<DeleteTodoCommandHandler>>(),
                 CurrentUser.Object);

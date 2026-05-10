@@ -8,6 +8,7 @@ namespace Planora.Todo.Domain.Entities
     {
         private readonly List<TodoItemTag> _tags = new();
         private readonly List<TodoItemShare> _sharedWith = new();
+        private readonly List<TodoItemWorker> _workers = new();
 
         public string Title { get; private set; } = string.Empty;
         public string? Description { get; private set; }
@@ -22,8 +23,13 @@ namespace Planora.Todo.Domain.Entities
         public bool Hidden { get; private set; } = false;
         public bool IsCompleted => Status == TodoStatus.Done;
         public DateTime? CompletedAt { get; private set; }
+        public int? RequiredWorkers { get; private set; }
         public IReadOnlyCollection<TodoItemTag> Tags => _tags.AsReadOnly();
         public IReadOnlyCollection<TodoItemShare> SharedWith => _sharedWith.AsReadOnly();
+        public IReadOnlyCollection<TodoItemWorker> Workers => _workers.AsReadOnly();
+
+        public bool IsCapacityFull =>
+            RequiredWorkers.HasValue && _workers.Count >= RequiredWorkers.Value - 1;
 
         private TodoItem() { }
 
@@ -36,7 +42,8 @@ namespace Planora.Todo.Domain.Entities
             DateTime? expectedDate = null,
             TodoPriority priority = TodoPriority.Medium,
             bool isPublic = false,
-            IEnumerable<Guid>? sharedWithUserIds = null)
+            IEnumerable<Guid>? sharedWithUserIds = null,
+            int? requiredWorkers = null)
         {
             if (string.IsNullOrWhiteSpace(title))
                 throw new InvalidValueObjectException(nameof(TodoItem), "Title cannot be empty");
@@ -63,6 +70,10 @@ namespace Planora.Todo.Domain.Entities
             if (sharedWithUserIds != null)
             {
                 todoItem.SetSharedWith(sharedWithUserIds, userId);
+            }
+            if (requiredWorkers.HasValue)
+            {
+                todoItem.SetRequiredWorkers(requiredWorkers, userId);
             }
             todoItem.MarkAsModified(userId);
 
@@ -130,6 +141,8 @@ namespace Planora.Todo.Domain.Entities
         public void SetPublic(bool isPublic, Guid userId)
         {
             IsPublic = isPublic;
+            if (!isPublic)
+                CleanupWorkersOnAccessChange(_sharedWith.Select(s => s.SharedWithUserId));
             MarkAsModified(userId);
         }
 
@@ -245,7 +258,79 @@ namespace Planora.Todo.Domain.Entities
                 });
             }
 
+            CleanupWorkersOnAccessChange(_sharedWith.Select(s => s.SharedWithUserId));
             MarkAsModified(userId);
+        }
+
+        public void SetRequiredWorkers(int? value, Guid userId)
+        {
+            if (value.HasValue)
+            {
+                if (value.Value < 1)
+                    throw new InvalidValueObjectException(nameof(TodoItem), "RequiredWorkers must be at least 1");
+
+                if (!IsPublic && _sharedWith.Any())
+                {
+                    var maxAllowed = 1 + _sharedWith.Count;
+                    if (value.Value > maxAllowed)
+                        throw new InvalidValueObjectException(
+                            nameof(TodoItem),
+                            $"RequiredWorkers cannot exceed 1 (owner) + {_sharedWith.Count} (shared users) = {maxAllowed}");
+                }
+
+                // Evict most-recently-joined workers when capacity shrinks
+                var capacity = value.Value - 1; // owner occupies 1 slot
+                while (_workers.Count > capacity)
+                {
+                    var evicted = _workers.OrderByDescending(w => w.JoinedAt).First();
+                    _workers.Remove(evicted);
+                    AddDomainEvent(new TodoWorkerRemovedDomainEvent(Id, evicted.UserId));
+                }
+            }
+
+            RequiredWorkers = value;
+            MarkAsModified(userId);
+        }
+
+        public void AddWorker(Guid workerUserId)
+        {
+            if (workerUserId == UserId)
+                throw new BusinessRuleViolationException("Owner is always a worker on their own task");
+
+            if (_workers.Any(w => w.UserId == workerUserId))
+                throw new BusinessRuleViolationException("You are already working on this task");
+
+            if (IsCapacityFull)
+                throw new BusinessRuleViolationException("This task is already at full capacity");
+
+            _workers.Add(new TodoItemWorker
+            {
+                TodoItemId = Id,
+                UserId = workerUserId,
+                JoinedAt = DateTime.UtcNow,
+            });
+
+            AddDomainEvent(new TodoWorkerJoinedDomainEvent(Id, workerUserId));
+        }
+
+        public void RemoveWorker(Guid workerUserId)
+        {
+            var worker = _workers.FirstOrDefault(w => w.UserId == workerUserId)
+                ?? throw new EntityNotFoundException(nameof(TodoItemWorker), workerUserId);
+
+            _workers.Remove(worker);
+            AddDomainEvent(new TodoWorkerLeftDomainEvent(Id, workerUserId));
+        }
+
+        private void CleanupWorkersOnAccessChange(IEnumerable<Guid> allowedUserIds)
+        {
+            var allowed = new HashSet<Guid>(allowedUserIds);
+            var toEvict = _workers.Where(w => !allowed.Contains(w.UserId)).ToList();
+            foreach (var worker in toEvict)
+            {
+                _workers.Remove(worker);
+                AddDomainEvent(new TodoWorkerRemovedDomainEvent(Id, worker.UserId));
+            }
         }
     }
 }

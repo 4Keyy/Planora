@@ -79,6 +79,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .AsSplitQuery()
                 .Include(t => t.Tags)
                 .Include(t => t.SharedWith)
+                .Include(t => t.Workers)
                 .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted, cancellationToken);
         }
 
@@ -111,6 +112,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .AsSplitQuery()
                 .Include(t => t.Tags)
                 .Include(t => t.SharedWith)
+                .Include(t => t.Workers)
                 .ToListAsync(cancellationToken);
 
             return (items, totalCount);
@@ -127,6 +129,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .Where(t => !t.IsDeleted)
                 .Include(t => t.Tags)
                 .Include(t => t.SharedWith)
+                .Include(t => t.Workers)
                 .ToListAsync(cancellationToken);
         }
 
@@ -157,6 +160,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .Take(safePageSize)
                 .Include(t => t.Tags)
                 .Include(t => t.SharedWith)
+                .Include(t => t.Workers)
                 .AsSplitQuery()
                 .ToListAsync(cancellationToken);
 

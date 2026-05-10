@@ -7,6 +7,7 @@ namespace Planora.Todo.Infrastructure.Persistence
         public DbSet<TodoItem> TodoItems => Set<TodoItem>();
         public DbSet<TodoItemShare> TodoItemShares => Set<TodoItemShare>();
         public DbSet<UserTodoViewPreference> UserTodoViewPreferences => Set<UserTodoViewPreference>();
+        public DbSet<TodoItemComment> TodoItemComments => Set<TodoItemComment>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

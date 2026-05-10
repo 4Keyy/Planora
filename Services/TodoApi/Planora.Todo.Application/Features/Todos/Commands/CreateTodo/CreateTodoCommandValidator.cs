@@ -20,6 +20,10 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
                 .Must(x => !x.ExpectedDate.HasValue || !x.DueDate.HasValue || x.ExpectedDate.Value <= x.DueDate.Value)
                 .WithMessage("Expected date cannot be after due date")
                 .When(x => x.ExpectedDate.HasValue && x.DueDate.HasValue);
+
+            RuleFor(x => x.RequiredWorkers)
+                .GreaterThanOrEqualTo(1).WithMessage("RequiredWorkers must be at least 1")
+                .When(x => x.RequiredWorkers.HasValue);
         }
     }
 }

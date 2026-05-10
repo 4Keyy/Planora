@@ -416,6 +416,12 @@ All routes require bearer auth.
 | `DELETE` | `/{id}` | delete todo |
 | `PATCH` | `/{id}/hidden` | owner hidden toggle |
 | `PATCH` | `/{id}/viewer-preferences` | non-owner viewer hidden/category preference |
+| `POST` | `/{id}/join` | join task as a worker |
+| `POST` | `/{id}/leave` | leave task (stop being a worker) |
+| `GET` | `/{id}/comments?pageNumber=1&pageSize=50` | get paginated comments (oldest-first) |
+| `POST` | `/{id}/comments` | add a comment |
+| `PUT` | `/{id}/comments/{commentId}` | edit own comment |
+| `DELETE` | `/{id}/comments/{commentId}` | soft-delete comment (author or task owner) |
 
 Create body:
 
@@ -429,7 +435,8 @@ Create body:
   "expectedDate": "2026-05-09T12:00:00Z",
   "priority": "Medium",
   "isPublic": false,
-  "sharedWithUserIds": []
+  "sharedWithUserIds": [],
+  "requiredWorkers": 3
 }
 ```
 
@@ -446,7 +453,9 @@ Update body fields are optional:
   "priority": "High",
   "isPublic": true,
   "sharedWithUserIds": ["00000000-0000-0000-0000-000000000000"],
-  "status": "InProgress"
+  "status": "InProgress",
+  "requiredWorkers": 3,
+  "clearRequiredWorkers": false
 }
 ```
 
@@ -459,7 +468,20 @@ Rules:
 - shared users must be accepted friends;
 - `isPublic` is independent from `sharedWithUserIds`; public tasks are visible to all accepted friends, direct shares are visible to the selected accepted friends;
 - non-owner friend-visible viewer can only change `status`;
-- backend statuses are `Todo`, `InProgress`, `Done`; parser also accepts aliases.
+- backend statuses are `Todo`, `InProgress`, `Done`; parser also accepts aliases;
+- `requiredWorkers` must be ≥ 1 when set; for non-public tasks it cannot exceed `1 + sharedWith.Count`;
+- set `clearRequiredWorkers: true` to remove the capacity limit on update.
+
+`TodoItemDto` worker fields:
+
+```json
+{
+  "requiredWorkers": 3,
+  "workerCount": 1,
+  "isWorking": true,
+  "workerUserIds": ["00000000-0000-0000-0000-000000000000"]
+}
+```
 
 Hidden toggle body:
 
@@ -476,6 +498,88 @@ Viewer preference body:
   "updateViewerCategory": true
 }
 ```
+
+### `POST /{id}/join`
+
+Join the task as a worker. Requires friendship with the task owner and access to the task (public or shared). Owner cannot join their own task. Fails if already a worker or at capacity.
+
+Success `200`: updated `TodoItemDto` with `isWorking: true`.
+
+Errors: `400` for duplicate join, capacity full, or owner attempting to join; `403` for non-friend or no access; `404` if task not found.
+
+### `POST /{id}/leave`
+
+Leave a task. Fails if not currently a worker or if the user is the task owner.
+
+Success `204 No Content`.
+
+Errors: `400` for owner or non-worker; `404` if task not found.
+
+### `GET /{id}/comments`
+
+Get paginated comments for a task. Access requires task visibility (public/shared) and friendship with the owner. Default page size is 50. Comments are ordered oldest-first.
+
+Success `200`: `PagedResult<TodoCommentDto>`.
+
+`TodoCommentDto` shape:
+
+```json
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "todoItemId": "00000000-0000-0000-0000-000000000000",
+  "authorId": "00000000-0000-0000-0000-000000000000",
+  "authorName": "Alice",
+  "content": "Looks good!",
+  "createdAt": "2026-05-10T14:00:00Z",
+  "updatedAt": null,
+  "isOwn": true,
+  "isEdited": false
+}
+```
+
+`isOwn` is `true` when `authorId == currentUserId`. `isEdited` is `true` when `updatedAt > createdAt + 5 seconds`.
+
+Errors: `400` for unauthenticated; `403` for no access or non-friend; `404` if task not found.
+
+### `POST /{id}/comments`
+
+Add a comment. Only the task owner or an active worker can post.
+
+Body:
+
+```json
+{ "content": "Great progress!" }
+```
+
+`content` required, max 2000 characters.
+
+Success `201 Created`: `TodoCommentDto`.
+
+Errors: `400` validation failure; `403` if not owner or active worker, or non-friend.
+
+### `PUT /{id}/comments/{commentId}`
+
+Edit a comment. Only the comment author can edit.
+
+Body:
+
+```json
+{ "content": "Updated text" }
+```
+
+`content` required, max 2000 characters.
+
+Success `200`: updated `TodoCommentDto`.
+
+Errors: `400` if comment not found or wrong todo scope; `403` if not the author.
+
+### `DELETE /{id}/comments/{commentId}`
+
+Soft-delete a comment. Allowed for the comment author or the task owner.
+
+Success `204 No Content`.
+
+Errors: `400` if comment not found or wrong todo scope; `403` if not author or task owner.
 
 Hidden shared/public todos may return a redacted `TodoItemDto`; see [`features.md`](features.md#shared-todos-and-hidden-viewer-preferences).
 

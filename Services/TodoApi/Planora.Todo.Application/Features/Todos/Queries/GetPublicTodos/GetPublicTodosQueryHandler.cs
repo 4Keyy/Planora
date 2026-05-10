@@ -9,7 +9,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
 {
     public sealed class GetPublicTodosQueryHandler : IRequestHandler<GetPublicTodosQuery, Result<PagedResult<TodoItemDto>>>
     {
-        private readonly IRepository<TodoItem> _repository;
+        private readonly ITodoRepository _repository;
         private readonly IMapper _mapper;
         private readonly ILogger<GetPublicTodosQueryHandler> _logger;
         private readonly ICurrentUserContext _currentUserContext;
@@ -17,7 +17,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
         private readonly IUserTodoViewPreferenceRepository _viewerPreferenceRepository;
 
         public GetPublicTodosQueryHandler(
-            IRepository<TodoItem> repository,
+            ITodoRepository repository,
             IMapper mapper,
             ILogger<GetPublicTodosQueryHandler> logger,
             ICurrentUserContext currentUserContext,
@@ -66,15 +66,14 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                         return Result<PagedResult<TodoItemDto>>.Failure(new Error("NOT_FRIENDS", "User is not a friend"));
                     }
 
-                    var (friendItems, friendTotalCount) = await _repository.GetPagedAsync(
-                        request.PageNumber,
-                        request.PageSize,
+                    var (friendItems, friendTotalCount) = await _repository.FindPageWithIncludesAsync(
                         t => t.UserId == request.FriendId &&
                              (t.IsPublic || t.SharedWith.Any(s => s.SharedWithUserId == userId)) &&
                              !t.IsDeleted &&
                              !hiddenTodoIds.Contains(t.Id),
-                        t => t.CreatedAt,
                         false,
+                        request.PageNumber,
+                        request.PageSize,
                         cancellationToken);
 
                     var friendDtos = friendItems.Select(item =>
@@ -103,7 +102,11 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                             HasSharedAudience = dto.HasSharedAudience,
                             IsVisuallyUrgent = dto.IsVisuallyUrgent,
                             CreatedAt = dto.CreatedAt,
-                            UpdatedAt = dto.UpdatedAt
+                            UpdatedAt = dto.UpdatedAt,
+                            WorkerCount = item.Workers.Count,
+                            WorkerUserIds = item.Workers.Select(w => w.UserId).ToList(),
+                            RequiredWorkers = item.RequiredWorkers,
+                            IsWorking = item.UserId != userId && item.Workers.Any(w => w.UserId == userId),
                         };
                     }).ToList();
 
@@ -127,19 +130,17 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                     !t.IsDeleted &&
                     !hiddenTodoIds.Contains(t.Id));
 
-                var (items, totalCount) = await _repository.GetPagedAsync(
+                var (items, totalCount) = await _repository.FindPageWithIncludesAsync(
+                    predicate,
+                    false,
                     request.PageNumber,
                     request.PageSize,
-                    predicate,
-                    t => t.CreatedAt,
-                    false,
                     cancellationToken);
 
                 // Map to DTOs, excluding CategoryId for public todos (as per requirements)
                 var dtos = items.Select(item =>
                 {
                     var dto = _mapper.Map<TodoItemDto>(item);
-                    // Create a new DTO without CategoryId for public todos
                     return new TodoItemDto
                     {
                         Id = dto.Id,
@@ -163,7 +164,11 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                         HasSharedAudience = dto.HasSharedAudience,
                         IsVisuallyUrgent = dto.IsVisuallyUrgent,
                         CreatedAt = dto.CreatedAt,
-                        UpdatedAt = dto.UpdatedAt
+                        UpdatedAt = dto.UpdatedAt,
+                        WorkerCount = item.Workers.Count,
+                        WorkerUserIds = item.Workers.Select(w => w.UserId).ToList(),
+                        RequiredWorkers = item.RequiredWorkers,
+                        IsWorking = item.UserId != userId && item.Workers.Any(w => w.UserId == userId),
                     };
                 }).ToList();
 

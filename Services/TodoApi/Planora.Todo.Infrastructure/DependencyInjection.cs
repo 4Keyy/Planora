@@ -36,6 +36,7 @@ namespace Planora.Todo.Infrastructure
             services.AddScoped<ITodoRepository, TodoRepository>();
             services.AddScoped<IRepository<TodoItem>, TodoRepository>();
             services.AddScoped<IUserTodoViewPreferenceRepository, UserTodoViewPreferenceRepository>();
+            services.AddScoped<ITodoCommentRepository, TodoCommentRepository>();
             
             // Services
             services.AddHttpContextAccessor();

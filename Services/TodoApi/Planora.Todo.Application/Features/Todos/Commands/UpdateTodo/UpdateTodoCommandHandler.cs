@@ -70,7 +70,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 // Check if trying to modify anything other than status
                 if (request.Title != null || request.Description != null || request.CategoryId != null ||
                     request.DueDate != null || request.ExpectedDate != null || request.ActualDate != null ||
-                    request.Priority.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null)
+                    request.Priority.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null ||
+                    request.RequiredWorkers.HasValue || request.ClearRequiredWorkers)
                 {
                     throw new ForbiddenException("You can only mark friend-visible tasks as complete, not edit them");
                 }
@@ -138,6 +139,11 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 todoItem.SetPublic(request.IsPublic.Value, userId);
             }
 
+            if (request.ClearRequiredWorkers)
+                todoItem.SetRequiredWorkers(null, userId);
+            else if (request.RequiredWorkers.HasValue)
+                todoItem.SetRequiredWorkers(request.RequiredWorkers.Value, userId);
+
             if (!string.IsNullOrEmpty(request.Status))
             {
                 var status = TodoStatusExtensions.FromString(request.Status);
@@ -166,7 +172,13 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
 
             _logger.LogInformation("Todo item updated: {TodoId} by user {UserId}", request.TodoId, userId);
 
-            var dto = _mapper.Map<TodoItemDto>(todoItem);
+            var dto = _mapper.Map<TodoItemDto>(todoItem) with
+            {
+                WorkerCount = todoItem.Workers.Count,
+                WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
+                RequiredWorkers = todoItem.RequiredWorkers,
+                IsWorking = todoItem.UserId != userId && todoItem.Workers.Any(w => w.UserId == userId),
+            };
 
             if (!isOwner)
             {

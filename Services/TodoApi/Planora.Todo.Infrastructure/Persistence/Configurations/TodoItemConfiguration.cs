@@ -73,6 +73,13 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
                 .WithOne()
                 .HasForeignKey(x => x.TodoItemId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Property(x => x.RequiredWorkers).IsRequired(false);
+
+            builder.HasMany(x => x.Workers)
+                .WithOne()
+                .HasForeignKey(x => x.TodoItemId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
