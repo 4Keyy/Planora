@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file MD041 -->
 <p align="center">
   <img src="docs/assets/logo.svg" alt="Planora" width="72" height="72" />
 </p>
@@ -82,7 +83,7 @@ The repository is not a single monolith — it is a service-oriented codebase wi
 
 ## Quick Start
 
-**1. Clone and create the environment file**
+### 1. Clone and create the environment file
 
 ```powershell
 git clone https://github.com/4kkkk/Planora.git
@@ -90,7 +91,7 @@ cd Planora
 Copy-Item .env.example .env
 ```
 
-**2. Fill in the required secrets**
+### 2. Fill in the required secrets
 
 ```env
 POSTGRES_PASSWORD=<strong-password>
@@ -101,11 +102,12 @@ JWT_SECRET=<at-least-32-characters>
 ```
 
 Generate a strong JWT secret:
+
 ```powershell
 [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
 ```
 
-**3. Start the stack**
+### 3. Start the stack
 
 ```powershell
 # Docker backend + local frontend (recommended for most development)
@@ -115,14 +117,14 @@ Generate a strong JWT secret:
 .\Start-Planora-Local.ps1
 ```
 
-**4. Open the app**
+### 4. Open the app
 
 | Endpoint | URL |
 |---|---|
-| Frontend | http://localhost:3000 |
-| API Gateway | http://localhost:5132 |
-| Gateway health | http://localhost:5132/health |
-| RabbitMQ UI | http://localhost:15672 |
+| Frontend | <http://localhost:3000> |
+| API Gateway | <http://localhost:5132> |
+| Gateway health | <http://localhost:5132/health> |
+| RabbitMQ UI | <http://localhost:15672> |
 
 ## Manual Commands
 

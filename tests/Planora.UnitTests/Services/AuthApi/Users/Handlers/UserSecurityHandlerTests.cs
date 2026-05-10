@@ -194,7 +194,7 @@ public class UserSecurityHandlerTests
         Assert.False(user.IsEmailVerified);
         Assert.NotNull(user.EmailVerificationToken);
         Assert.NotNull(verificationLink);
-        Assert.StartsWith("https://app.example.com/verify-email?token=", verificationLink);
+        Assert.StartsWith("https://app.example.com/auth/verify-email?token=", verificationLink);
         var rawToken = new Uri(verificationLink!).Query.TrimStart('?').Split('=')[1];
         Assert.Equal(OpaqueToken.Hash(rawToken), user.EmailVerificationToken);
         fixture.Users.Verify(x => x.Update(user), Times.Once);

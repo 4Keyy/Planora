@@ -75,7 +75,7 @@ public class AuthLifecycleHandlerTests
         Assert.NotNull(addedUser.EmailVerificationToken);
         Assert.DoesNotContain("verify-email?token=", addedUser.EmailVerificationToken);
         Assert.NotNull(verificationLink);
-        Assert.StartsWith("https://app.example.com/verify-email?token=", verificationLink);
+        Assert.StartsWith("https://app.example.com/auth/verify-email?token=", verificationLink);
         Assert.Equal(OpaqueToken.Hash(new Uri(verificationLink!).Query.TrimStart('?').Split('=')[1]), addedUser.EmailVerificationToken);
 
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
