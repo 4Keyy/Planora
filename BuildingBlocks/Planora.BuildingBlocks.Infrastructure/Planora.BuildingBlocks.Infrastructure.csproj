@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="MediatR" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" />
     <PackageReference Include="Polly.RateLimiting" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
