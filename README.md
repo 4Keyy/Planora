@@ -10,11 +10,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/4kkkk/Planora/actions/workflows/ci.yml">
-    <img alt="CI" src="https://github.com/4kkkk/Planora/actions/workflows/ci.yml/badge.svg" />
+  <a href="https://github.com/4Keyy/Planora/actions/workflows/ci.yml">
+    <img alt="CI" src="https://github.com/4Keyy/Planora/actions/workflows/ci.yml/badge.svg" />
   </a>
-  <a href="https://github.com/4kkkk/Planora/actions/workflows/security.yml">
-    <img alt="Security Scan" src="https://github.com/4kkkk/Planora/actions/workflows/security.yml/badge.svg" />
+  <a href="https://github.com/4Keyy/Planora/actions/workflows/security.yml">
+    <img alt="Security Scan" src="https://github.com/4Keyy/Planora/actions/workflows/security.yml/badge.svg" />
   </a>
   <a href="LICENSE">
     <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" />
@@ -86,7 +86,7 @@ The repository is not a single monolith — it is a service-oriented codebase wi
 ### 1. Clone and create the environment file
 
 ```powershell
-git clone https://github.com/4kkkk/Planora.git
+git clone https://github.com/4Keyy/Planora.git
 cd Planora
 Copy-Item .env.example .env
 ```

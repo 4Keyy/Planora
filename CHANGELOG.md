@@ -1,10 +1,14 @@
 # Changelog
 
-This project did not have a changelog before this documentation pass. Use this file for human-readable release notes going forward.
+All notable changes to Planora are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-Format: keep entries under `Unreleased` until a version/date is chosen.
+## [1.0.0] — 2026-05-10
 
-## Unreleased
+### Highlights
+
+First public release of Planora — a .NET 9 microservice backend with a Next.js 15 frontend for personal productivity management.
+
+## [0.1.0] — 2026-04-24
 
 ### Frontend — Visual Design
 
@@ -50,3 +54,6 @@ Format: keep entries under `Unreleased` until a version/date is chosen.
 ### Project Metadata
 
 - Added MIT license.
+
+[1.0.0]: https://github.com/4Keyy/Planora/releases/tag/v1.0.0
+[0.1.0]: https://github.com/4Keyy/Planora/releases/tag/v0.1.0
