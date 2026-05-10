@@ -9,6 +9,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Grpc.AspNetCore" />
+		<PackageReference Include="Grpc.Net.Client" VersionOverride="2.80.0" />
 		<PackageReference Include="Grpc.Tools" PrivateAssets="All" />
 		<PackageReference Include="Google.Protobuf" />
 	</ItemGroup>
