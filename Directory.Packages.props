@@ -16,7 +16,7 @@
     <PackageVersion Include="MediatR" Version="12.4.1" />
     <PackageVersion Include="FluentValidation" Version="11.9.2" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.9.2" />
-    <PackageVersion Include="AutoMapper" Version="15.1.1" />
+    <PackageVersion Include="AutoMapper" Version="16.1.1" />
     <PackageVersion Include="Polly" Version="8.6.5" />
     <PackageVersion Include="Polly.Extensions.Http" Version="3.0.0" />
     <PackageVersion Include="Polly.RateLimiting" Version="8.6.6" />
