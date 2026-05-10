@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+option csharp_namespace = "Planora.GrpcContracts";
+
+package messaging;
+
+service MessagingService {
+  rpc SendMessage (SendMessageRequest) returns (SendMessageResponse);
+  rpc GetMessages (GetMessagesRequest) returns (GetMessagesResponse);
+}
+
+message MessageModel {
+  string id = 1;
+  string sender_id = 2;
+  string receiver_id = 3;
+  string content = 4;
+  string created_at = 5;
+  bool is_read = 6;
+}
+
+message SendMessageRequest {
+  string sender_id = 1;
+  string receiver_id = 2;
+  string content = 3;
+}
+
+message SendMessageResponse {
+  string id = 1;
+}
+
+message GetMessagesRequest {
+  string user_id = 1;
+  string other_user_id = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetMessagesResponse {
+  repeated MessageModel messages = 1;
+  int32 total_count = 2;
+}

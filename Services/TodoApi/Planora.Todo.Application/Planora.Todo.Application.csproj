@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MediatR" />
+		<PackageReference Include="FluentValidation" />
+		<PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+		<PackageReference Include="AutoMapper" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\..\BuildingBlocks\Planora.BuildingBlocks.Application\Planora.BuildingBlocks.Application.csproj" />
+		<ProjectReference Include="..\..\..\BuildingBlocks\Planora.BuildingBlocks.Domain\Planora.BuildingBlocks.Domain.csproj" />
+		<ProjectReference Include="..\..\..\BuildingBlocks\Planora.BuildingBlocks.Infrastructure\Planora.BuildingBlocks.Infrastructure.csproj" />
+		<ProjectReference Include="..\Planora.Todo.Domain\Planora.Todo.Domain.csproj" />
+	</ItemGroup>
+
+</Project>

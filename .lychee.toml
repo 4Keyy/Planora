@@ -1,0 +1,13 @@
+exclude_path = [
+  "graphify-out",
+  "frontend/node_modules",
+  "frontend/.next",
+  "frontend/coverage",
+  "frontend/test-results",
+  "frontend/playwright-report",
+  "coverage",
+]
+
+accept = [200, 206, 429]
+max_retries = 2
+timeout = 20

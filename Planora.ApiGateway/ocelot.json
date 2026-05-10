@@ -1,0 +1,216 @@
+{
+  "Routes": [
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5032 } ],
+      "UpstreamPathTemplate": "/realtime/health",
+      "UpstreamHttpMethod": [ "GET" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/auth/health",
+      "UpstreamHttpMethod": [ "GET" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5100 } ],
+      "UpstreamPathTemplate": "/todos/health",
+      "UpstreamHttpMethod": [ "GET" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5281 } ],
+      "UpstreamPathTemplate": "/categories/health",
+      "UpstreamHttpMethod": [ "GET" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5058 } ],
+      "UpstreamPathTemplate": "/messaging/health",
+      "UpstreamHttpMethod": [ "GET" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/Authentication/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/auth/api/v1/auth/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/Users/verify-email",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/auth/api/v1/users/verify-email",
+      "UpstreamHttpMethod": [ "GET", "OPTIONS" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/Users/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/auth/api/v1/users/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/Friendships/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/auth/api/v1/friendships/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/Friendships",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/auth/api/v1/friendships",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/Analytics/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/auth/api/v1/analytics/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5281 } ],
+      "UpstreamPathTemplate": "/categories/api/v1/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false },
+      "QoSOptions": { "MinimumThroughput": 3, "BreakDuration": 30000, "Timeout": 30000 }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5100 } ],
+      "UpstreamPathTemplate": "/todos/api/v1/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5058 } ],
+      "UpstreamPathTemplate": "/messaging/api/v1/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/Friendships/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/friendships/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/Friendships",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/friendships",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/{everything}",
+      "DownstreamScheme": "ws",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5032 } ],
+      "UpstreamPathTemplate": "/realtime/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "http://127.0.0.1:5132"
+  }
+}

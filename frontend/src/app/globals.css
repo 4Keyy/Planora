@@ -1,0 +1,360 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-size: 16px;
+    /* overflow-y: scroll keeps scrollbar always visible — prevents Radix UI from
+       causing horizontal page shift when it locks body scroll on dropdown open */
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+    @apply font-sans;
+  }
+
+  /* react-remove-scroll-bar (used by Radix UI Select / Dialog / etc.) sets
+     body[data-scroll-locked] with `margin-right: <scrollbarWidth>px !important`
+     (and possibly padding-right depending on gapMode) to compensate for the
+     disappearing scrollbar. Since our scrollbar lives on <html> (always
+     visible via overflow-y:scroll above), the scrollbar never actually
+     disappears — so any compensation just shifts the page horizontally.
+     We use html-prefixed selector to outrank the JS-injected stylesheet's
+     specificity (0,1,2 vs 0,1,1) and !important as belt-and-braces. */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  body {
+    background-color: transparent;
+    color: #111;
+    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1, "kern" 1;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+    @apply text-foreground;
+  }
+
+  /* Tight tracking only for heavy display headings */
+  h1, h2 {
+    letter-spacing: -0.02em;
+  }
+  h3 {
+    letter-spacing: -0.01em;
+  }
+
+  a, button {
+    transition-property: color, background-color, border-color, opacity, transform, box-shadow;
+    transition-duration: 0.2s;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Minimal focus */
+  :focus-visible {
+    outline: 2px solid rgba(0,0,0,0.08);
+    outline-offset: 1px;
+    border-radius: 8px;
+  }
+
+  /* Text selection styling */
+  ::selection {
+    background-color: #000;
+    color: #fff;
+  }
+
+  ::-moz-selection {
+    background-color: #000;
+    color: #fff;
+  }
+  .theme {
+    --font-heading: var(--font-sans);
+  }
+  :root {
+    --font-sans: "Plus Jakarta Sans";
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+  }
+  .dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
+
+@layer components {
+  /* Premium container with proper padding and width */
+  .container-premium {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Fade in animation utility */
+  .fade-in {
+    animation: fade-in 0.5s ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Text utilities for better hierarchy */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Better link styling */
+  .link-premium {
+    @apply text-black no-underline transition-all duration-200 hover:text-opacity-70;
+  }
+
+  /* Card with premium styling */
+  .card-premium {
+    @apply rounded-2xl border border-gray-100 bg-white/95 shadow-card transition-all duration-300 hover:shadow-card-hover hover:border-gray-200;
+  }
+}
+
+@layer utilities {
+  .ease-spring {
+    transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  /* Ultra Glass - Enhanced */
+  .glass {
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+
+  /* Ultra Glass Dark variant */
+  .glass-dark {
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* Ultra Shadow - Multiple layers for depth */
+  .shadow-soft-xl {
+    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.08), 0 0 1px rgba(0,0,0,0.04);
+  }
+
+  /* Enhanced shadow for cards */
+  .shadow-card {
+    box-shadow: 0 10px 30px -12px rgba(0,0,0,0.1), 0 0 1px rgba(0,0,0,0.05);
+  }
+
+  /* Hover shadow elevation */
+  .shadow-card-hover {
+    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.15), 0 0 1px rgba(0,0,0,0.08);
+  }
+
+  /* Premium shadow for modals */
+  .shadow-modal {
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+  }
+
+  /* Subtle shadow for inputs */
+  .shadow-input {
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  /* Gradient text utility */
+  .gradient-text {
+    background: linear-gradient(135deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Shimmer skeleton - Enhanced */
+  .skeleton {
+    background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 2s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    50% { background-position: 0% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Pulse animation for emphasis */
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .animate-pulse-soft {
+    animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Bounce animation for interactive elements */
+  @keyframes bounce-gentle {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+
+  .animate-bounce-gentle {
+    animation: bounce-gentle 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+  }
+
+  /* Glow effect for highlights */
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+    50% { box-shadow: 0 0 15px rgba(0,0,0,0.15); }
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite;
+  }
+
+  /* Page fade-in - Enhanced */
+  .page-enter {
+    animation: page-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes page-fade {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Smooth page transitions */
+  .page-transition {
+    animation: page-fade 0.5s ease-out forwards;
+  }
+
+  /* Stagger animation for lists */
+  .stagger-list > * {
+    animation: page-fade 0.4s ease-out backwards;
+  }
+
+  .stagger-list > *:nth-child(1) { animation-delay: 0.05s; }
+  .stagger-list > *:nth-child(2) { animation-delay: 0.1s; }
+  .stagger-list > *:nth-child(3) { animation-delay: 0.15s; }
+  .stagger-list > *:nth-child(4) { animation-delay: 0.2s; }
+  .stagger-list > *:nth-child(5) { animation-delay: 0.25s; }
+  .stagger-list > *:nth-child(n+6) { animation-delay: 0.3s; }
+
+}
+
+/* Task card density modifiers */
+.task-card--sparse {
+  min-height: 3rem;
+}
+.task-card--dense {
+  /* Allow description to show 3 lines instead of 2 */
+}
+.task-card--dense p.line-clamp-2 {
+  -webkit-line-clamp: 3;
+}
+
+/* System-wide thin scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #e5e7eb transparent;
+}
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
+*::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+
+/* Spellcheck/grammar underline color */
+::spelling-error {
+  text-decoration: underline wavy #000;
+}
+::grammar-error {
+  text-decoration: underline wavy #000;
+}
+::-webkit-spelling-error {
+  text-decoration: underline wavy #000;
+}
+::-webkit-grammar-error {
+  text-decoration: underline wavy #000;
+}

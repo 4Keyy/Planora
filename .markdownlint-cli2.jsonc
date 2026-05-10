@@ -1,0 +1,26 @@
+{
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD029": false,
+    "MD024": {
+      "siblings_only": true
+    },
+    "MD033": false,
+    "MD060": false
+  },
+  "globs": [
+    "*.md",
+    "docs/**/*.md"
+  ],
+  "ignores": [
+    "graphify-out/**",
+    "frontend/node_modules/**",
+    "**/bin/**",
+    "**/obj/**",
+    "**/.next/**",
+    "**/coverage/**",
+    "**/test-results/**",
+    "**/playwright-report/**"
+  ]
+}

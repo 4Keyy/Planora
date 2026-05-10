@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="Grpc.Core.Testing" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\AuthApi\Planora.Auth.Api\Planora.Auth.Api.csproj" />
+    <ProjectReference Include="..\..\Services\AuthApi\Planora.Auth.Application\Planora.Auth.Application.csproj" />
+    <ProjectReference Include="..\..\Services\AuthApi\Planora.Auth.Infrastructure\Planora.Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\CategoryApi\Planora.Category.Api\Planora.Category.Api.csproj" />
+    <ProjectReference Include="..\..\Services\CategoryApi\Planora.Category.Infrastructure\Planora.Category.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\RealtimeApi\Planora.Realtime.Api\Planora.Realtime.Api.csproj" />
+    <ProjectReference Include="..\..\Services\RealtimeApi\Planora.Realtime.Application\Planora.Realtime.Application.csproj" />
+    <ProjectReference Include="..\..\Services\RealtimeApi\Planora.Realtime.Domain\Planora.Realtime.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\MessagingApi\Planora.Messaging.Application\Planora.Messaging.Application.csproj" />
+    <ProjectReference Include="..\..\Services\MessagingApi\Planora.Messaging.Domain\Planora.Messaging.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\CategoryApi\Planora.Category.Application\Planora.Category.Application.csproj" />
+    <ProjectReference Include="..\..\Services\CategoryApi\Planora.Category.Domain\Planora.Category.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\TodoApi\Planora.Todo.Api\Planora.Todo.Api.csproj" />
+    <ProjectReference Include="..\..\Services\TodoApi\Planora.Todo.Application\Planora.Todo.Application.csproj" />
+    <ProjectReference Include="..\..\Services\TodoApi\Planora.Todo.Domain\Planora.Todo.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\TodoApi\Planora.Todo.Infrastructure\Planora.Todo.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\GrpcContracts\GrpcContracts.csproj" />
+  </ItemGroup>
+
+</Project>

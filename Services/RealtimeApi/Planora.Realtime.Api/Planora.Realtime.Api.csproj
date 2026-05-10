@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<LangVersion>latest</LangVersion>
+		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+		<UserSecretsId>realtime-api-secrets</UserSecretsId>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Grpc.AspNetCore" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+		<PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
+		<PackageReference Include="MediatR" />
+		<PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+		<PackageReference Include="OpenTelemetry.Exporter.Console" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\..\BuildingBlocks\Planora.BuildingBlocks.Application\Planora.BuildingBlocks.Application.csproj" />
+		<ProjectReference Include="..\..\..\BuildingBlocks\Planora.BuildingBlocks.Domain\Planora.BuildingBlocks.Domain.csproj" />
+		<ProjectReference Include="..\..\..\BuildingBlocks\Planora.BuildingBlocks.Infrastructure\Planora.BuildingBlocks.Infrastructure.csproj" />
+		<ProjectReference Include="..\Planora.Realtime.Application\Planora.Realtime.Application.csproj" />
+		<ProjectReference Include="..\Planora.Realtime.Domain\Planora.Realtime.Domain.csproj" />
+		<ProjectReference Include="..\Planora.Realtime.Infrastructure\Planora.Realtime.Infrastructure.csproj" />
+		<ProjectReference Include="..\..\..\GrpcContracts\GrpcContracts.csproj" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+option csharp_namespace = "Planora.GrpcContracts";
+
+package realtime;
+
+service RealtimeService {
+  rpc SendNotification (SendNotificationRequest) returns (SendNotificationResponse);
+  rpc BroadcastNotification (BroadcastNotificationRequest) returns (BroadcastNotificationResponse);
+}
+
+message SendNotificationRequest {
+  string user_id = 1;
+  string message = 2;
+  string type = 3;
+}
+
+message SendNotificationResponse {
+  bool success = 1;
+}
+
+message BroadcastNotificationRequest {
+  string message = 1;
+  string type = 2;
+}
+
+message BroadcastNotificationResponse {
+  bool success = 1;
+}

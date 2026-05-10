@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Development": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://0.0.0.0:5132",
+      "hotReloadProfile": "aspnetcore",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "GATEWAY_DB_CONNECTION": "Host=localhost;Port=5432;Database=planora-gateway;Username=postgres;Password=postgres",
+        "REDIS_CONNECTION": "localhost:6379,abortConnect=false",
+        "RABBITMQ_HOST": "localhost",
+        "RABBITMQ_PORT": "5672",
+        "RABBITMQ_USER": "guest",
+        "RABBITMQ_PASSWORD": "guest",
+        "JWT_SECRET": "DevSecret_ChangeInProd_AtLeast32Chars",
+        "JWT_ISSUER": "planora.local",
+        "JWT_AUDIENCE": "planora.clients"
+      }
+    },
+    "Staging": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:6000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Staging",
+        "GATEWAY_DB_CONNECTION": "Host=postgres;Port=5432;Database=planora-gateway;Username=postgres;Password=postgres",
+        "REDIS_CONNECTION": "redis:6379,abortConnect=false",
+        "RABBITMQ_HOST": "rabbitmq",
+        "RABBITMQ_PORT": "5672",
+        "RABBITMQ_USER": "guest",
+        "RABBITMQ_PASSWORD": "guest",
+        "JWT_SECRET": "StagingSecret_AtLeast32Chars",
+        "JWT_ISSUER": "planora.local",
+        "JWT_AUDIENCE": "planora.clients"
+      }
+    },
+    "Production": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Production",
+        "GATEWAY_DB_CONNECTION": "Host=postgres;Port=5432;Database=planora-gateway;Username=postgres;Password=${POSTGRES_PASSWORD}",
+        "REDIS_CONNECTION": "redis:6379,abortConnect=false",
+        "RABBITMQ_HOST": "rabbitmq",
+        "RABBITMQ_PORT": "5672",
+        "RABBITMQ_USER": "guest",
+        "RABBITMQ_PASSWORD": "guest",
+        "JWT_SECRET": "ProdSecret_SetFromEnv",
+        "JWT_ISSUER": "planora.local",
+        "JWT_AUDIENCE": "planora.clients"
+      }
+    }
+  }
+}

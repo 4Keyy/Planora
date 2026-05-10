@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+option csharp_namespace = "Planora.GrpcContracts";
+
+package auth;
+
+service AuthService {
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoResponse);
+  rpc RevokeToken (RevokeTokenRequest) returns (RevokeTokenResponse);
+  rpc GetFriendIds (GetFriendIdsRequest) returns (GetFriendIdsResponse);
+  rpc AreFriends (AreFriendsRequest) returns (AreFriendsResponse);
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool is_valid = 1;
+  string user_id = 2;
+  string email = 3;
+  repeated string roles = 4;
+  string error_message = 5;
+}
+
+message GetUserInfoRequest {
+  string user_id = 1;
+}
+
+message GetUserInfoResponse {
+  string user_id = 1;
+  string email = 2;
+  string first_name = 3;
+  string last_name = 4;
+  bool is_active = 5;
+  repeated string roles = 6;
+}
+
+message RevokeTokenRequest {
+  string token = 1;
+}
+
+message RevokeTokenResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetFriendIdsRequest {
+  string user_id = 1;
+}
+
+message GetFriendIdsResponse {
+  repeated string friend_ids = 1;
+}
+
+message AreFriendsRequest {
+  string user_id_1 = 1;
+  string user_id_2 = 2;
+}
+
+message AreFriendsResponse {
+  bool are_friends = 1;
+}

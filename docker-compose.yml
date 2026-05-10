@@ -1,0 +1,305 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: planora-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD env var must be set}
+      POSTGRES_INITDB_ARGS: "-c shared_preload_libraries=uuid-ossp"
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - planora-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: planora-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - planora-network
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: planora-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+    ports:
+      - "127.0.0.1:5672:5672"          # AMQP — localhost only for local development
+      - "127.0.0.1:15672:15672"        # Management UI — localhost only
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - planora-network
+
+  # API Gateway (Ocelot)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Planora.ApiGateway/Dockerfile
+    container_name: planora-api-gateway
+    ports:
+      - "5132:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: "http://+:80"
+      REDIS_CONNECTION: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set},abortConnect=false"
+      RABBITMQ_HOST: "rabbitmq"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+      JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
+      JwtSettings__Issuer: "Planora.Auth"
+      JwtSettings__Audience: "Planora.Clients"
+      Email__Provider: ${Email__Provider:-Log}
+      Email__SmtpHost: ${Email__SmtpHost:-smtp.gmail.com}
+      Email__SmtpPort: ${Email__SmtpPort:-587}
+      Email__EnableSsl: ${Email__EnableSsl:-true}
+      Email__Username: ${Email__Username:-}
+      Email__Password: ${Email__Password:-}
+      Email__FromEmail: ${Email__FromEmail:-}
+      Email__FromName: ${Email__FromName:-Planora}
+      Email__TimeoutSeconds: ${Email__TimeoutSeconds:-30}
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      auth-api:
+        condition: service_healthy
+      category-api:
+        condition: service_healthy
+      todo-api:
+        condition: service_healthy
+      messaging-api:
+        condition: service_healthy
+      realtime-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - planora-network
+    restart: on-failure
+
+  # Auth API
+  auth-api:
+    build:
+      context: .
+      dockerfile: Services/AuthApi/Planora.Auth.Api/Dockerfile
+    container_name: planora-auth-api
+    ports:
+      - "5031:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: "http://+:80"
+      ConnectionStrings__AuthDatabase: "Host=postgres;Port=5432;Database=planora_auth_db;Username=postgres;Password=${POSTGRES_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
+      RabbitMq__HostName: "rabbitmq"
+      RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+      JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
+      JwtSettings__Issuer: "Planora.Auth"
+      JwtSettings__Audience: "Planora.Clients"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - planora-network
+    restart: on-failure
+
+  # Category API
+  category-api:
+    build:
+      context: .
+      dockerfile: Services/CategoryApi/Planora.Category.Api/Dockerfile
+    container_name: planora-category-api
+    ports:
+      - "5281:80"
+      - "5282:81"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: "http://+:80;http://+:81"
+      ConnectionStrings__CategoryDatabase: "Host=postgres;Port=5432;Database=planora_category;Username=postgres;Password=${POSTGRES_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
+      RabbitMq__HostName: "rabbitmq"
+      RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+      JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
+      JwtSettings__Issuer: "Planora.Auth"
+      JwtSettings__Audience: "Planora.Clients"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - planora-network
+    restart: on-failure
+
+  # Todo API
+  todo-api:
+    build:
+      context: .
+      dockerfile: Services/TodoApi/Planora.Todo.Api/Dockerfile
+    container_name: planora-todo-api
+    ports:
+      - "5100:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: "http://+:80"
+      ConnectionStrings__TodoDatabase: "Host=postgres;Port=5432;Database=planora_todo;Username=postgres;Password=${POSTGRES_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
+      RabbitMq__HostName: "rabbitmq"
+      RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+      JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
+      JwtSettings__Issuer: "Planora.Auth"
+      JwtSettings__Audience: "Planora.Clients"
+      GrpcServices__AuthApi: "http://auth-api:80"
+      GrpcServices__CategoryApi: "http://category-api:81"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      category-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - planora-network
+    restart: on-failure
+
+  # Realtime API (SignalR)
+  realtime-api:
+    build:
+      context: .
+      dockerfile: Services/RealtimeApi/Planora.Realtime.Api/Dockerfile
+    container_name: planora-realtime-api
+    ports:
+      - "5032:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: "http://+:80"
+      REDIS_CONNECTION: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set},abortConnect=false"
+      RABBITMQ_HOST: "rabbitmq"
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+      JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
+      JwtSettings__Issuer: "Planora.Auth"
+      JwtSettings__Audience: "Planora.Clients"
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - planora-network
+    restart: on-failure
+
+  # Messaging API
+  messaging-api:
+    build:
+      context: .
+      dockerfile: Services/MessagingApi/Planora.Messaging.Api/Dockerfile
+    container_name: planora-messaging-api
+    ports:
+      - "5058:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: "http://+:80"
+      ConnectionStrings__MessagingDatabase: "Host=postgres;Port=5432;Database=planora_messaging;Username=postgres;Password=${POSTGRES_PASSWORD};"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
+      RabbitMq__HostName: "rabbitmq"
+      RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+      JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
+      JwtSettings__Issuer: "Planora.Auth"
+      JwtSettings__Audience: "Planora.Clients"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - planora-network
+    restart: on-failure
+
+networks:
+  planora-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:

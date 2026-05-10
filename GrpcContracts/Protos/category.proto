@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+option csharp_namespace = "Planora.GrpcContracts";
+
+package category;
+
+service CategoryService {
+  rpc GetUserCategories (GetUserCategoriesRequest) returns (GetUserCategoriesResponse);
+  rpc GetCategoryById (GetCategoryByIdRequest) returns (GetCategoryByIdResponse);
+  rpc CreateCategory (CreateCategoryRequest) returns (CreateCategoryResponse);
+  rpc UpdateCategory (UpdateCategoryRequest) returns (UpdateCategoryResponse);
+  rpc DeleteCategory (DeleteCategoryRequest) returns (DeleteCategoryResponse);
+}
+
+message CategoryModel {
+  string id = 1;
+  string name = 2;
+  string user_id = 3;
+  string description = 4;
+  string color = 5;
+  string icon = 6;
+  int32 order = 7;
+  string parent_category_id = 8;
+  bool is_archived = 9;
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message GetUserCategoriesRequest {
+  string user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetUserCategoriesResponse {
+  repeated CategoryModel categories = 1;
+  int32 total_count = 2;
+}
+
+message GetCategoryByIdRequest {
+  string category_id = 1;
+  string user_id = 2;
+}
+
+message GetCategoryByIdResponse {
+  CategoryModel category = 1;
+}
+
+message CreateCategoryRequest {
+  string name = 1;
+  string user_id = 2;
+  string description = 3;
+  string color = 4;
+  string icon = 5;
+  int32 order = 6;
+  string parent_category_id = 7;
+}
+
+message CreateCategoryResponse {
+  string id = 1;
+}
+
+message UpdateCategoryRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string color = 4;
+  string icon = 5;
+  int32 order = 6;
+  bool is_archived = 7;
+}
+
+message UpdateCategoryResponse {
+  bool success = 1;
+}
+
+message DeleteCategoryRequest {
+  string id = 1;
+}
+
+message DeleteCategoryResponse {
+  bool success = 1;
+}

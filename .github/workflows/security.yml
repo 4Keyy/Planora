@@ -1,0 +1,43 @@
+name: Security Scan
+on:
+  push:
+    branches: [main, 'audit/**', 'fix/**']
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday 2am
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dotnet-vuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - run: dotnet list package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt; grep -i "has the following vulnerable packages" vuln-report.txt && exit 1 || exit 0
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=moderate

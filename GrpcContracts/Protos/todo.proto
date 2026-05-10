@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+option csharp_namespace = "Planora.GrpcContracts";
+
+package todo;
+
+service TodoService {
+  rpc GetUserTodos (GetUserTodosRequest) returns (GetUserTodosResponse);
+  rpc GetTodosByCategory (GetTodosByCategoryRequest) returns (GetTodosByCategoryResponse);
+  rpc CreateTodo (CreateTodoRequest) returns (CreateTodoResponse);
+  rpc UpdateTodo (UpdateTodoRequest) returns (UpdateTodoResponse);
+  rpc DeleteTodo (DeleteTodoRequest) returns (DeleteTodoResponse);
+}
+
+message TodoItemModel {
+  string id = 1;
+  string title = 2;
+  string user_id = 3;
+  string category_id = 4;
+  bool is_completed = 5;
+  string created_at = 6;
+  string description = 7;
+  string status = 8;
+  string due_date = 9;
+  string expected_date = 10;
+  string actual_date = 11;
+  string priority = 12;
+  bool is_public = 13;
+  string completed_at = 14;
+  string updated_at = 15;
+  repeated string shared_with_user_ids = 16;
+}
+
+message GetUserTodosRequest {
+  string user_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message GetUserTodosResponse {
+  repeated TodoItemModel todos = 1;
+  int32 total_count = 2;
+}
+
+message GetTodosByCategoryRequest {
+  string category_id = 1;
+  string user_id = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetTodosByCategoryResponse {
+  repeated TodoItemModel todos = 1;
+  int32 total_count = 2;
+}
+
+message CreateTodoRequest {
+  string title = 1;
+  string user_id = 2;
+  string category_id = 3;
+  string description = 4;
+  string due_date = 5;
+  string expected_date = 6;
+  string priority = 7;
+  bool is_public = 8;
+  repeated string shared_with_user_ids = 9;
+}
+
+message CreateTodoResponse {
+  string id = 1;
+}
+
+message UpdateTodoRequest {
+  string id = 1;
+  string title = 2;
+  bool is_completed = 3;
+  string description = 4;
+  string status = 5;
+  string category_id = 6;
+  string due_date = 7;
+  string priority = 8;
+  repeated string shared_with_user_ids = 9;
+}
+
+message UpdateTodoResponse {
+  bool success = 1;
+}
+
+message DeleteTodoRequest {
+  string id = 1;
+}
+
+message DeleteTodoResponse {
+  bool success = 1;
+}

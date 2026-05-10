@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Development": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://0.0.0.0:5030",
+      "hotReloadProfile": "aspnetcore",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AUTH_DB_CONNECTION": "Host=localhost;Port=5432;Database=planora_auth_db;Username=postgres;Password=postgres",
+        "REDIS_CONNECTION": "localhost:6379,abortConnect=false",
+        "RABBITMQ_HOST": "localhost",
+        "RABBITMQ_PORT": "5672",
+        "RABBITMQ_USER": "guest",
+        "RABBITMQ_PASSWORD": "guest",
+        "JWT_SECRET": "DevSecretKeyThatIsAtLeast32CharactersLongForHS256Algorithm!!",
+        "JWT_ISSUER": "Planora.Auth",
+        "JWT_AUDIENCE": "Planora.Clients",
+        "GRPC_ENDPOINT_URL": "http://localhost:5006"
+      }
+    },
+    "Staging": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:6000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Staging",
+        "AUTH_DB_CONNECTION": "Host=postgres;Port=5432;Database=planora-auth;Username=postgres;Password=postgres",
+        "REDIS_CONNECTION": "redis:6379,abortConnect=false",
+        "RABBITMQ_HOST": "rabbitmq",
+        "RABBITMQ_PORT": "5672",
+        "RABBITMQ_USER": "guest",
+        "RABBITMQ_PASSWORD": "guest",
+        "JWT_SECRET": "StagingSecret_AtLeast32Chars",
+        "JWT_ISSUER": "Planora.Auth",
+        "JWT_AUDIENCE": "Planora.Clients",
+        "GRPC_ENDPOINT_URL": "http://*:5006"
+      }
+    },
+    "Production": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:5030",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Production",
+        "AUTH_DB_CONNECTION": "Host=postgres;Port=5432;Database=planora-auth;Username=postgres;Password=${POSTGRES_PASSWORD}",
+        "REDIS_CONNECTION": "redis:6379,abortConnect=false",
+        "RABBITMQ_HOST": "rabbitmq",
+        "RABBITMQ_PORT": "5672",
+        "RABBITMQ_USER": "guest",
+        "RABBITMQ_PASSWORD": "guest",
+        "JWT_SECRET": "ProdSecret_SetFromEnv",
+        "JWT_ISSUER": "Planora.Auth",
+        "JWT_AUDIENCE": "Planora.Clients",
+        "GRPC_ENDPOINT_URL": "http://*:5006"
+      }
+    }
+  }
+}
