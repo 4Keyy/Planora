@@ -4,14 +4,53 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+      day: "monday"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
+    groups:
+      npm-patch-minor:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Major version upgrades require deliberate migration — handle manually
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "lucide-react"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+      day: "monday"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
+    groups:
+      nuget-patch-minor:
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Major version upgrades require deliberate migration — handle manually
+      - dependency-name: "AutoMapper"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "FluentAssertions"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "coverlet.collector"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
