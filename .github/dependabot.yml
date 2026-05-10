@@ -45,6 +45,14 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "coverlet.collector"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "FluentValidation"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "FluentValidation.DependencyInjectionExtensions"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "MassTransit"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "MassTransit.RabbitMQ"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
