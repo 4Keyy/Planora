@@ -102,7 +102,7 @@ const nextConfig = {
     serverActions: {
       allowedOrigins: [
         'localhost:3000',
-        ...(isDev ? ['fkeyylaptop:3000', '192.169.3.4:3000'] : []),
+        ...(isDev ? [] : []),
       ],
     },
   },
