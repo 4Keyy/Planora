@@ -14,14 +14,24 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # Major version upgrades require deliberate migration — handle manually
+      # Major version upgrades — require deliberate migration, handle manually
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-dom"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
       - dependency-name: "lucide-react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "zod"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "nuget"
@@ -38,27 +48,20 @@ updates:
           - "minor"
           - "patch"
     ignore:
-      # Major version upgrades require deliberate migration — handle manually
+      # Major version upgrades — require deliberate migration, handle manually
       - dependency-name: "AutoMapper"
         update-types: ["version-update:semver-major"]
       - dependency-name: "FluentAssertions"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "coverlet.collector"
         update-types: ["version-update:semver-major"]
       - dependency-name: "FluentValidation"
         update-types: ["version-update:semver-major"]
       - dependency-name: "FluentValidation.DependencyInjectionExtensions"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "coverlet.collector"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "MassTransit"
         update-types: ["version-update:semver-major"]
       - dependency-name: "MassTransit.RabbitMQ"
         update-types: ["version-update:semver-major"]
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-      - "ci"
+      - dependency-name: "MediatR"
+        update-types: ["version-update:semver-major"]
