@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Lint Markdown
-        uses: DavidAnson/markdownlint-cli2-action@v20
+        uses: DavidAnson/markdownlint-cli2-action@v23
       - name: Check Markdown links
         uses: lycheeverse/lychee-action@v2
         with:
