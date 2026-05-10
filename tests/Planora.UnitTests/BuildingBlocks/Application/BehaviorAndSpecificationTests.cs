@@ -32,7 +32,7 @@ public class BehaviorAndSpecificationTests
 
         var response = await behavior.Handle(
             new SampleCommand("secret-password", "api-token"),
-            () => Task.FromResult(new SampleResponse("ok-token")),
+            _ => Task.FromResult(new SampleResponse("ok-token")),
             CancellationToken.None);
 
         Assert.Equal("ok-token", response.Token);
@@ -52,7 +52,7 @@ public class BehaviorAndSpecificationTests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             behavior.Handle(
                 new SampleQuery("boom"),
-                () => Task.FromException<string>(new InvalidOperationException("handler failed")),
+                _ => Task.FromException<string>(new InvalidOperationException("handler failed")),
                 CancellationToken.None));
 
         Assert.Contains(logger.Entries, entry =>
@@ -75,15 +75,15 @@ public class BehaviorAndSpecificationTests
 
         var nullResponse = await requestBehavior.Handle(
             new PlainRequest("plain"),
-            () => Task.FromResult<string?>(null),
+            _ => Task.FromResult<string?>(null),
             CancellationToken.None);
         var fallbackResponse = await fallbackBehavior.Handle(
             new SelfReferencingRequest(),
-            () => Task.FromResult("fallback-ok"),
+            _ => Task.FromResult("fallback-ok"),
             CancellationToken.None);
         var arrayResponse = await arrayBehavior.Handle(
             new SampleQuery("array"),
-            () => Task.FromResult(new ResponseWithArray(new[] { new SensitiveItem("token-one") })),
+            _ => Task.FromResult(new ResponseWithArray(new[] { new SensitiveItem("token-one") })),
             CancellationToken.None);
 
         Assert.Null(nullResponse);
@@ -105,7 +105,7 @@ public class BehaviorAndSpecificationTests
 
         var response = await behavior.Handle(
             new SlowQuery("slow"),
-            async () =>
+            async _ =>
             {
                 await Task.Delay(5100);
                 return "slow-ok";
@@ -128,13 +128,13 @@ public class BehaviorAndSpecificationTests
 
         var success = await behavior.Handle(
             new SampleQuery("ok"),
-            () => Task.FromResult("ok"),
+            _ => Task.FromResult("ok"),
             CancellationToken.None);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             behavior.Handle(
                 new SampleQuery("boom"),
-                () => Task.FromException<string>(new InvalidOperationException("handler exploded")),
+                _ => Task.FromException<string>(new InvalidOperationException("handler exploded")),
                 CancellationToken.None));
 
         Assert.Equal("ok", success);
@@ -159,7 +159,7 @@ public class BehaviorAndSpecificationTests
 
         var response = await behavior.Handle(
             new SampleCommand("", ""),
-            () =>
+            _ =>
             {
                 nextCalled = true;
                 return Task.FromResult(new SampleResponse("ok"));
@@ -186,7 +186,7 @@ public class BehaviorAndSpecificationTests
 
         var response = await behavior.Handle(
             new SampleCommand("password", "token"),
-            () => Task.FromResult(new SampleResponse("accepted")),
+            _ => Task.FromResult(new SampleResponse("accepted")),
             CancellationToken.None);
 
         Assert.Equal("accepted", response.Token);
@@ -210,7 +210,7 @@ public class BehaviorAndSpecificationTests
         var exception = await Assert.ThrowsAsync<AppValidationException>(() =>
             behavior.Handle(
                 new SampleCommand("", "bad"),
-                () =>
+                _ =>
                 {
                     nextCalled = true;
                     return Task.FromResult(new SampleResponse("should-not-run"));
@@ -237,12 +237,12 @@ public class BehaviorAndSpecificationTests
 
         var fastResponse = await behavior.Handle(
             new SampleQuery("fast"),
-            () => Task.FromResult("fast-ok"),
+            _ => Task.FromResult("fast-ok"),
             CancellationToken.None);
 
         var slowResponse = await behavior.Handle(
             new SampleQuery("slow"),
-            async () =>
+            async _ =>
             {
                 await Task.Delay(520);
                 return "slow-ok";
