@@ -1,0 +1,96 @@
+name: Bug Report
+description: Something is not working correctly
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as possible.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: "When I click X, Y happens instead of Z."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact steps to reproduce the behavior.
+      placeholder: |
+        1. Log in as a regular user
+        2. Navigate to the Todos page
+        3. Click "Create Todo"
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Frontend (Next.js UI)
+        - Auth API
+        - Todo API
+        - Category API
+        - Messaging API
+        - Realtime API / SignalR
+        - API Gateway
+        - Docker / Infrastructure
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: run_mode
+    attributes:
+      label: How are you running the stack?
+      options:
+        - Docker Compose (Start-Planora-Docker.ps1)
+        - Local services (Start-Planora-Local.ps1)
+        - Mixed / custom
+    validations:
+      required: true
+
+  - type: input
+    id: dotnet_version
+    attributes:
+      label: .NET SDK version
+      placeholder: "9.0.x"
+
+  - type: input
+    id: node_version
+    attributes:
+      label: Node.js version
+      placeholder: "20.x"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or error messages
+      description: Paste any relevant output from `logs/` or the browser console.
+      render: text
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have checked the [Troubleshooting guide](../docs/troubleshooting.md)
+          required: true
+        - label: I have searched existing issues for duplicates
+          required: true

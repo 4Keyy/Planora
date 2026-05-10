@@ -1,222 +1,224 @@
-# Planora
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="Planora" width="72" height="72" />
+</p>
 
-Planora is a personal productivity application built as a .NET 9 microservice system with a Next.js 15 frontend. It combines task management, categories, friendship-based sharing, hidden shared tasks, direct messages, realtime notifications, and account security workflows behind an Ocelot API Gateway.
+<h1 align="center">Planora</h1>
 
-The repository is not a single monolith. It is a service-oriented codebase with separate ownership for auth, todos, categories, messaging, realtime delivery, and gateway ingress.
+<p align="center">
+  Personal productivity platform — task management, categories, friend sharing, and realtime notifications.
+</p>
+
+<p align="center">
+  <a href="https://github.com/4kkkk/Planora/actions/workflows/ci.yml">
+    <img alt="CI" src="https://github.com/4kkkk/Planora/actions/workflows/ci.yml/badge.svg" />
+  </a>
+  <a href="https://github.com/4kkkk/Planora/actions/workflows/security.yml">
+    <img alt="Security Scan" src="https://github.com/4kkkk/Planora/actions/workflows/security.yml/badge.svg" />
+  </a>
+  <a href="LICENSE">
+    <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" />
+  </a>
+  <img alt=".NET" src="https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet" />
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript" />
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker" />
+</p>
+
+---
+
+Planora is a full-stack personal productivity application built as a **.NET 9 microservice system** with a **Next.js 15** frontend. It combines task management, categories, friendship-based sharing, hidden shared tasks, direct messages, realtime notifications, and account security workflows behind an Ocelot API Gateway.
+
+The repository is not a single monolith — it is a service-oriented codebase with separate ownership for auth, todos, categories, messaging, realtime delivery, and gateway ingress.
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 15 (App Router), TypeScript, Tailwind CSS, Zustand, Framer Motion |
+| API Gateway | Ocelot, JWT validation, rate limiting, CORS |
+| Backend | .NET 9, ASP.NET Core, MediatR (CQRS), EF Core 9, gRPC |
+| Messaging | RabbitMQ, SignalR |
+| Cache | Redis |
+| Database | PostgreSQL |
+| Auth | JWT + httpOnly refresh cookies, TOTP 2FA, CSRF double-submit |
+| Testing | xUnit, Vitest, Playwright (e2e) |
+| CI | GitHub Actions, Gitleaks, `dotnet-vuln`, `npm audit` |
 
 ## At A Glance
 
-| Area | What exists | Primary code |
+| Service | Responsibility | Code |
 |---|---|---|
-| Frontend | Next.js App Router UI for auth, dashboard, todos, categories, and profile/security | `frontend/src/app`, `frontend/src/components`, `frontend/src/lib` |
-| API Gateway | Ocelot routing, JWT validation, health routes, rate limiting, CORS | `Planora.ApiGateway` |
-| Auth API | users, login/register, refresh cookies, sessions, 2FA, email verification, password reset, friendships, analytics event intake | `Services/AuthApi` |
-| Todo API | tasks, status/priority, sharing, hidden state, viewer preferences, category enrichment | `Services/TodoApi` |
-| Category API | per-user categories with colors, icons, ordering, soft delete | `Services/CategoryApi` |
-| Messaging API | direct messages between users | `Services/MessagingApi` |
-| Realtime API | SignalR notifications and connection inspection | `Services/RealtimeApi` |
-| Shared building blocks | CQRS, Result model, repositories, middleware, logging, health checks, RabbitMQ, Redis, outbox/inbox primitives | `BuildingBlocks` |
+| Frontend | Auth, dashboard, todos, categories, profile/security UI | `frontend/src/` |
+| API Gateway | Ocelot routing, JWT validation, health, rate limiting | `Planora.ApiGateway/` |
+| Auth API | Users, sessions, 2FA, email verification, friendships | `Services/AuthApi/` |
+| Todo API | Tasks, status/priority, sharing, hidden state, viewer prefs | `Services/TodoApi/` |
+| Category API | Per-user categories with colors, icons, ordering | `Services/CategoryApi/` |
+| Messaging API | Direct messages between users | `Services/MessagingApi/` |
+| Realtime API | SignalR notification hubs | `Services/RealtimeApi/` |
+| Building Blocks | CQRS, Result, repositories, middleware, RabbitMQ, Redis | `BuildingBlocks/` |
 
 ## Key Features
 
-- Account lifecycle: registration, login, logout, silent refresh, password reset, email verification, profile update, account deletion.
-- Real email delivery: Auth can send verification/reset/security messages through Gmail SMTP when `Email__Provider=GmailSmtp` is configured; local default keeps links in logs.
-- Session security: access token in frontend memory, refresh token in an httpOnly `refresh_token` cookie scoped to `/auth/api/v1/auth`, refresh rotation, session listing/revocation.
-- Browser CSRF protection: `GET /auth/api/v1/auth/csrf-token` issues a readable `XSRF-TOKEN` cookie, and state-changing requests send `X-CSRF-Token`.
-- Two-factor authentication: TOTP setup, confirmation, and disable flows.
-- Todos: create, update, delete, filter by status/category/completion, due and expected dates, priorities, completed-task view.
-- Sharing: todos can be visible to all accepted friends through the task form's `Share With` all-friends option, or to selected friends through direct `sharedWithUserIds`; non-owner viewers have limited update rights.
-- Hidden shared tasks: per-viewer hidden state redacts shared/public task details server-side while preserving category metadata and non-content shared/urgent visual state; the collapsed category pill is visually blurred until hover.
-- Categories: user-scoped category CRUD with color, icon, and display order.
-- Friendships: friend request by user id or email, incoming/outgoing requests, accept/reject/remove, friend id checks for internal service logic.
-- Messaging and realtime notifications: direct messages plus SignalR notification delivery primitives.
-- Structured logging and operational checks: Serilog, correlation ids, health endpoints, RabbitMQ/Redis/PostgreSQL startup waiting.
-
-## Who This Project Is For
-
-Planora is useful for:
-
-- users who want a personal task board with category organization and controlled sharing;
-- developers studying a .NET microservice architecture with CQRS/MediatR, EF Core, gRPC, RabbitMQ, Redis, Ocelot, and Next.js;
-- contributors who need a codebase map, API reference, database reference, testing guide, and security model before changing behavior.
+- **Account lifecycle** — registration, login, logout, silent token refresh, password reset, email verification, profile update, account deletion.
+- **Session security** — access token in frontend memory only, refresh token in an `httpOnly` cookie scoped to `/auth/api/v1/auth`, refresh rotation, session listing/revocation.
+- **CSRF protection** — double-submit cookie pattern; `GET /auth/api/v1/auth/csrf-token` issues `XSRF-TOKEN`, state-changing requests send `X-CSRF-Token`.
+- **Two-factor authentication** — TOTP setup, confirmation, and disable flows.
+- **Todos** — create/update/delete, filter by status/category/completion, due dates, priorities, completed-task view.
+- **Sharing** — share with all accepted friends or with selected friends via `sharedWithUserIds`; non-owner viewers have limited update rights.
+- **Hidden shared tasks** — per-viewer hidden state redacts task details server-side; the blurred category pill reveals on hover.
+- **Categories** — user-scoped CRUD with color, icon, and display order.
+- **Friendships** — request by user ID or email, accept/reject/remove, outgoing/incoming request tracking.
+- **Messaging & realtime** — direct messages and SignalR notification delivery.
+- **Observability** — Serilog structured logging, correlation IDs, health endpoints, RabbitMQ/Redis/PostgreSQL startup probes.
 
 ## Requirements
 
-| Tool | Why it is needed | Evidence |
+| Tool | Version | Purpose |
 |---|---|---|
-| .NET SDK 9.x | builds all backend services and tests | `Directory.Build.props`, `Planora.sln` |
-| Node.js + npm | runs the Next.js frontend and Vitest tests | `frontend/package.json` |
-| Docker Desktop | local PostgreSQL, Redis, RabbitMQ, and optional backend containers | `docker-compose.yml`, `Start-Planora-*.ps1` |
-| PowerShell | project launcher scripts are PowerShell scripts; PowerShell 7.x is recommended and Windows PowerShell is supported by keeping launcher/helper scripts ASCII-compatible | `Start-Planora-Docker.ps1`, `Start-Planora-Local.ps1`, `scripts/*.psm1` |
+| .NET SDK | 9.x | Backend services and tests |
+| Node.js | 20+ | Frontend and Vitest tests |
+| Docker Desktop | latest | PostgreSQL, Redis, RabbitMQ, optional backend containers |
+| PowerShell | 7.x recommended | Project launcher scripts |
 
 ## Quick Start
 
-1. Create a local environment file.
+**1. Clone and create the environment file**
 
 ```powershell
+git clone https://github.com/4kkkk/Planora.git
+cd Planora
 Copy-Item .env.example .env
 ```
 
-2. Fill the required secrets in `.env`.
-
-Required for Docker Compose:
+**2. Fill in the required secrets**
 
 ```env
 POSTGRES_PASSWORD=<strong-password>
 REDIS_PASSWORD=<strong-password>
-RABBITMQ_USER=<user>
+RABBITMQ_USER=planora
 RABBITMQ_PASSWORD=<strong-password>
 JWT_SECRET=<at-least-32-characters>
 ```
 
-3. Start the stack.
-
-Docker backend containers plus local frontend:
-
+Generate a strong JWT secret:
 ```powershell
-.\Start-Planora-Docker.ps1
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
 ```
 
-Infrastructure containers plus local `.NET` backend services and local frontend:
+**3. Start the stack**
 
 ```powershell
+# Docker backend + local frontend (recommended for most development)
+.\Start-Planora-Docker.ps1
+
+# Local .NET services + infrastructure in Docker
 .\Start-Planora-Local.ps1
 ```
 
-Both scripts preserve database volumes by default. Their `-Clean` mode rebuilds code artifacts/images but does not wipe PostgreSQL, Redis, or RabbitMQ volumes.
+**4. Open the app**
 
-4. Open the app.
+| Endpoint | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| API Gateway | http://localhost:5132 |
+| Gateway health | http://localhost:5132/health |
+| RabbitMQ UI | http://localhost:15672 |
 
-```text
-Frontend:    http://localhost:3000
-Gateway:     http://localhost:5132
-Gateway health: http://localhost:5132/health
-RabbitMQ UI: http://localhost:15672
-```
-
-## Manual Development Commands
-
-Use the launch scripts for the complete local system. For targeted work:
+## Manual Commands
 
 ```powershell
-# Backend restore/build/test
+# Backend
 dotnet restore Planora.sln
 dotnet build Planora.sln
 dotnet test Planora.sln --settings coverage.runsettings
 
 # Frontend
-Push-Location frontend
-npm install
-Pop-Location
+npm --prefix frontend install
 npm --prefix frontend run dev
 npm --prefix frontend run lint
 npm --prefix frontend run type-check
 npm --prefix frontend run test
+npm --prefix frontend run test:coverage
 npm --prefix frontend run build
 ```
-
-## Configuration
-
-The main configuration entry points are:
-
-- `.env.example` - environment template for Docker Compose and local scripts.
-- `.env.production.example` - production-oriented secret/config key template.
-- `docker-compose.yml` - PostgreSQL, Redis, RabbitMQ, backend containers, ports, secrets passed into services.
-- `Planora.ApiGateway/ocelot.json` and `Planora.ApiGateway/ocelot.Docker.json` - gateway route map.
-- `*/appsettings.json` and `*/appsettings.Docker.json` - service defaults.
-- `frontend/next.config.js` and `frontend/src/lib/config.ts` - frontend API base URL normalization and security headers.
-
-See [`docs/configuration.md`](docs/configuration.md) for the full variable table and known configuration caveats.
-
-## Public HTTP Surface
-
-The browser calls the API Gateway by default at `http://localhost:5132`.
-
-| Prefix | Service | Auth |
-|---|---|---|
-| `/auth/api/v1/auth/*` | Auth API authentication endpoints | mixed public/authenticated |
-| `/auth/api/v1/users/*` | Auth API user/profile/admin endpoints | bearer token at gateway; `UsersController.VerifyEmailByToken` is `[AllowAnonymous]` inside the service |
-| `/auth/api/v1/friendships*` and `/friendships*` | Auth API friendship endpoints | bearer token |
-| `/auth/api/v1/analytics/events` | Auth API allowlisted product events | bearer token + CSRF |
-| `/todos/api/v1/todos*` | Todo API | bearer token |
-| `/categories/api/v1/categories*` | Category API | bearer token |
-| `/messaging/api/v1/messages*` | Messaging API | bearer token |
-| `/realtime/*` | Realtime API and SignalR routes | bearer token for protected endpoints |
-
-See [`docs/API.md`](docs/API.md) for endpoint details, request bodies, responses, auth requirements, and code references.
 
 ## Project Structure
 
 ```text
 Planora/
-  BuildingBlocks/                 Shared domain, application, and infrastructure primitives
-  GrpcContracts/                  .proto contracts shared by services
-  Planora.ApiGateway/         Ocelot gateway
-  Services/
-    AuthApi/                      Identity, sessions, friendships, analytics, auth gRPC
-    TodoApi/                      Todo domain, sharing, hidden/viewer preferences, todo gRPC
-    CategoryApi/                  Categories and category gRPC
-    MessagingApi/                 Direct messages and messaging gRPC
-    RealtimeApi/                  SignalR hubs, notifications, realtime gRPC
-  frontend/                       Next.js 15 frontend
-  tests/                          xUnit backend tests
-  docs/                           Documentation knowledge base
-  graphify-out/                   Generated knowledge graph and wiki
+├── BuildingBlocks/          Shared CQRS, Result model, repositories, middleware
+├── GrpcContracts/           .proto contracts shared between services
+├── Planora.ApiGateway/      Ocelot gateway (routes, auth, rate limiting)
+├── Services/
+│   ├── AuthApi/             Identity, sessions, 2FA, friendships, analytics
+│   ├── TodoApi/             Todo domain, sharing, hidden/viewer preferences
+│   ├── CategoryApi/         Categories and category gRPC
+│   ├── MessagingApi/        Direct messages
+│   └── RealtimeApi/         SignalR hubs, notifications
+├── frontend/                Next.js 15 (App Router, TypeScript, Tailwind)
+├── tests/                   xUnit backend unit tests
+├── docs/                    Full documentation knowledge base
+├── .github/workflows/       CI, e2e, and security scan pipelines
+└── docker-compose.yml       Full local infrastructure stack
 ```
 
-See [`docs/codebase-map.md`](docs/codebase-map.md) for a detailed directory-by-directory map.
+## API Surface
+
+The browser calls the API Gateway at `http://localhost:5132`.
+
+| Prefix | Service | Auth |
+|---|---|---|
+| `/auth/api/v1/auth/*` | Auth — login, register, refresh, logout | public / bearer |
+| `/auth/api/v1/users/*` | Auth — profile, sessions, 2FA | bearer |
+| `/auth/api/v1/friendships/*` | Auth — friend requests, accept/reject | bearer |
+| `/todos/api/v1/todos/*` | Todo API | bearer |
+| `/categories/api/v1/categories/*` | Category API | bearer |
+| `/messaging/api/v1/messages/*` | Messaging API | bearer |
+| `/realtime/*` | Realtime API, SignalR | bearer |
+
+Full reference: [`docs/API.md`](docs/API.md)
 
 ## Documentation
 
-Start here:
+| Guide | Description |
+|---|---|
+| [`docs/overview.md`](docs/overview.md) | Product and domain overview |
+| [`docs/getting-started.md`](docs/getting-started.md) | First local run, step by step |
+| [`docs/architecture.md`](docs/architecture.md) | Service boundaries, data flow, patterns |
+| [`docs/features.md`](docs/features.md) | Feature behavior with code references |
+| [`docs/API.md`](docs/API.md) | HTTP endpoint reference |
+| [`docs/database.md`](docs/database.md) | PostgreSQL schema, EF Core contexts |
+| [`docs/auth-security.md`](docs/auth-security.md) | Auth model, CSRF, JWT, session security |
+| [`docs/configuration.md`](docs/configuration.md) | All environment variables and config |
+| [`docs/testing.md`](docs/testing.md) | Test suites, commands, coverage |
+| [`docs/deployment.md`](docs/deployment.md) | Docker Compose, CI, deployment notes |
+| [`docs/production.md`](docs/production.md) | Production deployment checklist |
+| [`docs/secrets-management.md`](docs/secrets-management.md) | Secret inventory and rotation guide |
+| [`docs/troubleshooting.md`](docs/troubleshooting.md) | Common failures and fixes |
 
-- [`docs/index.md`](docs/index.md) - documentation home and recommended reading paths.
-- [`docs/overview.md`](docs/overview.md) - product and domain overview.
-- [`docs/getting-started.md`](docs/getting-started.md) - first local run.
-- [`docs/architecture.md`](docs/architecture.md) - system architecture and data flow.
-- [`docs/features.md`](docs/features.md) - feature-by-feature behavior.
-- [`docs/API.md`](docs/API.md) - HTTP API reference.
-- [`docs/database.md`](docs/database.md) - databases, tables, schema bootstrap, ownership.
-- [`docs/auth-security.md`](docs/auth-security.md) - authentication and security model.
-- [`docs/testing.md`](docs/testing.md) - backend/frontend tests and manual checks.
-- [`docs/deployment.md`](docs/deployment.md) - Docker, CI, deployment notes.
-- [`docs/production.md`](docs/production.md) - production deployment baseline and readiness checklist.
-- [`docs/secrets-management.md`](docs/secrets-management.md) - secret inventory, storage rules, rotation guidance.
-- [`docs/troubleshooting.md`](docs/troubleshooting.md) - common failures and fixes.
-
-## Testing
-
-The project has backend xUnit tests, frontend Vitest tests, markdown documentation checks, and a Docker-backed Playwright e2e flow for auth/todos/sharing/hidden viewer behavior.
-
-```powershell
-dotnet test Planora.sln --settings coverage.runsettings
-npm --prefix frontend run lint
-npm --prefix frontend run type-check
-npm --prefix frontend run test:coverage
-npm --prefix frontend run e2e
-```
-
-`npm --prefix frontend run e2e` expects the backend Docker stack to be reachable through `E2E_API_URL` or `http://127.0.0.1:5132`.
-
-CI runs markdown lint/link checks, backend restore/build/test, frontend lint/type-check/test/build, and a separate Docker-backed e2e workflow. See `.github/workflows/ci.yml`, `.github/workflows/e2e.yml`, and [`docs/testing.md`](docs/testing.md).
-
-## Troubleshooting Short List
+## Troubleshooting
 
 | Symptom | First check |
 |---|---|
-| Services return `401` after login | all services must share the same `JwtSettings__Secret`, issuer, and audience |
-| Auth POST returns `403 CSRF_VALIDATION_FAILED` | fetch `/auth/api/v1/auth/csrf-token` and send `X-CSRF-Token` on POST/PUT/PATCH/DELETE |
-| Docker Compose refuses to start | `.env` placeholders are still present or required secrets are missing |
-| Redis connection fails in Docker | `REDIS_PASSWORD` must match Redis `requirepass` and injected connection strings |
-| Category data missing on todos | Todo API could not reach Category gRPC; check `GrpcServices__CategoryApi` |
-| Friend-visible todos do not appear | friendship must be accepted, the todo must be public or directly shared, and Todo API must reach Auth friendship checks |
+| `401` after login | All services must share the same `JWT_SECRET`, issuer, and audience |
+| `403 CSRF_VALIDATION_FAILED` | Fetch `/auth/api/v1/auth/csrf-token` first; send `X-CSRF-Token` on mutations |
+| Docker Compose won't start | `.env` placeholders still present or required secrets missing |
+| Redis connection fails | `REDIS_PASSWORD` must match Redis `requirepass` and all connection strings |
+| Category data missing on todos | Todo API can't reach Category gRPC — check `GrpcServices__CategoryApi` |
+| Shared todos not appearing | Friendship must be accepted; todo must be public or directly shared |
 
-Full guide: [`docs/troubleshooting.md`](docs/troubleshooting.md).
+Full guide: [`docs/troubleshooting.md`](docs/troubleshooting.md)
 
 ## Contributing
 
-Read [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/development.md`](docs/development.md). For architecture work, start from `graphify-out/GRAPH_REPORT.md` and `graphify-out/wiki/index.md` before reading raw files.
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`docs/development.md`](docs/development.md) before opening a PR.
+
+Please use the issue templates for bug reports and feature requests.
+
+## Security
+
+To report a security vulnerability, see [`SECURITY.md`](SECURITY.md). Do not open a public issue.
 
 ## License
 
-Planora is licensed under the MIT License. See [`LICENSE`](LICENSE).
+Planora is released under the [MIT License](LICENSE).

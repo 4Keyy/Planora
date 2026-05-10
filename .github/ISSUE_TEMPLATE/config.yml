@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/4kkkk/Planora/tree/main/docs
+    about: Check the docs before opening an issue — most common questions are answered there.
+  - name: Troubleshooting Guide
+    url: https://github.com/4kkkk/Planora/blob/main/docs/troubleshooting.md
+    about: Having trouble starting the stack? Start here.
