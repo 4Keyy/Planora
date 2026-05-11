@@ -36,6 +36,7 @@ namespace Planora.Todo.Application.DTOs
         public int WorkerCount { get; init; }
         public bool IsWorking { get; init; }
         public IReadOnlyList<Guid> WorkerUserIds { get; init; } = Array.Empty<Guid>();
+        public bool? IsCompletedByViewer { get; init; }
     }
 
     public class TodoItemMappingProfile : Profile

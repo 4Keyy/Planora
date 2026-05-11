@@ -21,6 +21,14 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<List<Guid>> GetCompletedTodoIdsByViewerAsync(Guid viewerId, CancellationToken cancellationToken = default)
+        {
+            return await _context.UserTodoViewPreferences
+                .Where(p => p.ViewerId == viewerId && p.CompletedByViewer)
+                .Select(p => p.TodoItemId)
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<IReadOnlyDictionary<Guid, UserTodoViewPreference>> GetByViewerIdAsync(Guid viewerId, CancellationToken cancellationToken = default)
         {
             return await _context.UserTodoViewPreferences
@@ -72,6 +80,8 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
 
             existing.HiddenByViewer = preference.HiddenByViewer;
             existing.ViewerCategoryId = preference.ViewerCategoryId;
+            existing.CompletedByViewer = preference.CompletedByViewer;
+            existing.CompletedByViewerAt = preference.CompletedByViewerAt;
             _context.UserTodoViewPreferences.Update(existing);
         }
     }

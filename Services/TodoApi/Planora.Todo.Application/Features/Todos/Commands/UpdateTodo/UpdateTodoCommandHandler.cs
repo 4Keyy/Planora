@@ -5,6 +5,7 @@ using Planora.BuildingBlocks.Application.Services;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;
+using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Enums;
 using Planora.Todo.Domain.Repositories;
 using Planora.Todo.Domain.ValueObjects;
@@ -22,6 +23,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ICategoryGrpcClient _categoryGrpcClient;
         private readonly IFriendshipService _friendshipService;
+        private readonly IUserTodoViewPreferenceRepository _viewerPreferenceRepository;
         private readonly IBusinessEventLogger? _businessLogger;
 
         public UpdateTodoCommandHandler(
@@ -32,6 +34,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             ICurrentUserContext currentUserContext,
             ICategoryGrpcClient categoryGrpcClient,
             IFriendshipService friendshipService,
+            IUserTodoViewPreferenceRepository viewerPreferenceRepository,
             IBusinessEventLogger? businessLogger = null)
         {
             _repository = repository;
@@ -41,6 +44,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             _currentUserContext = currentUserContext;
             _categoryGrpcClient = categoryGrpcClient;
             _friendshipService = friendshipService;
+            _viewerPreferenceRepository = viewerPreferenceRepository;
             _businessLogger = businessLogger;
         }
 
@@ -64,7 +68,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             if (!isOwner && !hasFriendVisibleAccess)
                 throw new ForbiddenException("You can only update your own todo items or friend-visible tasks");
 
-            // If it's not the owner, only allow status changes
+            // If it's not the owner, only allow status changes — and record them per-viewer
             if (!isOwner)
             {
                 // Check if trying to modify anything other than status
@@ -75,6 +79,46 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 {
                     throw new ForbiddenException("You can only mark friend-visible tasks as complete, not edit them");
                 }
+
+                // Record completion per-viewer instead of changing the shared task for everyone
+                if (!string.IsNullOrEmpty(request.Status))
+                {
+                    var targetStatus = TodoStatusExtensions.FromString(request.Status);
+                    if (targetStatus.HasValue)
+                    {
+                        var pref = await _viewerPreferenceRepository.GetAsync(userId, todoItem.Id, cancellationToken)
+                            ?? new UserTodoViewPreference { ViewerId = userId, TodoItemId = todoItem.Id };
+
+                        pref.CompletedByViewer = targetStatus == TodoStatus.Done;
+                        pref.CompletedByViewerAt = targetStatus == TodoStatus.Done ? DateTime.UtcNow : null;
+                        await _viewerPreferenceRepository.UpsertAsync(pref, cancellationToken);
+                        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                        var completedByViewer = pref.CompletedByViewer;
+                        var viewerDto = _mapper.Map<TodoItemDto>(todoItem) with
+                        {
+                            Status = completedByViewer ? "Done" : todoItem.Status.Display(),
+                            IsCompleted = completedByViewer,
+                            IsCompletedByViewer = completedByViewer,
+                            WorkerCount = todoItem.Workers.Count,
+                            WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
+                            RequiredWorkers = todoItem.RequiredWorkers,
+                            IsWorking = todoItem.Workers.Any(w => w.UserId == userId),
+                            CategoryId = null, CategoryName = null, CategoryColor = null, CategoryIcon = null,
+                        };
+                        return Result<TodoItemDto>.Success(viewerDto);
+                    }
+                }
+
+                // Non-owner with no status change (shouldn't happen given above guard, but be safe)
+                return Result<TodoItemDto>.Success(_mapper.Map<TodoItemDto>(todoItem) with
+                {
+                    WorkerCount = todoItem.Workers.Count,
+                    WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
+                    RequiredWorkers = todoItem.RequiredWorkers,
+                    IsWorking = todoItem.Workers.Any(w => w.UserId == userId),
+                    CategoryId = null, CategoryName = null, CategoryColor = null, CategoryIcon = null,
+                });
             }
 
             if (!string.IsNullOrEmpty(request.Title))

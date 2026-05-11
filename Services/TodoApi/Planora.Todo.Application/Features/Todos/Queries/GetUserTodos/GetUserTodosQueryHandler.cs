@@ -70,6 +70,10 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                     cancellationToken)
                 : new List<Guid>();
 
+            // Pre-load IDs of tasks that this viewer personally marked as completed
+            var viewerCompletedIds = await _viewerPreferenceRepository.GetCompletedTodoIdsByViewerAsync(
+                userId, cancellationToken);
+
             // Build predicate: own todos OR friend-visible todos.
             // Viewer category filters can be pushed into the shared-task branch using
             // the viewer preference IDs, so the database can count/page before enrichment.
@@ -78,7 +82,8 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                 friendIds,
                 request,
                 requestedStatuses,
-                viewerCategoryTodoIds);
+                viewerCategoryTodoIds,
+                viewerCompletedIds);
 
             var sortCompletedByCompletionTime =
                 request.IsCompleted == true ||
@@ -140,6 +145,8 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                 viewerPreferences.TryGetValue(item.Id, out var preference);
                 var effectiveHidden = TodoViewerStateResolver.GetEffectiveHidden(item, userId, preference);
                 var effectiveCategoryId = TodoViewerStateResolver.GetEffectiveCategoryId(item, userId, preference);
+                var isViewerOwner = item.UserId == userId;
+                var completedByViewer = !isViewerOwner && (preference?.CompletedByViewer == true);
 
                 if (effectiveHidden)
                 {
@@ -191,7 +198,10 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                     WorkerCount = item.Workers.Count,
                     WorkerUserIds = item.Workers.Select(w => w.UserId).ToList(),
                     RequiredWorkers = item.RequiredWorkers,
-                    IsWorking = item.UserId != userId && item.Workers.Any(w => w.UserId == userId),
+                    IsWorking = !isViewerOwner && item.Workers.Any(w => w.UserId == userId),
+                    IsCompletedByViewer = !isViewerOwner ? completedByViewer : null,
+                    Status = completedByViewer ? "Done" : item.Status.Display(),
+                    IsCompleted = completedByViewer || item.IsCompleted,
                 };
 
                 if (effectiveCategoryId.HasValue && categoryCache.TryGetValue(effectiveCategoryId.Value, out var cat))
@@ -217,17 +227,21 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             List<Guid> friendIds,
             GetUserTodosQuery request,
             List<TodoStatus>? requestedStatuses,
-            List<Guid> viewerCategoryTodoIds)
+            List<Guid> viewerCategoryTodoIds,
+            List<Guid> viewerCompletedIds)
         {
             var hasCategoryFilter = request.CategoryId.HasValue;
             var categoryId = request.CategoryId.GetValueOrDefault();
 
             return x => !x.IsDeleted &&
                        (requestedStatuses == null || requestedStatuses.Contains(x.Status)) &&
+                       // IsCompleted filter aware of per-viewer completion state
                        (!request.IsCompleted.HasValue ||
                         (request.IsCompleted.Value
-                            ? x.Status == TodoStatus.Done
-                            : x.Status != TodoStatus.Done)) &&
+                            // Completed: actual done OR the viewer personally completed it
+                            ? x.Status == TodoStatus.Done || (x.UserId != userId && viewerCompletedIds.Contains(x.Id))
+                            // Active: not done AND the viewer has not personally completed it
+                            : x.Status != TodoStatus.Done && !(x.UserId != userId && viewerCompletedIds.Contains(x.Id)))) &&
                        (
                            // Own todos use the owner's category directly.
                            (x.UserId == userId &&

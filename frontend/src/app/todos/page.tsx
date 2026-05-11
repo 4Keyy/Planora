@@ -729,16 +729,24 @@ export default function TodosPage() {
                     onEdit={() => setEditingTodo(todo)}
                     onToggleHidden={() => handleToggleHidden(todo.id)}
                     onJoin={async () => {
-                      const updated = await joinTodo(todo.id)
-                      setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
+                      try {
+                        const updated = await joinTodo(todo.id)
+                        setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
+                      } catch {
+                        addToast({ type: "error", title: "Could not join task" })
+                      }
                     }}
                     onLeave={async () => {
-                      await leaveTodo(todo.id)
-                      setTodos((prev) => prev.map((t) =>
-                        t.id === todo.id
-                          ? { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }
-                          : t
-                      ))
+                      try {
+                        await leaveTodo(todo.id)
+                        setTodos((prev) => prev.map((t) =>
+                          t.id === todo.id
+                            ? { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }
+                            : t
+                        ))
+                      } catch {
+                        addToast({ type: "error", title: "Could not leave task" })
+                      }
                     }}
                   />
                 )}

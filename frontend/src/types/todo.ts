@@ -100,6 +100,7 @@ export type Todo = {
   workerCount?: number
   isWorking?: boolean
   workerUserIds?: string[] | null
+  isCompletedByViewer?: boolean | null
 }
 
 export type PagedTodosResponse = {

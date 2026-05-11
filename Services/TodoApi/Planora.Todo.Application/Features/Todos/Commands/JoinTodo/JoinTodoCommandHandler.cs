@@ -45,9 +45,13 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             if (!canAccess)
                 throw new ForbiddenException("You do not have access to this task");
 
-            var areFriends = await _friendshipService.AreFriendsAsync(userId, todoItem.UserId, cancellationToken);
-            if (!areFriends)
-                throw new ForbiddenException("You must be friends with the task owner to join");
+            // For shared (non-public) tasks, require friendship; public tasks are open to anyone
+            if (!todoItem.IsPublic)
+            {
+                var areFriends = await _friendshipService.AreFriendsAsync(userId, todoItem.UserId, cancellationToken);
+                if (!areFriends)
+                    throw new ForbiddenException("You must be friends with the task owner to join");
+            }
 
             todoItem.AddWorker(userId);
             _repository.Update(todoItem);

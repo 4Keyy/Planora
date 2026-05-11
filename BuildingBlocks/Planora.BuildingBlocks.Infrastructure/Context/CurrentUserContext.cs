@@ -31,9 +31,20 @@ namespace Planora.BuildingBlocks.Infrastructure.Context
             _httpContextAccessor.HttpContext?.User
                 .FindFirst(ClaimTypes.Email)?.Value;
 
-        public string? Name =>
-            _httpContextAccessor.HttpContext?.User.FindFirst("name")?.Value
-            ?? _httpContextAccessor.HttpContext?.User.FindFirst("given_name")?.Value;
+        public string? Name
+        {
+            get
+            {
+                var user = _httpContextAccessor.HttpContext?.User;
+                if (user == null) return null;
+                var first = user.FindFirst("firstName")?.Value;
+                var last  = user.FindFirst("lastName")?.Value;
+                if (first != null || last != null)
+                    return $"{first} {last}".Trim();
+                return user.FindFirst("name")?.Value
+                    ?? user.FindFirst("given_name")?.Value;
+            }
+        }
 
         public IReadOnlyList<string> Roles =>
             _httpContextAccessor.HttpContext?.User

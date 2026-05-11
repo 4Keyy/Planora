@@ -21,6 +21,13 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
             builder.Property(x => x.ViewerCategoryId)
                 .IsRequired(false);
 
+            builder.Property(x => x.CompletedByViewer)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            builder.Property(x => x.CompletedByViewerAt)
+                .IsRequired(false);
+
             builder.HasIndex(x => new { x.TodoItemId, x.ViewerId });
         }
     }
