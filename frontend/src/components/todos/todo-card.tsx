@@ -111,8 +111,13 @@ export function TodoCard({
   const fallbackIsVisuallyUrgent = isUrgent || (isDueOverdue ?? false) || isDueToday
   const cardCategoryLabel = todo.categoryName?.trim() ? truncateText(todo.categoryName, 18) : "Без категории"
   const isOwner = isTodoOwner(todo, viewerId)
-  const isWorkingOnThis = !isOwner && (todo.isWorking ?? false)
   const isShared = todo.hasSharedAudience ?? fallbackIsShared
+  // Owner uses InProgress status as their personal "working on this" signal;
+  // non-owners use the worker-join flag
+  const isEffectivelyWorking = isOwner
+    ? todo.status === "InProgress"
+    : (todo.isWorking ?? false)
+  const isWorkingOnThis = isEffectivelyWorking
   const showShareBadge = isShared && !isCompleted
   const publicBadgeLabel = isOwner ? "Public" : (todo.authorName ? formatPublicName(todo.authorName) : "Public")
   const isPublicName = !isOwner && !!todo.authorName
@@ -688,18 +693,26 @@ export function TodoCard({
           )}
         </CardContent>
 
-        {showShareBadge && !isOwner && !isCompleted && onJoin && onLeave && (
-          <WorkerJoinButton
-            isOwner={isOwner}
-            isWorking={todo.isWorking ?? false}
-            isFull={!!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1}
-            workerCount={todo.workerCount}
-            requiredWorkers={todo.requiredWorkers}
-            onJoin={onJoin}
-            onLeave={onLeave}
-            onControlHoverChange={setIsControlHover}
-          />
-        )}
+        {(() => {
+          if (isCompleted || isCollapsed || !onJoin || !onLeave) return null
+          const isFull = !!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1
+          // Owners: always show (toggle InProgress status)
+          // Non-owners: show only for shared tasks where there's capacity or already working
+          const show = isOwner || (isShared && (isEffectivelyWorking || !isFull))
+          if (!show) return null
+          return (
+            <WorkerJoinButton
+              isOwner={false}
+              isWorking={isEffectivelyWorking}
+              isFull={false}
+              workerCount={isOwner ? undefined : todo.workerCount}
+              requiredWorkers={isOwner ? undefined : todo.requiredWorkers}
+              onJoin={onJoin}
+              onLeave={onLeave}
+              onControlHoverChange={setIsControlHover}
+            />
+          )
+        })()}
       </Card>
       </motion.div>
     </>

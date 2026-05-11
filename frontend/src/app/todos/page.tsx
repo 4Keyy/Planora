@@ -729,23 +729,41 @@ export default function TodosPage() {
                     onEdit={() => setEditingTodo(todo)}
                     onToggleHidden={() => handleToggleHidden(todo.id)}
                     onJoin={async () => {
-                      try {
-                        const updated = await joinTodo(todo.id)
-                        setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
-                      } catch {
-                        addToast({ type: "error", title: "Could not join task" })
+                      if (isTodoOwner(todo, user?.userId)) {
+                        try {
+                          await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "inProgress" })
+                          setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "InProgress" } : t))
+                        } catch {
+                          addToast({ type: "error", title: "Could not update task" })
+                        }
+                      } else {
+                        try {
+                          const updated = await joinTodo(todo.id)
+                          setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
+                        } catch {
+                          addToast({ type: "error", title: "Could not join task" })
+                        }
                       }
                     }}
                     onLeave={async () => {
-                      try {
-                        await leaveTodo(todo.id)
-                        setTodos((prev) => prev.map((t) =>
-                          t.id === todo.id
-                            ? { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }
-                            : t
-                        ))
-                      } catch {
-                        addToast({ type: "error", title: "Could not leave task" })
+                      if (isTodoOwner(todo, user?.userId)) {
+                        try {
+                          await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "todo" })
+                          setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "Todo" } : t))
+                        } catch {
+                          addToast({ type: "error", title: "Could not update task" })
+                        }
+                      } else {
+                        try {
+                          await leaveTodo(todo.id)
+                          setTodos((prev) => prev.map((t) =>
+                            t.id === todo.id
+                              ? { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }
+                              : t
+                          ))
+                        } catch {
+                          addToast({ type: "error", title: "Could not leave task" })
+                        }
                       }
                     }}
                   />
