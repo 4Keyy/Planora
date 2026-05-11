@@ -36,12 +36,14 @@ export function WorkerJoinButton({
     try { await fn() } finally { setPending(false) }
   }
 
-  const totalWorking = (workerCount ?? 0) + 1
-  const countLabel = requiredWorkers
-    ? `${totalWorking} / ${requiredWorkers}`
-    : workerCount !== undefined
-      ? `${totalWorking} working`
-      : null
+  // Only count-label when at least 1 non-owner worker has joined; owner is implicit
+  const hasWorkers = (workerCount ?? 0) > 0
+  const totalWorking = (workerCount ?? 0) + 1  // +1 for owner
+  const countLabel = hasWorkers
+    ? (requiredWorkers
+        ? `${totalWorking} / ${requiredWorkers}`
+        : `${totalWorking} working`)
+    : null
 
   const hoverProps = {
     onMouseEnter: () => onControlHoverChange?.(true),

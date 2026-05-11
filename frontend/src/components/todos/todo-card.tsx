@@ -114,8 +114,9 @@ export function TodoCard({
   const isShared = todo.hasSharedAudience ?? fallbackIsShared
   // Owner uses InProgress status as their personal "working on this" signal;
   // non-owners use the worker-join flag
+  // Backend sends "In Progress" (with space) for the InProgress enum value
   const isEffectivelyWorking = isOwner
-    ? todo.status === "InProgress"
+    ? (todo.status?.toLowerCase().replace(/\s/g, "") === "inprogress")
     : (todo.isWorking ?? false)
   const isWorkingOnThis = isEffectivelyWorking
   const showShareBadge = isShared && !isCompleted
@@ -618,7 +619,7 @@ export function TodoCard({
                           {!isOwner && publicBadgeLabel}
                         </motion.span>
                       )}
-                      {showShareBadge && (todo.workerCount !== undefined || todo.requiredWorkers) && (
+                      {showShareBadge && (todo.workerCount ?? 0) > 0 && (
                         <motion.span
                           initial={{ scale: 0.9, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
@@ -627,7 +628,7 @@ export function TodoCard({
                           <Users className="h-3 w-3" />
                           {(todo.workerCount ?? 0) + 1}
                           {todo.requiredWorkers ? `/${todo.requiredWorkers}` : ""} working
-                          {todo.isWorking && " · You"}
+                          {(todo.isWorking || isEffectivelyWorking) && " · You"}
                         </motion.span>
                       )}
                     </motion.div>
@@ -689,30 +690,33 @@ export function TodoCard({
                 </div>
 
               </div>
+
+              {/* Worker join/leave strip — rendered inside CardContent to avoid overflow-hidden clipping */}
+              {onJoin && onLeave && (() => {
+                const isFull = !!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1
+                const show = isOwner || (isShared && (isEffectivelyWorking || !isFull))
+                if (!show) return null
+                return (
+                  <div className={cn(
+                    "mt-4",
+                    isSparse ? "-mx-4 -mb-3" : "-mx-6 -mb-6"
+                  )}>
+                    <WorkerJoinButton
+                      isOwner={false}
+                      isWorking={isEffectivelyWorking}
+                      isFull={false}
+                      workerCount={isOwner ? undefined : todo.workerCount}
+                      requiredWorkers={isOwner ? undefined : todo.requiredWorkers}
+                      onJoin={onJoin}
+                      onLeave={onLeave}
+                      onControlHoverChange={setIsControlHover}
+                    />
+                  </div>
+                )
+              })()}
             </>
           )}
         </CardContent>
-
-        {(() => {
-          if (isCompleted || isCollapsed || !onJoin || !onLeave) return null
-          const isFull = !!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1
-          // Owners: always show (toggle InProgress status)
-          // Non-owners: show only for shared tasks where there's capacity or already working
-          const show = isOwner || (isShared && (isEffectivelyWorking || !isFull))
-          if (!show) return null
-          return (
-            <WorkerJoinButton
-              isOwner={false}
-              isWorking={isEffectivelyWorking}
-              isFull={false}
-              workerCount={isOwner ? undefined : todo.workerCount}
-              requiredWorkers={isOwner ? undefined : todo.requiredWorkers}
-              onJoin={onJoin}
-              onLeave={onLeave}
-              onControlHoverChange={setIsControlHover}
-            />
-          )
-        })()}
       </Card>
       </motion.div>
     </>

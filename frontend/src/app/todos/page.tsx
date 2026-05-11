@@ -732,7 +732,7 @@ export default function TodosPage() {
                       if (isTodoOwner(todo, user?.userId)) {
                         try {
                           await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "inProgress" })
-                          setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "InProgress" } : t))
+                          setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "In Progress" } : t))
                         } catch {
                           addToast({ type: "error", title: "Could not update task" })
                         }
