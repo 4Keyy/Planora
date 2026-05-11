@@ -8,6 +8,7 @@ interface WorkerJoinButtonProps {
   isOwner: boolean
   isWorking: boolean
   isFull: boolean
+  isPublic?: boolean
   workerCount?: number
   requiredWorkers?: number | null
   onJoin: () => Promise<void>
@@ -19,6 +20,7 @@ export function WorkerJoinButton({
   isOwner,
   isWorking,
   isFull,
+  isPublic,
   workerCount,
   requiredWorkers,
   onJoin,
@@ -36,14 +38,19 @@ export function WorkerJoinButton({
     try { await fn() } finally { setPending(false) }
   }
 
-  // Only count-label when at least 1 non-owner worker has joined; owner is implicit
-  const hasWorkers = (workerCount ?? 0) > 0
-  const totalWorking = (workerCount ?? 0) + 1  // +1 for owner
-  const countLabel = hasWorkers
-    ? (requiredWorkers
-        ? `${totalWorking} / ${requiredWorkers}`
-        : `${totalWorking} working`)
-    : null
+  const takenByNonOwners = workerCount ?? 0
+  const totalTaken = takenByNonOwners + 1  // +1 for owner
+
+  // Slots label — only for public tasks (private tasks have 1 slot, no need to display)
+  const countLabel = (() => {
+    if (!isPublic) return null
+    if (requiredWorkers) {
+      const remaining = requiredWorkers - totalTaken
+      if (isWorking) return `${totalTaken} / ${requiredWorkers}`
+      return remaining > 0 ? `${remaining} ${remaining === 1 ? "slot" : "slots"} open` : null
+    }
+    return takenByNonOwners > 0 ? `${totalTaken} working` : null
+  })()
 
   const hoverProps = {
     onMouseEnter: () => onControlHoverChange?.(true),
@@ -58,6 +65,7 @@ export function WorkerJoinButton({
         className="flex items-center justify-between border-t border-indigo-100 bg-indigo-50/70 px-4 py-2.5"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Leave is on the LEFT — away from the delete zone on the right */}
         <div className="flex items-center gap-2">
           <span className="relative flex h-2 w-2 flex-shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-70" />
@@ -66,20 +74,19 @@ export function WorkerJoinButton({
           <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700">
             In work
           </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {countLabel && (
-            <span className="text-[10px] font-bold text-indigo-300">{countLabel}</span>
-          )}
+          <span className="text-[11px] text-indigo-300">·</span>
           <button
             onClick={handle(onLeave)}
             disabled={pending}
-            className="text-[10px] font-black uppercase tracking-wider text-indigo-300 transition-colors hover:text-red-500 disabled:opacity-50"
+            className="text-[11px] font-semibold text-indigo-400 transition-colors hover:text-red-500 disabled:opacity-50"
           >
             {pending ? "···" : "leave"}
           </button>
         </div>
+
+        {countLabel && (
+          <span className="text-[10px] font-bold text-indigo-300">{countLabel}</span>
+        )}
       </div>
     )
   }

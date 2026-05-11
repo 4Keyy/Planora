@@ -200,10 +200,24 @@ export function TodoCard({
   const isSharedUrgent = showShareBadge && isUrgentOrOverdue
   const borderColor = (() => {
     if (isWorkingOnThis) return "border-indigo-500"
-    if (isSharedUrgent) return "border-blue-400 border-l-red-400"
+    if (isSharedUrgent) return "border-blue-400"   // left override via inline style
     if (isUrgentOrOverdue) return "border-red-400"
     if (showShareBadge) return "border-blue-400"
     return "border-gray-300"
+  })()
+  // When urgent+shared, force red left border via inline style (highest specificity).
+  // When also working, set all four sides explicitly so the class shorthand can't win.
+  const borderInlineStyle: React.CSSProperties = (() => {
+    if (isWorkingOnThis && isSharedUrgent) {
+      return {
+        borderTopColor: "rgb(99 102 241)",
+        borderRightColor: "rgb(99 102 241)",
+        borderBottomColor: "rgb(99 102 241)",
+        borderLeftColor: "rgb(248 113 113)",
+      }
+    }
+    if (isSharedUrgent) return { borderLeftColor: "rgb(248 113 113)" }
+    return {}
   })()
   const categoryShadowColor = todo.categoryColor?.trim()
   const hoverShadowColor = isWorkingOnThis
@@ -299,7 +313,7 @@ export function TodoCard({
           transitionProperty: "box-shadow, background-color, border-color, opacity",
           transitionDuration: "220ms",
           transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-          ...(isSharedUrgent ? { borderLeftColor: "rgb(248 113 113)" } : {}),
+          ...borderInlineStyle,
         }}
         className={cn(
           "group relative overflow-hidden border-2",
@@ -705,6 +719,7 @@ export function TodoCard({
                       isOwner={false}
                       isWorking={isEffectivelyWorking}
                       isFull={false}
+                      isPublic={todo.isPublic}
                       workerCount={isOwner ? undefined : todo.workerCount}
                       requiredWorkers={isOwner ? undefined : todo.requiredWorkers}
                       onJoin={onJoin}
