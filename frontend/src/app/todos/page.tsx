@@ -740,8 +740,18 @@ export default function TodosPage() {
                         try {
                           const updated = await joinTodo(todo.id)
                           setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
-                        } catch {
-                          addToast({ type: "error", title: "Could not join task" })
+                        } catch (err: unknown) {
+                          const status = (err as { response?: { status: number } })?.response?.status
+                          if (status === 409) {
+                            // Already joined or task is full — re-fetch to sync UI
+                            addToast({ type: "warning", title: "Task is full or you've already joined" })
+                            try {
+                              const fresh = await fetchTaskById(todo.id)
+                              setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...fresh } : t))
+                            } catch { /* ignore refetch failure */ }
+                          } else {
+                            addToast({ type: "error", title: "Could not join task" })
+                          }
                         }
                       }
                     }}

@@ -205,10 +205,11 @@ export function TodoCard({
     if (showShareBadge) return "border-blue-400"
     return "border-gray-300"
   })()
-  // When urgent+shared, force red left border via inline style (highest specificity).
-  // When also working, set all four sides explicitly so the class shorthand can't win.
+  // Red left border for any urgent task; when also in-work set all four sides explicitly
+  // so the indigo shorthand class can never override the left.
   const borderInlineStyle: React.CSSProperties = (() => {
-    if (isWorkingOnThis && isSharedUrgent) {
+    if (isWorkingOnThis && isUrgentOrOverdue) {
+      // Urgent + in-work (shared or not): indigo 3 sides, red left
       return {
         borderTopColor: "rgb(99 102 241)",
         borderRightColor: "rgb(99 102 241)",
@@ -635,10 +636,10 @@ export function TodoCard({
                       )}
                       {showShareBadge && (() => {
                         const workerTotal = (todo.workerCount ?? 0) + 1
+                        // Always show for public/shared tasks: N/M when capped, N alone otherwise
                         const label = todo.requiredWorkers != null
                           ? `${workerTotal}/${todo.requiredWorkers}`
-                          : (todo.workerCount ?? 0) > 0 ? `${workerTotal}` : null
-                        if (!label) return null
+                          : `${workerTotal}`
                         return (
                           <motion.span
                             key="workers-badge"
