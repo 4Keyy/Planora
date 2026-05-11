@@ -8,9 +8,6 @@ interface WorkerJoinButtonProps {
   isOwner: boolean
   isWorking: boolean
   isFull: boolean
-  isPublic?: boolean
-  workerCount?: number
-  requiredWorkers?: number | null
   onJoin: () => Promise<void>
   onLeave: () => Promise<void>
   onControlHoverChange?: (hovered: boolean) => void
@@ -20,9 +17,6 @@ export function WorkerJoinButton({
   isOwner,
   isWorking,
   isFull,
-  isPublic,
-  workerCount,
-  requiredWorkers,
   onJoin,
   onLeave,
   onControlHoverChange,
@@ -38,20 +32,6 @@ export function WorkerJoinButton({
     try { await fn() } finally { setPending(false) }
   }
 
-  const takenByNonOwners = workerCount ?? 0
-  const totalTaken = takenByNonOwners + 1  // +1 for owner
-
-  // Slots label — only for public tasks (private tasks have 1 slot, no need to display)
-  const countLabel = (() => {
-    if (!isPublic) return null
-    if (requiredWorkers) {
-      const remaining = requiredWorkers - totalTaken
-      if (isWorking) return `${totalTaken} / ${requiredWorkers}`
-      return remaining > 0 ? `${remaining} ${remaining === 1 ? "slot" : "slots"} open` : null
-    }
-    return takenByNonOwners > 0 ? `${totalTaken} working` : null
-  })()
-
   const hoverProps = {
     onMouseEnter: () => onControlHoverChange?.(true),
     onMouseLeave: () => onControlHoverChange?.(false),
@@ -62,31 +42,24 @@ export function WorkerJoinButton({
     return (
       <div
         {...hoverProps}
-        className="flex items-center justify-between border-t border-indigo-100 bg-indigo-50/70 px-4 py-2.5"
+        className="flex items-center border-t border-indigo-100 bg-indigo-50/70 px-4 py-2.5"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Leave is on the LEFT — away from the delete zone on the right */}
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2 flex-shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-70" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500" />
-          </span>
-          <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700">
-            In work
-          </span>
-          <span className="text-[11px] text-indigo-300">·</span>
-          <button
-            onClick={handle(onLeave)}
-            disabled={pending}
-            className="text-[11px] font-semibold text-indigo-400 transition-colors hover:text-red-500 disabled:opacity-50"
-          >
-            {pending ? "···" : "leave"}
-          </button>
-        </div>
-
-        {countLabel && (
-          <span className="text-[10px] font-bold text-indigo-300">{countLabel}</span>
-        )}
+        <span className="relative flex h-2 w-2 flex-shrink-0 mr-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-70" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500" />
+        </span>
+        <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700">
+          In work
+        </span>
+        <span className="text-[11px] text-indigo-300 mx-1.5">·</span>
+        <button
+          onClick={handle(onLeave)}
+          disabled={pending}
+          className="text-[11px] font-semibold text-indigo-400 transition-colors hover:text-red-500 disabled:opacity-50"
+        >
+          {pending ? "···" : "leave"}
+        </button>
       </div>
     )
   }
@@ -95,16 +68,11 @@ export function WorkerJoinButton({
   if (isFull) {
     return (
       <div
-        className="flex items-center justify-between border-t border-gray-100 bg-gray-50/40 px-4 py-2.5"
+        className="flex items-center gap-1.5 border-t border-gray-100 bg-gray-50/40 px-4 py-2.5 text-gray-400"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-1.5 text-gray-400">
-          <Lock className="h-3 w-3" />
-          <span className="text-[11px] font-black uppercase tracking-wider">Full</span>
-        </div>
-        {countLabel && (
-          <span className="text-[10px] font-bold text-gray-300">{countLabel}</span>
-        )}
+        <Lock className="h-3 w-3" />
+        <span className="text-[11px] font-black uppercase tracking-wider">Full</span>
       </div>
     )
   }
@@ -116,25 +84,18 @@ export function WorkerJoinButton({
       disabled={pending}
       {...hoverProps}
       className={cn(
-        "group/join flex w-full items-center justify-between",
+        "group/join flex w-full items-center",
         "border-t border-indigo-100/60 px-4 py-2.5",
         "bg-transparent transition-colors hover:bg-indigo-50/50 disabled:opacity-60",
       )}
     >
-      <div className="flex items-center gap-1.5">
-        <Zap className="h-3 w-3 text-indigo-300 transition-colors group-hover/join:text-indigo-500" />
-        <span className="text-[11px] font-black uppercase tracking-wider text-indigo-400 transition-colors group-hover/join:text-indigo-600">
-          {pending ? "Joining···" : "Take it"}
-        </span>
-        {!pending && (
-          <span className="text-[11px] text-indigo-300 transition-transform group-hover/join:translate-x-0.5 group-hover/join:text-indigo-400">
-            →
-          </span>
-        )}
-      </div>
-      {countLabel && (
-        <span className="text-[10px] font-bold text-indigo-200 transition-colors group-hover/join:text-indigo-300">
-          {countLabel}
+      <Zap className="h-3 w-3 text-indigo-300 mr-1.5 transition-colors group-hover/join:text-indigo-500" />
+      <span className="text-[11px] font-black uppercase tracking-wider text-indigo-400 transition-colors group-hover/join:text-indigo-600">
+        {pending ? "Joining···" : "Take it"}
+      </span>
+      {!pending && (
+        <span className="text-[11px] text-indigo-300 ml-1 transition-transform group-hover/join:translate-x-0.5 group-hover/join:text-indigo-400">
+          →
         </span>
       )}
     </button>

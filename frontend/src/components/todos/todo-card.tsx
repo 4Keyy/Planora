@@ -633,18 +633,44 @@ export function TodoCard({
                           {!isOwner && publicBadgeLabel}
                         </motion.span>
                       )}
-                      {showShareBadge && (todo.workerCount ?? 0) > 0 && (
-                        <motion.span
-                          initial={{ scale: 0.9, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className="text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-indigo-50 text-indigo-700 whitespace-nowrap shadow-sm border border-indigo-200/80 flex items-center gap-1"
-                        >
-                          <Users className="h-3 w-3" />
-                          {(todo.workerCount ?? 0) + 1}
-                          {todo.requiredWorkers ? `/${todo.requiredWorkers}` : ""} working
-                          {(todo.isWorking || isEffectivelyWorking) && " · You"}
-                        </motion.span>
-                      )}
+                      {showShareBadge && (() => {
+                        const workerTotal = (todo.workerCount ?? 0) + 1
+                        const label = todo.requiredWorkers != null
+                          ? `${workerTotal}/${todo.requiredWorkers}`
+                          : (todo.workerCount ?? 0) > 0 ? `${workerTotal}` : null
+                        if (!label) return null
+                        return (
+                          <motion.span
+                            key="workers-badge"
+                            initial={{ scale: 0.82, opacity: 0, y: 3 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            transition={{ type: "spring", stiffness: 480, damping: 26, delay: 0.06 }}
+                            className={cn(
+                              "text-[10px] px-2.5 py-1 rounded-lg whitespace-nowrap shadow-sm border flex items-center gap-1 transition-[background-color,border-color,color,box-shadow] duration-300",
+                              isEffectivelyWorking
+                                ? "font-bold bg-indigo-100 text-indigo-700 border-indigo-300/70 shadow-indigo-100/60 ring-1 ring-indigo-200/50"
+                                : "font-semibold bg-slate-50 text-slate-400 border-slate-200/70"
+                            )}
+                          >
+                            <Users className="h-3 w-3 flex-shrink-0" />
+                            <span className="font-black tabular-nums tracking-tight">{label}</span>
+                            <AnimatePresence>
+                              {isEffectivelyWorking && (
+                                <motion.span
+                                  key="you"
+                                  initial={{ opacity: 0, maxWidth: 0 }}
+                                  animate={{ opacity: 1, maxWidth: "2.5rem" }}
+                                  exit={{ opacity: 0, maxWidth: 0 }}
+                                  transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
+                                  className="overflow-hidden text-indigo-500 font-bold"
+                                >
+                                  &nbsp;· you
+                                </motion.span>
+                              )}
+                            </AnimatePresence>
+                          </motion.span>
+                        )
+                      })()}
                     </motion.div>
                   </div>
                   {!isCompleted && todo.description && (
@@ -718,10 +744,7 @@ export function TodoCard({
                     <WorkerJoinButton
                       isOwner={false}
                       isWorking={isEffectivelyWorking}
-                      isFull={false}
-                      isPublic={todo.isPublic}
-                      workerCount={isOwner ? undefined : todo.workerCount}
-                      requiredWorkers={isOwner ? undefined : todo.requiredWorkers}
+                      isFull={!!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1}
                       onJoin={onJoin}
                       onLeave={onLeave}
                       onControlHoverChange={setIsControlHover}

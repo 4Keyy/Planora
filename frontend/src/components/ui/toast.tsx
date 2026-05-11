@@ -60,7 +60,7 @@ export function Toaster() {
   const toasts = useToastStore((state) => state.toasts)
 
   return (
-    <div className="pointer-events-none fixed top-16 right-6 z-toast flex max-h-[calc(100vh-4rem)] w-full flex-col-reverse gap-2.5 p-4 sm:flex-col sm:max-w-[360px]">
+    <div className="pointer-events-none fixed top-[72px] right-6 z-toast flex max-h-[calc(100vh-72px)] w-full flex-col-reverse gap-2.5 px-4 pb-4 sm:flex-col sm:max-w-[360px]">
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
           <Toast key={toast.id} {...toast} />

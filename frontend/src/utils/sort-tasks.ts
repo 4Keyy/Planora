@@ -11,6 +11,7 @@ export type SortableTask = {
   status?: string | null
   completedAt?: string | null
   hidden?: boolean | null
+  isWorking?: boolean | null
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -19,6 +20,12 @@ function taskIsCompleted(task: SortableTask): boolean {
   if (task.isCompleted) return true
   const s = String(task.status ?? "").toLowerCase()
   return s === "done" || s === "completed"
+}
+
+// Owner: status = "inprogress" / "in progress"; non-owner: isWorking flag
+function taskIsWorkingOn(task: SortableTask): boolean {
+  if (task.isWorking) return true
+  return String(task.status ?? "").toLowerCase().replace(/\s/g, "") === "inprogress"
 }
 
 function priorityRank(task: SortableTask): number {
@@ -100,25 +107,23 @@ function dateBucket(due: Date | null, today: Date): number {
 
 function sortKey(task: SortableTask, today: Date): [number, number, number, number, number] {
   // Completed — always at the bottom, newest completions first
-  if (taskIsCompleted(task)) return [1, 0, 0, 0, -parseCompleted(task)]
+  if (taskIsCompleted(task)) return [2, 0, 0, 0, -parseCompleted(task)]
 
-  const due    = parseDue(task)
-  const db     = dateBucket(due, today)
-  const dateMs = due ? due.getTime() : Infinity // Tasks with no date go to the end
+  const due       = parseDue(task)
+  const db        = dateBucket(due, today)
+  const dateMs    = due ? due.getTime() : Infinity
   const createdMs = parseCreated(task)
 
-  // 1. Buckets are important for "Overdue", "Today", "Tomorrow"
-  // 2. But within and across other buckets, we should favor the absolute Date
-  // 3. Priority is the tie-breaker for the same date
-  
-  if (db <= 2) {
-    // Overdue, Today, Tomorrow stay at the top in their buckets
-    return [0, db, priorityRank(task), dateMs, createdMs]
+  // "In work" tasks (owner's InProgress OR non-owner joined) always sort first
+  if (taskIsWorkingOn(task)) {
+    // Same internal sort rules apply within the working group
+    if (db <= 2) return [0, db, priorityRank(task), dateMs, createdMs]
+    return [0, 3, dateMs, priorityRank(task), createdMs]
   }
 
-  // Everything else is strictly chronological by date
-  // This makes the "Left to Right" flow feel like a timeline
-  return [0, 3, dateMs, priorityRank(task), createdMs]
+  // All other active tasks
+  if (db <= 2) return [1, db, priorityRank(task), dateMs, createdMs]
+  return [1, 3, dateMs, priorityRank(task), createdMs]
 }
 
 // ─── public API ───────────────────────────────────────────────────────────────

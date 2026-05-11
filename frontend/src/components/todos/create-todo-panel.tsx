@@ -152,7 +152,6 @@ export function CreateTodoPanel({
   const [formError, setFormError] = useState<string | null>(null)
   const [isPublic, setIsPublic] = useState(false)
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([])
-  const [requiredWorkers, setRequiredWorkers] = useState<number | null>(null)
 
   const prefersReducedMotion = useReducedMotion()
   const friends = useFriends(isOpen)
@@ -174,7 +173,6 @@ export function CreateTodoPanel({
     setFormError(null)
     setIsPublic(false)
     setSelectedFriendIds([])
-    setRequiredWorkers(null)
     setNewCatName("")
     setNewCatColor("#6366f1")
     setNewCatIcon(null)
@@ -224,7 +222,8 @@ export function CreateTodoPanel({
         isPublic,
         sharedWithUserIds: selectedFriendIds,
         tags: [],
-        requiredWorkers: requiredWorkers,
+        // Auto-set capacity = author + selected friends; unlimited for public-only tasks
+        requiredWorkers: selectedFriendIds.length > 0 ? 1 + selectedFriendIds.length : null,
       })
 
       resetForm()
@@ -618,35 +617,6 @@ export function CreateTodoPanel({
                     placeholder="Private task"
                     contentClassName="z-[3000]"
                   />
-                  <AnimatePresence>
-                    {(isPublic || selectedFriendIds.length > 0) && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: "auto", marginTop: 10 }}
-                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                        transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
-                        className="overflow-hidden"
-                      >
-                        <div className="flex items-center gap-2">
-                          <label className="text-[11px] font-black uppercase tracking-wider text-gray-500 whitespace-nowrap">
-                            Max workers
-                          </label>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={isPublic ? 1 + friends.length : 1 + selectedFriendIds.length}
-                            value={requiredWorkers ?? ""}
-                            onChange={(e) => {
-                              const v = e.target.value
-                              setRequiredWorkers(v === "" ? null : Math.max(1, parseInt(v, 10)))
-                            }}
-                            placeholder="No limit"
-                            className="h-8 rounded-lg text-xs w-28"
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </PanelBlock>
               </motion.div>
 

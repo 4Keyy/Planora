@@ -99,7 +99,6 @@ export function EditTodoModal({
   const friends = useFriends(true)
   const [isPublic, setIsPublic] = useState(todo.isPublic)
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>(todo.sharedWithUserIds ?? [])
-  const [requiredWorkers, setRequiredWorkers] = useState<number | null>(todo.requiredWorkers ?? null)
   const [saving, setSaving] = useState(false)
   const hasSharedAudience = isPublic || selectedFriendIds.length > 0
 
@@ -117,7 +116,6 @@ export function EditTodoModal({
     setCategoryId(todo.categoryId ?? "__none")
     setIsPublic(todo.isPublic)
     setSelectedFriendIds(todo.sharedWithUserIds ?? [])
-    setRequiredWorkers(todo.requiredWorkers ?? null)
 
     // Reset inline category creation state
     setNewCatName("")
@@ -166,6 +164,7 @@ export function EditTodoModal({
       }
 
       if (isOwner) {
+        const autoWorkers = selectedFriendIds.length > 0 ? 1 + selectedFriendIds.length : null
         await onSave({
           title: title.trim(),
           description: description.trim() || null,
@@ -174,8 +173,8 @@ export function EditTodoModal({
           categoryId: finalCategoryId || null,
           isPublic,
           sharedWithUserIds: selectedFriendIds,
-          requiredWorkers: requiredWorkers,
-          clearRequiredWorkers: requiredWorkers === null,
+          requiredWorkers: autoWorkers ?? undefined,
+          clearRequiredWorkers: autoWorkers === null,
         })
       } else {
         await onSaveViewerPreference({
@@ -433,25 +432,6 @@ export function EditTodoModal({
               <p className="text-[10px] md:text-xs text-gray-400 font-semibold">
                 Choose all friends or pick specific people. Leave empty to keep this task private.
               </p>
-              {hasSharedAudience && (
-                <div className="flex items-center gap-2 pt-1">
-                  <label className="text-[11px] font-black uppercase tracking-wider text-gray-400 whitespace-nowrap">
-                    Max workers
-                  </label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={isPublic ? 1 + friends.length : selectedFriendIds.length > 0 ? 1 + selectedFriendIds.length : undefined}
-                    value={requiredWorkers ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      setRequiredWorkers(v === "" ? null : Math.max(1, parseInt(v, 10)))
-                    }}
-                    placeholder="No limit"
-                    className="h-8 rounded-lg text-xs w-28 border-gray-200 bg-white"
-                  />
-                </div>
-              )}
             </motion.div>
           )}
 
