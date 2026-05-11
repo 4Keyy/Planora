@@ -111,6 +111,7 @@ export function TodoCard({
   const fallbackIsVisuallyUrgent = isUrgent || (isDueOverdue ?? false) || isDueToday
   const cardCategoryLabel = todo.categoryName?.trim() ? truncateText(todo.categoryName, 18) : "Без категории"
   const isOwner = isTodoOwner(todo, viewerId)
+  const isWorkingOnThis = !isOwner && (todo.isWorking ?? false)
   const isShared = todo.hasSharedAudience ?? fallbackIsShared
   const showShareBadge = isShared && !isCompleted
   const publicBadgeLabel = isOwner ? "Public" : (todo.authorName ? formatPublicName(todo.authorName) : "Public")
@@ -192,14 +193,17 @@ export function TodoCard({
   const isUrgentOrOverdue = todo.isVisuallyUrgent ?? fallbackIsVisuallyUrgent
   const isSharedUrgent = showShareBadge && isUrgentOrOverdue
   const borderColor = (() => {
+    if (isWorkingOnThis) return "border-indigo-500"
     if (isSharedUrgent) return "border-blue-400 border-l-red-400"
     if (isUrgentOrOverdue) return "border-red-400"
     if (showShareBadge) return "border-blue-400"
     return "border-gray-300"
   })()
   const categoryShadowColor = todo.categoryColor?.trim()
-  const hoverShadowColor = categoryShadowColor
-    || (showShareBadge ? "#60a5fa" : isUrgentOrOverdue ? "#f87171" : null)
+  const hoverShadowColor = isWorkingOnThis
+    ? "#818cf8"
+    : categoryShadowColor
+      || (showShareBadge ? "#60a5fa" : isUrgentOrOverdue ? "#f87171" : null)
   const hoverShadow = hoverShadowColor ? `${hoverShadowColor}33` : "rgba(0,0,0,0.08)"
 
   const cardHoverShadow = isCardHovered && !isCompleted
@@ -623,23 +627,6 @@ export function TodoCard({
                       )}
                     </motion.div>
                   </div>
-                  {showShareBadge && !isOwner && !isCompleted && onJoin && onLeave && (
-                    <div
-                      className="mt-2"
-                      onClick={(e) => e.stopPropagation()}
-                      onMouseEnter={() => setIsControlHover(true)}
-                      onMouseLeave={() => setIsControlHover(false)}
-                    >
-                      <WorkerJoinButton
-                        todoId={todo.id}
-                        isOwner={isOwner}
-                        isWorking={todo.isWorking ?? false}
-                        isFull={!!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1}
-                        onJoin={onJoin}
-                        onLeave={onLeave}
-                      />
-                    </div>
-                  )}
                   {!isCompleted && todo.description && (
                     <motion.p
                       initial={{ opacity: 0 }}
@@ -700,6 +687,19 @@ export function TodoCard({
             </>
           )}
         </CardContent>
+
+        {showShareBadge && !isOwner && !isCompleted && onJoin && onLeave && (
+          <WorkerJoinButton
+            isOwner={isOwner}
+            isWorking={todo.isWorking ?? false}
+            isFull={!!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1}
+            workerCount={todo.workerCount}
+            requiredWorkers={todo.requiredWorkers}
+            onJoin={onJoin}
+            onLeave={onLeave}
+            onControlHoverChange={setIsControlHover}
+          />
+        )}
       </Card>
       </motion.div>
     </>

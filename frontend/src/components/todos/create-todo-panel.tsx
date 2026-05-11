@@ -634,7 +634,7 @@ export function CreateTodoPanel({
                           <Input
                             type="number"
                             min={1}
-                            max={isPublic ? undefined : 1 + selectedFriendIds.length}
+                            max={isPublic ? 1 + friends.length : 1 + selectedFriendIds.length}
                             value={requiredWorkers ?? ""}
                             onChange={(e) => {
                               const v = e.target.value

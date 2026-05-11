@@ -441,7 +441,7 @@ export function EditTodoModal({
                   <Input
                     type="number"
                     min={1}
-                    max={selectedFriendIds.length > 0 ? 1 + selectedFriendIds.length : undefined}
+                    max={isPublic ? 1 + friends.length : selectedFriendIds.length > 0 ? 1 + selectedFriendIds.length : undefined}
                     value={requiredWorkers ?? ""}
                     onChange={(e) => {
                       const v = e.target.value
