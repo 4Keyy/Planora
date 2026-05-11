@@ -211,8 +211,6 @@ public class WorkersAndCommentsHandlerTests
         var fixture = new CommentFixture(workerId, "Worker Name");
         fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
-        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(workerId, ownerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
 
         var result = await fixture.CreateAddHandler().Handle(
             new AddCommentCommand(todo.Id, "My comment"), CancellationToken.None);
@@ -221,21 +219,20 @@ public class WorkersAndCommentsHandlerTests
     }
 
     [Fact]
-    public async Task AddComment_ByNonWorkerFriend_ShouldThrowForbidden()
+    public async Task AddComment_ByAnyoneWithPublicAccess_ShouldSucceed()
     {
         var ownerId = Guid.NewGuid();
-        var nonWorkerId = Guid.NewGuid();
+        var viewerId = Guid.NewGuid(); // not a worker, not in SharedWith, but task is public
         var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
 
-        var fixture = new CommentFixture(nonWorkerId, "Viewer");
+        var fixture = new CommentFixture(viewerId, "Viewer");
         fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
-        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(nonWorkerId, ownerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
 
-        await Assert.ThrowsAsync<ForbiddenException>(() =>
-            fixture.CreateAddHandler().Handle(
-                new AddCommentCommand(todo.Id, "Can I comment?"), CancellationToken.None));
+        var result = await fixture.CreateAddHandler().Handle(
+            new AddCommentCommand(todo.Id, "Can I comment?"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
     }
 
     [Fact]
@@ -481,7 +478,6 @@ public class WorkersAndCommentsHandlerTests
         public Mock<ITodoCommentRepository> CommentRepository { get; } = new();
         public Mock<IUnitOfWork> UnitOfWork { get; } = new();
         public Mock<ICurrentUserContext> CurrentUser { get; } = new();
-        public Mock<IFriendshipService> FriendshipService { get; } = new();
 
         public CommentFixture(Guid userId, string? name)
         {
@@ -495,8 +491,7 @@ public class WorkersAndCommentsHandlerTests
         }
 
         public AddCommentCommandHandler CreateAddHandler()
-            => new(TodoRepository.Object, CommentRepository.Object, UnitOfWork.Object,
-                CurrentUser.Object, FriendshipService.Object);
+            => new(TodoRepository.Object, CommentRepository.Object, UnitOfWork.Object, CurrentUser.Object);
 
         public UpdateCommentCommandHandler CreateUpdateHandler()
             => new(CommentRepository.Object, UnitOfWork.Object, CurrentUser.Object);
@@ -505,7 +500,7 @@ public class WorkersAndCommentsHandlerTests
             => new(CommentRepository.Object, TodoRepository.Object, UnitOfWork.Object, CurrentUser.Object);
 
         public GetCommentsQueryHandler CreateGetCommentsHandler()
-            => new(TodoRepository.Object, CommentRepository.Object, CurrentUser.Object, FriendshipService.Object);
+            => new(TodoRepository.Object, CommentRepository.Object, CurrentUser.Object);
     }
 
     private static TodoItemDto EmptyDto() => new()

@@ -4,7 +4,6 @@ using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Infrastructure.Context;
 using Planora.Todo.Application.DTOs;
-using Planora.Todo.Application.Services;
 using Planora.Todo.Domain.Repositories;
 
 namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
@@ -15,18 +14,15 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
         private readonly ITodoRepository _todoRepository;
         private readonly ITodoCommentRepository _commentRepository;
         private readonly ICurrentUserContext _currentUserContext;
-        private readonly IFriendshipService _friendshipService;
 
         public GetCommentsQueryHandler(
             ITodoRepository todoRepository,
             ITodoCommentRepository commentRepository,
-            ICurrentUserContext currentUserContext,
-            IFriendshipService friendshipService)
+            ICurrentUserContext currentUserContext)
         {
             _todoRepository = todoRepository;
             _commentRepository = commentRepository;
             _currentUserContext = currentUserContext;
-            _friendshipService = friendshipService;
         }
 
         public async Task<Result<PagedResult<TodoCommentDto>>> Handle(
@@ -47,13 +43,6 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
 
             if (!hasAccess)
                 throw new ForbiddenException("You do not have access to this task");
-
-            if (!isOwner)
-            {
-                var areFriends = await _friendshipService.AreFriendsAsync(userId, todoItem.UserId, cancellationToken);
-                if (!areFriends)
-                    throw new ForbiddenException("You must be friends with the task owner to view comments");
-            }
 
             var (items, totalCount) = await _commentRepository.GetPagedByTodoIdAsync(
                 request.TodoId, request.PageNumber, request.PageSize, cancellationToken);

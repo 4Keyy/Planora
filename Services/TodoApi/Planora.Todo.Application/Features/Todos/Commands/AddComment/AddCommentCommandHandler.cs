@@ -2,7 +2,6 @@ using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Infrastructure.Context;
 using Planora.Todo.Application.DTOs;
-using Planora.Todo.Application.Services;
 using Planora.Todo.Domain.Repositories;
 
 namespace Planora.Todo.Application.Features.Todos.Commands.AddComment
@@ -13,20 +12,17 @@ namespace Planora.Todo.Application.Features.Todos.Commands.AddComment
         private readonly ITodoCommentRepository _commentRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserContext _currentUserContext;
-        private readonly IFriendshipService _friendshipService;
 
         public AddCommentCommandHandler(
             ITodoRepository todoRepository,
             ITodoCommentRepository commentRepository,
             IUnitOfWork unitOfWork,
-            ICurrentUserContext currentUserContext,
-            IFriendshipService friendshipService)
+            ICurrentUserContext currentUserContext)
         {
             _todoRepository = todoRepository;
             _commentRepository = commentRepository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
-            _friendshipService = friendshipService;
         }
 
         public async Task<Result<TodoCommentDto>> Handle(AddCommentCommand request, CancellationToken cancellationToken)
@@ -45,17 +41,6 @@ namespace Planora.Todo.Application.Features.Todos.Commands.AddComment
 
             if (!hasAccess)
                 throw new ForbiddenException("You do not have access to this task");
-
-            if (!isOwner)
-            {
-                var areFriends = await _friendshipService.AreFriendsAsync(userId, todoItem.UserId, cancellationToken);
-                if (!areFriends)
-                    throw new ForbiddenException("You must be friends with the task owner to comment");
-            }
-
-            var isWorker = todoItem.Workers.Any(w => w.UserId == userId);
-            if (!isOwner && !isWorker)
-                throw new ForbiddenException("Only the owner and active workers can post comments");
 
             var authorName = _currentUserContext.Name
                 ?? _currentUserContext.Email

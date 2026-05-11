@@ -187,16 +187,38 @@ public class TodoItemWorkerTests
     }
 
     [Fact]
-    public void SetRequiredWorkers_ForPrivateTask_ShouldEnforceSharedWithUpperBound()
+    public void SetRequiredWorkers_WithSharedWith_ShouldEnforceUpperBound_PrivateTask()
     {
         var ownerId = Guid.NewGuid();
         var friendId = Guid.NewGuid();
-        // private (not public) task shared with 1 friend → max RequiredWorkers = 2
         var todo = TodoItem.Create(ownerId, "Task", sharedWithUserIds: new[] { friendId });
 
         Assert.Throws<InvalidValueObjectException>(() => todo.SetRequiredWorkers(3, ownerId));
-        todo.SetRequiredWorkers(2, ownerId); // should succeed
+        todo.SetRequiredWorkers(2, ownerId);
         Assert.Equal(2, todo.RequiredWorkers);
+    }
+
+    [Fact]
+    public void SetRequiredWorkers_WithSharedWith_ShouldEnforceUpperBound_PublicTask()
+    {
+        var ownerId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        // public task shared with 1 friend → same upper bound: owner + 1 = 2
+        var todo = TodoItem.Create(ownerId, "Task", isPublic: true, sharedWithUserIds: new[] { friendId });
+
+        Assert.Throws<InvalidValueObjectException>(() => todo.SetRequiredWorkers(3, ownerId));
+        todo.SetRequiredWorkers(2, ownerId);
+        Assert.Equal(2, todo.RequiredWorkers);
+    }
+
+    [Fact]
+    public void SetRequiredWorkers_PublicWithNoSharedWith_ShouldAllowAnyCapacity()
+    {
+        var ownerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
+
+        todo.SetRequiredWorkers(100, ownerId);
+        Assert.Equal(100, todo.RequiredWorkers);
     }
 
     // ─── SetSharedWith / SetPublic worker cleanup ─────────────────────────────

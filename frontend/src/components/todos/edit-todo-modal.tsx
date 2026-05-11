@@ -409,51 +409,51 @@ export function EditTodoModal({
             </AnimatePresence>
           </div>
 
-          {/* Share with friends */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.23 }}
-            className="space-y-2 rounded-2xl border border-gray-100 bg-gradient-to-br from-gray-50/80 to-white p-3.5 shadow-sm"
-          >
-            <label className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-400">
-              Share with friends
-            </label>
-            <FriendMultiSelect
-              friends={friends}
-              selectedIds={selectedFriendIds}
-              onChange={setSelectedFriendIds}
-              disabled={!isOwner}
-              publicSelected={isPublic}
-              onPublicChange={isOwner ? setIsPublic : undefined}
-              placeholder="Private task"
-              contentClassName="z-[2600]"
-            />
-            <p className="text-[10px] md:text-xs text-gray-400 font-semibold">
-              {isOwner
-                ? "Choose all friends or pick specific people. Leave empty to keep this task private."
-                : "Sharing is controlled by the task owner."}
-            </p>
-            {isOwner && hasSharedAudience && (
-              <div className="flex items-center gap-2 pt-1">
-                <label className="text-[11px] font-black uppercase tracking-wider text-gray-400 whitespace-nowrap">
-                  Max workers
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={isPublic ? undefined : 1 + selectedFriendIds.length}
-                  value={requiredWorkers ?? ""}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    setRequiredWorkers(v === "" ? null : Math.max(1, parseInt(v, 10)))
-                  }}
-                  placeholder="No limit"
-                  className="h-8 rounded-lg text-xs w-28 border-gray-200 bg-white"
-                />
-              </div>
-            )}
-          </motion.div>
+          {/* Share with friends — owner only */}
+          {isOwner && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.23 }}
+              className="space-y-2 rounded-2xl border border-gray-100 bg-gradient-to-br from-gray-50/80 to-white p-3.5 shadow-sm"
+            >
+              <label className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-400">
+                Share with friends
+              </label>
+              <FriendMultiSelect
+                friends={friends}
+                selectedIds={selectedFriendIds}
+                onChange={setSelectedFriendIds}
+                disabled={false}
+                publicSelected={isPublic}
+                onPublicChange={setIsPublic}
+                placeholder="Private task"
+                contentClassName="z-[2600]"
+              />
+              <p className="text-[10px] md:text-xs text-gray-400 font-semibold">
+                Choose all friends or pick specific people. Leave empty to keep this task private.
+              </p>
+              {hasSharedAudience && (
+                <div className="flex items-center gap-2 pt-1">
+                  <label className="text-[11px] font-black uppercase tracking-wider text-gray-400 whitespace-nowrap">
+                    Max workers
+                  </label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={selectedFriendIds.length > 0 ? 1 + selectedFriendIds.length : undefined}
+                    value={requiredWorkers ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setRequiredWorkers(v === "" ? null : Math.max(1, parseInt(v, 10)))
+                    }}
+                    placeholder="No limit"
+                    className="h-8 rounded-lg text-xs w-28 border-gray-200 bg-white"
+                  />
+                </div>
+              )}
+            </motion.div>
+          )}
 
           {/* Comments */}
           {hasSharedAudience && (
@@ -466,7 +466,7 @@ export function EditTodoModal({
               <TaskComments
                 todoId={todo.id}
                 isOwner={isOwner}
-                canComment={isOwner || (todo.isWorking ?? false)}
+                canComment={true}
               />
             </motion.div>
           )}
@@ -501,7 +501,7 @@ export function EditTodoModal({
                 disabled={saving || (isOwner ? !title.trim() : !canManageViewerCategory)}
                 className="w-full h-12 rounded-2xl font-bold bg-black hover:bg-gray-900 shadow-xl shadow-black/10"
               >
-                {saving ? "Saving..." : isOwner ? "Save Changes" : "Save Category"}
+                {saving ? "Saving..." : "Save Changes"}
               </Button>
             </motion.div>
           </motion.div>

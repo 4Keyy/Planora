@@ -269,7 +269,7 @@ namespace Planora.Todo.Domain.Entities
                 if (value.Value < 1)
                     throw new InvalidValueObjectException(nameof(TodoItem), "RequiredWorkers must be at least 1");
 
-                if (!IsPublic && _sharedWith.Any())
+                if (_sharedWith.Any())
                 {
                     var maxAllowed = 1 + _sharedWith.Count;
                     if (value.Value > maxAllowed)
