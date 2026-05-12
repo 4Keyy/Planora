@@ -47,7 +47,9 @@ These targets are policy goals, not automated guarantees in the current reposito
 - Protected services validate JWT issuer, audience, lifetime, and signing key locally.
 - Admin-only endpoints use `[Authorize(Roles = "Admin")]`.
 - Password validation includes length/complexity checks, weak-pattern checks, optional HIBP lookup, and password history checks.
-- Backend and frontend set security headers.
+- All services share a single `SecurityHeadersMiddleware` for consistent, strict security headers.
+- A global rate limiter (100 req/min/IP) covers every endpoint; Auth endpoints have stricter named policies.
+- SignalR `NotificationHub` validates subscription topics against a static allowlist before granting group membership.
 - CORS uses explicit origins with credentials.
 
 Key code:
