@@ -117,16 +117,40 @@ public class NotificationInfrastructureTests
         };
 
         await hub.OnConnectedAsync();
-        await hub.Subscribe("security");
-        await hub.Unsubscribe("security");
+        await hub.Subscribe("announcements");
+        await hub.Unsubscribe("announcements");
         await hub.OnDisconnectedAsync(null);
 
         groups.Verify(x => x.AddToGroupAsync("conn-1", "user:user-1", It.IsAny<CancellationToken>()), Times.Once);
         groups.Verify(x => x.RemoveFromGroupAsync("conn-1", "user:user-1", It.IsAny<CancellationToken>()), Times.Once);
-        groups.Verify(x => x.AddToGroupAsync("conn-1", "security", It.IsAny<CancellationToken>()), Times.Once);
-        groups.Verify(x => x.RemoveFromGroupAsync("conn-1", "security", It.IsAny<CancellationToken>()), Times.Once);
+        groups.Verify(x => x.AddToGroupAsync("conn-1", "announcements", It.IsAny<CancellationToken>()), Times.Once);
+        groups.Verify(x => x.RemoveFromGroupAsync("conn-1", "announcements", It.IsAny<CancellationToken>()), Times.Once);
         connectionManager.Verify(x => x.AddConnectionAsync("user-1", "conn-1"), Times.Once);
         connectionManager.Verify(x => x.RemoveConnectionAsync("user-1", "conn-1"), Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task NotificationHub_RejectsSubscriptionToDisallowedTopics()
+    {
+        var groups = new Mock<IGroupManager>();
+        var connectionManager = new Mock<IConnectionManager>();
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object)
+        {
+            Context = HubContext("user-1", "conn-1"),
+            Groups = groups.Object
+        };
+
+        // Attempt to subscribe to arbitrary topics including a user group of another user
+        await hub.Subscribe("user:user-2");
+        await hub.Subscribe("admin");
+        await hub.Subscribe("*");
+
+        // None of the disallowed topics should result in a group add
+        groups.Verify(
+            x => x.AddToGroupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
