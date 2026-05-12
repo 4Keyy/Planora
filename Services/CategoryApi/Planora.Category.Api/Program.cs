@@ -176,24 +176,7 @@ namespace Planora.Category.Api
                 app.UseCorrelationId();
                 app.UseEnhancedGlobalExceptionHandling();
 
-                // SECURITY: Add security headers to all responses
-                app.Use(async (context, next) =>
-                {
-                    // Prevent clickjacking
-                    context.Response.Headers.Append("X-Frame-Options", "DENY");
-                    // Prevent MIME-type sniffing
-                    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
-                    // Enable XSS protection in older browsers
-                    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
-                    // CSP header to prevent inline scripts
-                    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;");
-                    // Enforce HTTPS
-                    if (!builder.Environment.IsDevelopment())
-                    {
-                        context.Response.Headers.Append("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-                    }
-                    await next();
-                });
+                app.UseSecurityHeaders();
 
                 app.UseAuthentication();
                 app.UseAuthorization();

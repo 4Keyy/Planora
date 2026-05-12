@@ -83,6 +83,8 @@ Component coverage in `frontend/src/test/components/todo-heavy-components.test.t
 
 `frontend/src/test/utils/todo-utils.test.ts` covers `applyCategoryPatch` — the helper that zeros all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) when a user removes a task's category, compensating for the backend silently ignoring `null` category IDs on PUT.
 
+`frontend/src/test/components/worker-and-comments.test.tsx` covers `WorkerJoinButton` (11 tests) and `TaskComments` (25 tests). `WorkerJoinButton` tests: isOwner null-render, isWorking strip + leave button, isFull lock icon, take-it button + join call, pending/debounce state, arrow hidden during join, `onControlHoverChange` for both hover-tracked branches. `TaskComments` tests: loading skeleton, empty state, comment list render, `isEdited` label, comment count header, `canComment=false` hides input, add comment on button click and Ctrl+Enter, empty-content submit guard, error display on API failure, edit/delete controls shown for own or owner-visible comments, enter edit mode and save, Cancel button and Escape key cancel edit, Ctrl+Enter keyboard save, error display on update/delete failure, Load-earlier pagination, `formatRelative` time branches (just now / Xm ago / Xh ago / locale date), char-count amber warning.
+
 `frontend/src/test/components/color-bends.test.tsx` covers the WebGL animated background system (31 tests):
 
 - `hexToVec3()` — black, white, red, 3-digit shorthand (`#f00`/`#fff`), neutral gray channel equality, gray palette light-to-dark progression, hash-optional input, `Vector3` instance type, determinism.

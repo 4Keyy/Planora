@@ -137,30 +137,39 @@ Packages `Otp.NET` and `QRCoder` are centrally referenced in `Directory.Packages
 
 ## Rate Limiting
 
-Configured policies:
+A `GlobalLimiter` applies a default cap of 100 requests/minute per IP to every endpoint across all services. Named policies for Auth endpoints provide stricter per-operation limits:
 
-| Policy | Limit |
-|---|---:|
-| `register` | 3/minute/IP |
-| `login` | 5/minute/IP |
-| `auth` | 10/minute/IP |
-| `data` | 50/minute/IP |
+| Policy | Limit | Applied to |
+|---|---:|---|
+| global | 100/minute/IP | all services (default) |
+| `register` | 3/minute/IP | `POST /auth/register` |
+| `login` | 5/minute/IP | `POST /auth/login` |
+| `auth` | 10/minute/IP | refresh, logout, CSRF |
 
-Auth controller applies `register`, `login`, and `auth`. Other controllers did not show explicit `[EnableRateLimiting("data")]` usage in inspected files.
+The `GlobalLimiter` is configured in `AddConfiguredRateLimiting()` using `PartitionedRateLimiter.Create<HttpContext, string>` partitioned by `RemoteIpAddress`. Auth controller adds the stricter named policies on top via `[EnableRateLimiting("...")]`.
 
 Code:
 
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ServiceCollectionExtensions.cs`
 - `Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs`
 
+## SignalR Topic Subscription
+
+`NotificationHub.Subscribe()` validates the requested topic against a static allowlist before adding the connection to a group. Only `system`, `announcements`, and `todos` are permitted. Requests for any other topic are silently rejected and logged as warnings.
+
+Code:
+
+- `Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs`
+
 ## Security Headers
 
-Backend services append common headers:
+All backend services apply security headers through a single shared middleware. The middleware is registered with `app.UseSecurityHeaders()` which calls `SecurityHeadersMiddleware`. Headers set:
 
 - `X-Frame-Options: DENY`
 - `X-Content-Type-Options: nosniff`
 - `X-XSS-Protection: 1; mode=block`
-- `Content-Security-Policy`
+- `Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; ...`
+- `Referrer-Policy: strict-origin-when-cross-origin`
 - `Strict-Transport-Security` outside development
 
 Frontend `next.config.js` also sets:
@@ -174,8 +183,7 @@ Frontend `next.config.js` also sets:
 
 Code:
 
-- service `Program.cs` files
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/SecurityHeadersMiddleware.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/SecurityHeadersMiddleware.cs` — single source of truth for all services
 - `frontend/next.config.js`
 
 ## CORS

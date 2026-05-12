@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 
 namespace Planora.BuildingBlocks.Infrastructure.Middleware;
@@ -42,4 +43,10 @@ public sealed class SecurityHeadersMiddleware
 
         await _next(context);
     }
+}
+
+public static class SecurityHeadersMiddlewareExtensions
+{
+    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app)
+        => app.UseMiddleware<SecurityHeadersMiddleware>();
 }

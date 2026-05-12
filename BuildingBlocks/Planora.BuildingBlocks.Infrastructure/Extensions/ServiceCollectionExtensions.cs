@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
 using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
 using System.Threading.RateLimiting;
@@ -44,12 +46,20 @@ public static class ServiceCollectionExtensions
         // Configure rate limiting with multiple policies
         services.AddRateLimiter(options =>
         {
-            // options.GlobalLimiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
-            // {
-            //     AutoReplenishment = true,
-            //     PermitLimit = 100,
-            //     Window = TimeSpan.FromMinutes(1)
-            // });
+            // Global fallback: 100 requests per minute per IP for all endpoints that do
+            // not have an explicit [EnableRateLimiting] policy. This protects data
+            // endpoints (todos, categories, messages) that do not carry individual
+            // rate-limit attributes. Previously this limiter was commented out, leaving
+            // those endpoints completely unthrottled.
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        AutoReplenishment = true,
+                        PermitLimit = 100,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
 
             // Strict limiter for auth endpoints (10 requests per minute per IP)
             options.AddPolicy("auth", context =>
