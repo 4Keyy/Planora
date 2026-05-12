@@ -235,6 +235,8 @@ describe("TodoCard", () => {
       />,
     )
     await waitFor(() => expect(screen.getByText("Write coverage tests")).toBeInTheDocument())
+    // Wait until no pending operations (completion animation fully settled, visibility idle)
+    await waitFor(() => expect(screen.getByRole("button", { name: "Collapse task card" })).not.toBeDisabled())
 
     fireEvent.click(screen.getByText("Write coverage tests"))
     expect(onEdit).toHaveBeenCalledOnce()
