@@ -32,7 +32,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '9.0.x'
       - run: dotnet list package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt; grep -i "has the following vulnerable packages" vuln-report.txt && exit 1 || exit 0
