@@ -38,14 +38,12 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
 
         public async Task SoftDeleteByTodoIdAsync(Guid todoItemId, Guid deletedBy, CancellationToken ct = default)
         {
-            var now = DateTime.UtcNow;
-            await DbSet
+            var comments = await DbSet
                 .Where(c => c.TodoItemId == todoItemId && !c.IsDeleted)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(c => c.IsDeleted, true)
-                    .SetProperty(c => c.DeletedAt, now)
-                    .SetProperty(c => c.DeletedBy, (Guid?)deletedBy),
-                    ct);
+                .ToListAsync(ct);
+
+            foreach (var comment in comments)
+                comment.MarkAsDeleted(deletedBy);
         }
     }
 }
