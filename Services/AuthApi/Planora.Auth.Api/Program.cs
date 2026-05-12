@@ -7,6 +7,7 @@ using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
+using Planora.BuildingBlocks.Infrastructure.Middleware;
 using Serilog;
 using Serilog.Events;
 using Npgsql;
@@ -217,24 +218,10 @@ namespace Planora.Auth.Api
                     app.UseSwaggerDocumentation(app.Environment);
                 }
 
-                // SECURITY: Add security headers to all responses
-                app.Use(async (context, next) =>
-                {
-                    // Prevent clickjacking
-                    context.Response.Headers.Append("X-Frame-Options", "DENY");
-                    // Prevent MIME-type sniffing
-                    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
-                    // Enable XSS protection in older browsers
-                    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
-                    // CSP header to prevent inline scripts
-                    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;");
-                    // Enforce HTTPS
-                    if (!builder.Environment.IsDevelopment())
-                    {
-                        context.Response.Headers.Append("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-                    }
-                    await next();
-                });
+                // SECURITY: Add security headers via shared middleware (SecurityHeadersMiddleware).
+                // This replaces the previous inline lambda that included `style-src 'unsafe-inline'`
+                // in the CSP, which was weaker than necessary for a JSON API service.
+                app.UseSecurityHeaders();
 
                 app.UseAuthentication();
                 app.UseAuthorization();
