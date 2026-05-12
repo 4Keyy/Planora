@@ -1,13 +1,23 @@
 name: CI
 on:
   push:
-    branches: [main, 'audit/**', 'fix/**']
+    branches: [main, 'audit/**', 'fix/**', 'claude/**']
   pull_request:
     branches: [main]
+
+# Minimum permissions. Each job only receives what it needs.
+permissions:
+  contents: read
+
+# Cancel in-progress runs for the same branch to avoid wasted compute.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Lint Markdown
@@ -20,6 +30,7 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -35,6 +46,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
