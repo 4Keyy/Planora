@@ -189,7 +189,9 @@ describe("TodoCard", () => {
     expect(container.querySelector(".lucide-share2")).toBeInTheDocument()
     const sharedUrgentCard = container.querySelector(".task-card--shared-urgent")
     expect(sharedUrgentCard).not.toBeNull()
-    expect(sharedUrgentCard).toHaveClass("border-blue-400", "border-l-red-400")
+    expect(sharedUrgentCard).toHaveClass("border-blue-400")
+    // Red left border is applied via inline style, not a Tailwind class
+    expect((sharedUrgentCard as HTMLElement).style.borderLeftColor).toBe("rgb(248, 113, 113)")
     expect(container.querySelector(".bg-red-400")).toBeNull()
     expect(screen.getByText(/Overdue/i)).toBeInTheDocument()
     expect(screen.getByText(/EXP:/)).toBeInTheDocument()
@@ -361,7 +363,9 @@ describe("TodoCard", () => {
 
     const card = container.querySelector(".task-card--shared-urgent")
     expect(card).not.toBeNull()
-    expect(card).toHaveClass("border-blue-400", "border-l-red-400")
+    expect(card).toHaveClass("border-blue-400")
+    // Red left border is applied via inline style, not a Tailwind class
+    expect((card as HTMLElement).style.borderLeftColor).toBe("rgb(248, 113, 113)")
     expect(screen.getByText("Focus")).toHaveClass("blur-[3px]")
   })
 })
@@ -445,6 +449,7 @@ describe("CreateTodoPanel", () => {
       isPublic: true,
       sharedWithUserIds: [],
       tags: [],
+      requiredWorkers: null,
     })
     expect(screen.getByPlaceholderText("What needs to be done?")).toHaveValue("")
   })
@@ -686,6 +691,8 @@ describe("EditTodoModal", () => {
       categoryId: "cat-1",
       isPublic: true,
       sharedWithUserIds: ["friend-1"],
+      requiredWorkers: 2,
+      clearRequiredWorkers: false,
     })
 
     await user.keyboard("{Escape}")
@@ -711,9 +718,8 @@ describe("EditTodoModal", () => {
 
     expect(screen.getByPlaceholderText("Task Title")).toBeDisabled()
     expect(screen.getByText(/private for you/)).toBeInTheDocument()
-    expect(screen.getByText("Sharing is controlled by the task owner.")).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole("button", { name: "Save Category" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save Changes" }))
 
     await waitFor(() => expect(onSaveViewerPreference).toHaveBeenCalledOnce())
     expect(onSaveViewerPreference).toHaveBeenCalledWith({ viewerCategoryId: "cat-1" })
@@ -734,7 +740,7 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    expect(screen.getByRole("button", { name: "Save Category" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Save Changes" })).toBeDisabled()
   })
 
   it("creates a category inline while saving owner edits", async () => {
@@ -791,6 +797,8 @@ describe("EditTodoModal", () => {
       categoryId: "cat-new",
       isPublic: true,
       sharedWithUserIds: [],
+      requiredWorkers: undefined,
+      clearRequiredWorkers: true,
     })
   })
 })

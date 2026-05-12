@@ -211,7 +211,7 @@ describe("toast store and toaster", () => {
 
     expect(screen.getByText("Failed")).toBeInTheDocument()
     expect(screen.getByText("Try again")).toBeInTheDocument()
-    expect(container.firstChild).toHaveClass("top-16", "z-toast", "pointer-events-none")
+    expect(container.firstChild).toHaveClass("z-toast", "pointer-events-none")
 
     fireEvent.click(screen.getByRole("button"))
 

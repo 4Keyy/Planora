@@ -26,7 +26,7 @@ import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { FriendMultiSelect } from "@/components/todos/friend-multi-select"
 import { useFriends } from "@/hooks/use-friends"
 import { cn } from "@/lib/utils"
-import { TWEEN_FAST, SPRING_RESPONSIVE, EASE_OUT, EASE_OUT_EXPO } from "@/lib/animations"
+import { TWEEN_FAST, SPRING_RESPONSIVE, EASE_OUT_EXPO } from "@/lib/animations"
 
 interface CreateTodoPanelProps {
   isOpen: boolean
@@ -56,9 +56,6 @@ const TITLE_MAX_LENGTH = 200
 const DESCRIPTION_MAX_LENGTH = 5000
 const CATEGORY_NAME_MAX_LENGTH = 50
 const LIMIT_WARNING_RATIO = 0.8
-const PANEL_LAYOUT_TRANSITION = { duration: 0.4, ease: EASE_OUT } as const
-const PANEL_FADE_TRANSITION = { duration: 0.18, ease: EASE_OUT_EXPO } as const
-const PANEL_CONTENT_TRANSITION = { duration: 0.26, ease: EASE_OUT_EXPO } as const
 
 const getPriorityNumber = (p: string): number => {
   const match = priorityOptions.find(o => o.value === p)
@@ -251,12 +248,6 @@ export function CreateTodoPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, title, description, priority, dueDate, categoryId, isPublic, selectedFriendIds, newCatName, newCatColor, newCatIcon, creating])
 
-  const fadeTransition = prefersReducedMotion
-    ? { duration: 0.01, ease: EASE_OUT_EXPO }
-    : PANEL_FADE_TRANSITION
-  const contentTransition = prefersReducedMotion
-    ? { duration: 0.01, ease: EASE_OUT_EXPO }
-    : PANEL_CONTENT_TRANSITION
   const fieldMotion = (delay = 0) => ({
     initial: { opacity: 0, y: prefersReducedMotion ? 0 : 8, scale: prefersReducedMotion ? 1 : 0.99 },
     animate: { opacity: 1, y: 0, scale: 1 },
