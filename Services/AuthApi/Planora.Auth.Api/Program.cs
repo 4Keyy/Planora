@@ -7,7 +7,6 @@ using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
-using Planora.BuildingBlocks.Infrastructure.Middleware;
 using Serilog;
 using Serilog.Events;
 using Npgsql;
