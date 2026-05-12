@@ -13,6 +13,7 @@ namespace Planora.Todo.Domain.Repositories
         Task<int> GetUncompletedCountAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<TodoItem>> GetOverdueAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<TodoItem?> GetByIdWithIncludesAsync(Guid id, CancellationToken cancellationToken = default);
+        Task<TodoItem?> GetByIdWithIncludesTrackedAsync(Guid id, CancellationToken cancellationToken = default);
         Task<(IReadOnlyList<TodoItem> Items, int TotalCount)> FindPageWithIncludesAsync(
             Expression<Func<TodoItem, bool>> predicate,
             bool sortCompletedByCompletionTime,

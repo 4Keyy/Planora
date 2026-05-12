@@ -35,11 +35,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             if (userId == Guid.Empty)
                 throw new UnauthorizedAccessException("User context is not available");
 
-            var todoItem = await _repository.GetByIdWithIncludesAsync(request.TodoId, cancellationToken)
+            var todoItem = await _repository.GetByIdWithIncludesTrackedAsync(request.TodoId, cancellationToken)
                 ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
             if (todoItem.UserId == userId)
-                throw new BusinessRuleViolationException("Owner is always a worker on their own task");
+            {
+                var ownerDto = _mapper.Map<TodoItemDto>(todoItem) with
+                {
+                    WorkerCount = todoItem.Workers.Count,
+                    WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
+                    RequiredWorkers = todoItem.RequiredWorkers,
+                    IsWorking = true,
+                };
+                return Result<TodoItemDto>.Success(ownerDto);
+            }
 
             var canAccess = todoItem.IsPublic || todoItem.SharedWith.Any(s => s.SharedWithUserId == userId);
             if (!canAccess)
@@ -53,8 +62,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
                     throw new ForbiddenException("You must be friends with the task owner to join");
             }
 
+            // Idempotent: already a worker → return current state as success
+            if (todoItem.Workers.Any(w => w.UserId == userId))
+            {
+                var existing = _mapper.Map<TodoItemDto>(todoItem) with
+                {
+                    WorkerCount = todoItem.Workers.Count,
+                    WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
+                    RequiredWorkers = todoItem.RequiredWorkers,
+                    IsWorking = true,
+                };
+                return Result<TodoItemDto>.Success(existing);
+            }
+
             todoItem.AddWorker(userId);
-            _repository.Update(todoItem);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var dto = _mapper.Map<TodoItemDto>(todoItem) with

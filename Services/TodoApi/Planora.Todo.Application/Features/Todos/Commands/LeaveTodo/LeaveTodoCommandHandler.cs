@@ -27,14 +27,13 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
             if (userId == Guid.Empty)
                 throw new UnauthorizedAccessException("User context is not available");
 
-            var todoItem = await _repository.GetByIdWithIncludesAsync(request.TodoId, cancellationToken)
+            var todoItem = await _repository.GetByIdWithIncludesTrackedAsync(request.TodoId, cancellationToken)
                 ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
             if (todoItem.UserId == userId)
                 throw new BusinessRuleViolationException("Owner cannot leave their own task");
 
             todoItem.RemoveWorker(userId);
-            _repository.Update(todoItem);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Result.Success();

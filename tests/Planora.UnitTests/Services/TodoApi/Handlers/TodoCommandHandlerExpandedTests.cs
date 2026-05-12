@@ -265,7 +265,9 @@ public class TodoCommandHandlerExpandedTests
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(TodoStatus.Done, todo.Status);
+        // Viewer completion is recorded per-viewer; the shared entity status is unchanged
+        Assert.Equal("Done", result.Value!.Status);
+        Assert.Equal(TodoStatus.Todo, todo.Status);
         Assert.Null(result.Value!.CategoryId);
         Assert.Null(result.Value.CategoryName);
 
@@ -277,7 +279,8 @@ public class TodoCommandHandlerExpandedTests
             CancellationToken.None);
 
         Assert.True(publicOnlyResult.IsSuccess);
-        Assert.Equal(TodoStatus.Done, publicOnlyTodo.Status);
+        Assert.Equal("Done", publicOnlyResult.Value!.Status);
+        Assert.Equal(TodoStatus.Todo, publicOnlyTodo.Status);
         Assert.Null(publicOnlyResult.Value!.CategoryId);
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
@@ -586,7 +589,8 @@ public class TodoCommandHandlerExpandedTests
                 Mock.Of<ILogger<UpdateTodoCommandHandler>>(),
                 CurrentUser.Object,
                 CategoryGrpcClient.Object,
-                FriendshipService.Object);
+                FriendshipService.Object,
+                ViewerPreferences.Object);
 
         public SetTodoHiddenCommandHandler CreateSetHiddenHandler()
             => new(

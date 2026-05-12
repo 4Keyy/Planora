@@ -33,7 +33,7 @@ public class WorkersAndCommentsHandlerTests
         var todo = TodoItem.Create(ownerId, "Public task", isPublic: true);
         var fixture = new WorkerFixture(workerId);
 
-        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
         fixture.FriendshipService.Setup(x => x.AreFriendsAsync(workerId, ownerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -48,17 +48,21 @@ public class WorkersAndCommentsHandlerTests
     }
 
     [Fact]
-    public async Task JoinTodo_WhenOwner_ShouldThrowBusinessRule()
+    public async Task JoinTodo_WhenOwner_ShouldReturnSuccessWithIsWorking()
     {
         var ownerId = Guid.NewGuid();
         var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
         var fixture = new WorkerFixture(ownerId);
 
-        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
+        fixture.Mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>())).Returns(EmptyDto());
 
-        await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-            fixture.CreateJoinHandler().Handle(new JoinTodoCommand(todo.Id), CancellationToken.None));
+        var result = await fixture.CreateJoinHandler().Handle(new JoinTodoCommand(todo.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value!.IsWorking);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -70,7 +74,7 @@ public class WorkersAndCommentsHandlerTests
         var todo = TodoItem.Create(ownerId, "Private task");
         var fixture = new WorkerFixture(workerId);
 
-        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
@@ -82,10 +86,11 @@ public class WorkersAndCommentsHandlerTests
     {
         var ownerId = Guid.NewGuid();
         var workerId = Guid.NewGuid();
-        var todo = TodoItem.Create(ownerId, "Public task", isPublic: true);
+        // Non-public task shared with workerId — requires friendship check
+        var todo = TodoItem.Create(ownerId, "Shared task", sharedWithUserIds: new[] { workerId });
         var fixture = new WorkerFixture(workerId);
 
-        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
         fixture.FriendshipService.Setup(x => x.AreFriendsAsync(workerId, ownerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -95,10 +100,50 @@ public class WorkersAndCommentsHandlerTests
     }
 
     [Fact]
+    public async Task JoinTodo_WhenAlreadyWorker_ShouldReturnIdempotentSuccess()
+    {
+        var ownerId = Guid.NewGuid();
+        var workerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Public task", isPublic: true);
+        todo.AddWorker(workerId);
+
+        var fixture = new WorkerFixture(workerId);
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        fixture.Mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>())).Returns(EmptyDto());
+
+        var result = await fixture.CreateJoinHandler().Handle(new JoinTodoCommand(todo.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value!.IsWorking);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task JoinTodo_PublicTask_ShouldSucceedWithoutFriendshipCheck()
+    {
+        var ownerId = Guid.NewGuid();
+        var workerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Public task", isPublic: true);
+        var fixture = new WorkerFixture(workerId);
+
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        fixture.Mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>())).Returns(EmptyDto());
+
+        var result = await fixture.CreateJoinHandler().Handle(new JoinTodoCommand(todo.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        fixture.FriendshipService.Verify(
+            x => x.AreFriendsAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task JoinTodo_WhenNotFound_ShouldThrowEntityNotFound()
     {
         var fixture = new WorkerFixture(Guid.NewGuid());
-        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((TodoItem?)null);
 
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
@@ -116,7 +161,7 @@ public class WorkersAndCommentsHandlerTests
         todo.AddWorker(existingWorker);
 
         var fixture = new WorkerFixture(newWorker);
-        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
         fixture.FriendshipService.Setup(x => x.AreFriendsAsync(newWorker, ownerId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -138,7 +183,7 @@ public class WorkersAndCommentsHandlerTests
         todo.AddWorker(workerId);
 
         var fixture = new WorkerFixture(workerId);
-        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
 
         var result = await fixture.CreateLeaveHandler().Handle(new LeaveTodoCommand(todo.Id), CancellationToken.None);
@@ -154,7 +199,7 @@ public class WorkersAndCommentsHandlerTests
         var todo = TodoItem.Create(ownerId, "Task");
         var fixture = new WorkerFixture(ownerId);
 
-        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
 
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
@@ -169,7 +214,7 @@ public class WorkersAndCommentsHandlerTests
         var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
         var fixture = new WorkerFixture(userId);
 
-        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
 
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
@@ -462,7 +507,6 @@ public class WorkersAndCommentsHandlerTests
             CurrentUser.SetupGet(x => x.UserId).Returns(userId);
             CurrentUser.SetupGet(x => x.IsAuthenticated).Returns(userId != Guid.Empty);
             UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-            Repository.Setup(x => x.Update(It.IsAny<TodoItem>()));
         }
 
         public JoinTodoCommandHandler CreateJoinHandler()

@@ -634,12 +634,15 @@ export function TodoCard({
                           {!isOwner && publicBadgeLabel}
                         </motion.span>
                       )}
-                      {showShareBadge && (() => {
-                        const workerTotal = (todo.workerCount ?? 0) + 1
-                        // Always show for public/shared tasks: N/M when capped, N alone otherwise
-                        const label = todo.requiredWorkers != null
-                          ? `${workerTotal}/${todo.requiredWorkers}`
-                          : `${workerTotal}`
+                      {(todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) && !isCompleted && (() => {
+                        const friendCount = todo.sharedWithUserIds?.length ?? 0
+                        const statusNorm = todo.status?.toLowerCase().replace(/\s/g, '') ?? ''
+                        const ownerSlotTaken = statusNorm === 'inprogress' ? 1 : 0
+                        const joined = (todo.workerCount ?? 0) + ownerSlotTaken
+                        const slots = todo.requiredWorkers != null
+                          ? todo.requiredWorkers
+                          : friendCount > 0 ? friendCount + 1 : null
+                        const label = slots != null ? `${joined}/${slots}` : `${joined}`
                         return (
                           <motion.span
                             key="workers-badge"
@@ -732,9 +735,16 @@ export function TodoCard({
 
               </div>
 
-              {/* Worker join/leave strip — rendered inside CardContent to avoid overflow-hidden clipping */}
-              {onJoin && onLeave && (() => {
-                const isFull = !!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1
+              {/* Worker join/leave strip */}
+              {onJoin && onLeave && !isCompleted && (() => {
+                const friendCount = todo.sharedWithUserIds?.length ?? 0
+                const slots = todo.requiredWorkers != null && todo.requiredWorkers > 1
+                  ? todo.requiredWorkers - 1
+                  : friendCount > 0 ? friendCount : null
+                // Owner is never "full" — they control their own InProgress status
+                const isFull = !isOwner && slots != null && (todo.workerCount ?? 0) >= slots
+                // Owner: show for all tasks (Take it = set InProgress)
+                // Non-owner: show for public/shared tasks when working or room available
                 const show = isOwner || (isShared && (isEffectivelyWorking || !isFull))
                 if (!show) return null
                 return (
@@ -745,7 +755,7 @@ export function TodoCard({
                     <WorkerJoinButton
                       isOwner={false}
                       isWorking={isEffectivelyWorking}
-                      isFull={!!todo.requiredWorkers && (todo.workerCount ?? 0) >= todo.requiredWorkers - 1}
+                      isFull={isFull}
                       onJoin={onJoin}
                       onLeave={onLeave}
                       onControlHoverChange={setIsControlHover}

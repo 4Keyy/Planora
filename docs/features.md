@@ -211,18 +211,19 @@ Allow friends to claim participation slots on public or shared tasks. The task o
 
 | Rule | Detail |
 |---|---|
-| Owner is never stored as a worker | Owner implicitly participates on their own task |
-| `RequiredWorkers` semantics | Total headcount including owner; `null` means unlimited |
-| Capacity check | Full when `Workers.Count >= RequiredWorkers - 1` |
-| Join guards | Must not be owner; must have task access (public or shared); must be friends with owner; must not be at capacity; must not already be a worker |
+| Owner is never stored as a worker | Owner implicitly participates on their own task; calling `/join` as owner returns success with `isWorking: true` (idempotent, no DB write) |
+| `RequiredWorkers` semantics | Total headcount including owner; `null` means unlimited; `1` means owner-only (always full) |
+| Capacity check | `IsCapacityFull` when `RequiredWorkers.HasValue && Workers.Count >= RequiredWorkers - 1` |
+| Join guards | Must have task access (public or shared); for non-public tasks, must be friends with owner; must not be at capacity; already-a-worker returns idempotent success |
 | Leave guard | Owner cannot leave; leaving a task where user is not a worker throws `EntityNotFoundException` |
 | Eviction on access change | Removing a user from `SharedWith`, making a task private, or reducing `RequiredWorkers` below current worker count triggers automatic eviction (LIFO for capacity reduction) |
+| EF Core persistence | Join/Leave handlers use `GetByIdWithIncludesTrackedAsync` (tracked query, no `AsNoTracking`). Change tracking correctly marks new workers as `Added` → `INSERT` and removed workers as orphaned `Deleted` → `DELETE` via `OnDelete(Cascade)`. No explicit `DbSet.Update()` call needed or made. |
 | Worker fields in DTO | `workerCount`, `workerUserIds`, `requiredWorkers`, `isWorking` patched on every GET/mutation response |
 
 ### Frontend Behavior
 
+- Worker count badge (`X/Y`) shows the current active workers (including owner's InProgress slot) over the total `requiredWorkers` capacity.
 - `WorkerJoinButton` renders nothing for the owner; shows "Join" (indigo) for eligible friends; shows disabled "Full" with a lock icon when at capacity; shows "Leave" (outlined) when already working.
-- Worker count badge appears in the card badge row for tasks with a shared audience.
 - `onJoin` / `onLeave` callbacks on `TodoCard` optimistically update `isWorking` and `workerCount` in local state.
 
 ## Task Comments

@@ -83,6 +83,16 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted, cancellationToken);
         }
 
+        public async Task<TodoItem?> GetByIdWithIncludesTrackedAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await DbSet
+                .AsSplitQuery()
+                .Include(t => t.Tags)
+                .Include(t => t.SharedWith)
+                .Include(t => t.Workers)
+                .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted, cancellationToken);
+        }
+
         public async Task<(IReadOnlyList<TodoItem> Items, int TotalCount)> FindPageWithIncludesAsync(
             Expression<Func<TodoItem, bool>> predicate,
             bool sortCompletedByCompletionTime,

@@ -29,7 +29,8 @@ namespace Planora.Todo.Domain.Entities
         public IReadOnlyCollection<TodoItemWorker> Workers => _workers.AsReadOnly();
 
         public bool IsCapacityFull =>
-            RequiredWorkers.HasValue && _workers.Count >= RequiredWorkers.Value - 1;
+            RequiredWorkers.HasValue &&
+            _workers.Count >= RequiredWorkers.Value - 1;
 
         private TodoItem() { }
 
