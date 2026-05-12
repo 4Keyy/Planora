@@ -1,5 +1,4 @@
 using Planora.BuildingBlocks.Infrastructure.Logging;
-using Planora.BuildingBlocks.Infrastructure.Middleware;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.Realtime.Api.Grpc;
