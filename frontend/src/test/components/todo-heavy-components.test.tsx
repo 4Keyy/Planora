@@ -453,7 +453,7 @@ describe("CreateTodoPanel", () => {
       tags: [],
       requiredWorkers: null,
     })
-    expect(screen.getByPlaceholderText("What needs to be done?")).toHaveValue("")
+    await waitFor(() => expect(screen.getByPlaceholderText("What needs to be done?")).toHaveValue(""))
   })
 
   it("shows task text counters and red warning state near input limits", () => {
