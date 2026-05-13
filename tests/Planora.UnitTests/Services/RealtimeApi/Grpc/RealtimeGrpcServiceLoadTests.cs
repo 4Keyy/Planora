@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using Grpc.Core;
-using Grpc.Core.Testing;
 using Planora.Realtime.Api.Grpc;
 using Planora.Realtime.Application.Interfaces;
 using Planora.GrpcContracts;
@@ -26,18 +21,7 @@ public class RealtimeGrpcServiceLoadTests
         var loggerMock = new Mock<ILogger<RealtimeGrpcService>>();
         var service = new RealtimeGrpcService(notificationServiceMock.Object, loggerMock.Object);
 
-        var context = TestServerCallContext.Create(
-            "SendNotification",
-            null,
-            DateTime.UtcNow.AddMinutes(1),
-            new Metadata(),
-            CancellationToken.None,
-            "127.0.0.1",
-            null,
-            null,
-            _ => Task.CompletedTask,
-            () => null,
-            _ => { });
+        var context = new FakeServerCallContext();
 
         var tasks = new List<Task>();
         for (int i = 0; i < 200; i++)

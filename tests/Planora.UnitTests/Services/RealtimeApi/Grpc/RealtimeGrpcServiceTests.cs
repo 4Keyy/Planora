@@ -1,5 +1,4 @@
 using Grpc.Core;
-using Grpc.Core.Testing;
 using Planora.GrpcContracts;
 using Planora.Realtime.Api.Grpc;
 using Planora.Realtime.Application.Interfaces;
@@ -28,7 +27,7 @@ public sealed class RealtimeGrpcServiceTests
                 Message = "Deploy complete",
                 Type = "info"
             },
-            CreateContext("BroadcastNotification"));
+            new FakeServerCallContext());
 
         Assert.True(response.Success);
         notifications.Verify(
@@ -54,20 +53,6 @@ public sealed class RealtimeGrpcServiceTests
                     Message = "Deploy failed",
                     Type = "error"
                 },
-                CreateContext("BroadcastNotification")));
+                new FakeServerCallContext()));
     }
-
-    private static ServerCallContext CreateContext(string method)
-        => TestServerCallContext.Create(
-            method,
-            null,
-            DateTime.UtcNow.AddMinutes(1),
-            new Metadata(),
-            CancellationToken.None,
-            "127.0.0.1",
-            null,
-            null,
-            _ => Task.CompletedTask,
-            () => null,
-            _ => { });
 }
