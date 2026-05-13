@@ -50,7 +50,7 @@ public static class ServiceCollectionExtensions
             // endpoints (todos, categories, messages) that do not carry individual
             // rate-limit attributes. Previously this limiter was commented out, leaving
             // those endpoints completely unthrottled.
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+            options.GlobalLimiter = (PartitionedRateLimiter<HttpContext>)PartitionedRateLimiter.Create<HttpContext, string>(context =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                     factory: _ => new FixedWindowRateLimiterOptions
