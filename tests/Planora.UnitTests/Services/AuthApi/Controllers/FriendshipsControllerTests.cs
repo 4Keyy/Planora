@@ -192,28 +192,32 @@ public class FriendshipsControllerTests
     private static Task<ActionResult<List<Guid>>> GetFriendIdsWith(Result<List<Guid>> result, Guid userId)
     {
         var mediator = new Mock<IMediator>();
-        mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(result));
         return CreateController(mediator).GetFriendIds(userId, CancellationToken.None);
     }
 
     private static Task<ActionResult<List<Guid>>> GetFriendIdsThrowing(Guid userId)
     {
         var mediator = new Mock<IMediator>();
-        mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("down"));
+        mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("down"));
         return CreateController(mediator).GetFriendIds(userId, CancellationToken.None);
     }
 
     private static Task<ActionResult<bool>> AreFriendsWith(Result<List<Guid>> result, Guid userId, Guid friendId)
     {
         var mediator = new Mock<IMediator>();
-        mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.FromResult(result));
         return CreateController(mediator).AreFriends(userId, friendId, CancellationToken.None);
     }
 
     private static Task<ActionResult<bool>> AreFriendsThrowing(Guid userId, Guid friendId)
     {
         var mediator = new Mock<IMediator>();
-        mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>())).ThrowsAsync(new InvalidOperationException("down"));
+        mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("down"));
         return CreateController(mediator).AreFriends(userId, friendId, CancellationToken.None);
     }
 

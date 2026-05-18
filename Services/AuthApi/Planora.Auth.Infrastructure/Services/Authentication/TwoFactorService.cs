@@ -45,9 +45,7 @@ namespace Planora.Auth.Infrastructure.Services.Authentication
             var secretBytes = Base32Encoding.ToBytes(secret);
             var totp = new Totp(secretBytes);
 
-            // VerifyTotp returns the matched time step via the out parameter.
-            // Discarding it (out _) means we cannot track replay; we capture it here.
-            var isValid = totp.VerifyTotp(code, out var timeStepMatched, new VerificationWindow(2, 2));
+            var isValid = totp.VerifyTotp(DateTime.UtcNow, code, out var timeStepMatched, new VerificationWindow(2, 2));
 
             if (!isValid)
                 return false;
@@ -57,7 +55,6 @@ namespace Planora.Auth.Infrastructure.Services.Authentication
             try
             {
                 var db = _redis.GetDatabase();
-                // SetAsync with NX (only set if not exists) returns true when the key is new.
                 var keyWasNew = await db.StringSetAsync(
                     replayKey,
                     "1",
