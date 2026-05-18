@@ -92,6 +92,9 @@ export type Todo = {
   categoryName?: string | null
   categoryColor?: string | null
   categoryIcon?: string | null
+  authorCategoryName?: string | null
+  authorCategoryColor?: string | null
+  authorCategoryIcon?: string | null
   authorName?: string | null
   sharedWithUserIds?: string[] | null
   hasSharedAudience?: boolean | null

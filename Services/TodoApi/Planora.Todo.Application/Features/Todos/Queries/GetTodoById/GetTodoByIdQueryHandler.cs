@@ -131,6 +131,34 @@ public sealed class GetTodoByIdQueryHandler : IQueryHandler<GetTodoByIdQuery, Re
             }
         }
 
+        // Fetch the author's original category so the viewer sees a hint when choosing their own
+        if (!isOwner && todoItem.CategoryId.HasValue)
+        {
+            try
+            {
+                var authorCategoryInfo = await _categoryGrpcClient.GetCategoryInfoAsync(
+                    todoItem.CategoryId.Value,
+                    todoItem.UserId,
+                    cancellationToken);
+
+                if (authorCategoryInfo is not null)
+                {
+                    dto = dto with
+                    {
+                        AuthorCategoryName  = authorCategoryInfo.Name,
+                        AuthorCategoryColor = authorCategoryInfo.Color,
+                        AuthorCategoryIcon  = authorCategoryInfo.Icon,
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Could not fetch author category for todo {TodoId}",
+                    todoItem.Id);
+            }
+        }
+
         return Result<TodoItemDto>.Success(dto);
     }
 }

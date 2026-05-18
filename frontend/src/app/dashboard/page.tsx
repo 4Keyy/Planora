@@ -705,7 +705,9 @@ export default function DashboardPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setCurrentPage(p => Math.max(1, p - 1))
+                        const newPage = Math.max(1, currentPage - 1)
+                        setCurrentPage(newPage)
+                        fetchTodos(newPage)
                         window.scrollTo({ top: 0, behavior: 'smooth' })
                       }}
                       disabled={currentPage === 1}
@@ -730,6 +732,7 @@ export default function DashboardPage() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => {
                               setCurrentPage(pageNum)
+                              fetchTodos(pageNum)
                               window.scrollTo({ top: 0, behavior: 'smooth' })
                             }}
                             className={cn(

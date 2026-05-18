@@ -106,7 +106,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
 
             _logger.LogInformation("Enriching {Count} todos with category data via gRPC", paginatedItems.Count);
 
-            // Gather unique category IDs and fetch all at once to minimise gRPC round-trips
+            // Gather unique effective category IDs (viewer's own category) and fetch all at once
             var categoryIds = paginatedItems
                 .Select(i =>
                 {
@@ -139,6 +139,29 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             }));
 
             var categoryCache = categoryResults.ToDictionary(x => x.categoryId, x => x.info);
+
+            // Fetch author categories for non-owner tasks so the viewer can see the author's category as a hint
+            var authorCategoryFetches = paginatedItems
+                .Where(i => i.UserId != userId && i.CategoryId.HasValue)
+                .Select(i => (categoryId: i.CategoryId!.Value, ownerUserId: i.UserId))
+                .DistinctBy(x => x.categoryId)
+                .ToList();
+
+            var authorCategoryResults = await Task.WhenAll(authorCategoryFetches.Select(async fetch =>
+            {
+                try
+                {
+                    var info = await _categoryGrpcClient.GetCategoryInfoAsync(fetch.categoryId, fetch.ownerUserId, cancellationToken);
+                    return (fetch.categoryId, info);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch author category {Id}", fetch.categoryId);
+                    return (fetch.categoryId, info: (CategoryInfo?)null);
+                }
+            }));
+
+            var authorCategoryCache = authorCategoryResults.ToDictionary(x => x.categoryId, x => x.info);
 
             foreach (var item in paginatedItems)
             {
@@ -211,6 +234,17 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                         CategoryName  = cat?.Name,
                         CategoryColor = cat?.Color,
                         CategoryIcon  = cat?.Icon,
+                    };
+                }
+
+                if (!isViewerOwner && item.CategoryId.HasValue &&
+                    authorCategoryCache.TryGetValue(item.CategoryId.Value, out var authorCat))
+                {
+                    dto = dto with
+                    {
+                        AuthorCategoryName  = authorCat?.Name,
+                        AuthorCategoryColor = authorCat?.Color,
+                        AuthorCategoryIcon  = authorCat?.Icon,
                     };
                 }
 

@@ -29,6 +29,9 @@ namespace Planora.Todo.Application.DTOs
         public string? CategoryName { get; init; }
         public string? CategoryColor { get; init; }
         public string? CategoryIcon { get; init; }
+        public string? AuthorCategoryName { get; init; }
+        public string? AuthorCategoryColor { get; init; }
+        public string? AuthorCategoryIcon { get; init; }
         public IReadOnlyList<Guid> SharedWithUserIds { get; init; } = Array.Empty<Guid>();
         public bool? HasSharedAudience { get; init; }
         public bool? IsVisuallyUrgent { get; init; }

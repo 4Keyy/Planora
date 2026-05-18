@@ -19,6 +19,32 @@ import { useFriends } from "@/hooks/use-friends"
 import { SPRING_STANDARD } from "@/lib/animations"
 import { TaskComments } from "@/components/todos/task-comments"
 
+function AuthorCategoryHint({
+  name,
+  color,
+  icon,
+}: {
+  name: string
+  color: string | null
+  icon: string | null
+}) {
+  const Icon = icon ? (ICON_MAP[icon] ?? null) : null
+  return (
+    <div className="flex items-center gap-2 overflow-hidden min-w-0">
+      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-400 shrink-0">
+        Автор:
+      </span>
+      {Icon && (
+        <Icon
+          className="h-3.5 w-3.5 shrink-0"
+          style={{ color: color || "#6366f1" }}
+        />
+      )}
+      <span className="text-sm font-semibold text-gray-500 truncate">{name}</span>
+    </div>
+  )
+}
+
 /**
  * Priority level options with styling
  */
@@ -330,7 +356,15 @@ export function EditTodoModal({
             >
               <Select value={categoryId} onValueChange={setCategoryId} disabled={!canEditCategory}>
                 <SelectTrigger className="border-none bg-gray-50/50 h-12 rounded-2xl focus:ring-0">
-                  <SelectValue placeholder="Category" />
+                  {canManageViewerCategory && categoryId === "__none" && todo.authorCategoryName ? (
+                    <AuthorCategoryHint
+                      name={todo.authorCategoryName}
+                      color={todo.authorCategoryColor ?? null}
+                      icon={todo.authorCategoryIcon ?? null}
+                    />
+                  ) : (
+                    <SelectValue placeholder="Category" />
+                  )}
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-gray-100 shadow-xl p-2 z-[3000]">
                   <SelectItem value="__none" className="rounded-xl text-[10px] font-black uppercase text-gray-400">
