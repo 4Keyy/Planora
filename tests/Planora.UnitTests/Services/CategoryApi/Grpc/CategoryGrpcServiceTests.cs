@@ -1,6 +1,6 @@
 using Grpc.Core;
-using Grpc.Core.Testing;
 using Planora.BuildingBlocks.Domain;
+using Planora.UnitTests.Shared;
 using Planora.Category.Api.Grpc;
 using Planora.Category.Application.DTOs;
 using Planora.Category.Application.Features.Categories.Commands.CreateCategory;
@@ -169,19 +169,7 @@ public class CategoryGrpcServiceTests
     private static CategoryGrpcService CreateService(Mock<IMediator> mediator)
         => new(mediator.Object, Mock.Of<ILogger<CategoryGrpcService>>());
 
-    private static ServerCallContext CreateContext()
-        => TestServerCallContext.Create(
-            "Category",
-            null,
-            DateTime.UtcNow.AddMinutes(1),
-            new Metadata(),
-            CancellationToken.None,
-            "127.0.0.1",
-            null,
-            null,
-            _ => Task.CompletedTask,
-            () => null,
-            _ => { });
+    private static ServerCallContext CreateContext() => new FakeServerCallContext();
 
     private static CategoryDto CategoryDto(
         Guid userId,

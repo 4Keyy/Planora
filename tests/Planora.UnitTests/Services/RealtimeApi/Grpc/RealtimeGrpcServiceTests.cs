@@ -2,6 +2,7 @@ using Grpc.Core;
 using Planora.GrpcContracts;
 using Planora.Realtime.Api.Grpc;
 using Planora.Realtime.Application.Interfaces;
+using Planora.UnitTests.Shared;
 using Microsoft.Extensions.Logging;
 using Moq;
 

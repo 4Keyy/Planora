@@ -4,6 +4,7 @@ using Planora.Realtime.Application.Interfaces;
 using Planora.GrpcContracts;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Planora.UnitTests.Shared;
 using Xunit;
 
 namespace Planora.UnitTests.Services.RealtimeApi.Grpc;

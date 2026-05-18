@@ -1,6 +1,6 @@
 using Grpc.Core;
-using Grpc.Core.Testing;
 using Planora.BuildingBlocks.Application.Pagination;
+using Planora.UnitTests.Shared;
 using Planora.GrpcContracts;
 using Planora.Todo.Api.Grpc;
 using Planora.Todo.Application.DTOs;
@@ -208,19 +208,7 @@ public class TodoGrpcServiceTests
     private static TodoGrpcService CreateService(Mock<IMediator> mediator)
         => new(mediator.Object, Mock.Of<ILogger<TodoGrpcService>>());
 
-    private static ServerCallContext CreateContext()
-        => TestServerCallContext.Create(
-            "Todo",
-            null,
-            DateTime.UtcNow.AddMinutes(1),
-            new Metadata(),
-            CancellationToken.None,
-            "127.0.0.1",
-            null,
-            null,
-            _ => Task.CompletedTask,
-            () => null,
-            _ => { });
+    private static ServerCallContext CreateContext() => new FakeServerCallContext();
 
     private static TodoItemDto TodoDto(
         Guid userId,

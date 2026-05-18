@@ -1,5 +1,4 @@
 using Grpc.Core;
-using Grpc.Core.Testing;
 using Planora.GrpcContracts;
 using Planora.Todo.Application.Exceptions;
 using Planora.Todo.Infrastructure.Grpc;
@@ -191,7 +190,7 @@ public class TodoGrpcClientTests
                 _ => Task.FromException<TResponse>(new InvalidOperationException("Unsupported fake gRPC response"))
             };
 
-            return TestCalls.AsyncUnaryCall(
+            return new AsyncUnaryCall<TResponse>(
                 task,
                 Task.FromResult(new Metadata()),
                 () => Status.DefaultSuccess,

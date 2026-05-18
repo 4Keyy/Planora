@@ -1,6 +1,6 @@
 using Grpc.Core;
 
-namespace Planora.UnitTests.Services.RealtimeApi.Grpc;
+namespace Planora.UnitTests.Shared;
 
 internal sealed class FakeServerCallContext : ServerCallContext
 {
@@ -23,5 +23,5 @@ internal sealed class FakeServerCallContext : ServerCallContext
         new(null, new Dictionary<string, List<AuthProperty>>());
     protected override string PeerCore => "127.0.0.1";
     protected override Task WriteResponseHeadersAsyncCore(Metadata responseHeaders) => Task.CompletedTask;
-    protected override ContextPropagationToken CreatePropagationTokenCore(ContextPropagationOptions options) => null!;
+    protected override ContextPropagationToken CreatePropagationTokenCore(ContextPropagationOptions? options) => null!;
 }
