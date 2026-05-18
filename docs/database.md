@@ -113,8 +113,8 @@ Default schema: `todo`
 | `TodoTag` | owned table `todo_tags`, tag name max 50 | `TodoItemConfiguration.cs` |
 | `TodoItemShare` | table `todo_item_shares`, composite key `(TodoItemId, SharedWithUserId)`, index by shared user | `Persistence/Configurations/TodoItemShareConfiguration.cs` |
 | `TodoItemWorker` | table `todo_item_workers`, composite PK `(TodoItemId, UserId)`, `JoinedAt` default `now()`, cascade FK to `TodoItems`; indexes on `UserId` and `TodoItemId` | `Persistence/Configurations/TodoItemWorkerConfiguration.cs` |
-| `TodoItemComment` | table `todo_item_comments`, PK `Id`, `AuthorId`, `AuthorName` max 200, `Content` max 2000, soft delete, cascade FK to `TodoItems`; composite index `(TodoItemId, CreatedAt)` | `Persistence/Configurations/TodoItemCommentConfiguration.cs` |
-| `UserTodoViewPreference` | table `todo.user_todo_view_preferences`, composite key `(ViewerId, TodoItemId)`, `HiddenByViewer`, optional `ViewerCategoryId`, index `(TodoItemId, ViewerId)` | `Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs` |
+| `TodoItemComment` | table `todo_item_comments`, PK `Id`, `AuthorId`, `AuthorName` max 200, `Content` max 2000, `IsSystemComment` bool (default false), soft delete, cascade FK to `TodoItems`; composite index `(TodoItemId, CreatedAt)` | `Persistence/Configurations/TodoItemCommentConfiguration.cs` |
+| `UserTodoViewPreference` | table `todo.user_todo_view_preferences`, composite key `(ViewerId, TodoItemId)`, `HiddenByViewer`, `CompletedByViewer` bool, `CompletedByViewerAt` nullable datetime, optional `ViewerCategoryId`, index `(TodoItemId, ViewerId)` | `Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs` |
 
 ### Worker Capacity Semantics
 
@@ -124,7 +124,12 @@ When access changes (task made private, `SharedWith` list shrunk, or capacity re
 
 ### Todo Schema Bootstrap
 
-A committed EF migration `AddWorkersAndComments` (generated 2026-05-10) is stored at `Services/TodoApi/Planora.Todo.Infrastructure/Migrations/`. Runtime startup applies it automatically via `DatabaseStartup.EnsureReadyAsync`.
+Committed EF migrations are stored locally but not in the repository (the `**/Migrations/**` glob is `.gitignore`-listed). Runtime startup applies pending migrations automatically via `DatabaseStartup.EnsureReadyAsync`. Current local migrations:
+
+| Migration name | Date | Change |
+|---|---|---|
+| `AddWorkersAndComments` | 2026-05-10 | Adds `todo_item_workers`, `todo_item_comments`, and related FK/indexes |
+| `AddSystemComment` | 2026-05-17 | Adds `is_system_comment bool NOT NULL DEFAULT false` to `todo_item_comments`; adds `completed_by_viewer` and `completed_by_viewer_at` to `user_todo_view_preferences` |
 
 To apply manually:
 

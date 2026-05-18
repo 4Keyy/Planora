@@ -533,11 +533,14 @@ Success `200`: `PagedResult<TodoCommentDto>`.
   "createdAt": "2026-05-10T14:00:00Z",
   "updatedAt": null,
   "isOwn": true,
-  "isEdited": false
+  "isEdited": false,
+  "isSystemComment": false
 }
 ```
 
-`isOwn` is `true` when `authorId == currentUserId`. `isEdited` is `true` when `updatedAt > createdAt + 5 seconds`.
+`isOwn` is `true` when `authorId == currentUserId` AND `isSystemComment` is `false`. `isEdited` is `true` when `updatedAt > createdAt + 5 seconds` and `isSystemComment` is `false`.
+
+System comments (`isSystemComment: true`) are generated automatically by the backend for task lifecycle events. They have `authorId = Guid.Empty`, `authorName = ""`, `isOwn = false`, and `isEdited = false` always. The frontend renders them as a centered horizontal-rule divider with the event text, not as a standard chat bubble. System comments are never editable or deletable by users.
 
 Errors: `400` for unauthenticated; `403` for no access or non-friend; `404` if task not found.
 
