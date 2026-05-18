@@ -76,7 +76,7 @@ public class TodoOwnershipHandlerTests
         var categoryGrpcClientMock = new Mock<ICategoryGrpcClient>();
 
         repositoryMock
-            .Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
         categoryGrpcClientMock
             .Setup(x => x.GetCategoryInfoAsync(foreignCategoryId, ownerId, It.IsAny<CancellationToken>()))
@@ -164,7 +164,7 @@ public class TodoOwnershipHandlerTests
         var friendshipServiceMock = new Mock<IFriendshipService>();
 
         repositoryMock
-            .Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
         friendshipServiceMock
             .Setup(x => x.AreFriendsAsync(viewerId, ownerId, It.IsAny<CancellationToken>()))

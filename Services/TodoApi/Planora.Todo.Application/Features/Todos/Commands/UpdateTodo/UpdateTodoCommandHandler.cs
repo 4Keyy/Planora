@@ -57,7 +57,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
         {
             var userId = _currentUserContext.UserId;
 
-            var todoItem = await _repository.GetByIdWithIncludesAsync(request.TodoId, cancellationToken)
+            var todoItem = await _repository.GetByIdWithIncludesTrackedAsync(request.TodoId, cancellationToken)
                 ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
             var isOwner = todoItem.UserId == userId;

@@ -170,6 +170,7 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 | Category | Todo validates category ownership through Category service |
 | Sharing | direct `sharedWithUserIds` must be accepted friends; the task form exposes public all-friends visibility inside `Share With`; `IsPublic` is independent from direct shares and makes the task visible to all accepted friends |
 | Non-owner updates | friend-visible viewer can only change status |
+| Visibility persistence | `UpdateTodoCommandHandler` loads the entity via `GetByIdWithIncludesTrackedAsync` (with EF Core change tracking) so that changes to `IsPublic` and `SharedWith` collection additions/removals are correctly persisted — tracked loading generates the right INSERT/DELETE DML for the `TodoItemShare` collection, whereas a detached `DbSet.Update()` call would silently emit UPDATE-only SQL against non-existent rows |
 
 ### Frontend Behavior
 

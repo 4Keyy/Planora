@@ -185,7 +185,7 @@ public class TodoCommandHandlerExpandedTests
         var categoryId = Guid.NewGuid();
         var todo = TodoItem.Create(userId, "Old title");
         var fixture = new TodoCommandFixture(userId);
-        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
         fixture.FriendshipService
             .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { friendId });
@@ -227,7 +227,7 @@ public class TodoCommandHandlerExpandedTests
         var friendId = Guid.NewGuid();
         var todo = TodoItem.Create(userId, "Task", sharedWithUserIds: new[] { friendId });
         var fixture = new TodoCommandFixture(userId);
-        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
         fixture.FriendshipService
             .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { friendId });
@@ -257,7 +257,7 @@ public class TodoCommandHandlerExpandedTests
         var viewerId = Guid.NewGuid();
         var todo = TodoItem.Create(ownerId, "Shared", categoryId: Guid.NewGuid(), isPublic: true, sharedWithUserIds: new[] { viewerId });
         var fixture = new TodoCommandFixture(viewerId);
-        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
         fixture.FriendshipService.Setup(x => x.AreFriendsAsync(viewerId, ownerId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var result = await fixture.CreateUpdateHandler().Handle(
@@ -272,7 +272,7 @@ public class TodoCommandHandlerExpandedTests
         Assert.Null(result.Value.CategoryName);
 
         var publicOnlyTodo = TodoItem.Create(ownerId, "Public only", categoryId: Guid.NewGuid(), isPublic: true);
-        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(publicOnlyTodo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(publicOnlyTodo);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(publicOnlyTodo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(publicOnlyTodo);
 
         var publicOnlyResult = await fixture.CreateUpdateHandler().Handle(
             new UpdateTodoCommand(publicOnlyTodo.Id, Status: "done"),
@@ -299,7 +299,7 @@ public class TodoCommandHandlerExpandedTests
         var todo = TodoItem.Create(ownerId, "Private");
         var viewerFixture = new TodoCommandFixture(viewerId);
         viewerFixture.TodoRepository
-            .Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
@@ -311,7 +311,7 @@ public class TodoCommandHandlerExpandedTests
         var strangerId = Guid.NewGuid();
         var ownerFixture = new TodoCommandFixture(ownerId);
         ownerFixture.TodoRepository
-            .Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
         ownerFixture.FriendshipService
             .Setup(x => x.GetFriendIdsAsync(ownerId, It.IsAny<CancellationToken>()))
@@ -337,10 +337,10 @@ public class TodoCommandHandlerExpandedTests
         var actualDate = DateTime.UtcNow;
         var fixture = new TodoCommandFixture(userId);
         fixture.TodoRepository
-            .Setup(x => x.GetByIdWithIncludesAsync(todoWithActualDate.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todoWithActualDate.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todoWithActualDate);
         fixture.TodoRepository
-            .Setup(x => x.GetByIdWithIncludesAsync(workflowTodo.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(workflowTodo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(workflowTodo);
 
         var withActualDate = await fixture.CreateUpdateHandler().Handle(
@@ -376,7 +376,7 @@ public class TodoCommandHandlerExpandedTests
         var categoryId = Guid.NewGuid();
         var todo = TodoItem.Create(userId, "Task", categoryId: categoryId);
         var fixture = new TodoCommandFixture(userId);
-        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
         fixture.CategoryGrpcClient
             .Setup(x => x.GetCategoryInfoAsync(categoryId, userId, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("category api down"));
@@ -399,7 +399,7 @@ public class TodoCommandHandlerExpandedTests
         var categoryId = Guid.NewGuid();
         var privateTodo = TodoItem.Create(userId, "Private", categoryId: categoryId);
         var fixture = new TodoCommandFixture(userId);
-        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(privateTodo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(privateTodo);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(privateTodo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(privateTodo);
         fixture.CategoryGrpcClient
             .Setup(x => x.GetCategoryInfoAsync(categoryId, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CategoryInfo(categoryId, userId, "Personal", "#333333", "home"));
@@ -417,7 +417,7 @@ public class TodoCommandHandlerExpandedTests
         var sharedTodo = TodoItem.Create(userId, "Shared", isPublic: true, sharedWithUserIds: new[] { friendId });
         sharedTodo.SetHidden(true, userId);
         UserTodoViewPreference? upserted = null;
-        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(sharedTodo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(sharedTodo);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(sharedTodo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(sharedTodo);
         fixture.ViewerPreferences
             .Setup(x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()))
             .Callback<UserTodoViewPreference, CancellationToken>((preference, _) => upserted = preference)
@@ -444,7 +444,7 @@ public class TodoCommandHandlerExpandedTests
         var todo = TodoItem.Create(userId, "Categorized", categoryId: categoryId);
         var fixture = new TodoCommandFixture(userId);
         fixture.TodoRepository
-            .Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
         fixture.CategoryGrpcClient
             .Setup(x => x.GetCategoryInfoAsync(categoryId, userId, It.IsAny<CancellationToken>()))
@@ -468,7 +468,7 @@ public class TodoCommandHandlerExpandedTests
         var ownerId = Guid.NewGuid();
         var todo = TodoItem.Create(ownerId, "Foreign");
         var fixture = new TodoCommandFixture(userId);
-        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
             fixture.CreateSetHiddenHandler().Handle(new SetTodoHiddenCommand(todo.Id, true), CancellationToken.None));
@@ -549,6 +549,73 @@ public class TodoCommandHandlerExpandedTests
             viewerFixture.CreateSetViewerPreferenceHandler().Handle(
                 new SetViewerPreferenceCommand(todo.Id, ViewerCategoryId: foreignCategoryId, UpdateViewerCategory: true),
                 CancellationToken.None));
+    }
+
+    [Fact]
+    [Trait("TestType", "Regression")]
+    [Trait("TestType", "Functional")]
+    public async Task UpdateTodo_ShouldPersistVisibility_WhenPrivateTaskMadePublicForAllFriends()
+    {
+        // Regression: private task → IsPublic=true must be reflected in the returned DTO.
+        // The handler must load the entity via GetByIdWithIncludesTrackedAsync so that EF Core
+        // change-tracking generates the correct UPDATE SQL (AsNoTracking + DbSet.Update() on a
+        // detached entity graph can skip collection-change DML under certain conditions).
+        var userId = Guid.NewGuid();
+        var todo = TodoItem.Create(userId, "Private task");
+        Assert.False(todo.IsPublic);
+        Assert.Empty(todo.SharedWith);
+
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(todo.Id, IsPublic: true, SharedWithUserIds: Array.Empty<Guid>()),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(todo.IsPublic, "IsPublic must be true after update");
+        Assert.True(result.Value!.IsPublic, "DTO must reflect IsPublic=true");
+        Assert.Empty(todo.SharedWith);
+        fixture.TodoRepository.Verify(x => x.Update(todo), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Regression")]
+    [Trait("TestType", "Functional")]
+    public async Task UpdateTodo_ShouldPersistVisibility_WhenPrivateTaskSharedWithSpecificFriends()
+    {
+        // Regression: private task → sharedWithUserIds=[friendId] must result in a new
+        // TodoItemShare being added to the entity's collection.  With a tracked entity EF Core
+        // will INSERT the new share row; with a detached (AsNoTracking) entity it would silently
+        // generate an UPDATE against a non-existent row and discard the share.
+        var userId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var todo = TodoItem.Create(userId, "Private task");
+        Assert.False(todo.IsPublic);
+        Assert.Empty(todo.SharedWith);
+
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        fixture.FriendshipService
+            .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { friendId });
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(todo.Id, IsPublic: false, SharedWithUserIds: new[] { friendId }),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(todo.IsPublic);
+        Assert.Single(todo.SharedWith);
+        Assert.Equal(friendId, todo.SharedWith.Single().SharedWithUserId);
+        Assert.Single(result.Value!.SharedWithUserIds);
+        fixture.TodoRepository.Verify(x => x.Update(todo), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private sealed class TodoCommandFixture
