@@ -55,8 +55,9 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
                 c.Content,
                 c.CreatedAt,
                 c.UpdatedAt,
-                IsOwn: c.AuthorId == userId,
-                IsEdited: c.IsEdited)).ToList();
+                IsOwn: !c.IsSystemComment && c.AuthorId == userId,
+                IsEdited: c.IsEdited,
+                IsSystemComment: c.IsSystemComment)).ToList();
 
             return Result<PagedResult<TodoCommentDto>>.Success(
                 new PagedResult<TodoCommentDto>(dtos, request.PageNumber, request.PageSize, totalCount));

@@ -24,6 +24,10 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
             builder.Property(x => x.DeletedAt).IsRequired(false);
             builder.Property(x => x.IsDeleted).HasDefaultValue(false);
 
+            builder.Property(x => x.IsSystemComment)
+                .IsRequired()
+                .HasDefaultValue(false);
+
             builder.HasIndex(x => new { x.TodoItemId, x.CreatedAt });
 
             builder.HasOne<TodoItem>()

@@ -40,7 +40,8 @@ public class TodoOwnershipHandlerTests
             Mock.Of<ILogger<CreateTodoCommandHandler>>(),
             currentUserContextMock.Object,
             categoryGrpcClientMock.Object,
-            friendshipServiceMock.Object);
+            friendshipServiceMock.Object,
+            Mock.Of<ITodoCommentRepository>());
 
         var command = new CreateTodoCommand(
             null,
@@ -89,7 +90,8 @@ public class TodoOwnershipHandlerTests
             currentUserContextMock.Object,
             categoryGrpcClientMock.Object,
             Mock.Of<IFriendshipService>(),
-            Mock.Of<IUserTodoViewPreferenceRepository>());
+            Mock.Of<IUserTodoViewPreferenceRepository>(),
+            Mock.Of<ITodoCommentRepository>());
 
         await Assert.ThrowsAsync<ForbiddenException>(() => handler.Handle(
             new UpdateTodoCommand(todo.Id, CategoryId: foreignCategoryId),
@@ -176,7 +178,8 @@ public class TodoOwnershipHandlerTests
             currentUserContextMock.Object,
             Mock.Of<ICategoryGrpcClient>(),
             friendshipServiceMock.Object,
-            Mock.Of<IUserTodoViewPreferenceRepository>());
+            Mock.Of<IUserTodoViewPreferenceRepository>(),
+            Mock.Of<ITodoCommentRepository>());
 
         await Assert.ThrowsAsync<ForbiddenException>(() => handler.Handle(
             new UpdateTodoCommand(todo.Id, Title: "Changed by viewer"),

@@ -510,7 +510,7 @@ public class WorkersAndCommentsHandlerTests
         }
 
         public JoinTodoCommandHandler CreateJoinHandler()
-            => new(Repository.Object, UnitOfWork.Object, Mapper.Object, CurrentUser.Object, FriendshipService.Object);
+            => new(Repository.Object, UnitOfWork.Object, Mapper.Object, CurrentUser.Object, FriendshipService.Object, Mock.Of<ITodoCommentRepository>());
 
         public LeaveTodoCommandHandler CreateLeaveHandler()
             => new(Repository.Object, UnitOfWork.Object, CurrentUser.Object);

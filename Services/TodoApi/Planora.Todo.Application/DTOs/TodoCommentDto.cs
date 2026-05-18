@@ -9,6 +9,7 @@ namespace Planora.Todo.Application.DTOs
         DateTime CreatedAt,
         DateTime? UpdatedAt,
         bool IsOwn,
-        bool IsEdited
+        bool IsEdited,
+        bool IsSystemComment = false
     );
 }

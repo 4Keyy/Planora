@@ -579,7 +579,8 @@ public class TodoCommandHandlerExpandedTests
                 Mock.Of<ILogger<CreateTodoCommandHandler>>(),
                 CurrentUser.Object,
                 CategoryGrpcClient.Object,
-                FriendshipService.Object);
+                FriendshipService.Object,
+                Mock.Of<ITodoCommentRepository>());
 
         public UpdateTodoCommandHandler CreateUpdateHandler()
             => new(
@@ -590,7 +591,8 @@ public class TodoCommandHandlerExpandedTests
                 CurrentUser.Object,
                 CategoryGrpcClient.Object,
                 FriendshipService.Object,
-                ViewerPreferences.Object);
+                ViewerPreferences.Object,
+                Mock.Of<ITodoCommentRepository>());
 
         public SetTodoHiddenCommandHandler CreateSetHiddenHandler()
             => new(

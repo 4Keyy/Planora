@@ -24,6 +24,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
         private readonly ICategoryGrpcClient _categoryGrpcClient;
         private readonly IFriendshipService _friendshipService;
         private readonly IUserTodoViewPreferenceRepository _viewerPreferenceRepository;
+        private readonly ITodoCommentRepository _commentRepository;
         private readonly IBusinessEventLogger? _businessLogger;
 
         public UpdateTodoCommandHandler(
@@ -35,6 +36,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             ICategoryGrpcClient categoryGrpcClient,
             IFriendshipService friendshipService,
             IUserTodoViewPreferenceRepository viewerPreferenceRepository,
+            ITodoCommentRepository commentRepository,
             IBusinessEventLogger? businessLogger = null)
         {
             _repository = repository;
@@ -45,6 +47,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             _categoryGrpcClient = categoryGrpcClient;
             _friendshipService = friendshipService;
             _viewerPreferenceRepository = viewerPreferenceRepository;
+            _commentRepository = commentRepository;
             _businessLogger = businessLogger;
         }
 
@@ -86,15 +89,26 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                     var targetStatus = TodoStatusExtensions.FromString(request.Status);
                     if (targetStatus.HasValue)
                     {
-                        var pref = await _viewerPreferenceRepository.GetAsync(userId, todoItem.Id, cancellationToken)
-                            ?? new UserTodoViewPreference { ViewerId = userId, TodoItemId = todoItem.Id };
+                        var completedByViewer = targetStatus == TodoStatus.Done;
+                        await _viewerPreferenceRepository.UpsertAsync(
+                            new UserTodoViewPreference
+                            {
+                                ViewerId = userId,
+                                TodoItemId = todoItem.Id,
+                                CompletedByViewer = completedByViewer,
+                                CompletedByViewerAt = completedByViewer ? DateTime.UtcNow : null,
+                            },
+                            cancellationToken);
 
-                        pref.CompletedByViewer = targetStatus == TodoStatus.Done;
-                        pref.CompletedByViewerAt = targetStatus == TodoStatus.Done ? DateTime.UtcNow : null;
-                        await _viewerPreferenceRepository.UpsertAsync(pref, cancellationToken);
+                        if (completedByViewer)
+                        {
+                            var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+                            var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{userName} completed the task");
+                            await _commentRepository.AddAsync(sysComment, cancellationToken);
+                        }
+
                         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                        var completedByViewer = pref.CompletedByViewer;
                         var viewerDto = _mapper.Map<TodoItemDto>(todoItem) with
                         {
                             Status = completedByViewer ? "Done" : todoItem.Status.Display(),
@@ -188,13 +202,17 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             else if (request.RequiredWorkers.HasValue)
                 todoItem.SetRequiredWorkers(request.RequiredWorkers.Value, userId);
 
+            bool ownerJustCompleted = false;
             if (!string.IsNullOrEmpty(request.Status))
             {
                 var status = TodoStatusExtensions.FromString(request.Status);
                 if (status.HasValue)
                 {
                     if (status == TodoStatus.Done && !todoItem.IsCompleted)
+                    {
                         todoItem.MarkAsDone(userId);
+                        ownerJustCompleted = true;
+                    }
                     else if (status == TodoStatus.InProgress && todoItem.Status != TodoStatus.InProgress)
                         todoItem.MarkAsInProgress(userId);
                     else if (status == TodoStatus.Todo && todoItem.Status != TodoStatus.Todo)
@@ -203,6 +221,14 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             }
 
             _repository.Update(todoItem);
+
+            if (ownerJustCompleted)
+            {
+                var ownerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+                var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{ownerName} completed the task");
+                await _commentRepository.AddAsync(sysComment, cancellationToken);
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             if (_businessLogger is not null && request.SharedWithUserIds is not null && todoItem.SharedWith.Any())

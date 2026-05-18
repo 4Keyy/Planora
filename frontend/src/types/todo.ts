@@ -118,6 +118,7 @@ export type TodoComment = {
   updatedAt?: string | null
   isOwn: boolean
   isEdited: boolean
+  isSystemComment?: boolean
 }
 
 export type CreateTodoPayload = {

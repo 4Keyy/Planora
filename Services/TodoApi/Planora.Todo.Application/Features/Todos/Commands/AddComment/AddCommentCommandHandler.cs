@@ -59,7 +59,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.AddComment
                 comment.CreatedAt,
                 comment.UpdatedAt,
                 IsOwn: true,
-                IsEdited: false));
+                IsEdited: false,
+                IsSystemComment: false));
         }
     }
 }

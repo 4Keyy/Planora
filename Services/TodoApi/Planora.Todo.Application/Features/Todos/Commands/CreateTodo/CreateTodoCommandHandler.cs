@@ -5,6 +5,8 @@ using Planora.BuildingBlocks.Application.Services;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;
+using Planora.Todo.Domain.Entities;
+using Planora.Todo.Domain.Repositories;
 using static Planora.BuildingBlocks.Application.Services.BusinessEvents;
 
 namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
@@ -18,6 +20,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ICategoryGrpcClient _categoryGrpcClient;
         private readonly IFriendshipService _friendshipService;
+        private readonly ITodoCommentRepository _commentRepository;
         private readonly IBusinessEventLogger? _businessLogger;
 
         public CreateTodoCommandHandler(
@@ -28,6 +31,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
             ICurrentUserContext currentUserContext,
             ICategoryGrpcClient categoryGrpcClient,
             IFriendshipService friendshipService,
+            ITodoCommentRepository commentRepository,
             IBusinessEventLogger? businessLogger = null)
         {
             _repository = repository;
@@ -37,6 +41,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
             _currentUserContext = currentUserContext;
             _categoryGrpcClient = categoryGrpcClient;
             _friendshipService = friendshipService;
+            _commentRepository = commentRepository;
             _businessLogger = businessLogger;
         }
 
@@ -87,6 +92,11 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
                     request.RequiredWorkers);
 
             await _repository.AddAsync(todoItem, cancellationToken);
+
+            var authorName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+            var systemComment = TodoItemComment.CreateSystem(todoItem.Id, $"{authorName} created the task");
+            await _commentRepository.AddAsync(systemComment, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(

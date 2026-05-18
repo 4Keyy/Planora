@@ -70,19 +70,33 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
 
         public async Task UpsertAsync(UserTodoViewPreference preference, CancellationToken cancellationToken = default)
         {
-            var existing = await GetAsync(preference.ViewerId, preference.TodoItemId, cancellationToken);
+            // Check for a tracked instance first to avoid detached-entity conflicts
+            var trackedEntry = _context.ChangeTracker
+                .Entries<UserTodoViewPreference>()
+                .FirstOrDefault(e =>
+                    e.Entity.ViewerId == preference.ViewerId &&
+                    e.Entity.TodoItemId == preference.TodoItemId);
 
-            if (existing is null)
+            if (trackedEntry is not null)
             {
-                _context.UserTodoViewPreferences.Add(preference);
+                trackedEntry.Entity.HiddenByViewer = preference.HiddenByViewer;
+                trackedEntry.Entity.ViewerCategoryId = preference.ViewerCategoryId;
+                trackedEntry.Entity.CompletedByViewer = preference.CompletedByViewer;
+                trackedEntry.Entity.CompletedByViewerAt = preference.CompletedByViewerAt;
+                trackedEntry.State = EntityState.Modified;
                 return;
             }
 
-            existing.HiddenByViewer = preference.HiddenByViewer;
-            existing.ViewerCategoryId = preference.ViewerCategoryId;
-            existing.CompletedByViewer = preference.CompletedByViewer;
-            existing.CompletedByViewerAt = preference.CompletedByViewerAt;
-            _context.UserTodoViewPreferences.Update(existing);
+            var existing = await _context.UserTodoViewPreferences
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    p => p.ViewerId == preference.ViewerId && p.TodoItemId == preference.TodoItemId,
+                    cancellationToken);
+
+            if (existing is null)
+                _context.UserTodoViewPreferences.Add(preference);
+            else
+                _context.UserTodoViewPreferences.Update(preference);
         }
     }
 }

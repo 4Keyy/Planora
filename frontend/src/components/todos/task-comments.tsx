@@ -140,62 +140,77 @@ export function TaskComments({ todoId, isOwner, canComment }: TaskCommentsProps)
             <p className="text-xs text-neutral-400 italic">No comments yet.</p>
           )}
 
-          {comments.map((c) => (
-            <div key={c.id} className="group flex flex-col gap-0.5 rounded-lg bg-neutral-50 px-3 py-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-xs font-semibold text-neutral-800">{c.authorName}</span>
-                <span className="text-[10px] text-neutral-400 shrink-0">
-                  {formatRelative(c.createdAt)}
-                  {c.isEdited && " · edited"}
-                </span>
-              </div>
-
-              {editingId === c.id ? (
-                <div className="flex flex-col gap-1 mt-1">
-                  <Textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    className="text-xs min-h-[60px] resize-none"
-                    maxLength={CONTENT_MAX}
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleEditSave(c.id)
-                      if (e.key === "Escape") setEditingId(null)
-                    }}
-                  />
-                  <div className="flex gap-1.5">
-                    <Button size="sm" className="h-6 text-xs" onClick={() => handleEditSave(c.id)} disabled={submitting}>
-                      Save
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingId(null)}>
-                      Cancel
-                    </Button>
+          {comments.map((c) => {
+            if (c.isSystemComment) {
+              return (
+                <div key={c.id} className="flex flex-col items-center gap-0.5 py-1">
+                  <div className="flex items-center gap-2 w-full">
+                    <div className="flex-1 h-px bg-neutral-100" />
+                    <span className="text-[10px] text-neutral-400 text-center px-2 shrink-0">{c.content}</span>
+                    <div className="flex-1 h-px bg-neutral-100" />
                   </div>
+                  <span className="text-[9px] text-neutral-300">{formatRelative(c.createdAt)}</span>
                 </div>
-              ) : (
-                <p className="text-xs text-neutral-700 whitespace-pre-wrap break-words">{c.content}</p>
-              )}
+              )
+            }
 
-              {(c.isOwn || isOwner) && editingId !== c.id && (
-                <div className="flex gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {c.isOwn && (
-                    <button
-                      onClick={() => { setEditingId(c.id); setEditContent(c.content) }}
-                      className="text-[10px] text-neutral-400 hover:text-neutral-600 flex items-center gap-0.5"
-                    >
-                      <Pencil className="h-2.5 w-2.5" /> Edit
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(c.id)}
-                    className="text-[10px] text-neutral-400 hover:text-red-500 flex items-center gap-0.5"
-                  >
-                    <Trash2 className="h-2.5 w-2.5" /> Delete
-                  </button>
+            return (
+              <div key={c.id} className="group flex flex-col gap-0.5 rounded-lg bg-neutral-50 px-3 py-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-xs font-semibold text-neutral-800">{c.authorName}</span>
+                  <span className="text-[10px] text-neutral-400 shrink-0">
+                    {formatRelative(c.createdAt)}
+                    {c.isEdited && " · edited"}
+                  </span>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {editingId === c.id ? (
+                  <div className="flex flex-col gap-1 mt-1">
+                    <Textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="text-xs min-h-[60px] resize-none"
+                      maxLength={CONTENT_MAX}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleEditSave(c.id)
+                        if (e.key === "Escape") setEditingId(null)
+                      }}
+                    />
+                    <div className="flex gap-1.5">
+                      <Button size="sm" className="h-6 text-xs" onClick={() => handleEditSave(c.id)} disabled={submitting}>
+                        Save
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setEditingId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-neutral-700 whitespace-pre-wrap break-words">{c.content}</p>
+                )}
+
+                {(c.isOwn || isOwner) && editingId !== c.id && (
+                  <div className="flex gap-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {c.isOwn && (
+                      <button
+                        onClick={() => { setEditingId(c.id); setEditContent(c.content) }}
+                        className="text-[10px] text-neutral-400 hover:text-neutral-600 flex items-center gap-0.5"
+                      >
+                        <Pencil className="h-2.5 w-2.5" /> Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(c.id)}
+                      className="text-[10px] text-neutral-400 hover:text-red-500 flex items-center gap-0.5"
+                    >
+                      <Trash2 className="h-2.5 w-2.5" /> Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
 
           <div ref={bottomRef} />
         </div>

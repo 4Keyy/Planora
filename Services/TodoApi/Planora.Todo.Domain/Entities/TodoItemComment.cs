@@ -10,9 +10,10 @@ namespace Planora.Todo.Domain.Entities
         public Guid AuthorId { get; private set; }
         public string AuthorName { get; private set; } = string.Empty;
         public string Content { get; private set; } = string.Empty;
+        public bool IsSystemComment { get; private set; }
 
         public bool IsEdited =>
-            UpdatedAt.HasValue && UpdatedAt.Value > CreatedAt.AddSeconds(5);
+            !IsSystemComment && UpdatedAt.HasValue && UpdatedAt.Value > CreatedAt.AddSeconds(5);
 
         private TodoItemComment() { }
 
@@ -39,10 +40,28 @@ namespace Planora.Todo.Domain.Entities
                 AuthorId = authorId,
                 AuthorName = authorName.Trim(),
                 Content = content.Trim(),
+                IsSystemComment = false,
             };
             comment.AddDomainEvent(new TodoCommentAddedDomainEvent(comment.Id, todoItemId, authorId));
 
             return comment;
+        }
+
+        public static TodoItemComment CreateSystem(Guid todoItemId, string content)
+        {
+            if (todoItemId == Guid.Empty)
+                throw new InvalidValueObjectException(nameof(TodoItemComment), "TodoItemId cannot be empty");
+            if (string.IsNullOrWhiteSpace(content))
+                throw new InvalidValueObjectException(nameof(TodoItemComment), "Content cannot be empty");
+
+            return new TodoItemComment
+            {
+                TodoItemId = todoItemId,
+                AuthorId = Guid.Empty,
+                AuthorName = string.Empty,
+                Content = content.Trim(),
+                IsSystemComment = true,
+            };
         }
 
         public void UpdateContent(string content, Guid editorUserId)
