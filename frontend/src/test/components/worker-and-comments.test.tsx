@@ -557,4 +557,21 @@ describe("TaskComments", () => {
     const counter = screen.getByText(/\/2000/)
     expect(counter.className).toMatch(/amber/)
   })
+
+  it("refetches comments when refreshKey changes", async () => {
+    mockFetch.mockResolvedValue({ items: [], totalCount: 0 })
+    const { rerender } = render(
+      <TaskComments todoId="todo-1" isOwner={false} canComment={true} refreshKey={0} />
+    )
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+
+    mockFetch.mockResolvedValue({
+      items: [baseComment({ content: "started working on the task", isSystemComment: true })],
+      totalCount: 1,
+    })
+    rerender(<TaskComments todoId="todo-1" isOwner={false} canComment={true} refreshKey={1} />)
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+    expect(screen.getByText("started working on the task")).toBeInTheDocument()
+  })
 })

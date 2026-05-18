@@ -73,6 +73,7 @@ export default function TodosPage() {
 
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
   const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
+  const [commentsRefreshKey, setCommentsRefreshKey] = useState(0)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
   const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([])
@@ -740,6 +741,7 @@ export default function TodosPage() {
                         try {
                           const updated = await joinTodo(todo.id)
                           setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
+                          setCommentsRefreshKey((k) => k + 1)
                         } catch (err: unknown) {
                           const status = (err as { response?: { status: number } })?.response?.status
                           if (status === 409) {
@@ -771,6 +773,7 @@ export default function TodosPage() {
                               ? { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }
                               : t
                           ))
+                          setCommentsRefreshKey((k) => k + 1)
                         } catch {
                           addToast({ type: "error", title: "Could not leave task" })
                         }
@@ -876,6 +879,7 @@ export default function TodosPage() {
             onSave={(payload) => handleUpdate(editingTodo.id, payload)}
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
+            commentsRefreshKey={commentsRefreshKey}
           />
         )}
       </AnimatePresence>

@@ -71,6 +71,7 @@ interface EditTodoModalProps {
   onSaveViewerPreference: (payload: { viewerCategoryId: string | null }) => Promise<void>
   onCreateCategory: () => Promise<void>
   onDeleteCategory?: (categoryId: string) => Promise<void>
+  commentsRefreshKey?: number
 }
 
 /**
@@ -83,6 +84,7 @@ export function EditTodoModal({
   onSave,
   onSaveViewerPreference,
   onCreateCategory,
+  commentsRefreshKey,
 }: EditTodoModalProps) {
   const viewerId = useAuthStore((s) => s.user?.userId)
   const isOwner = isTodoOwner(todo, viewerId)
@@ -447,6 +449,7 @@ export function EditTodoModal({
                 todoId={todo.id}
                 isOwner={isOwner}
                 canComment={true}
+                refreshKey={commentsRefreshKey}
               />
             </motion.div>
           )}

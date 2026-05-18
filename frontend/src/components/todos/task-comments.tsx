@@ -25,9 +25,10 @@ interface TaskCommentsProps {
   todoId: string
   isOwner: boolean
   canComment: boolean
+  refreshKey?: number
 }
 
-export function TaskComments({ todoId, isOwner, canComment }: TaskCommentsProps) {
+export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCommentsProps) {
   const [comments, setComments] = useState<TodoComment[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
@@ -57,7 +58,7 @@ export function TaskComments({ todoId, isOwner, canComment }: TaskCommentsProps)
 
   useEffect(() => {
     load(1, true)
-  }, [load])
+  }, [load, refreshKey])
 
   useEffect(() => {
     if (!loading) {
