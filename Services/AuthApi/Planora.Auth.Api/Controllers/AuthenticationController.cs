@@ -14,14 +14,23 @@ namespace Planora.Auth.Api.Controllers
     {
         private readonly IMediator _mediator;
         private readonly ILogger<AuthenticationController> _logger;
+        private readonly IWebHostEnvironment _env;
 
         public AuthenticationController(
             IMediator mediator,
-            ILogger<AuthenticationController> logger)
+            ILogger<AuthenticationController> logger,
+            IWebHostEnvironment env)
         {
             _mediator = mediator;
             _logger = logger;
+            _env = env;
         }
+
+        // SECURITY: In non-development environments the Secure flag must always be true,
+        // regardless of whether the inbound request is HTTPS. Behind a TLS-terminating
+        // reverse proxy the backend sees plain HTTP, so Request.IsHttps would be false
+        // even though the browser-to-proxy leg is encrypted.
+        private bool SecureCookie => !_env.IsDevelopment();
 
         [HttpPost("register")]
         [AllowAnonymous]
@@ -32,7 +41,7 @@ namespace Planora.Auth.Api.Controllers
             [FromBody] RegisterCommand command,
             CancellationToken cancellationToken)
         {
-            _logger.LogInformation("📝 Registration attempt: {Email}", command.Email);
+            _logger.LogInformation("Registration attempt received");
 
             var result = await _mediator.Send(command, cancellationToken);
             
@@ -50,7 +59,7 @@ namespace Planora.Auth.Api.Controllers
             Response.Cookies.Append("refresh_token", registerValue.RefreshToken, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = HttpContext.Request.IsHttps,
+                Secure = SecureCookie,
                 SameSite = SameSiteMode.Strict,
                 Path = "/auth/api/v1/auth",
             });
@@ -75,7 +84,7 @@ namespace Planora.Auth.Api.Controllers
             [FromBody] LoginCommand command,
             CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Login attempt: {Email}", command.Email);
+            _logger.LogInformation("Login attempt received");
 
             var result = await _mediator.Send(command, cancellationToken);
 
@@ -95,7 +104,7 @@ namespace Planora.Auth.Api.Controllers
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = HttpContext.Request.IsHttps, // Secure in production (HTTPS)
+                Secure = SecureCookie,
                 SameSite = SameSiteMode.Strict,
                 Path = "/auth/api/v1/auth", // Scope cookie to auth endpoints only
             };
@@ -161,7 +170,7 @@ namespace Planora.Auth.Api.Controllers
             var refreshCookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = HttpContext.Request.IsHttps,
+                Secure = SecureCookie,
                 SameSite = SameSiteMode.Strict,
                 Path = "/auth/api/v1/auth",
             };
@@ -215,7 +224,7 @@ namespace Planora.Auth.Api.Controllers
             Response.Cookies.Delete("refresh_token", new CookieOptions
             {
                 HttpOnly = true,
-                Secure = HttpContext.Request.IsHttps,
+                Secure = SecureCookie,
                 SameSite = SameSiteMode.Strict,
                 Path = "/auth/api/v1/auth",
             });
@@ -274,7 +283,7 @@ namespace Planora.Auth.Api.Controllers
             [FromBody] RequestPasswordResetCommand command,
             CancellationToken cancellationToken)
         {
-            _logger.LogInformation("🔑 Password reset requested: {Email}", command.Email);
+            _logger.LogInformation("Password reset requested");
 
             await _mediator.Send(command, cancellationToken);
 
@@ -313,7 +322,7 @@ namespace Planora.Auth.Api.Controllers
             Response.Cookies.Append("XSRF-TOKEN", csrfToken, new CookieOptions
             {
                 HttpOnly = false,           // Must be readable by JavaScript
-                Secure = HttpContext.Request.IsHttps,
+                Secure = SecureCookie,
                 SameSite = SameSiteMode.Strict,
                 Expires = DateTimeOffset.UtcNow.AddHours(1),
                 Path = "/",

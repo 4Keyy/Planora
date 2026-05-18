@@ -47,7 +47,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
             var user = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
             if (user == null)
             {
-                _logger.LogWarning("Login attempt with non-existent email: {Email}", email.Value);
+                _logger.LogWarning("Login attempt for unrecognised account");
                 throw new UnauthorizedAccessException("Invalid email or password");
             }
 
@@ -87,7 +87,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
                     throw new UnauthorizedAccessException("Two-factor authentication code is required");
                 }
 
-                if (!_twoFactorService.VerifyCode(user.TwoFactorSecret!, command.TwoFactorCode))
+                if (!await _twoFactorService.VerifyCodeAsync(user.TwoFactorSecret!, command.TwoFactorCode, user.Id, cancellationToken))
                 {
                     _logger.LogWarning("Invalid 2FA code for user: {UserId}", user.Id);
                     await _unitOfWork.Users.HandleFailedLoginAsync(user.Id, cancellationToken);
@@ -169,10 +169,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
                 _logger.LogWarning(ex, "Login history write failed for user {UserId}; login continues.", user.Id);
             }
 
-            _logger.LogInformation(
-                "User logged in successfully: {UserId}, Email: {Email}",
-                user.Id,
-                user.Email.Value);
+            _logger.LogInformation("User logged in successfully: {UserId}", user.Id);
 
             // Log business event
             _businessLogger.LogBusinessEvent(

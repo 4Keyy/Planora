@@ -47,19 +47,16 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Register
             RegisterCommand command,
             CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Starting registration for email: {Email}", command.Email);
+            _logger.LogInformation("Starting registration attempt");
 
             Email email = Email.Create(command.Email);
-            _logger.LogInformation("Email value object created: {Email}", email.Value);
 
             var existingUser = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
             if (existingUser != null)
             {
-                _logger.LogWarning("Registration attempt with existing email: {Email}", email.Value);
+                _logger.LogWarning("Registration attempt with already-registered email domain: {Domain}", email.Value.Split('@').LastOrDefault());
                 throw new DuplicateEntityException("User", "email", email.Value);
             }
-
-            _logger.LogInformation("Email is unique, proceeding with user creation");
 
             var passwordHash = _passwordHasher.HashPassword(command.Password);
             _logger.LogInformation("Password hashed successfully");

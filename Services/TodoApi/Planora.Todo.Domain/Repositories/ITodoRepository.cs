@@ -29,5 +29,11 @@ namespace Planora.Todo.Domain.Repositories
             int pageSize,
             bool sortCompletedByCompletionTime,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes all TodoItemShare rows that represent sharing between two users whose
+        /// friendship has been revoked. Deletes shares in both directions.
+        /// </summary>
+        Task RemoveSharesBetweenUsersAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
     }
 }

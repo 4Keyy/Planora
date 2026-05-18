@@ -792,9 +792,11 @@ export default function DashboardPage() {
             shortcutHint="c"
           />
 
-          <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 text-[10px] text-gray-400 text-center font-bold uppercase tracking-[0.2em]">
-            Planora Beta 0.1 · Local Dev
-          </div>
+          {process.env.NODE_ENV === 'development' && (
+            <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 text-[10px] text-gray-400 text-center font-bold uppercase tracking-[0.2em]">
+              Planora Beta 0.1 · Local Dev
+            </div>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,8 @@ using Planora.BuildingBlocks.Application.Models;
 using Planora.Auth.Application.Common.Interfaces;
 using Planora.Auth.Domain.Repositories;
 using Planora.BuildingBlocks.Domain.Interfaces;
+using Planora.BuildingBlocks.Infrastructure.Messaging;
+using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
 
 namespace Planora.Auth.Application.Features.Friendships.Commands.RemoveFriend
 {
@@ -10,17 +12,20 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.RemoveFriend
         private readonly IFriendshipRepository _friendshipRepository;
         private readonly IAuthUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IEventBus _eventBus;
         private readonly ILogger<RemoveFriendCommandHandler> _logger;
 
         public RemoveFriendCommandHandler(
             IFriendshipRepository friendshipRepository,
             IAuthUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
+            IEventBus eventBus,
             ILogger<RemoveFriendCommandHandler> logger)
         {
             _friendshipRepository = friendshipRepository;
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
+            _eventBus = eventBus;
             _logger = logger;
         }
 
@@ -46,6 +51,12 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.RemoveFriend
 
                 _logger.LogInformation("Friendship removed between {UserId} and {FriendId}", userId, request.FriendId);
 
+                // SECURITY: notify downstream services to revoke cross-user access
+                // (e.g. TodoApi must remove SharedWith rows for this pair).
+                await _eventBus.PublishAsync(
+                    new FriendshipRemovedIntegrationEvent(userId, request.FriendId),
+                    cancellationToken);
+
                 return Result.Success();
             }
             catch (Exception ex)
@@ -56,4 +67,3 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.RemoveFriend
         }
     }
 }
-
