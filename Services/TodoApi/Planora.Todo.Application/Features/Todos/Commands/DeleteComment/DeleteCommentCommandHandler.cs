@@ -37,8 +37,14 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteComment
             var todoItem = await _todoRepository.GetByIdWithIncludesAsync(request.TodoId, cancellationToken)
                 ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
+            if (comment.IsSystemComment && !comment.IsGenesisComment)
+                throw new ForbiddenException("System event comments cannot be deleted");
+
             var isAuthor = comment.AuthorId == userId;
             var isTodoOwner = todoItem.UserId == userId;
+
+            if (comment.IsGenesisComment && !isTodoOwner)
+                throw new ForbiddenException("Only the task owner can delete the description");
 
             if (!isAuthor && !isTodoOwner)
                 throw new ForbiddenException("Only the comment author or task owner can delete this comment");

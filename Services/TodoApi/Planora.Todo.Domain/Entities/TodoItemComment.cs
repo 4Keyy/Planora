@@ -11,9 +11,10 @@ namespace Planora.Todo.Domain.Entities
         public string AuthorName { get; private set; } = string.Empty;
         public string Content { get; private set; } = string.Empty;
         public bool IsSystemComment { get; private set; }
+        public bool IsGenesisComment { get; private set; }
 
         public bool IsEdited =>
-            !IsSystemComment && UpdatedAt.HasValue && UpdatedAt.Value > CreatedAt.AddSeconds(5);
+            (!IsSystemComment || IsGenesisComment) && UpdatedAt.HasValue && UpdatedAt.Value > CreatedAt.AddSeconds(5);
 
         private TodoItemComment() { }
 
@@ -61,7 +62,41 @@ namespace Planora.Todo.Domain.Entities
                 AuthorName = string.Empty,
                 Content = content.Trim(),
                 IsSystemComment = true,
+                IsGenesisComment = false,
             };
+        }
+
+        public static TodoItemComment CreateGenesis(Guid todoItemId, string content, string authorName)
+        {
+            if (todoItemId == Guid.Empty)
+                throw new InvalidValueObjectException(nameof(TodoItemComment), "TodoItemId cannot be empty");
+            if (string.IsNullOrWhiteSpace(content))
+                throw new InvalidValueObjectException(nameof(TodoItemComment), "Content cannot be empty");
+            if (content.Length > 5000)
+                throw new InvalidValueObjectException(nameof(TodoItemComment), "Description cannot exceed 5000 characters");
+
+            return new TodoItemComment
+            {
+                TodoItemId = todoItemId,
+                AuthorId = Guid.Empty,
+                AuthorName = string.IsNullOrWhiteSpace(authorName) ? string.Empty : authorName.Trim(),
+                Content = content.Trim(),
+                IsSystemComment = true,
+                IsGenesisComment = true,
+            };
+        }
+
+        public void UpdateGenesisContent(string content, Guid ownerUserId)
+        {
+            if (!IsGenesisComment)
+                throw new ForbiddenException("Only the genesis comment can be updated via this method");
+            if (string.IsNullOrWhiteSpace(content))
+                throw new InvalidValueObjectException(nameof(TodoItemComment), "Content cannot be empty");
+            if (content.Length > 5000)
+                throw new InvalidValueObjectException(nameof(TodoItemComment), "Description cannot exceed 5000 characters");
+
+            Content = content.Trim();
+            MarkAsModified(ownerUserId);
         }
 
         public void UpdateContent(string content, Guid editorUserId)

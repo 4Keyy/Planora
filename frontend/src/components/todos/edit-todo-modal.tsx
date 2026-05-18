@@ -285,25 +285,6 @@ export function EditTodoModal({
               />
             </motion.div>
 
-            {/* Description Input */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="space-y-1"
-            >
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Notes or details..."
-                rows={3}
-                disabled={!isOwner}
-                maxLength={5000}
-                showCount={isOwner}
-                className="border-none bg-gray-50/50 text-sm focus-visible:ring-0 focus-visible:bg-gray-50 placeholder:text-gray-300 rounded-2xl resize-none p-4"
-              />
-            </motion.div>
-
             {/* Priority & Due Date */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -473,22 +454,20 @@ export function EditTodoModal({
             </motion.div>
           )}
 
-          {/* Comments */}
-          {hasSharedAudience && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.26 }}
-              className="rounded-2xl border border-gray-100 bg-gray-50/50 p-3.5"
-            >
-              <TaskComments
-                todoId={todo.id}
-                isOwner={isOwner}
-                canComment={true}
-                refreshKey={commentsRefreshKey}
-              />
-            </motion.div>
-          )}
+          {/* Comments & Genesis */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.26 }}
+            className="rounded-2xl border border-gray-100 bg-gray-50/50 p-3.5"
+          >
+            <TaskComments
+              todoId={todo.id}
+              isOwner={isOwner}
+              canComment={true}
+              refreshKey={commentsRefreshKey}
+            />
+          </motion.div>
 
           {/* Leave task – shown when viewer is actively working */}
           {(() => {

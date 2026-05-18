@@ -17,7 +17,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
 
             builder.Property(x => x.Content)
                 .IsRequired()
-                .HasMaxLength(2000);
+                .HasMaxLength(5000);
 
             builder.Property(x => x.CreatedAt).IsRequired();
             builder.Property(x => x.UpdatedAt).IsRequired(false);
@@ -25,6 +25,10 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
             builder.Property(x => x.IsDeleted).HasDefaultValue(false);
 
             builder.Property(x => x.IsSystemComment)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            builder.Property(x => x.IsGenesisComment)
                 .IsRequired()
                 .HasDefaultValue(false);
 

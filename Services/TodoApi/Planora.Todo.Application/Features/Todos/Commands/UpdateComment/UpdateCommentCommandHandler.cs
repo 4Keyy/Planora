@@ -9,15 +9,18 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateComment
     public sealed class UpdateCommentCommandHandler : IRequestHandler<UpdateCommentCommand, Result<TodoCommentDto>>
     {
         private readonly ITodoCommentRepository _commentRepository;
+        private readonly ITodoRepository _todoRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserContext _currentUserContext;
 
         public UpdateCommentCommandHandler(
             ITodoCommentRepository commentRepository,
+            ITodoRepository todoRepository,
             IUnitOfWork unitOfWork,
             ICurrentUserContext currentUserContext)
         {
             _commentRepository = commentRepository;
+            _todoRepository = todoRepository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
         }
@@ -32,7 +35,21 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateComment
             if (comment.TodoItemId != request.TodoId)
                 throw new EntityNotFoundException("TodoItemComment", request.CommentId);
 
-            comment.UpdateContent(request.Content, userId);
+            if (comment.IsGenesisComment)
+            {
+                var todoItem = await _todoRepository.GetByIdWithIncludesAsync(request.TodoId, cancellationToken)
+                    ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
+
+                if (todoItem.UserId != userId)
+                    throw new ForbiddenException("Only the task owner can edit the description");
+
+                comment.UpdateGenesisContent(request.Content, userId);
+            }
+            else
+            {
+                comment.UpdateContent(request.Content, userId);
+            }
+
             _commentRepository.Update(comment);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -44,9 +61,10 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateComment
                 comment.Content,
                 comment.CreatedAt,
                 comment.UpdatedAt,
-                IsOwn: true,
+                IsOwn: !comment.IsGenesisComment,
                 IsEdited: comment.IsEdited,
-                IsSystemComment: false));
+                IsSystemComment: comment.IsSystemComment,
+                IsGenesisComment: comment.IsGenesisComment));
         }
     }
 }
