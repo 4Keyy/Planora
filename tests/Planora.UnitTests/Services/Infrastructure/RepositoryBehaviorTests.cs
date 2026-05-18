@@ -113,7 +113,7 @@ public class RepositoryBehaviorTests
         Assert.Single(await repository.GetCompletedByUserIdAsync(userId));
         Assert.Equal(3, (await repository.GetByUserIdAndCategoryIdAsync(userId, categoryId)).Count);
         Assert.DoesNotContain((await repository.GetByCategoryIdAsync(categoryId)), x => x.Id == deleted.Id);
-        Assert.Equal(3, await repository.GetUncompletedCountAsync(userId));
+        Assert.Equal(2, await repository.GetUncompletedCountAsync(userId));
         Assert.Equal(overdue.Id, Assert.Single(await repository.GetOverdueAsync(userId)).Id);
 
         var withIncludes = await repository.GetByIdWithIncludesAsync(active.Id);

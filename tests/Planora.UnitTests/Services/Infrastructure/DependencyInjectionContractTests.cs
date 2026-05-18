@@ -145,7 +145,7 @@ public class DependencyInjectionContractTests
         Assert.True(jwtOptions.TokenValidationParameters.ValidateIssuerSigningKey);
         Assert.Equal("Planora.Auth", jwtOptions.TokenValidationParameters.ValidIssuer);
         Assert.Equal("Planora.Clients", jwtOptions.TokenValidationParameters.ValidAudience);
-        Assert.Equal(TimeSpan.FromMinutes(5), jwtOptions.TokenValidationParameters.ClockSkew);
+        Assert.Equal(TimeSpan.FromSeconds(30), jwtOptions.TokenValidationParameters.ClockSkew);
         Assert.IsType<RabbitMqConnectionManager>(provider.GetRequiredService<IRabbitMqConnectionManager>());
     }
 

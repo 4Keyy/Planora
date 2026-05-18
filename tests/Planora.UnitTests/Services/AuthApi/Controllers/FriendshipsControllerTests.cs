@@ -10,9 +10,11 @@ using Planora.Auth.Application.Features.Friendships.Queries.GetFriends;
 using Planora.BuildingBlocks.Application.Models;
 using Planora.BuildingBlocks.Application.Pagination;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace Planora.UnitTests.Services.AuthApi.Controllers;
@@ -194,7 +196,7 @@ public class FriendshipsControllerTests
         var mediator = new Mock<IMediator>();
         mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>()))
             .Returns(Task.FromResult(result));
-        return CreateController(mediator).GetFriendIds(userId, CancellationToken.None);
+        return CreateControllerWithUser(mediator, userId).GetFriendIds(userId, CancellationToken.None);
     }
 
     private static Task<ActionResult<List<Guid>>> GetFriendIdsThrowing(Guid userId)
@@ -202,7 +204,7 @@ public class FriendshipsControllerTests
         var mediator = new Mock<IMediator>();
         mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("down"));
-        return CreateController(mediator).GetFriendIds(userId, CancellationToken.None);
+        return CreateControllerWithUser(mediator, userId).GetFriendIds(userId, CancellationToken.None);
     }
 
     private static Task<ActionResult<bool>> AreFriendsWith(Result<List<Guid>> result, Guid userId, Guid friendId)
@@ -210,7 +212,7 @@ public class FriendshipsControllerTests
         var mediator = new Mock<IMediator>();
         mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>()))
             .Returns(Task.FromResult(result));
-        return CreateController(mediator).AreFriends(userId, friendId, CancellationToken.None);
+        return CreateControllerWithUser(mediator, userId).AreFriends(userId, friendId, CancellationToken.None);
     }
 
     private static Task<ActionResult<bool>> AreFriendsThrowing(Guid userId, Guid friendId)
@@ -218,11 +220,25 @@ public class FriendshipsControllerTests
         var mediator = new Mock<IMediator>();
         mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("down"));
-        return CreateController(mediator).AreFriends(userId, friendId, CancellationToken.None);
+        return CreateControllerWithUser(mediator, userId).AreFriends(userId, friendId, CancellationToken.None);
     }
 
     private static FriendshipsController CreateController(Mock<IMediator> mediator)
         => new(
             mediator.Object,
             Mock.Of<ILogger<FriendshipsController>>());
+
+    private static FriendshipsController CreateControllerWithUser(Mock<IMediator> mediator, Guid userId)
+    {
+        var controller = new FriendshipsController(
+            mediator.Object,
+            Mock.Of<ILogger<FriendshipsController>>());
+        var claims = new[] { new Claim("sub", userId.ToString()) };
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) }
+        };
+        return controller;
+    }
 }

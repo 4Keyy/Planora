@@ -59,6 +59,7 @@ namespace Planora.Auth.Infrastructure.Services.Authentication
                     replayKey,
                     "1",
                     UsedCodeTtl,
+                    false,
                     When.NotExists);
 
                 if (!keyWasNew)
