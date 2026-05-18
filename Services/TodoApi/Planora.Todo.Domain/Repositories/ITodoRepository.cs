@@ -31,6 +31,11 @@ namespace Planora.Todo.Domain.Repositories
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Returns the number of active (not done, not deleted) tasks the user is currently working on as a worker.
+        /// </summary>
+        Task<int> GetActiveWorkerTaskCountAsync(Guid userId, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Removes all TodoItemShare rows that represent sharing between two users whose
         /// friendship has been revoked. Deletes shares in both directions.
         /// </summary>

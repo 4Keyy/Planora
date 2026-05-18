@@ -290,6 +290,31 @@ public class TodoCommandHandlerExpandedTests
     }
 
     [Fact]
+    [Trait("TestType", "Functional")]
+    [Trait("TestType", "Regression")]
+    public async Task UpdateTodo_Viewer_ShouldRemoveWorkerStatusOnCompletion()
+    {
+        var ownerId = Guid.NewGuid();
+        var viewerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Shared task", isPublic: true, sharedWithUserIds: new[] { viewerId });
+        todo.AddWorker(viewerId);
+
+        var fixture = new TodoCommandFixture(viewerId);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(viewerId, ownerId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        Assert.Single(todo.Workers);
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(todo.Id, Status: "done"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Done", result.Value!.Status);
+        Assert.Empty(todo.Workers);
+    }
+
+    [Fact]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
     public async Task UpdateTodo_ShouldRejectForeignTodoAndSharingWithNonFriends()

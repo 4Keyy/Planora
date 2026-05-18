@@ -5,6 +5,7 @@ using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Services;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
 {
@@ -16,6 +17,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IFriendshipService _friendshipService;
         private readonly ITodoCommentRepository _commentRepository;
+        private readonly ILogger<JoinTodoCommandHandler> _logger;
 
         public JoinTodoCommandHandler(
             ITodoRepository repository,
@@ -23,7 +25,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             IMapper mapper,
             ICurrentUserContext currentUserContext,
             IFriendshipService friendshipService,
-            ITodoCommentRepository commentRepository)
+            ITodoCommentRepository commentRepository,
+            ILogger<JoinTodoCommandHandler> logger)
         {
             _repository = repository;
             _unitOfWork = unitOfWork;
@@ -31,6 +34,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             _currentUserContext = currentUserContext;
             _friendshipService = friendshipService;
             _commentRepository = commentRepository;
+            _logger = logger;
         }
 
         public async Task<Result<TodoItemDto>> Handle(JoinTodoCommand request, CancellationToken cancellationToken)
@@ -82,10 +86,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             todoItem.AddWorker(userId);
 
             var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-            var systemComment = TodoItemComment.CreateSystem(todoItem.Id, $"{userName} accepted the task");
+            var systemComment = TodoItemComment.CreateSystem(todoItem.Id, $"{userName} started working on the task");
             await _commentRepository.AddAsync(systemComment, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var activeWorkerTaskCount = await _repository.GetActiveWorkerTaskCountAsync(userId, cancellationToken);
+            _logger.LogInformation(
+                "User {UserId} joined task {TodoId}. Active worker task count: {Count}",
+                userId, todoItem.Id, activeWorkerTaskCount);
 
             var dto = _mapper.Map<TodoItemDto>(todoItem) with
             {

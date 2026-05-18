@@ -177,6 +177,17 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
             return (items, totalCount);
         }
 
+        public async Task<int> GetActiveWorkerTaskCountAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            return await DbSet
+                .AsNoTracking()
+                .CountAsync(
+                    t => !t.IsDeleted &&
+                         t.Status != TodoStatus.Done &&
+                         t.Workers.Any(w => w.UserId == userId),
+                    cancellationToken);
+        }
+
         public async Task RemoveSharesBetweenUsersAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
         {
             // Remove todos that userId shared with friendId

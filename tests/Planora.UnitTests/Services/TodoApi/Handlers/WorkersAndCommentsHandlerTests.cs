@@ -221,6 +221,49 @@ public class WorkersAndCommentsHandlerTests
             fixture.CreateLeaveHandler().Handle(new LeaveTodoCommand(todo.Id), CancellationToken.None));
     }
 
+    [Fact]
+    public async Task JoinTodo_ShouldCreateSystemComment_WithStartedWorkingText()
+    {
+        var ownerId = Guid.NewGuid();
+        var workerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
+        var fixture = new WorkerFixture(workerId, "Alice");
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        fixture.Mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>())).Returns(EmptyDto());
+
+        await fixture.CreateJoinHandler().Handle(new JoinTodoCommand(todo.Id), CancellationToken.None);
+
+        fixture.CommentRepository.Verify(
+            x => x.AddAsync(
+                It.Is<TodoItemComment>(c => c.IsSystemComment && c.Content.Contains("Alice") && c.Content.Contains("started working")),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task LeaveTodo_ShouldCreateSystemComment_WhenWorkerLeaves()
+    {
+        var ownerId = Guid.NewGuid();
+        var workerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
+        todo.AddWorker(workerId);
+        var fixture = new WorkerFixture(workerId, "Bob");
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+
+        var result = await fixture.CreateLeaveHandler().Handle(new LeaveTodoCommand(todo.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(todo.Workers);
+        fixture.CommentRepository.Verify(
+            x => x.AddAsync(
+                It.Is<TodoItemComment>(c => c.IsSystemComment && c.Content.Contains("Bob") && c.Content.Contains("left")),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // AddComment
     // ═══════════════════════════════════════════════════════════════════════════
@@ -501,19 +544,23 @@ public class WorkersAndCommentsHandlerTests
         public Mock<IMapper> Mapper { get; } = new();
         public Mock<ICurrentUserContext> CurrentUser { get; } = new();
         public Mock<IFriendshipService> FriendshipService { get; } = new();
+        public Mock<ITodoCommentRepository> CommentRepository { get; } = new();
 
-        public WorkerFixture(Guid userId)
+        public WorkerFixture(Guid userId, string? userName = "Worker")
         {
             CurrentUser.SetupGet(x => x.UserId).Returns(userId);
             CurrentUser.SetupGet(x => x.IsAuthenticated).Returns(userId != Guid.Empty);
+            CurrentUser.SetupGet(x => x.Name).Returns(userName);
             UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         }
 
         public JoinTodoCommandHandler CreateJoinHandler()
-            => new(Repository.Object, UnitOfWork.Object, Mapper.Object, CurrentUser.Object, FriendshipService.Object, Mock.Of<ITodoCommentRepository>());
+            => new(Repository.Object, UnitOfWork.Object, Mapper.Object, CurrentUser.Object, FriendshipService.Object,
+                CommentRepository.Object, Mock.Of<ILogger<JoinTodoCommandHandler>>());
 
         public LeaveTodoCommandHandler CreateLeaveHandler()
-            => new(Repository.Object, UnitOfWork.Object, CurrentUser.Object);
+            => new(Repository.Object, UnitOfWork.Object, CurrentUser.Object,
+                CommentRepository.Object, Mock.Of<ILogger<LeaveTodoCommandHandler>>());
     }
 
     private sealed class CommentFixture

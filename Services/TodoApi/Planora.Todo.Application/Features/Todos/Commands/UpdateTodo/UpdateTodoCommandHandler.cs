@@ -102,6 +102,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
 
                         if (completedByViewer)
                         {
+                            if (todoItem.Workers.Any(w => w.UserId == userId))
+                                todoItem.RemoveWorker(userId);
+
                             var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
                             var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{userName} completed the task");
                             await _commentRepository.AddAsync(sysComment, cancellationToken);
