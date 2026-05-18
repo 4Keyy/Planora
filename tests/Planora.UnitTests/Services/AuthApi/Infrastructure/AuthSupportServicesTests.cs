@@ -13,7 +13,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using OtpNet;
-using StackExchange.Redis;
+using IConnectionMultiplexer = StackExchange.Redis.IConnectionMultiplexer;
+using IDatabase = StackExchange.Redis.IDatabase;
+using RedisKey = StackExchange.Redis.RedisKey;
+using RedisValue = StackExchange.Redis.RedisValue;
+using When = StackExchange.Redis.When;
+using CommandFlags = StackExchange.Redis.CommandFlags;
 
 namespace Planora.UnitTests.Services.AuthApi.Infrastructure;
 
