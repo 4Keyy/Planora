@@ -12,7 +12,6 @@ import { formatDate, isPastDate, truncateText, formatPublicName, cn } from "@/li
 import { useAuthStore } from "@/store/auth"
 import { EASE_OUT_EXPO, SPRING_RESPONSIVE, VARIANTS_CARD, TAP_CARD } from "@/lib/animations"
 import { CompletionCelebration } from "@/components/animated/celebration"
-import { WorkerJoinButton } from "@/components/todos/worker-join-button"
 
 const PRIORITY_CONFIG: Record<string, { color: string; num: number }> = {
   "1": { color: "#9ca3af", num: 1 },
@@ -42,6 +41,7 @@ const CARD_VISIBILITY_CONTENT = {
 
 const COMPLETION_PRE_COMMIT_MS = 360
 const REOPEN_PRE_COMMIT_MS = 260
+const JOIN_PRE_COMMIT_MS = 280
 
 const COMPLETION_BUTTON_TRANSITION = {
   type: "spring" as const,
@@ -50,8 +50,7 @@ const COMPLETION_BUTTON_TRANSITION = {
   mass: 0.72,
 }
 
-type CompletionPhase = "completing" | "reopening" | null
-
+type CompletionPhase = "completing" | "reopening" | "joining" | null
 
 interface TodoCardProps {
   todo: Todo
@@ -60,7 +59,6 @@ interface TodoCardProps {
   onEdit: () => void
   onToggleHidden?: () => Promise<void>
   onJoin?: () => Promise<void>
-  onLeave?: () => Promise<void>
   variant?: "default" | "completed"
 }
 
@@ -74,7 +72,6 @@ export function TodoCard({
   onEdit,
   onToggleHidden,
   onJoin,
-  onLeave,
   variant = "default",
 }: TodoCardProps) {
   const shouldReduceMotion = useReducedMotion()
@@ -85,12 +82,14 @@ export function TodoCard({
   const [isControlHover, setIsControlHover] = useState(false)
   const [isCardHovered, setIsCardHovered] = useState(false)
   const [isDeleteZoneHovered, setIsDeleteZoneHovered] = useState(false)
+  const [isButtonHovered, setIsButtonHovered] = useState(false)
   const mountedRef = useRef(true)
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const viewerId = useAuthStore((s) => s.user?.userId)
   const isCompleted = variant === "completed"
   const isCompleting = completionPhase === "completing"
   const isReopening = completionPhase === "reopening"
+  const isJoining = completionPhase === "joining"
   const isCompletionPending = completionPhase !== null
   const CategoryIcon = todo.categoryIcon ? (ICON_MAP[todo.categoryIcon] ?? null) : null
 
@@ -112,9 +111,6 @@ export function TodoCard({
   const cardCategoryLabel = todo.categoryName?.trim() ? truncateText(todo.categoryName, 18) : "Без категории"
   const isOwner = isTodoOwner(todo, viewerId)
   const isShared = todo.hasSharedAudience ?? fallbackIsShared
-  // Owner uses InProgress status as their personal "working on this" signal;
-  // non-owners use the worker-join flag
-  // Backend sends "In Progress" (with space) for the InProgress enum value
   const isEffectivelyWorking = isOwner
     ? (todo.status?.toLowerCase().replace(/\s/g, "") === "inprogress")
     : (todo.isWorking ?? false)
@@ -123,6 +119,13 @@ export function TodoCard({
   const publicBadgeLabel = isOwner ? "Public" : (todo.authorName ? formatPublicName(todo.authorName) : "Public")
   const isPublicName = !isOwner && !!todo.authorName
   const canDelete = isOwner
+
+  const friendCount = todo.sharedWithUserIds?.length ?? 0
+  const joinSlots = todo.requiredWorkers != null && todo.requiredWorkers > 1
+    ? todo.requiredWorkers - 1
+    : friendCount > 0 ? friendCount : null
+  const isFull = !isOwner && joinSlots != null && (todo.workerCount ?? 0) >= joinSlots
+  const canJoin = !!onJoin && !isCompleted && !isFull
 
   const allowCollapse = !isCompleted
   const isCollapsed = allowCollapse && (optimisticCollapsed ?? (todo.hidden ?? false))
@@ -195,21 +198,40 @@ export function TodoCard({
     }
   }
 
+  const handleJoin = async () => {
+    if (!onJoin || isCompletionPending || isVisibilityPending) return
+    setCompletionPhase("joining")
+    if (!shouldReduceMotion) {
+      await new Promise((r) => setTimeout(r, JOIN_PRE_COMMIT_MS))
+    }
+    try {
+      await Promise.resolve(onJoin())
+    } finally {
+      if (mountedRef.current) setCompletionPhase(null)
+    }
+  }
+
+  const handleButtonClick = () => {
+    if (isCompletionPending || isVisibilityPending) return
+    if (!isCompleted && !isWorkingOnThis && canJoin) {
+      void handleJoin()
+    } else {
+      void handleCompletionToggle()
+    }
+  }
+
   // Determine border color based on priority and sharing
   const isUrgentOrOverdue = todo.isVisuallyUrgent ?? fallbackIsVisuallyUrgent
   const isSharedUrgent = showShareBadge && isUrgentOrOverdue
   const borderColor = (() => {
     if (isWorkingOnThis) return "border-indigo-500"
-    if (isSharedUrgent) return "border-blue-400"   // left override via inline style
+    if (isSharedUrgent) return "border-blue-400"
     if (isUrgentOrOverdue) return "border-red-400"
     if (showShareBadge) return "border-blue-400"
     return "border-gray-300"
   })()
-  // Red left border for any urgent task; when also in-work set all four sides explicitly
-  // so the indigo shorthand class can never override the left.
   const borderInlineStyle: React.CSSProperties = (() => {
     if (isWorkingOnThis && isUrgentOrOverdue) {
-      // Urgent + in-work (shared or not): indigo 3 sides, red left
       return {
         borderTopColor: "rgb(99 102 241)",
         borderRightColor: "rgb(99 102 241)",
@@ -230,12 +252,25 @@ export function TodoCard({
   const cardHoverShadow = isCardHovered && !isCompleted
     ? `0 8px 32px -4px ${hoverShadow}, 0 4px 16px -2px ${hoverShadow}`
     : undefined
-  const completionOverlayColor = isCompleting
-    ? "bg-emerald-500/10"
-    : isReopening
-      ? "bg-sky-500/10"
-      : ""
+
+  const completionOverlayColor = isJoining
+    ? "bg-indigo-500/10"
+    : isCompleting
+      ? "bg-emerald-500/10"
+      : isReopening
+        ? "bg-sky-500/10"
+        : ""
+
   const completionButtonAnimate = (() => {
+    if (isJoining) {
+      return {
+        scale: [1, 0.88, 1.08, 1],
+        rotate: [0, 8, -4, 0],
+        backgroundColor: "#6366f1",
+        borderColor: "#4f46e5",
+        color: "#ffffff",
+      }
+    }
     if (isCompleting) {
       return {
         scale: [1, 0.88, 1.08, 1],
@@ -245,7 +280,6 @@ export function TodoCard({
         color: "#ffffff",
       }
     }
-
     if (isReopening) {
       return {
         scale: [1, 0.94, 1.04, 1],
@@ -255,22 +289,23 @@ export function TodoCard({
         color: "#374151",
       }
     }
-
-    return isCompleted
-      ? {
-          scale: 1,
-          rotate: 0,
-          backgroundColor: "#374151",
-          borderColor: "#1f2937",
-          color: "#ffffff",
-        }
-      : {
-          scale: 1,
-          rotate: 0,
-          backgroundColor: "rgba(255,255,255,0)",
-          borderColor: "#d1d5db",
-          color: "#111827",
-        }
+    if (isCompleted) {
+      return { scale: 1, rotate: 0, backgroundColor: "#374151", borderColor: "#1f2937", color: "#ffffff" }
+    }
+    if (isWorkingOnThis) {
+      return {
+        scale: 1, rotate: 0,
+        backgroundColor: isButtonHovered ? "rgba(16,185,129,0.06)" : "rgba(99,102,241,0.08)",
+        borderColor: isButtonHovered ? "#34d399" : "#818cf8",
+        color: isButtonHovered ? "#059669" : "#6366f1",
+      }
+    }
+    return {
+      scale: 1, rotate: 0,
+      backgroundColor: "rgba(255,255,255,0)",
+      borderColor: (canJoin && isButtonHovered) ? "#a78bfa" : "#d1d5db",
+      color: "#111827",
+    }
   })()
 
   return (
@@ -279,11 +314,13 @@ export function TodoCard({
         layout
         initial={VARIANTS_CARD.hidden}
         animate={
-          isCompleting
-            ? { opacity: 1, y: -2, scale: 0.992 }
-            : isReopening
-              ? { opacity: 0.82, y: -1, scale: 1.004 }
-              : VARIANTS_CARD.visible
+          isJoining
+            ? { opacity: 1, y: -1, scale: 1.002 }
+            : isCompleting
+              ? { opacity: 1, y: -2, scale: 0.992 }
+              : isReopening
+                ? { opacity: 0.82, y: -1, scale: 1.004 }
+                : VARIANTS_CARD.visible
         }
         exit={VARIANTS_CARD.exit}
         whileHover={isControlHover || isVisibilityPending || isCompletionPending ? undefined : { y: isCompleted ? 0 : -4, scale: 1.008 }}
@@ -343,12 +380,14 @@ export function TodoCard({
                 <motion.div
                   initial={{ x: "-45%", opacity: 0 }}
                   animate={{ x: "145%", opacity: [0, 0.42, 0] }}
-                  transition={{ duration: isCompleting ? 0.48 : 0.34, ease: EASE_OUT_EXPO }}
+                  transition={{ duration: isCompleting ? 0.48 : isJoining ? 0.38 : 0.34, ease: EASE_OUT_EXPO }}
                   className={cn(
                     "absolute inset-y-0 w-1/2 -skew-x-12",
-                    isCompleting
-                      ? "bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent"
-                      : "bg-gradient-to-r from-transparent via-sky-200/70 to-transparent"
+                    isJoining
+                      ? "bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent"
+                      : isCompleting
+                        ? "bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent"
+                        : "bg-gradient-to-r from-transparent via-sky-200/70 to-transparent"
                   )}
                 />
               )}
@@ -445,10 +484,7 @@ export function TodoCard({
               className="flex items-center justify-between gap-3 group/collapsed"
             >
               <div className="flex items-center gap-4 min-w-0">
-                <motion.div
-                  whileHover={{ scale: 1.15 }}
-                  className="w-8 flex items-center justify-center"
-                >
+                <motion.div whileHover={{ scale: 1.15 }} className="w-8 flex items-center justify-center">
                   <motion.button
                     type="button"
                     disabled={isVisibilityPending || isCompletionPending}
@@ -505,31 +541,61 @@ export function TodoCard({
               <div className="flex items-stretch gap-3">
                 {/* Actions: complete button + eye, vertically centered as a group */}
                 <div className="w-8 flex-shrink-0 flex flex-col items-center justify-center gap-3">
+                  {/* 3-state completion / join button */}
                   <motion.button
                     onClick={(e: React.MouseEvent) => {
                       e.stopPropagation()
-                      void handleCompletionToggle()
+                      handleButtonClick()
                     }}
-                    onMouseEnter={() => setIsControlHover(true)}
-                    onMouseLeave={() => setIsControlHover(false)}
+                    onMouseEnter={() => { setIsControlHover(true); setIsButtonHovered(true) }}
+                    onMouseLeave={() => { setIsControlHover(false); setIsButtonHovered(false) }}
                     animate={completionButtonAnimate}
                     transition={isCompletionPending ? COMPLETION_BUTTON_TRANSITION : SPRING_RESPONSIVE}
-                    whileHover={!isCompletionPending ? { scale: 1.1 } : undefined}
-                    whileTap={!isCompletionPending ? { scale: 0.92 } : undefined}
+                    whileHover={!isCompletionPending ? { scale: 1.12 } : undefined}
+                    whileTap={!isCompletionPending ? { scale: 0.9 } : undefined}
                     disabled={isCompletionPending}
                     aria-busy={isCompletionPending}
                     className={cn(
-                      "h-8 w-8 rounded-full border-2 transition-[box-shadow,opacity] duration-200 flex items-center justify-center shadow-sm",
-                      isCompleted
-                        ? "bg-gray-700 border-gray-800 text-white hover:shadow-md"
-                        : "border-gray-300 hover:border-gray-900 hover:bg-gray-50 hover:shadow-md",
+                      "h-8 w-8 rounded-full border-2 flex items-center justify-center",
+                      "transition-[box-shadow,ring,opacity] duration-150",
+                      // Phase rings
+                      isJoining && "shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400/35",
                       isCompleting && "shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/30",
-                      isReopening && "shadow-md shadow-sky-500/10 ring-2 ring-sky-300/20"
+                      isReopening && "shadow-md shadow-sky-500/10 ring-2 ring-sky-300/20",
+                      // Working state rings (not in phase)
+                      !isCompletionPending && isWorkingOnThis && !isCompleted && (
+                        isButtonHovered
+                          ? "ring-2 ring-emerald-400/45 shadow-md shadow-emerald-100/50"
+                          : "ring-2 ring-indigo-300/45 shadow-sm shadow-indigo-100/40"
+                      ),
+                      // Idle + joinable: violet ring on hover
+                      !isCompletionPending && !isWorkingOnThis && !isCompleted && canJoin && isButtonHovered && "ring-2 ring-violet-400/50 shadow-md shadow-violet-100/40",
+                      // Cursor
+                      isCompletionPending ? "cursor-wait" : "cursor-pointer",
                     )}
-                    aria-label={isCompleted ? "Mark as incomplete" : "Mark as complete"}
+                    aria-label={
+                      isCompleted ? "Mark as incomplete"
+                      : isWorkingOnThis ? "Mark as complete"
+                      : canJoin ? "Take it – start working"
+                      : "Mark as complete"
+                    }
                   >
                     <AnimatePresence initial={false} mode="wait">
-                      {(isCompleted || isCompleting) && !isReopening && (
+                      {/* JOINING phase */}
+                      {isJoining && (
+                        <motion.div
+                          key="joining"
+                          initial={{ scale: 0.6, opacity: 0, rotate: -20 }}
+                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                          exit={{ scale: 0.6, opacity: 0 }}
+                          transition={COMPLETION_BUTTON_TRANSITION}
+                        >
+                          <Zap className="h-4 w-4 stroke-[2.5]" />
+                        </motion.div>
+                      )}
+
+                      {/* COMPLETED or COMPLETING (not joining, not reopening) */}
+                      {!isJoining && (isCompleted || isCompleting) && !isReopening && (
                         <motion.div
                           key="check"
                           initial={{ scale: 0.78, rotate: -18, opacity: 0 }}
@@ -540,6 +606,8 @@ export function TodoCard({
                           <Check className="h-5 w-5 stroke-[3]" />
                         </motion.div>
                       )}
+
+                      {/* REOPENING spinner */}
                       {isReopening && (
                         <motion.div
                           key="reopening"
@@ -550,8 +618,45 @@ export function TodoCard({
                           className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent"
                         />
                       )}
+
+                      {/* WORKING – hover shows checkmark, idle shows pulsing dot */}
+                      {isWorkingOnThis && !isCompleted && !isCompletionPending && isButtonHovered && (
+                        <motion.div
+                          key="work-check"
+                          initial={{ scale: 0, opacity: 0, rotate: -12 }}
+                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 580, damping: 26 }}
+                        >
+                          <Check className="h-4 w-4 stroke-[3]" />
+                        </motion.div>
+                      )}
+                      {isWorkingOnThis && !isCompleted && !isCompletionPending && !isButtonHovered && (
+                        <motion.div
+                          key="working-dot"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: [1, 1.35, 1], opacity: [0.75, 1, 0.75] }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
+                          className="h-2.5 w-2.5 rounded-full bg-current"
+                        />
+                      )}
+
+                      {/* IDLE + joinable + hovered: faint bolt hint */}
+                      {!isWorkingOnThis && !isCompleted && !isCompletionPending && canJoin && isButtonHovered && (
+                        <motion.div
+                          key="idle-hint"
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 0.55 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 580, damping: 26 }}
+                        >
+                          <Zap className="h-3 w-3" style={{ color: "#7c3aed" }} />
+                        </motion.div>
+                      )}
                     </AnimatePresence>
                   </motion.button>
+
                   {allowCollapse && (
                     <motion.button
                       type="button"
@@ -635,13 +740,13 @@ export function TodoCard({
                         </motion.span>
                       )}
                       {(todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) && !isCompleted && (() => {
-                        const friendCount = todo.sharedWithUserIds?.length ?? 0
+                        const fc = todo.sharedWithUserIds?.length ?? 0
                         const statusNorm = todo.status?.toLowerCase().replace(/\s/g, '') ?? ''
                         const ownerSlotTaken = statusNorm === 'inprogress' ? 1 : 0
                         const joined = (todo.workerCount ?? 0) + ownerSlotTaken
                         const slots = todo.requiredWorkers != null
                           ? todo.requiredWorkers
-                          : friendCount > 0 ? friendCount + 1 : null
+                          : fc > 0 ? fc + 1 : null
                         const label = slots != null ? `${joined}/${slots}` : `${joined}`
                         return (
                           <motion.span
@@ -732,37 +837,7 @@ export function TodoCard({
                     </motion.div>
                   )}
                 </div>
-
               </div>
-
-              {/* Worker join/leave strip */}
-              {onJoin && onLeave && !isCompleted && (() => {
-                const friendCount = todo.sharedWithUserIds?.length ?? 0
-                const slots = todo.requiredWorkers != null && todo.requiredWorkers > 1
-                  ? todo.requiredWorkers - 1
-                  : friendCount > 0 ? friendCount : null
-                // Owner is never "full" — they control their own InProgress status
-                const isFull = !isOwner && slots != null && (todo.workerCount ?? 0) >= slots
-                // Owner: show for all tasks (Take it = set InProgress)
-                // Non-owner: show for public/shared tasks when working or room available
-                const show = isOwner || (isShared && (isEffectivelyWorking || !isFull))
-                if (!show) return null
-                return (
-                  <div className={cn(
-                    "mt-4",
-                    isSparse ? "-mx-4 -mb-3" : "-mx-6 -mb-6"
-                  )}>
-                    <WorkerJoinButton
-                      isOwner={false}
-                      isWorking={isEffectivelyWorking}
-                      isFull={isFull}
-                      onJoin={onJoin}
-                      onLeave={onLeave}
-                      onControlHoverChange={setIsControlHover}
-                    />
-                  </div>
-                )
-              })()}
             </>
           )}
         </CardContent>

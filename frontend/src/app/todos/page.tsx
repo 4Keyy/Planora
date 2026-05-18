@@ -758,29 +758,6 @@ export default function TodosPage() {
                         }
                       }
                     }}
-                    onLeave={async () => {
-                      if (isTodoOwner(todo, user?.userId)) {
-                        try {
-                          await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "todo" })
-                          setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "Todo" } : t))
-                          setCommentsRefreshKey((k) => k + 1)
-                        } catch {
-                          addToast({ type: "error", title: "Could not update task" })
-                        }
-                      } else {
-                        try {
-                          await leaveTodo(todo.id)
-                          setTodos((prev) => prev.map((t) =>
-                            t.id === todo.id
-                              ? { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }
-                              : t
-                          ))
-                          setCommentsRefreshKey((k) => k + 1)
-                        } catch {
-                          addToast({ type: "error", title: "Could not leave task" })
-                        }
-                      }
-                    }}
                   />
                 )}
               />
@@ -882,6 +859,29 @@ export default function TodosPage() {
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
             commentsRefreshKey={commentsRefreshKey}
+            onLeave={async () => {
+              const todo = editingTodo
+              if (!todo) return
+              if (isTodoOwner(todo, user?.userId)) {
+                try {
+                  await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "todo" })
+                  setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "Todo" } : t))
+                  setCommentsRefreshKey((k) => k + 1)
+                } catch {
+                  addToast({ type: "error", title: "Could not stop working" })
+                }
+              } else {
+                try {
+                  await leaveTodo(todo.id)
+                  setTodos((prev) => prev.map((t) =>
+                    t.id === todo.id ? { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) } : t
+                  ))
+                  setCommentsRefreshKey((k) => k + 1)
+                } catch {
+                  addToast({ type: "error", title: "Could not leave task" })
+                }
+              }
+            }}
           />
         )}
       </AnimatePresence>

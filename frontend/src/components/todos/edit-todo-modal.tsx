@@ -97,6 +97,7 @@ interface EditTodoModalProps {
   onSaveViewerPreference: (payload: { viewerCategoryId: string | null }) => Promise<void>
   onCreateCategory: () => Promise<void>
   onDeleteCategory?: (categoryId: string) => Promise<void>
+  onLeave?: () => Promise<void>
   commentsRefreshKey?: number
 }
 
@@ -110,6 +111,7 @@ export function EditTodoModal({
   onSave,
   onSaveViewerPreference,
   onCreateCategory,
+  onLeave,
   commentsRefreshKey,
 }: EditTodoModalProps) {
   const viewerId = useAuthStore((s) => s.user?.userId)
@@ -487,6 +489,36 @@ export function EditTodoModal({
               />
             </motion.div>
           )}
+
+          {/* Leave task – shown when viewer is actively working */}
+          {(() => {
+            const isUserWorking = isTodoOwner(todo, viewerId)
+              ? (todo.status?.toLowerCase().replace(/\s/g, '') === "inprogress")
+              : (todo.isWorking ?? false)
+            return isUserWorking && onLeave ? (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.28 }}
+                className="rounded-2xl border border-red-100 bg-red-50/40 p-3.5"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-red-600">Stop working</p>
+                    <p className="text-[10px] text-red-400 mt-0.5 font-medium">Remove yourself from this task without completing it</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => { await onLeave(); onClose() }}
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 rounded-xl font-bold text-xs shrink-0"
+                  >
+                    Leave
+                  </Button>
+                </div>
+              </motion.div>
+            ) : null
+          })()}
 
           {/* Footer Actions */}
           <motion.div

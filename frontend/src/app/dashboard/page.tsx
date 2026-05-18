@@ -5,12 +5,12 @@ import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, CheckCircle2 } from "lucide-react"
-import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, type ApiResponse } from "@/lib/api"
+import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
-import { Todo, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
+import { Todo, isTodoOwner, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
 import { TodoCard } from "@/components/todos/todo-card"
 import { useToastStore } from "@/store/toast"
 import { Category } from "@/types/category"
@@ -412,6 +412,52 @@ export default function DashboardPage() {
     }
   }, [todos, statsTodos, addToast])
 
+  const handleJoin = useCallback(async (todoId: string) => {
+    const existing = todos.find(t => t.id === todoId) ?? statsTodos.find(t => t.id === todoId)
+    if (!existing) return
+    const isOwnerTask = !!user?.userId && existing.userId === user.userId
+    try {
+      if (isOwnerTask) {
+        await api.put(`/todos/api/v1/todos/${todoId}`, { status: "inProgress" })
+        const upd = (t: Todo) => t.id !== todoId ? t : { ...t, status: "In Progress" }
+        setTodos(prev => prev.map(upd))
+        setStatsTodos(prev => prev.map(upd))
+      } else {
+        const updated = await joinTodo(todoId)
+        const authorName = existing.authorName ?? friendNameCache.current.get(updated.userId)
+        const enriched = authorName ? { ...updated, authorName } : updated
+        setTodos(prev => prev.map(t => t.id !== todoId ? t : enriched))
+        setStatsTodos(prev => prev.map(t => t.id !== todoId ? t : enriched))
+      }
+      addToast({ type: "success", title: "Task taken!" })
+    } catch {
+      addToast({ type: "error", title: "Could not take task" })
+    }
+  }, [todos, statsTodos, user?.userId, addToast])
+
+  const handleLeave = useCallback(async (todoId: string) => {
+    const existing = todos.find(t => t.id === todoId) ?? statsTodos.find(t => t.id === todoId)
+    if (!existing) return
+    const isOwnerTask = !!user?.userId && existing.userId === user.userId
+    try {
+      if (isOwnerTask) {
+        await api.put(`/todos/api/v1/todos/${todoId}`, { status: "todo" })
+        const upd = (t: Todo) => t.id !== todoId ? t : { ...t, status: "Todo" }
+        setTodos(prev => prev.map(upd))
+        setStatsTodos(prev => prev.map(upd))
+      } else {
+        await leaveTodo(todoId)
+        const upd = (t: Todo) => t.id !== todoId ? t : { ...t, isWorking: false, workerCount: Math.max(0, (t.workerCount ?? 1) - 1) }
+        setTodos(prev => prev.map(upd))
+        setStatsTodos(prev => prev.map(upd))
+      }
+      setEditingTodo(null)
+      addToast({ type: "success", title: "Left task" })
+    } catch {
+      addToast({ type: "error", title: "Could not leave task" })
+    }
+  }, [todos, statsTodos, user?.userId, addToast])
+
   const handleToggleHidden = useCallback(async (todoId: string) => {
     const existing = todos.find(t => t.id === todoId) ?? statsTodos.find(t => t.id === todoId)
     if (!existing) return
@@ -688,6 +734,7 @@ export default function DashboardPage() {
                       onDelete={() => setDeletingTodo(todo)}
                       onEdit={() => setEditingTodo(todo)}
                       onToggleHidden={() => handleToggleHidden(todo.id)}
+                      onJoin={async () => handleJoin(todo.id)}
                     />
                   )}
                 />
@@ -813,6 +860,7 @@ export default function DashboardPage() {
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
             onDeleteCategory={handleDeleteCategory}
+            onLeave={editingTodo ? async () => handleLeave(editingTodo.id) : undefined}
           />
         )}
       </AnimatePresence>
