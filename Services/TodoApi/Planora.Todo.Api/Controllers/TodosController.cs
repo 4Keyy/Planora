@@ -162,7 +162,8 @@ namespace Planora.Todo.Api.Controllers
                 id,
                 request.HiddenByViewer,
                 request.ViewerCategoryId,
-                request.UpdateViewerCategory);
+                request.UpdateViewerCategory,
+                request.CompletedByViewer);
             var result = await _mediator.Send(command, cancellationToken);
 
             if (result.IsFailure)
@@ -267,6 +268,7 @@ public sealed record SetHiddenRequest(bool Hidden);
 public sealed record SetViewerPreferenceRequest(
     bool? HiddenByViewer = null,
     Guid? ViewerCategoryId = null,
-    bool UpdateViewerCategory = false);
+    bool UpdateViewerCategory = false,
+    bool? CompletedByViewer = null);
 public sealed record AddCommentRequest(string Content);
 public sealed record UpdateCommentRequest(string Content);

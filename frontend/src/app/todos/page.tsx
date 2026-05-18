@@ -271,6 +271,32 @@ export default function TodosPage() {
     const existingTodo = todos.find((t) => t.id === id) ?? completedPreview.find((t) => t.id === id)
     if (!existingTodo) return
 
+    const currentUserId = user?.userId
+    const isOwner = isTodoOwner(existingTodo, currentUserId)
+    const isShared = existingTodo.isPublic || (existingTodo.sharedWithUserIds?.length ?? 0) > 0
+
+    // Non-owner viewing a shared task: toggle per-viewer completion only
+    if (!isOwner && isShared) {
+      const wasCompleted = existingTodo.isCompletedByViewer === true
+      try {
+        const result = await setViewerPreference(id, { completedByViewer: !wasCompleted })
+        setTodos((prev) => prev.map((t) =>
+          t.id !== id ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false }
+        ))
+        if (!wasCompleted) {
+          setTodos((prev) => prev.filter((t) => t.id !== id))
+          await fetchCompletedPreview()
+        } else {
+          await Promise.all([fetchActiveTodos(), fetchCompletedPreview()])
+        }
+        addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
+      } catch (error) {
+        console.error("Failed to update viewer completion:", error)
+        addToast({ type: "error", title: "Failed to update task" })
+      }
+      return
+    }
+
     const isCompleted = isCompletedTodoStatus(existingTodo.status)
     const newStatus = isCompleted ? "todo" : "done"
 

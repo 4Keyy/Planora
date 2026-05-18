@@ -64,7 +64,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
                 throw new ForbiddenException("You can only set preferences for public or shared tasks from friends");
             }
 
-            if (!request.HiddenByViewer.HasValue && !request.UpdateViewerCategory)
+            if (!request.HiddenByViewer.HasValue && !request.UpdateViewerCategory && !request.CompletedByViewer.HasValue)
             {
                 return Result<ViewerPreferenceResponseDto>.Failure(new Error(
                     "INVALID_VIEWER_PREFERENCE_REQUEST",
@@ -104,6 +104,12 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
                 preference.ViewerCategoryId = viewerCategoryId;
             }
 
+            if (request.CompletedByViewer.HasValue)
+            {
+                preference.CompletedByViewer = request.CompletedByViewer.Value;
+                preference.CompletedByViewerAt = request.CompletedByViewer.Value ? DateTime.UtcNow : (DateTime?)null;
+            }
+
             await _viewerPreferenceRepository.UpsertAsync(preference, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -118,14 +124,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
             }
 
             _logger.LogInformation(
-                "Viewer {ViewerId} updated preferences for todo {TodoId}: HiddenByViewer={Hidden}, ViewerCategoryId={ViewerCategoryId}",
-                viewerId, request.TodoId, preference.HiddenByViewer, preference.ViewerCategoryId);
+                "Viewer {ViewerId} updated preferences for todo {TodoId}: HiddenByViewer={Hidden}, ViewerCategoryId={ViewerCategoryId}, CompletedByViewer={CompletedByViewer}",
+                viewerId, request.TodoId, preference.HiddenByViewer, preference.ViewerCategoryId, preference.CompletedByViewer);
 
             return Result<ViewerPreferenceResponseDto>.Success(new ViewerPreferenceResponseDto
             {
                 TodoId = request.TodoId,
                 HiddenByViewer = preference.HiddenByViewer,
-                ViewerCategoryId = preference.ViewerCategoryId
+                ViewerCategoryId = preference.ViewerCategoryId,
+                CompletedByViewer = preference.CompletedByViewer
             });
         }
     }

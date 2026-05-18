@@ -19,6 +19,7 @@ type ViewerPreferenceResponse = {
   todoId?: string
   hiddenByViewer: boolean
   viewerCategoryId?: string | null
+  completedByViewer?: boolean | null
 }
 
 /**
@@ -261,14 +262,16 @@ export const setViewerPreference = async (
     hiddenByViewer?: boolean
     viewerCategoryId?: string | null
     updateViewerCategory?: boolean
+    completedByViewer?: boolean
   }
-): Promise<{ todoId: string; hiddenByViewer: boolean; viewerCategoryId: string | null }> => {
+): Promise<{ todoId: string; hiddenByViewer: boolean; viewerCategoryId: string | null; completedByViewer: boolean | null }> => {
   const { data } = await api.patch<ApiResponse<ViewerPreferenceResponse>>(`/todos/api/v1/todos/${id}/viewer-preferences`, payload)
   const parsed = parseApiResponse(data)
   return {
     todoId: parsed.todoId ?? id,
     hiddenByViewer: parsed.hiddenByViewer,
     viewerCategoryId: parsed.viewerCategoryId ?? null,
+    completedByViewer: parsed.completedByViewer ?? null,
   }
 }
 

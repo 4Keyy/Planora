@@ -337,6 +337,30 @@ export default function DashboardPage() {
     const existing = todos.find(t => t.id === todoId) || statsTodos.find(t => t.id === todoId)
     if (!existing) return
 
+    const isOwner = isTodoOwner(existing, user?.userId)
+    const isShared = existing.isPublic || (existing.sharedWithUserIds?.length ?? 0) > 0
+
+    // Non-owner viewing a shared task: toggle per-viewer completion only
+    if (!isOwner && isShared) {
+      const wasCompleted = existing.isCompletedByViewer === true
+      try {
+        const result = await setViewerPreference(todoId, { completedByViewer: !wasCompleted })
+        if (!wasCompleted) {
+          setTodos(prev => prev.filter(t => t.id !== todoId))
+          setTotalCount(prev => Math.max(0, prev - 1))
+        } else {
+          fetchTodos()
+        }
+        setStatsTodos(prev => prev.map(t =>
+          t.id !== todoId ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false }
+        ))
+        addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
+      } catch {
+        addToast({ type: "error", title: "Failed to update task" })
+      }
+      return
+    }
+
     const status = String(existing.status).toLowerCase()
     const isCompleted = status === "done" || status === "completed"
     const newStatus = isCompleted ? "todo" : "done"
@@ -344,16 +368,14 @@ export default function DashboardPage() {
     try {
       const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todoId}`, { status: newStatus })
       const updated = parseApiResponse(res.data)
-      
-      // Если мы пометили задачу как выполненную, она должна исчезнуть из текущего списка активных задач
+
       if (!isCompleted) {
         setTodos(prev => prev.filter(t => t.id !== todoId))
         setTotalCount(prev => Math.max(0, prev - 1))
       } else {
-        // Если вернули из выполненных, лучше обновить список, так как она может попасть на текущую страницу
         fetchTodos()
       }
-      
+
       setStatsTodos(prev => prev.map(t => {
         if (t.id !== todoId) return t
         const authorName = t.authorName ?? friendNameCache.current.get(updated.userId)

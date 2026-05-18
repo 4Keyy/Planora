@@ -8,5 +8,6 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
         Guid TodoId,
         bool? HiddenByViewer = null,
         Guid? ViewerCategoryId = null,
-        bool UpdateViewerCategory = false) : IRequest<Result<ViewerPreferenceResponseDto>>;
+        bool UpdateViewerCategory = false,
+        bool? CompletedByViewer = null) : IRequest<Result<ViewerPreferenceResponseDto>>;
 }
