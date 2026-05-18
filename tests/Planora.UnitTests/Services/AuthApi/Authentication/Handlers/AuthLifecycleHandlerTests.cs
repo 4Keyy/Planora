@@ -336,7 +336,7 @@ public class AuthLifecycleHandlerTests
                 new LoginCommand { Email = user.Email.Value, Password = "Password123!" },
                 CancellationToken.None));
 
-        fixture.TwoFactorService.Setup(x => x.VerifyCode("secret", "000000")).Returns(false);
+        fixture.TwoFactorService.Setup(x => x.VerifyCodeAsync("secret", "000000", It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             fixture.CreateLoginHandler().Handle(

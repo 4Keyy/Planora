@@ -99,7 +99,7 @@ public sealed class LoginCommandHandlerTests
         var invalidCode = CreateFixture();
         invalidCode.SetupUserReload(user);
         invalidCode.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
-        invalidCode.TwoFactorService.Setup(x => x.VerifyCode("SECRET", "000000")).Returns(false);
+        invalidCode.TwoFactorService.Setup(x => x.VerifyCodeAsync("SECRET", "000000", It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         invalidCode.LoginHistory
             .Setup(x => x.AddAsync(It.IsAny<LoginHistory>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((LoginHistory history, CancellationToken _) => history);

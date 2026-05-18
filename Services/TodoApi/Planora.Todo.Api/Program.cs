@@ -154,6 +154,9 @@ namespace Planora.Todo.Api
 
                     await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>(app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to UserDeletedIntegrationEvent");
+
+                    await eventBus.SubscribeAsync<FriendshipRemovedIntegrationEvent, FriendshipRemovedEventConsumer>(app.Lifetime.ApplicationStopping);
+                    logger.LogInformation("✅ Subscribed to FriendshipRemovedIntegrationEvent");
                 }
 
                 // MIDDLEWARE PIPELINE

@@ -11,6 +11,7 @@ using Planora.Auth.Application.Features.Authentication.Queries.ValidateToken;
 using Planora.Auth.Application.Features.Authentication.Response.Login;
 using Planora.Auth.Application.Features.Authentication.Response.Register;
 using MediatR;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -522,7 +523,9 @@ public class AuthenticationControllerTests
         HttpContext httpContext)
     {
         var loggerMock = new Mock<ILogger<AuthenticationController>>();
-        return new AuthenticationController(mediatorMock.Object, loggerMock.Object)
+        var envMock = new Mock<IWebHostEnvironment>();
+        envMock.Setup(e => e.EnvironmentName).Returns("Production");
+        return new AuthenticationController(mediatorMock.Object, loggerMock.Object, envMock.Object)
         {
             ControllerContext = new ControllerContext
             {

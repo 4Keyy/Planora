@@ -73,6 +73,15 @@ public static class DependencyInjection
         AddJwtAuthentication(services, configuration);
     }
 
+    // Kept for backward compatibility with AddAuthInfrastructure(services, configuration).
+    // AddAuthInfrastructure does not receive IWebHostEnvironment, so the environment
+    // detection uses the ASPNETCORE_ENVIRONMENT variable directly.
+    private static bool IsDevelopmentEnvironment()
+    {
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? string.Empty;
+        return env.Equals("Development", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void AddCommonServices(IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<FrontendOptions>(
@@ -131,7 +140,7 @@ public static class DependencyInjection
         .AddJwtBearer(options =>
         {
             options.SaveToken = true;
-            options.RequireHttpsMetadata = !configuration.GetValue<bool>("IsDevelopment", false);
+            options.RequireHttpsMetadata = !IsDevelopmentEnvironment();
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
@@ -141,7 +150,7 @@ public static class DependencyInjection
                 ValidIssuer = jwtSettings.Issuer,
                 ValidAudience = jwtSettings.Audience,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
-                ClockSkew = TimeSpan.FromMinutes(5)
+                ClockSkew = TimeSpan.FromSeconds(30)
             };
         });
 

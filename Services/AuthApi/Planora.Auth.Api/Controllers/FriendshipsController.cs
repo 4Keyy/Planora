@@ -133,15 +133,20 @@ namespace Planora.Auth.Api.Controllers
 
         /// <summary>
         /// Get list of friend IDs for internal service calls (e.g., Todo API).
-        /// Requires authentication — callers must present a valid JWT.
-        /// Internal microservices obtain a service token via the auth flow.
+        /// The userId query parameter must match the authenticated caller's own user ID.
         /// </summary>
         [HttpGet("friend-ids")]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<List<Guid>>> GetFriendIds(
             [FromQuery] Guid userId,
             CancellationToken cancellationToken = default)
         {
+            // SECURITY: enforce that callers can only query their own friend list.
+            var callerIdRaw = User.FindFirst("sub")?.Value;
+            if (!Guid.TryParse(callerIdRaw, out var callerId) || callerId != userId)
+                return Forbid();
+
             try
             {
                 var query = new GetFriendIdsQuery(userId);
@@ -160,15 +165,21 @@ namespace Planora.Auth.Api.Controllers
 
         /// <summary>
         /// Check if two users are friends (for internal service calls).
-        /// Requires authentication — callers must present a valid JWT.
+        /// userId1 must match the authenticated caller's own user ID.
         /// </summary>
         [HttpGet("are-friends")]
         [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<bool>> AreFriends(
             [FromQuery] Guid userId1,
             [FromQuery] Guid userId2,
             CancellationToken cancellationToken = default)
         {
+            // SECURITY: only the authenticated user may check their own friendship status.
+            var callerIdRaw = User.FindFirst("sub")?.Value;
+            if (!Guid.TryParse(callerIdRaw, out var callerId) || callerId != userId1)
+                return Forbid();
+
             try
             {
                 var friendIds = await _mediator.Send(new GetFriendIdsQuery(userId1), cancellationToken);

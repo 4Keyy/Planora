@@ -314,13 +314,15 @@ export const useAuthStore = create(
       // Raw JWT strings (accessToken, refreshToken) are intentionally excluded.
       // - accessToken: kept in memory only; lost on page reload (re-obtained via silent refresh)
       // - refreshToken: stored exclusively in httpOnly cookie; JS cannot read it
+      // - isAuthenticated: intentionally NOT persisted — on rehydration the access token is
+      //   gone from memory, so persisting true would create a false-positive authenticated state
+      //   before restoreSession() completes its silent refresh.
       partialize: (state) => ({
         user: state.user,
         accessTokenExpiresAt: state.accessTokenExpiresAt,
         refreshTokenExpiresAt: state.refreshTokenExpiresAt,
         roles: state.roles,
         emailVerified: state.emailVerified,
-        isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

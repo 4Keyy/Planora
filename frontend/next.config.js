@@ -100,9 +100,10 @@ const nextConfig = {
       '@radix-ui/react-switch',
     ],
     serverActions: {
+      // localhost:3000 is restricted to development only; add the production
+      // FQDN here (e.g. 'app.planora.com') when deploying.
       allowedOrigins: [
-        'localhost:3000',
-        ...(isDev ? [] : []),
+        ...(isDev ? ['localhost:3000'] : []),
       ],
     },
   },

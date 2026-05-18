@@ -25,7 +25,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
         {
             return await DbSet
                 .AsNoTracking()
-                .Where(t => t.UserId == userId && t.Status != TodoStatus.Done)
+                .Where(t => t.UserId == userId && !t.IsDeleted && t.Status != TodoStatus.Done)
                 .OrderBy(t => t.ExpectedDate ?? t.CreatedAt)
                 .ToListAsync(cancellationToken);
         }
@@ -34,7 +34,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
         {
             return await DbSet
                 .AsNoTracking()
-                .Where(t => t.UserId == userId && t.Status == TodoStatus.Done)
+                .Where(t => t.UserId == userId && !t.IsDeleted && t.Status == TodoStatus.Done)
                 .OrderByDescending(t => t.UpdatedAt)
                 .ToListAsync(cancellationToken);
         }
@@ -43,7 +43,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
         {
             return await DbSet
                 .AsNoTracking()
-                .Where(t => t.UserId == userId && t.CategoryId == categoryId)
+                .Where(t => t.UserId == userId && !t.IsDeleted && t.CategoryId == categoryId)
                 .OrderBy(t => t.ExpectedDate ?? t.CreatedAt)
                 .ToListAsync(cancellationToken);
         }
@@ -60,14 +60,14 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
         {
             return await DbSet
                 .AsNoTracking()
-                .CountAsync(t => t.UserId == userId && t.Status != TodoStatus.Done, cancellationToken);
+                .CountAsync(t => t.UserId == userId && !t.IsDeleted && t.Status != TodoStatus.Done, cancellationToken);
         }
 
         public async Task<IReadOnlyList<TodoItem>> GetOverdueAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             return await DbSet
                 .AsNoTracking()
-                .Where(t => t.UserId == userId && t.Status != TodoStatus.Done && t.ExpectedDate.HasValue && t.ExpectedDate.Value < DateTime.UtcNow)
+                .Where(t => t.UserId == userId && !t.IsDeleted && t.Status != TodoStatus.Done && t.ExpectedDate.HasValue && t.ExpectedDate.Value < DateTime.UtcNow)
                 .OrderBy(t => t.ExpectedDate)
                 .ToListAsync(cancellationToken);
         }
@@ -175,6 +175,21 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .ToListAsync(cancellationToken);
 
             return (items, totalCount);
+        }
+
+        public async Task RemoveSharesBetweenUsersAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
+        {
+            // Remove todos that userId shared with friendId
+            await Context.TodoItemShares
+                .Where(s => s.SharedWithUserId == friendId &&
+                            Context.TodoItems.Any(t => t.Id == s.TodoItemId && t.UserId == userId))
+                .ExecuteDeleteAsync(cancellationToken);
+
+            // Remove todos that friendId shared with userId
+            await Context.TodoItemShares
+                .Where(s => s.SharedWithUserId == userId &&
+                            Context.TodoItems.Any(t => t.Id == s.TodoItemId && t.UserId == friendId))
+                .ExecuteDeleteAsync(cancellationToken);
         }
     }
 }

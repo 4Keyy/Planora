@@ -12,6 +12,17 @@ namespace Planora.Realtime.Api.Controllers
         private readonly INotificationService _notificationService;
         private readonly ILogger<NotificationsController> _logger;
 
+        // SECURITY: only server-defined notification types are allowed to prevent
+        // client-controlled strings from being injected into connected sessions.
+        private static readonly IReadOnlySet<string> AllowedNotificationTypes =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "info", "success", "warning", "error",
+                "TodoCreated", "TodoUpdated", "TodoDeleted",
+                "FriendRequest", "FriendAccepted",
+                "PasswordChanged", "AccountLocked",
+            };
+
         public NotificationsController(
             INotificationService notificationService,
             ILogger<NotificationsController> logger)
@@ -33,10 +44,19 @@ namespace Planora.Realtime.Api.Controllers
                 return Unauthorized(new { error = "USER_NOT_AUTHENTICATED" });
             }
 
+            if (!AllowedNotificationTypes.Contains(request.Type ?? string.Empty))
+            {
+                _logger.LogWarning(
+                    "User {UserId} supplied an invalid notification type '{Type}'",
+                    userId,
+                    request.Type);
+                return BadRequest(new { error = "INVALID_NOTIFICATION_TYPE" });
+            }
+
             await _notificationService.SendNotificationAsync(
                 userId,
                 request.Message,
-                request.Type);
+                request.Type!);
 
             _logger.LogInformation(
                 "Notification sent to user {UserId}: {Message}",

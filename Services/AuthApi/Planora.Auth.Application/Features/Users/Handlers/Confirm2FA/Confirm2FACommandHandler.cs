@@ -49,7 +49,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.Confirm2FA
                         Error.Conflict("2FA_NOT_SETUP", "Two-factor authentication is not set up"));
                 }
 
-                if (!_twoFactorService.VerifyCode(user.TwoFactorSecret, command.Code))
+                if (!await _twoFactorService.VerifyCodeAsync(user.TwoFactorSecret, command.Code, user.Id, cancellationToken))
                 {
                     _logger.LogWarning("Invalid 2FA code during confirmation: {UserId}", user.Id);
                     return Result.Failure(
