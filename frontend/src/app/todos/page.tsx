@@ -734,6 +734,7 @@ export default function TodosPage() {
                         try {
                           await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "inProgress" })
                           setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "In Progress" } : t))
+                          setCommentsRefreshKey((k) => k + 1)
                         } catch {
                           addToast({ type: "error", title: "Could not update task" })
                         }
@@ -762,6 +763,7 @@ export default function TodosPage() {
                         try {
                           await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "todo" })
                           setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "Todo" } : t))
+                          setCommentsRefreshKey((k) => k + 1)
                         } catch {
                           addToast({ type: "error", title: "Could not update task" })
                         }

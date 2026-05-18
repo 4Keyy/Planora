@@ -206,6 +206,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 todoItem.SetRequiredWorkers(request.RequiredWorkers.Value, userId);
 
             bool ownerJustCompleted = false;
+            bool ownerStartedWorking = false;
+            bool ownerStoppedWorking = false;
             if (!string.IsNullOrEmpty(request.Status))
             {
                 var status = TodoStatusExtensions.FromString(request.Status);
@@ -217,18 +219,34 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                         ownerJustCompleted = true;
                     }
                     else if (status == TodoStatus.InProgress && todoItem.Status != TodoStatus.InProgress)
+                    {
                         todoItem.MarkAsInProgress(userId);
+                        ownerStartedWorking = true;
+                    }
                     else if (status == TodoStatus.Todo && todoItem.Status != TodoStatus.Todo)
+                    {
                         todoItem.MarkAsTodo(userId);
+                        ownerStoppedWorking = true;
+                    }
                 }
             }
 
             _repository.Update(todoItem);
 
+            var ownerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
             if (ownerJustCompleted)
             {
-                var ownerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
                 var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{ownerName} completed the task");
+                await _commentRepository.AddAsync(sysComment, cancellationToken);
+            }
+            else if (ownerStartedWorking)
+            {
+                var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{ownerName} started working on the task");
+                await _commentRepository.AddAsync(sysComment, cancellationToken);
+            }
+            else if (ownerStoppedWorking)
+            {
+                var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{ownerName} left the task");
                 await _commentRepository.AddAsync(sysComment, cancellationToken);
             }
 
