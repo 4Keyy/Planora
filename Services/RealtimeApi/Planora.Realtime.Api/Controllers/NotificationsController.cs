@@ -56,7 +56,7 @@ namespace Planora.Realtime.Api.Controllers
             await _notificationService.SendNotificationAsync(
                 userId,
                 request.Message,
-                request.Type);
+                request.Type!);
 
             _logger.LogInformation(
                 "Notification sent to user {UserId}: {Message}",
