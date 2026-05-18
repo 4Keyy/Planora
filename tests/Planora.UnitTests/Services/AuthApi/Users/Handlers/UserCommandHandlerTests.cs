@@ -186,7 +186,7 @@ public sealed class UserCommandHandlerTests
 
         Assert.True(notSetupResult.IsFailure);
         Assert.Equal("2FA_NOT_SETUP", notSetupResult.Error!.Code);
-        notSetup.TwoFactorService.Verify(x => x.VerifyCode(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        notSetup.TwoFactorService.Verify(x => x.VerifyCodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -198,7 +198,7 @@ public sealed class UserCommandHandlerTests
         user.EnableTwoFactor("SECRET");
         var invalid = CreateConfirm2FaFixture(user.Id);
         invalid.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        invalid.TwoFactorService.Setup(x => x.VerifyCode("SECRET", "000000")).Returns(false);
+        invalid.TwoFactorService.Setup(x => x.VerifyCodeAsync("SECRET", "000000", It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
 
         var invalidResult = await invalid.Handler.Handle(
             new Confirm2FACommand { Code = "000000" },
@@ -209,7 +209,7 @@ public sealed class UserCommandHandlerTests
 
         var valid = CreateConfirm2FaFixture(user.Id);
         valid.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        valid.TwoFactorService.Setup(x => x.VerifyCode("SECRET", "123456")).Returns(true);
+        valid.TwoFactorService.Setup(x => x.VerifyCodeAsync("SECRET", "123456", It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var validResult = await valid.Handler.Handle(
             new Confirm2FACommand { Code = "123456" },

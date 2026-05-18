@@ -14,6 +14,7 @@ using Planora.Auth.Domain.Repositories;
 using Planora.Auth.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Planora.BuildingBlocks.Infrastructure.Messaging;
 
 namespace Planora.UnitTests.Services.AuthApi.Friendships;
 
@@ -453,6 +454,7 @@ public class FriendshipHandlerTests
                 Friendships.Object,
                 UnitOfWork.Object,
                 CurrentUser.Object,
+                Mock.Of<IEventBus>(),
                 Mock.Of<ILogger<RemoveFriendCommandHandler>>());
 
         public GetFriendsQueryHandler CreateGetFriendsHandler()

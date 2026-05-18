@@ -30,7 +30,7 @@ public class Confirm2FACommandHandlerTests
         userRepoMock.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
 
-        twoFactorServiceMock.Setup(x => x.VerifyCode("SECRET123", "123456")).Returns(true);
+        twoFactorServiceMock.Setup(x => x.VerifyCodeAsync("SECRET123", "123456", It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var handler = new Confirm2FACommandHandler(
             unitOfWorkMock.Object,
@@ -41,6 +41,6 @@ public class Confirm2FACommandHandlerTests
         var result = await handler.Handle(new Confirm2FACommand { Code = "123456" }, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        twoFactorServiceMock.Verify(x => x.VerifyCode("SECRET123", "123456"), Times.Once);
+        twoFactorServiceMock.Verify(x => x.VerifyCodeAsync("SECRET123", "123456", It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

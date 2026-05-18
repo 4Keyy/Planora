@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using OtpNet;
+using StackExchange.Redis;
 
 namespace Planora.UnitTests.Services.AuthApi.Infrastructure;
 
@@ -149,20 +150,36 @@ public sealed class AuthSupportServicesTests
     [Trait("TestType", "Unit")]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
-    public void TwoFactorService_ShouldGenerateSecretQrCodeAndValidateCurrentTotpOnly()
+    public async Task TwoFactorService_ShouldGenerateSecretQrCodeAndValidateCurrentTotpOnly()
     {
-        var service = new TwoFactorService();
+        // Arrange: mock Redis so the replay-protection NX set always succeeds (key is always new)
+        var dbMock = new Mock<IDatabase>();
+        dbMock
+            .Setup(d => d.StringSetAsync(
+                It.IsAny<RedisKey>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<TimeSpan?>(),
+                It.IsAny<bool>(),
+                It.IsAny<When>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(true);
+
+        var redisMock = new Mock<IConnectionMultiplexer>();
+        redisMock.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>())).Returns(dbMock.Object);
+
+        var service = new TwoFactorService(redisMock.Object, NullLogger<TwoFactorService>.Instance);
 
         var secret = service.GenerateSecret();
         var currentCode = new Totp(Base32Encoding.ToBytes(secret)).ComputeTotp(DateTime.UtcNow);
         var wrongCode = currentCode == "000000" ? "111111" : "000000";
         var qrCode = service.GenerateQrCodeUrl("user@example.com", secret);
+        var userId = Guid.NewGuid();
 
         Assert.NotEmpty(secret);
         Assert.True(secret.All(character => "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567=".Contains(character)));
         Assert.NotEmpty(qrCode);
-        Assert.True(service.VerifyCode(secret, currentCode));
-        Assert.False(service.VerifyCode(secret, wrongCode));
+        Assert.True(await service.VerifyCodeAsync(secret, currentCode, userId));
+        Assert.False(await service.VerifyCodeAsync(secret, wrongCode, userId));
     }
 
     [Fact]
