@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, type RefObject } from "react"
+import { useRef, type RefObject, type ReactNode } from "react"
 import { Calendar, Globe2, Lock } from "lucide-react"
 import { PriorityPopover }   from "./popovers/priority"
 import { DatePopover }       from "./popovers/date"
@@ -19,31 +19,22 @@ import {
 type OpenPopover = "priority" | "date" | "category" | "visibility" | null
 
 interface InlineTokenStripProps {
-  // Priority
   priority: string
   onPriorityChange: (v: string) => void
-
-  // Date
-  dueDate: string          // YYYY-MM-DD or ""
+  dueDate: string
   onDueDateChange: (v: string | null) => void
-
-  // Category
   categoryId: string | null
   onCategoryChange: (v: string | null) => void
   categories: Category[]
   onCreateCategory: () => Promise<void>
   canEditCategory: boolean
-
-  // Visibility
   visMode: "private" | "friends"
   onVisModeChange: (v: "private" | "friends") => void
   sharedIds: string[]
   onSharedIdsChange: (ids: string[]) => void
   friends: FriendDto[]
-
   openPopover: OpenPopover
   setOpenPopover: (v: OpenPopover) => void
-
   disabled?: boolean
 }
 
@@ -59,14 +50,18 @@ function Dot() {
 interface InlineTokenProps {
   onClick: () => void
   isOpen: boolean
-  children: React.ReactNode
+  /** Content rendered *inside* the <button> — must contain no interactive elements */
+  label: ReactNode
+  /** Popover rendered as a sibling of <button>, outside it */
+  popover?: ReactNode
   containerRef: RefObject<HTMLDivElement | null>
 }
 
-function InlineToken({ onClick, isOpen, children, containerRef }: InlineTokenProps) {
+function InlineToken({ onClick, isOpen, label, popover, containerRef }: InlineTokenProps) {
   return (
     <div ref={containerRef as RefObject<HTMLDivElement>} style={{ position: "relative" }}>
       <button
+        type="button"
         onClick={onClick}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
@@ -82,8 +77,10 @@ function InlineToken({ onClick, isOpen, children, containerRef }: InlineTokenPro
         onMouseEnter={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
         onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
       >
-        {children}
+        {label}
       </button>
+      {/* Popover lives outside the button to avoid <button> nesting */}
+      {popover}
     </div>
   )
 }
@@ -103,10 +100,8 @@ export function InlineTokenStrip({
 
   const toggle = (key: OpenPopover) =>
     setOpenPopover(openPopover === key ? null : key)
-
   const close = () => setOpenPopover(null)
 
-  // Derived display values
   const priorityColor = getPriorityColor(priority)
   const priorityLabel = getPriorityLabel(priority)
 
@@ -125,17 +120,22 @@ export function InlineTokenStrip({
         onClick={() => !disabled && toggle("priority")}
         isOpen={openPopover === "priority"}
         containerRef={priorityRef}
-      >
-        <div style={{ width: 6, height: 6, borderRadius: "50%", background: priorityColor, flexShrink: 0 }} />
-        {priorityLabel}
-        <PriorityPopover
-          open={openPopover === "priority"}
-          onClose={close}
-          value={priority}
-          onChange={(v) => { onPriorityChange(v); close() }}
-          containerRef={priorityRef as RefObject<HTMLElement | null>}
-        />
-      </InlineToken>
+        label={
+          <>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: priorityColor, flexShrink: 0 }} />
+            {priorityLabel}
+          </>
+        }
+        popover={
+          <PriorityPopover
+            open={openPopover === "priority"}
+            onClose={close}
+            value={priority}
+            onChange={(v) => { onPriorityChange(v); close() }}
+            containerRef={priorityRef as RefObject<HTMLElement | null>}
+          />
+        }
+      />
 
       <Dot />
 
@@ -144,26 +144,31 @@ export function InlineTokenStrip({
         onClick={() => !disabled && toggle("date")}
         isOpen={openPopover === "date"}
         containerRef={dateRef}
-      >
-        <Calendar size={14} strokeWidth={1.4} />
-        {dueDate ? (
+        label={
           <>
-            {formatDatePretty(dueDate)}
-            <span style={{ color: "#a3a3a3", fontWeight: 600, marginLeft: 2 }}>
-              · {formatRelativeRu(dueDate)}
-            </span>
+            <Calendar size={14} strokeWidth={1.4} />
+            {dueDate ? (
+              <>
+                {formatDatePretty(dueDate)}
+                <span style={{ color: "#a3a3a3", fontWeight: 600, marginLeft: 2 }}>
+                  · {formatRelativeRu(dueDate)}
+                </span>
+              </>
+            ) : (
+              "Срок"
+            )}
           </>
-        ) : (
-          "Срок"
-        )}
-        <DatePopover
-          open={openPopover === "date"}
-          onClose={close}
-          value={dueDate}
-          onChange={(v) => { onDueDateChange(v); close() }}
-          containerRef={dateRef as RefObject<HTMLElement | null>}
-        />
-      </InlineToken>
+        }
+        popover={
+          <DatePopover
+            open={openPopover === "date"}
+            onClose={close}
+            value={dueDate}
+            onChange={(v) => { onDueDateChange(v); close() }}
+            containerRef={dateRef as RefObject<HTMLElement | null>}
+          />
+        }
+      />
 
       <Dot />
 
@@ -172,32 +177,35 @@ export function InlineTokenStrip({
         onClick={() => !disabled && toggle("category")}
         isOpen={openPopover === "category"}
         containerRef={categoryRef}
-      >
-        {activeCat ? (
-          <>
-            <div style={{
-              width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-              background: activeCat.color ? `${activeCat.color}22` : "#f0f0f0",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              {CatIcon && <CatIcon size={9} color={activeCat.color ?? "#525252"} />}
-            </div>
-            {activeCat.name}
-          </>
-        ) : (
-          "Категория"
-        )}
-        <CategoryPopover
-          open={openPopover === "category"}
-          onClose={close}
-          value={categoryId}
-          onChange={onCategoryChange}
-          categories={categories}
-          onCreateCategory={onCreateCategory}
-          containerRef={categoryRef as RefObject<HTMLElement | null>}
-          canEdit={canEditCategory}
-        />
-      </InlineToken>
+        label={
+          activeCat ? (
+            <>
+              <div style={{
+                width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                background: activeCat.color ? `${activeCat.color}22` : "#f0f0f0",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {CatIcon && <CatIcon size={9} color={activeCat.color ?? "#525252"} />}
+              </div>
+              {activeCat.name}
+            </>
+          ) : (
+            "Категория"
+          )
+        }
+        popover={
+          <CategoryPopover
+            open={openPopover === "category"}
+            onClose={close}
+            value={categoryId}
+            onChange={onCategoryChange}
+            categories={categories}
+            onCreateCategory={onCreateCategory}
+            containerRef={categoryRef as RefObject<HTMLElement | null>}
+            canEdit={canEditCategory}
+          />
+        }
+      />
 
       {/* ── Visibility token (pushed right) ── */}
       <div style={{ marginLeft: "auto" }}>
@@ -205,23 +213,28 @@ export function InlineTokenStrip({
           onClick={() => !disabled && toggle("visibility")}
           isOpen={openPopover === "visibility"}
           containerRef={visibilityRef}
-        >
-          {visMode === "private"
-            ? <Lock size={12} strokeWidth={2} />
-            : <Globe2 size={12} strokeWidth={2} />
+          label={
+            <>
+              {visMode === "private"
+                ? <Lock size={12} strokeWidth={2} />
+                : <Globe2 size={12} strokeWidth={2} />
+              }
+              {visLabel}
+            </>
           }
-          {visLabel}
-          <VisibilityPopover
-            open={openPopover === "visibility"}
-            onClose={close}
-            mode={visMode}
-            onModeChange={onVisModeChange}
-            sharedIds={sharedIds}
-            onSharedIdsChange={onSharedIdsChange}
-            friends={friends}
-            containerRef={visibilityRef as RefObject<HTMLElement | null>}
-          />
-        </InlineToken>
+          popover={
+            <VisibilityPopover
+              open={openPopover === "visibility"}
+              onClose={close}
+              mode={visMode}
+              onModeChange={onVisModeChange}
+              sharedIds={sharedIds}
+              onSharedIdsChange={onSharedIdsChange}
+              friends={friends}
+              containerRef={visibilityRef as RefObject<HTMLElement | null>}
+            />
+          }
+        />
       </div>
     </div>
   )
