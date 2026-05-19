@@ -629,7 +629,7 @@ export default function DashboardPage() {
               Active Branches
               <span className="text-[10px] bg-gray-900 text-white px-2 py-0.5 rounded-full uppercase tracking-widest">{totalCount}</span>
             </h2>
-            <Button size="sm" variant="ghost" onClick={() => router.push("/todos")} className="text-xs font-bold text-gray-400 hover:text-black transition-colors">
+            <Button size="sm" variant="ghost" onClick={() => router.push("/branches")} className="text-xs font-bold text-gray-400 hover:text-black transition-colors">
               All branches →
             </Button>
           </div>

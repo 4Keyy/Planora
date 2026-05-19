@@ -17,7 +17,7 @@ import { TASK_CREATED_EVENT } from "@/lib/events"
 
 const NAV_TABS = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Todos",     href: "/todos"     },
+  { label: "Branches",  href: "/branches"  },
   { label: "Categories", href: "/categories" },
 ] as const
 
