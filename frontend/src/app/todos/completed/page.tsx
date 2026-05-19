@@ -150,10 +150,10 @@ export default function CompletedTodosPage() {
     try {
       await api.put(`/todos/api/v1/todos/${todoId}`, { status: "todo" })
       await fetchCompletedTodos(currentPage)
-      addToast({ type: "success", title: "Task reopened!" })
+      addToast({ type: "success", title: "Branch reopened!" })
     } catch (error) {
       console.error("Failed to reopen todo:", error)
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Failed to update branch" })
     }
   }
 
@@ -163,7 +163,7 @@ export default function CompletedTodosPage() {
     try {
       await api.delete(`/todos/api/v1/todos/${deletingTodo.id}`)
       await fetchCompletedTodos(currentPage)
-      addToast({ type: "success", title: "Task deleted" })
+      addToast({ type: "success", title: "Branch deleted" })
     } catch (error) {
       console.error("Failed to delete todo:", error)
       addToast({ type: "error", title: "Failed to delete task" })
@@ -186,10 +186,10 @@ export default function CompletedTodosPage() {
 
       setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...updated, authorName } : t)))
       setEditingTodo(null)
-      addToast({ type: "success", title: "Task updated" })
+      addToast({ type: "success", title: "Branch updated" })
     } catch (error) {
       console.error("Failed to update todo:", error)
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Failed to update branch" })
     }
   }
 
@@ -251,7 +251,7 @@ export default function CompletedTodosPage() {
       if (canOptimisticallyToggle) {
         setTodos(prev => prev.map(t => t.id === todoId ? { ...t, hidden: !newHidden } : t))
       }
-      addToast({ type: "error", title: "Failed to update task visibility" })
+      addToast({ type: "error", title: "Failed to update branch visibility" })
     }
   }, [todos, addToast, user?.userId])
 
@@ -277,9 +277,9 @@ export default function CompletedTodosPage() {
             <p className="text-sm font-medium text-gray-400 uppercase tracking-wider">
               Completed Archive
             </p>
-            <h1 className="text-3xl font-bold text-gray-900">All Completed Tasks</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Completed Branches</h1>
             <p className="text-gray-500">
-              Browse every finished task in one place, newest completions first.
+              Browse every finished branch in one place, newest completions first.
             </p>
           </div>
 
@@ -317,9 +317,9 @@ export default function CompletedTodosPage() {
           <div className="mx-auto h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
             <CheckCircle2 className="h-8 w-8 text-gray-200" />
           </div>
-          <h2 className="text-lg font-black text-gray-900 mb-1">No completed tasks yet</h2>
+          <h2 className="text-lg font-black text-gray-900 mb-1">No completed branches yet</h2>
           <p className="text-sm text-gray-400 font-medium mb-6">
-            Finish a task and it will appear here.
+            Finish a branch and it will appear here.
           </p>
           <Button asChild>
             <Link href="/todos">Go to active tasks</Link>

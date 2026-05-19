@@ -313,7 +313,7 @@ export default function DashboardPage() {
     } catch { }
     setCurrentPage(1)
     await Promise.all([fetchTodos(1), fetchStats()])
-    addToast({ type: "success", title: "Task created!" })
+    addToast({ type: "success", title: "Branch created!" })
   }
 
   const confirmDelete = async () => {
@@ -328,7 +328,7 @@ export default function DashboardPage() {
         setTotalCount(prev => Math.max(0, prev - 1))
       }
       
-      addToast({ type: "success", title: "Task deleted" })
+      addToast({ type: "success", title: "Branch deleted" })
     } catch { addToast({ type: "error", title: "Failed to delete" }) }
     finally { setDeletingTodo(null) }
   }
@@ -354,9 +354,9 @@ export default function DashboardPage() {
         setStatsTodos(prev => prev.map(t =>
           t.id !== todoId ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false }
         ))
-        addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
+        addToast({ type: "success", title: wasCompleted ? "Branch reopened!" : "Branch completed!" })
       } catch {
-        addToast({ type: "error", title: "Failed to update task" })
+        addToast({ type: "error", title: "Failed to update branch" })
       }
       return
     }
@@ -383,10 +383,10 @@ export default function DashboardPage() {
       }))
       addToast({
         type: "success",
-        title: isCompleted ? "Task reopened!" : "Task completed!",
+        title: isCompleted ? "Branch reopened!" : "Branch completed!",
       })
     } catch {
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Failed to update branch" })
     }
   }
 
@@ -407,7 +407,7 @@ export default function DashboardPage() {
       setTodos(prev => prev.map(applyMerge))
       setStatsTodos(prev => prev.map(applyMerge))
       setEditingTodo(null)
-      addToast({ type: "success", title: "Task updated" })
+      addToast({ type: "success", title: "Branch updated" })
     } catch { addToast({ type: "error", title: "Failed to update" }) }
   }
 
@@ -451,7 +451,7 @@ export default function DashboardPage() {
         setTodos(prev => prev.map(t => t.id !== todoId ? t : enriched))
         setStatsTodos(prev => prev.map(t => t.id !== todoId ? t : enriched))
       }
-      addToast({ type: "success", title: "Task taken!" })
+      addToast({ type: "success", title: "Branch taken!" })
     } catch {
       addToast({ type: "error", title: "Could not take task" })
     }
@@ -474,7 +474,7 @@ export default function DashboardPage() {
         setStatsTodos(prev => prev.map(upd))
       }
       setEditingTodo(null)
-      addToast({ type: "success", title: "Left task" })
+      addToast({ type: "success", title: "Left branch" })
     } catch {
       addToast({ type: "error", title: "Could not leave task" })
     }
@@ -537,7 +537,7 @@ export default function DashboardPage() {
         setTodos(revert)
         setStatsTodos(revert)
       }
-      addToast({ type: "error", title: "Failed to update task visibility" })
+      addToast({ type: "error", title: "Failed to update branch visibility" })
     }
   }, [todos, statsTodos, addToast, user?.userId])
 
@@ -595,7 +595,7 @@ export default function DashboardPage() {
             >
               {activeStatsTodos.length}
             </motion.span>{" "}
-            life tasks.
+            branches.
           </h1>
         </motion.div>
 
@@ -626,11 +626,11 @@ export default function DashboardPage() {
         <div className="lg:col-span-8 space-y-6">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
-              Active Tasks
+              Active Branches
               <span className="text-[10px] bg-gray-900 text-white px-2 py-0.5 rounded-full uppercase tracking-widest">{totalCount}</span>
             </h2>
             <Button size="sm" variant="ghost" onClick={() => router.push("/todos")} className="text-xs font-bold text-gray-400 hover:text-black transition-colors">
-              All tasks →
+              All branches →
             </Button>
           </div>
 
@@ -717,7 +717,7 @@ export default function DashboardPage() {
                   >
                     <Button size="lg" onClick={() => setIsCreateOpen(true)} className="rounded-xl font-bold shadow-lg shadow-black/20 hover:-translate-y-1">
                       <Plus className="h-5 w-5 mr-2" />
-                      {firstRun ? "Create first task" : "Create New Task"}
+                      {firstRun ? "Create first branch" : "New Branch"}
                     </Button>
                     {firstRun && (
                       <>

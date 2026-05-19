@@ -277,11 +277,26 @@ export function EditTodoModal({
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Task Title"
+                placeholder="Branch Title"
                 disabled={!isOwner}
                 maxLength={200}
                 showCount={isOwner}
                 className="border-none bg-gray-50/50 text-base md:text-lg font-bold focus-visible:ring-0 focus-visible:bg-gray-50 placeholder:text-gray-300 h-12 md:h-14 rounded-2xl"
+              />
+            </motion.div>
+
+            {/* Branch */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              className="rounded-2xl border border-gray-100 bg-gray-50/50 p-3.5"
+            >
+              <TaskComments
+                todoId={todo.id}
+                isOwner={isOwner}
+                canComment={true}
+                refreshKey={commentsRefreshKey}
               />
             </motion.div>
 
@@ -453,21 +468,6 @@ export function EditTodoModal({
               </p>
             </motion.div>
           )}
-
-          {/* Comments & Genesis */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.26 }}
-            className="rounded-2xl border border-gray-100 bg-gray-50/50 p-3.5"
-          >
-            <TaskComments
-              todoId={todo.id}
-              isOwner={isOwner}
-              canComment={true}
-              refreshKey={commentsRefreshKey}
-            />
-          </motion.div>
 
           {/* Leave task – shown when viewer is actively working */}
           {(() => {

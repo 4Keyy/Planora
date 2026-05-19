@@ -222,7 +222,7 @@ export default function TodosPage() {
       setTodos(enriched)
     } catch (error) {
       console.error("Failed to fetch active todos:", error)
-      addToast({ type: "error", title: "Failed to load todos" })
+      addToast({ type: "error", title: "Failed to load branches" })
     } finally {
       setLoading(false)
     }
@@ -289,10 +289,10 @@ export default function TodosPage() {
         } else {
           await Promise.all([fetchActiveTodos(), fetchCompletedPreview()])
         }
-        addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
+        addToast({ type: "success", title: wasCompleted ? "Branch reopened!" : "Branch completed!" })
       } catch (error) {
         console.error("Failed to update viewer completion:", error)
-        addToast({ type: "error", title: "Failed to update task" })
+        addToast({ type: "error", title: "Failed to update branch" })
       }
       return
     }
@@ -312,11 +312,11 @@ export default function TodosPage() {
 
       addToast({
         type: "success",
-        title: isCompleted ? "Task reopened!" : "Task completed!",
+        title: isCompleted ? "Branch reopened!" : "Branch completed!",
       })
     } catch (error) {
       console.error("Failed to update todo:", error)
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Failed to update branch" })
     }
   }
 
@@ -334,10 +334,10 @@ export default function TodosPage() {
         setTodos((prev) => prev.filter((t) => t.id !== todoToDelete.id))
       }
 
-      addToast({ type: "success", title: "Task deleted" })
+      addToast({ type: "success", title: "Branch deleted" })
     } catch (error) {
       console.error("Failed to delete todo:", error)
-      addToast({ type: "error", title: "Failed to delete task" })
+      addToast({ type: "error", title: "Failed to delete branch" })
     } finally {
       setDeletingTodo(null)
     }
@@ -368,10 +368,10 @@ export default function TodosPage() {
       }
 
       setEditingTodo(null)
-      addToast({ type: "success", title: "Task updated" })
+      addToast({ type: "success", title: "Branch updated" })
     } catch (error) {
       console.error("Failed to update todo:", error)
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Failed to update branch" })
     }
   }
 
@@ -408,10 +408,10 @@ export default function TodosPage() {
       await api.post("/todos/api/v1/todos", payload)
       setIsCreateOpen(false)
       await fetchActiveTodos()
-      addToast({ type: "success", title: "Task created!" })
+      addToast({ type: "success", title: "Branch created!" })
     } catch (error) {
       console.error("Failed to create todo:", error)
-      addToast({ type: "error", title: "Failed to create task" })
+      addToast({ type: "error", title: "Failed to create branch" })
     }
   }
 
@@ -476,7 +476,7 @@ export default function TodosPage() {
         setTodos(revert)
         setCompletedPreview(revert)
       }
-      addToast({ type: "error", title: "Failed to update task visibility" })
+      addToast({ type: "error", title: "Failed to update branch visibility" })
     }
   }, [todos, completedPreview, user?.userId, addToast])
 
@@ -496,9 +496,9 @@ export default function TodosPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-1">
-            All Tasks
+            All Branches
           </p>
-          <h1 className="text-3xl font-bold text-gray-900">Todos</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Branch</h1>
           <p className="text-gray-500 mt-1">
             {activeCount} active · {doneCount} done · {totalCount} total
           </p>
@@ -612,7 +612,7 @@ export default function TodosPage() {
                   className="flex items-center gap-1.5"
                 >
                   <Plus className="h-4 w-4" />
-                  New Task
+                  New Branch
                   <kbd className="hidden md:flex font-mono bg-white/20 text-white/70 px-1.5 py-0.5 rounded text-[10px] font-bold border border-white/20 leading-tight">c</kbd>
                 </motion.span>
               )}
@@ -712,13 +712,13 @@ export default function TodosPage() {
           >
             <CheckCircle2 className="h-7 w-7 text-gray-200" />
           </motion.div>
-          <p className="font-semibold text-gray-900 mb-1">No tasks yet</p>
+          <p className="font-semibold text-gray-900 mb-1">No branches yet</p>
           <p className="text-sm text-gray-400 mb-4">
-            Create your first task to get started
+            Create your first branch to get started
           </p>
           <Button size="sm" onClick={() => setIsCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1.5" />
-            Create task
+            Create branch
           </Button>
         </motion.div>
       ) : (
@@ -728,7 +728,7 @@ export default function TodosPage() {
               <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
                 {filterCategoryIds.length > 0 ? (
                   <>
-                    <p className="text-sm text-gray-400 font-medium">No tasks in selected categories.</p>
+                    <p className="text-sm text-gray-400 font-medium">No branches in selected categories.</p>
                     <button
                       onClick={() => handleFilterChange([])}
                       className="text-xs text-gray-400 hover:text-gray-900 font-medium mt-2 transition-colors"
@@ -737,7 +737,7 @@ export default function TodosPage() {
                     </button>
                   </>
                 ) : (
-                  <p className="text-sm text-gray-400 font-medium">No active tasks.</p>
+                  <p className="text-sm text-gray-400 font-medium">No active branches.</p>
                 )}
               </div>
             ) : (
@@ -804,7 +804,7 @@ export default function TodosPage() {
                     <ChevronRight className="h-4 w-4" />
                   </motion.div>
                 </div>
-                <span className="uppercase tracking-widest">Completed Tasks</span>
+                <span className="uppercase tracking-widest">Completed Branches</span>
                 <div className="h-px flex-1 bg-gradient-to-r from-gray-100 to-transparent" />
               </button>
               <AnimatePresence initial={false}>

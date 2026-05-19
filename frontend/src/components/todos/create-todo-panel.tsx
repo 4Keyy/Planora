@@ -225,7 +225,7 @@ export function CreateTodoPanel({
 
       resetForm()
     } catch {
-      setFormError("Failed to create task. Please try again.")
+      setFormError("Failed to create branch. Please try again.")
     } finally {
       setCreating(false)
     }
@@ -277,7 +277,7 @@ export function CreateTodoPanel({
         type="button"
         onClick={onToggle}
         className="group flex w-full items-center justify-between gap-4 p-4 text-left transition-colors duration-200 hover:bg-gray-50/60 sm:p-5"
-        aria-label={isOpen ? "Close create task panel" : "Open create task panel"}
+        aria-label={isOpen ? "Close create branch panel" : "Open create branch panel"}
         aria-expanded={isOpen}
       >
         <div className="flex min-w-0 items-center gap-3.5">
@@ -309,7 +309,7 @@ export function CreateTodoPanel({
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.14, ease: EASE_OUT_EXPO }}
                 >
-                  <h3 className="text-sm font-black tracking-tight text-gray-950">New task</h3>
+                  <h3 className="text-sm font-black tracking-tight text-gray-950">New branch</h3>
                   <p className="truncate text-[11px] font-semibold text-gray-400">press <kbd className="rounded bg-gray-100 px-1 py-px font-mono text-[10px] text-gray-500">C</kbd> to open</p>
                 </motion.div>
               ) : (
@@ -320,7 +320,7 @@ export function CreateTodoPanel({
                   exit={{ opacity: 0, y: 4 }}
                   transition={{ duration: 0.14, ease: EASE_OUT_EXPO }}
                 >
-                  <p className="text-sm font-black leading-none tracking-tight text-gray-950">New task</p>
+                  <p className="text-sm font-black leading-none tracking-tight text-gray-950">New branch</p>
                   <p className="mt-0.5 text-[11px] font-semibold text-gray-400">Ready for the list</p>
                 </motion.div>
               )}
@@ -605,7 +605,7 @@ export function CreateTodoPanel({
                     onChange={setSelectedFriendIds}
                     publicSelected={isPublic}
                     onPublicChange={setIsPublic}
-                    placeholder="Private task"
+                    placeholder="Private branch"
                     contentClassName="z-[3000]"
                   />
                 </PanelBlock>
@@ -641,7 +641,7 @@ export function CreateTodoPanel({
                   onClick={handleSubmit}
                   disabled={creating || !title.trim()}
                 >
-                  {creating ? "Creating..." : "Create Task"}
+                  {creating ? "Creating..." : "Create Branch"}
                 </Button>
               </div>
             </div>

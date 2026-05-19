@@ -224,7 +224,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
       {/* ── Discussion Stream ───────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-          Discussion {streamCount > 0 && `· ${streamCount}`}
+          Branch {streamCount > 0 && `· ${streamCount}`}
         </p>
       </div>
 
