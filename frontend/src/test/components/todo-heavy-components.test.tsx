@@ -398,10 +398,10 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    expect(screen.getByText("New task")).toBeInTheDocument()
+    expect(screen.getByText("New branch")).toBeInTheDocument()
     expect(screen.getByText(/press/i)).toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: "Open create task panel" }))
+    await user.click(screen.getByRole("button", { name: "Open create branch panel" }))
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
@@ -435,10 +435,10 @@ describe("CreateTodoPanel", () => {
     })
     fireEvent.click(screen.getByRole("button", { name: /High/ }))
     expect(screen.queryByText("Visible to all friends")).not.toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Private task" }))
+    await user.click(screen.getByRole("button", { name: "Private branch" }))
     await user.click(await screen.findByText("All friends"))
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create Branch" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
     expect(onSubmit).toHaveBeenCalledWith({
@@ -516,7 +516,7 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    await user.click(screen.getByRole("button", { name: "Close create task panel" }))
+    await user.click(screen.getByRole("button", { name: "Close create branch panel" }))
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
@@ -544,7 +544,7 @@ describe("CreateTodoPanel", () => {
     await user.keyboard("{Escape}")
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Open create task panel" })).toHaveAttribute("aria-expanded", "false")
+      expect(screen.getByRole("button", { name: "Open create branch panel" })).toHaveAttribute("aria-expanded", "false")
     })
   })
 
@@ -571,7 +571,7 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Fallback category task" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create Branch" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
     expect(onCreateCategory).not.toHaveBeenCalled()
@@ -615,7 +615,7 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Task with new category" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create Branch" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
     expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
@@ -648,9 +648,9 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Failing task" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create Branch" }))
 
-    expect(await screen.findByText("Failed to create task. Please try again.")).toBeInTheDocument()
+    expect(await screen.findByText("Failed to create branch. Please try again.")).toBeInTheDocument()
   })
 })
 
@@ -678,8 +678,7 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    fireEvent.change(screen.getByPlaceholderText("Task Title"), { target: { value: "Updated task" } })
-    fireEvent.change(screen.getByPlaceholderText("Notes or details..."), { target: { value: "Updated notes" } })
+    fireEvent.change(screen.getByPlaceholderText("Branch Title"), { target: { value: "Updated task" } })
     fireEvent.change(screen.getByDisplayValue("2026-05-01"), { target: { value: "2026-05-03" } })
 
     await user.click(screen.getByRole("button", { name: "Save Changes" }))
@@ -687,7 +686,7 @@ describe("EditTodoModal", () => {
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
     expect(onSave).toHaveBeenCalledWith({
       title: "Updated task",
-      description: "Updated notes",
+      description: "Cover every important branch with focused behavior tests.",
       priority: 4,
       dueDate: new Date("2026-05-03").toISOString(),
       categoryId: "cat-1",
@@ -718,7 +717,7 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    expect(screen.getByPlaceholderText("Task Title")).toBeDisabled()
+    expect(screen.getByPlaceholderText("Branch Title")).toBeDisabled()
     expect(screen.getByText(/private for you/)).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole("button", { name: "Save Changes" }))

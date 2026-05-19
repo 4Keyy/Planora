@@ -89,6 +89,7 @@ describe("api response helpers", () => {
       todoId: "todo-9",
       hiddenByViewer: false,
       viewerCategoryId: null,
+      completedByViewer: null,
     })
     expect(patch).toHaveBeenCalledWith("/todos/api/v1/todos/todo-9/viewer-preferences", {
       hiddenByViewer: false,
