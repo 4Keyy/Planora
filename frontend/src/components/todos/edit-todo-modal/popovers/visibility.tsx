@@ -1,0 +1,172 @@
+"use client"
+
+import { RefObject } from "react"
+import { Globe2, Lock } from "lucide-react"
+import { Popover, PopoverHeader } from "../popover"
+import { FriendAvatar } from "../friend-avatar"
+import type { FriendDto } from "@/types/auth"
+
+interface VisibilityPopoverProps {
+  open: boolean
+  onClose: () => void
+  mode: "private" | "friends"
+  onModeChange: (m: "private" | "friends") => void
+  sharedIds: string[]
+  onSharedIdsChange: (ids: string[]) => void
+  friends: FriendDto[]
+  containerRef: RefObject<HTMLElement | null>
+}
+
+function friendName(f: FriendDto): string {
+  const full = [f.firstName, f.lastName].filter(Boolean).join(" ").trim()
+  return full || f.email.split("@")[0]
+}
+
+export function VisibilityPopover({
+  open, onClose, mode, onModeChange, sharedIds, onSharedIdsChange, friends, containerRef,
+}: VisibilityPopoverProps) {
+  const toggleFriend = (id: string) => {
+    onSharedIdsChange(
+      sharedIds.includes(id) ? sharedIds.filter((x) => x !== id) : [...sharedIds, id]
+    )
+  }
+
+  const allSelected  = friends.length > 0 && friends.every((f) => sharedIds.includes(f.id))
+  const toggleAll    = () => {
+    if (allSelected) onSharedIdsChange([])
+    else onSharedIdsChange(friends.map((f) => f.id))
+  }
+
+  const sub: React.ReactNode = mode === "private"
+    ? <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>только ты</span>
+    : <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>{sharedIds.length} из {friends.length}</span>
+
+  return (
+    <Popover open={open} onClose={onClose} width={340} align="right" containerRef={containerRef}>
+      <PopoverHeader label="Доступ к задаче" sub={sub} />
+
+      {/* Mode picker */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: "10px 10px 6px" }}>
+        {([
+          { key: "private" as const, Icon: Lock,   label: "Приватно" },
+          { key: "friends" as const, Icon: Globe2,  label: "Публичная" },
+        ] as const).map(({ key, Icon, label }) => {
+          const isActive = mode === key
+          return (
+            <button
+              key={key}
+              onClick={() => onModeChange(key)}
+              style={{
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                padding: "8px 4px", borderRadius: 11, border: "none", cursor: "pointer",
+                gap: 4,
+                background: isActive ? "#0a0a0a" : "#fafafa",
+                color: isActive ? "white" : "#0a0a0a",
+                transition: "background 120ms, color 120ms",
+              }}
+            >
+              <Icon size={15} />
+              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                {label}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Body */}
+      {mode === "private" ? (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "20px 20px 24px", gap: 8, textAlign: "center",
+        }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: "50%",
+            background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Lock size={18} color="#a3a3a3" />
+          </div>
+          <p style={{ fontSize: 12.5, fontWeight: 800, color: "#262626", margin: 0, letterSpacing: "-0.01em" }}>
+            Эту задачу видишь только ты
+          </p>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3", margin: 0 }}>
+            Никто из друзей не имеет доступа
+          </p>
+        </div>
+      ) : (
+        /* Friends list */
+        <div>
+          {friends.length === 0 ? (
+            <div style={{ padding: "12px 14px", fontSize: 12, color: "#a3a3a3", textAlign: "center" }}>
+              У тебя пока нет друзей
+            </div>
+          ) : (
+            <>
+              {/* Header row inside body */}
+              <div style={{
+                padding: "6px 14px 4px",
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+              }}>
+                <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3" }}>
+                  Кому открыто
+                </span>
+                <button
+                  onClick={toggleAll}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    fontSize: 10, fontWeight: 900, letterSpacing: "0.04em",
+                    textTransform: "uppercase", color: "#0a0a0a", padding: 0,
+                  }}
+                >
+                  {allSelected ? "СНЯТЬ" : "ВСЕ"}
+                </button>
+              </div>
+
+              <div style={{ maxHeight: 240, overflowY: "auto", padding: "0 6px 6px" }}>
+                {friends.map((f) => {
+                  const isSelected = sharedIds.includes(f.id)
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => toggleFriend(f.id)}
+                      aria-label={friendName(f)}
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "center", gap: 10,
+                        padding: "7px 10px", borderRadius: 10, border: "none", cursor: "pointer",
+                        background: isSelected ? "#fafafa" : "transparent",
+                        textAlign: "left", transition: "background 100ms",
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isSelected ? "#fafafa" : "transparent" }}
+                    >
+                      <FriendAvatar friend={f} size={24} />
+                      <span style={{
+                        flex: 1, fontSize: 12, fontWeight: 700, letterSpacing: "-0.005em", color: "#262626",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>
+                        {friendName(f)}
+                      </span>
+                      {/* Access dot */}
+                      <div style={{
+                        width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: isSelected ? "#0a0a0a" : "transparent",
+                        boxShadow: isSelected ? "none" : "inset 0 0 0 1.5px #e5e5e5",
+                        fontSize: 9, fontWeight: 900, color: "white",
+                        transition: "background 100ms, box-shadow 100ms",
+                      }}>
+                        {isSelected ? "✓" : ""}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </Popover>
+  )
+}

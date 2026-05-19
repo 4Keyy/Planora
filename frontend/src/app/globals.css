@@ -345,6 +345,23 @@
 *::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
 *::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
 
+/* ── Branch modal animations ─────────────────────────────────────────────── */
+
+@keyframes pop_in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+@keyframes pl_pulse {
+  0%, 100% { opacity: 0.25; transform: scale(1);   }
+  50%      { opacity: 0;    transform: scale(1.9); }
+}
+
+/* Branch feed scrollbar */
+.branch-scroll::-webkit-scrollbar       { width: 6px; }
+.branch-scroll::-webkit-scrollbar-thumb { background: #e5e5e5; border-radius: 4px; }
+.branch-scroll::-webkit-scrollbar-track { background: transparent; }
+
 /* Spellcheck/grammar underline color */
 ::spelling-error {
   text-decoration: underline wavy #000;
