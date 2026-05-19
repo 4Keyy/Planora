@@ -262,7 +262,7 @@ describe("TaskComments", () => {
 
   it("shows 'No comments yet' when list is empty", async () => {
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={true} />)
-    await waitFor(() => expect(screen.getByText("No comments yet.")).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText("No messages yet.")).toBeInTheDocument())
   })
 
   it("renders comments from the API", async () => {
@@ -290,12 +290,12 @@ describe("TaskComments", () => {
       totalCount: 1,
     })
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={true} />)
-    await waitFor(() => expect(screen.getByText(/Comments · 1/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/Branch · 1/)).toBeInTheDocument())
   })
 
   it("hides input area when canComment=false", async () => {
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={false} />)
-    await waitFor(() => expect(screen.queryByPlaceholderText(/Add a comment/)).toBeNull())
+    await waitFor(() => expect(screen.queryByPlaceholderText(/Add a message/)).toBeNull())
   })
 
   it("adds a comment on button click", async () => {
@@ -303,9 +303,9 @@ describe("TaskComments", () => {
     mockAdd.mockResolvedValueOnce(newComment)
 
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={true} />)
-    await waitFor(() => expect(screen.getByPlaceholderText(/Add a comment/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByPlaceholderText(/Add a message/)).toBeInTheDocument())
 
-    const textarea = screen.getByPlaceholderText(/Add a comment/)
+    const textarea = screen.getByPlaceholderText(/Add a message/)
     await userEvent.type(textarea, "Hello world")
     fireEvent.click(screen.getByRole("button", { name: /Send/ }))
 
@@ -318,9 +318,9 @@ describe("TaskComments", () => {
     mockAdd.mockResolvedValueOnce(newComment)
 
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={true} />)
-    await waitFor(() => expect(screen.getByPlaceholderText(/Add a comment/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByPlaceholderText(/Add a message/)).toBeInTheDocument())
 
-    const textarea = screen.getByPlaceholderText(/Add a comment/)
+    const textarea = screen.getByPlaceholderText(/Add a message/)
     await userEvent.type(textarea, "Keyboard")
     fireEvent.keyDown(textarea, { key: "Enter", ctrlKey: true })
 
@@ -337,9 +337,9 @@ describe("TaskComments", () => {
     mockAdd.mockRejectedValueOnce(new Error("Network error"))
 
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={true} />)
-    await waitFor(() => expect(screen.getByPlaceholderText(/Add a comment/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByPlaceholderText(/Add a message/)).toBeInTheDocument())
 
-    await userEvent.type(screen.getByPlaceholderText(/Add a comment/), "test")
+    await userEvent.type(screen.getByPlaceholderText(/Add a message/), "test")
     fireEvent.click(screen.getByRole("button", { name: /Send/ }))
 
     await waitFor(() => expect(screen.getByText("Network error")).toBeInTheDocument())
@@ -498,10 +498,10 @@ describe("TaskComments", () => {
 
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={true} />)
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Load earlier comments" })).toBeInTheDocument(),
+      expect(screen.getByRole("button", { name: "Load earlier messages" })).toBeInTheDocument(),
     )
 
-    fireEvent.click(screen.getByRole("button", { name: "Load earlier comments" }))
+    fireEvent.click(screen.getByRole("button", { name: "Load earlier messages" }))
     await waitFor(() => expect(screen.getByText("Earlier comment")).toBeInTheDocument())
     expect(mockFetch).toHaveBeenCalledTimes(2)
   })
@@ -549,9 +549,9 @@ describe("TaskComments", () => {
 
   it("shows char-count warning colour above 80% of limit", async () => {
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={true} />)
-    await waitFor(() => expect(screen.getByPlaceholderText(/Add a comment/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByPlaceholderText(/Add a message/)).toBeInTheDocument())
 
-    const textarea = screen.getByPlaceholderText(/Add a comment/)
+    const textarea = screen.getByPlaceholderText(/Add a message/)
     // Use fireEvent.change to avoid the slow character-by-character simulation
     fireEvent.change(textarea, { target: { value: "a".repeat(1601) } })
     const counter = screen.getByText(/\/2000/)

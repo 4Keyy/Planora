@@ -48,8 +48,8 @@ describe("frontend usability contract", () => {
       />,
     )
 
-    expect(screen.getByText("New task")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Open create task panel" })).toHaveAttribute("aria-expanded", "false")
+    expect(screen.getByText("New branch")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open create branch panel" })).toHaveAttribute("aria-expanded", "false")
     // shortcut hint rendered as kbd element inside the subtitle
     expect(screen.getByText("C")).toBeInTheDocument()
   })
@@ -71,11 +71,11 @@ describe("frontend usability contract", () => {
     })
 
     expect(screen.getByPlaceholderText("What needs to be done?")).toHaveFocus()
-    expect(screen.getByRole("button", { name: "Close create task panel" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Close create branch panel" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Create Task" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Create Branch" })).toBeDisabled()
     expect(screen.getByRole("combobox")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Private task" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Private branch" })).toBeInTheDocument()
     expect(screen.queryByText("Visible to all friends")).not.toBeInTheDocument()
   })
 })

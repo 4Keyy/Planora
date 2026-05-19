@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Todo, type UpdateTodoPayload, isTodoOwner } from "@/types/todo"
 import { Category } from "@/types/category"
@@ -130,7 +129,6 @@ export function EditTodoModal({
   const [isPublic, setIsPublic] = useState(todo.isPublic)
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>(todo.sharedWithUserIds ?? [])
   const [saving, setSaving] = useState(false)
-  const hasSharedAudience = isPublic || selectedFriendIds.length > 0
 
   // New category creation form state
   const [newCatName, setNewCatName] = useState("")

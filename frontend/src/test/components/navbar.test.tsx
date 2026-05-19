@@ -118,7 +118,7 @@ describe("Navbar", () => {
       const links = screen.getAllByRole("link")
       const hrefs = links.map(l => l.getAttribute("href"))
       expect(hrefs).toContain("/dashboard")
-      expect(hrefs).toContain("/todos")
+      expect(hrefs).toContain("/branches")
       expect(hrefs).toContain("/categories")
       expect(hrefs).not.toContain("/profile")
     })
@@ -135,10 +135,10 @@ describe("Navbar", () => {
     // Hover to expand, then click + to enter create mode
     const pill = screen.getByRole("link", { name: /Planora/i }).closest("div[class]")!
     await user.hover(pill)
-    const addBtn = await screen.findByRole("button", { name: "Create task" })
+    const addBtn = await screen.findByRole("button", { name: "Create branch" })
     await user.click(addBtn)
 
-    const input = await screen.findByPlaceholderText(/Add task/i)
+    const input = await screen.findByPlaceholderText(/Add branch/i)
     await user.type(input, "New quick task")
     await user.keyboard("{Enter}")
 

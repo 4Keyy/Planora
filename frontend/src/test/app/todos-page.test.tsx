@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import TodosPage from "@/app/todos/page"
+import TodosPage from "@/app/branches/page"
 import { api, fetchTaskById, setViewerPreference } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { TASK_CREATED_EVENT } from "@/lib/events"
