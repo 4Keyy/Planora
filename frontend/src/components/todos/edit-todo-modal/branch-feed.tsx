@@ -118,12 +118,18 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
   const handleGenesisSave = async () => {
     if (!genesis || submitting) return
     const content = genesisEditContent.trim()
-    if (!content) return
     setSubmitting(true)
     setError(null)
     try {
-      const updated = await updateComment(todoId, genesis.id, content)
-      setComments((prev) => prev.map((c) => (c.id === genesis.id ? updated : c)))
+      if (!content) {
+        // Empty → delete the genesis comment entirely
+        await deleteComment(todoId, genesis.id)
+        setComments((prev) => prev.filter((c) => c.id !== genesis.id))
+        setTotalCount((n) => Math.max(0, n - 1))
+      } else {
+        const updated = await updateComment(todoId, genesis.id, content)
+        setComments((prev) => prev.map((c) => (c.id === genesis.id ? updated : c)))
+      }
       setEditingGenesis(false)
     } catch (e) {
       setError(getApiErrorMessage(e))
@@ -241,7 +247,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                 </button>
                 <button
                   onClick={handleGenesisSave}
-                  disabled={submitting || !genesisEditContent.trim()}
+                  disabled={submitting}
                   style={{
                     background: "#0a0a0a", border: "none", borderRadius: 9,
                     padding: "6px 12px", cursor: "pointer",
@@ -249,7 +255,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                     textTransform: "uppercase", color: "white",
                   }}
                 >
-                  Сохранить
+                  {submitting ? "…" : genesisEditContent.trim() ? "Сохранить" : "Удалить"}
                 </button>
               </div>
             </div>
