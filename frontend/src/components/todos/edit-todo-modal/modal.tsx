@@ -76,6 +76,8 @@ export function EditTodoModal({
     ? String(todo.status ?? "").toLowerCase().replace(/\s/g, "") === "inprogress"
     : (todo.isWorking ?? false)
 
+  const [pillHovered, setPillHovered] = useState(false)
+
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null)
   const titleH1Ref       = useRef<HTMLHeadingElement>(null)
   const [titleDraft, setTitleDraft] = useState(title)
@@ -214,38 +216,56 @@ export function EditTodoModal({
             {/* Right: in-progress pill + close */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {inProgress && onLeave && (
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  background: "#fef2f2", border: "1px solid #fee2e2",
-                  borderRadius: 100, padding: "5px 10px 5px 8px",
-                }}>
-                  {/* Pulsing dot */}
+                <div
+                  onMouseEnter={() => setPillHovered(true)}
+                  onMouseLeave={() => setPillHovered(false)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    background: pillHovered ? "#fef2f2" : "#f5f3ff",
+                    border: `1px solid ${pillHovered ? "#fecaca" : "#ddd6fe"}`,
+                    borderRadius: 100,
+                    padding: "5px 10px 5px 8px",
+                    cursor: "default",
+                    transition: "background 240ms ease, border-color 240ms ease",
+                  }}
+                >
+                  {/* Pulsing dot — violet idle, red on hover */}
                   <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
                     <div style={{
-                      width: 8, height: 8, borderRadius: "50%", background: "#ef4444",
-                      position: "absolute", top: 0, left: 0,
+                      position: "absolute", inset: 0, borderRadius: "50%",
+                      background: pillHovered ? "#ef4444" : "#8b5cf6",
+                      transition: "background 240ms ease",
                     }} />
-                    <div
-                      className="pl-pulse-halo"
-                      style={{
-                        width: 8, height: 8, borderRadius: "50%", background: "#ef4444",
-                        position: "absolute", top: 0, left: 0,
-                        animation: "pl_pulse 1.6s ease-in-out infinite",
-                      }}
-                    />
+                    <div style={{
+                      position: "absolute", inset: 0, borderRadius: "50%",
+                      background: pillHovered ? "#ef4444" : "#8b5cf6",
+                      animation: "pl_pulse 1.6s ease-in-out infinite",
+                      transition: "background 240ms ease",
+                    }} />
                   </div>
+
+                  {/* Label */}
                   <span style={{
                     fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
-                    textTransform: "uppercase", color: "#991b1b",
+                    textTransform: "uppercase", whiteSpace: "nowrap",
+                    color: pillHovered ? "#991b1b" : "#6d28d9",
+                    transition: "color 240ms ease",
                   }}>
                     В работе
                   </span>
+
+                  {/* Выйти — always in DOM, fades + slides in (no reflow, no layout shift) */}
                   <button
-                    onClick={async () => { await onLeave(); onClose() }}
+                    onClick={async (e) => { e.stopPropagation(); await onLeave(); onClose() }}
                     style={{
                       background: "white", border: "1px solid #fecaca", borderRadius: 6,
                       padding: "3px 8px", cursor: "pointer",
                       fontSize: 11, fontWeight: 700, color: "#991b1b",
+                      whiteSpace: "nowrap", fontFamily: "inherit",
+                      opacity: pillHovered ? 1 : 0,
+                      transform: pillHovered ? "translateX(0)" : "translateX(-6px)",
+                      pointerEvents: pillHovered ? "auto" : "none",
+                      transition: "opacity 200ms ease, transform 240ms cubic-bezier(0.16,1,0.3,1), background 120ms ease",
                     }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2" }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white" }}
@@ -335,6 +355,10 @@ export function EditTodoModal({
               categories={categories}
               onCreateCategory={onCreateCategory}
               canEditCategory={canEditCategory}
+              authorCategoryName={todo.authorCategoryName}
+              authorCategoryColor={todo.authorCategoryColor}
+              authorCategoryIcon={todo.authorCategoryIcon}
+              isOwner={isOwner}
               visMode={visMode}
               onVisModeChange={setVisMode}
               sharedIds={sharedIds}

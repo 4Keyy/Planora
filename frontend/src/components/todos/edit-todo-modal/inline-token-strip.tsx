@@ -28,6 +28,10 @@ interface InlineTokenStripProps {
   categories: Category[]
   onCreateCategory: () => Promise<void>
   canEditCategory: boolean
+  authorCategoryName?: string | null
+  authorCategoryColor?: string | null
+  authorCategoryIcon?: string | null
+  isOwner: boolean
   visMode: "private" | "friends"
   onVisModeChange: (v: "private" | "friends") => void
   sharedIds: string[]
@@ -89,6 +93,8 @@ export function InlineTokenStrip({
   priority, onPriorityChange,
   dueDate, onDueDateChange,
   categoryId, onCategoryChange, categories, onCreateCategory, canEditCategory,
+  authorCategoryName, authorCategoryColor, authorCategoryIcon,
+  isOwner,
   visMode, onVisModeChange, sharedIds, onSharedIdsChange, friends,
   openPopover, setOpenPopover,
   disabled,
@@ -105,8 +111,10 @@ export function InlineTokenStrip({
   const priorityColor = getPriorityColor(priority)
   const priorityLabel = getPriorityLabel(priority)
 
-  const activeCat = categories.find((c) => c.id === categoryId)
-  const CatIcon   = activeCat?.icon ? (ICON_MAP[activeCat.icon] ?? null) : null
+  const activeCat      = categories.find((c) => c.id === categoryId)
+  const CatIcon        = activeCat?.icon ? (ICON_MAP[activeCat.icon] ?? null) : null
+  const AuthorCatIcon  = authorCategoryIcon ? (ICON_MAP[authorCategoryIcon] ?? null) : null
+  const showAuthorHint = !activeCat && !isOwner && !!authorCategoryName
 
   const visLabel = visMode === "private"
     ? "приватно"
@@ -179,6 +187,7 @@ export function InlineTokenStrip({
         containerRef={categoryRef}
         label={
           activeCat ? (
+            /* Viewer's own category — normal style */
             <>
               <div style={{
                 width: 14, height: 14, borderRadius: 3, flexShrink: 0,
@@ -189,8 +198,25 @@ export function InlineTokenStrip({
               </div>
               {activeCat.name}
             </>
+          ) : showAuthorHint ? (
+            /* Owner has a category, viewer doesn't — show as semi-transparent hint */
+            <>
+              <div style={{
+                width: 14, height: 14, borderRadius: 3, flexShrink: 0, opacity: 0.5,
+                background: authorCategoryColor ? `${authorCategoryColor}22` : "#f0f0f0",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {AuthorCatIcon && (
+                  <AuthorCatIcon size={9} color={authorCategoryColor ?? "#525252"} />
+                )}
+              </div>
+              <span style={{ opacity: 0.55, fontStyle: "italic" }}>
+                Автора · {authorCategoryName}
+              </span>
+            </>
           ) : (
-            "Категория"
+            /* No category at all */
+            <span style={{ color: "#a3a3a3" }}>Нет категории</span>
           )
         }
         popover={
