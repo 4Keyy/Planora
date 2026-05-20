@@ -129,4 +129,27 @@ describe("auth public client", () => {
       { headers: { Authorization: "Bearer access-token", "X-CSRF-Token": "csrf-token" } },
     )
   })
+
+  it("unwraps meta-keyed API response shapes", async () => {
+    mocks.post.mockResolvedValue({
+      data: { meta: { page: 1 }, data: { accessToken: "meta-access-token" } },
+    })
+
+    await expect(refreshAccessToken()).resolves.toEqual({ accessToken: "meta-access-token" })
+  })
+
+  it("surfaces CSRF preparation failures when a non-Error value is thrown", async () => {
+    mocks.getCsrfToken.mockRejectedValue("plain string error")
+
+    await expect(refreshAccessToken()).rejects.toThrow(
+      "Unable to prepare CSRF token for auth request: unknown error",
+    )
+  })
+
+  it("rethrows non-CSRF errors without retrying", async () => {
+    mocks.post.mockRejectedValueOnce(null)
+
+    await expect(refreshAccessToken()).rejects.toBeNull()
+    expect(mocks.post).toHaveBeenCalledOnce()
+  })
 })

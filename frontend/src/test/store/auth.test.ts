@@ -414,4 +414,33 @@ describe("auth store", () => {
       warn.mockRestore()
     }
   })
+
+  it("handles a completely malformed access token without throwing", () => {
+    useAuthStore.getState().setAuth({ accessToken: "not-a-jwt" })
+
+    const state = useAuthStore.getState()
+    expect(state.isAuthenticated).toBe(true)
+    // derivedUser is undefined (decodeJwt returns null for a non-JWT string),
+    // no payload user fields, no existing state.user — user stays unset
+    expect(state.user).toBeUndefined()
+    expect(state.accessTokenExpiresAt).toBeUndefined()
+    expect(state.roles).toEqual([])
+  })
+
+  it("applies refresh when refresh payload lacks user identity claims", () => {
+    useAuthStore.getState().setAuth({ accessToken: authToken() })
+
+    useAuthStore.getState().applyRefresh({
+      accessToken: authToken({
+        sub: undefined,
+        email: undefined,
+        firstName: undefined,
+        lastName: undefined,
+      }),
+    })
+
+    // derivedUser is undefined because required claims are missing;
+    // existing user from setAuth should be preserved
+    expect(useAuthStore.getState().user?.userId).toBe("user-1")
+  })
 })

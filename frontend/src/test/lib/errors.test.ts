@@ -49,6 +49,8 @@ describe('auth error messages', () => {
     expect(extractErrorMessage({ response: { data: { detail: 'detail field' } } })).toBe('detail field')
     expect(extractErrorMessage({ message: 'native message' })).toBe('native message')
     expect(extractErrorMessage({ response: { data: { message: 123 } } }, 'fallback')).toBe('fallback')
+    expect(extractErrorMessage(null, 'null fallback')).toBe('null fallback')
+    expect(extractErrorMessage({ response: { data: null } }, 'null-data fallback')).toBe('null-data fallback')
   })
 
   it('does not treat server responses as network outages', () => {

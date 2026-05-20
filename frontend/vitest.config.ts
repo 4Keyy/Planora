@@ -18,13 +18,15 @@ export default defineConfig({
         'src/test/**',
         'src/**/*.test.*',
         'src/app/**',
+        // Next.js Edge Middleware — runs in the edge runtime; untestable in jsdom
+        'src/middleware.ts',
         // Complex interactive UI — pointer/canvas/animation-heavy; requires E2E coverage instead
         'src/components/todos/edit-todo-modal/**',
       ],
       thresholds: {
         lines: 85,
         functions: 85,
-        branches: 80,
+        branches: 85,
         statements: 85,
       },
     },

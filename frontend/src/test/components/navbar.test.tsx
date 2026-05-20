@@ -159,4 +159,68 @@ describe("Navbar", () => {
     await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false))
     expect(routerMocks.push).toHaveBeenCalledWith("/auth/login")
   })
+
+  it("shows an error toast when quick-create API call fails", async () => {
+    vi.mocked(api.post).mockRejectedValueOnce(new Error("server error"))
+    const user = userEvent.setup()
+    render(<Navbar />)
+
+    const pill = screen.getByRole("link", { name: /Planora/i }).closest("div[class]")!
+    await user.hover(pill)
+    await user.click(await screen.findByRole("button", { name: "Create task" }))
+    await user.type(await screen.findByPlaceholderText(/Add task/i), "Failing task")
+    await user.keyboard("{Enter}")
+
+    await waitFor(() =>
+      expect(useToastStore.getState().toasts[0]).toMatchObject({
+        type: "error",
+        title: "Failed to create task",
+      }),
+    )
+  })
+
+  it("exits create mode when the cancel button is clicked", async () => {
+    const user = userEvent.setup()
+    render(<Navbar />)
+
+    const pill = screen.getByRole("link", { name: /Planora/i }).closest("div[class]")!
+    await user.hover(pill)
+    await user.click(await screen.findByRole("button", { name: "Create task" }))
+    await screen.findByPlaceholderText(/Add task/i)
+
+    await user.click(screen.getByRole("button", { name: "Cancel create task" }))
+
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText(/Add task/i)).not.toBeInTheDocument(),
+    )
+  })
+
+  it("exits create mode when Escape is pressed", async () => {
+    const user = userEvent.setup()
+    render(<Navbar />)
+
+    const pill = screen.getByRole("link", { name: /Planora/i }).closest("div[class]")!
+    await user.hover(pill)
+    await user.click(await screen.findByRole("button", { name: "Create task" }))
+    const input = await screen.findByPlaceholderText(/Add task/i)
+
+    await user.type(input, "some text")
+    await user.keyboard("{Escape}")
+
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText(/Add task/i)).not.toBeInTheDocument(),
+    )
+  })
+
+  it("closes dropdown and collapses pill when clicking outside both", async () => {
+    const user = userEvent.setup()
+    render(<Navbar />)
+
+    await user.click(await screen.findByRole("button", { name: /Ada Lovelace/i }))
+    await waitFor(() => expect(screen.getByRole("menu")).toBeInTheDocument())
+
+    await user.click(document.body)
+
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument())
+  })
 })

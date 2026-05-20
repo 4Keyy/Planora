@@ -50,4 +50,14 @@ describe("analytics client", () => {
       }),
     )
   })
+
+  it("does nothing in a server-side environment where window is undefined", () => {
+    vi.stubGlobal("window", undefined)
+
+    trackProductEvent(PRODUCT_EVENTS.sessionRestored, {}, "access-token")
+
+    vi.unstubAllGlobals()
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(mocks.getCsrfToken).not.toHaveBeenCalled()
+  })
 })
