@@ -442,6 +442,7 @@ public class UserSecurityHandlerTests
                 PasswordValidator.Object,
                 CurrentUser.Object,
                 EmailService.Object,
+                Mock.Of<ISecurityStampService>(),
                 Mock.Of<ILogger<ChangePasswordCommandHandler>>());
 
         public ChangeEmailCommandHandler CreateChangeEmailHandler()

@@ -301,6 +301,7 @@ public sealed class LoginCommandHandlerTests
                 passwordHasher.Object,
                 tokenService.Object,
                 twoFactorService.Object,
+                Mock.Of<IRecoveryCodeService>(),
                 currentUser.Object,
                 businessLogger.Object,
                 Mock.Of<ILogger<LoginCommandHandler>>()));

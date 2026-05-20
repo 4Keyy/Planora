@@ -72,6 +72,7 @@ public sealed class AuthApiFilterTests
             .ReturnsAsync(blacklisted);
         var filter = new TokenBlacklistFilter(
             blacklist.Object,
+            Mock.Of<ISecurityStampService>(),
             Mock.Of<ILogger<TokenBlacklistFilter>>());
         var context = CreateExecutingContext();
         if (authorizationHeader is not null)

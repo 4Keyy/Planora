@@ -77,6 +77,7 @@ public class ResetPasswordCommandHandlerTests
             passwordValidatorMock.Object,
             tokenServiceMock.Object,
             emailServiceMock.Object,
+            Mock.Of<ISecurityStampService>(),
             loggerMock.Object);
 
         var result = await handler.Handle(
@@ -153,6 +154,7 @@ public class ResetPasswordCommandHandlerTests
             passwordValidatorMock.Object,
             tokenServiceMock.Object,
             emailServiceMock.Object,
+            Mock.Of<ISecurityStampService>(),
             loggerMock.Object);
 
         var command = new ResetPasswordCommand
@@ -343,6 +345,7 @@ public class ResetPasswordCommandHandlerTests
                 passwordValidator.Object,
                 tokenService.Object,
                 emailService.Object,
+                Mock.Of<ISecurityStampService>(),
                 Mock.Of<ILogger<ResetPasswordCommandHandler>>()));
     }
 

@@ -130,7 +130,7 @@ public class UsersControllerTests
         mediator.Setup(x => x.Send(It.IsAny<Enable2FACommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success(new Enable2FAResponse { Secret = "secret", QrCodeUrl = "otpauth://test" }));
         mediator.Setup(x => x.Send(It.IsAny<Confirm2FACommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result.Success());
+            .ReturnsAsync(Result.Success<IReadOnlyList<string>>(new List<string>()));
         mediator.Setup(x => x.Send(It.IsAny<Disable2FACommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success());
         mediator.Setup(x => x.Send(It.IsAny<RevokeSessionCommand>(), It.IsAny<CancellationToken>()))
@@ -170,7 +170,7 @@ public class UsersControllerTests
         mediator.Setup(x => x.Send(It.IsAny<VerifyEmailCommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Failure("BAD", "bad"));
         mediator.Setup(x => x.Send(It.IsAny<ResendEmailVerificationCommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Failure("BAD", "bad"));
         mediator.Setup(x => x.Send(It.IsAny<Enable2FACommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Failure<Enable2FAResponse>("BAD", "bad"));
-        mediator.Setup(x => x.Send(It.IsAny<Confirm2FACommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Failure("BAD", "bad"));
+        mediator.Setup(x => x.Send(It.IsAny<Confirm2FACommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Failure<IReadOnlyList<string>>("BAD", "bad"));
         mediator.Setup(x => x.Send(It.IsAny<Disable2FACommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Failure("BAD", "bad"));
         mediator.Setup(x => x.Send(It.IsAny<RevokeSessionCommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Failure("BAD", "bad"));
         mediator.Setup(x => x.Send(It.IsAny<RevokeAllSessionsCommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(Result.Failure("BAD", "bad"));

@@ -36,6 +36,7 @@ public class Confirm2FACommandHandlerTests
             unitOfWorkMock.Object,
             twoFactorServiceMock.Object,
             currentUserServiceMock.Object,
+            Mock.Of<IRecoveryCodeService>(),
             loggerMock.Object);
 
         var result = await handler.Handle(new Confirm2FACommand { Code = "123456" }, CancellationToken.None);

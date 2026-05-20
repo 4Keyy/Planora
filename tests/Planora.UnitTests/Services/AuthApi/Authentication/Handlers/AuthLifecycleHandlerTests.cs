@@ -548,6 +548,7 @@ public class AuthLifecycleHandlerTests
                 PasswordHasher.Object,
                 TokenService.Object,
                 TwoFactorService.Object,
+                Mock.Of<IRecoveryCodeService>(),
                 CurrentUser.Object,
                 BusinessLogger.Object,
                 Mock.Of<ILogger<LoginCommandHandler>>());

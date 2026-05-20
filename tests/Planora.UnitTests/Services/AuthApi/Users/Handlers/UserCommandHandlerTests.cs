@@ -340,6 +340,7 @@ public sealed class UserCommandHandlerTests
                 unitOfWork.Object,
                 twoFactorService.Object,
                 currentUser.Object,
+                Mock.Of<IRecoveryCodeService>(),
                 Mock.Of<ILogger<Confirm2FACommandHandler>>()));
     }
 
