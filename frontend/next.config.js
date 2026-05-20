@@ -15,54 +15,13 @@ const safeApiUrl = (() => {
   }
   return defaultApiUrl
 })()
-const shouldUpgradeInsecureRequests = !isDev && safeApiUrl.startsWith('https://')
-const frontendBaseApiUrl = (() => {
-  try {
-    const frontendBaseUrl = process.env.Frontend__BaseUrl
-    if (!frontendBaseUrl) return undefined
-
-    const url = new URL(frontendBaseUrl)
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
-    return `${url.protocol}//${url.hostname}:5132`
-  } catch {
-    return undefined
-  }
-})()
-const connectSources = [
-  "'self'",
-  safeApiUrl,
-  ...(isDev ? [defaultApiUrl, 'http://127.0.0.1:5132', frontendBaseApiUrl] : []),
-].filter(Boolean)
-const uniqueConnectSources = [...new Set(connectSources)]
-
-// SECURITY: Content-Security-Policy
-// In production, tighten this further by removing 'unsafe-inline' from style-src
-// and using nonce-based or hash-based CSP for any inline styles.
-const cspDirectives = [
-  "default-src 'self'",
-  // Dev: Next.js HMR/Fast Refresh requires unsafe-eval and unsafe-inline
-  isDev ? "script-src 'self' 'unsafe-eval' 'unsafe-inline'" : "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",          // Next.js requires unsafe-inline for CSS-in-JS
-  "img-src 'self' data: https:",
-  "font-src 'self'",
-  "connect-src " + uniqueConnectSources.join(' '), // API calls
-  "frame-ancestors 'none'",                    // Clickjacking protection
-  "base-uri 'self'",
-  "form-action 'self'",
-]
-
-if (shouldUpgradeInsecureRequests) {
-  cspDirectives.push("upgrade-insecure-requests")
-}
-
-const cspHeader = cspDirectives.join('; ')
-
+// CSP is set per-request with a unique nonce by src/middleware.ts.
+// Only static security headers that don't need per-request variability remain here.
 const securityHeaders = [
   { key: 'X-Frame-Options',           value: 'DENY' },
   { key: 'X-Content-Type-Options',    value: 'nosniff' },
   { key: 'Referrer-Policy',           value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy',        value: 'camera=(), microphone=(), geolocation=()' },
-  { key: 'Content-Security-Policy',   value: cspHeader },
   // SECURITY: HSTS — tells browsers to only connect via HTTPS for the next year.
   // Only enable in production; development uses HTTP.
   ...(isDev ? [] : [{
