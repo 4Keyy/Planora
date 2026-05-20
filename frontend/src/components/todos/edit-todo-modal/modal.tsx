@@ -150,8 +150,7 @@ export function EditTodoModal({
     }
   }
 
-  // Fake branch ID for the chrome label
-  const branchId = todo.id.slice(-6).toUpperCase()
+
 
   return (
     <ModalPortal>
@@ -197,21 +196,12 @@ export function EditTodoModal({
             gap: 8,
           }}>
             {/* Left: label + ID */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{
-                fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
-                textTransform: "uppercase", color: "#a3a3a3",
-              }}>
-                Task Branch
-              </span>
-              <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#d4d4d4" }} />
-              <span style={{
-                background: "#fafafa", padding: "3px 8px", borderRadius: 6,
-                fontSize: 11, fontWeight: 800, color: "#525252", letterSpacing: "0.04em",
-              }}>
-                #{branchId}
-              </span>
-            </div>
+            <span style={{
+              fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
+              textTransform: "uppercase", color: "#a3a3a3",
+            }}>
+              Task Branch
+            </span>
 
             {/* Right: in-progress pill + close */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
