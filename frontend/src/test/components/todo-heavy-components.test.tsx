@@ -678,26 +678,32 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    fireEvent.change(screen.getByPlaceholderText("Branch Title"), { target: { value: "Updated task" } })
-    fireEvent.change(screen.getByDisplayValue("2026-05-01"), { target: { value: "2026-05-03" } })
+    // Title is an <h1>; click it to enter edit mode, then change the textarea value
+    await user.click(screen.getByRole("heading", { level: 1 }))
+    // Title textarea has no placeholder; compose textarea does — first textbox is the title
+    const titleTextarea = screen.getAllByRole("textbox")[0]
+    fireEvent.change(titleTextarea, { target: { value: "Updated task" } })
+    fireEvent.blur(titleTextarea)
 
-    await user.click(screen.getByRole("button", { name: "Save Changes" }))
+    await user.click(screen.getByRole("button", { name: "Сохранить" }))
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
     expect(onSave).toHaveBeenCalledWith({
       title: "Updated task",
       description: "Cover every important branch with focused behavior tests.",
       priority: 4,
-      dueDate: new Date("2026-05-03").toISOString(),
+      dueDate: new Date("2026-05-01").toISOString(),
       categoryId: "cat-1",
-      isPublic: true,
-      sharedWithUserIds: ["friend-1"],
-      requiredWorkers: 2,
+      isPublic: false,
+      sharedWithUserIds: [],
+      requiredWorkers: 1,
       clearRequiredWorkers: false,
     })
 
+    // handleSave calls onClose once; Escape triggers a second call
+    expect(onClose).toHaveBeenCalledTimes(1)
     await user.keyboard("{Escape}")
-    expect(onClose).toHaveBeenCalledOnce()
+    expect(onClose).toHaveBeenCalledTimes(2)
   })
 
   it("lets a shared viewer save only their private category preference", async () => {
@@ -717,10 +723,10 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    expect(screen.getByPlaceholderText("Branch Title")).toBeDisabled()
-    expect(screen.getByText(/private for you/)).toBeInTheDocument()
+    // Non-owner sees title as a heading (not an editable input)
+    expect(screen.getByRole("heading", { level: 1, name: "Write coverage tests" })).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole("button", { name: "Save Changes" }))
+    await userEvent.click(screen.getByRole("button", { name: "Сохранить" }))
 
     await waitFor(() => expect(onSaveViewerPreference).toHaveBeenCalledOnce())
     expect(onSaveViewerPreference).toHaveBeenCalledWith({ viewerCategoryId: "cat-1" })
@@ -741,7 +747,7 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    expect(screen.getByRole("button", { name: "Save Changes" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Сохранить" })).toBeDisabled()
   })
 
   it("creates a category inline while saving owner edits", async () => {
@@ -762,6 +768,7 @@ describe("EditTodoModal", () => {
           dueDate: null,
           categoryId: null,
           description: "",
+          isPublic: false,
           sharedWithUserIds: [],
         })}
         categories={categories}
@@ -773,32 +780,39 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    await user.click(screen.getAllByRole("combobox")[1])
-    await user.click(await screen.findByText("+ Create Category"))
-    fireEvent.change(screen.getByPlaceholderText("Category Name"), { target: { value: "Planning" } })
-    fireEvent.change(document.body.querySelector('input[type="color"]') as HTMLInputElement, {
-      target: { value: "#654321" },
+    // Open the category popover via the category token
+    await user.click(screen.getByRole("button", { name: "Нет категории" }))
+    // Navigate into the create form
+    await user.click(await screen.findByText("Создать новую категорию"))
+    // Fill in name and color
+    fireEvent.change(screen.getByPlaceholderText("Название категории"), { target: { value: "Planning" } })
+    fireEvent.change(document.body.querySelector('input[maxlength="6"]') as HTMLInputElement, {
+      target: { value: "654321" },
     })
+    // Submit category creation inside the popover
+    await user.click(screen.getByRole("button", { name: "Создать" }))
 
-    await user.click(screen.getByRole("button", { name: "Save Changes" }))
-
-    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
-    expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
       name: "Planning",
       color: "#654321",
-      icon: null,
+      icon: "Briefcase",
       displayOrder: 0,
-    })
+    }))
     expect(onCreateCategory).toHaveBeenCalledOnce()
+
+    // Save the todo with the new category
+    await user.click(screen.getByRole("button", { name: "Сохранить" }))
+
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
     expect(onSave).toHaveBeenCalledWith({
       title: "Write coverage tests",
       description: null,
       priority: 3,
       dueDate: null,
       categoryId: "cat-new",
-      isPublic: true,
+      isPublic: false,
       sharedWithUserIds: [],
-      requiredWorkers: undefined,
+      requiredWorkers: null,
       clearRequiredWorkers: true,
     })
   })

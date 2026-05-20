@@ -131,7 +131,7 @@ export function EditTodoModal({
       if (isOwner) {
         const payload: UpdateTodoPayload = {
           title: title.trim(),
-          description: todo.description ?? null,
+          description: todo.description || null,
           priority: getPriorityNumber(priority),
           dueDate: dueDate ? new Date(dueDate).toISOString() : null,
           categoryId: categoryId || null,
