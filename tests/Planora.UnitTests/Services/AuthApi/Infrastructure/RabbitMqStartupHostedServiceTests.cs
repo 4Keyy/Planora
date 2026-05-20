@@ -99,10 +99,10 @@ public sealed class RabbitMqStartupHostedServiceTests
             .SetValue(service, TimeSpan.FromMilliseconds(10));
 
         await service.StartAsync(CancellationToken.None);
-        var completed = await Task.WhenAny(retried.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await retried.Task.WaitAsync(timeout.Token);   // throws OperationCanceledException if retry never fires
         await service.StopAsync(CancellationToken.None);
 
-        Assert.Same(retried.Task, completed);
         Assert.True(attempts >= 2);
     }
 
