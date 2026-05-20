@@ -202,7 +202,7 @@ export function EditTodoModal({
                 fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
                 textTransform: "uppercase", color: "#a3a3a3",
               }}>
-                Ветка задачи
+                Task Branch
               </span>
               <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#d4d4d4" }} />
               <span style={{
@@ -244,34 +244,44 @@ export function EditTodoModal({
                     }} />
                   </div>
 
-                  {/* Label */}
-                  <span style={{
-                    fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
-                    textTransform: "uppercase", whiteSpace: "nowrap",
-                    color: pillHovered ? "#991b1b" : "#6d28d9",
-                    transition: "color 240ms ease",
-                  }}>
-                    В работе
-                  </span>
+                  {/* Label / Leave button — same space, crossfade on hover */}
+                  <div style={{ position: "relative", display: "inline-block" }}>
+                    {/* "In Progress" keeps the container width even when invisible */}
+                    <span style={{
+                      display: "block",
+                      fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
+                      textTransform: "uppercase", whiteSpace: "nowrap",
+                      color: "#6d28d9",
+                      opacity: pillHovered ? 0 : 1,
+                      transition: "opacity 180ms ease",
+                      userSelect: "none",
+                    }}>
+                      In Progress
+                    </span>
 
-                  {/* Выйти — always in DOM, fades + slides in (no reflow, no layout shift) */}
-                  <button
-                    onClick={async (e) => { e.stopPropagation(); await onLeave(); onClose() }}
-                    style={{
-                      background: "white", border: "1px solid #fecaca", borderRadius: 6,
-                      padding: "3px 8px", cursor: "pointer",
-                      fontSize: 11, fontWeight: 700, color: "#991b1b",
-                      whiteSpace: "nowrap", fontFamily: "inherit",
-                      opacity: pillHovered ? 1 : 0,
-                      transform: pillHovered ? "translateX(0)" : "translateX(-6px)",
-                      pointerEvents: pillHovered ? "auto" : "none",
-                      transition: "opacity 200ms ease, transform 240ms cubic-bezier(0.16,1,0.3,1), background 120ms ease",
-                    }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2" }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white" }}
-                  >
-                    Выйти
-                  </button>
+                    {/* "Leave" button — absolutely overlaid, fades in on hover */}
+                    <button
+                      onClick={async (e) => { e.stopPropagation(); await onLeave(); onClose() }}
+                      style={{
+                        position: "absolute",
+                        inset: "-3px -6px",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "transparent",
+                        border: "1px solid #fecaca",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        fontSize: 11, fontWeight: 700, color: "#991b1b",
+                        whiteSpace: "nowrap", fontFamily: "inherit",
+                        opacity: pillHovered ? 1 : 0,
+                        pointerEvents: pillHovered ? "auto" : "none",
+                        transition: "opacity 180ms ease, background 120ms ease",
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2" }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+                    >
+                      Leave
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -407,7 +417,7 @@ export function EditTodoModal({
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
             >
-              Отмена
+              Cancel
             </button>
 
             <div style={{ flex: 1 }} />
@@ -429,7 +439,7 @@ export function EditTodoModal({
                 transition: "background 120ms, box-shadow 120ms",
               }}
             >
-              {saving ? "Сохранение…" : "Сохранить"}
+              {saving ? "Saving…" : "Save"}
             </button>
           </div>
         </motion.div>

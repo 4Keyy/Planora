@@ -1,10 +1,10 @@
-// Priority levels with Russian labels, colors, and descriptions
+// Priority levels with English labels, colors, and descriptions
 export const PRIORITY_LEVELS = [
-  { key: "VeryLow", label: "Очень низкий", color: "#9ca3af", desc: "Можно отложить" },
-  { key: "Low",     label: "Низкий",       color: "#10b981", desc: "Не срочно" },
-  { key: "Medium",  label: "Средний",      color: "#0ea5e9", desc: "Стандартно" },
-  { key: "High",    label: "Высокий",      color: "#f59e0b", desc: "Важно" },
-  { key: "Urgent",  label: "Срочный",      color: "#ef4444", desc: "Делать сейчас" },
+  { key: "VeryLow", label: "Very Low", color: "#9ca3af", desc: "Can be postponed" },
+  { key: "Low",     label: "Low",      color: "#10b981", desc: "Not urgent" },
+  { key: "Medium",  label: "Medium",   color: "#0ea5e9", desc: "Standard" },
+  { key: "High",    label: "High",     color: "#f59e0b", desc: "Important" },
+  { key: "Urgent",  label: "Urgent",   color: "#ef4444", desc: "Do it now" },
 ] as const
 
 const PRIORITY_TO_NUM: Record<string, number> = {
@@ -29,19 +29,23 @@ export function getPriorityColor(priority: string): string {
 }
 
 export function getPriorityLabel(priority: string): string {
-  return PRIORITY_LEVELS.find((p) => p.key === priority)?.label ?? "Средний"
+  return PRIORITY_LEVELS.find((p) => p.key === priority)?.label ?? "Medium"
 }
 
-// Russian locale helpers
-const RU_MONTHS_SHORT = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"]
-export const RU_MONTHS_LONG  = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"]
-export const RU_DAYS_SHORT   = ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"]
+// English locale helpers
+const EN_MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+export const EN_MONTHS_LONG  = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+export const EN_DAYS_SHORT   = ["Mo","Tu","We","Th","Fr","Sa","Su"]
+
+// Keep Russian aliases for backward compatibility with date popover import
+export const RU_MONTHS_LONG = EN_MONTHS_LONG
+export const RU_DAYS_SHORT  = EN_DAYS_SHORT
 
 export function formatDatePretty(isoDate: string): string {
   if (!isoDate) return ""
   const d = new Date(isoDate)
   const day   = d.getDate()
-  const month = RU_MONTHS_SHORT[d.getMonth()]
+  const month = EN_MONTHS_SHORT[d.getMonth()]
   const year  = d.getFullYear()
   const now   = new Date()
   if (year === now.getFullYear()) return `${day} ${month}`
@@ -51,11 +55,11 @@ export function formatDatePretty(isoDate: string): string {
 export function formatRelativeRu(isoDate: string): string {
   const diff = new Date(isoDate).getTime() - Date.now()
   const days = Math.round(diff / 86_400_000)
-  if (days === 0)  return "сегодня"
-  if (days === 1)  return "завтра"
-  if (days === -1) return "вчера"
-  if (days > 0)   return `через ${days} дн`
-  return `${Math.abs(days)} дн назад`
+  if (days === 0)  return "today"
+  if (days === 1)  return "tomorrow"
+  if (days === -1) return "yesterday"
+  if (days > 0)   return `in ${days}d`
+  return `${Math.abs(days)}d ago`
 }
 
 export function formatDayLabel(iso: string): string {
@@ -64,9 +68,9 @@ export function formatDayLabel(iso: string): string {
   const yest   = new Date(today); yest.setDate(today.getDate() - 1)
   const sameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-  if (sameDay(d, today)) return "Сегодня"
-  if (sameDay(d, yest))  return "Вчера"
-  return `${d.getDate()} ${RU_MONTHS_SHORT[d.getMonth()]}`
+  if (sameDay(d, today)) return "Today"
+  if (sameDay(d, yest))  return "Yesterday"
+  return `${d.getDate()} ${EN_MONTHS_SHORT[d.getMonth()]}`
 }
 
 export function formatTimeHHMM(iso: string): string {

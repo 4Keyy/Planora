@@ -238,7 +238,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
               />
               <div>
                 <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3", lineHeight: 1.2 }}>
-                  Описание автора
+                  Author&apos;s Note
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 2 }}>
                   <span style={{ fontSize: 13.5, fontWeight: 900, letterSpacing: "-0.015em", color: "#0a0a0a" }}>
@@ -266,7 +266,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white" }}
               >
                 <Pencil size={10} />
-                Изменить
+                Edit
               </button>
             )}
           </div>
@@ -302,7 +302,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                     fontSize: 11, fontWeight: 800, color: "#525252",
                   }}
                 >
-                  Отмена
+                  Cancel
                 </button>
                 <button
                   onClick={handleGenesisSave}
@@ -314,7 +314,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                     textTransform: "uppercase", color: "white",
                   }}
                 >
-                  {submitting ? "…" : genesisEditContent.trim() ? "Сохранить" : "Удалить"}
+                  {submitting ? "…" : genesisEditContent.trim() ? "Save" : "Delete"}
                 </button>
               </div>
             </div>
@@ -368,17 +368,17 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecoration = "underline" }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecoration = "none" }}
           >
-            Загрузить ранние сообщения
+            Load earlier messages
           </button>
         )}
 
         {loading && (
-          <p style={{ fontSize: 12, color: "#a3a3a3", marginLeft: -8 }}>Загрузка…</p>
+          <p style={{ fontSize: 12, color: "#a3a3a3", marginLeft: -8 }}>Loading…</p>
         )}
 
         {!loading && stream.length === 0 && (
           <p style={{ fontSize: 12, color: "#a3a3a3", marginLeft: -8, fontStyle: "italic" }}>
-            Сообщений пока нет
+            No messages yet
           </p>
         )}
 
@@ -434,7 +434,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                 fontSize: 11, fontWeight: 900, letterSpacing: "0.06em",
                 textTransform: "uppercase", color: "#4f46e5",
               }}>
-                Описание
+                Description
               </span>
               <button
                 onClick={() => { setComposeMode("text"); setNewContent("") }}
@@ -446,13 +446,13 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                 }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#c7d2fe" }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
-                title="Отменить"
+                title="Cancel"
               >
                 <X size={10} strokeWidth={2.5} />
               </button>
             </div>
             <span style={{ fontSize: 10.5, fontWeight: 600, color: "#a3a3a3" }}>
-              описание задачи · ⌘+↵ отправить
+              task description · ⌘+↵ to send
             </span>
           </div>
         )}
@@ -493,7 +493,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                 textTransform: "uppercase", color: "#a3a3a3",
                 padding: "4px 10px 8px",
               }}>
-                Прикрепить
+                Attach
               </div>
 
               <button
@@ -528,10 +528,10 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                 </div>
                 <div>
                   <div style={{ fontSize: 12.5, fontWeight: 800, color: genesis ? "#a3a3a3" : "#0a0a0a", letterSpacing: "-0.01em" }}>
-                    Описание
+                    Description
                   </div>
                   <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
-                    {genesis ? "Уже добавлено" : "Описание задачи"}
+                    {genesis ? "Already added" : "Task description"}
                   </div>
                 </div>
                 {genesis && (
@@ -541,7 +541,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                     color: "#c4b5fd", background: "#f5f3ff",
                     padding: "2px 7px", borderRadius: 6,
                   }}>
-                    Есть
+                    Added
                   </div>
                 )}
               </button>
@@ -572,7 +572,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                 ;(e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
               }
             }}
-            title="Прикрепить"
+            title="Attach"
           >
             <Plus size={16} strokeWidth={2.2} />
           </button>
@@ -594,16 +594,17 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
                 setNewContent("")
               }
             }}
+            rows={1}
             placeholder={
               composeMode === "description"
-                ? "Введите описание задачи…"
-                : "Написать в ветку… ⌘+↵ — отправить"
+                ? "Enter task description…"
+                : "Write in branch… ⌘+↵ to send"
             }
             maxLength={composeMode === "description" ? GENESIS_MAX : COMMENT_MAX}
             disabled={submitting}
             style={{
               flex: 1, background: "transparent", border: "none", outline: "none",
-              padding: "9px 12px", fontSize: 12.5, fontWeight: 500, lineHeight: 1.5,
+              padding: "6px 10px", fontSize: 12.5, fontWeight: 500, lineHeight: 1.5,
               fontFamily: "inherit", color: "#262626",
               resize: "none", maxHeight: 80, overflowY: "auto",
             }}
@@ -755,14 +756,14 @@ function MessageItem({
             padding: "1px 6px", borderRadius: 5,
             fontSize: 9, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase",
           }}>
-            ВЫ
+            YOU
           </span>
         )}
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#a3a3a3" }}>
           {formatTimeHHMM(c.createdAt)}
         </span>
         {c.isEdited && (
-          <span style={{ fontSize: 9, color: "#a3a3a3", fontStyle: "italic" }}>ред.</span>
+          <span style={{ fontSize: 9, color: "#a3a3a3", fontStyle: "italic" }}>edited</span>
         )}
 
         {/* Hover actions */}
@@ -821,11 +822,11 @@ function MessageItem({
             <button onClick={() => onEditSave(c.id)} disabled={submitting} style={{
               background: "#0a0a0a", border: "none", borderRadius: 8, padding: "4px 10px",
               fontSize: 11, fontWeight: 800, color: "white", cursor: "pointer",
-            }}>Сохранить</button>
+            }}>Save</button>
             <button onClick={onEditCancel} style={{
               background: "none", border: "none", padding: "4px 8px",
               fontSize: 11, fontWeight: 600, color: "#525252", cursor: "pointer",
-            }}>Отмена</button>
+            }}>Cancel</button>
           </div>
         </div>
       ) : (

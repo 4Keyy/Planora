@@ -20,7 +20,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef }
 
   return (
     <Popover open={open} onClose={onClose} width={300} containerRef={containerRef}>
-      <PopoverHeader label="Приоритет" />
+      <PopoverHeader label="Priority" />
       <div style={{ padding: 6 }}>
         {PRIORITY_LEVELS.map((p, i) => {
           const isActive = value === p.key
@@ -31,7 +31,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef }
               onKeyDown={(e) => {
                 if (e.key === String(i + 1)) handleSelect(p.key)
               }}
-              aria-label={`Приоритет ${p.label}`}
+              aria-label={`Priority ${p.label}`}
               style={{
                 width: "100%",
                 display: "flex",

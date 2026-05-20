@@ -254,7 +254,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
           fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
           textTransform: "uppercase", color: "#a3a3a3", marginBottom: 7,
         }}>
-          Готовые
+          Presets
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
           {CATEGORY_COLOR_SWATCHES.map((c) => {
@@ -263,7 +263,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
               <button
                 key={c}
                 type="button"
-                aria-label={`Цвет ${c}`}
+                aria-label={`Color ${c}`}
                 onClick={() => onChange(c)}
                 style={{
                   width: 22, height: 22,

@@ -117,8 +117,8 @@ export function InlineTokenStrip({
   const showAuthorHint = !activeCat && !isOwner && !!authorCategoryName
 
   const visLabel = visMode === "private"
-    ? "приватно"
-    : `публично · ${sharedIds.length}`
+    ? "private"
+    : `public · ${sharedIds.length}`
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
@@ -163,7 +163,7 @@ export function InlineTokenStrip({
                 </span>
               </>
             ) : (
-              "Срок"
+              "Due date"
             )}
           </>
         }
@@ -211,12 +211,12 @@ export function InlineTokenStrip({
                 )}
               </div>
               <span style={{ opacity: 0.55, fontStyle: "italic" }}>
-                Автора · {authorCategoryName}
+                Author · {authorCategoryName}
               </span>
             </>
           ) : (
             /* No category at all */
-            <span style={{ color: "#a3a3a3" }}>Нет категории</span>
+            <span style={{ color: "#a3a3a3" }}>No category</span>
           )
         }
         popover={

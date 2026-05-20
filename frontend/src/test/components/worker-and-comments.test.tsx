@@ -290,7 +290,7 @@ describe("TaskComments", () => {
       totalCount: 1,
     })
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={true} />)
-    await waitFor(() => expect(screen.getByText(/Branch · 1/)).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/Task · 1/)).toBeInTheDocument())
   })
 
   it("hides input area when canComment=false", async () => {

@@ -12,7 +12,7 @@
  */
 export function extractErrorMessage(
   err: unknown,
-  fallback = "Произошла ошибка",
+  fallback = "An error occurred",
 ): string {
   if (typeof err === "string") return err
 

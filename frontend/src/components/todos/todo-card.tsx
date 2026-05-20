@@ -108,7 +108,7 @@ export function TodoCard({
     : false
   const fallbackIsShared = todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0
   const fallbackIsVisuallyUrgent = isUrgent || (isDueOverdue ?? false) || isDueToday
-  const cardCategoryLabel = todo.categoryName?.trim() ? truncateText(todo.categoryName, 18) : "Без категории"
+  const cardCategoryLabel = todo.categoryName?.trim() ? truncateText(todo.categoryName, 18) : "No category"
   const isOwner = isTodoOwner(todo, viewerId)
   const isShared = todo.hasSharedAudience ?? fallbackIsShared
   const isEffectivelyWorking = isOwner

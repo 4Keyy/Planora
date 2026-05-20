@@ -38,18 +38,18 @@ export function VisibilityPopover({
   }
 
   const sub: React.ReactNode = mode === "private"
-    ? <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>только ты</span>
-    : <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>{sharedIds.length} из {friends.length}</span>
+    ? <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>only you</span>
+    : <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>{sharedIds.length} of {friends.length}</span>
 
   return (
     <Popover open={open} onClose={onClose} width={340} align="right" containerRef={containerRef}>
-      <PopoverHeader label="Доступ к задаче" sub={sub} />
+      <PopoverHeader label="Task access" sub={sub} />
 
       {/* Mode picker */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: "10px 10px 6px" }}>
         {([
-          { key: "private" as const, Icon: Lock,   label: "Приватно" },
-          { key: "friends" as const, Icon: Globe2,  label: "Публичная" },
+          { key: "private" as const, Icon: Lock,   label: "Private" },
+          { key: "friends" as const, Icon: Globe2,  label: "Public"  },
         ] as const).map(({ key, Icon, label }) => {
           const isActive = mode === key
           return (
@@ -87,10 +87,10 @@ export function VisibilityPopover({
             <Lock size={18} color="#a3a3a3" />
           </div>
           <p style={{ fontSize: 12.5, fontWeight: 800, color: "#262626", margin: 0, letterSpacing: "-0.01em" }}>
-            Эту задачу видишь только ты
+            Only you can see this task
           </p>
           <p style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3", margin: 0 }}>
-            Никто из друзей не имеет доступа
+            None of your friends have access
           </p>
         </div>
       ) : (
@@ -98,7 +98,7 @@ export function VisibilityPopover({
         <div>
           {friends.length === 0 ? (
             <div style={{ padding: "12px 14px", fontSize: 12, color: "#a3a3a3", textAlign: "center" }}>
-              У тебя пока нет друзей
+              You have no friends yet
             </div>
           ) : (
             <>
@@ -108,7 +108,7 @@ export function VisibilityPopover({
                 display: "flex", alignItems: "center", justifyContent: "space-between",
               }}>
                 <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3" }}>
-                  Кому открыто
+                  Shared with
                 </span>
                 <button
                   onClick={toggleAll}
@@ -118,7 +118,7 @@ export function VisibilityPopover({
                     textTransform: "uppercase", color: "#0a0a0a", padding: 0,
                   }}
                 >
-                  {allSelected ? "СНЯТЬ" : "ВСЕ"}
+                  {allSelected ? "NONE" : "ALL"}
                 </button>
               </div>
 

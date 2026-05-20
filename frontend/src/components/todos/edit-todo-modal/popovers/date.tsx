@@ -39,10 +39,10 @@ export function DatePopover({ open, onClose, value, onChange, containerRef }: Da
   const plusWeek  = addDays(today, 7)
 
   const quickPicks = [
-    { label: "Сегодня",    iso: today     },
-    { label: "Завтра",     iso: tomorrow  },
-    { label: "+ 3 дня",    iso: plus3     },
-    { label: "Через неделю", iso: plusWeek },
+    { label: "Today",      iso: today     },
+    { label: "Tomorrow",   iso: tomorrow  },
+    { label: "+ 3 days",   iso: plus3     },
+    { label: "Next week",  iso: plusWeek  },
   ]
 
   const selectDate = (iso: string) => { onChange(iso); onClose() }
@@ -85,14 +85,14 @@ export function DatePopover({ open, onClose, value, onChange, containerRef }: Da
       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#0a0a0a" }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#525252" }}
     >
-      ОЧИСТИТЬ
+      CLEAR
     </button>
   ) : undefined
 
   return (
     <Popover open={open} onClose={onClose} width={320} containerRef={containerRef}>
       {/* Header with "Очистить" on same row */}
-      <PopoverHeader label="Срок выполнения" action={clearAction} />
+      <PopoverHeader label="Due date" action={clearAction} />
 
       {/* Quick picks */}
       <div style={{

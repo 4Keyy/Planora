@@ -329,8 +329,8 @@ describe("TodoCard", () => {
       />,
     )
 
-    expect(screen.getByText("Без категории")).toBeInTheDocument()
-    expect(screen.getByText("Без категории")).toHaveClass("blur-[3px]")
+    expect(screen.getByText("No category")).toBeInTheDocument()
+    expect(screen.getByText("No category")).toHaveClass("blur-[3px]")
     expect(container.querySelector(".task-card--shared-urgent")).not.toBeNull()
     expect(screen.queryByText("Write coverage tests")).not.toBeInTheDocument()
 
@@ -398,10 +398,10 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    expect(screen.getByText("New branch")).toBeInTheDocument()
+    expect(screen.getByText("New task")).toBeInTheDocument()
     expect(screen.getByText(/press/i)).toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: "Open create branch panel" }))
+    await user.click(screen.getByRole("button", { name: "Open create task panel" }))
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
@@ -435,10 +435,10 @@ describe("CreateTodoPanel", () => {
     })
     fireEvent.click(screen.getByRole("button", { name: /High/ }))
     expect(screen.queryByText("Visible to all friends")).not.toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Private branch" }))
+    await user.click(screen.getByRole("button", { name: "Private task" }))
     await user.click(await screen.findByText("All friends"))
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Branch" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
     expect(onSubmit).toHaveBeenCalledWith({
@@ -516,7 +516,7 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    await user.click(screen.getByRole("button", { name: "Close create branch panel" }))
+    await user.click(screen.getByRole("button", { name: "Close create task panel" }))
     expect(onToggle).toHaveBeenCalledOnce()
   })
 
@@ -544,7 +544,7 @@ describe("CreateTodoPanel", () => {
     await user.keyboard("{Escape}")
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Open create branch panel" })).toHaveAttribute("aria-expanded", "false")
+      expect(screen.getByRole("button", { name: "Open create task panel" })).toHaveAttribute("aria-expanded", "false")
     })
   })
 
@@ -571,7 +571,7 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Fallback category task" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Branch" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
     expect(onCreateCategory).not.toHaveBeenCalled()
@@ -615,7 +615,7 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Task with new category" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Branch" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
     expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
@@ -648,9 +648,9 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Failing task" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Branch" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
 
-    expect(await screen.findByText("Failed to create branch. Please try again.")).toBeInTheDocument()
+    expect(await screen.findByText("Failed to create task. Please try again.")).toBeInTheDocument()
   })
 })
 
@@ -685,7 +685,7 @@ describe("EditTodoModal", () => {
     fireEvent.change(titleTextarea, { target: { value: "Updated task" } })
     fireEvent.blur(titleTextarea)
 
-    await user.click(screen.getByRole("button", { name: "Сохранить" }))
+    await user.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
     expect(onSave).toHaveBeenCalledWith({
@@ -726,7 +726,7 @@ describe("EditTodoModal", () => {
     // Non-owner sees title as a heading (not an editable input)
     expect(screen.getByRole("heading", { level: 1, name: "Write coverage tests" })).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole("button", { name: "Сохранить" }))
+    await userEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() => expect(onSaveViewerPreference).toHaveBeenCalledOnce())
     expect(onSaveViewerPreference).toHaveBeenCalledWith({ viewerCategoryId: "cat-1" })
@@ -747,7 +747,7 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    expect(screen.getByRole("button", { name: "Сохранить" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled()
   })
 
   it("creates a category inline while saving owner edits", async () => {
@@ -781,16 +781,16 @@ describe("EditTodoModal", () => {
     )
 
     // Open the category popover via the category token
-    await user.click(screen.getByRole("button", { name: "Нет категории" }))
+    await user.click(screen.getByRole("button", { name: "No category" }))
     // Navigate into the create form
-    await user.click(await screen.findByText("Создать новую категорию"))
+    await user.click(await screen.findByText("Create new category"))
     // Fill in name and color
-    fireEvent.change(screen.getByPlaceholderText("Название категории"), { target: { value: "Planning" } })
+    fireEvent.change(screen.getByPlaceholderText("Category name"), { target: { value: "Planning" } })
     fireEvent.change(document.body.querySelector('input[maxlength="6"]') as HTMLInputElement, {
       target: { value: "654321" },
     })
     // Submit category creation inside the popover
-    await user.click(screen.getByRole("button", { name: "Создать" }))
+    await user.click(screen.getByRole("button", { name: "Create" }))
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
       name: "Planning",
@@ -801,7 +801,7 @@ describe("EditTodoModal", () => {
     expect(onCreateCategory).toHaveBeenCalledOnce()
 
     // Save the todo with the new category
-    await user.click(screen.getByRole("button", { name: "Сохранить" }))
+    await user.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
     expect(onSave).toHaveBeenCalledWith({

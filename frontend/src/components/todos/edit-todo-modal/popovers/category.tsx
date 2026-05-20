@@ -58,7 +58,7 @@ export function CategoryPopover({
       await onCreateCategory()
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка при создании")
+      setError(e instanceof Error ? e.message : "Failed to create")
     } finally {
       setSaving(false)
     }
@@ -92,7 +92,7 @@ export function CategoryPopover({
               fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
               textTransform: "uppercase", color: "#a3a3a3",
             }}>
-              Новая категория
+              New category
             </span>
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
@@ -110,7 +110,7 @@ export function CategoryPopover({
                 fontSize: 11, fontWeight: 800, color: "#262626",
                 maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
-                {name.trim() || "название"}
+                {name.trim() || "name"}
               </span>
             </div>
           </div>
@@ -119,7 +119,7 @@ export function CategoryPopover({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Название категории"
+            placeholder="Category name"
             maxLength={30}
             autoFocus
             style={{
@@ -136,7 +136,7 @@ export function CategoryPopover({
               fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
               textTransform: "uppercase", color: "#a3a3a3", marginBottom: 10,
             }}>
-              Цвет
+              Color
             </div>
             <ColorPicker value={color} onChange={setColor} />
           </div>
@@ -147,7 +147,7 @@ export function CategoryPopover({
               fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
               textTransform: "uppercase", color: "#a3a3a3", marginBottom: 8,
             }}>
-              Иконка
+              Icon
             </div>
             <div style={{
               display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4,
@@ -199,7 +199,7 @@ export function CategoryPopover({
                 textTransform: "uppercase", color: "#525252", fontFamily: "inherit",
               }}
             >
-              Отмена
+              Cancel
             </button>
             <button
               type="button"
@@ -216,7 +216,7 @@ export function CategoryPopover({
                 fontFamily: "inherit",
               }}
             >
-              {saving ? "Создание…" : "Создать"}
+              {saving ? "Creating…" : "Create"}
             </button>
           </div>
         </div>
@@ -224,10 +224,10 @@ export function CategoryPopover({
         /* ── CATEGORY LIST ── */
         <>
           <PopoverHeader
-            label="Категория"
+            label="Category"
             sub={
               <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>
-                {localCats.length} доступно
+                {localCats.length} available
               </span>
             }
           />
@@ -251,7 +251,7 @@ export function CategoryPopover({
                 border: "1.5px dashed #d4d4d4", flexShrink: 0,
               }} />
               <span style={{ fontSize: 12, fontWeight: 800, color: "#a3a3a3", flex: 1 }}>
-                Без категории
+                No category
               </span>
               {value === null && (
                 <span style={{ fontSize: 11, fontWeight: 800, color: "#0a0a0a" }}>✓</span>
@@ -316,7 +316,7 @@ export function CategoryPopover({
                   <Plus size={12} color="#4f46e5" />
                 </div>
                 <span style={{ fontSize: 12, fontWeight: 800, color: "#4f46e5" }}>
-                  Создать новую категорию
+                  Create new category
                 </span>
               </button>
             </div>

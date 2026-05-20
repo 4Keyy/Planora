@@ -17,7 +17,7 @@ import { TASK_CREATED_EVENT } from "@/lib/events"
 
 const NAV_TABS = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Branches",  href: "/branches"  },
+  { label: "Tasks",     href: "/tasks"     },
   { label: "Categories", href: "/categories" },
 ] as const
 
@@ -108,13 +108,13 @@ export function Navbar() {
         categoryId:  null,
         dueDate:     null,
       })
-      addToast({ type: "success", title: "Branch created!" })
+      addToast({ type: "success", title: "Task created!" })
       setTaskTitle("")
       setCreateMode(false)
       // Signal dashboard (and any other page) to refresh the task list
       window.dispatchEvent(new CustomEvent(TASK_CREATED_EVENT))
     } catch {
-      addToast({ type: "error", title: "Failed to create branch" })
+      addToast({ type: "error", title: "Failed to create task" })
     } finally {
       setCreating(false)
     }
@@ -239,7 +239,7 @@ export function Navbar() {
                             transition={ICON_SPRING}
                             type="button"
                             onClick={() => setCreateMode(true)}
-                            aria-label="Create branch"
+                            aria-label="Create task"
                             className="h-8 w-8 rounded-full bg-gray-900 text-white flex items-center justify-center"
                           >
                             <motion.span
@@ -269,7 +269,7 @@ export function Navbar() {
                           value={taskTitle}
                           onChange={e => setTaskTitle(e.target.value)}
                           onKeyDown={handleKeyDown}
-                          placeholder="Add branch…  try 'tomorrow at 5pm #work'"
+                          placeholder="Add task…  try 'tomorrow at 5pm #work'"
                           disabled={creating}
                           className={cn(
                             "w-56 sm:w-80 text-sm text-gray-900 placeholder:text-gray-400",
@@ -280,7 +280,7 @@ export function Navbar() {
                         <button
                           type="button"
                           onClick={exitCreate}
-                          aria-label="Cancel create branch"
+                          aria-label="Cancel create task"
                           className="h-6 w-6 flex-shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-150"
                         >
                           <X className="h-3.5 w-3.5" />
