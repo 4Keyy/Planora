@@ -36,6 +36,13 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
             return (items, totalCount);
         }
 
+        public async Task<TodoItemComment?> GetGenesisCommentAsync(Guid todoItemId, CancellationToken ct = default)
+        {
+            return await DbSet
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.TodoItemId == todoItemId && c.IsGenesisComment && !c.IsDeleted, ct);
+        }
+
         public async Task SoftDeleteByTodoIdAsync(Guid todoItemId, Guid deletedBy, CancellationToken ct = default)
         {
             var comments = await DbSet

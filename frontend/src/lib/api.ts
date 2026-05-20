@@ -330,3 +330,11 @@ export const updateComment = async (
 export const deleteComment = async (todoId: string, commentId: string): Promise<void> => {
   await api.delete(`/todos/api/v1/todos/${todoId}/comments/${commentId}`)
 }
+
+export const addGenesisComment = async (todoId: string, content: string): Promise<TodoComment> => {
+  const { data } = await api.post<ApiResponse<TodoComment>>(
+    `/todos/api/v1/todos/${todoId}/genesis`,
+    { content },
+  )
+  return parseApiResponse(data)
+}

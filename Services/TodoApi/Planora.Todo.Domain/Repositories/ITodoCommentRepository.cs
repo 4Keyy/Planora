@@ -8,5 +8,6 @@ namespace Planora.Todo.Domain.Repositories
         Task<(IReadOnlyList<TodoItemComment> Items, int TotalCount)> GetPagedByTodoIdAsync(
             Guid todoItemId, int pageNumber, int pageSize, CancellationToken ct = default);
         Task SoftDeleteByTodoIdAsync(Guid todoItemId, Guid deletedBy, CancellationToken ct = default);
+        Task<TodoItemComment?> GetGenesisCommentAsync(Guid todoItemId, CancellationToken ct = default);
     }
 }

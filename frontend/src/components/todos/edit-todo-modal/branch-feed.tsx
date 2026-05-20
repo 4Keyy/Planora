@@ -1,8 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Pencil, Trash2, Send } from "lucide-react"
-import { fetchComments, addComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
+import { Pencil, Trash2, Send, Plus, FileText, X } from "lucide-react"
+import { fetchComments, addComment, addGenesisComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
 import type { TodoComment } from "@/types/todo"
 import { FriendAvatar } from "./friend-avatar"
 import {
@@ -52,9 +52,14 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
   const [editingGenesis,   setEditingGenesis]   = useState(false)
   const [genesisEditContent, setGenesisEditContent] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [composeMode, setComposeMode] = useState<"text" | "description">("text")
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false)
 
-  const feedRef    = useRef<HTMLDivElement>(null)
-  const composeRef = useRef<HTMLTextAreaElement>(null)
+  const feedRef           = useRef<HTMLDivElement>(null)
+  const composeRef        = useRef<HTMLTextAreaElement>(null)
+  const genesisEditRef    = useRef<HTMLTextAreaElement>(null)
+  const plusBtnRef        = useRef<HTMLButtonElement>(null)
+  const plusMenuRef       = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async (pageNum: number, replace: boolean) => {
     try {
@@ -160,6 +165,56 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
     el.style.height = el.scrollHeight + "px"
   }
 
+  // Auto-size the genesis textarea to its full content height when editing opens
+  useEffect(() => {
+    if (!editingGenesis || !genesisEditRef.current) return
+    const el = genesisEditRef.current
+    el.style.height = "auto"
+    el.style.height = el.scrollHeight + "px"
+    el.focus()
+  }, [editingGenesis])
+
+  // Close plus menu on outside click
+  useEffect(() => {
+    if (!plusMenuOpen) return
+    const handle = (e: MouseEvent) => {
+      if (
+        plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node) &&
+        plusBtnRef.current  && !plusBtnRef.current.contains(e.target as Node)
+      ) {
+        setPlusMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handle)
+    return () => document.removeEventListener("mousedown", handle)
+  }, [plusMenuOpen])
+
+  const handleSubmitWithMode = async () => {
+    const content = newContent.trim()
+    if (!content || submitting) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      if (composeMode === "description") {
+        const c = await addGenesisComment(todoId, content)
+        setComments((prev) => [c, ...prev])
+        setTotalCount((n) => n + 1)
+        setComposeMode("text")
+      } else {
+        const c = await addComment(todoId, content)
+        setComments((prev) => [...prev, c])
+        setTotalCount((n) => n + 1)
+        setTimeout(scrollToBottom, 40)
+      }
+      setNewContent("")
+      if (composeRef.current) composeRef.current.style.height = "auto"
+    } catch (e) {
+      setError(getApiErrorMessage(e))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const feed = buildFeed(stream)
 
   return (
@@ -220,19 +275,23 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
           {editingGenesis ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <textarea
+                ref={genesisEditRef}
                 value={genesisEditContent}
-                onChange={(e) => setGenesisEditContent(e.target.value)}
+                onChange={(e) => {
+                  setGenesisEditContent(e.target.value)
+                  e.target.style.height = "auto"
+                  e.target.style.height = e.target.scrollHeight + "px"
+                }}
                 maxLength={GENESIS_MAX}
-                rows={4}
-                autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleGenesisSave()
                   if (e.key === "Escape") setEditingGenesis(false)
                 }}
                 style={{
                   width: "100%", background: "white", border: "1px solid #eaeaea", borderRadius: 12,
-                  padding: 12, fontSize: 13, lineHeight: 1.6, resize: "vertical",
+                  padding: 12, fontSize: 13, lineHeight: 1.6, resize: "none",
                   fontFamily: "inherit", color: "#262626", outline: "none", boxSizing: "border-box",
+                  minHeight: 60, overflowY: "hidden",
                 }}
               />
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -356,53 +415,216 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
       )}
 
       {/* ── Compose ── */}
-      <div style={{
-        background: "#fafafa",
-        border: "1px solid #f0f0f0",
-        borderRadius: 14,
-        padding: 4,
-        display: "flex",
-        alignItems: "flex-end",
-        gap: 4,
-        marginTop: 8,
-      }}>
-        <textarea
-          ref={composeRef}
-          value={newContent}
-          onChange={(e) => {
-            setNewContent(e.target.value)
-            autoResize(e.target)
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-              e.preventDefault()
-              handleSubmit()
+      <div style={{ position: "relative", marginTop: 8 }}>
+
+        {/* Mode chip — slides in above compose box when in description mode */}
+        {composeMode === "description" && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            marginBottom: 6,
+            animation: "chip_enter 180ms cubic-bezier(0.16,1,0.3,1) both",
+          }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              background: "#eef2ff", border: "1px solid #c7d2fe",
+              borderRadius: 8, padding: "4px 8px 4px 7px",
+            }}>
+              <FileText size={11} color="#4f46e5" strokeWidth={2.2} />
+              <span style={{
+                fontSize: 11, fontWeight: 900, letterSpacing: "0.06em",
+                textTransform: "uppercase", color: "#4f46e5",
+              }}>
+                Описание
+              </span>
+              <button
+                onClick={() => { setComposeMode("text"); setNewContent("") }}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 16, height: 16, borderRadius: 4, border: "none",
+                  background: "transparent", cursor: "pointer", padding: 0,
+                  color: "#6366f1", marginLeft: 1,
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#c7d2fe" }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+                title="Отменить"
+              >
+                <X size={10} strokeWidth={2.5} />
+              </button>
+            </div>
+            <span style={{ fontSize: 10.5, fontWeight: 600, color: "#a3a3a3" }}>
+              описание задачи · ⌘+↵ отправить
+            </span>
+          </div>
+        )}
+
+        {/* Compose box — position:relative anchors the floating menu */}
+        <div style={{
+          position: "relative",
+          background: composeMode === "description" ? "#faf5ff" : "#fafafa",
+          border: composeMode === "description" ? "1.5px solid #c7d2fe" : "1px solid #f0f0f0",
+          borderRadius: 14,
+          padding: 4,
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+          transition: "border-color 200ms, background 200ms",
+        }}>
+
+          {/* Attach menu — absolutely above the compose box */}
+          {plusMenuOpen && (
+            <div
+              ref={plusMenuRef}
+              style={{
+                position: "absolute",
+                bottom: "calc(100% + 8px)",
+                left: 0,
+                background: "white",
+                border: "1px solid #ebebeb",
+                borderRadius: 14,
+                boxShadow: "0 8px 30px -4px rgba(0,0,0,0.12), 0 2px 8px -2px rgba(0,0,0,0.06)",
+                padding: 6,
+                minWidth: 200,
+                zIndex: 50,
+                animation: "pop_in_up 160ms cubic-bezier(0.16,1,0.3,1) both",
+              }}
+            >
+              <div style={{
+                fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
+                textTransform: "uppercase", color: "#a3a3a3",
+                padding: "4px 10px 8px",
+              }}>
+                Прикрепить
+              </div>
+
+              <button
+                onClick={() => {
+                  if (genesis) return
+                  setComposeMode("description")
+                  setPlusMenuOpen(false)
+                  setTimeout(() => composeRef.current?.focus(), 50)
+                }}
+                disabled={!!genesis}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: 10,
+                  padding: "8px 10px", borderRadius: 10, border: "none",
+                  cursor: genesis ? "not-allowed" : "pointer",
+                  background: "transparent", textAlign: "left",
+                  opacity: genesis ? 0.45 : 1,
+                  transition: "background 100ms, opacity 100ms",
+                }}
+                onMouseEnter={(e) => {
+                  if (!genesis) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                }}
+              >
+                <div style={{
+                  width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                  background: genesis ? "#f5f5f5" : "#eef2ff",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <FileText size={13} color={genesis ? "#a3a3a3" : "#4f46e5"} strokeWidth={1.8} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 800, color: genesis ? "#a3a3a3" : "#0a0a0a", letterSpacing: "-0.01em" }}>
+                    Описание
+                  </div>
+                  <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
+                    {genesis ? "Уже добавлено" : "Описание задачи"}
+                  </div>
+                </div>
+                {genesis && (
+                  <div style={{
+                    marginLeft: "auto", fontSize: 9, fontWeight: 900,
+                    letterSpacing: "0.1em", textTransform: "uppercase",
+                    color: "#c4b5fd", background: "#f5f3ff",
+                    padding: "2px 7px", borderRadius: 6,
+                  }}>
+                    Есть
+                  </div>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* + button — direct flex child, no wrapper div */}
+          <button
+            ref={plusBtnRef}
+            onClick={() => setPlusMenuOpen((v) => !v)}
+            style={{
+              width: 32, height: 32, borderRadius: 10, border: "none",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", flexShrink: 0,
+              background: plusMenuOpen ? "#f0f0f0" : "transparent",
+              color: plusMenuOpen ? "#0a0a0a" : "#a3a3a3",
+              transition: "background 120ms, color 120ms",
+            }}
+            onMouseEnter={(e) => {
+              if (!plusMenuOpen) {
+                (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
+                ;(e.currentTarget as HTMLButtonElement).style.color = "#525252"
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!plusMenuOpen) {
+                (e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                ;(e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+              }
+            }}
+            title="Прикрепить"
+          >
+            <Plus size={16} strokeWidth={2.2} />
+          </button>
+
+          <textarea
+            ref={composeRef}
+            value={newContent}
+            onChange={(e) => {
+              setNewContent(e.target.value)
+              autoResize(e.target)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault()
+                handleSubmitWithMode()
+              }
+              if (e.key === "Escape" && composeMode === "description") {
+                setComposeMode("text")
+                setNewContent("")
+              }
+            }}
+            placeholder={
+              composeMode === "description"
+                ? "Введите описание задачи…"
+                : "Написать в ветку… ⌘+↵ — отправить"
             }
-          }}
-          placeholder="Написать в ветку… ⌘+↵ — отправить"
-          maxLength={COMMENT_MAX}
-          disabled={submitting}
-          style={{
-            flex: 1, background: "transparent", border: "none", outline: "none",
-            padding: "9px 12px", fontSize: 12.5, fontWeight: 500, lineHeight: 1.5,
-            fontFamily: "inherit", color: "#262626",
-            resize: "none", maxHeight: 80, overflowY: "auto",
-          }}
-        />
-        <button
-          onClick={handleSubmit}
-          disabled={!newContent.trim() || submitting}
-          style={{
-            width: 32, height: 32, borderRadius: 10, border: "none",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: newContent.trim() && !submitting ? "pointer" : "default",
-            background: newContent.trim() && !submitting ? "#0a0a0a" : "#e5e5e5",
-            flexShrink: 0,
-            transition: "background 120ms",
-          }}
-        >
-          <Send size={14} color={newContent.trim() && !submitting ? "white" : "#a3a3a3"} />
-        </button>
+            maxLength={composeMode === "description" ? GENESIS_MAX : COMMENT_MAX}
+            disabled={submitting}
+            style={{
+              flex: 1, background: "transparent", border: "none", outline: "none",
+              padding: "9px 12px", fontSize: 12.5, fontWeight: 500, lineHeight: 1.5,
+              fontFamily: "inherit", color: "#262626",
+              resize: "none", maxHeight: 80, overflowY: "auto",
+            }}
+          />
+          <button
+            onClick={handleSubmitWithMode}
+            disabled={!newContent.trim() || submitting}
+            style={{
+              width: 32, height: 32, borderRadius: 10, border: "none",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: newContent.trim() && !submitting ? "pointer" : "default",
+              background: newContent.trim() && !submitting
+                ? (composeMode === "description" ? "#4f46e5" : "#0a0a0a")
+                : "#e5e5e5",
+              flexShrink: 0,
+              transition: "background 120ms",
+            }}
+          >
+            <Send size={14} color={newContent.trim() && !submitting ? "white" : "#a3a3a3"} />
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -13,6 +13,7 @@ using Planora.Todo.Application.Features.Todos.Queries.GetTodoById;
 using Planora.Todo.Application.Features.Todos.Commands.JoinTodo;
 using Planora.Todo.Application.Features.Todos.Commands.LeaveTodo;
 using Planora.Todo.Application.Features.Todos.Commands.AddComment;
+using Planora.Todo.Application.Features.Todos.Commands.AddGenesisComment;
 using Planora.Todo.Application.Features.Todos.Commands.UpdateComment;
 using Planora.Todo.Application.Features.Todos.Commands.DeleteComment;
 using Planora.Todo.Application.Features.Todos.Queries.GetComments;
@@ -215,6 +216,21 @@ namespace Planora.Todo.Api.Controllers
             return Ok(result.Value);
         }
 
+        [HttpPost("{id}/genesis")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<TodoCommentDto>> AddGenesisComment(
+            [FromRoute] Guid id,
+            [FromBody] AddGenesisCommentRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _mediator.Send(new AddGenesisCommentCommand(id, request.Content), cancellationToken);
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+            return StatusCode(StatusCodes.Status201Created, result.Value);
+        }
+
         [HttpPost("{id}/comments")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -270,5 +286,6 @@ public sealed record SetViewerPreferenceRequest(
     Guid? ViewerCategoryId = null,
     bool UpdateViewerCategory = false,
     bool? CompletedByViewer = null);
+public sealed record AddGenesisCommentRequest(string Content);
 public sealed record AddCommentRequest(string Content);
 public sealed record UpdateCommentRequest(string Content);

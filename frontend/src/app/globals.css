@@ -362,6 +362,18 @@
 .branch-scroll::-webkit-scrollbar-thumb { background: #e5e5e5; border-radius: 4px; }
 .branch-scroll::-webkit-scrollbar-track { background: transparent; }
 
+/* Compose attach-menu (rises from below) */
+@keyframes pop_in_up {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+/* Mode chip slide-in from left */
+@keyframes chip_enter {
+  from { opacity: 0; transform: translateX(-8px) scale(0.92); }
+  to   { opacity: 1; transform: translateX(0)    scale(1);    }
+}
+
 /* Spellcheck/grammar underline color */
 ::spelling-error {
   text-decoration: underline wavy #000;
