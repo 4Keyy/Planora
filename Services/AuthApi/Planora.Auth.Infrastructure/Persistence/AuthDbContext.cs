@@ -1,21 +1,26 @@
 using Planora.Auth.Infrastructure.Auditing;
 using Planora.BuildingBlocks.Infrastructure.Inbox;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Planora.BuildingBlocks.Domain;
+using System.Security.Cryptography;
 
 namespace Planora.Auth.Infrastructure.Persistence;
 
 public sealed class AuthDbContext : DbContext, IApplicationDbContext
 {
     private readonly IDomainEventDispatcher _domainEventDispatcher;
+    private readonly IDataProtectionProvider? _dataProtectionProvider;
 
     public AuthDbContext(
         DbContextOptions<AuthDbContext> options,
-        IDomainEventDispatcher domainEventDispatcher)
+        IDomainEventDispatcher domainEventDispatcher,
+        IDataProtectionProvider? dataProtectionProvider = null)
         : base(options)
     {
         _domainEventDispatcher = domainEventDispatcher;
+        _dataProtectionProvider = dataProtectionProvider;
     }
 
     public DbSet<User> Users => Set<User>();
@@ -26,6 +31,7 @@ public sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<Friendship> Friendships => Set<Friendship>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<PasswordHistory> PasswordHistory => Set<PasswordHistory>();
+    public DbSet<UserRecoveryCode> UserRecoveryCodes => Set<UserRecoveryCode>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
@@ -40,6 +46,26 @@ public sealed class AuthDbContext : DbContext, IApplicationDbContext
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        ApplyTotpSecretEncryption(modelBuilder);
+    }
+
+    private void ApplyTotpSecretEncryption(ModelBuilder modelBuilder)
+    {
+        if (_dataProtectionProvider is null) return;
+
+        var protector = _dataProtectionProvider.CreateProtector("Planora.TwoFactorSecret.v1");
+        modelBuilder.Entity<User>()
+            .Property(u => u.TwoFactorSecret)
+            .HasConversion(
+                v => v == null ? null : protector.Protect(v),
+                v => UnprotectSafe(protector, v));
+    }
+
+    private static string? UnprotectSafe(IDataProtector protector, string? value)
+    {
+        if (value is null) return null;
+        try { return protector.Unprotect(value); }
+        catch (CryptographicException) { return null; }
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

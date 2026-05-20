@@ -45,7 +45,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValue(false);
 
         builder.Property(u => u.TwoFactorSecret)
-            .HasMaxLength(500);
+            .HasMaxLength(1024); // encrypted via DataProtection; larger than plaintext Base32
 
         builder.Ignore(u => u.IsActive);
 
