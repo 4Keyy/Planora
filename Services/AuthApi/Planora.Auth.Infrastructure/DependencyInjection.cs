@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Planora.Auth.Infrastructure.Security;
 using Planora.Auth.Infrastructure.Services.Authentication;
 using Planora.Auth.Application.Common.Options;
@@ -5,6 +6,7 @@ using Planora.Auth.Infrastructure.Services.Common;
 using Planora.Auth.Infrastructure.Services.Messaging;
 using Planora.Auth.Infrastructure.Services.Security;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
+using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Messaging;
 using Planora.Auth.Infrastructure.HealthChecks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -34,6 +36,9 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("AuthDatabase")
             ?? throw new InvalidOperationException("AuthDatabase connection string is not configured");
+
+        services.AddDataProtection()
+            .SetApplicationName("Planora.Auth");
 
         services.AddDbContext<AuthDbContext>(options =>
         {
@@ -69,6 +74,8 @@ public static class DependencyInjection
         services.AddScoped<IPasswordResetTokenService, PasswordResetTokenService>();
         services.AddScoped<ITwoFactorService, TwoFactorService>();
         services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
+        services.AddScoped<ISecurityStampService, SecurityStampService>();
+        services.AddScoped<IRecoveryCodeService, RecoveryCodeService>();
 
         AddJwtAuthentication(services, configuration);
     }
@@ -118,11 +125,13 @@ public static class DependencyInjection
 
     private static void AddGrpcServices(IServiceCollection services, IConfiguration configuration)
     {
+        services.AddSingleton<ServiceKeyServerInterceptor>();
         services.AddGrpc(options =>
         {
             options.EnableDetailedErrors = configuration.GetValue<bool>("Grpc:EnableDetailedErrors", false);
             options.MaxReceiveMessageSize = 4 * 1024 * 1024;
             options.MaxSendMessageSize = 4 * 1024 * 1024;
+            options.Interceptors.Add<ServiceKeyServerInterceptor>();
         });
     }
 

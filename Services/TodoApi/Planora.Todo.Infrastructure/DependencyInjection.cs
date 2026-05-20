@@ -1,5 +1,6 @@
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Repositories;
@@ -43,17 +44,20 @@ namespace Planora.Todo.Infrastructure
             services.AddScoped<ICurrentUserContext, CurrentUserContext>();
             
             // gRPC client for Auth API friendship checks
+            services.AddSingleton<ServiceKeyClientInterceptor>();
             var authGrpcUrl = configuration["GrpcServices:AuthApi"]
                 ?? configuration["Services:Auth:Url"]
                 ?? "http://localhost:5031";
             services.AddGrpcClient<AuthService.AuthServiceClient>(o =>
-                o.Address = new Uri(authGrpcUrl));
+                    o.Address = new Uri(authGrpcUrl))
+                .AddInterceptor<ServiceKeyClientInterceptor>();
             services.AddScoped<IFriendshipService, Services.FriendshipGrpcService>();
 
             // gRPC client for Category API (port 5282 local / env-configurable)
             var categoryGrpcUrl = configuration["GrpcServices:CategoryApi"] ?? "http://localhost:5282";
             services.AddGrpcClient<CategoryService.CategoryServiceClient>(o =>
-                o.Address = new Uri(categoryGrpcUrl));
+                    o.Address = new Uri(categoryGrpcUrl))
+                .AddInterceptor<ServiceKeyClientInterceptor>();
             services.AddScoped<ICategoryGrpcClient, CategoryGrpcClient>();
 
             services.AddHealthChecks()
