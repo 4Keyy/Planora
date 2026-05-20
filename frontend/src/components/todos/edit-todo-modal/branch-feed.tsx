@@ -18,7 +18,6 @@ interface BranchFeedProps {
   todoId: string
   isOwner: boolean
   refreshKey?: number
-  currentUserName?: string | null
 }
 
 // Flat list item (day separator or comment)
@@ -40,7 +39,7 @@ function buildFeed(comments: TodoComment[]): FeedItem[] {
   return items
 }
 
-export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: BranchFeedProps) {
+export function BranchFeed({ todoId, isOwner, refreshKey }: BranchFeedProps) {
   const [comments,   setComments]   = useState<TodoComment[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page,       setPage]       = useState(1)
@@ -83,24 +82,6 @@ export function BranchFeed({ todoId, isOwner, refreshKey, currentUserName }: Bra
   const scrollToBottom = () => {
     if (feedRef.current) {
       feedRef.current.scrollTop = feedRef.current.scrollHeight
-    }
-  }
-
-  const handleSubmit = async () => {
-    const content = newContent.trim()
-    if (!content || submitting) return
-    setSubmitting(true)
-    setError(null)
-    try {
-      const c = await addComment(todoId, content)
-      setComments((prev) => [...prev, c])
-      setTotalCount((n) => n + 1)
-      setNewContent("")
-      setTimeout(scrollToBottom, 40)
-    } catch (e) {
-      setError(getApiErrorMessage(e))
-    } finally {
-      setSubmitting(false)
     }
   }
 

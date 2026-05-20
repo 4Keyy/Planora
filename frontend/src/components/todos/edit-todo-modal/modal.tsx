@@ -379,7 +379,6 @@ export function EditTodoModal({
               todoId={todo.id}
               isOwner={isOwner}
               refreshKey={commentsRefreshKey}
-              currentUserName={viewerName}
             />
           </div>
 
