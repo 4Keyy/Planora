@@ -9,6 +9,7 @@ namespace Planora.Auth.Infrastructure.Persistence
         private IRefreshTokenRepository? _refreshTokens;
         private ILoginHistoryRepository? _loginHistory;
         private IPasswordHistoryRepository? _passwordHistory;
+        private IUserRecoveryCodeRepository? _recoveryCodes;
 
         public AuthUnitOfWork(AuthDbContext context)
         {
@@ -26,6 +27,9 @@ namespace Planora.Auth.Infrastructure.Persistence
 
         public IPasswordHistoryRepository PasswordHistory =>
             _passwordHistory ??= new PasswordHistoryRepository(_context);
+
+        public IUserRecoveryCodeRepository RecoveryCodes =>
+            _recoveryCodes ??= new UserRecoveryCodeRepository(_context);
 
         public bool HasActiveTransaction => _currentTransaction != null;
 

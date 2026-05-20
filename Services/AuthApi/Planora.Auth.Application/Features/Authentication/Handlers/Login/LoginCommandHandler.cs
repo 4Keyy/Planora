@@ -15,6 +15,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
         private readonly IPasswordHasher _passwordHasher;
         private readonly ITokenService _tokenService;
         private readonly ITwoFactorService _twoFactorService;
+        private readonly IRecoveryCodeService _recoveryCodeService;
         private readonly ICurrentUserService _currentUserService;
         private readonly IBusinessEventLogger _businessLogger;
         private readonly ILogger<LoginCommandHandler> _logger;
@@ -24,6 +25,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
             IPasswordHasher passwordHasher,
             ITokenService tokenService,
             ITwoFactorService twoFactorService,
+            IRecoveryCodeService recoveryCodeService,
             ICurrentUserService currentUserService,
             IBusinessEventLogger businessLogger,
             ILogger<LoginCommandHandler> logger)
@@ -32,6 +34,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
             _passwordHasher = passwordHasher;
             _tokenService = tokenService;
             _twoFactorService = twoFactorService;
+            _recoveryCodeService = recoveryCodeService;
             _currentUserService = currentUserService;
             _businessLogger = businessLogger;
             _logger = logger;
@@ -87,20 +90,30 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
                     throw new UnauthorizedAccessException("Two-factor authentication code is required");
                 }
 
-                if (!await _twoFactorService.VerifyCodeAsync(user.TwoFactorSecret!, command.TwoFactorCode, user.Id, cancellationToken))
-                {
-                    _logger.LogWarning("Invalid 2FA code for user: {UserId}", user.Id);
-                    await _unitOfWork.Users.HandleFailedLoginAsync(user.Id, cancellationToken);
-                    var failedLoginHistory = new LoginHistory(
-                        user.Id,
-                        _currentUserService.IpAddress ?? "unknown",
-                        _currentUserService.UserAgent ?? "unknown",
-                        false,
-                        "Invalid two-factor authentication code");
-                    await _unitOfWork.LoginHistory.AddAsync(failedLoginHistory, cancellationToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                var totpValid = await _twoFactorService.VerifyCodeAsync(
+                    user.TwoFactorSecret!, command.TwoFactorCode, user.Id, cancellationToken);
 
-                    throw new UnauthorizedAccessException("Invalid two-factor authentication code");
+                if (!totpValid)
+                {
+                    // Fall back to single-use recovery code
+                    var recoveryValid = await _recoveryCodeService.ValidateAndConsumeCodeAsync(
+                        user.Id, command.TwoFactorCode, cancellationToken);
+
+                    if (!recoveryValid)
+                    {
+                        _logger.LogWarning("Invalid 2FA code for user: {UserId}", user.Id);
+                        await _unitOfWork.Users.HandleFailedLoginAsync(user.Id, cancellationToken);
+                        var failedLoginHistory = new LoginHistory(
+                            user.Id,
+                            _currentUserService.IpAddress ?? "unknown",
+                            _currentUserService.UserAgent ?? "unknown",
+                            false,
+                            "Invalid two-factor authentication code");
+                        await _unitOfWork.LoginHistory.AddAsync(failedLoginHistory, cancellationToken);
+                        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                        throw new UnauthorizedAccessException("Invalid two-factor authentication code");
+                    }
                 }
             }
 

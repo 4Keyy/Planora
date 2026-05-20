@@ -9,5 +9,7 @@ namespace Planora.Auth.Domain.Repositories
         ILoginHistoryRepository LoginHistory { get; }
 
         IPasswordHistoryRepository PasswordHistory { get; }
+
+        IUserRecoveryCodeRepository RecoveryCodes { get; }
     }
 }

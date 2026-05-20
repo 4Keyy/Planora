@@ -236,7 +236,11 @@ namespace Planora.Auth.Api.Controllers
                 return BadRequest(result.Error);
             }
 
-            return Ok(new { message = "Two-factor authentication enabled successfully" });
+            return Ok(new
+            {
+                message = "Two-factor authentication enabled successfully",
+                recoveryCodes = result.Value
+            });
         }
 
         [HttpPost("me/2fa/disable")]
