@@ -9,6 +9,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangePassword
         private readonly IPasswordValidator _passwordValidator;
         private readonly ICurrentUserService _currentUserService;
         private readonly IEmailService _emailService;
+        private readonly ISecurityStampService _securityStamp;
         private readonly ILogger<ChangePasswordCommandHandler> _logger;
 
         public ChangePasswordCommandHandler(
@@ -17,6 +18,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangePassword
             IPasswordValidator passwordValidator,
             ICurrentUserService currentUserService,
             IEmailService emailService,
+            ISecurityStampService securityStamp,
             ILogger<ChangePasswordCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
@@ -24,6 +26,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangePassword
             _passwordValidator = passwordValidator;
             _currentUserService = currentUserService;
             _emailService = emailService;
+            _securityStamp = securityStamp;
             _logger = logger;
         }
 
@@ -109,6 +112,9 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangePassword
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             await _unitOfWork.PasswordHistory.DeleteOldHistoryAsync(user.Id, 5, cancellationToken);
+
+            // Invalidate all access tokens issued before this point
+            await _securityStamp.SetStampAsync(user.Id, cancellationToken);
 
             await _emailService.SendPasswordChangedNotificationAsync(
                 user.Email.Value,

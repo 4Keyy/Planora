@@ -9,6 +9,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.ResetPasswor
         private readonly IPasswordValidator _passwordValidator;
         private readonly IPasswordResetTokenService _tokenService;
         private readonly IEmailService _emailService;
+        private readonly ISecurityStampService _securityStamp;
         private readonly ILogger<ResetPasswordCommandHandler> _logger;
 
         public ResetPasswordCommandHandler(
@@ -17,6 +18,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.ResetPasswor
             IPasswordValidator passwordValidator,
             IPasswordResetTokenService tokenService,
             IEmailService emailService,
+            ISecurityStampService securityStamp,
             ILogger<ResetPasswordCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
@@ -24,6 +26,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.ResetPasswor
             _passwordValidator = passwordValidator;
             _tokenService = tokenService;
             _emailService = emailService;
+            _securityStamp = securityStamp;
             _logger = logger;
         }
 
@@ -88,6 +91,9 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.ResetPasswor
 
                 _unitOfWork.Users.Update(user);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // Invalidate all access tokens issued before this point
+                await _securityStamp.SetStampAsync(user.Id, cancellationToken);
 
                 await _emailService.SendPasswordChangedNotificationAsync(
                     user.Email.Value,
