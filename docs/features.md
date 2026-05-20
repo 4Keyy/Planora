@@ -81,7 +81,11 @@ Let users manage profile data, password/email changes, email verification, sessi
 | Password strength | min 8, max 128, uppercase, lowercase, digit, special char; also weak/sequential/repeating checks in infrastructure. |
 | Email verification | registration/change-email create a 24-hour token; `GET /auth/api/v1/users/verify-email?token=...` confirms it; profile `POST /me/verify-email` sends a fresh link for the signed-in user. `Email__Provider=GmailSmtp` sends real Gmail messages; default `Log` provider writes links to Auth API logs. User DTOs expose `isEmailVerified` and `emailVerifiedAt`. |
 | Compromised password check | HIBP k-anonymity lookup is enabled by config default in `PasswordValidator`; lookup failure logs and does not block. |
-| 2FA | enable returns setup data, confirm requires a 6-digit code, disable requires password. |
+| 2FA enable | returns setup data (secret + QR code URL). |
+| 2FA confirm | requires a 6-digit TOTP code; on success returns 10 single-use recovery codes formatted `XXXXX-XXXXX`. Codes are hashed with BCrypt before storage and each is consumed once on use. A new set is generated on every re-confirmation. |
+| 2FA login | TOTP code is tried first; if it fails, a recovery code is accepted as a fallback. |
+| TOTP secret | encrypted at rest with ASP.NET Core Data Protection. |
+| Password change / reset | invalidates all existing access tokens via per-user security stamp in Redis. |
 | Admin users | admin-only user list/statistics/detail endpoints exist. |
 
 ### Frontend Behavior

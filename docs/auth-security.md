@@ -88,6 +88,22 @@ Code:
 - `Planora.ApiGateway/Program.cs`
 - service `Program.cs` files
 
+## gRPC Inter-Service Authentication
+
+Internal gRPC calls between services are authenticated with a shared secret (`GRPC_SERVICE_KEY`). The server-side `ServiceKeyServerInterceptor` reads the `x-service-key` metadata header from each incoming call and returns `StatusCode.Unauthenticated` if the header is missing or does not match. The client-side `ServiceKeyClientInterceptor` attaches the secret to every outbound call.
+
+Configure with:
+
+```
+GRPC_SERVICE_KEY=<random-hex-at-least-32-chars>
+```
+
+Code:
+
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyServerInterceptor.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyClientInterceptor.cs`
+- `docs/configuration.md` — environment variable reference
+
 ## Authorization And Roles
 
 Most APIs require `[Authorize]`. Admin-only endpoints are marked with `[Authorize(Roles = "Admin")]`.
@@ -129,11 +145,41 @@ TOTP 2FA is exposed through `UsersController`:
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /auth/api/v1/users/me/2fa/enable` | generate/setup 2FA |
-| `POST /auth/api/v1/users/me/2fa/confirm` | confirm with code |
+| `POST /auth/api/v1/users/me/2fa/enable` | generate TOTP setup (secret + QR code URL) |
+| `POST /auth/api/v1/users/me/2fa/confirm` | confirm with TOTP code — returns 10 recovery codes |
 | `POST /auth/api/v1/users/me/2fa/disable` | disable with password |
 
 Packages `Otp.NET` and `QRCoder` are centrally referenced in `Directory.Packages.props`.
+
+### TOTP Secret Encryption
+
+TOTP secrets are encrypted at rest using ASP.NET Core Data Protection (`IDataProtector`). The protector purpose is `"TotpSecretProtection"`. Encryption and decryption are applied by an EF Core value converter registered in `AuthDbContext`. The Data Protection key ring is managed by the runtime and scoped to the application name `"Planora.Auth"`.
+
+Code:
+
+- `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs` — value converter wires encryption into EF Core
+- `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs` — registers `AddDataProtection().SetApplicationName(...)`
+
+### 2FA Recovery Codes
+
+When 2FA is confirmed, the server generates 10 single-use recovery codes formatted `XXXXX-XXXXX` using a cryptographically secure alphabet (`A-Z0-9`). Codes are hashed with BCrypt before storage and can be used in place of a TOTP code at login. Using a code marks it as consumed. New codes are generated on every re-confirmation, replacing all previous codes.
+
+Code:
+
+- `Services/AuthApi/Planora.Auth.Application/Common/Interfaces/IRecoveryCodeService.cs`
+- `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/RecoveryCodeService.cs`
+- `Services/AuthApi/Planora.Auth.Domain/Entities/UserRecoveryCode.cs`
+- `Services/AuthApi/Planora.Auth.Domain/Repositories/IUserRecoveryCodeRepository.cs`
+
+## Access Token Invalidation (Security Stamp)
+
+When a user changes their password, all existing access tokens are invalidated by updating a per-user security stamp in Redis. The `TokenBlacklistFilter` validates the security stamp on every authorized request; mismatches return `401 Unauthorized` and force the client to re-authenticate with the new credentials.
+
+Code:
+
+- `Services/AuthApi/Planora.Auth.Application/Common/Interfaces/ISecurityStampService.cs`
+- `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`
+- `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`
 
 ## Rate Limiting
 
@@ -172,19 +218,23 @@ All backend services apply security headers through a single shared middleware. 
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Strict-Transport-Security` outside development
 
-Frontend `next.config.js` also sets:
+Frontend static headers (set in `next.config.js`):
 
 - `X-Frame-Options`
 - `X-Content-Type-Options`
 - `Referrer-Policy`
 - `Permissions-Policy`
-- `Content-Security-Policy`
 - production HSTS
+
+Content-Security-Policy is set **per-request** with a unique nonce by `src/middleware.ts` (Next.js Edge Middleware) instead of a static header in `next.config.js`. Each request generates a `crypto.randomUUID()`-based nonce in base64, which is injected into the CSP `script-src` directive and forwarded to the app via the `x-nonce` request header. In development, `'unsafe-eval'` is added to support hot-module replacement.
+
+`style-src 'unsafe-inline'` is retained because Tailwind CSS and Next.js SSR emit inline `<style>` tags that cannot be attributed with nonces without forking the framework internals.
 
 Code:
 
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/SecurityHeadersMiddleware.cs` — single source of truth for all services
-- `frontend/next.config.js`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/SecurityHeadersMiddleware.cs` — single source of truth for all backend services
+- `frontend/src/middleware.ts` — per-request nonce CSP for the Next.js app
+- `frontend/next.config.js` — static security headers only (CSP removed)
 
 ## CORS
 

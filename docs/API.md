@@ -266,7 +266,7 @@ Canonical prefix: `/auth/api/v1/users`
 | `POST` | `/me/verify-email` | bearer + CSRF | send/resend verification link; legacy body token also verifies |
 | `GET` | `/me/security` | bearer | security summary |
 | `POST` | `/me/2fa/enable` | bearer + CSRF | start TOTP setup |
-| `POST` | `/me/2fa/confirm` | bearer + CSRF | confirm TOTP |
+| `POST` | `/me/2fa/confirm` | bearer + CSRF | confirm TOTP — returns 10 single-use recovery codes |
 | `POST` | `/me/2fa/disable` | bearer + CSRF | disable TOTP |
 | `GET` | `/me/sessions` | bearer | list sessions |
 | `DELETE` | `/me/sessions/{tokenId}` | bearer + CSRF | revoke session |
@@ -289,6 +289,20 @@ Profile update body:
 ```
 
 Delete/revoke-all/disable-2FA bodies require `password`. Confirm 2FA body requires `code`.
+
+Confirm 2FA success response shape:
+
+```json
+{
+  "message": "Two-factor authentication enabled successfully",
+  "recoveryCodes": [
+    "ABCDE-12345",
+    "FGHIJ-67890"
+  ]
+}
+```
+
+The `recoveryCodes` array contains exactly 10 codes formatted `XXXXX-XXXXX`. Each code is single-use and can be entered in place of a TOTP code at login. Store them securely — they are only returned once. A new set replaces all previous codes on every re-confirmation.
 
 ## Friendships
 

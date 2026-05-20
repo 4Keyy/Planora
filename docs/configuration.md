@@ -29,6 +29,7 @@ These are enforced with `${VAR:?message}` in `docker-compose.yml`.
 | `RABBITMQ_USER` | yes | RabbitMQ container and backend containers | Sets `RABBITMQ_DEFAULT_USER` and service credentials. |
 | `RABBITMQ_PASSWORD` | yes | RabbitMQ container and backend containers | Sets `RABBITMQ_DEFAULT_PASS` and service credentials. |
 | `JWT_SECRET` | yes | all backend services and gateway through `JwtSettings__Secret` | Must be at least 32 characters and identical for every service. |
+| `GRPC_SERVICE_KEY` | yes | Auth API → Todo/Category API gRPC calls | Authenticates internal gRPC channels via `x-service-key` metadata. Must be at least 32 characters and identical for all services. |
 
 ## Production Environment Template
 
