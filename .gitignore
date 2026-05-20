@@ -76,6 +76,7 @@ KIRO.md
 ROO.md
 CRUSH.md
 AMP.md
+AGENTS.md
 AGENTS.local.md
 AGENTS.*.local.md
 codex-*.json
@@ -181,3 +182,4 @@ local-data/
 # Knowledge graph (generated — rebuild with /graphify)
 graphify-out/
 .graphify_*
+.graphifyignore
