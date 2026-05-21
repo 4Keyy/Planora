@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Planora.BuildingBlocks.Infrastructure.Security;
+using StackExchange.Redis;
 
 namespace Planora.BuildingBlocks.Infrastructure.Extensions;
 
@@ -17,9 +19,11 @@ public static class JwtAuthenticationExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var jwtSecret = configuration["JwtSettings:Secret"] 
+        var jwtSecret = configuration["JwtSettings:Secret"]
             ?? throw new InvalidOperationException("JwtSettings:Secret is not configured");
-        var jwtIssuer = configuration["JwtSettings:Issuer"] 
+        if (jwtSecret.Length < 32)
+            throw new InvalidOperationException("JwtSettings:Secret must be at least 32 characters long.");
+        var jwtIssuer = configuration["JwtSettings:Issuer"]
             ?? throw new InvalidOperationException("JwtSettings:Issuer is not configured");
         var jwtAudience = configuration["JwtSettings:Audience"] 
             ?? throw new InvalidOperationException("JwtSettings:Audience is not configured");
@@ -50,10 +54,15 @@ public static class JwtAuthenticationExtensions
 
             options.Events = new JwtBearerEvents
             {
-                OnTokenValidated = context =>
+                OnTokenValidated = async context =>
                 {
-                    // JWT claims are automatically mapped to HttpContext.User
-                    return Task.CompletedTask;
+                    // SECURITY: reject access tokens issued before the user's last
+                    // password change (Auth service writes the stamp to Redis).
+                    var redis = context.HttpContext.RequestServices.GetService<IConnectionMultiplexer>();
+                    if (await SecurityStampValidator.IsTokenRevokedAsync(redis, context.Principal))
+                    {
+                        context.Fail("Token revoked by a security event");
+                    }
                 },
                 OnAuthenticationFailed = context =>
                 {

@@ -4,6 +4,7 @@ using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
 using Planora.Category.Application.Features.IntegrationEvents;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Filters;
+using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Middleware;
 using Planora.BuildingBlocks.Infrastructure.Logging;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
@@ -74,8 +75,12 @@ namespace Planora.Category.Api
                         .AllowCredentials());
             });
 
-            // gRPC
-            builder.Services.AddGrpc();
+            // gRPC — service-key authentication on inter-service channels
+            builder.Services.AddSingleton<ServiceKeyServerInterceptor>();
+            builder.Services.AddGrpc(options =>
+            {
+                options.Interceptors.Add<ServiceKeyServerInterceptor>();
+            });
 
             // Controllers
             builder.Services.AddControllers(options =>

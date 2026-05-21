@@ -89,7 +89,8 @@ namespace Planora.Todo.Api.Controllers
             [FromBody] CreateTodoCommand command,
             CancellationToken cancellationToken = default)
         {
-            var result = await _mediator.Send(command, cancellationToken);
+            var createCommand = command with { UserId = null }; // Owner is resolved from JWT, never the request body
+            var result = await _mediator.Send(createCommand, cancellationToken);
             
             if (result.IsFailure)
                 return BadRequest(result.Error);

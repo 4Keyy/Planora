@@ -49,6 +49,26 @@ describe("useFriends", () => {
     expect(result.current[200].id).toBe("friend-201")
   })
 
+  it("stops paging when a page returns fewer items than the page size", async () => {
+    // The page claims a next page but is shorter than pageSize — the
+    // short-page guard must stop the loop after the first request.
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: page([friend("only")], true) })
+
+    const { result } = renderHook(() => useFriends(true))
+
+    await waitFor(() => expect(result.current).toHaveLength(1))
+    expect(api.get).toHaveBeenCalledTimes(1)
+  })
+
+  it("treats a missing items array as an empty page", async () => {
+    vi.spyOn(api, "get").mockResolvedValueOnce({ data: { ...page([]), items: undefined } })
+
+    const { result } = renderHook(() => useFriends(true))
+
+    await waitFor(() => expect(api.get).toHaveBeenCalled())
+    expect(result.current).toEqual([])
+  })
+
   it("silently falls back to an empty list when loading fails", async () => {
     vi.spyOn(api, "get").mockRejectedValue(new Error("offline"))
 

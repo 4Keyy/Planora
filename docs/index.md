@@ -48,7 +48,7 @@ This repository includes a generated knowledge graph:
 - `graphify-out/wiki/index.md`
 - `graphify-out/graph.json`
 
-For architecture and cross-module questions, check the graph first and use the wiki to decide which raw files to inspect. This is also required by the project-level AGENTS instructions.
+For architecture and cross-module questions, check the graph first and use the wiki to decide which raw files to inspect. The `graphify-out/` directory is generated locally (it is git-ignored) — rebuild it with the Graphify tooling if it is missing.
 
 ## Main Code References
 

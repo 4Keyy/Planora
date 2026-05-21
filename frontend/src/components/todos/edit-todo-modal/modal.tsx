@@ -41,11 +41,6 @@ export function EditTodoModal({
   commentsRefreshKey,
 }: EditTodoModalProps) {
   const viewerId = useAuthStore((s) => s.user?.userId)
-  const viewerName = useAuthStore((s) => {
-    const u = s.user as (typeof s.user & { firstName?: string; lastName?: string }) | null
-    if (!u) return null
-    return [u.firstName, u.lastName].filter(Boolean).join(" ") || null
-  })
 
   const isOwner          = isTodoOwner(todo, viewerId)
   const isFriendVisible  = todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0

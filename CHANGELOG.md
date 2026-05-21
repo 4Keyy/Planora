@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Security — Phase 2 audit fixes
+
+- **Critical — CSP nonce never applied**: the per-request CSP nonce was sent in the response header, but Next.js never received it (CSP was not on the request headers) and every route was statically prerendered, so the strict `script-src` blocked the framework's own inline scripts. The middleware now forwards the CSP on the request headers and the root layout opts every route into dynamic rendering, so Next.js stamps the matching nonce on all inline scripts (`frontend/src/middleware.ts`, `frontend/src/app/layout.tsx`).
+- **High — CreateTodo owner spoofing**: `TodosController.CreateTodo` bound `CreateTodoCommand.UserId` from the request body, letting any authenticated user create todos owned by another account. The controller now nulls the field so the owner is always the JWT subject, matching `CategoriesController`/`MessagesController` (`Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`).
+- **High — gRPC service-key auth incomplete**: only AuthApi validated the `x-service-key`. `ServiceKeyServerInterceptor` is now registered on the Todo, Category, Messaging, and Realtime gRPC servers as well; both interceptors reject keys shorter than 16 characters at startup (`Services/*/Program.cs`, `BuildingBlocks/.../Grpc/ServiceKey*Interceptor.cs`).
+- **High — Data Protection key ring not persisted**: encrypted TOTP secrets became undecryptable after a container restart because the key ring was container-ephemeral. The key ring is now persisted to Redis under `Planora:Auth:DataProtection-Keys` (`Services/AuthApi/.../DependencyInjection.cs`).
+- **High — access-token revocation only on AuthApi**: the password-change security stamp was checked only by AuthApi. A shared `SecurityStampValidator` is now invoked from the `OnTokenValidated` hook of every JWT-consuming service (Todo, Category, Messaging, Realtime), so a stolen token is rejected service-wide after a password change (`BuildingBlocks/.../Security/SecurityStampValidator.cs`).
+- **Medium — JWT signing-key length not enforced**: the live AuthApi and shared consumer JWT paths now reject a `JwtSettings:Secret` shorter than 32 characters (`Services/AuthApi/.../DependencyInjection.cs`, `BuildingBlocks/.../Extensions/JwtAuthenticationExtensions.cs`).
+- **Config**: `GRPC_SERVICE_KEY` is now passed to `realtime-api` in `docker-compose.yml` and documented in `.env.production.example`.
+- **Tests**: added unit tests for `SecurityStampValidator` (revocation, claim parsing, fail-open), the gRPC `ServiceKey*Interceptor` pair (key validation and request rejection), and the `CreateTodo` owner-spoofing fix.
+
 ### Security — Phase 1 audit fixes
 
 - **Critical — TOTP replay protection**: `TwoFactorService` previously discarded the `out long timeStepMatched` parameter, making it impossible to detect replay attacks within a 5-step window. Rewritten to capture the matched time-step and atomically record it in Redis (`SETNX totp:used:{userId}:{step}`, TTL=3 min). Service fails closed when Redis is unavailable. Interface updated to async `VerifyCodeAsync(string, string, Guid, CancellationToken)` (`Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/TwoFactorService.cs`).
@@ -20,11 +31,9 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Known security limitations (tracked, not yet fixed)
 
-- **Critical — TOTP secret stored in plaintext**: `TwoFactorSecret` has no `HasConversion` encryption in EF Core configuration (`Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Configurations/UserConfiguration.cs:47`). Requires ASP.NET Data Protection API integration.
-- **Critical — gRPC endpoints unauthenticated**: All four gRPC services accept caller-supplied `UserId` with no server-side JWT validation. Architectural change needed (add `[Authorize]` + forward JWT from gateway).
-- **High — Access tokens not blacklisted on password reset**: Refresh tokens are revoked on password change, but existing access tokens remain valid until expiry (up to 60 min in Docker). A per-user "security stamp" in Redis with JWT `iat` comparison would fix this.
-- **High — No 2FA recovery codes**: Password reset bypasses 2FA; no backup codes exist for account recovery.
-- **High — `style-src 'unsafe-inline'` in production CSP**: Requires nonce injection via Next.js Middleware to remove `unsafe-inline`.
+- **Medium — `style-src 'unsafe-inline'` in production CSP**: `script-src` is now nonce-based, but `style-src` still allows `'unsafe-inline'` because Tailwind and Next.js inject critical CSS as inline `<style>` tags during SSR (`frontend/src/middleware.ts`). Removing it requires nonce/hash support for inline styles.
+- **Medium — token blacklist/security-stamp checks fail open on Redis outage**: `TokenBlacklistFilter` and `SecurityStampValidator` return "not revoked" if Redis is unavailable, trading strict revocation for availability. Documented trade-off.
+- **Low — gateway gRPC clients are dead code**: `Planora.ApiGateway` registers five gRPC clients (and `AuthGrpcClient`) that are never injected; the gateway routes HTTP via Ocelot only.
 
 ### Security — prior fixes
 

@@ -90,7 +90,7 @@ Code:
 
 ## gRPC Inter-Service Authentication
 
-Internal gRPC calls between services are authenticated with a shared secret (`GRPC_SERVICE_KEY`). The server-side `ServiceKeyServerInterceptor` reads the `x-service-key` metadata header from each incoming call and returns `StatusCode.Unauthenticated` if the header is missing or does not match. The client-side `ServiceKeyClientInterceptor` attaches the secret to every outbound call.
+Internal gRPC calls between services are authenticated with a shared secret (`GRPC_SERVICE_KEY`). Every gRPC server in the system (Auth, Todo, Category, Messaging, Realtime) registers `ServiceKeyServerInterceptor`, which reads the `x-service-key` metadata header from each incoming call using a constant-time comparison and returns `StatusCode.Unauthenticated` if the header is missing or does not match. The client-side `ServiceKeyClientInterceptor` attaches the secret to every outbound call. Both interceptors reject a key shorter than 16 characters at startup.
 
 Configure with:
 
@@ -153,12 +153,12 @@ Packages `Otp.NET` and `QRCoder` are centrally referenced in `Directory.Packages
 
 ### TOTP Secret Encryption
 
-TOTP secrets are encrypted at rest using ASP.NET Core Data Protection (`IDataProtector`). The protector purpose is `"TotpSecretProtection"`. Encryption and decryption are applied by an EF Core value converter registered in `AuthDbContext`. The Data Protection key ring is managed by the runtime and scoped to the application name `"Planora.Auth"`.
+TOTP secrets are encrypted at rest using ASP.NET Core Data Protection (`IDataProtector`). The protector purpose is `"Planora.TwoFactorSecret.v1"`. Encryption and decryption are applied by an EF Core value converter registered in `AuthDbContext`. The Data Protection key ring is scoped to the application name `"Planora.Auth"` and persisted to Redis under `Planora:Auth:DataProtection-Keys`, so encrypted secrets stay decryptable across container restarts.
 
 Code:
 
 - `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs` — value converter wires encryption into EF Core
-- `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs` — registers `AddDataProtection().SetApplicationName(...)`
+- `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs` — registers `AddDataProtection().SetApplicationName(...).PersistKeysToStackExchangeRedis(...)`
 
 ### 2FA Recovery Codes
 
@@ -226,7 +226,7 @@ Frontend static headers (set in `next.config.js`):
 - `Permissions-Policy`
 - production HSTS
 
-Content-Security-Policy is set **per-request** with a unique nonce by `src/middleware.ts` (Next.js Edge Middleware) instead of a static header in `next.config.js`. Each request generates a `crypto.randomUUID()`-based nonce in base64, which is injected into the CSP `script-src` directive and forwarded to the app via the `x-nonce` request header. In development, `'unsafe-eval'` is added to support hot-module replacement.
+Content-Security-Policy is set **per-request** with a unique nonce by `src/middleware.ts` (Next.js Edge Middleware) instead of a static header in `next.config.js`. Each request generates a `crypto.randomUUID()`-based nonce in base64, injected into the CSP `script-src` directive. The middleware sets the CSP on both the response and the forwarded request headers, and the root layout (`src/app/layout.tsx`) opts every route into dynamic rendering (`export const dynamic = "force-dynamic"`), so Next.js reads the nonce and stamps it onto its own inline bootstrap scripts. In development, `'unsafe-eval'` is added to support hot-module replacement.
 
 `style-src 'unsafe-inline'` is retained because Tailwind CSS and Next.js SSR emit inline `<style>` tags that cannot be attributed with nonces without forking the framework internals.
 
