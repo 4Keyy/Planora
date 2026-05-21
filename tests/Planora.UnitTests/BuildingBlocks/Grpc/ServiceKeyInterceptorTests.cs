@@ -1,4 +1,5 @@
 using Grpc.Core;
+using Grpc.Core.Interceptors;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
