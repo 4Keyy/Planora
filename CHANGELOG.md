@@ -11,9 +11,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - **High — gRPC service-key auth incomplete**: only AuthApi validated the `x-service-key`. `ServiceKeyServerInterceptor` is now registered on the Todo, Category, Messaging, and Realtime gRPC servers as well; both interceptors reject keys shorter than 16 characters at startup (`Services/*/Program.cs`, `BuildingBlocks/.../Grpc/ServiceKey*Interceptor.cs`).
 - **High — Data Protection key ring not persisted**: encrypted TOTP secrets became undecryptable after a container restart because the key ring was container-ephemeral. The key ring is now persisted to Redis under `Planora:Auth:DataProtection-Keys` (`Services/AuthApi/.../DependencyInjection.cs`).
 - **High — access-token revocation only on AuthApi**: the password-change security stamp was checked only by AuthApi. A shared `SecurityStampValidator` is now invoked from the `OnTokenValidated` hook of every JWT-consuming service (Todo, Category, Messaging, Realtime), so a stolen token is rejected service-wide after a password change (`BuildingBlocks/.../Security/SecurityStampValidator.cs`).
-- **Medium — JWT signing-key length not enforced**: the live AuthApi and shared consumer JWT paths now reject a `JwtSettings:Secret` shorter than 32 characters (`Services/AuthApi/.../DependencyInjection.cs`, `BuildingBlocks/.../Extensions/JwtAuthenticationExtensions.cs`).
+- **Medium — JWT signing-key length not enforced**: the live AuthApi and shared consumer JWT paths now reject a `JwtSettings:Secret` shorter than 32 characters (`Services/AuthApi/.../DependencyInjection.cs`, `BuildingBlocks/.../Extensions/JwtAuthenticationExtensions.cs`, `Planora.ApiGateway/Program.cs`).
+- **Medium — API Gateway gRPC clients missing service-key interceptor**: `Planora.ApiGateway` registered five gRPC clients without `ServiceKeyClientInterceptor`, so any call through them would be rejected by the downstream `ServiceKeyServerInterceptor`. `ServiceKeyClientInterceptor` is now registered as a singleton and wired into all five clients via `AddInterceptor<ServiceKeyClientInterceptor>()` (`Planora.ApiGateway/Extensions/ServiceCollectionExtensions.cs`). Note: the gateway currently routes exclusively via Ocelot HTTP and does not inject any of these clients; the fix is defensive.
 - **Config**: `GRPC_SERVICE_KEY` is now passed to `realtime-api` in `docker-compose.yml` and documented in `.env.production.example`.
-- **Tests**: added unit tests for `SecurityStampValidator` (revocation, claim parsing, fail-open), the gRPC `ServiceKey*Interceptor` pair (key validation and request rejection), and the `CreateTodo` owner-spoofing fix.
+- **Tests**: added unit tests for `SecurityStampValidator` (revocation, claim parsing, fail-open), the gRPC `ServiceKey*Interceptor` pair (key validation, request rejection, and client header injection), and the `CreateTodo` owner-spoofing fix.
 
 ### Security — Phase 1 audit fixes
 
@@ -33,7 +34,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 - **Medium — `style-src 'unsafe-inline'` in production CSP**: `script-src` is now nonce-based, but `style-src` still allows `'unsafe-inline'` because Tailwind and Next.js inject critical CSS as inline `<style>` tags during SSR (`frontend/src/middleware.ts`). Removing it requires nonce/hash support for inline styles.
 - **Medium — token blacklist/security-stamp checks fail open on Redis outage**: `TokenBlacklistFilter` and `SecurityStampValidator` return "not revoked" if Redis is unavailable, trading strict revocation for availability. Documented trade-off.
-- **Low — gateway gRPC clients are dead code**: `Planora.ApiGateway` registers five gRPC clients (and `AuthGrpcClient`) that are never injected; the gateway routes HTTP via Ocelot only.
+- **Low — gateway gRPC clients unused**: `Planora.ApiGateway` registers five gRPC clients (and `AuthGrpcClient`) that are not currently injected anywhere; the gateway routes requests via Ocelot HTTP. Clients now carry `ServiceKeyClientInterceptor` (see Phase 2 fixes above) so they are ready if active use is added.
 
 ### Security — prior fixes
 

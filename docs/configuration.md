@@ -37,7 +37,7 @@ These are enforced with `${VAR:?message}` in `docker-compose.yml`.
 
 - public origins: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_API_GATEWAY_URL`, `Frontend__BaseUrl`, `Cors__AllowedOrigins__0`;
 - Compose-compatible secrets: `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, `JWT_SECRET`;
-- direct ASP.NET overrides for non-Compose deployments: `JwtSettings__Secret`, `ConnectionStrings__*`, `RabbitMq__*`, `RabbitMQ__*`;
+- direct ASP.NET overrides for non-Compose deployments: `JwtSettings__Secret`, `GrpcSettings__ServiceKey`, `ConnectionStrings__*`, `RabbitMq__*`, `RabbitMQ__*`;
 - email delivery settings: `Email__Provider`, `Email__Username`, `Email__Password`, SMTP host/port/TLS, sender identity;
 - gRPC dependency URLs for Todo API: `GrpcServices__AuthApi`, `GrpcServices__CategoryApi`.
 

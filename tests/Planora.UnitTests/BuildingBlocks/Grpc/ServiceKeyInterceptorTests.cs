@@ -83,6 +83,73 @@ public class ServiceKeyInterceptorTests
         Assert.Equal("ok", result);
     }
 
+    [Fact]
+    public void ClientInterceptor_InjectsServiceKeyHeader_OnAsyncUnaryCall()
+    {
+        var interceptor = new ServiceKeyClientInterceptor(Config(ValidKey));
+        var method = new Method<string, string>(
+            MethodType.Unary, "TestService", "TestMethod",
+            Marshallers.StringMarshaller, Marshallers.StringMarshaller);
+        var context = new ClientInterceptorContext<string, string>(
+            method, "localhost", new CallOptions());
+        ClientInterceptorContext<string, string>? captured = null;
+
+        interceptor.AsyncUnaryCall(
+            "req",
+            context,
+            (_, ctx) =>
+            {
+                captured = ctx;
+                return new AsyncUnaryCall<string>(
+                    Task.FromResult("ok"),
+                    Task.FromResult(new Metadata()),
+                    () => Status.DefaultSuccess,
+                    () => new Metadata(),
+                    () => { });
+            });
+
+        Assert.NotNull(captured);
+        var header = captured!.Value.Options.Headers?.FirstOrDefault(
+            h => h.Key.Equals("x-service-key", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(header);
+        Assert.Equal(ValidKey, header!.Value);
+    }
+
+    [Fact]
+    public void ClientInterceptor_DoesNotDuplicateHeader_WhenAlreadyPresent()
+    {
+        var interceptor = new ServiceKeyClientInterceptor(Config(ValidKey));
+        var method = new Method<string, string>(
+            MethodType.Unary, "TestService", "TestMethod",
+            Marshallers.StringMarshaller, Marshallers.StringMarshaller);
+        var existingHeaders = new Metadata { { "x-service-key", "already-set-key-for-idempotency" } };
+        var context = new ClientInterceptorContext<string, string>(
+            method, "localhost", new CallOptions(headers: existingHeaders));
+        ClientInterceptorContext<string, string>? captured = null;
+
+        interceptor.AsyncUnaryCall(
+            "req",
+            context,
+            (_, ctx) =>
+            {
+                captured = ctx;
+                return new AsyncUnaryCall<string>(
+                    Task.FromResult("ok"),
+                    Task.FromResult(new Metadata()),
+                    () => Status.DefaultSuccess,
+                    () => new Metadata(),
+                    () => { });
+            });
+
+        Assert.NotNull(captured);
+        var serviceKeyHeaders = captured!.Value.Options.Headers?
+            .Where(h => h.Key.Equals("x-service-key", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        Assert.NotNull(serviceKeyHeaders);
+        Assert.Single(serviceKeyHeaders!);
+        Assert.Equal("already-set-key-for-idempotency", serviceKeyHeaders![0].Value);
+    }
+
     private sealed class HeaderCallContext : ServerCallContext
     {
         public HeaderCallContext(Metadata headers) => RequestHeadersCore = headers;

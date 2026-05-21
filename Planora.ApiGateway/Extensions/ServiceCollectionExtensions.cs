@@ -1,5 +1,6 @@
 using Planora.ApiGateway.Services;
 using Planora.ApiGateway.DelegatingHandlers;
+using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Microsoft.Extensions.Http;
 using Polly;
 using Polly.Extensions.Http;
@@ -30,12 +31,18 @@ public static class ServiceCollectionExtensions
         // HTTP Client factory (correlation ID handler will be added per-client as needed)
         services.AddHttpClient();
 
+        // SECURITY: single ServiceKeyClientInterceptor shared by all gRPC clients.
+        // Each outbound gRPC call to a downstream service must carry the x-service-key header
+        // so the ServiceKeyServerInterceptor on the receiving side can reject unauthenticated callers.
+        services.AddSingleton<ServiceKeyClientInterceptor>();
+
         // gRPC Client with retry and timeout policies
         services.AddGrpcClient<GrpcContracts.AuthService.AuthServiceClient>(options =>
         {
             var authUrl = configuration["Services:Auth:Url"] ?? "http://auth-api:5006";
             options.Address = new Uri(authUrl);
         })
+        .AddInterceptor<ServiceKeyClientInterceptor>()
         .AddHttpMessageHandler<CircuitBreakerDelegatingHandler>()
         .AddPolicyHandler(GetCircuitBreakerPolicy())
         .AddCallCredentials((context, metadata, serviceProvider) =>
@@ -84,6 +91,7 @@ public static class ServiceCollectionExtensions
             var categoryUrl = configuration["Services:Category:Url"] ?? "http://category-api:5281";
             options.Address = new Uri(categoryUrl);
         })
+        .AddInterceptor<ServiceKeyClientInterceptor>()
         .AddHttpMessageHandler<CircuitBreakerDelegatingHandler>()
         .AddPolicyHandler(GetCircuitBreakerPolicy())
         .ConfigureChannel(options =>
@@ -114,6 +122,7 @@ public static class ServiceCollectionExtensions
             var todoUrl = configuration["Services:Todo:Url"] ?? "http://todo-api:5100";
             options.Address = new Uri(todoUrl);
         })
+        .AddInterceptor<ServiceKeyClientInterceptor>()
         .AddHttpMessageHandler<CircuitBreakerDelegatingHandler>()
         .AddPolicyHandler(GetCircuitBreakerPolicy())
         .ConfigureChannel(options =>
@@ -144,6 +153,7 @@ public static class ServiceCollectionExtensions
             var messagingUrl = configuration["Services:Messaging:Url"] ?? "http://messaging-api:5058";
             options.Address = new Uri(messagingUrl);
         })
+        .AddInterceptor<ServiceKeyClientInterceptor>()
         .AddHttpMessageHandler<CircuitBreakerDelegatingHandler>()
         .AddPolicyHandler(GetCircuitBreakerPolicy())
         .ConfigureChannel(options =>
@@ -174,6 +184,7 @@ public static class ServiceCollectionExtensions
             var realtimeUrl = configuration["Services:Realtime:Url"] ?? "http://realtime-api:5032";
             options.Address = new Uri(realtimeUrl);
         })
+        .AddInterceptor<ServiceKeyClientInterceptor>()
         .AddHttpMessageHandler<CircuitBreakerDelegatingHandler>()
         .AddPolicyHandler(GetCircuitBreakerPolicy())
         .ConfigureChannel(options =>

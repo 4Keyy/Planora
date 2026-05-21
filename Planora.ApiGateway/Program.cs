@@ -87,10 +87,10 @@ public class Program
             });
 
             // JWT Authentication (local symmetric validation)
-            // Validate JWT secret is configured before starting
+            // Validate JWT secret is configured and strong enough before starting
             var jwtSecretConfig = builder.Configuration.GetSection("JwtSettings:Secret").Value;
-            if (string.IsNullOrWhiteSpace(jwtSecretConfig))
-                throw new InvalidOperationException("CRITICAL: JwtSettings:Secret must be configured. Set via appsettings.json or JWT_SECRET environment variable.");
+            if (string.IsNullOrWhiteSpace(jwtSecretConfig) || jwtSecretConfig.Length < 32)
+                throw new InvalidOperationException("CRITICAL: JwtSettings:Secret must be at least 32 characters. Set via appsettings.json or JWT_SECRET environment variable.");
             
             builder.Services.AddAuthentication("Bearer")
                 .AddJwtBearer("Bearer", options =>
