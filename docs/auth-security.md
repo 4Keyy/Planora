@@ -94,7 +94,7 @@ Internal gRPC calls between services are authenticated with a shared secret (`GR
 
 Configure with:
 
-```
+```text
 GRPC_SERVICE_KEY=<random-hex-at-least-32-chars>
 ```
 
