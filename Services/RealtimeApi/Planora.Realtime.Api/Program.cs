@@ -1,6 +1,9 @@
 using Planora.BuildingBlocks.Infrastructure.Logging;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
+using Planora.BuildingBlocks.Infrastructure.Grpc;
+using Planora.BuildingBlocks.Infrastructure.Security;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Planora.Realtime.Api.Grpc;
 using Planora.Realtime.Api.Hubs;
 using Planora.Realtime.Infrastructure.Hubs;
@@ -26,7 +29,13 @@ public class Program
 
         builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddGrpc();
+
+            // gRPC — service-key authentication on inter-service channels
+            builder.Services.AddSingleton<ServiceKeyServerInterceptor>();
+            builder.Services.AddGrpc(options =>
+            {
+                options.Interceptors.Add<ServiceKeyServerInterceptor>();
+            });
 
             // JWT
             var jwtSecret = builder.Configuration["JwtSettings:Secret"];
@@ -60,6 +69,15 @@ public class Program
                                 context.Token = accessToken;
                             }
                             return Task.CompletedTask;
+                        },
+                        OnTokenValidated = async context =>
+                        {
+                            // SECURITY: reject tokens issued before the user's last password change.
+                            var redis = context.HttpContext.RequestServices.GetService<IConnectionMultiplexer>();
+                            if (await SecurityStampValidator.IsTokenRevokedAsync(redis, context.Principal))
+                            {
+                                context.Fail("Token revoked by a security event");
+                            }
                         }
                     };
                 });
@@ -72,6 +90,14 @@ public class Program
             builder.Services.AddSignalR()
                 .AddStackExchangeRedis(signalrRedisConnection, options =>
                     options.Configuration.ChannelPrefix = RedisChannel.Literal("planora"));
+
+            // Raw Redis multiplexer for SecurityStampValidator (password-change token revocation).
+            builder.Services.TryAddSingleton<IConnectionMultiplexer>(_ =>
+            {
+                var redisOptions = ConfigurationOptions.Parse(signalrRedisConnection);
+                redisOptions.AbortOnConnectFail = false;
+                return ConnectionMultiplexer.Connect(redisOptions);
+            });
 
             // Realtime Infrastructure
             builder.Services.AddRealtimeInfrastructure(builder.Configuration);

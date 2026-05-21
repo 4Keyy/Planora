@@ -2,9 +2,11 @@ using Planora.BuildingBlocks.Infrastructure.Caching;
 using Planora.BuildingBlocks.Infrastructure.Context;
 using Planora.BuildingBlocks.Infrastructure.Messaging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
 
 namespace Planora.BuildingBlocks.Infrastructure
 {
@@ -36,6 +38,16 @@ namespace Planora.BuildingBlocks.Infrastructure
             {
                 options.Configuration = redisConnection;
                 options.InstanceName = "planora_";
+            });
+
+            // Raw Redis multiplexer — required by SecurityStampValidator so every
+            // JWT-consuming service can honour password-change token revocation.
+            // TryAdd: services that register their own multiplexer keep it.
+            services.TryAddSingleton<IConnectionMultiplexer>(_ =>
+            {
+                var options = ConfigurationOptions.Parse(redisConnection);
+                options.AbortOnConnectFail = false;
+                return ConnectionMultiplexer.Connect(options);
             });
 
             // Memory Cache

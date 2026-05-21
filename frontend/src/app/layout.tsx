@@ -21,6 +21,12 @@ export const metadata = {
   },
 }
 
+// Render every route per-request so the CSP middleware's per-request nonce
+// (src/middleware.ts) is applied to Next.js inline scripts. A statically
+// prerendered page cannot carry a per-request nonce, which would leave the
+// strict script-src blocking the framework's own bootstrap scripts.
+export const dynamic = "force-dynamic"
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning className={cn("font-sans")}>

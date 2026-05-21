@@ -18,6 +18,8 @@ public sealed class ServiceKeyServerInterceptor : Interceptor
     {
         var key = configuration["GrpcSettings:ServiceKey"]
             ?? throw new InvalidOperationException("GrpcSettings:ServiceKey is not configured");
+        if (key.Length < 16)
+            throw new InvalidOperationException("GrpcSettings:ServiceKey must be at least 16 characters long.");
         _expectedKeyBytes = Encoding.UTF8.GetBytes(key);
         _logger = logger;
     }

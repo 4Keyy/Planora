@@ -37,8 +37,21 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("AuthDatabase")
             ?? throw new InvalidOperationException("AuthDatabase connection string is not configured");
 
-        services.AddDataProtection()
+        var dataProtection = services.AddDataProtection()
             .SetApplicationName("Planora.Auth");
+
+        // SECURITY: persist the Data Protection key ring to Redis. Without a shared
+        // store the key ring is container-ephemeral, so every restart would make
+        // existing encrypted TOTP secrets undecryptable and lock 2FA users out.
+        var redisForKeys = configuration.GetConnectionString("Redis");
+        if (!string.IsNullOrWhiteSpace(redisForKeys))
+        {
+            var keyRingOptions = ConfigurationOptions.Parse(redisForKeys);
+            keyRingOptions.AbortOnConnectFail = false;
+            dataProtection.PersistKeysToStackExchangeRedis(
+                ConnectionMultiplexer.Connect(keyRingOptions),
+                "Planora:Auth:DataProtection-Keys");
+        }
 
         services.AddDbContext<AuthDbContext>(options =>
         {
@@ -139,6 +152,8 @@ public static class DependencyInjection
     {
         var jwtSettings = new JwtSettings();
         configuration.GetSection("JwtSettings").Bind(jwtSettings);
+        if (string.IsNullOrWhiteSpace(jwtSettings.Secret) || jwtSettings.Secret.Length < 32)
+            throw new InvalidOperationException("JwtSettings:Secret must be at least 32 characters long.");
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
 
         services.AddAuthentication(options =>

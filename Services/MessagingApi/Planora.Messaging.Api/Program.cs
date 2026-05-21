@@ -1,9 +1,11 @@
 using Planora.BuildingBlocks.Infrastructure;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Filters;
+using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Logging;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
+using Planora.BuildingBlocks.Infrastructure.Security;
 using StackExchange.Redis;
 using Planora.Messaging.Api.Grpc;
 using Planora.Messaging.Application;
@@ -50,6 +52,18 @@ namespace Planora.Messaging.Api
                         ClockSkew = TimeSpan.Zero,
                         NameClaimType = "sub"
                     };
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnTokenValidated = async context =>
+                        {
+                            // SECURITY: reject tokens issued before the user's last password change.
+                            var redis = context.HttpContext.RequestServices.GetService<IConnectionMultiplexer>();
+                            if (await SecurityStampValidator.IsTokenRevokedAsync(redis, context.Principal))
+                            {
+                                context.Fail("Token revoked by a security event");
+                            }
+                        }
+                    };
                 });
 
             builder.Services.AddAuthorization();
@@ -85,12 +99,14 @@ namespace Planora.Messaging.Api
                         .AllowCredentials());
             });
 
-            // gRPC
+            // gRPC — service-key authentication on inter-service channels
+            builder.Services.AddSingleton<ServiceKeyServerInterceptor>();
             builder.Services.AddGrpc(options =>
             {
                 options.EnableDetailedErrors = builder.Configuration.GetValue<bool>("Grpc:EnableDetailedErrors", false);
                 options.MaxReceiveMessageSize = 4 * 1024 * 1024;
                 options.MaxSendMessageSize = 4 * 1024 * 1024;
+                options.Interceptors.Add<ServiceKeyServerInterceptor>();
             });
 
             // Controllers

@@ -13,7 +13,10 @@ public sealed class ServiceKeyClientInterceptor : Interceptor
 
     public ServiceKeyClientInterceptor(IConfiguration configuration)
     {
-        _serviceKey = configuration["GrpcSettings:ServiceKey"] ?? string.Empty;
+        _serviceKey = configuration["GrpcSettings:ServiceKey"]
+            ?? throw new InvalidOperationException("GrpcSettings:ServiceKey is not configured");
+        if (_serviceKey.Length < 16)
+            throw new InvalidOperationException("GrpcSettings:ServiceKey must be at least 16 characters long.");
     }
 
     public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
