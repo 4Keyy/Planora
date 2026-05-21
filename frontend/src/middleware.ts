@@ -41,9 +41,14 @@ export function middleware(request: NextRequest) {
 
   const csp = cspParts.join('; ')
 
-  // Forward nonce to Server Components via a request header they can read
+  // Forward nonce to Server Components via a request header they can read.
+  // The CSP is also set on the *request* headers: Next.js reads the nonce from
+  // the request CSP header to stamp it onto its own inline framework scripts
+  // (and to opt the route into dynamic rendering). Without it, the strict
+  // script-src blocks Next.js's un-nonced inline bootstrap scripts.
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', csp)
 
   const response = NextResponse.next({ request: { headers: requestHeaders } })
   response.headers.set('Content-Security-Policy', csp)
