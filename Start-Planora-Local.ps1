@@ -531,6 +531,14 @@ function Start-DotnetService {
                 $v = Convert-EnvValueForLocal -Key $k -Value $Matches[2].Trim()
                 $v = $v.Replace("'", "''")
                 $envSetup += "`$env:$k='$v'; "
+                # Mirror docker-compose.yml env var mappings so dotnet run gets the same
+                # ASP.NET Core config key names that containers receive.
+                switch ($k) {
+                    "JWT_SECRET"        { $envSetup += "`$env:JwtSettings__Secret='$v'; " }
+                    "GRPC_SERVICE_KEY"  { $envSetup += "`$env:GrpcSettings__ServiceKey='$v'; " }
+                    "RABBITMQ_USER"     { $envSetup += "`$env:RabbitMq__UserName='$v'; " }
+                    "RABBITMQ_PASSWORD" { $envSetup += "`$env:RabbitMq__Password='$v'; " }
+                }
             }
         }
     }
