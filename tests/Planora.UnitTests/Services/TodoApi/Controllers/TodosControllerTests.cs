@@ -105,6 +105,27 @@ public class TodosControllerTests
     }
 
     [Fact]
+    public async Task CreateTodo_NullsBodySuppliedUserId_SoOwnerComesFromJwt()
+    {
+        var mediator = new Mock<IMediator>();
+        CreateTodoCommand? sentCommand = null;
+        mediator
+            .Setup(x => x.Send(It.IsAny<CreateTodoCommand>(), It.IsAny<CancellationToken>()))
+            .Callback<IRequest<TodoResult>, CancellationToken>((command, _) => sentCommand = (CreateTodoCommand)command)
+            .ReturnsAsync(TodoResult.Success(TodoDto()));
+        var controller = CreateController(mediator);
+
+        // An attacker supplies a foreign owner id in the request body.
+        var foreignUserId = Guid.NewGuid();
+        await controller.CreateTodo(
+            new CreateTodoCommand(foreignUserId, "Title", null, null, null, null),
+            CancellationToken.None);
+
+        Assert.NotNull(sentCommand);
+        Assert.Null(sentCommand.UserId);
+    }
+
+    [Fact]
     public async Task UpdateTodo_UsesRouteId_AndMapsFailure()
     {
         var mediator = new Mock<IMediator>();
