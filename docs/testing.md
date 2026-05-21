@@ -148,7 +148,7 @@ Frontend coverage:
 - configured in `frontend/vitest.config.ts`;
 - provider: V8;
 - includes `src/**/*.{ts,tsx}`;
-- excludes tests, `src/app/**`, `src/middleware.ts` (Edge Middleware — untestable in jsdom), Playwright `e2e/**`, Playwright reports, and build artifacts;
+- excludes tests, `src/app/**`, and `src/components/todos/edit-todo-modal/**` (pointer/canvas-heavy — covered by e2e instead);
 - thresholds: ≥85% for statements, branches, functions, and lines.
 
 ## CI Checks
