@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using StackExchange.Redis;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -62,6 +63,7 @@ public class TodoApiTestFactory : WebApplicationFactory<Program>
                 ["JwtSettings:Secret"] = JwtSecret,
                 ["JwtSettings:Issuer"] = JwtIssuer,
                 ["JwtSettings:Audience"] = JwtAudience,
+                ["GrpcSettings:ServiceKey"] = "test-grpc-service-key-0123456789",
             });
         });
 
@@ -109,6 +111,10 @@ public class TodoApiTestFactory : WebApplicationFactory<Program>
 
             // Mock Redis cache
             services.AddSingleton<IDistributedCache, MemoryDistributedCache>();
+
+            // No Redis multiplexer in tests — the security-stamp check degrades
+            // gracefully to a no-op when IConnectionMultiplexer is unavailable.
+            services.RemoveAll<IConnectionMultiplexer>();
 
             // Add middleware for simulating failures
             if (_databaseFailure)
