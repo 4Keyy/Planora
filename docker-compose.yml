@@ -84,6 +84,7 @@ services:
       JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
       JwtSettings__Issuer: "Planora.Auth"
       JwtSettings__Audience: "Planora.Clients"
+      GrpcSettings__ServiceKey: ${GRPC_SERVICE_KEY:?GRPC_SERVICE_KEY env var must be set}
       Email__Provider: ${Email__Provider:-Log}
       Email__SmtpHost: ${Email__SmtpHost:-smtp.gmail.com}
       Email__SmtpPort: ${Email__SmtpPort:-587}

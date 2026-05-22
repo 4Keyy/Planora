@@ -74,7 +74,6 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 | `Email__TimeoutSeconds` | optional | SMTP send timeout. Default is 30 seconds. |
 | `ASPNETCORE_ENVIRONMENT` | optional | ASP.NET environment; Compose sets `Docker` per backend container. |
 | `ASPNETCORE_URLS` | optional | Kestrel URL override when explicitly provided. |
-| `INCLUDE_ERROR_DETAIL` | optional | Used in database connection/error-detail contexts where configured. Keep false outside development. |
 | `CORS_ALLOWED_ORIGINS` | documented but no direct parser found | Services read `Cors:AllowedOrigins` from appsettings/configuration. For env override use ASP.NET nested configuration keys such as `Cors__AllowedOrigins__0`. |
 
 ## Service Ports
