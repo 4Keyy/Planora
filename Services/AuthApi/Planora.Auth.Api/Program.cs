@@ -89,9 +89,6 @@ namespace Planora.Auth.Api
                         .AllowCredentials());
             });
 
-            // gRPC
-            builder.Services.AddGrpc();
-
             // Controllers
             builder.Services.AddControllers(options =>
             {
