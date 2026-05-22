@@ -1,0 +1,23 @@
+{
+  "stryker-config": {
+    "solution": "Planora.sln",
+    "project": "Planora.Todo.Application.csproj",
+    "test-projects": [
+      "tests/Planora.UnitTests/Planora.UnitTests.csproj"
+    ],
+    "mutate": [
+      "**/Features/Todos/HiddenTodoDtoFactory.cs",
+      "**/Features/Todos/TodoViewerStateResolver.cs"
+    ],
+    "reporters": [
+      "progress",
+      "json",
+      "cleartext"
+    ],
+    "thresholds": {
+      "high": 90,
+      "low": 80,
+      "break": 0
+    }
+  }
+}

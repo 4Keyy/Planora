@@ -193,6 +193,23 @@ Pull requests target `main`.
 
 `.github/workflows/e2e.yml` runs the Playwright gateway flow on relevant pull requests and manual dispatch. It builds the Docker stack, generates temporary e2e secrets in `.env.e2e`, waits for gateway health endpoints, runs `npm run e2e`, uploads Playwright artifacts, then stops the stack.
 
+## Mutation Testing
+
+Mutation testing (Stryker.NET) measures how effectively the tests detect
+deliberately introduced faults. It is set up as a local tool and a config
+file, and is run on demand (it is too slow for every CI push):
+
+```powershell
+dotnet tool restore
+dotnet stryker
+```
+
+`stryker-config.json` scopes the run to the security-critical hidden-shared-todo
+visibility logic (`HiddenTodoDtoFactory`, `TodoViewerStateResolver`). Direct
+unit tests in `tests/Planora.UnitTests/Services/TodoApi/Domain/HiddenTodoVisibilityTests.cs`
+hold that area at a mutation score above 90%. Reports are written to the
+git-ignored `StrykerOutput/` directory.
+
 ## Security Checks
 
 `.github/workflows/security.yml` runs:

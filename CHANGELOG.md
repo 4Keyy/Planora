@@ -21,6 +21,12 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - **Trivy IaC scan**: a Trivy misconfiguration scan covering Dockerfiles and `docker-compose.yml` was added, with SARIF upload. Introduced in report mode (findings are surfaced, the job does not hard-fail) so the team can ratchet to enforcement once the baseline is clean.
 - All workflow action references are pinned to commit SHAs, validated with `actionlint`.
 
+### Mutation testing (2026-05-22)
+
+- Added Stryker.NET as a restorable local tool (`.config/dotnet-tools.json`) with `stryker-config.json` scoping a run to the security-critical hidden-shared-todo visibility helpers (`HiddenTodoDtoFactory`, `TodoViewerStateResolver`).
+- The initial run scored 75% — five mutants survived in pure redaction logic, revealing branches the existing handler-level tests did not pin down. Added `HiddenTodoVisibilityTests.cs` with nine direct unit tests (owner vs. non-owner masking, `UserId` redaction, stranger/multi-recipient share detection, legacy global-hide inheritance) and exposed the `internal` helpers to the test project via `InternalsVisibleTo`. The mutation score for that logic is now 95.83%.
+- `StrykerOutput/` is git-ignored; `docs/testing.md` documents how to run mutation testing.
+
 ### Architecture tests (2026-05-22)
 
 - Added `tests/Planora.UnitTests/Architecture/ArchitectureTests.cs` using `NetArchTest.Rules`. The suite enforces the Clean Architecture / DDD dependency rule automatically: every `*.Domain` assembly is asserted to have no dependency on infrastructure concerns (`*.Infrastructure`, EF Core, ASP.NET Core, Npgsql, Redis, RabbitMQ, gRPC); `BuildingBlocks.Domain` must not depend on the Application or Infrastructure layers; and no `*.Application` project may depend on a sibling service's concrete Infrastructure project or on any Api host. A layering inversion like the one removed from `Realtime.Domain` now fails the build instead of passing review.
