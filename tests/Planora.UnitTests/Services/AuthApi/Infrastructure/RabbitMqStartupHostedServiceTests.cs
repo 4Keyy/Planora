@@ -14,14 +14,17 @@ public sealed class RabbitMqStartupHostedServiceTests
     [Trait("TestType", "Regression")]
     public async Task StartAndStopAsync_ShouldProbeOpenRabbitConnectionAndStopCleanly()
     {
+        var probed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var connection = new Mock<IConnection>();
         connection.SetupGet(c => c.IsOpen).Returns(true);
         var manager = new Mock<IRabbitMqConnectionManager>();
         manager.Setup(m => m.GetConnectionAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => probed.TrySetResult())
             .ReturnsAsync(connection.Object);
         var service = CreateService(manager);
 
         await service.StartAsync(CancellationToken.None);
+        await WaitForProbeAsync(probed);
         await service.StopAsync(CancellationToken.None);
 
         manager.Verify(m => m.GetConnectionAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -35,10 +38,12 @@ public sealed class RabbitMqStartupHostedServiceTests
     [Trait("TestType", "Regression")]
     public async Task StartAndStopAsync_ShouldContinueWhenRabbitConnectionIsMissingOrClosed(bool returnNull)
     {
+        var probed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var manager = new Mock<IRabbitMqConnectionManager>();
         if (returnNull)
         {
             manager.Setup(m => m.GetConnectionAsync(It.IsAny<CancellationToken>()))
+                .Callback(() => probed.TrySetResult())
                 .ReturnsAsync((IConnection)null!);
         }
         else
@@ -46,12 +51,14 @@ public sealed class RabbitMqStartupHostedServiceTests
             var connection = new Mock<IConnection>();
             connection.SetupGet(c => c.IsOpen).Returns(false);
             manager.Setup(m => m.GetConnectionAsync(It.IsAny<CancellationToken>()))
+                .Callback(() => probed.TrySetResult())
                 .ReturnsAsync(connection.Object);
         }
 
         var service = CreateService(manager);
 
         await service.StartAsync(CancellationToken.None);
+        await WaitForProbeAsync(probed);
         await service.StopAsync(CancellationToken.None);
 
         manager.Verify(m => m.GetConnectionAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -63,12 +70,15 @@ public sealed class RabbitMqStartupHostedServiceTests
     [Trait("TestType", "Regression")]
     public async Task StartAndStopAsync_ShouldContinueWhenConnectionAttemptThrows()
     {
+        var probed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var manager = new Mock<IRabbitMqConnectionManager>();
         manager.Setup(m => m.GetConnectionAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => probed.TrySetResult())
             .ThrowsAsync(new InvalidOperationException("connection refused"));
         var service = CreateService(manager);
 
         await service.StartAsync(CancellationToken.None);
+        await WaitForProbeAsync(probed);
         await service.StopAsync(CancellationToken.None);
 
         manager.Verify(m => m.GetConnectionAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -127,6 +137,15 @@ public sealed class RabbitMqStartupHostedServiceTests
         await (Task)executeAsync.Invoke(service, new object[] { cancellation.Token })!;
 
         manager.Verify(m => m.GetConnectionAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // BackgroundService.ExecuteAsync is not guaranteed to run synchronously inside
+    // StartAsync, so the first connection probe must be awaited deterministically
+    // instead of assuming it already happened.
+    private static async Task WaitForProbeAsync(TaskCompletionSource probed)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await probed.Task.WaitAsync(timeout.Token);
     }
 
     private static RabbitMqStartupHostedService CreateService(Mock<IRabbitMqConnectionManager> manager) =>
