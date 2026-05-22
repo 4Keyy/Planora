@@ -158,6 +158,31 @@ public class RepositoryBehaviorTests
     [Trait("TestType", "Module")]
     [Trait("TestType", "Integration")]
     [Trait("TestType", "Regression")]
+    public async Task TodoRepository_RemoveSharesBetweenUsers_RemovesBothDirectionsAndKeepsOthers()
+    {
+        await using var context = CreateTodoContext();
+        var alice = Guid.NewGuid();
+        var bob = Guid.NewGuid();
+        var carol = Guid.NewGuid();
+        var aliceToBob = TodoItem.Create(alice, "Alice shares with Bob", categoryId: Guid.NewGuid(), sharedWithUserIds: new[] { bob });
+        var bobToAlice = TodoItem.Create(bob, "Bob shares with Alice", categoryId: Guid.NewGuid(), sharedWithUserIds: new[] { alice });
+        var aliceToCarol = TodoItem.Create(alice, "Alice shares with Carol", categoryId: Guid.NewGuid(), sharedWithUserIds: new[] { carol });
+        await context.TodoItems.AddRangeAsync(aliceToBob, bobToAlice, aliceToCarol);
+        await context.SaveChangesAsync();
+        var repository = new TodoRepository(context);
+
+        await repository.RemoveSharesBetweenUsersAsync(alice, bob);
+
+        // Both directions between Alice and Bob are removed; the unrelated Alice->Carol share survives.
+        var remaining = await context.TodoItemShares.AsNoTracking().ToListAsync();
+        Assert.Equal(new[] { aliceToCarol.Id }, remaining.Select(s => s.TodoItemId));
+        Assert.Equal(carol, Assert.Single(remaining).SharedWithUserId);
+    }
+
+    [Fact]
+    [Trait("TestType", "Module")]
+    [Trait("TestType", "Integration")]
+    [Trait("TestType", "Regression")]
     public async Task AuthBaseRepository_GetByIdAsync_HonorsSoftDeleteQueryFilter()
     {
         await using var context = CreateAuthContext();

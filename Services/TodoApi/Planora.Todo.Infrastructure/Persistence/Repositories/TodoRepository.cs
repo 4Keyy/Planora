@@ -190,17 +190,25 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
 
         public async Task RemoveSharesBetweenUsersAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
         {
-            // Remove todos that userId shared with friendId
-            await Context.TodoItemShares
-                .Where(s => s.SharedWithUserId == friendId &&
-                            Context.TodoItems.Any(t => t.Id == s.TodoItemId && t.UserId == userId))
-                .ExecuteDeleteAsync(cancellationToken);
+            // Every share row in either direction between the two users, loaded and
+            // removed under a single SaveChangesAsync so the cleanup is atomic (both
+            // directions succeed or fail together) and provider-agnostic — the EF Core
+            // InMemory test provider does not support ExecuteDeleteAsync.
+            var shares = await Context.TodoItemShares
+                .Where(s =>
+                    (s.SharedWithUserId == friendId &&
+                     Context.TodoItems.Any(t => t.Id == s.TodoItemId && t.UserId == userId)) ||
+                    (s.SharedWithUserId == userId &&
+                     Context.TodoItems.Any(t => t.Id == s.TodoItemId && t.UserId == friendId)))
+                .ToListAsync(cancellationToken);
 
-            // Remove todos that friendId shared with userId
-            await Context.TodoItemShares
-                .Where(s => s.SharedWithUserId == userId &&
-                            Context.TodoItems.Any(t => t.Id == s.TodoItemId && t.UserId == friendId))
-                .ExecuteDeleteAsync(cancellationToken);
+            if (shares.Count == 0)
+            {
+                return;
+            }
+
+            Context.TodoItemShares.RemoveRange(shares);
+            await Context.SaveChangesAsync(cancellationToken);
         }
     }
 }
