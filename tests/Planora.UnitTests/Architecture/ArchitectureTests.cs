@@ -21,6 +21,16 @@ public sealed class ArchitectureTests
         ("Planora.Messaging.Domain", typeof(global::Planora.Messaging.Domain.Entities.Message).Assembly),
     };
 
+    private static readonly (string Name, Assembly Assembly)[] ApplicationAssemblies =
+    {
+        ("Planora.BuildingBlocks.Application", typeof(global::Planora.BuildingBlocks.Application.Pagination.PaginationParameters).Assembly),
+        ("Planora.Auth.Application", typeof(global::Planora.Auth.Application.Common.Mappings.MappingProfile).Assembly),
+        ("Planora.Todo.Application", typeof(global::Planora.Todo.Application.DTOs.TodoItemDto).Assembly),
+        ("Planora.Category.Application", typeof(global::Planora.Category.Application.Features.IntegrationEvents.UserDeletedEventConsumer).Assembly),
+        ("Planora.Messaging.Application", typeof(global::Planora.Messaging.Application.Features.Messages.Mappings.MessageMappingProfile).Assembly),
+        ("Planora.Realtime.Application", typeof(global::Planora.Realtime.Application.Handlers.NotificationEventHandler).Assembly),
+    };
+
     // Namespaces that belong to the infrastructure layer or to infrastructure
     // frameworks. No Domain type may reference anything under these.
     private static readonly string[] InfrastructureNamespaces =
@@ -32,6 +42,26 @@ public sealed class ArchitectureTests
         "StackExchange.Redis",
         "RabbitMQ",
         "Grpc",
+    };
+
+    // Concrete outer layers an Application project must never reach into: any
+    // service's persistence/Infrastructure project, or any Api host project.
+    // (Planora.BuildingBlocks.Infrastructure is intentionally not listed: the
+    // shared messaging contracts — IEventBus, IIntegrationEventHandler and the
+    // integration events — currently live there, so handlers that publish or
+    // consume events depend on that namespace.)
+    private static readonly string[] OuterLayerNamespaces =
+    {
+        "Planora.Auth.Infrastructure",
+        "Planora.Todo.Infrastructure",
+        "Planora.Category.Infrastructure",
+        "Planora.Messaging.Infrastructure",
+        "Planora.Realtime.Infrastructure",
+        "Planora.Auth.Api",
+        "Planora.Todo.Api",
+        "Planora.Category.Api",
+        "Planora.Messaging.Api",
+        "Planora.Realtime.Api",
     };
 
     [Fact]
@@ -57,6 +87,33 @@ public sealed class ArchitectureTests
         Assert.True(
             violations.Count == 0,
             "Domain projects must not depend on infrastructure concerns. Violations:" +
+            System.Environment.NewLine +
+            string.Join(System.Environment.NewLine, violations));
+    }
+
+    [Fact]
+    [Trait("TestType", "Architecture")]
+    public void Application_layer_must_not_depend_on_infrastructure_or_api()
+    {
+        var violations = new List<string>();
+
+        foreach (var (name, assembly) in ApplicationAssemblies)
+        {
+            var result = Types.InAssembly(assembly)
+                .Should()
+                .NotHaveDependencyOnAny(OuterLayerNamespaces)
+                .GetResult();
+
+            if (!result.IsSuccessful)
+            {
+                violations.Add(
+                    $"{name}: {string.Join(", ", result.FailingTypeNames ?? Enumerable.Empty<string>())}");
+            }
+        }
+
+        Assert.True(
+            violations.Count == 0,
+            "Application projects must not depend on Infrastructure or Api layers. Violations:" +
             System.Environment.NewLine +
             string.Join(System.Environment.NewLine, violations));
     }

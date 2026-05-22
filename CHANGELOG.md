@@ -23,7 +23,8 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Architecture tests (2026-05-22)
 
-- Added `tests/Planora.UnitTests/Architecture/ArchitectureTests.cs` using `NetArchTest.Rules`. The suite enforces the Clean Architecture / DDD dependency rule automatically: every `*.Domain` assembly is asserted to have no dependency on infrastructure concerns (`*.Infrastructure`, EF Core, ASP.NET Core, Npgsql, Redis, RabbitMQ, gRPC), and `BuildingBlocks.Domain` is asserted not to depend on the Application or Infrastructure layers. A layering inversion like the one removed from `Realtime.Domain` now fails the build instead of passing review.
+- Added `tests/Planora.UnitTests/Architecture/ArchitectureTests.cs` using `NetArchTest.Rules`. The suite enforces the Clean Architecture / DDD dependency rule automatically: every `*.Domain` assembly is asserted to have no dependency on infrastructure concerns (`*.Infrastructure`, EF Core, ASP.NET Core, Npgsql, Redis, RabbitMQ, gRPC); `BuildingBlocks.Domain` must not depend on the Application or Infrastructure layers; and no `*.Application` project may depend on a sibling service's concrete Infrastructure project or on any Api host. A layering inversion like the one removed from `Realtime.Domain` now fails the build instead of passing review.
+- Observation (not yet actioned): the shared messaging contracts (`IEventBus`, `IIntegrationEventHandler`, integration events) live under `Planora.BuildingBlocks.Infrastructure.Messaging`, so Application handlers that publish/consume events depend on an Infrastructure namespace. Relocating those contracts to the Application layer would let the architecture rule cover `BuildingBlocks.Infrastructure` too.
 
 ### Security — Phase 3 audit fixes (2026-05-22)
 
