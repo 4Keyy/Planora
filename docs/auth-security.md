@@ -22,7 +22,7 @@ Auth API sets:
 refresh_token=<opaque-token>; HttpOnly; SameSite=Strict; Path=/auth/api/v1/auth
 ```
 
-The `Secure` flag is based on `HttpContext.Request.IsHttps`. On local HTTP it is false. Production must terminate or enforce HTTPS so cookies are sent securely.
+The `Secure` flag is set from `!IWebHostEnvironment.IsDevelopment()`, so it is `true` in every non-development environment regardless of `HttpContext.Request.IsHttps`. This keeps the flag correct behind a TLS-terminating reverse proxy, where the backend sees plain HTTP. On local development it is `false`. Production must still terminate or enforce HTTPS so the cookie is actually transmitted over TLS.
 
 Code:
 
