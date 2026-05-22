@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -6,6 +7,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Services;
 
 [ApiController]
 [Route("system")]
+[Authorize(Roles = "Admin")]
 public sealed class SystemInfoController : ControllerBase
 {
     private readonly IConfiguration _configuration;

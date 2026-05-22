@@ -75,7 +75,7 @@ namespace Planora.Auth.Application.Features.Friendships.Queries.GetFriendRequest
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get friend requests for user {UserId}", userId);
-                return Result.Failure<IReadOnlyList<FriendRequestDto>>("QUERY_FAILED", ex.Message);
+                return Result.Failure<IReadOnlyList<FriendRequestDto>>("QUERY_FAILED", "An error occurred retrieving data");
             }
         }
     }

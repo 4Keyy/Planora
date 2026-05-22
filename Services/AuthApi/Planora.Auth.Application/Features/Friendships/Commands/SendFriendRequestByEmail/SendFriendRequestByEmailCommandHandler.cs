@@ -90,7 +90,7 @@ public sealed class SendFriendRequestByEmailCommandHandler : IRequestHandler<Sen
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email friend request from {UserId}", userId);
-            return Result.Failure("SEND_FAILED", ex.Message);
+            return Result.Failure("SEND_FAILED", "An error occurred processing your request");
         }
     }
 }

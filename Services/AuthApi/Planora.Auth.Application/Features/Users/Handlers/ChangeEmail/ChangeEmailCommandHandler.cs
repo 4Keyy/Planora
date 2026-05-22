@@ -13,6 +13,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangeEmail
         private readonly IPasswordHasher _passwordHasher;
         private readonly ICurrentUserService _currentUserService;
         private readonly IEmailService _emailService;
+        private readonly ISecurityStampService _securityStamp;
         private readonly IOptions<FrontendOptions> _frontendOptions;
         private readonly ILogger<ChangeEmailCommandHandler> _logger;
 
@@ -21,6 +22,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangeEmail
             IPasswordHasher passwordHasher,
             ICurrentUserService currentUserService,
             IEmailService emailService,
+            ISecurityStampService securityStamp,
             IOptions<FrontendOptions> frontendOptions,
             ILogger<ChangeEmailCommandHandler> logger)
         {
@@ -28,6 +30,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangeEmail
             _passwordHasher = passwordHasher;
             _currentUserService = currentUserService;
             _emailService = emailService;
+            _securityStamp = securityStamp;
             _frontendOptions = frontendOptions;
             _logger = logger;
         }
@@ -92,6 +95,9 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangeEmail
 
             _unitOfWork.Users.Update(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Invalidate all existing access tokens — email is identity-critical.
+            await _securityStamp.SetStampAsync(user.Id, cancellationToken);
 
             var verificationLink = FrontendLinkBuilder.EmailVerification(
                 _frontendOptions.Value,

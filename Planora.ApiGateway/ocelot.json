@@ -206,8 +206,12 @@
       "DownstreamScheme": "ws",
       "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5032 } ],
       "UpstreamPathTemplate": "/realtime/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
-      "RateLimitOptions": { "EnableRateLimiting": false }
+      "UpstreamHttpMethod": [ "GET" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "RateLimitOptions": { "EnableRateLimiting": true }
     }
   ],
   "GlobalConfiguration": {

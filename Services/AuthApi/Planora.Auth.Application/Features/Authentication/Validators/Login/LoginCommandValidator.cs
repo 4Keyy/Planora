@@ -14,7 +14,10 @@ namespace Planora.Auth.Application.Features.Authentication.Validators.Login
                 .NotEmpty().WithMessage("Password is required");
 
             RuleFor(x => x.TwoFactorCode)
-                .Length(6).WithMessage("2FA code must be 6 digits")
+                .Must(code =>
+                    System.Text.RegularExpressions.Regex.IsMatch(code!, @"^\d{6}$") ||
+                    System.Text.RegularExpressions.Regex.IsMatch(code!, @"^[A-Z0-9]{5}-[A-Z0-9]{5}$"))
+                .WithMessage("Enter a 6-digit 2FA code or a recovery code in XXXXX-XXXXX format")
                 .When(x => !string.IsNullOrEmpty(x.TwoFactorCode));
         }
     }

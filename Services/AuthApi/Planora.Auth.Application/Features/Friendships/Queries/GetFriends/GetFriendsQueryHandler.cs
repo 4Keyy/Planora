@@ -79,7 +79,7 @@ namespace Planora.Auth.Application.Features.Friendships.Queries.GetFriends
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get friends for user {UserId}", userId);
-                return Result.Failure<PagedResult<FriendDto>>("QUERY_FAILED", ex.Message);
+                return Result.Failure<PagedResult<FriendDto>>("QUERY_FAILED", "An error occurred retrieving data");
             }
         }
     }

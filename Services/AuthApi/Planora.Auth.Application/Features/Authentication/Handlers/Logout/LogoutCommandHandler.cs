@@ -40,6 +40,15 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Logout
                     return Result.Success();
                 }
 
+                var currentUserId = _currentUserService.UserId;
+                if (currentUserId != Guid.Empty && refreshToken.UserId != currentUserId)
+                {
+                    _logger.LogWarning(
+                        "Logout token ownership mismatch — caller {CallerId} attempted to revoke token owned by {OwnerId}",
+                        currentUserId, refreshToken.UserId);
+                    return Result.Success();
+                }
+
                 if (refreshToken.IsActive)
                 {
                     var ipAddress = _currentUserService.IpAddress ?? "unknown";

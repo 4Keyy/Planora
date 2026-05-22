@@ -119,12 +119,12 @@ public class Program
                     {
                         OnTokenValidated = context =>
                         {
-                            Log.Information($"[JWT] Token validated for user: {context.Principal?.FindFirst("sub")?.Value ?? "unknown"}");
+                            Log.Information("[JWT] Token validated for {UserId}", context.Principal?.FindFirst("sub")?.Value ?? "unknown");
                             return Task.CompletedTask;
                         },
                         OnAuthenticationFailed = context =>
                         {
-                            Log.Warning($"[JWT] Authentication failed: {context.Exception.Message}");
+                            Log.Warning("[JWT] Authentication failed: {ErrorType}", context.Exception.GetType().Name);
                             return Task.CompletedTask;
                         },
                         OnMessageReceived = context =>

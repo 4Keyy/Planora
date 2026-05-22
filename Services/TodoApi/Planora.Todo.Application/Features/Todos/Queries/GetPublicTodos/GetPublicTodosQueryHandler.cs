@@ -188,7 +188,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to retrieve public todos for user {UserId}", userId);
-                return Result<PagedResult<TodoItemDto>>.Failure(new Error("QUERY_FAILED", ex.Message));
+                return Result<PagedResult<TodoItemDto>>.Failure(new Error("QUERY_FAILED", "Unable to retrieve todos. Please try again."));
             }
         }
     }

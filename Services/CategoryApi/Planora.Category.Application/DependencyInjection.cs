@@ -16,11 +16,9 @@ namespace Planora.Category.Application
             {
                 cfg.RegisterServicesFromAssembly(assembly);
                 // Pipeline order (outermost → innermost):
-                // 1. UnhandledExceptionBehavior — must be outermost to catch ALL exceptions including validation failures
-                // 2. LoggingBehavior            — logs full request lifecycle including exceptions
-                // 3. ValidationBehavior         — throws ValidationException (caught by #1 and logged by #2)
-                // 4. PerformanceBehavior        — measures only handler execution time (excludes validation overhead)
-                cfg.AddOpenBehavior(typeof(UnhandledExceptionBehavior<,>));
+                // 1. LoggingBehavior    — logs full request lifecycle including exceptions, rethrows
+                // 2. ValidationBehavior — throws ValidationException (caught and logged by #1)
+                // 3. PerformanceBehavior — measures only handler execution time
                 cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));
                 cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
                 cfg.AddOpenBehavior(typeof(PerformanceBehavior<,>));

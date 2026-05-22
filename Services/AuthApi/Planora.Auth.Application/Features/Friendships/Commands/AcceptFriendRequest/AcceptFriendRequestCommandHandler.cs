@@ -64,7 +64,7 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.AcceptFriendReq
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to accept friend request {FriendshipId}", request.FriendshipId);
-                return Result.Failure("ACCEPT_FAILED", ex.Message);
+                return Result.Failure("ACCEPT_FAILED", "An error occurred processing your request");
             }
         }
     }

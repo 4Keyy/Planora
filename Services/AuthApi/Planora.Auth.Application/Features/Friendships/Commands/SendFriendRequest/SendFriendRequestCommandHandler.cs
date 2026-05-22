@@ -83,7 +83,7 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.SendFriendReque
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to send friend request from {UserId} to {FriendId}", userId, request.FriendId);
-                return Result.Failure("SEND_FAILED", ex.Message);
+                return Result.Failure("SEND_FAILED", "An error occurred processing your request");
             }
         }
     }

@@ -62,7 +62,7 @@ namespace Planora.Auth.Application.Features.Friendships.Commands.RemoveFriend
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to remove friendship between {UserId} and {FriendId}", userId, request.FriendId);
-                return Result.Failure("REMOVE_FAILED", ex.Message);
+                return Result.Failure("REMOVE_FAILED", "An error occurred processing your request");
             }
         }
     }

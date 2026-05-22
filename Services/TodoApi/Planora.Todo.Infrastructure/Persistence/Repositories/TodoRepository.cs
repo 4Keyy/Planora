@@ -16,7 +16,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
         {
             return await DbSet
                 .AsNoTracking()
-                .Where(t => t.UserId == userId)
+                .Where(t => t.UserId == userId && !t.IsDeleted)
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync(cancellationToken);
         }

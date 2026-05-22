@@ -1,4 +1,3 @@
-using Planora.ApiGateway.Services;
 using Planora.ApiGateway.DelegatingHandlers;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Microsoft.Extensions.Http;
@@ -208,8 +207,6 @@ public static class ServiceCollectionExtensions
                  }
             };
         });
-
-        services.AddScoped<IAuthGrpcClient, AuthGrpcClient>();
 
         return services;
     }

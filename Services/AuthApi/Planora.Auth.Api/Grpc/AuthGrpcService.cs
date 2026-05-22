@@ -50,7 +50,10 @@ namespace Planora.Auth.Api.Grpc
 
         public override async Task<GetUserInfoResponse> GetUserInfo(GetUserInfoRequest request, ServerCallContext context)
         {
-            var query = new GetUserQuery(Guid.Parse(request.UserId));
+            if (!Guid.TryParse(request.UserId, out var userInfoId))
+                throw new RpcException(new global::Grpc.Core.Status(global::Grpc.Core.StatusCode.InvalidArgument, "Invalid user ID format"));
+
+            var query = new GetUserQuery(userInfoId);
             var result = await _mediator.Send(query);
 
             if (result.IsFailure)
@@ -87,7 +90,10 @@ namespace Planora.Auth.Api.Grpc
 
         public override async Task<GetFriendIdsResponse> GetFriendIds(GetFriendIdsRequest request, ServerCallContext context)
         {
-            var query = new GetFriendIdsQuery(Guid.Parse(request.UserId));
+            if (!Guid.TryParse(request.UserId, out var friendIdsUserId))
+                throw new RpcException(new global::Grpc.Core.Status(global::Grpc.Core.StatusCode.InvalidArgument, "Invalid user ID format"));
+
+            var query = new GetFriendIdsQuery(friendIdsUserId);
             var result = await _mediator.Send(query);
 
             if (result.IsFailure)
@@ -103,7 +109,11 @@ namespace Planora.Auth.Api.Grpc
 
         public override async Task<AreFriendsResponse> AreFriends(AreFriendsRequest request, ServerCallContext context)
         {
-            var query = new AreFriendsQuery(Guid.Parse(request.UserId1), Guid.Parse(request.UserId2));
+            if (!Guid.TryParse(request.UserId1, out var areFriendsId1) ||
+                !Guid.TryParse(request.UserId2, out var areFriendsId2))
+                throw new RpcException(new global::Grpc.Core.Status(global::Grpc.Core.StatusCode.InvalidArgument, "Invalid user ID format"));
+
+            var query = new AreFriendsQuery(areFriendsId1, areFriendsId2);
             var result = await _mediator.Send(query);
 
             if (result.IsFailure)
