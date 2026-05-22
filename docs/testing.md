@@ -7,6 +7,7 @@ Planora has backend xUnit tests, frontend Vitest tests, Docker-backed Playwright
 | Area | Path | Framework |
 |---|---|---|
 | Backend unit/contract tests | `tests/Planora.UnitTests` | xUnit, Moq, FluentAssertions |
+| Backend architecture tests | `tests/Planora.UnitTests/Architecture` | xUnit, NetArchTest.Rules |
 | Backend error-handling/integration-style tests | `tests/Planora.ErrorHandlingTests` | xUnit, ASP.NET Core testing |
 | Frontend tests | `frontend/src/test` | Vitest, Testing Library, jsdom |
 | E2E flow tests | `frontend/e2e` | Playwright APIRequestContext through API Gateway |

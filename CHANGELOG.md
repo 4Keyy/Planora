@@ -21,6 +21,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - **Trivy IaC scan**: a Trivy misconfiguration scan covering Dockerfiles and `docker-compose.yml` was added, with SARIF upload. Introduced in report mode (findings are surfaced, the job does not hard-fail) so the team can ratchet to enforcement once the baseline is clean.
 - All workflow action references are pinned to commit SHAs, validated with `actionlint`.
 
+### Architecture tests (2026-05-22)
+
+- Added `tests/Planora.UnitTests/Architecture/ArchitectureTests.cs` using `NetArchTest.Rules`. The suite enforces the Clean Architecture / DDD dependency rule automatically: every `*.Domain` assembly is asserted to have no dependency on infrastructure concerns (`*.Infrastructure`, EF Core, ASP.NET Core, Npgsql, Redis, RabbitMQ, gRPC), and `BuildingBlocks.Domain` is asserted not to depend on the Application or Infrastructure layers. A layering inversion like the one removed from `Realtime.Domain` now fails the build instead of passing review.
+
 ### Security — Phase 3 audit fixes (2026-05-22)
 
 - **High — `IsDevelopmentEnvironment()` not testable via configuration**: `RequireHttpsMetadata` was gated solely on `ASPNETCORE_ENVIRONMENT`, which is not injectable in unit tests. `IsDevelopmentEnvironment()` now first checks `IConfiguration["IsDevelopment"]` (an explicit bool override used in tests and Docker overrides) before falling back to the env var. DI contract tests now pass the key as `"true"` without touching the environment (`Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs`).
