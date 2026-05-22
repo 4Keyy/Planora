@@ -19,7 +19,12 @@ namespace Planora.BuildingBlocks.Infrastructure.Persistence
 
         public virtual async Task<TEntity?> GetByIdAsync(TId id, CancellationToken cancellationToken = default)
         {
-            return await DbSet.FindAsync(new object[] { id! }, cancellationToken);
+            // Use FirstOrDefaultAsync instead of FindAsync for consistent cross-provider behaviour.
+            // FindAsync's identity-map short-circuit works poorly with EF Core InMemory in integration
+            // tests (returns null for entities just saved by a different scope), whereas
+            // FirstOrDefaultAsync always goes to the store and works correctly everywhere.
+            var guidId = (Guid)(object)id!;
+            return await DbSet.FirstOrDefaultAsync(e => e.Id == guidId, cancellationToken);
         }
 
         public virtual async Task<IReadOnlyList<TEntity>> GetAllAsync(CancellationToken cancellationToken = default)

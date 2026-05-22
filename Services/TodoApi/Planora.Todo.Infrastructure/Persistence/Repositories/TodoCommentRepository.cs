@@ -45,6 +45,11 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
 
         public async Task SoftDeleteByTodoIdAsync(Guid todoItemId, Guid deletedBy, CancellationToken ct = default)
         {
+            // Load-then-update instead of ExecuteUpdateAsync: works with all EF Core
+            // providers including InMemory (used in integration tests), which does not
+            // support ExecuteUpdateAsync/ExecuteDeleteAsync bulk operations.
+            // Comment counts per todo are bounded, so the extra round-trip is negligible.
+            // Changes are flushed by the caller's UnitOfWork.SaveChangesAsync().
             var comments = await DbSet
                 .Where(c => c.TodoItemId == todoItemId && !c.IsDeleted)
                 .ToListAsync(ct);

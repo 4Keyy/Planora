@@ -145,7 +145,7 @@ public class DependencyInjectionContractTests
         Assert.True(jwtOptions.TokenValidationParameters.ValidateIssuerSigningKey);
         Assert.Equal("Planora.Auth", jwtOptions.TokenValidationParameters.ValidIssuer);
         Assert.Equal("Planora.Clients", jwtOptions.TokenValidationParameters.ValidAudience);
-        Assert.Equal(TimeSpan.FromSeconds(30), jwtOptions.TokenValidationParameters.ClockSkew);
+        Assert.Equal(TimeSpan.Zero, jwtOptions.TokenValidationParameters.ClockSkew);
         Assert.IsType<RabbitMqConnectionManager>(provider.GetRequiredService<IRabbitMqConnectionManager>());
     }
 
@@ -344,7 +344,9 @@ public class DependencyInjectionContractTests
 
     private static void AssertApplicationPipeline(IServiceCollection services)
     {
-        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IPipelineBehavior<,>)
+        // UnhandledExceptionBehavior removed — LoggingBehavior already catches and logs all
+        // unhandled exceptions, making the separate UnhandledExceptionBehavior redundant.
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IPipelineBehavior<,>)
             && descriptor.ImplementationType == typeof(UnhandledExceptionBehavior<,>));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IPipelineBehavior<,>)
             && descriptor.ImplementationType == typeof(LoggingBehavior<,>));

@@ -93,11 +93,14 @@ public static class DependencyInjection
         AddJwtAuthentication(services, configuration);
     }
 
-    // Kept for backward compatibility with AddAuthInfrastructure(services, configuration).
-    // AddAuthInfrastructure does not receive IWebHostEnvironment, so the environment
-    // detection uses the ASPNETCORE_ENVIRONMENT variable directly.
-    private static bool IsDevelopmentEnvironment()
+    // Detects development mode from configuration key "IsDevelopment" (explicit override,
+    // used in tests and local docker overrides) and falls back to ASPNETCORE_ENVIRONMENT.
+    private static bool IsDevelopmentEnvironment(IConfiguration? configuration = null)
     {
+        if (configuration is not null
+            && bool.TryParse(configuration["IsDevelopment"], out var configFlag))
+            return configFlag;
+
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? string.Empty;
         return env.Equals("Development", StringComparison.OrdinalIgnoreCase);
     }
@@ -164,7 +167,7 @@ public static class DependencyInjection
         .AddJwtBearer(options =>
         {
             options.SaveToken = true;
-            options.RequireHttpsMetadata = false;
+            options.RequireHttpsMetadata = !IsDevelopmentEnvironment(configuration);
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuer = true,
@@ -174,7 +177,8 @@ public static class DependencyInjection
                 ValidIssuer = jwtSettings.Issuer,
                 ValidAudience = jwtSettings.Audience,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
-                ClockSkew = TimeSpan.FromSeconds(30)
+                ClockSkew = TimeSpan.Zero,
+                RequireExpirationTime = true
             };
         });
 

@@ -289,7 +289,7 @@ public class WorkersAndCommentsHandlerTests
     }
 
     [Fact]
-    public async Task AddComment_ByWorker_ShouldSucceed()
+    public async Task AddComment_ByWorkerWhoIsFriend_ShouldSucceed()
     {
         var ownerId = Guid.NewGuid();
         var workerId = Guid.NewGuid();
@@ -299,6 +299,9 @@ public class WorkersAndCommentsHandlerTests
         var fixture = new CommentFixture(workerId, "Worker Name");
         fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
+        // Worker must also be a friend to comment — public visibility alone is not enough
+        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(workerId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         var result = await fixture.CreateAddHandler().Handle(
             new AddCommentCommand(todo.Id, "My comment"), CancellationToken.None);
@@ -307,20 +310,41 @@ public class WorkersAndCommentsHandlerTests
     }
 
     [Fact]
-    public async Task AddComment_ByAnyoneWithPublicAccess_ShouldSucceed()
+    public async Task AddComment_ByFriendWithPublicAccess_ShouldSucceed()
     {
         var ownerId = Guid.NewGuid();
-        var viewerId = Guid.NewGuid(); // not a worker, not in SharedWith, but task is public
+        var friendId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
+
+        var fixture = new CommentFixture(friendId, "Friend");
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        // Public task + friendship = can comment
+        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(friendId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await fixture.CreateAddHandler().Handle(
+            new AddCommentCommand(todo.Id, "Nice task!"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task AddComment_ByNonFriendWithPublicAccess_ShouldThrowForbidden()
+    {
+        var ownerId = Guid.NewGuid();
+        var viewerId = Guid.NewGuid(); // not a worker, not in SharedWith, not a friend
         var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
 
         var fixture = new CommentFixture(viewerId, "Viewer");
         fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
+        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(viewerId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
 
-        var result = await fixture.CreateAddHandler().Handle(
-            new AddCommentCommand(todo.Id, "Can I comment?"), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateAddHandler().Handle(
+                new AddCommentCommand(todo.Id, "Can I comment?"), CancellationToken.None));
     }
 
     [Fact]
@@ -569,6 +593,7 @@ public class WorkersAndCommentsHandlerTests
         public Mock<ITodoCommentRepository> CommentRepository { get; } = new();
         public Mock<IUnitOfWork> UnitOfWork { get; } = new();
         public Mock<ICurrentUserContext> CurrentUser { get; } = new();
+        public Mock<IFriendshipService> FriendshipService { get; } = new();
 
         public CommentFixture(Guid userId, string? name)
         {
@@ -582,7 +607,7 @@ public class WorkersAndCommentsHandlerTests
         }
 
         public AddCommentCommandHandler CreateAddHandler()
-            => new(TodoRepository.Object, CommentRepository.Object, UnitOfWork.Object, CurrentUser.Object);
+            => new(TodoRepository.Object, CommentRepository.Object, UnitOfWork.Object, CurrentUser.Object, FriendshipService.Object);
 
         public UpdateCommentCommandHandler CreateUpdateHandler()
             => new(CommentRepository.Object, TodoRepository.Object, UnitOfWork.Object, CurrentUser.Object);

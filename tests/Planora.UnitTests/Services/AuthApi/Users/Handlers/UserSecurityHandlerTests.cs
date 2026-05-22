@@ -451,6 +451,7 @@ public class UserSecurityHandlerTests
                 PasswordHasher.Object,
                 CurrentUser.Object,
                 EmailService.Object,
+                Mock.Of<ISecurityStampService>(),
                 Options.Create(new FrontendOptions { BaseUrl = "https://app.example.com" }),
                 Mock.Of<ILogger<ChangeEmailCommandHandler>>());
 
