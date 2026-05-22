@@ -28,6 +28,18 @@ namespace Planora.Category.Infrastructure.Persistence
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+            // Optimistic concurrency for the Category aggregate via PostgreSQL's
+            // xmin system column. Guarded so the InMemory test provider is unaffected.
+            if (Database.IsNpgsql())
+            {
+                modelBuilder.Entity<Domain.Entities.Category>()
+                    .Property<uint>("xmin")
+                    .HasColumnName("xmin")
+                    .HasColumnType("xid")
+                    .ValueGeneratedOnAddOrUpdate()
+                    .IsConcurrencyToken();
+            }
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
