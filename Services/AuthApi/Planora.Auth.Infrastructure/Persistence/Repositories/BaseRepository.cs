@@ -15,7 +15,11 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
 
         public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
+            // FirstOrDefaultAsync (not FindAsync) so EF Core global query filters — including
+            // the soft-delete filter configured on every Auth entity — are applied. FindAsync
+            // bypasses query filters and its identity-map short-circuit is unreliable across
+            // DbContext scopes, which can surface a soft-deleted User/Friendship by id.
+            return await _dbSet.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
         }
 
         public virtual async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default)

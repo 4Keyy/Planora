@@ -34,6 +34,8 @@ public class RepositoryBehaviorTests
         var repository = new CategoryRepository(context);
 
         Assert.Same(inbox, await repository.GetByIdAsync(inbox.Id));
+        // GetByIdAsync honors the global soft-delete filter: a deleted category is unreachable by id.
+        Assert.Null(await repository.GetByIdAsync(deleted.Id));
         Assert.Equal(4, (await repository.GetAllAsync()).Count);
         Assert.Equal(new[] { work.Id, inbox.Id, archived.Id }, (await repository.GetByUserIdAsync(userId)).Select(x => x.Id));
         Assert.Equal(new[] { work.Id, inbox.Id }, (await repository.GetActiveByUserIdAsync(userId)).Select(x => x.Id));
@@ -43,8 +45,10 @@ public class RepositoryBehaviorTests
         Assert.False(await repository.ExistsByNameAndUserIdAsync("Deleted", userId));
         Assert.Equal(3, await repository.CountAsync(x => x.UserId == userId && !x.IsDeleted));
         Assert.Equal(work.Id, (await repository.FindFirstAsync(x => x.Name == "Work"))!.Id);
+        // FindAsync honors the global soft-delete filter: the deleted category is
+        // excluded even though the predicate does not mention IsDeleted.
         Assert.Equal(
-            new[] { archived.Id, deleted.Id, inbox.Id }.OrderBy(x => x),
+            new[] { archived.Id, inbox.Id }.OrderBy(x => x),
             (await repository.FindAsync(x => x.UserId == userId && x.Order >= 2)).Select(x => x.Id).OrderBy(x => x));
 
         var page = await repository.GetPagedAsync(
@@ -106,6 +110,8 @@ public class RepositoryBehaviorTests
         var itemRepository = new TodoItemRepository(context);
 
         Assert.NotNull(await itemRepository.GetByIdAsync(active.Id));
+        // BuildingBlocks BaseRepository.GetByIdAsync excludes soft-deleted entities.
+        Assert.Null(await itemRepository.GetByIdAsync(deleted.Id));
         Assert.Contains((await repository.GetByUserIdAsync(userId)), x => x.Id == active.Id);
         Assert.DoesNotContain((await repository.GetByUserIdAsync(userId)), x => x.UserId == otherUserId);
         Assert.Contains((await repository.GetActiveByUserIdAsync(userId)), x => x.Id == active.Id);
@@ -146,6 +152,38 @@ public class RepositoryBehaviorTests
             sortCompletedByCompletionTime: true);
         Assert.Equal(3, paged.TotalCount);
         Assert.Equal(3, paged.Items.Count);
+    }
+
+    [Fact]
+    [Trait("TestType", "Module")]
+    [Trait("TestType", "Integration")]
+    [Trait("TestType", "Regression")]
+    public async Task AuthBaseRepository_GetByIdAsync_HonorsSoftDeleteQueryFilter()
+    {
+        await using var context = CreateAuthContext();
+        var active = Planora.Auth.Domain.Entities.User.Create(
+            Planora.Auth.Domain.ValueObjects.Email.Create("active@planora.test"), "hash", "Ann", "Active");
+        var removed = Planora.Auth.Domain.Entities.User.Create(
+            Planora.Auth.Domain.ValueObjects.Email.Create("removed@planora.test"), "hash", "Rob", "Removed");
+        removed.MarkAsDeleted(removed.Id);
+        await context.Users.AddRangeAsync(active, removed);
+        await context.SaveChangesAsync();
+        var repository = new Planora.Auth.Infrastructure.Persistence.Repositories.UserRepository(context);
+
+        Assert.NotNull(await repository.GetByIdAsync(active.Id));
+        // GetByIdAsync uses FirstOrDefaultAsync, so the soft-delete query filter applies
+        // and a deleted user is never returned by id (FindAsync would have bypassed it).
+        Assert.Null(await repository.GetByIdAsync(removed.Id));
+    }
+
+    private static Planora.Auth.Infrastructure.Persistence.AuthDbContext CreateAuthContext()
+    {
+        var options = new DbContextOptionsBuilder<Planora.Auth.Infrastructure.Persistence.AuthDbContext>()
+            .UseInMemoryDatabase($"auth-repository-{Guid.NewGuid():N}")
+            .Options;
+
+        return new Planora.Auth.Infrastructure.Persistence.AuthDbContext(
+            options, Mock.Of<Planora.BuildingBlocks.Infrastructure.Messaging.IDomainEventDispatcher>());
     }
 
     private static CategoryDbContext CreateCategoryContext()

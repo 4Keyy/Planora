@@ -39,6 +39,10 @@ namespace Planora.Category.Infrastructure.Persistence.Configurations
             builder.Property(x => x.IsDeleted)
                 .HasDefaultValue(false);
 
+            // Global soft-delete filter so every query — including id and predicate
+            // lookups that did not explicitly filter — excludes deleted categories.
+            builder.HasQueryFilter(x => !x.IsDeleted);
+
             builder.HasIndex(x => x.UserId);
             builder.HasIndex(x => new { x.UserId, x.IsDeleted });
             builder.HasIndex(x => x.CreatedAt);

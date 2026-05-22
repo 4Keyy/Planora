@@ -23,8 +23,10 @@ namespace Planora.BuildingBlocks.Infrastructure.Persistence
             // FindAsync's identity-map short-circuit works poorly with EF Core InMemory in integration
             // tests (returns null for entities just saved by a different scope), whereas
             // FirstOrDefaultAsync always goes to the store and works correctly everywhere.
+            // The !IsDeleted predicate keeps GetByIdAsync consistent with every other query
+            // method on this base — a soft-deleted entity must never be returned by id.
             var guidId = (Guid)(object)id!;
-            return await DbSet.FirstOrDefaultAsync(e => e.Id == guidId, cancellationToken);
+            return await DbSet.FirstOrDefaultAsync(e => e.Id == guidId && !e.IsDeleted, cancellationToken);
         }
 
         public virtual async Task<IReadOnlyList<TEntity>> GetAllAsync(CancellationToken cancellationToken = default)
