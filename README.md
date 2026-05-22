@@ -43,7 +43,7 @@ The repository is not a single monolith — it is a service-oriented codebase wi
 | Database | PostgreSQL |
 | Auth | JWT + httpOnly refresh cookies, TOTP 2FA, CSRF double-submit |
 | Testing | xUnit, Vitest, Playwright (e2e) |
-| CI | GitHub Actions, Gitleaks, `dotnet-vuln`, `npm audit` |
+| CI | GitHub Actions, CodeQL SAST, Trivy, Gitleaks, `dotnet-vuln`, `npm audit` |
 
 ## At A Glance
 

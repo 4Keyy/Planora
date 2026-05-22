@@ -15,6 +15,12 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - **Low — config gaps**: `docker-compose.yml` now passes `GrpcSettings__ServiceKey` to `api-gateway`; the stale Category gRPC address `:5282` in TodoApi `appsettings.Docker.json` corrected to `:81`; `e2e.yml` actions pinned to commit SHAs; Dependabot gained the `docker` ecosystem; the unused `INCLUDE_ERROR_DETAIL` variable removed from the env templates and docs.
 - **Tests**: four `RabbitMqStartupHostedService` tests were rewritten to await the first connection probe deterministically instead of assuming `BackgroundService.ExecuteAsync` runs synchronously inside `StartAsync`. New regression tests cover `GetByIdAsync` soft-delete behavior for the BuildingBlocks, Auth and Category repositories and the two-directional `RemoveSharesBetweenUsersAsync` cleanup. Backend: 701 tests pass; build is warning-clean under `-warnaserror`.
 
+### Security tooling — CI scanning (2026-05-22)
+
+- **CodeQL SAST**: `security.yml` now runs GitHub CodeQL static analysis for `csharp` and `javascript-typescript` with the `security-extended` query suite and buildless analysis (`build-mode: none`). Results are published as SARIF to the repository Security tab.
+- **Trivy IaC scan**: a Trivy misconfiguration scan covering Dockerfiles and `docker-compose.yml` was added, with SARIF upload. Introduced in report mode (findings are surfaced, the job does not hard-fail) so the team can ratchet to enforcement once the baseline is clean.
+- All workflow action references are pinned to commit SHAs, validated with `actionlint`.
+
 ### Security — Phase 3 audit fixes (2026-05-22)
 
 - **High — `IsDevelopmentEnvironment()` not testable via configuration**: `RequireHttpsMetadata` was gated solely on `ASPNETCORE_ENVIRONMENT`, which is not injectable in unit tests. `IsDevelopmentEnvironment()` now first checks `IConfiguration["IsDevelopment"]` (an explicit bool override used in tests and Docker overrides) before falling back to the env var. DI contract tests now pass the key as `"true"` without touching the environment (`Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs`).

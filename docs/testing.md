@@ -196,10 +196,14 @@ Pull requests target `main`.
 
 `.github/workflows/security.yml` runs:
 
-- Gitleaks;
+- Gitleaks secret scan;
+- CodeQL SAST (`csharp` and `javascript-typescript`, `security-extended` queries);
+- Trivy IaC/Dockerfile misconfiguration scan;
 - `.NET` vulnerable package check;
 - `npm audit --audit-level=moderate`;
 - weekly scheduled run on Monday at 02:00.
+
+CodeQL and Trivy publish SARIF results to the repository Security tab.
 
 Dependabot is configured for:
 

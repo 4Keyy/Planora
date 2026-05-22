@@ -106,7 +106,9 @@ CI is validation-only. It does not deploy.
 
 `.github/workflows/security.yml`:
 
-- Gitleaks;
+- Gitleaks secret scan;
+- CodeQL SAST (C# and JavaScript/TypeScript);
+- Trivy IaC/Dockerfile misconfiguration scan;
 - NuGet vulnerability check;
 - npm audit;
 - weekly schedule.

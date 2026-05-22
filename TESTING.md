@@ -60,6 +60,6 @@ E2E config:
 
 `.github/workflows/e2e.yml` runs Docker-backed Playwright e2e for auth/todos/sharing/hidden.
 
-`.github/workflows/security.yml` runs Gitleaks, NuGet vulnerability checks, and npm audit.
+`.github/workflows/security.yml` runs Gitleaks, CodeQL SAST, Trivy IaC scanning, NuGet vulnerability checks, and npm audit.
 
 See [`docs/testing.md`](docs/testing.md) for coverage details, manual QA, and recommended tests for new changes.
