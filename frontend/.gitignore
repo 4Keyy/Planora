@@ -1,44 +1,21 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.node_modules/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
 
+# Next.js build output
+/.next/
+/out/
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-next-env.d.ts*.tsbuildinfo# typescript.vercel# vercel.env*.local# local env filesyarn-error.log*yarn-debug.log*npm-debug.log*# debug*.pem.DS_Store# misc/build# production/out//.next/# next.js/coverage# testing.yarn/install-state.gz.pnp.js/.pnp/node_modules# dependencies.next/
+# Production builds
+/build
 dist/
-build/
-out/
+
+# TypeScript
+*.tsbuildinfo
 
 # Logs
 *.log
@@ -49,9 +26,13 @@ yarn-error.log*
 # Environment
 .env
 .env.local
-.env.production.local
 .env.development.local
 .env.test.local
+.env.production.local
+.env*.local
+
+# Vercel
+.vercel
 
 # IDE
 .vscode/
