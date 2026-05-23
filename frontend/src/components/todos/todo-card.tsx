@@ -512,7 +512,7 @@ export function TodoCard({
                     opacity: isVisibilityPending ? 0.62 : 1,
                   }}
                   transition={contentTransition}
-                  className="text-[11px] font-bold px-3 py-1 rounded-lg uppercase tracking-wider bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 whitespace-nowrap shadow-sm border border-gray-200 blur-[3px] group-hover/collapsed:blur-0 group-hover/card:blur-0 group-focus-within/collapsed:blur-0 group-hover/collapsed:border-gray-300 transition-[filter,border-color,opacity] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] will-change-[filter]"
+                  className="text-[11px] font-bold px-3 py-1 rounded-lg uppercase tracking-wider bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 whitespace-nowrap shadow-sm border border-gray-200 blur-[3px] group-hover/collapsed:blur-0 group-hover/card:blur-0 group-focus-within/collapsed:blur-0 group-hover/collapsed:border-gray-300 transition-[filter,border-color,opacity] duration-500 ease-snappy will-change-[filter]"
                 >
                   {cardCategoryLabel}
                 </motion.span>
