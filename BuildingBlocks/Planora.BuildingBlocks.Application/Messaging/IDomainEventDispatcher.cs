@@ -1,4 +1,6 @@
-namespace Planora.BuildingBlocks.Infrastructure.Messaging
+using Planora.BuildingBlocks.Domain.Interfaces;
+
+namespace Planora.BuildingBlocks.Application.Messaging
 {
     public interface IDomainEventDispatcher
     {

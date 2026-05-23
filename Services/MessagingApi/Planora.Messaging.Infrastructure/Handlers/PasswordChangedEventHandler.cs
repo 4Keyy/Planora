@@ -1,6 +1,6 @@
 using Planora.Auth.Application.Common.Interfaces;
 using Planora.Auth.Domain.Events;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 
 namespace Planora.Messaging.Infrastructure.Handlers
 {

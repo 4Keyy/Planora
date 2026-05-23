@@ -5,7 +5,7 @@
 // EntityFrameworkCore
 global using Planora.BuildingBlocks.Infrastructure.Inbox;
 // BuildingBlocks
-global using Planora.BuildingBlocks.Infrastructure.Messaging;
+global using Planora.BuildingBlocks.Application.Messaging;
 global using Planora.BuildingBlocks.Infrastructure.Outbox;
 // Category Domain & Application
 global using Planora.Messaging.Domain.Entities;

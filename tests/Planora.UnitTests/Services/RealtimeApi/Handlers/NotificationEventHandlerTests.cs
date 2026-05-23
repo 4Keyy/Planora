@@ -1,6 +1,6 @@
 using Planora.Realtime.Application.Handlers;
 using Planora.Realtime.Application.Interfaces;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;

@@ -208,7 +208,7 @@ public class RepositoryBehaviorTests
             .Options;
 
         return new Planora.Auth.Infrastructure.Persistence.AuthDbContext(
-            options, Mock.Of<Planora.BuildingBlocks.Infrastructure.Messaging.IDomainEventDispatcher>());
+            options, Mock.Of<Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher>());
     }
 
     private static CategoryDbContext CreateCategoryContext()

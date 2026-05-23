@@ -2,8 +2,8 @@ using Planora.BuildingBlocks.Application.Models;
 using Planora.Auth.Application.Common.Interfaces;
 using Planora.Auth.Domain.Repositories;
 using Planora.BuildingBlocks.Domain.Interfaces;
-using Planora.BuildingBlocks.Infrastructure.Messaging;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 
 namespace Planora.Auth.Application.Features.Friendships.Commands.RemoveFriend
 {

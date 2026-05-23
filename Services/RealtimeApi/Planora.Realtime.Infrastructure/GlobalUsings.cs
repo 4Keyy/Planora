@@ -1,6 +1,6 @@
 // System
 // BuildingBlocks
-global using Planora.BuildingBlocks.Infrastructure.Messaging;
+global using Planora.BuildingBlocks.Application.Messaging;
 // MediatR
 
 // MassTransit
@@ -16,3 +16,4 @@ global using Microsoft.Extensions.Logging;
 global using System.Collections.Concurrent;
 
 // Realtime Application
+global using Planora.BuildingBlocks.Infrastructure.Messaging;

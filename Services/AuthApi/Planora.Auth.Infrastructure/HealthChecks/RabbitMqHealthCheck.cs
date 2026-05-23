@@ -1,4 +1,4 @@
-using Planora.BuildingBlocks.Infrastructure.Messaging;
+using Planora.BuildingBlocks.Application.Messaging;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Planora.Auth.Infrastructure.HealthChecks;

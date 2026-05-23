@@ -7,7 +7,7 @@ using Planora.Auth.Infrastructure.Services.Messaging;
 using Planora.Auth.Infrastructure.Services.Security;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
-using Planora.BuildingBlocks.Infrastructure.Messaging;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.Auth.Infrastructure.HealthChecks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Diagnostics.HealthChecks;

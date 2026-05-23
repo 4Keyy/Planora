@@ -46,10 +46,10 @@ public sealed class ArchitectureTests
 
     // Concrete outer layers an Application project must never reach into: any
     // service's persistence/Infrastructure project, or any Api host project.
-    // (Planora.BuildingBlocks.Infrastructure is intentionally not listed: the
-    // shared messaging contracts — IEventBus, IIntegrationEventHandler and the
-    // integration events — currently live there, so handlers that publish or
-    // consume events depend on that namespace.)
+    // Note: Planora.BuildingBlocks.Infrastructure is not yet in this list —
+    // ICurrentUserContext and BusinessEventLogger still live there and need
+    // a follow-up contract relocation before the rule can cover it. The
+    // messaging contracts have already been relocated (see CHANGELOG).
     private static readonly string[] OuterLayerNamespaces =
     {
         "Planora.Auth.Infrastructure",

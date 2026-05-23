@@ -8,7 +8,7 @@ using Planora.Realtime.Api.Grpc;
 using Planora.Realtime.Api.Hubs;
 using Planora.Realtime.Infrastructure.Hubs;
 using Planora.Realtime.Application.Handlers;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 using System.Text;
 using Serilog;
 using Serilog.Events;

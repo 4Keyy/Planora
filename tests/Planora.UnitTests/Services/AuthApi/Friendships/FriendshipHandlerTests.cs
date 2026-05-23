@@ -14,7 +14,7 @@ using Planora.Auth.Domain.Repositories;
 using Planora.Auth.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Planora.BuildingBlocks.Infrastructure.Messaging;
+using Planora.BuildingBlocks.Application.Messaging;
 
 namespace Planora.UnitTests.Services.AuthApi.Friendships;
 

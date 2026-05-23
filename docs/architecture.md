@@ -171,7 +171,7 @@ Confirmed cross-service checks:
 
 ### Asynchronous RabbitMQ
 
-RabbitMQ is configured through `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging` and service `Program.cs` startup code. Confirmed subscriptions include:
+RabbitMQ contracts (`IEventBus`, `IIntegrationEventHandler`, `IntegrationEvent`, integration events) live in `BuildingBlocks/Planora.BuildingBlocks.Application/Messaging` and `.../Events`. The RabbitMQ implementation (`RabbitMqEventBus`, `RabbitMqConnectionManager`) and the connection lifecycle remain in `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging` and are wired in service `Program.cs` startup code. Confirmed subscriptions include:
 
 | Subscriber | Event |
 |---|---|
@@ -184,7 +184,8 @@ Code:
 - `Services/TodoApi/Planora.Todo.Api/Program.cs`
 - `Services/CategoryApi/Planora.Category.Api/Program.cs`
 - `Services/RealtimeApi/Planora.Realtime.Api/Program.cs`
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging`
+- `BuildingBlocks/Planora.BuildingBlocks.Application/Messaging` (contracts + events)
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging` (RabbitMQ implementation)
 
 ## API Response Model
 

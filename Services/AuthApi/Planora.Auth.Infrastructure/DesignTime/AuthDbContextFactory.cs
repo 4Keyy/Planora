@@ -27,7 +27,7 @@ namespace Planora.Auth.Infrastructure.DesignTime
         }
     }
 
-    internal sealed class DesignTimeDomainEventDispatcher : Planora.BuildingBlocks.Infrastructure.Messaging.IDomainEventDispatcher
+    internal sealed class DesignTimeDomainEventDispatcher : Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher
     {
         public Task DispatchAsync(Planora.BuildingBlocks.Domain.Interfaces.IDomainEvent domainEvent, CancellationToken cancellationToken = default)
             => Task.CompletedTask;

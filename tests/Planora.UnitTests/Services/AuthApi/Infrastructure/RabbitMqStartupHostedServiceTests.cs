@@ -1,4 +1,5 @@
 using Planora.Auth.Infrastructure.Services.Messaging;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Infrastructure.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;

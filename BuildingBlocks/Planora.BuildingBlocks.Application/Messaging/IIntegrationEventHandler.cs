@@ -1,4 +1,4 @@
-namespace Planora.BuildingBlocks.Infrastructure.Messaging;
+namespace Planora.BuildingBlocks.Application.Messaging;
 
 public interface IIntegrationEventHandler<in TEvent>
     where TEvent : IntegrationEvent

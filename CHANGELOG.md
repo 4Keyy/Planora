@@ -35,7 +35,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 ### Architecture tests (2026-05-22)
 
 - Added `tests/Planora.UnitTests/Architecture/ArchitectureTests.cs` using `NetArchTest.Rules`. The suite enforces the Clean Architecture / DDD dependency rule automatically: every `*.Domain` assembly is asserted to have no dependency on infrastructure concerns (`*.Infrastructure`, EF Core, ASP.NET Core, Npgsql, Redis, RabbitMQ, gRPC); `BuildingBlocks.Domain` must not depend on the Application or Infrastructure layers; and no `*.Application` project may depend on a sibling service's concrete Infrastructure project or on any Api host. A layering inversion like the one removed from `Realtime.Domain` now fails the build instead of passing review.
-- Observation (not yet actioned): the shared messaging contracts (`IEventBus`, `IIntegrationEventHandler`, integration events) live under `Planora.BuildingBlocks.Infrastructure.Messaging`, so Application handlers that publish/consume events depend on an Infrastructure namespace. Relocating those contracts to the Application layer would let the architecture rule cover `BuildingBlocks.Infrastructure` too.
+- Follow-up done in this audit pass: the shared messaging contracts have been relocated from `BuildingBlocks.Infrastructure.Messaging` to `BuildingBlocks.Application.Messaging` (see the next subsection).
+- Remaining follow-up: `ICurrentUserContext` and `BusinessEventLogger` still live in `BuildingBlocks.Infrastructure`. Application handlers depend on `Infrastructure.Context`, which is why `BuildingBlocks.Infrastructure` itself is not yet in the Application architecture rule's forbidden list.
+
+### Messaging contracts moved to the Application layer (2026-05-22)
+
+- `IEventBus`, `IIntegrationEventHandler<T>`, `IntegrationEvent`, `IDomainEventDispatcher`, `IDomainEventHandler<T>` and the eight `*IntegrationEvent` types were moved from `Planora.BuildingBlocks.Infrastructure.Messaging` to `Planora.BuildingBlocks.Application.Messaging` (and `.Events`). Application handlers and consumers no longer cross the layering boundary just to publish or consume integration events.
+- The RabbitMQ implementations (`RabbitMqEventBus`, `RabbitMqConnectionManager`, `IRabbitMqConnectionManager`) and `DomainEventDispatcher` stay in `BuildingBlocks.Infrastructure.Messaging`. `DomainEventDispatcher` now explicitly inherits from `Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher` (fully qualified) because a pre-existing duplicate interface in the parent `BuildingBlocks.Infrastructure` namespace would otherwise win C# name resolution.
+- Cross-cutting concern: the duplicate `Planora.BuildingBlocks.Infrastructure.IDomainEventDispatcher`/`DomainEventDispatcher` pair (MediatR-based) used only by `CategoryDbContext` is recorded as separate technical debt — converging on one dispatch mechanism is a future change.
+- Global usings, `using` directives across 35+ files, `docs/overview.md` and `docs/architecture.md` updated. Build is warning-clean under `-warnaserror`; all 723 backend tests pass.
 
 ### Security — Phase 3 audit fixes (2026-05-22)
 

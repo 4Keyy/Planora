@@ -11,8 +11,8 @@ using Planora.Auth.Application.Features.Users.Validators.UpdateUser;
 using Planora.Auth.Domain.Entities;
 using Planora.Auth.Domain.Repositories;
 using Planora.Auth.Domain.ValueObjects;
-using Planora.BuildingBlocks.Infrastructure.Messaging;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 using Microsoft.Extensions.Logging;
 using Moq;
 

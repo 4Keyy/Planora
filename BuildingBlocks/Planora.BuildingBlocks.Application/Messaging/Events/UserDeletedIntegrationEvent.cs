@@ -1,4 +1,4 @@
-namespace Planora.BuildingBlocks.Infrastructure.Messaging.Events
+namespace Planora.BuildingBlocks.Application.Messaging.Events
 {
     public sealed class UserDeletedIntegrationEvent : IntegrationEvent
     {
