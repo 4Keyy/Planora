@@ -22,7 +22,7 @@
 // BuildingBlocks
 global using Planora.BuildingBlocks.Domain.Interfaces;
 global using Planora.BuildingBlocks.Infrastructure.Inbox;
-global using Planora.BuildingBlocks.Infrastructure.Messaging;
+global using Planora.BuildingBlocks.Application.Messaging;
 global using System.Linq.Expressions;
 global using System.Text;
 global using System.Text.Json;

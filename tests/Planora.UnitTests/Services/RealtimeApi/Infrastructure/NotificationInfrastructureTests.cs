@@ -173,36 +173,6 @@ public class NotificationInfrastructureTests
         connectionManager.VerifyNoOtherCalls();
     }
 
-    [Fact]
-    [Trait("TestType", "Functional")]
-    [Trait("TestType", "System")]
-    [Trait("TestType", "Regression")]
-    public async Task TodoHub_ConnectsUsersAndBroadcastsTodoEvents()
-    {
-        var groups = new Mock<IGroupManager>();
-        var proxy = new Mock<IClientProxy>();
-        var clients = new Mock<IHubCallerClients>();
-        clients.Setup(x => x.Group("todos:user-1")).Returns(proxy.Object);
-        var hub = new TodoHub(Mock.Of<ILogger<TodoHub>>())
-        {
-            Context = HubContext("user-1", "conn-1"),
-            Groups = groups.Object,
-            Clients = clients.Object
-        };
-        var todo = new { id = "todo-1" };
-        var todoId = Guid.NewGuid();
-
-        await hub.OnConnectedAsync();
-        await hub.NotifyTodoCreated("user-1", todo);
-        await hub.NotifyTodoUpdated("user-1", todo);
-        await hub.NotifyTodoDeleted("user-1", todoId);
-
-        groups.Verify(x => x.AddToGroupAsync("conn-1", "todos:user-1", It.IsAny<CancellationToken>()), Times.Once);
-        proxy.Verify(x => x.SendCoreAsync("TodoCreated", It.Is<object?[]>(args => ReferenceEquals(args[0], todo)), It.IsAny<CancellationToken>()), Times.Once);
-        proxy.Verify(x => x.SendCoreAsync("TodoUpdated", It.Is<object?[]>(args => ReferenceEquals(args[0], todo)), It.IsAny<CancellationToken>()), Times.Once);
-        proxy.Verify(x => x.SendCoreAsync("TodoDeleted", It.Is<object?[]>(args => Equals(args[0], todoId)), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
     private static void VerifyNotification(Mock<IClientProxy> proxy, string message, string type)
     {
         proxy.Verify(

@@ -1,6 +1,6 @@
 using Planora.BuildingBlocks.Infrastructure;
-using Planora.BuildingBlocks.Infrastructure.Messaging;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.Category.Application.Features.IntegrationEvents;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Filters;
@@ -52,7 +52,7 @@ namespace Planora.Category.Api
             builder.Services.AddConfiguredResponseCompression();
 
             // Rate Limiting
-            builder.Services.AddConfiguredRateLimiting();
+            builder.Services.AddConfiguredRateLimiting(builder.Configuration);
 
             // CORS
             builder.Services.AddCors(options =>

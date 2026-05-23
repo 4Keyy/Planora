@@ -1,6 +1,6 @@
 // System
 // Health Checks
-global using Planora.BuildingBlocks.Infrastructure.Messaging;
+global using Planora.BuildingBlocks.Application.Messaging;
 // OpenTelemetry
 
 // BuildingBlocks
@@ -22,3 +22,4 @@ global using Microsoft.AspNetCore.SignalR;
 // Serilog
 global using Serilog;
 global using System.Text.Json;
+global using Planora.BuildingBlocks.Infrastructure.Messaging;

@@ -1,4 +1,4 @@
-using Planora.BuildingBlocks.Infrastructure.Messaging;
+using Planora.BuildingBlocks.Application.Messaging;
 using Microsoft.Extensions.Hosting;
 
 namespace Planora.Auth.Infrastructure.Services.Messaging;

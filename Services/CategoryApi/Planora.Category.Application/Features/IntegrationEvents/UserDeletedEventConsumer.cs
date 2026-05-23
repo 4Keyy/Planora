@@ -1,5 +1,5 @@
-using Planora.BuildingBlocks.Infrastructure.Messaging;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.Category.Domain.Repositories;
 
 namespace Planora.Category.Application.Features.IntegrationEvents

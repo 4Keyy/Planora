@@ -51,7 +51,7 @@ flowchart LR
 | Area | Required decision | Repository evidence |
 |---|---|---|
 | Hosting | Choose the runtime platform for backend containers and frontend Next.js. | Dockerfiles exist for backend/gateway; frontend is not in `docker-compose.yml`. |
-| TLS | Terminate HTTPS before the gateway and frontend. | Auth cookie `Secure` depends on `HttpContext.Request.IsHttps` in `AuthenticationController.cs`. |
+| TLS | Terminate HTTPS before the gateway and frontend. | Auth cookies are issued with `Secure` enabled in every non-development environment (`!IWebHostEnvironment.IsDevelopment()`) in `AuthenticationController.cs`, so HTTPS must actually be terminated upstream for the cookie to be transmitted safely. |
 | Secrets | Store secrets in a managed secret store, not in committed files. | `docker-compose.yml` requires secret interpolation; `.env.example` and `.env.production.example` are templates only. |
 | Network exposure | Keep PostgreSQL, Redis, RabbitMQ AMQP, and internal service ports private. | Compose exposes local infra ports for development convenience. |
 | Database schema | Decide whether production uses generated migrations or the first-run model bootstrap path. | `DatabaseStartup.EnsureReadyAsync` applies migrations when present and falls back to `EnsureCreatedAsync` when none exist. |

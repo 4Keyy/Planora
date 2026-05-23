@@ -1,5 +1,6 @@
 using Planora.BuildingBlocks.Infrastructure.Caching;
 using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Infrastructure.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -69,7 +70,7 @@ namespace Planora.BuildingBlocks.Infrastructure
                 Planora.BuildingBlocks.Infrastructure.DomainEventDispatcher>();
 
             services.AddScoped<
-                Planora.BuildingBlocks.Infrastructure.Messaging.IDomainEventDispatcher,
+                Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher,
                 Planora.BuildingBlocks.Infrastructure.Messaging.DomainEventDispatcher>();
 
             // Deep Health Checks

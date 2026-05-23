@@ -16,6 +16,19 @@ namespace Planora.Todo.Infrastructure.Persistence
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(TodoDbContext).Assembly);
 
             modelBuilder.HasDefaultSchema("todo");
+
+            // Optimistic concurrency for the TodoItem aggregate via PostgreSQL's
+            // xmin system column — no extra column or migration. Guarded by the
+            // provider check so the InMemory test provider is unaffected.
+            if (Database.IsNpgsql())
+            {
+                modelBuilder.Entity<TodoItem>()
+                    .Property<uint>("xmin")
+                    .HasColumnName("xmin")
+                    .HasColumnType("xid")
+                    .ValueGeneratedOnAddOrUpdate()
+                    .IsConcurrencyToken();
+            }
         }
     }
 }

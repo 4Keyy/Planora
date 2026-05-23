@@ -64,3 +64,21 @@ updates:
     # updates to that single file and floods the repo with per-project PRs.
     # Security vulnerabilities are caught by the dotnet-vuln CI job instead.
     open-pull-requests-limit: 0
+
+  - package-ecosystem: "docker"
+    # docker-compose.yml at the root plus every service/gateway Dockerfile.
+    directories:
+      - "/"
+      - "/Planora.ApiGateway"
+      - "/Services/AuthApi/Planora.Auth.Api"
+      - "/Services/CategoryApi/Planora.Category.Api"
+      - "/Services/MessagingApi/Planora.Messaging.Api"
+      - "/Services/RealtimeApi/Planora.Realtime.Api"
+      - "/Services/TodoApi/Planora.Todo.Api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"

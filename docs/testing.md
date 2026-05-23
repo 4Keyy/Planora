@@ -7,6 +7,7 @@ Planora has backend xUnit tests, frontend Vitest tests, Docker-backed Playwright
 | Area | Path | Framework |
 |---|---|---|
 | Backend unit/contract tests | `tests/Planora.UnitTests` | xUnit, Moq, FluentAssertions |
+| Backend architecture tests | `tests/Planora.UnitTests/Architecture` | xUnit, NetArchTest.Rules |
 | Backend error-handling/integration-style tests | `tests/Planora.ErrorHandlingTests` | xUnit, ASP.NET Core testing |
 | Frontend tests | `frontend/src/test` | Vitest, Testing Library, jsdom |
 | E2E flow tests | `frontend/e2e` | Playwright APIRequestContext through API Gateway |
@@ -192,14 +193,46 @@ Pull requests target `main`.
 
 `.github/workflows/e2e.yml` runs the Playwright gateway flow on relevant pull requests and manual dispatch. It builds the Docker stack, generates temporary e2e secrets in `.env.e2e`, waits for gateway health endpoints, runs `npm run e2e`, uploads Playwright artifacts, then stops the stack.
 
+## Mutation Testing
+
+Mutation testing (Stryker.NET) measures how effectively the tests detect
+deliberately introduced faults. It is set up as a local tool and a config
+file, and is run on demand (it is too slow for every CI push):
+
+```powershell
+dotnet tool restore
+dotnet stryker
+```
+
+Two scoped configs ship with the repo. Run each individually:
+
+```powershell
+# Hidden-shared-todo redaction logic — score holds above 95%.
+dotnet stryker
+
+# Auth security modules (PasswordValidator, TwoFactorService,
+# RecoveryCodeService) — score holds above 85%; remaining survivors
+# are documented equivalent mutants (logger-only branches and
+# StringSetAsync keepTtl masked by When.NotExists).
+dotnet stryker -f stryker-auth.json
+```
+
+Both configs ignore `string` mutator output and the auth config also ignores
+`statement` mutator output (logger-only equivalent mutants). Reports are
+written to the git-ignored `StrykerOutput/` directory.
+
 ## Security Checks
 
 `.github/workflows/security.yml` runs:
 
-- Gitleaks;
+- Gitleaks secret scan;
+- CodeQL SAST (`csharp` and `javascript-typescript`, `security-extended` queries);
+- Trivy IaC/Dockerfile misconfiguration scan;
 - `.NET` vulnerable package check;
 - `npm audit --audit-level=moderate`;
 - weekly scheduled run on Monday at 02:00.
+
+CodeQL and Trivy publish SARIF results to the repository Security tab.
 
 Dependabot is configured for:
 

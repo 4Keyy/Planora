@@ -173,6 +173,6 @@ public sealed class UnitOfWorkTransactionTests
 
         return new AuthDbContext(
             options,
-            Mock.Of<Planora.BuildingBlocks.Infrastructure.Messaging.IDomainEventDispatcher>());
+            Mock.Of<Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher>());
     }
 }

@@ -1,6 +1,6 @@
 using Planora.Auth.Application.Features.Users.Commands.DeleteUser;
-using Planora.BuildingBlocks.Infrastructure.Messaging;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 
 namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
 {

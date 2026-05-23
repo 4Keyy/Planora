@@ -1,6 +1,6 @@
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.BuildingBlocks.Infrastructure;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Infrastructure.Outbox;
 using Planora.Category.Application.Features.Categories.Events;
 using Planora.Category.Domain.Events;

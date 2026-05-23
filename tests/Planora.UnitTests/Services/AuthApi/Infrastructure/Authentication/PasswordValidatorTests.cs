@@ -137,6 +137,112 @@ public class PasswordValidatorTests
         Assert.True(await validator.IsDifferentFromPreviousPasswordsAsync(userId, "NewPassword123!"));
     }
 
+    // ---- Boundary tests for IsStrongPassword (added to kill equality mutants
+    // identified by Stryker on the length and pattern-detection branches). ----
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void IsStrongPassword_AtMinimumLength_Passes()
+    {
+        // Exactly 8 chars; all classes present; no 4-char sequence or repetition.
+        Assert.True(CreateValidator().IsStrongPassword("Ay9!Z3xK"));
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void IsStrongPassword_OneShortOfMinimumLength_Fails()
+    {
+        Assert.False(CreateValidator().IsStrongPassword("Ay9!Z3x")); // 7 chars
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void IsStrongPassword_AtMaximumLength_Passes()
+    {
+        // 128 chars = prefix (8) + 15 × 8-char alternating block. The block has
+        // no 4-char ASCII-sequence and no 4-char repetition, so doing it 15
+        // times in a row still passes both pattern checks.
+        var password = "Ay9!Z3xK" + string.Concat(Enumerable.Repeat("PqRs8tUv", 15));
+        Assert.Equal(128, password.Length);
+        Assert.True(CreateValidator().IsStrongPassword(password));
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void IsStrongPassword_OneOverMaximumLength_Fails()
+    {
+        var password = "Ay9!Z3xK" + string.Concat(Enumerable.Repeat("PqRs8tUv", 15)) + "a";
+        Assert.Equal(129, password.Length);
+        Assert.False(CreateValidator().IsStrongPassword(password));
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void IsStrongPassword_SequentialAtEnd_Fails()
+    {
+        // The 4-char ASCII sequence starts at the LAST possible index, hitting
+        // the i == password.Length - length boundary of HasSequentialCharacters.
+        Assert.False(CreateValidator().IsStrongPassword("A1!_Eabcd")); // 9 chars
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void IsStrongPassword_RepeatingAtEnd_Fails()
+    {
+        // The 4-char repetition starts at the LAST possible index, hitting the
+        // i == password.Length - length boundary of HasRepeatingCharacters.
+        Assert.False(CreateValidator().IsStrongPassword("A1!_Bxxxx")); // 9 chars
+    }
+
+    // ---- Boundary tests for CalculatePasswordStrength length tiers. ----
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void CalculatePasswordStrength_AtEightCharBoundary_AwardsLowestLengthBoost()
+    {
+        // Score = 1 (length ≥ 8) + 4 (classes) + 1 (uniqueness) + 1 (no seq-3) + 1 (no rep-3) = 8.
+        Assert.Equal(8, CreateValidator().CalculatePasswordStrength("Ay9!Z3xK"));
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void CalculatePasswordStrength_AtTwelveCharBoundary_AwardsSecondLengthBoost()
+    {
+        // Score = 1 + 1 (length ≥ 8 and ≥ 12) + 4 + 1 + 1 + 1 = 9.
+        Assert.Equal(9, CreateValidator().CalculatePasswordStrength("Ay9!Z3xK7M2#"));
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void CalculatePasswordStrength_AtSixteenCharBoundary_AwardsThirdLengthBoost()
+    {
+        // All three length tiers credited; capped at 10.
+        Assert.Equal(10, CreateValidator().CalculatePasswordStrength("Ay9!Z3xK7M2#vN5*"));
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Boundary")]
+    public void CalculatePasswordStrength_AtUniqueCharThreshold_AwardsDiversityBoost()
+    {
+        // Length 10 → threshold = 7.0. The password has exactly 7 distinct chars
+        // (A, b, 1, !, c, D, 2 — covering all four classes), so uniqueChars is
+        // exactly equal to length * 0.7. This pins down the `>=` boundary in
+        // CalculatePasswordStrength so an `>` mutation drops the score.
+        // Expected score: 1 (len ≥ 8) + 4 (classes) + 1 (unique ≥ 70%)
+        // + 1 (no seq-3) + 1 (no rep-3) = 8.
+        Assert.Equal(8, CreateValidator().CalculatePasswordStrength("Ab1!cD2Abc"));
+    }
+
     private static PasswordValidator CreateValidator(
         IDictionary<string, string?>? settings = null,
         HttpMessageHandler? handler = null,

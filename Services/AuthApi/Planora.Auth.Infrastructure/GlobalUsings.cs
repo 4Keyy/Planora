@@ -12,7 +12,7 @@ global using Planora.Auth.Infrastructure.Persistence;
 global using Planora.Auth.Infrastructure.Persistence.Repositories;
 // BuildingBlocks
 global using Planora.BuildingBlocks.Domain.Interfaces;
-global using Planora.BuildingBlocks.Infrastructure.Messaging;
+global using Planora.BuildingBlocks.Application.Messaging;
 global using Planora.BuildingBlocks.Infrastructure.Outbox;
 // PostgreSQL
 
@@ -43,3 +43,4 @@ global using System.Reflection;
 global using System.Security.Claims;
 global using System.Security.Cryptography;
 global using System.Text;
+global using Planora.BuildingBlocks.Infrastructure.Messaging;

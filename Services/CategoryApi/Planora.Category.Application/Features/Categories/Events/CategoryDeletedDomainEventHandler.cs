@@ -1,5 +1,5 @@
 using Planora.BuildingBlocks.Infrastructure;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Infrastructure.Outbox;
 using Planora.Category.Domain.Events;
 using MediatR;

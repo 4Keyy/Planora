@@ -22,7 +22,7 @@ Auth API sets:
 refresh_token=<opaque-token>; HttpOnly; SameSite=Strict; Path=/auth/api/v1/auth
 ```
 
-The `Secure` flag is based on `HttpContext.Request.IsHttps`. On local HTTP it is false. Production must terminate or enforce HTTPS so cookies are sent securely.
+The `Secure` flag is set from `!IWebHostEnvironment.IsDevelopment()`, so it is `true` in every non-development environment regardless of `HttpContext.Request.IsHttps`. This keeps the flag correct behind a TLS-terminating reverse proxy, where the backend sees plain HTTP. On local development it is `false`. Production must still terminate or enforce HTTPS so the cookie is actually transmitted over TLS.
 
 Code:
 
@@ -192,7 +192,12 @@ A `GlobalLimiter` applies a default cap of 100 requests/minute per IP to every e
 | `login` | 5/minute/IP | `POST /auth/login` |
 | `auth` | 10/minute/IP | refresh, logout, CSRF |
 
-The `GlobalLimiter` is configured in `AddConfiguredRateLimiting()` using `PartitionedRateLimiter.Create<HttpContext, string>` partitioned by `RemoteIpAddress`. Auth controller adds the stricter named policies on top via `[EnableRateLimiting("...")]`.
+The `GlobalLimiter` and named policies are configured in `AddConfiguredRateLimiting(IConfiguration)` and partitioned by `RemoteIpAddress`. The backend is selected at startup:
+
+- `RateLimiting:Backend = Redis` (production, set in `docker-compose.yml` for every service) — partitions are backed by `RedisRateLimitPartition.GetFixedWindowRateLimiter` from `RedisRateLimiting.AspNetCore`, so the per-IP counters are shared across every replica of every service. Without this, the in-memory limiter would let an attacker exceed the configured limits by a factor of `N` (the replica count).
+- Unset or anything else (tests, local dev) — falls back to the in-memory `FixedWindowRateLimiter`. The integration test factory deliberately leaves it unset, so the in-memory path stays the default for tests.
+
+Auth controller adds the stricter named policies on top via `[EnableRateLimiting("...")]`.
 
 Code:
 

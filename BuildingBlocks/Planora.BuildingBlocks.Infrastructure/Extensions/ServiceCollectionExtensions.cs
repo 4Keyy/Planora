@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
 using System.Threading.RateLimiting;
+using RedisRateLimiting;
+using StackExchange.Redis;
 
 namespace Planora.BuildingBlocks.Infrastructure.Extensions;
 
@@ -40,71 +42,34 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddConfiguredRateLimiting(this IServiceCollection services)
+    /// <summary>
+    /// Configures global and named rate-limit policies. When
+    /// <c>RateLimiting:Backend</c> is set to <c>Redis</c> (production), policies
+    /// are backed by a Redis fixed-window limiter so the configured limits are
+    /// honored across every service instance behind a load balancer. Otherwise
+    /// the policies fall back to an in-memory <see cref="FixedWindowRateLimiter"/>
+    /// — that path is used by unit/integration tests and by local development
+    /// when no shared Redis is available.
+    /// </summary>
+    public static IServiceCollection AddConfiguredRateLimiting(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        // Configure rate limiting with multiple policies
+        var backend = configuration["RateLimiting:Backend"];
+        var useRedis = string.Equals(backend, "Redis", StringComparison.OrdinalIgnoreCase);
+
         services.AddRateLimiter(options =>
         {
-            // Global fallback: 100 requests per minute per IP for all endpoints that do
-            // not have an explicit [EnableRateLimiting] policy. This protects data
-            // endpoints (todos, categories, messages) that do not carry individual
-            // rate-limit attributes. Previously this limiter was commented out, leaving
-            // those endpoints completely unthrottled.
-            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
-                context => RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        AutoReplenishment = true,
-                        PermitLimit = 100,
-                        Window = TimeSpan.FromMinutes(1)
-                    }));
+            if (useRedis)
+            {
+                ConfigureRedisRateLimits(options);
+            }
+            else
+            {
+                ConfigureInMemoryRateLimits(options);
+            }
 
-            // Strict limiter for auth endpoints (10 requests per minute per IP)
-            options.AddPolicy("auth", context =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        AutoReplenishment = true,
-                        PermitLimit = 10,
-                        Window = TimeSpan.FromMinutes(1)
-                    }));
-
-            // Stricter limiter for login endpoint (5 requests per minute per IP)
-            options.AddPolicy("login", context =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        AutoReplenishment = true,
-                        PermitLimit = 5,
-                        Window = TimeSpan.FromMinutes(1)
-                    }));
-
-            // Strict limiter for register endpoint (3 requests per minute per IP)
-            options.AddPolicy("register", context =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        AutoReplenishment = true,
-                        PermitLimit = 3,
-                        Window = TimeSpan.FromMinutes(1)
-                    }));
-
-            // Standard limiter for data endpoints (50 requests per minute per IP)
-            options.AddPolicy("data", context =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        AutoReplenishment = true,
-                        PermitLimit = 50,
-                        Window = TimeSpan.FromMinutes(1)
-                    }));
-
-            // On rejection, return 429 Too Many Requests with Retry-After header
+            // On rejection, return 429 Too Many Requests with Retry-After header.
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = async (context, _) =>
             {
@@ -120,4 +85,74 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
+    private static void ConfigureInMemoryRateLimits(RateLimiterOptions options)
+    {
+        // Global fallback: 100 requests/min/IP for endpoints without an explicit
+        // [EnableRateLimiting] policy. Protects data endpoints that do not carry
+        // individual rate-limit attributes.
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            context => RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: PartitionKey(context),
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromMinutes(1)
+                }));
+
+        AddInMemoryPolicy(options, "auth", 10);
+        AddInMemoryPolicy(options, "login", 5);
+        AddInMemoryPolicy(options, "register", 3);
+        AddInMemoryPolicy(options, "data", 50);
+    }
+
+    private static void ConfigureRedisRateLimits(RateLimiterOptions options)
+    {
+        // Same limits as the in-memory path, but backed by Redis so the per-IP
+        // counters are shared across all replicas of every service.
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
+            context => RedisRateLimitPartition.GetFixedWindowRateLimiter(
+                partitionKey: $"planora:rl:global:{PartitionKey(context)}",
+                factory: _ => RedisOptions(context, permitLimit: 100)));
+
+        AddRedisPolicy(options, "auth", 10, "planora:rl:auth");
+        AddRedisPolicy(options, "login", 5, "planora:rl:login");
+        AddRedisPolicy(options, "register", 3, "planora:rl:register");
+        AddRedisPolicy(options, "data", 50, "planora:rl:data");
+    }
+
+    private static void AddInMemoryPolicy(RateLimiterOptions options, string name, int permitLimit) =>
+        options.AddPolicy(name, context =>
+            RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: PartitionKey(context),
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    AutoReplenishment = true,
+                    PermitLimit = permitLimit,
+                    Window = TimeSpan.FromMinutes(1)
+                }));
+
+    private static void AddRedisPolicy(RateLimiterOptions options, string name, int permitLimit, string keyPrefix) =>
+        options.AddPolicy(name, context =>
+            RedisRateLimitPartition.GetFixedWindowRateLimiter(
+                partitionKey: $"{keyPrefix}:{PartitionKey(context)}",
+                factory: _ => RedisOptions(context, permitLimit)));
+
+    private static RedisFixedWindowRateLimiterOptions RedisOptions(HttpContext context, int permitLimit)
+    {
+        // Resolve the singleton multiplexer once per partition. The partition is
+        // cached by the rate-limiter middleware so this lookup runs at most once
+        // per unique partition key, not per request.
+        var muxer = context.RequestServices.GetRequiredService<IConnectionMultiplexer>();
+        return new RedisFixedWindowRateLimiterOptions
+        {
+            ConnectionMultiplexerFactory = () => muxer,
+            PermitLimit = permitLimit,
+            Window = TimeSpan.FromMinutes(1),
+        };
+    }
+
+    private static string PartitionKey(HttpContext context) =>
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Grpc.Core;
-using Planora.BuildingBlocks.Infrastructure.Messaging;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.Todo.Api;
 using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;

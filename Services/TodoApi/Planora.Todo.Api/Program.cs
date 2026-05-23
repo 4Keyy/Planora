@@ -10,8 +10,8 @@ using Planora.Todo.Api.Grpc;
 using Planora.Todo.Application;
 using Planora.Todo.Infrastructure;
 using Planora.Todo.Infrastructure.Persistence;
-using Planora.BuildingBlocks.Infrastructure.Messaging;
-using Planora.BuildingBlocks.Infrastructure.Messaging.Events;
+using Planora.BuildingBlocks.Application.Messaging;
+using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.Todo.Application.Features.Todos.Events;
 using Planora.Todo.Application.Features.IntegrationEvents;
 using Microsoft.EntityFrameworkCore;
@@ -53,7 +53,7 @@ namespace Planora.Todo.Api
             builder.Services.AddConfiguredResponseCompression();
 
             // Rate Limiting
-            builder.Services.AddConfiguredRateLimiting();
+            builder.Services.AddConfiguredRateLimiting(builder.Configuration);
 
             // CORS
             builder.Services.AddCors(options =>

@@ -47,6 +47,19 @@ public sealed class AuthDbContext : DbContext, IApplicationDbContext
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         ApplyTotpSecretEncryption(modelBuilder);
+
+        // Optimistic concurrency for the Friendship aggregate (pending/accepted
+        // state machine) via PostgreSQL's xmin system column. Guarded so the
+        // InMemory test provider is unaffected.
+        if (Database.IsNpgsql())
+        {
+            modelBuilder.Entity<Friendship>()
+                .Property<uint>("xmin")
+                .HasColumnName("xmin")
+                .HasColumnType("xid")
+                .ValueGeneratedOnAddOrUpdate()
+                .IsConcurrencyToken();
+        }
     }
 
     private void ApplyTotpSecretEncryption(ModelBuilder modelBuilder)

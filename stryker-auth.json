@@ -1,0 +1,28 @@
+{
+  "stryker-config": {
+    "solution": "Planora.sln",
+    "project": "Planora.Auth.Infrastructure.csproj",
+    "test-projects": [
+      "tests/Planora.UnitTests/Planora.UnitTests.csproj"
+    ],
+    "mutate": [
+      "**/Services/Authentication/PasswordValidator.cs",
+      "**/Services/Authentication/TwoFactorService.cs",
+      "**/Services/Security/RecoveryCodeService.cs"
+    ],
+    "reporters": [
+      "progress",
+      "json",
+      "cleartext"
+    ],
+    "ignore-mutations": [
+      "string",
+      "statement"
+    ],
+    "thresholds": {
+      "high": 90,
+      "low": 80,
+      "break": 0
+    }
+  }
+}
