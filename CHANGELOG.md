@@ -29,7 +29,8 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 - Added Stryker.NET as a restorable local tool (`.config/dotnet-tools.json`) with `stryker-config.json` scoping a run to the security-critical hidden-shared-todo visibility helpers (`HiddenTodoDtoFactory`, `TodoViewerStateResolver`).
 - The initial run scored 75% — five mutants survived in pure redaction logic, revealing branches the existing handler-level tests did not pin down. Added `HiddenTodoVisibilityTests.cs` with nine direct unit tests (owner vs. non-owner masking, `UserId` redaction, stranger/multi-recipient share detection, legacy global-hide inheritance) and exposed the `internal` helpers to the test project via `InternalsVisibleTo`. The mutation score for that logic is now 95.83%.
-- `StrykerOutput/` is git-ignored; `docs/testing.md` documents how to run mutation testing.
+- Added a second scoped config `stryker-auth.json` for the auth security modules (`PasswordValidator`, `TwoFactorService`, `RecoveryCodeService`). The baseline of 65.70% revealed gaps on the length-policy and pattern-detection boundaries: there were no tests pinning down the minimum/maximum length thresholds, the `i <= length - n` loop bounds in `HasSequentialCharacters` / `HasRepeatingCharacters`, the three length tiers in `CalculatePasswordStrength`, or the 70% unique-char threshold. Added ten boundary tests covering each branch. The auth score is now 87.32%; the three remaining mutants are documented equivalent mutants (logger-only branches in HIBP and the `StringSetAsync` `keepTtl` parameter masked by `When.NotExists`). Both configs ignore the `string` mutator (cosmetic) and the auth config also ignores the `statement` mutator (logger-call removal — equivalent).
+- `StrykerOutput/` is git-ignored; `docs/testing.md` documents how to run both configs.
 
 ### Architecture tests (2026-05-22)
 

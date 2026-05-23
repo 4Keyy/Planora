@@ -204,11 +204,22 @@ dotnet tool restore
 dotnet stryker
 ```
 
-`stryker-config.json` scopes the run to the security-critical hidden-shared-todo
-visibility logic (`HiddenTodoDtoFactory`, `TodoViewerStateResolver`). Direct
-unit tests in `tests/Planora.UnitTests/Services/TodoApi/Domain/HiddenTodoVisibilityTests.cs`
-hold that area at a mutation score above 90%. Reports are written to the
-git-ignored `StrykerOutput/` directory.
+Two scoped configs ship with the repo. Run each individually:
+
+```powershell
+# Hidden-shared-todo redaction logic — score holds above 95%.
+dotnet stryker
+
+# Auth security modules (PasswordValidator, TwoFactorService,
+# RecoveryCodeService) — score holds above 85%; remaining survivors
+# are documented equivalent mutants (logger-only branches and
+# StringSetAsync keepTtl masked by When.NotExists).
+dotnet stryker -f stryker-auth.json
+```
+
+Both configs ignore `string` mutator output and the auth config also ignores
+`statement` mutator output (logger-only equivalent mutants). Reports are
+written to the git-ignored `StrykerOutput/` directory.
 
 ## Security Checks
 
