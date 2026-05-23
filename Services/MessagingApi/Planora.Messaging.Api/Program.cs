@@ -86,7 +86,7 @@ namespace Planora.Messaging.Api
             builder.Services.AddConfiguredResponseCompression();
 
             // Rate Limiting
-            builder.Services.AddConfiguredRateLimiting();
+            builder.Services.AddConfiguredRateLimiting(builder.Configuration);
 
             // CORS — always use explicit origin list; AllowAnyOrigin is incompatible with withCredentials
             builder.Services.AddCors(options =>

@@ -53,7 +53,7 @@ namespace Planora.Todo.Api
             builder.Services.AddConfiguredResponseCompression();
 
             // Rate Limiting
-            builder.Services.AddConfiguredRateLimiting();
+            builder.Services.AddConfiguredRateLimiting(builder.Configuration);
 
             // CORS
             builder.Services.AddCors(options =>

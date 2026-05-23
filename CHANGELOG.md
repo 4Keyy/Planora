@@ -21,6 +21,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - **Trivy IaC scan**: a Trivy misconfiguration scan covering Dockerfiles and `docker-compose.yml` was added, with SARIF upload. Introduced in report mode (findings are surfaced, the job does not hard-fail) so the team can ratchet to enforcement once the baseline is clean.
 - All workflow action references are pinned to commit SHAs, validated with `actionlint`.
 
+### Distributed rate limiting (2026-05-22)
+
+- **Phase 2 — Redis-backed rate limiter**: the previous `PartitionedRateLimiter` was strictly in-memory, so deploying every service behind a load balancer multiplied each configured limit by the replica count (a five-instance deployment effectively allowed `5×` the documented `login`, `register`, `auth` and global caps). `AddConfiguredRateLimiting` now takes an `IConfiguration` and, when `RateLimiting:Backend = Redis`, builds the global and named policies via `RedisRateLimitPartition.GetFixedWindowRateLimiter` from `RedisRateLimiting.AspNetCore`, sharing per-IP counters across every replica through Redis. With the setting absent (tests and local dev) the in-memory limiter is used unchanged, so no existing test exercises the new path. `docker-compose.yml` now sets `RateLimiting__Backend: Redis` on every service. Documentation (`docs/auth-security.md`, `docs/configuration.md`) reflects the two backends.
+
 ### Mutation testing (2026-05-22)
 
 - Added Stryker.NET as a restorable local tool (`.config/dotnet-tools.json`) with `stryker-config.json` scoping a run to the security-critical hidden-shared-todo visibility helpers (`HiddenTodoDtoFactory`, `TodoViewerStateResolver`).

@@ -74,6 +74,7 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 | `Email__TimeoutSeconds` | optional | SMTP send timeout. Default is 30 seconds. |
 | `ASPNETCORE_ENVIRONMENT` | optional | ASP.NET environment; Compose sets `Docker` per backend container. |
 | `ASPNETCORE_URLS` | optional | Kestrel URL override when explicitly provided. |
+| `RateLimiting__Backend` | optional | Set to `Redis` to use the Redis-backed distributed rate limiter (required in multi-replica production so per-IP counters are shared); unset (default) uses the in-memory limiter. `docker-compose.yml` sets it for every service. |
 | `CORS_ALLOWED_ORIGINS` | documented but no direct parser found | Services read `Cors:AllowedOrigins` from appsettings/configuration. For env override use ASP.NET nested configuration keys such as `Cors__AllowedOrigins__0`. |
 
 ## Service Ports

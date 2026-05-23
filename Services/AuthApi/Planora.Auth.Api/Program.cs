@@ -42,7 +42,7 @@ namespace Planora.Auth.Api
             builder.Services.AddConfiguredResponseCompression();
 
             // Rate Limiting
-            builder.Services.AddConfiguredRateLimiting();
+            builder.Services.AddConfiguredRateLimiting(builder.Configuration);
 
             // OpenTelemetry
             builder.Services.AddOpenTelemetryConfiguration(builder.Configuration);

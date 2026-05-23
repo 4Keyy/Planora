@@ -131,6 +131,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
       ConnectionStrings__AuthDatabase: "Host=postgres;Port=5432;Database=planora_auth_db;Username=postgres;Password=${POSTGRES_PASSWORD};"
+      RateLimiting__Backend: Redis
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
       RabbitMq__HostName: "rabbitmq"
       RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
@@ -169,6 +170,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80;http://+:81"
       ConnectionStrings__CategoryDatabase: "Host=postgres;Port=5432;Database=planora_category;Username=postgres;Password=${POSTGRES_PASSWORD};"
+      RateLimiting__Backend: Redis
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
       RabbitMq__HostName: "rabbitmq"
       RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
@@ -206,6 +208,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
       ConnectionStrings__TodoDatabase: "Host=postgres;Port=5432;Database=planora_todo;Username=postgres;Password=${POSTGRES_PASSWORD};"
+      RateLimiting__Backend: Redis
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
       RabbitMq__HostName: "rabbitmq"
       RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
@@ -247,6 +250,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
       REDIS_CONNECTION: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set},abortConnect=false"
+      RateLimiting__Backend: Redis
       RABBITMQ_HOST: "rabbitmq"
       RABBITMQ_PORT: "5672"
       RABBITMQ_USER: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
@@ -282,6 +286,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
       ConnectionStrings__MessagingDatabase: "Host=postgres;Port=5432;Database=planora_messaging;Username=postgres;Password=${POSTGRES_PASSWORD};"
+      RateLimiting__Backend: Redis
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
       RabbitMq__HostName: "rabbitmq"
       RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}

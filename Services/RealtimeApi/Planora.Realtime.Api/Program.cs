@@ -103,7 +103,7 @@ public class Program
             builder.Services.AddRealtimeInfrastructure(builder.Configuration);
 
             // Rate Limiting
-            builder.Services.AddConfiguredRateLimiting();
+            builder.Services.AddConfiguredRateLimiting(builder.Configuration);
 
             // Event Handlers
             builder.Services.AddTransient<IIntegrationEventHandler<NotificationEvent>, NotificationEventHandler>();

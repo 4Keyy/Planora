@@ -192,7 +192,12 @@ A `GlobalLimiter` applies a default cap of 100 requests/minute per IP to every e
 | `login` | 5/minute/IP | `POST /auth/login` |
 | `auth` | 10/minute/IP | refresh, logout, CSRF |
 
-The `GlobalLimiter` is configured in `AddConfiguredRateLimiting()` using `PartitionedRateLimiter.Create<HttpContext, string>` partitioned by `RemoteIpAddress`. Auth controller adds the stricter named policies on top via `[EnableRateLimiting("...")]`.
+The `GlobalLimiter` and named policies are configured in `AddConfiguredRateLimiting(IConfiguration)` and partitioned by `RemoteIpAddress`. The backend is selected at startup:
+
+- `RateLimiting:Backend = Redis` (production, set in `docker-compose.yml` for every service) — partitions are backed by `RedisRateLimitPartition.GetFixedWindowRateLimiter` from `RedisRateLimiting.AspNetCore`, so the per-IP counters are shared across every replica of every service. Without this, the in-memory limiter would let an attacker exceed the configured limits by a factor of `N` (the replica count).
+- Unset or anything else (tests, local dev) — falls back to the in-memory `FixedWindowRateLimiter`. The integration test factory deliberately leaves it unset, so the in-memory path stays the default for tests.
+
+Auth controller adds the stricter named policies on top via `[EnableRateLimiting("...")]`.
 
 Code:
 
