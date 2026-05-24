@@ -195,7 +195,7 @@ export function Navbar() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1, transition: { delay: 0.07, duration: 0.16 } }}
                   exit={{ opacity: 0, transition: { duration: 0.08 } }}
-                  className="flex items-center pr-1 overflow-hidden"
+                  className="flex items-center pr-1"
                   style={{ minWidth: 0 }}
                 >
                   {/* Divider */}

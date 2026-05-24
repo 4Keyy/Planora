@@ -635,13 +635,24 @@ export function TodoCard({
                       {isWorkingOnThis && !isCompleted && !isCompletionPending && !isButtonHovered && (
                         <motion.div
                           key="working-dot"
-                          initial={{ scale: 0.82, opacity: 0 }}
+                          initial={{ scale: 0.8, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0.82, opacity: 0 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
                           transition={{ type: "spring", stiffness: 520, damping: 28 }}
                           className="relative flex h-2.5 w-2.5 items-center justify-center"
                         >
-                          <span className="absolute inset-0 rounded-full bg-current opacity-35 animate-ping" />
+                          <motion.span
+                            animate={{
+                              scale: [1, 1.8, 1],
+                              opacity: [0.35, 0.1, 0.35],
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              ease: "easeInOut",
+                            }}
+                            className="absolute inset-0 rounded-full bg-current"
+                          />
                           <span className="relative h-2.5 w-2.5 rounded-full bg-current" />
                         </motion.div>
                       )}
