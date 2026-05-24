@@ -874,6 +874,7 @@ export default function TasksPage() {
               const update = (prev: Todo[]) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t)
               setTodos(update)
               setCompletedPreview(update)
+              setEditingTodo(prev => prev ? { ...prev, description: desc } : null)
             }}
             onLeave={async () => {
               const todo = editingTodo
