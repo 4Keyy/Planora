@@ -293,11 +293,12 @@ export function TodoCard({
       return { scale: 1, rotate: 0, backgroundColor: "#374151", borderColor: "#1f2937", color: "#ffffff" }
     }
     if (isWorkingOnThis) {
+      const activeColor = todo.categoryColor || "#000000"
       return {
         scale: 1, rotate: 0,
-        backgroundColor: isButtonHovered ? "rgba(16,185,129,0.06)" : "rgba(99,102,241,0.08)",
-        borderColor: isButtonHovered ? "#34d399" : "#818cf8",
-        color: isButtonHovered ? "#059669" : "#6366f1",
+        backgroundColor: isButtonHovered ? "rgba(16,185,129,0.06)" : `${activeColor}14`,
+        borderColor: isButtonHovered ? "#34d399" : activeColor,
+        color: isButtonHovered ? "#059669" : activeColor,
       }
     }
     return {
