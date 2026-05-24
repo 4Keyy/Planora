@@ -724,7 +724,12 @@ function MessageItem({
         zIndex: 1,
       }}>
         <FriendAvatar
-          friend={{ id: c.authorId, firstName: c.authorName?.split(" ")[0], lastName: c.authorName?.split(" ")[1] }}
+          friend={{ 
+            id: c.authorId, 
+            firstName: c.authorName?.split(" ")[0], 
+            lastName: c.authorName?.split(" ")[1],
+            profilePictureUrl: c.authorAvatarUrl 
+          }}
           size={26}
           style={{ boxShadow: "0 0 0 3px white" }}
         />

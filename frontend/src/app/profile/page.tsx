@@ -36,6 +36,7 @@ import {
   Users as UsersIcon,
   UserX,
   XCircle,
+  Camera,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { api, getApiErrorMessage, parseApiResponse } from "@/lib/api"
@@ -44,6 +45,7 @@ import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { EASE_OUT_EXPO, TWEEN_FAST } from "@/lib/animations"
 import type {
@@ -775,20 +777,40 @@ export default function ProfilePage() {
         <div className="grid gap-0 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
           <div className="p-5 sm:p-7">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="relative flex h-24 w-24 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-inner">
-                {avatarUrl && !avatarError ? (
-                  <Image
-                    src={avatarUrl}
-                    alt="Profile"
-                    fill
-                    className="object-cover"
-                    onError={() => setAvatarError(true)}
-                    sizes="96px"
-                    unoptimized={avatarUrl.startsWith("data:")}
+              <div className="relative group flex-shrink-0">
+                <Avatar
+                  src={user?.profilePictureUrl}
+                  firstName={user?.firstName}
+                  lastName={user?.lastName}
+                  email={user?.email}
+                  size={96}
+                  className="rounded-lg border border-gray-200 bg-gray-50 shadow-inner"
+                />
+                <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg cursor-pointer">
+                  <Camera className="h-6 w-6" />
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const formData = new FormData()
+                      formData.append("file", file)
+                      try {
+                        const res = await api.post("/auth/api/v1/users/me/avatar", formData, {
+                          headers: { "Content-Type": "multipart/form-data" },
+                        })
+                        const data = parseApiResponse<UserDto>(res.data)
+                        updateUser({ profilePictureUrl: data.profilePictureUrl })
+                        addToast({ type: "success", title: "Avatar updated" })
+                        loadProfile()
+                      } catch {
+                        addToast({ type: "error", title: "Failed to upload avatar" })
+                      }
+                    }}
                   />
-                ) : (
-                  <span className="text-3xl font-black text-gray-800">{initials}</span>
-                )}
+                </label>
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -1583,12 +1605,26 @@ export default function ProfilePage() {
 
                   <SectionCard icon={User} title="Selected user" description="Detailed account readout.">
                     {selectedUser ? (
-                      <div className="space-y-3">
-                        <InfoTile label="Name" value={selectedUser.fullName || personName(selectedUser)} icon={User} />
-                        <InfoTile label="Email" value={selectedUser.email} icon={Mail} />
-                        <InfoTile label="Status" value={selectedUser.status} icon={Activity} />
-                        <InfoTile label="2FA" value={selectedUser.twoFactorEnabled ? "Enabled" : "Disabled"} icon={Fingerprint} />
-                        <InfoTile label="Locked until" value={formatDate(selectedUser.lockedUntil)} icon={Lock} />
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-4">
+                          <Avatar
+                            src={selectedUser.profilePictureUrl}
+                            firstName={selectedUser.firstName}
+                            lastName={selectedUser.lastName}
+                            email={selectedUser.email}
+                            size={64}
+                            className="rounded-lg border border-gray-200"
+                          />
+                          <div>
+                            <p className="text-lg font-black text-gray-950">{selectedUser.fullName || personName(selectedUser)}</p>
+                            <p className="text-sm font-semibold text-gray-500">{selectedUser.email}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 pt-2">
+                          <InfoTile label="Status" value={selectedUser.status} icon={Activity} />
+                          <InfoTile label="2FA" value={selectedUser.twoFactorEnabled ? "Enabled" : "Disabled"} icon={Fingerprint} />
+                          <InfoTile label="Locked until" value={formatDate(selectedUser.lockedUntil)} icon={Lock} />
+                        </div>
                       </div>
                     ) : (
                       <EmptyState icon={User} title="No user selected" description="Choose a user from the management list." />

@@ -57,7 +57,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.AddComment
                 ?? _currentUserContext.Email
                 ?? userId.ToString();
 
-            var comment = TodoItemComment.Create(todoItem.Id, userId, authorName, request.Content);
+            var authorAvatarUrl = _currentUserContext.ProfilePictureUrl;
+
+            var comment = TodoItemComment.Create(todoItem.Id, userId, authorName, request.Content, authorAvatarUrl);
             await _commentRepository.AddAsync(comment, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -66,6 +68,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.AddComment
                 comment.TodoItemId,
                 comment.AuthorId,
                 comment.AuthorName,
+                comment.AuthorAvatarUrl,
                 comment.Content,
                 comment.CreatedAt,
                 comment.UpdatedAt,

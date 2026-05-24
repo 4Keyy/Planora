@@ -59,6 +59,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
                 c.TodoItemId,
                 c.AuthorId,
                 c.AuthorName,
+                c.AuthorAvatarUrl,
                 c.Content,
                 c.CreatedAt,
                 c.UpdatedAt,

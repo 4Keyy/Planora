@@ -26,6 +26,7 @@ public sealed class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
             new("firstName", user.FirstName),
             new("lastName", user.LastName),
+            new("profilePictureUrl", user.ProfilePictureUrl ?? string.Empty),
             new("emailVerified", user.IsEmailVerified.ToString()),
             new("email_verified", user.IsEmailVerified ? "true" : "false")
         };

@@ -225,6 +225,8 @@ namespace Planora.Auth.Api
                 // in the CSP, which was weaker than necessary for a JSON API service.
                 app.UseSecurityHeaders();
 
+                app.UseStaticFiles();
+
                 app.UseAuthentication();
                 app.UseAuthorization();
 

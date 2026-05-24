@@ -197,6 +197,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
                 Email = user.Email.Value,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
+                ProfilePictureUrl = user.ProfilePictureUrl,
                 AccessToken = accessToken,
                 RefreshToken = refreshTokenValue,
                 ExpiresAt = refreshTokenExpiry,

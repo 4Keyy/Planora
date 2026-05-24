@@ -4,8 +4,9 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
-import { Plus, X, Sparkles, LogOut, User } from "lucide-react"
+import { Plus, Search, Sparkles, X, User, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Avatar } from "@/components/ui/avatar"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { api } from "@/lib/api"
@@ -303,9 +304,15 @@ export function Navbar() {
                 aria-label={`User menu for ${displayName}`}
                 aria-haspopup="menu"
                 aria-expanded={dropOpen}
-                className="h-8 w-8 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center"
+                className="h-8 w-8 rounded-full overflow-hidden"
               >
-                {initials}
+                <Avatar
+                  src={user?.profilePictureUrl}
+                  firstName={user?.firstName}
+                  lastName={user?.lastName}
+                  email={user?.email}
+                  size={32}
+                />
               </motion.button>
 
               <AnimatePresence>

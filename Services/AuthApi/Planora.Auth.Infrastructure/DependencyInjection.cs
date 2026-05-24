@@ -118,6 +118,7 @@ public static class DependencyInjection
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IEmailMessageSender, SmtpEmailMessageSender>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IFileStorageService, FileStorageService>();
     }
 
     private static void AddRedisForTokenBlacklist(IServiceCollection services, IConfiguration configuration)
