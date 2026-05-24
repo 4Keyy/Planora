@@ -202,9 +202,11 @@ namespace Planora.Auth.Api
                 Planora.BuildingBlocks.Infrastructure.Logging.HttpLoggingMiddlewareExtensions.UseHttpLogging(app);
 
                 app.UseResponseCompression();
+                var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+                Directory.CreateDirectory(webRootPath);
                 app.UseStaticFiles(new StaticFileOptions
                 {
-                    FileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.ContentRootPath, "wwwroot")),
+                    FileProvider = new PhysicalFileProvider(webRootPath),
                     RequestPath = string.Empty
                 });
                 app.UseCors(app.Environment.IsDevelopment() ? "AllowAll" : "Production");
@@ -224,8 +226,6 @@ namespace Planora.Auth.Api
                 // This replaces the previous inline lambda that included `style-src 'unsafe-inline'`
                 // in the CSP, which was weaker than necessary for a JSON API service.
                 app.UseSecurityHeaders();
-
-                app.UseStaticFiles();
 
                 app.UseAuthentication();
                 app.UseAuthorization();
