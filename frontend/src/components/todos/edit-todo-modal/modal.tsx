@@ -27,6 +27,7 @@ export interface EditTodoModalProps {
   onCreateCategory: () => Promise<void>
   onDeleteCategory?: (categoryId: string) => Promise<void>
   onLeave?: () => Promise<void>
+  onDescriptionChange?: (newDescription: string) => void
   commentsRefreshKey?: number
 }
 
@@ -38,6 +39,7 @@ export function EditTodoModal({
   onSaveViewerPreference,
   onCreateCategory,
   onLeave,
+  onDescriptionChange,
   commentsRefreshKey,
 }: EditTodoModalProps) {
   const viewerId = useAuthStore((s) => s.user?.userId)
@@ -374,6 +376,7 @@ export function EditTodoModal({
               todoId={todo.id}
               isOwner={isOwner}
               refreshKey={commentsRefreshKey}
+              onDescriptionChange={onDescriptionChange}
             />
           </div>
 

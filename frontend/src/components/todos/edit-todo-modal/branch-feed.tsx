@@ -18,6 +18,7 @@ interface BranchFeedProps {
   todoId: string
   isOwner: boolean
   refreshKey?: number
+  onDescriptionChange?: (newDescription: string) => void
 }
 
 // Flat list item (day separator or comment)
@@ -39,7 +40,7 @@ function buildFeed(comments: TodoComment[]): FeedItem[] {
   return items
 }
 
-export function BranchFeed({ todoId, isOwner, refreshKey }: BranchFeedProps) {
+export function BranchFeed({ todoId, isOwner, refreshKey, onDescriptionChange }: BranchFeedProps) {
   const [comments,   setComments]   = useState<TodoComment[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page,       setPage]       = useState(1)
@@ -112,9 +113,11 @@ export function BranchFeed({ todoId, isOwner, refreshKey }: BranchFeedProps) {
         await deleteComment(todoId, genesis.id)
         setComments((prev) => prev.filter((c) => c.id !== genesis.id))
         setTotalCount((n) => Math.max(0, n - 1))
+        onDescriptionChange?.("")
       } else {
         const updated = await updateComment(todoId, genesis.id, content)
         setComments((prev) => prev.map((c) => (c.id === genesis.id ? updated : c)))
+        onDescriptionChange?.(content)
       }
       setEditingGenesis(false)
     } catch (e) {
@@ -181,6 +184,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey }: BranchFeedProps) {
         setComments((prev) => [c, ...prev])
         setTotalCount((n) => n + 1)
         setComposeMode("text")
+        onDescriptionChange?.(content)
       } else {
         const c = await addComment(todoId, content)
         setComments((prev) => [...prev, c])

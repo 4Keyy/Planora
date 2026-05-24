@@ -420,6 +420,9 @@ export default function CompletedTasksPage() {
           onSave={(payload) => handleUpdate(editingTodo.id, payload)}
           onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
           onCreateCategory={fetchCategories}
+          onDescriptionChange={(desc) => {
+            setTodos((prev) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t))
+          }}
         />
       )}
 

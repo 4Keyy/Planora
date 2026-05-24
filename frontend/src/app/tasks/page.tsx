@@ -870,6 +870,11 @@ export default function TasksPage() {
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
             commentsRefreshKey={commentsRefreshKey}
+            onDescriptionChange={(desc) => {
+              const update = (prev: Todo[]) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t)
+              setTodos(update)
+              setCompletedPreview(update)
+            }}
             onLeave={async () => {
               const todo = editingTodo
               if (!todo) return

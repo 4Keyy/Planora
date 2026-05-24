@@ -549,6 +549,15 @@ export default function DashboardPage() {
     } catch { }
   }
 
+  const handlePageChange = useCallback((page: number) => {
+    const maxPage = Math.max(1, Math.ceil(totalCount / pageSize))
+    const nextPage = Math.max(1, Math.min(maxPage, page))
+    if (nextPage === currentPage) return
+    setCurrentPage(nextPage)
+    void fetchTodos(nextPage)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [currentPage, totalCount, pageSize, fetchTodos])
+
   const totalPages = Math.ceil(totalCount / pageSize)
   const totalCountForStats = totalForStats
   const completedCountForStats = recentCompletedStatsTodos.length
@@ -773,12 +782,7 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const newPage = Math.max(1, currentPage - 1)
-                        setCurrentPage(newPage)
-                        fetchTodos(newPage)
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }}
+                      onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
                       className="rounded-xl border-gray-300 font-bold px-5 hover:border-gray-400 hover:shadow-md"
                     >
@@ -799,11 +803,7 @@ export default function DashboardPage() {
                             key={pageNum}
                             whileHover={{ scale: 1.15 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              setCurrentPage(pageNum)
-                              fetchTodos(pageNum)
-                              window.scrollTo({ top: 0, behavior: 'smooth' })
-                            }}
+                            onClick={() => handlePageChange(pageNum)}
                             className={cn(
                               "w-9 h-9 rounded-lg text-xs font-bold transition-all duration-200 border",
                               currentPage === pageNum
@@ -835,10 +835,7 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setCurrentPage(p => Math.min(totalPages, p + 1))
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }}
+                      onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage >= totalPages}
                       className="rounded-xl border-gray-300 font-bold px-5 hover:border-gray-400 hover:shadow-md"
                     >
@@ -882,6 +879,11 @@ export default function DashboardPage() {
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
             onDeleteCategory={handleDeleteCategory}
+            onDescriptionChange={(desc) => {
+              const update = (prev: Todo[]) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t)
+              setTodos(update)
+              setStatsTodos(update)
+            }}
             onLeave={editingTodo ? async () => handleLeave(editingTodo.id) : undefined}
           />
         )}
