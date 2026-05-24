@@ -14,6 +14,7 @@ using StackExchange.Redis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.FileProviders;
 
 namespace Planora.Auth.Api
 {
@@ -201,6 +202,11 @@ namespace Planora.Auth.Api
                 Planora.BuildingBlocks.Infrastructure.Logging.HttpLoggingMiddlewareExtensions.UseHttpLogging(app);
 
                 app.UseResponseCompression();
+                app.UseStaticFiles(new StaticFileOptions
+                {
+                    FileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.ContentRootPath, "wwwroot")),
+                    RequestPath = string.Empty
+                });
                 app.UseCors(app.Environment.IsDevelopment() ? "AllowAll" : "Production");
 
                 // Apply rate limiting before other middleware
