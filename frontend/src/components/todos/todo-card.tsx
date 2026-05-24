@@ -150,7 +150,7 @@ export function TodoCard({
   useEffect(() => {
     setCompletionPhase(null)
     setShowCompletionCelebration(false)
-  }, [todo.id, isCompleted])
+  }, [todo.id, isCompleted, todo.status, isWorkingOnThis])
 
   const handleVisibilityToggle = async (nextCollapsed: boolean) => {
     if (!onToggleHidden || isVisibilityPending || isCompletionPending) return
@@ -634,12 +634,15 @@ export function TodoCard({
                       {isWorkingOnThis && !isCompleted && !isCompletionPending && !isButtonHovered && (
                         <motion.div
                           key="working-dot"
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: [1, 1.35, 1], opacity: [0.75, 1, 0.75] }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          transition={{ duration: 1.9, repeat: Infinity, ease: "easeInOut" }}
-                          className="h-2.5 w-2.5 rounded-full bg-current"
-                        />
+                          initial={{ scale: 0.82, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.82, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 520, damping: 28 }}
+                          className="relative flex h-2.5 w-2.5 items-center justify-center"
+                        >
+                          <span className="absolute inset-0 rounded-full bg-current opacity-35 animate-ping" />
+                          <span className="relative h-2.5 w-2.5 rounded-full bg-current" />
+                        </motion.div>
                       )}
 
                       {/* IDLE + joinable + hovered: faint bolt hint */}
@@ -797,15 +800,12 @@ export function TodoCard({
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.15 }}
-                      className={cn(
-                        "flex items-center gap-1.5 text-[11px] font-medium mt-2.5",
-                        isDueOverdue ? "text-red-600" : "text-gray-500"
-                      )}
+                      className="flex items-center gap-1.5 text-[11px] font-medium mt-2.5"
                     >
-                      <Calendar className="h-3 w-3 flex-shrink-0" />
-                      <span>{formatDate(todo.dueDate || "")}</span>
+                      <Calendar className="h-3 w-3 flex-shrink-0 text-gray-400" />
+                      <span className="text-gray-950">{formatDate(todo.dueDate || "")}</span>
                       {isDueOverdue && (
-                        <span className="font-black uppercase text-[9px] tracking-wider ml-0.5">
+                        <span className="font-black uppercase text-[9px] tracking-wider ml-1 text-red-600 self-center leading-none">
                           · Overdue
                         </span>
                       )}
