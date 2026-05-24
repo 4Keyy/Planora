@@ -267,15 +267,27 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             var hasCategoryFilter = request.CategoryId.HasValue;
             var categoryId = request.CategoryId.GetValueOrDefault();
 
+            // Determine if the query is effectively asking for active or completed tasks
+            // either via explicit isCompleted flag or via status list.
+            var isAskingForCompleted = request.IsCompleted == true || 
+                (requestedStatuses != null && requestedStatuses.Count > 0 && requestedStatuses.All(s => s == TodoStatus.Done));
+            
+            var isAskingForActive = request.IsCompleted == false || 
+                (requestedStatuses != null && requestedStatuses.Count > 0 && requestedStatuses.All(s => s != TodoStatus.Done));
+
             return x => !x.IsDeleted &&
                        (requestedStatuses == null || requestedStatuses.Contains(x.Status)) &&
-                       // IsCompleted filter aware of per-viewer completion state
-                       (!request.IsCompleted.HasValue ||
-                        (request.IsCompleted.Value
-                            // Completed: actual done OR the viewer personally completed it
-                            ? x.Status == TodoStatus.Done || (x.UserId != userId && viewerCompletedIds.Contains(x.Id))
-                            // Active: not done AND the viewer has not personally completed it
-                            : x.Status != TodoStatus.Done && !(x.UserId != userId && viewerCompletedIds.Contains(x.Id)))) &&
+                       
+                       // Filter by viewer completion state:
+                       // 1. If asking for completed: show globally Done OR viewer-completed
+                       // 2. If asking for active: show globally not-Done AND not viewer-completed
+                       // 3. Otherwise (mixed/null): show all
+                       (isAskingForCompleted
+                            ? (x.Status == TodoStatus.Done || (x.UserId != userId && viewerCompletedIds.Contains(x.Id)))
+                            : isAskingForActive
+                                ? (x.Status != TodoStatus.Done && !(x.UserId != userId && viewerCompletedIds.Contains(x.Id)))
+                                : true) &&
+
                        (
                            // Own todos use the owner's category directly.
                            (x.UserId == userId &&

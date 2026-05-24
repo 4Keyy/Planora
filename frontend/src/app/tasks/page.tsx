@@ -469,11 +469,15 @@ export default function TasksPage() {
     }
   }, [todos, completedPreview, user?.userId, addToast])
 
-  const activeCount = todos.length
+  const activeCount = todos.filter(t => t.isCompletedByViewer !== true).length
   const doneCount = completedTotalCount
   const totalCount = activeCount + doneCount
 
-  const sortedTodos = useMemo(() => sortTasks(todos), [todos])
+  const sortedTodos = useMemo(() => {
+    const filtered = todos.filter(t => t.isCompletedByViewer !== true)
+    return sortTasks(filtered)
+  }, [todos])
+
   const sortedCompletedPreview = useMemo(() => sortTasks(completedPreview), [completedPreview])
   const visibleTodos = useMemo(() => {
     if (filterCategoryIds.length === 0) return sortedTodos

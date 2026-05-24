@@ -182,6 +182,7 @@ export default function DashboardPage() {
           pageNumber: page,
           pageSize,
           status: "Todo,InProgress",
+          isCompleted: false, // Explicitly request active tasks (backend now handles per-viewer completion)
         },
       })
       const items = res.data.items ?? []
@@ -261,12 +262,20 @@ export default function DashboardPage() {
   }, [isAuthenticated, hasHydrated, mounted, fetchTodos, fetchStats, fetchCategories, clearAuth, router])
 
   const activeStatsTodos = useMemo(() =>
-    statsTodos.filter(t => { const s = String(t.status).toLowerCase(); return s !== "done" && s !== "completed" }),
+    statsTodos.filter(t => { 
+      const s = String(t.status).toLowerCase(); 
+      const isDone = s === "done" || s === "completed";
+      return !isDone && t.isCompletedByViewer !== true;
+    }),
     [statsTodos]
   )
 
   const allCompletedStatsTodos = useMemo(() =>
-    statsTodos.filter(t => { const s = String(t.status).toLowerCase(); return s === "done" || s === "completed" }),
+    statsTodos.filter(t => { 
+      const s = String(t.status).toLowerCase(); 
+      const isDone = s === "done" || s === "completed";
+      return isDone || t.isCompletedByViewer === true;
+    }),
     [statsTodos]
   )
 
@@ -282,8 +291,11 @@ export default function DashboardPage() {
 
   const totalForStats = activeStatsTodos.length + recentCompletedStatsTodos.length
 
-  // Теперь todos содержит только активные задачи из fetchTodos
-  const activeTodos = useMemo(() => sortTasks(todos), [todos])
+  // Filter out tasks that are completed by the viewer (for shared/public tasks)
+  const activeTodos = useMemo(() => {
+    const filtered = todos.filter(t => t.isCompletedByViewer !== true)
+    return sortTasks(filtered)
+  }, [todos])
 
   useEffect(() => {
     if (loading) return
