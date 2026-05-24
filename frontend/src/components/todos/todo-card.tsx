@@ -231,6 +231,7 @@ export function TodoCard({
     return "border-gray-100" // Lighter default border for active tasks
   })()
   const borderInlineStyle: React.CSSProperties = (() => {
+    if (isCompleted) return {}
     if (isWorkingOnThis && isUrgentOrOverdue) {
       return {
         borderTopColor: "rgb(99 102 241)",
