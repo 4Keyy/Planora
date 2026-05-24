@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
+import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, CheckCircle2, ChevronRight, History, SlidersHorizontal, X } from "lucide-react"
@@ -80,6 +81,11 @@ export default function TasksPage() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [hintDismissed, setHintDismissed] = useState(false)
   const hintDismissedRef = useRef<boolean>(false)
+
+  // Smooth scroll to top when large panels collapse
+  useCollapseScroll(isCreateOpen)
+  useCollapseScroll(showCompleted)
+
   // Hydrate filter + hint state from localStorage after mount
   useEffect(() => {
     setFilterCategoryIds(readFilter())
