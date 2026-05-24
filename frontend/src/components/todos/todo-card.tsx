@@ -228,7 +228,7 @@ export function TodoCard({
     if (isSharedUrgent) return "border-blue-400"
     if (isUrgentOrOverdue) return "border-red-400"
     if (showShareBadge) return "border-blue-400"
-    return "border-gray-300"
+    return "border-gray-100" // Lighter default border for active tasks
   })()
   const borderInlineStyle: React.CSSProperties = (() => {
     if (isWorkingOnThis && isUrgentOrOverdue) {
@@ -358,7 +358,7 @@ export function TodoCard({
           "group relative overflow-hidden border-2",
           "hover:bg-white/40 hover:backdrop-blur-sm",
           isCompleted
-            ? "border-gray-300 opacity-70 hover:opacity-85 hover:bg-white/25"
+            ? "border-gray-300 opacity-60 hover:opacity-80 hover:bg-white/10"
             : borderColor,
           isSharedUrgent && "task-card--shared-urgent",
           isSparse && "task-card--sparse",
