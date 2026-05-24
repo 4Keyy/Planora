@@ -88,13 +88,9 @@ Inside the owning service. Add Application command/query/handler/validator, Doma
 
 Use `frontend/src/lib/api.ts` for authenticated API behavior and `frontend/src/lib/auth-public.ts` for auth bootstrap/refresh calls that must avoid interceptor recursion.
 
-### Do I need to update Graphify?
-
-Yes after substantial code, config, dependency, test, or documentation changes. Project instructions require graph rebuilds.
-
 ### Should AI assistant settings be committed?
 
-No. Repository policy ignores Claude/Codex/Cursor/Gemini/MCP and similar local assistant state. `AGENTS.md` is the intentional project-level exception for shared Graphify and documentation rules; use `AGENTS.local.md` for personal or machine-specific instructions.
+No. Repository policy ignores Claude/Codex/Cursor/Gemini/MCP and similar local assistant state. `AGENTS.md` is the intentional project-level exception for shared documentation rules; use `AGENTS.local.md` for personal or machine-specific instructions.
 
 ### Are EF migrations committed?
 
