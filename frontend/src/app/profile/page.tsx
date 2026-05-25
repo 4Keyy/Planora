@@ -42,6 +42,7 @@ import {
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { api, getApiErrorMessage, parseApiResponse } from "@/lib/api"
+import { getApiBaseUrl } from "@/lib/config"
 import { clearCsrfToken } from "@/lib/csrf"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
@@ -370,6 +371,11 @@ export default function ProfilePage() {
 
   const isEmailVerified = user?.isEmailVerified ?? !!user?.emailVerifiedAt
   const avatarUrl = user?.profilePictureUrl || ""
+  const resolvedAvatarUrl = useMemo(() => {
+    if (!avatarUrl) return ""
+    if (avatarUrl.startsWith("http")) return avatarUrl
+    return `${getApiBaseUrl()}${avatarUrl.startsWith("/") ? avatarUrl : `/${avatarUrl}`}`
+  }, [avatarUrl])
   const displayName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
     user?.email?.split("@")[0] ||
@@ -1018,15 +1024,15 @@ export default function ProfilePage() {
                         {/* Preview row */}
                         <div className="flex items-center gap-3">
                           <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                            {avatarUrl && !avatarError ? (
+                            {resolvedAvatarUrl && !avatarError ? (
                               <Image
-                                src={avatarUrl}
+                                src={resolvedAvatarUrl}
                                 alt="Profile"
                                 fill
                                 className="object-cover"
                                 onError={() => setAvatarError(true)}
                                 sizes="56px"
-                                unoptimized={avatarUrl.startsWith("data:")}
+                                unoptimized
                               />
                             ) : (
                               <span className="text-lg font-black text-gray-800">{initials}</span>

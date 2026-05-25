@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { getApiBaseUrl } from "@/lib/config"
 
 interface AvatarProps {
   src?: string | null
@@ -43,9 +44,9 @@ export function Avatar({
   const fullSrc = useMemo(() => {
     if (!src || error) return null
     if (src.startsWith("http")) return src
-    // Prepend API base URL if relative path
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001"
-    return `${baseUrl}${src.startsWith("/") ? "" : "/"}${src}`
+    // Use runtime getApiBaseUrl() so LAN IPs are resolved correctly.
+    const base = getApiBaseUrl()
+    return `${base}${src.startsWith("/") ? src : `/${src}`}`
   }, [src, error])
 
   return (

@@ -23,11 +23,18 @@ export function middleware(request: NextRequest) {
     ? `'self' ${apiOrigin} http://localhost:5132 http://127.0.0.1:5132`
     : `'self' ${apiOrigin}`
 
+  // Allow the API origin for avatars/images served directly from the backend.
+  // In dev the API may be on HTTP (e.g. http://192.168.x.x:5132), so we add
+  // the explicit origin instead of relying on the https: wildcard.
+  const imgSrc = isDev
+    ? `'self' data: https: ${apiOrigin}`
+    : `'self' data: https: ${apiOrigin}`
+
   const cspParts = [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
+    `img-src ${imgSrc}`,
     "font-src 'self'",
     `connect-src ${connectSrc}`,
     "frame-ancestors 'none'",

@@ -39,10 +39,22 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    remotePatterns: [
-      // SECURITY: wildcard limited to dev; add specific production hostnames here as needed.
-      ...(isDev ? [{ protocol: 'https', hostname: '**' }, { protocol: 'http', hostname: 'localhost' }] : []),
-    ],
+    remotePatterns: (() => {
+      // In dev: allow any HTTPS host + any HTTP host (API may be on a LAN IP, not localhost).
+      // In production: restrict to the explicit API hostname only.
+      if (isDev) {
+        return [
+          { protocol: 'https', hostname: '**' },
+          { protocol: 'http', hostname: '**' },
+        ]
+      }
+      try {
+        const u = new URL(apiUrl)
+        return [{ protocol: /** @type {'http'|'https'} */ (u.protocol.replace(':', '')), hostname: u.hostname }]
+      } catch {
+        return []
+      }
+    })(),
   },
   experimental: {
     optimizeCss: true,
