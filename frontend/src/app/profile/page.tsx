@@ -21,6 +21,7 @@ import {
   KeyRound,
   Lock,
   LogOut,
+  Loader2,
   Mail,
   Monitor,
   RefreshCw,
@@ -31,6 +32,7 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
+  Upload,
   User,
   UserPlus,
   Users as UsersIcon,
@@ -331,7 +333,6 @@ export default function ProfilePage() {
   const [profileForm, setProfileForm] = useState({
     firstName: "",
     lastName: "",
-    profilePictureUrl: "",
   })
 
   const [changePasswordForm, setChangePasswordForm] = useState({
@@ -364,9 +365,11 @@ export default function ProfilePage() {
   const [friendIdInput, setFriendIdInput] = useState("")
   const [showGuidFriendFallback, setShowGuidFriendFallback] = useState(false)
   const [avatarError, setAvatarError] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarDragOver, setAvatarDragOver] = useState(false)
 
   const isEmailVerified = user?.isEmailVerified ?? !!user?.emailVerifiedAt
-  const avatarUrl = profileForm.profilePictureUrl || user?.profilePictureUrl || ""
+  const avatarUrl = user?.profilePictureUrl || ""
   const displayName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
     user?.email?.split("@")[0] ||
@@ -426,7 +429,6 @@ export default function ProfilePage() {
       setProfileForm({
         firstName: data.firstName,
         lastName: data.lastName,
-        profilePictureUrl: data.profilePictureUrl ?? "",
       })
     } catch {
       addToast({ type: "error", title: "Failed to load profile" })
@@ -542,12 +544,50 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
+  const handleAvatarUpload = async (file: File) => {
+    if (avatarUploading) return
+    setAvatarUploading(true)
+    setAvatarError(false)
+    const formData = new FormData()
+    formData.append("file", file)
+    try {
+      const res = await api.post("/auth/api/v1/users/me/avatar", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      const data = parseApiResponse<UserDto>(res.data)
+      updateUser({ profilePictureUrl: data.profilePictureUrl })
+      addToast({ type: "success", title: "Avatar updated" })
+      loadProfile()
+    } catch {
+      addToast({ type: "error", title: "Failed to upload avatar" })
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
+  const handleRemoveAvatar = async () => {
+    try {
+      const res = await api.put("/auth/api/v1/users/me", {
+        firstName: profileForm.firstName,
+        lastName: profileForm.lastName,
+        profilePictureUrl: null,
+      })
+      const data = parseApiResponse<UserDto>(res.data)
+      setUser(data)
+      updateUser({ firstName: data.firstName, lastName: data.lastName, email: data.email, userId: data.id, profilePictureUrl: undefined })
+      setAvatarError(false)
+      addToast({ type: "success", title: "Avatar removed" })
+    } catch {
+      addToast({ type: "error", title: "Failed to remove avatar" })
+    }
+  }
+
   const handleProfileSave = async () => {
     try {
       const res = await api.put("/auth/api/v1/users/me", {
         firstName: profileForm.firstName,
         lastName: profileForm.lastName,
-        profilePictureUrl: profileForm.profilePictureUrl || null,
+        profilePictureUrl: user?.profilePictureUrl ?? null,
       })
       const data = parseApiResponse<UserDto>(res.data)
       setUser(data)
@@ -786,28 +826,25 @@ export default function ProfilePage() {
                   size={96}
                   className="rounded-lg border border-gray-200 bg-gray-50 shadow-inner"
                 />
-                <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg cursor-pointer">
-                  <Camera className="h-6 w-6" />
+                <label className={cn(
+                  "absolute inset-0 flex items-center justify-center rounded-lg cursor-pointer transition-opacity duration-200",
+                  avatarUploading
+                    ? "bg-white/70 opacity-100"
+                    : "bg-black/40 text-white opacity-0 group-hover:opacity-100"
+                )}>
+                  {avatarUploading
+                    ? <Loader2 className="h-6 w-6 animate-spin text-gray-700" />
+                    : <Camera className="h-6 w-6" />
+                  }
                   <input
                     type="file"
                     className="hidden"
                     accept="image/*"
-                    onChange={async (e) => {
+                    disabled={avatarUploading}
+                    onChange={(e) => {
                       const file = e.target.files?.[0]
-                      if (!file) return
-                      const formData = new FormData()
-                      formData.append("file", file)
-                      try {
-                        const res = await api.post("/auth/api/v1/users/me/avatar", formData, {
-                          headers: { "Content-Type": "multipart/form-data" },
-                        })
-                        const data = parseApiResponse<UserDto>(res.data)
-                        updateUser({ profilePictureUrl: data.profilePictureUrl })
-                        addToast({ type: "success", title: "Avatar updated" })
-                        loadProfile()
-                      } catch {
-                        addToast({ type: "error", title: "Failed to upload avatar" })
-                      }
+                      if (file) handleAvatarUpload(file)
+                      e.currentTarget.value = ""
                     }}
                   />
                 </label>
@@ -973,21 +1010,14 @@ export default function ProfilePage() {
                             />
                           </FieldGroup>
                         </div>
-                        <FieldGroup label="Profile picture URL">
-                          <Input
-                            value={profileForm.profilePictureUrl}
-                            onChange={(e) => setProfileForm((s) => ({ ...s, profilePictureUrl: e.target.value }))}
-                            placeholder="https://..."
-                            maxLength={500}
-                            showCount
-                          />
-                        </FieldGroup>
                         <Button onClick={handleProfileSave}>Save profile</Button>
                       </div>
 
-                      <div className="rounded-lg border border-gray-100 bg-gray-50/80 p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="relative flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white shadow-inner">
+                      {/* Avatar uploader card */}
+                      <div className="flex flex-col gap-3 rounded-lg border border-gray-100 bg-gray-50/80 p-4">
+                        {/* Preview row */}
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                             {avatarUrl && !avatarError ? (
                               <Image
                                 src={avatarUrl}
@@ -995,22 +1025,82 @@ export default function ProfilePage() {
                                 fill
                                 className="object-cover"
                                 onError={() => setAvatarError(true)}
-                                sizes="64px"
+                                sizes="56px"
                                 unoptimized={avatarUrl.startsWith("data:")}
                               />
                             ) : (
-                              <span className="text-xl font-black text-gray-800">{initials}</span>
+                              <span className="text-lg font-black text-gray-800">{initials}</span>
+                            )}
+                            {avatarUploading && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-xl">
+                                <Loader2 className="h-5 w-5 animate-spin text-gray-600" />
+                              </div>
                             )}
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-black text-gray-950">{displayName}</p>
-                            <p className="mt-1 truncate text-xs font-semibold text-gray-500">{user?.email || "-"}</p>
+                            <p className="truncate text-[11px] font-semibold text-gray-400">{user?.email || "-"}</p>
                           </div>
                         </div>
-                        <div className="mt-4 grid gap-2">
-                          <InfoTile label="Account status" value={user?.status || "Unknown"} icon={Activity} />
-                          <InfoTile label="Created" value={formatDate(user?.createdAt)} icon={CalendarDays} />
-                        </div>
+
+                        {/* Drop zone */}
+                        <label
+                          className={cn(
+                            "group flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-4 text-center transition-all duration-200 select-none",
+                            avatarDragOver
+                              ? "scale-[1.02] border-gray-950 bg-gray-950/[0.04]"
+                              : "border-gray-200 hover:border-gray-400 hover:bg-white",
+                            avatarUploading && "pointer-events-none opacity-60"
+                          )}
+                          onDragOver={(e) => { e.preventDefault(); setAvatarDragOver(true) }}
+                          onDragEnter={(e) => { e.preventDefault(); setAvatarDragOver(true) }}
+                          onDragLeave={() => setAvatarDragOver(false)}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            setAvatarDragOver(false)
+                            const file = e.dataTransfer.files[0]
+                            if (file) handleAvatarUpload(file)
+                          }}
+                        >
+                          <span className={cn(
+                            "flex h-9 w-9 items-center justify-center rounded-lg border transition-colors duration-200",
+                            avatarDragOver
+                              ? "border-gray-950 bg-gray-950 text-white"
+                              : "border-gray-200 bg-white text-gray-400 group-hover:border-gray-400 group-hover:text-gray-600"
+                          )}>
+                            {avatarDragOver ? <Upload className="h-4 w-4" /> : <Camera className="h-4 w-4" />}
+                          </span>
+                          <div>
+                            <p className="text-xs font-black text-gray-700">
+                              {avatarDragOver ? "Drop to upload" : "Click or drag a photo"}
+                            </p>
+                            <p className="mt-0.5 text-[10px] font-semibold text-gray-400">
+                              JPG, PNG, WEBP · max 5 MB
+                            </p>
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            disabled={avatarUploading}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) handleAvatarUpload(file)
+                              e.currentTarget.value = ""
+                            }}
+                          />
+                        </label>
+
+                        {/* Remove link */}
+                        {user?.profilePictureUrl && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveAvatar}
+                            className="self-center text-[11px] font-semibold text-gray-400 transition-colors duration-150 hover:text-red-500 focus-visible:outline-none"
+                          >
+                            Remove photo
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
