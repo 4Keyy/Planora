@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Pencil, Trash2, Send, ScrollText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Avatar } from "@/components/ui/avatar"
 import { fetchComments, addComment, updateComment, deleteComment } from "@/lib/api"
 import { getApiErrorMessage } from "@/lib/api"
 import type { TodoComment } from "@/types/todo"
@@ -260,7 +261,19 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
             }
 
             return (
-              <div key={c.id} className="group flex flex-col gap-0.5 rounded-xl bg-neutral-50 px-3 py-2.5">
+              <div key={c.id} className="group flex gap-2 rounded-xl bg-neutral-50 px-3 py-2.5">
+                {/* Avatar column */}
+                <div className="flex-shrink-0 pt-0.5">
+                  <Avatar
+                    src={c.authorAvatarUrl}
+                    firstName={c.authorName}
+                    size={22}
+                    className="rounded-full"
+                  />
+                </div>
+
+                {/* Content column */}
+                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-xs font-semibold text-neutral-800">{c.authorName}</span>
                   <span className="text-[10px] text-neutral-400 shrink-0">
@@ -313,6 +326,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                     </button>
                   </div>
                 )}
+                </div>{/* end content column */}
               </div>
             )
           })}
