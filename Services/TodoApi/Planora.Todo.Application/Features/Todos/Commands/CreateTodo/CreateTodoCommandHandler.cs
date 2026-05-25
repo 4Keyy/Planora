@@ -94,12 +94,16 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
             await _repository.AddAsync(todoItem, cancellationToken);
 
             var authorName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+            var authorAvatarUrl = string.IsNullOrEmpty(_currentUserContext.ProfilePictureUrl)
+                ? null
+                : _currentUserContext.ProfilePictureUrl;
+
             var systemComment = TodoItemComment.CreateSystem(todoItem.Id, $"{authorName} created the task");
             await _commentRepository.AddAsync(systemComment, cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(request.Description))
             {
-                var genesisComment = TodoItemComment.CreateGenesis(todoItem.Id, request.Description, authorName);
+                var genesisComment = TodoItemComment.CreateGenesis(todoItem.Id, request.Description, authorName, authorAvatarUrl);
                 await _commentRepository.AddAsync(genesisComment, cancellationToken);
             }
 

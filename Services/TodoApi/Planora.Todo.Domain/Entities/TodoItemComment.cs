@@ -69,7 +69,11 @@ namespace Planora.Todo.Domain.Entities
             };
         }
 
-        public static TodoItemComment CreateGenesis(Guid todoItemId, string content, string authorName)
+        public static TodoItemComment CreateGenesis(
+            Guid todoItemId,
+            string content,
+            string authorName,
+            string? authorAvatarUrl = null)
         {
             if (todoItemId == Guid.Empty)
                 throw new InvalidValueObjectException(nameof(TodoItemComment), "TodoItemId cannot be empty");
@@ -83,6 +87,8 @@ namespace Planora.Todo.Domain.Entities
                 TodoItemId = todoItemId,
                 AuthorId = Guid.Empty,
                 AuthorName = string.IsNullOrWhiteSpace(authorName) ? string.Empty : authorName.Trim(),
+                // Normalise empty string → null so the live-avatar enrichment triggers on read
+                AuthorAvatarUrl = string.IsNullOrEmpty(authorAvatarUrl) ? null : authorAvatarUrl,
                 Content = content.Trim(),
                 IsSystemComment = true,
                 IsGenesisComment = true,

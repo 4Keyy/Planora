@@ -57,14 +57,29 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
             var (items, totalCount) = await _commentRepository.GetPagedByTodoIdAsync(
                 request.TodoId, request.PageNumber, request.PageSize, cancellationToken);
 
-            // Collect author IDs whose stored avatar URL is missing — these are users who either
-            // commented before the AuthorAvatarUrl column was added, or before uploading their avatar.
-            // We batch-fetch the current avatar from Auth API and use it as a live fallback.
-            var authorIdsNeedingAvatar = items
-                .Where(c => !c.IsSystemComment && c.AuthorId != Guid.Empty && string.IsNullOrEmpty(c.AuthorAvatarUrl))
-                .Select(c => c.AuthorId)
-                .Distinct()
-                .ToList();
+            // Collect all user IDs whose stored avatar URL is missing or empty so we can
+            // batch-fetch the current avatar from Auth as a live fallback.
+            //
+            // Regular comments: AuthorId is the actual commenter.
+            // Genesis comment:  AuthorId = Guid.Empty by design (it's a system comment);
+            //                   the real author is always the task owner (todoItem.UserId).
+            var authorIdsNeedingAvatar = new HashSet<Guid>();
+
+            foreach (var c in items)
+            {
+                if (!string.IsNullOrEmpty(c.AuthorAvatarUrl))
+                    continue; // already stored — no lookup needed
+
+                if (c.IsGenesisComment)
+                {
+                    // Genesis comment's real author is the task owner
+                    authorIdsNeedingAvatar.Add(todoItem.UserId);
+                }
+                else if (!c.IsSystemComment && c.AuthorId != Guid.Empty)
+                {
+                    authorIdsNeedingAvatar.Add(c.AuthorId);
+                }
+            }
 
             IReadOnlyDictionary<Guid, string> liveAvatars = new Dictionary<Guid, string>();
             if (authorIdsNeedingAvatar.Count > 0)
@@ -74,10 +89,22 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
 
             var dtos = items.Select(c =>
             {
-                // Prefer the stored URL; fall back to the live avatar fetched from Auth.
-                var avatarUrl = !string.IsNullOrEmpty(c.AuthorAvatarUrl)
-                    ? c.AuthorAvatarUrl
-                    : (liveAvatars.TryGetValue(c.AuthorId, out var live) ? live : null);
+                string? avatarUrl;
+                if (!string.IsNullOrEmpty(c.AuthorAvatarUrl))
+                {
+                    // Stored value wins
+                    avatarUrl = c.AuthorAvatarUrl;
+                }
+                else if (c.IsGenesisComment)
+                {
+                    // Live fallback keyed on the task owner
+                    liveAvatars.TryGetValue(todoItem.UserId, out avatarUrl);
+                }
+                else
+                {
+                    // Live fallback keyed on the actual commenter
+                    liveAvatars.TryGetValue(c.AuthorId, out avatarUrl);
+                }
 
                 return new TodoCommentDto(
                     c.Id,

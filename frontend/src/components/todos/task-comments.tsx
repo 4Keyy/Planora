@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Pencil, Trash2, Send, ScrollText } from "lucide-react"
+import { Pencil, Trash2, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar } from "@/components/ui/avatar"
@@ -133,9 +133,13 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-100">
-                <ScrollText className="h-3.5 w-3.5 text-indigo-500" />
-              </div>
+              {/* Author avatar — falls back to initials if no photo */}
+              <Avatar
+                src={genesis.authorAvatarUrl}
+                firstName={genesis.authorName}
+                size={28}
+                className="rounded-lg flex-shrink-0"
+              />
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 leading-none">
                   Description
