@@ -20,5 +20,7 @@ namespace Planora.Auth.Domain.Repositories
         Task<User?> GetWithLoginHistoryAsync(Guid userId, int count = 10, CancellationToken cancellationToken = default);
 
         Task HandleFailedLoginAsync(Guid userId, CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<User>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
     }
 }

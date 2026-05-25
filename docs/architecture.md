@@ -167,6 +167,7 @@ Confirmed cross-service checks:
 
 - Todo checks friendship through Auth before exposing public/direct-shared friend todos or accepting shared users.
 - Todo asks Category for category metadata and category ownership.
+- Todo batch-fetches current user avatar URLs from Auth (`GetUserAvatarsBatch` gRPC) when serving comment threads, enriching any comment whose stored `AuthorAvatarUrl` is null or empty (e.g. created before avatar was uploaded).
 - Messaging has Auth-related gRPC support in service configuration.
 
 ### Asynchronous RabbitMQ

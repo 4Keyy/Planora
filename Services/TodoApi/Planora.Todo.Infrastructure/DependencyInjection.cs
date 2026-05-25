@@ -52,6 +52,7 @@ namespace Planora.Todo.Infrastructure
                     o.Address = new Uri(authGrpcUrl))
                 .AddInterceptor<ServiceKeyClientInterceptor>();
             services.AddScoped<IFriendshipService, Services.FriendshipGrpcService>();
+            services.AddScoped<IUserService, Services.UserGrpcService>();
 
             // gRPC client for Category API (port 5282 local / env-configurable)
             var categoryGrpcUrl = configuration["GrpcServices:CategoryApi"] ?? "http://localhost:5282";

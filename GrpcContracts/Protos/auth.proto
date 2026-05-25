@@ -10,6 +10,7 @@ service AuthService {
   rpc RevokeToken (RevokeTokenRequest) returns (RevokeTokenResponse);
   rpc GetFriendIds (GetFriendIdsRequest) returns (GetFriendIdsResponse);
   rpc AreFriends (AreFriendsRequest) returns (AreFriendsResponse);
+  rpc GetUserAvatarsBatch (GetUserAvatarsBatchRequest) returns (GetUserAvatarsBatchResponse);
 }
 
 message ValidateTokenRequest {
@@ -35,6 +36,15 @@ message GetUserInfoResponse {
   string last_name = 4;
   bool is_active = 5;
   repeated string roles = 6;
+  string profile_picture_url = 7;
+}
+
+message GetUserAvatarsBatchRequest {
+  repeated string user_ids = 1;
+}
+
+message GetUserAvatarsBatchResponse {
+  map<string, string> avatar_urls = 1;
 }
 
 message RevokeTokenRequest {

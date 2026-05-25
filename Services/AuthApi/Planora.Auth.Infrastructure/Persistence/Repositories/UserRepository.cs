@@ -66,6 +66,18 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             return user;
         }
 
+        public async Task<IReadOnlyList<User>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default)
+        {
+            var idList = ids.Distinct().ToList();
+            if (idList.Count == 0)
+                return [];
+
+            return await _context.Users
+                .AsNoTracking()
+                .Where(u => idList.Contains(u.Id))
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task HandleFailedLoginAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             var user = await _context.Users.FindAsync(new object[] { userId }, cancellationToken);

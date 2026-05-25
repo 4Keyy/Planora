@@ -4,6 +4,7 @@ using Planora.Auth.Application.Features.Authentication.Queries.ValidateToken;
 using Planora.Auth.Application.Features.Friendships.Queries.AreFriends;
 using Planora.Auth.Application.Features.Friendships.Queries.GetFriendIds;
 using Planora.Auth.Application.Features.Users.Queries.GetUser;
+using Planora.Auth.Application.Features.Users.Queries.GetUserAvatarsByIds;
 using Planora.GrpcContracts;
 using MediatR;
 
@@ -67,11 +68,35 @@ namespace Planora.Auth.Api.Grpc
                 Email = result.Value.Email,
                 FirstName = result.Value.FirstName,
                 LastName = result.Value.LastName,
-                IsActive = true // Assuming active if found, or add field to DTO
+                IsActive = true,
+                ProfilePictureUrl = result.Value.ProfilePictureUrl ?? string.Empty,
             };
-            // Roles might not be in UserDto, check if needed. Proto has it.
-            // UserDto usually doesn't have roles unless explicitly loaded.
-            // For now leaving roles empty or if UserDto has it.
+
+            return response;
+        }
+
+        public override async Task<GetUserAvatarsBatchResponse> GetUserAvatarsBatch(
+            GetUserAvatarsBatchRequest request, ServerCallContext context)
+        {
+            var userIds = request.UserIds
+                .Select(id => Guid.TryParse(id, out var parsed) ? parsed : Guid.Empty)
+                .Where(id => id != Guid.Empty)
+                .ToList();
+
+            if (userIds.Count == 0)
+                return new GetUserAvatarsBatchResponse();
+
+            var query = new GetUserAvatarsByIdsQuery(userIds);
+            var result = await _mediator.Send(query);
+
+            var response = new GetUserAvatarsBatchResponse();
+            if (result.IsSuccess)
+            {
+                foreach (var kvp in result.Value)
+                {
+                    response.AvatarUrls[kvp.Key.ToString()] = kvp.Value;
+                }
+            }
 
             return response;
         }

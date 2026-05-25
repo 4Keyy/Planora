@@ -57,7 +57,11 @@ namespace Planora.Todo.Application.Features.Todos.Commands.AddComment
                 ?? _currentUserContext.Email
                 ?? userId.ToString();
 
-            var authorAvatarUrl = _currentUserContext.ProfilePictureUrl;
+            // Normalize empty string to null — JWT emits "" when the user has no avatar.
+            // Storing "" instead of NULL would prevent the live-avatar fallback in GetCommentsQueryHandler.
+            var authorAvatarUrl = string.IsNullOrEmpty(_currentUserContext.ProfilePictureUrl)
+                ? null
+                : _currentUserContext.ProfilePictureUrl;
 
             var comment = TodoItemComment.Create(todoItem.Id, userId, authorName, request.Content, authorAvatarUrl);
             await _commentRepository.AddAsync(comment, cancellationToken);

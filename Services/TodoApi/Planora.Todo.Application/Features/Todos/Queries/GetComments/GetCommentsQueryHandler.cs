@@ -16,17 +16,20 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
         private readonly ITodoCommentRepository _commentRepository;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IFriendshipService _friendshipService;
+        private readonly IUserService _userService;
 
         public GetCommentsQueryHandler(
             ITodoRepository todoRepository,
             ITodoCommentRepository commentRepository,
             ICurrentUserContext currentUserContext,
-            IFriendshipService friendshipService)
+            IFriendshipService friendshipService,
+            IUserService userService)
         {
             _todoRepository = todoRepository;
             _commentRepository = commentRepository;
             _currentUserContext = currentUserContext;
             _friendshipService = friendshipService;
+            _userService = userService;
         }
 
         public async Task<Result<PagedResult<TodoCommentDto>>> Handle(
@@ -54,19 +57,42 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
             var (items, totalCount) = await _commentRepository.GetPagedByTodoIdAsync(
                 request.TodoId, request.PageNumber, request.PageSize, cancellationToken);
 
-            var dtos = items.Select(c => new TodoCommentDto(
-                c.Id,
-                c.TodoItemId,
-                c.AuthorId,
-                c.AuthorName,
-                c.AuthorAvatarUrl,
-                c.Content,
-                c.CreatedAt,
-                c.UpdatedAt,
-                IsOwn: !c.IsSystemComment && c.AuthorId == userId,
-                IsEdited: c.IsEdited,
-                IsSystemComment: c.IsSystemComment,
-                IsGenesisComment: c.IsGenesisComment)).ToList();
+            // Collect author IDs whose stored avatar URL is missing — these are users who either
+            // commented before the AuthorAvatarUrl column was added, or before uploading their avatar.
+            // We batch-fetch the current avatar from Auth API and use it as a live fallback.
+            var authorIdsNeedingAvatar = items
+                .Where(c => !c.IsSystemComment && c.AuthorId != Guid.Empty && string.IsNullOrEmpty(c.AuthorAvatarUrl))
+                .Select(c => c.AuthorId)
+                .Distinct()
+                .ToList();
+
+            IReadOnlyDictionary<Guid, string> liveAvatars = new Dictionary<Guid, string>();
+            if (authorIdsNeedingAvatar.Count > 0)
+            {
+                liveAvatars = await _userService.GetUserAvatarsAsync(authorIdsNeedingAvatar, cancellationToken);
+            }
+
+            var dtos = items.Select(c =>
+            {
+                // Prefer the stored URL; fall back to the live avatar fetched from Auth.
+                var avatarUrl = !string.IsNullOrEmpty(c.AuthorAvatarUrl)
+                    ? c.AuthorAvatarUrl
+                    : (liveAvatars.TryGetValue(c.AuthorId, out var live) ? live : null);
+
+                return new TodoCommentDto(
+                    c.Id,
+                    c.TodoItemId,
+                    c.AuthorId,
+                    c.AuthorName,
+                    avatarUrl,
+                    c.Content,
+                    c.CreatedAt,
+                    c.UpdatedAt,
+                    IsOwn: !c.IsSystemComment && c.AuthorId == userId,
+                    IsEdited: c.IsEdited,
+                    IsSystemComment: c.IsSystemComment,
+                    IsGenesisComment: c.IsGenesisComment);
+            }).ToList();
 
             return Result<PagedResult<TodoCommentDto>>.Success(
                 new PagedResult<TodoCommentDto>(dtos, request.PageNumber, request.PageSize, totalCount));
