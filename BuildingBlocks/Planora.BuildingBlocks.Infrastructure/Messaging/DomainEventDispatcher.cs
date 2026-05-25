@@ -1,9 +1,6 @@
 namespace Planora.BuildingBlocks.Infrastructure.Messaging
 {
-    // Fully qualified to bypass C# name resolution preferring the same-namespace-root
-    // Planora.BuildingBlocks.Infrastructure.IDomainEventDispatcher duplicate over the
-    // moved Application.Messaging interface that this class is registered against.
-    public sealed class DomainEventDispatcher : Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher
+    public sealed class DomainEventDispatcher : IDomainEventDispatcher
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<DomainEventDispatcher> _logger;

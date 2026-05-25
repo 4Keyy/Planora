@@ -2,7 +2,6 @@ using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Application.Outbox;
 using Planora.Category.Domain.Events;
-using MediatR;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Text.Json;
@@ -11,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Planora.Category.Application.Features.Categories.Events
 {
-    public sealed class CategoryDeletedDomainEventHandler : INotificationHandler<DomainEventNotification<CategoryDeletedDomainEvent>>
+    public sealed class CategoryDeletedDomainEventHandler : IDomainEventHandler<CategoryDeletedDomainEvent>
     {
         private readonly IOutboxRepository _outboxRepository;
         private readonly ILogger<CategoryDeletedDomainEventHandler> _logger;
@@ -24,10 +23,8 @@ namespace Planora.Category.Application.Features.Categories.Events
             _logger = logger;
         }
 
-        public async Task Handle(DomainEventNotification<CategoryDeletedDomainEvent> notification, CancellationToken cancellationToken)
+        public async Task HandleAsync(CategoryDeletedDomainEvent domainEvent, CancellationToken cancellationToken = default)
         {
-            var domainEvent = notification.DomainEvent;
-
             _logger.LogInformation(
                 "Handling CategoryDeletedDomainEvent for CategoryId: {CategoryId} by UserId: {UserId}",
                 domainEvent.CategoryId,
@@ -63,4 +60,3 @@ namespace Planora.Category.Application.Features.Categories.Events
         }
     }
 }
-

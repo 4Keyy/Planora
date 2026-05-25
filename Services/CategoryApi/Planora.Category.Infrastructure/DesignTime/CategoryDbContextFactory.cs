@@ -1,4 +1,4 @@
-using Planora.BuildingBlocks.Infrastructure;
+using Planora.BuildingBlocks.Application.Messaging;
 
 namespace Planora.Category.Infrastructure.DesignTime
 {
@@ -30,6 +30,9 @@ namespace Planora.Category.Infrastructure.DesignTime
     internal sealed class DesignTimeDomainEventDispatcher : IDomainEventDispatcher
     {
         public Task DispatchAsync(Planora.BuildingBlocks.Domain.Interfaces.IDomainEvent domainEvent, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task DispatchAsync(IEnumerable<Planora.BuildingBlocks.Domain.Interfaces.IDomainEvent> domainEvents, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 }

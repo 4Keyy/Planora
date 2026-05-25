@@ -1,4 +1,4 @@
-using Planora.BuildingBlocks.Infrastructure;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Outbox;
 using Planora.Category.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;

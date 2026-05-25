@@ -235,7 +235,7 @@ public class DependencyInjectionContractTests
     public void AddCategoryInfrastructure_ShouldRegisterRepositoryUnitOfWorkOutboxAndCurrentUser()
     {
         var services = new ServiceCollection();
-        services.AddSingleton(Mock.Of<Planora.BuildingBlocks.Infrastructure.IDomainEventDispatcher>());
+        services.AddSingleton(Mock.Of<Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher>());
 
         services.AddCategoryInfrastructure(CreateConfiguration(new Dictionary<string, string?>
         {

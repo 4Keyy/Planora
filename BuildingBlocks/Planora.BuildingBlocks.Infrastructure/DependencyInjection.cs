@@ -72,10 +72,10 @@ namespace Planora.BuildingBlocks.Infrastructure
             });
             services.AddSingleton<IEventBus, RabbitMqEventBus>();
 
-            services.AddScoped<
-                Planora.BuildingBlocks.Infrastructure.IDomainEventDispatcher,
-                Planora.BuildingBlocks.Infrastructure.DomainEventDispatcher>();
-
+            // Single domain event dispatcher: reflection-based, scoped, resolves
+            // every registered IDomainEventHandler<TEvent>. The old MediatR-based
+            // duplicate in BuildingBlocks.Infrastructure was removed during the
+            // convergence audit pass.
             services.AddScoped<
                 Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher,
                 Planora.BuildingBlocks.Infrastructure.Messaging.DomainEventDispatcher>();
