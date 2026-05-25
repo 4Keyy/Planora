@@ -1,7 +1,7 @@
 using Planora.BuildingBlocks.Domain.Interfaces;
-using Planora.BuildingBlocks.Infrastructure;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
-using Planora.BuildingBlocks.Infrastructure.Outbox;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.Category.Application.Features.Categories.Events;
 using Planora.Category.Domain.Events;
 using Planora.Category.Domain.Repositories;
@@ -35,8 +35,8 @@ public sealed class IntegrationEventHandlerTests
         var categoryId = Guid.NewGuid();
         var userId = Guid.NewGuid();
 
-        await handler.Handle(
-            new DomainEventNotification<CategoryDeletedDomainEvent>(new CategoryDeletedDomainEvent(categoryId, userId)),
+        await handler.HandleAsync(
+            new CategoryDeletedDomainEvent(categoryId, userId),
             CancellationToken.None);
 
         Assert.NotNull(captured);
@@ -58,8 +58,8 @@ public sealed class IntegrationEventHandlerTests
             outbox.Object,
             Mock.Of<ILogger<CategoryDeletedDomainEventHandler>>());
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(
-            new DomainEventNotification<CategoryDeletedDomainEvent>(new CategoryDeletedDomainEvent(Guid.NewGuid(), Guid.NewGuid())),
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
+            new CategoryDeletedDomainEvent(Guid.NewGuid(), Guid.NewGuid()),
             CancellationToken.None));
     }
 

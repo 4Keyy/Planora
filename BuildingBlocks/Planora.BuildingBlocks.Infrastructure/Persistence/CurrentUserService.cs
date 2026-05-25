@@ -1,3 +1,4 @@
+using Planora.BuildingBlocks.Application.Persistence;
 using System.Security.Claims;
 
 namespace Planora.BuildingBlocks.Infrastructure.Persistence

@@ -1,6 +1,6 @@
 using Planora.BuildingBlocks.Domain;
-using Planora.BuildingBlocks.Infrastructure;
-using Planora.BuildingBlocks.Infrastructure.Outbox;
+using Planora.BuildingBlocks.Application.Messaging;
+using Planora.BuildingBlocks.Application.Outbox;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Reflection;

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Moq;
 using CategoryEntity = Planora.Category.Domain.Entities.Category;
-using CategoryEventDispatcher = Planora.BuildingBlocks.Infrastructure.IDomainEventDispatcher;
+using CategoryEventDispatcher = Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher;
 using AuthEventDispatcher = Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher;
 using RefreshTokenEntity = Planora.Auth.Domain.Entities.RefreshToken;
 

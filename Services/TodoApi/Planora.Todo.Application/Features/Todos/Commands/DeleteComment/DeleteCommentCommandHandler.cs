@@ -1,6 +1,6 @@
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Todo.Domain.Repositories;
 
 namespace Planora.Todo.Application.Features.Todos.Commands.DeleteComment

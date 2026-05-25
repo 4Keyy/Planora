@@ -38,6 +38,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - Follow-up done in this audit pass: the shared messaging contracts have been relocated from `BuildingBlocks.Infrastructure.Messaging` to `BuildingBlocks.Application.Messaging` (see the next subsection).
 - Remaining follow-up: `ICurrentUserContext` and `BusinessEventLogger` still live in `BuildingBlocks.Infrastructure`. Application handlers depend on `Infrastructure.Context`, which is why `BuildingBlocks.Infrastructure` itself is not yet in the Application architecture rule's forbidden list.
 
+### Domain event dispatcher converged on a single implementation (2026-05-22)
+
+- Removed the duplicate `Planora.BuildingBlocks.Infrastructure.IDomainEventDispatcher` interface and its MediatR-based implementation. The only dispatcher in the codebase is now `Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher`, implemented by `Planora.BuildingBlocks.Infrastructure.Messaging.DomainEventDispatcher` (reflection-based: scans every registered `IDomainEventHandler<TEvent>`).
+- Rewrote `CategoryDeletedDomainEventHandler` from `INotificationHandler<DomainEventNotification<…>>` to `IDomainEventHandler<CategoryDeletedDomainEvent>`. `Category.Application.DependencyInjection` now registers it explicitly under the new interface; `DomainEventNotification<T>` (no longer used) was deleted.
+- `CategoryDbContext` and the design-time `CategoryDbContextFactory` now import the Application-layer dispatcher interface; the design-time stub implements both `DispatchAsync` overloads. The fully-qualified `: Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher` workaround on `Infrastructure.Messaging.DomainEventDispatcher` was removed — the type now resolves cleanly via global usings.
+- BB.Infrastructure DI keeps a single dispatcher registration; tests that mocked the old root interface (`DependencyInjectionContractTests`, `EfModelConfigurationTests`) were repointed to the Application interface.
+- Build is warning-clean under `-warnaserror`; all 723 backend tests pass.
+
+### Application layer fully isolated from Infrastructure (2026-05-22)
+
+- `ICurrentUserContext`, `ICurrentUserService`, `IOutboxRepository`, `IOutboxProcessor`, `OutboxMessage`, `OutboxMessageStatus` and `DomainEventNotification<T>` were all relocated from `Planora.BuildingBlocks.Infrastructure.*` to the corresponding `Planora.BuildingBlocks.Application.*` namespaces (`Context`, `Persistence`, `Outbox`, `Messaging`). Implementations (`CurrentUserContext`, `CurrentUserService`, `OutboxProcessor`, `DomainEventDispatcher` and the per-service `OutboxRepository`) stay in Infrastructure.
+- Removed the `services.AddScoped<IBusinessEventLogger, BusinessEventLogger>()` registration that each of the four service `Application/DependencyInjection.cs` files held: the Application layer no longer needs to know about the Serilog-based Infrastructure implementation. It is now registered once in `AddBuildingBlocksInfrastructure`.
+- The Application-layer architecture rule is now the strict form: `Planora.BuildingBlocks.Infrastructure` is in the forbidden-namespace list alongside every service-specific `*.Infrastructure` and `*.Api`. No `*.Application` project depends on any Infrastructure or Api namespace; nothing slips through review.
+- Build is warning-clean under `-warnaserror`; all 723 backend tests pass; markdownlint, frontend lint/type-check/test/build and the existing architecture suite stay green.
+
+
 ### Messaging contracts moved to the Application layer (2026-05-22)
 
 - `IEventBus`, `IIntegrationEventHandler<T>`, `IntegrationEvent`, `IDomainEventDispatcher`, `IDomainEventHandler<T>` and the eight `*IntegrationEvent` types were moved from `Planora.BuildingBlocks.Infrastructure.Messaging` to `Planora.BuildingBlocks.Application.Messaging` (and `.Events`). Application handlers and consumers no longer cross the layering boundary just to publish or consume integration events.

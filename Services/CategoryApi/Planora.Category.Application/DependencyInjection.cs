@@ -1,8 +1,10 @@
 using System.Reflection;
+using Planora.Category.Application.Features.Categories.Events;
 using Planora.Category.Application.Features.IntegrationEvents;
+using Planora.Category.Domain.Events;
 using Planora.BuildingBlocks.Application.Behaviors;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Services;
-using Planora.BuildingBlocks.Infrastructure.Services;
 
 namespace Planora.Category.Application
 {
@@ -27,11 +29,11 @@ namespace Planora.Category.Application
             services.AddValidatorsFromAssembly(assembly);
             services.AddAutoMapper(cfg => cfg.AddMaps(assembly));
 
+            // Domain Event Handlers
+            services.AddScoped<IDomainEventHandler<CategoryDeletedDomainEvent>, CategoryDeletedDomainEventHandler>();
+
             // Integration Event Handlers
             services.AddScoped<UserDeletedEventConsumer>();
-
-            // Business Event Logger
-            services.AddScoped<IBusinessEventLogger, BusinessEventLogger>();
 
             return services;
         }

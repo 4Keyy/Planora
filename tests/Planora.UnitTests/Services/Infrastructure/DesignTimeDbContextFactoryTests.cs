@@ -77,8 +77,11 @@ public sealed class DesignTimeDbContextFactoryTests
             "Planora.Category.Infrastructure.DesignTime.DesignTimeDomainEventDispatcher",
             throwOnError: true)!;
         var categoryDispatcher = Activator.CreateInstance(categoryDispatcherType, nonPublic: true)!;
-        var categoryDispatch = (Task)categoryDispatcherType.GetMethod("DispatchAsync")!
-            .Invoke(categoryDispatcher, new object[] { new SampleDomainEvent(Guid.NewGuid()), CancellationToken.None })!;
+        var categoryDispatch = (Task)categoryDispatcherType.GetMethod("DispatchAsync", new[]
+        {
+            typeof(Planora.BuildingBlocks.Domain.Interfaces.IDomainEvent),
+            typeof(CancellationToken)
+        })!.Invoke(categoryDispatcher, new object[] { new SampleDomainEvent(Guid.NewGuid()), CancellationToken.None })!;
         await categoryDispatch;
     }
 

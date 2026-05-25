@@ -1,6 +1,5 @@
 using System.Reflection;
 using Planora.BuildingBlocks.Application.Services;
-using Planora.BuildingBlocks.Infrastructure.Services;
 
 namespace Planora.Auth.Application;
 
@@ -27,7 +26,6 @@ public static class DependencyInjection
         services.AddAutoMapper(cfg => cfg.AddMaps(assembly));
 
         // Business Event Logger
-        services.AddScoped<IBusinessEventLogger, BusinessEventLogger>();
 
         return services;
     }

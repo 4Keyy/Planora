@@ -1,4 +1,4 @@
-using Planora.BuildingBlocks.Infrastructure.Persistence;
+using Planora.BuildingBlocks.Application.Persistence;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;

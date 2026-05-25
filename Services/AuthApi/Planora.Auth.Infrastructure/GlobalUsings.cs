@@ -13,7 +13,7 @@ global using Planora.Auth.Infrastructure.Persistence.Repositories;
 // BuildingBlocks
 global using Planora.BuildingBlocks.Domain.Interfaces;
 global using Planora.BuildingBlocks.Application.Messaging;
-global using Planora.BuildingBlocks.Infrastructure.Outbox;
+global using Planora.BuildingBlocks.Application.Outbox;
 // PostgreSQL
 
 // MassTransit & RabbitMQ

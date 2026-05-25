@@ -17,9 +17,9 @@ using Planora.Auth.Infrastructure.Security;
 using Planora.Auth.Domain.Repositories;
 using Planora.BuildingBlocks.Application.Behaviors;
 using Planora.BuildingBlocks.Application.Services;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Application.Messaging;
-using Planora.BuildingBlocks.Infrastructure.Outbox;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.BuildingBlocks.Infrastructure.Services;
 using Planora.Category.Domain.Repositories;
@@ -59,7 +59,7 @@ using GenericTodoRepository = Planora.BuildingBlocks.Domain.Interfaces.IReposito
 using MediatR;
 using Moq;
 using RealtimeDependencyInjection = Planora.Realtime.Infrastructure.DependencyInjection;
-using TodoCurrentUserContext = Planora.BuildingBlocks.Infrastructure.Context.ICurrentUserContext;
+using TodoCurrentUserContext = Planora.BuildingBlocks.Application.Context.ICurrentUserContext;
 using TodoCurrentUserContextImpl = Planora.BuildingBlocks.Infrastructure.Context.CurrentUserContext;
 using TodoCategoryDeletedEventHandler = Planora.Todo.Application.Features.Todos.Events.CategoryDeletedEventHandler;
 using TodoUnitOfWork = Planora.BuildingBlocks.Domain.Interfaces.IUnitOfWork;
@@ -235,7 +235,7 @@ public class DependencyInjectionContractTests
     public void AddCategoryInfrastructure_ShouldRegisterRepositoryUnitOfWorkOutboxAndCurrentUser()
     {
         var services = new ServiceCollection();
-        services.AddSingleton(Mock.Of<Planora.BuildingBlocks.Infrastructure.IDomainEventDispatcher>());
+        services.AddSingleton(Mock.Of<Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher>());
 
         services.AddCategoryInfrastructure(CreateConfiguration(new Dictionary<string, string?>
         {
@@ -249,9 +249,9 @@ public class DependencyInjectionContractTests
         AssertScoped<CategoryRepositoryInterface, CategoryRepository>(services);
         AssertScoped<Planora.BuildingBlocks.Domain.Interfaces.IUnitOfWork, UnitOfWork>(services);
         AssertScoped<IOutboxRepository, CategoryOutboxRepository>(services);
-        AssertScoped<Planora.BuildingBlocks.Infrastructure.Persistence.ICurrentUserService, CategoryCurrentUserServiceImpl>(services);
+        AssertScoped<Planora.BuildingBlocks.Application.Persistence.ICurrentUserService, CategoryCurrentUserServiceImpl>(services);
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IHostedService)
-            && descriptor.ImplementationType == typeof(OutboxProcessor));
+            && descriptor.ImplementationType == typeof(Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor));
 
         using var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetRequiredService<DbContextOptions<CategoryDbContext>>());
@@ -266,7 +266,6 @@ public class DependencyInjectionContractTests
         var authServices = new ServiceCollection();
         Planora.Auth.Application.DependencyInjection.AddAuthApplication(authServices);
         AssertApplicationPipeline(authServices);
-        AssertScoped<IBusinessEventLogger, BusinessEventLogger>(authServices);
         Assert.Contains(authServices, descriptor => descriptor.ServiceType == typeof(IValidator<ResetPasswordCommand>)
             && descriptor.ImplementationType == typeof(ResetPasswordCommandValidator));
         Assert.Contains(authServices, descriptor => descriptor.ServiceType == typeof(IMapper));
@@ -276,20 +275,17 @@ public class DependencyInjectionContractTests
         AssertApplicationPipeline(todoServices);
         AssertScoped<TodoCategoryDeletedEventHandler, TodoCategoryDeletedEventHandler>(todoServices);
         AssertScoped<TodoUserDeletedEventConsumer, TodoUserDeletedEventConsumer>(todoServices);
-        AssertScoped<IBusinessEventLogger, BusinessEventLogger>(todoServices);
         Assert.Contains(todoServices, descriptor => descriptor.ServiceType == typeof(IMapper));
 
         var categoryServices = new ServiceCollection();
         Planora.Category.Application.DependencyInjection.AddCategoryApplication(categoryServices);
         AssertApplicationPipeline(categoryServices);
         AssertScoped<CategoryUserDeletedEventConsumer, CategoryUserDeletedEventConsumer>(categoryServices);
-        AssertScoped<IBusinessEventLogger, BusinessEventLogger>(categoryServices);
         Assert.Contains(categoryServices, descriptor => descriptor.ServiceType == typeof(IMapper));
 
         var messagingServices = new ServiceCollection();
         Planora.Messaging.Application.DependencyInjection.AddMessagingApplication(messagingServices);
         AssertApplicationPipeline(messagingServices);
-        AssertScoped<IBusinessEventLogger, BusinessEventLogger>(messagingServices);
         Assert.Contains(messagingServices, descriptor => descriptor.ServiceType == typeof(IMapper));
     }
 

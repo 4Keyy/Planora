@@ -1,4 +1,4 @@
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Category.Application.DTOs;
 
 namespace Planora.Category.Application.Features.Categories.Queries.GetUserCategories

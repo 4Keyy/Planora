@@ -1,5 +1,5 @@
 using Planora.BuildingBlocks.Application.Pagination;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Messaging.Application.DTOs;
 using Planora.Messaging.Application.Features.Messages.Commands.SendMessage;
 using Planora.Messaging.Application.Features.Messages.Queries.GetMessages;

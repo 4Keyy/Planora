@@ -1,4 +1,4 @@
-using Planora.BuildingBlocks.Infrastructure.Outbox;
+using Planora.BuildingBlocks.Application.Outbox;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,6 +1,6 @@
 using Planora.BuildingBlocks.Application.Pagination;
 using Planora.BuildingBlocks.Domain;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Todo.Application.DTOs;
 
 namespace Planora.Todo.Application.Features.Todos.Queries.GetTodosByCategory

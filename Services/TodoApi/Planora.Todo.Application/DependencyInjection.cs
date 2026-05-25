@@ -1,7 +1,6 @@
 using System.Reflection;
 using Planora.BuildingBlocks.Application.Behaviors;
 using Planora.BuildingBlocks.Application.Services;
-using Planora.BuildingBlocks.Infrastructure.Services;
 using Planora.Todo.Application.Features.Todos.Events;
 using Planora.Todo.Application.Features.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
@@ -35,7 +34,6 @@ namespace Planora.Todo.Application
             services.AddScoped<UserDeletedEventConsumer>();
 
             // Business Event Logger
-            services.AddScoped<IBusinessEventLogger, BusinessEventLogger>();
 
             return services;
         }

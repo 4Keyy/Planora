@@ -1,5 +1,5 @@
 using Planora.BuildingBlocks.Infrastructure.Caching;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Infrastructure.Messaging;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,10 +24,17 @@ namespace Planora.BuildingBlocks.Infrastructure
             services.AddSingleton<ICacheInvalidator, CacheInvalidator>();
 
             // Current User
-            services.AddScoped<ICurrentUserContext, CurrentUserContext>();
+            services.AddScoped<ICurrentUserContext, Planora.BuildingBlocks.Infrastructure.Context.CurrentUserContext>();
+
+            // Business event logger: interface in Application.Services, Serilog
+            // implementation in Infrastructure.Services. Registering it once
+            // here keeps the implementation out of every Application DI file.
+            services.AddScoped<
+                Planora.BuildingBlocks.Application.Services.IBusinessEventLogger,
+                Planora.BuildingBlocks.Infrastructure.Services.BusinessEventLogger>();
             services.AddHttpContextAccessor();
             services.AddScoped<
-                Planora.BuildingBlocks.Infrastructure.Persistence.ICurrentUserService,
+                Planora.BuildingBlocks.Application.Persistence.ICurrentUserService,
                 Planora.BuildingBlocks.Infrastructure.Persistence.CurrentUserService>();
 
             // Redis
@@ -65,10 +72,10 @@ namespace Planora.BuildingBlocks.Infrastructure
             });
             services.AddSingleton<IEventBus, RabbitMqEventBus>();
 
-            services.AddScoped<
-                Planora.BuildingBlocks.Infrastructure.IDomainEventDispatcher,
-                Planora.BuildingBlocks.Infrastructure.DomainEventDispatcher>();
-
+            // Single domain event dispatcher: reflection-based, scoped, resolves
+            // every registered IDomainEventHandler<TEvent>. The old MediatR-based
+            // duplicate in BuildingBlocks.Infrastructure was removed during the
+            // convergence audit pass.
             services.AddScoped<
                 Planora.BuildingBlocks.Application.Messaging.IDomainEventDispatcher,
                 Planora.BuildingBlocks.Infrastructure.Messaging.DomainEventDispatcher>();

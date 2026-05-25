@@ -1,4 +1,4 @@
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Application.Services;
 using Planora.Category.Application.DTOs;
 using static Planora.BuildingBlocks.Application.Services.BusinessEvents;

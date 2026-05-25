@@ -1,4 +1,4 @@
-namespace Planora.BuildingBlocks.Infrastructure.Context
+namespace Planora.BuildingBlocks.Application.Context
 {
     public interface ICurrentUserContext
     {

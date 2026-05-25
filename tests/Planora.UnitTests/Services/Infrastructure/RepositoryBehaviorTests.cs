@@ -1,4 +1,4 @@
-using Planora.BuildingBlocks.Infrastructure;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.Category.Infrastructure.Persistence;
 using Planora.Category.Infrastructure.Persistence.Repositories;
 using Planora.Todo.Domain.Entities;

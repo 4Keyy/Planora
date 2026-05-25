@@ -1,6 +1,6 @@
 using AutoMapper;
 using Planora.BuildingBlocks.Domain.Interfaces;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Category.Application.DTOs;
 using Planora.Category.Application.Features.Categories.Commands.CreateCategory;
 using Planora.Category.Application.Features.Categories.Commands.DeleteCategory;

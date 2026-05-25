@@ -1,5 +1,5 @@
 using Planora.BuildingBlocks.Domain.Interfaces;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.GrpcContracts;
@@ -35,7 +35,7 @@ namespace Planora.Messaging.Infrastructure
 
             // Services
             services.AddHttpContextAccessor();
-            services.AddScoped<ICurrentUserContext, CurrentUserContext>();
+            services.AddScoped<ICurrentUserContext, Planora.BuildingBlocks.Infrastructure.Context.CurrentUserContext>();
             services.AddSingleton<ServiceKeyClientInterceptor>();
             var authGrpcUrl = configuration["GrpcServices:AuthApi"]
                 ?? configuration["Services:Auth:Url"]

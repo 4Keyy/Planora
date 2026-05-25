@@ -1,6 +1,6 @@
 using Planora.BuildingBlocks.Infrastructure;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
-using Planora.BuildingBlocks.Infrastructure.Outbox;
+using Planora.BuildingBlocks.Application.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
@@ -34,14 +34,14 @@ namespace Planora.Category.Infrastructure
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<BuildingBlocks.Domain.Interfaces.IRepository<Domain.Entities.Category>, CategoryRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<BuildingBlocks.Infrastructure.Outbox.IOutboxRepository, Persistence.Repositories.OutboxRepository>();
+            services.AddScoped<Planora.BuildingBlocks.Application.Outbox.IOutboxRepository, Persistence.Repositories.OutboxRepository>();
 
             // Services
             services.AddHttpContextAccessor();
-            services.AddScoped<BuildingBlocks.Infrastructure.Persistence.ICurrentUserService, CurrentUserService>();
+            services.AddScoped<Planora.BuildingBlocks.Application.Persistence.ICurrentUserService, CurrentUserService>();
 
             // Outbox Processor
-            services.AddHostedService<OutboxProcessor>();
+            services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();
 
             services.AddHealthChecks()
                 .AddDbContextCheck<CategoryDbContext>("category-dbcontext");

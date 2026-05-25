@@ -1,5 +1,5 @@
 using AutoMapper;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Category.Application.DTOs;
 using Planora.Category.Application.Features.Categories.Queries.GetCategoryById;
 using Planora.Category.Domain.Repositories;
