@@ -42,6 +42,7 @@ import {
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { api, getApiErrorMessage, parseApiResponse } from "@/lib/api"
+import { refreshAccessToken } from "@/lib/auth-public"
 import { getApiBaseUrl } from "@/lib/config"
 import { clearCsrfToken } from "@/lib/csrf"
 import { useAuthStore } from "@/store/auth"
@@ -572,6 +573,12 @@ export default function ProfilePage() {
       })
       const data = parseApiResponse<UserDto>(res.data)
       updateUser({ profilePictureUrl: data.profilePictureUrl })
+      // Refresh the access token so the JWT profilePictureUrl claim is updated
+      // immediately — this ensures new comments carry the correct avatar URL.
+      try {
+        const refreshed = await refreshAccessToken()
+        useAuthStore.getState().applyRefresh(refreshed)
+      } catch { /* non-fatal — JWT will self-update on next scheduled refresh */ }
       addToast({ type: "success", title: "Avatar updated" })
       loadProfile()
     } catch {

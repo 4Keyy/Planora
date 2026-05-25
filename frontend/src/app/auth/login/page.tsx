@@ -63,6 +63,7 @@ export default function LoginPage() {
         email: p.email,
         firstName: p.firstName,
         lastName: p.lastName,
+        profilePictureUrl: p.profilePictureUrl,
         accessToken: p.accessToken,
         refreshTokenExpiresAt: p.expiresAt,
       })

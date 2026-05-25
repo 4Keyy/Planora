@@ -3,6 +3,7 @@ export type AuthLoginResponse = {
   email: string
   firstName: string
   lastName: string
+  profilePictureUrl?: string | null
   accessToken: string
   // refreshToken removed — stored in httpOnly cookie, not in response body
   expiresAt?: string

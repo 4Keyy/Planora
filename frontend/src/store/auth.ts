@@ -102,7 +102,10 @@ const deriveUserFromToken = (accessToken?: string) => {
   const firstName = typeof decoded.firstName === "string" ? decoded.firstName : undefined
   const lastName = typeof decoded.lastName === "string" ? decoded.lastName : undefined
   if (!userId || !email || !firstName || !lastName) return undefined
-  return { userId, email, firstName, lastName } as AuthUser
+  // profilePictureUrl is a custom JWT claim; backend emits "" when not set
+  const rawPic = typeof decoded.profilePictureUrl === "string" ? decoded.profilePictureUrl : undefined
+  const profilePictureUrl = rawPic && rawPic.length > 0 ? rawPic : undefined
+  return { userId, email, firstName, lastName, profilePictureUrl } as AuthUser
 }
 
 /**
