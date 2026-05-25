@@ -44,14 +44,14 @@ public sealed class ArchitectureTests
         "Grpc",
     };
 
-    // Concrete outer layers an Application project must never reach into: any
-    // service's persistence/Infrastructure project, or any Api host project.
-    // Note: Planora.BuildingBlocks.Infrastructure is not yet in this list —
-    // ICurrentUserContext and BusinessEventLogger still live there and need
-    // a follow-up contract relocation before the rule can cover it. The
-    // messaging contracts have already been relocated (see CHANGELOG).
+    // Concrete outer layers an Application project must never reach into:
+    // every Infrastructure project (the shared one and each service's) and
+    // every Api host project. After the messaging, current-user and outbox
+    // contracts were relocated to BuildingBlocks.Application, the shared
+    // Infrastructure project itself is now covered by the rule too.
     private static readonly string[] OuterLayerNamespaces =
     {
+        "Planora.BuildingBlocks.Infrastructure",
         "Planora.Auth.Infrastructure",
         "Planora.Todo.Infrastructure",
         "Planora.Category.Infrastructure",

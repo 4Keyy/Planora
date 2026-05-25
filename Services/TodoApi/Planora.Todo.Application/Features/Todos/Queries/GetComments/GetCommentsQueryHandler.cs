@@ -2,7 +2,7 @@ using Planora.BuildingBlocks.Application.Pagination;
 using Planora.BuildingBlocks.Application.CQRS;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Domain.Repositories;
 

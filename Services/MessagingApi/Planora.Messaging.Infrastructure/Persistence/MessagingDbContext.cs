@@ -1,5 +1,5 @@
 using Planora.BuildingBlocks.Infrastructure.Inbox;
-using Planora.BuildingBlocks.Infrastructure.Outbox;
+using Planora.BuildingBlocks.Application.Outbox;
 
 namespace Planora.Messaging.Infrastructure.Persistence
 {

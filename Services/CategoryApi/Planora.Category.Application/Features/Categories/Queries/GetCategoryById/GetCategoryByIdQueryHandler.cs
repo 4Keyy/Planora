@@ -1,7 +1,7 @@
 using AutoMapper;
 using Planora.BuildingBlocks.Application.CQRS;
 using Planora.BuildingBlocks.Domain;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Category.Application.DTOs;
 using Planora.Category.Domain.Repositories;
 using DomainError = Planora.BuildingBlocks.Domain.Error;

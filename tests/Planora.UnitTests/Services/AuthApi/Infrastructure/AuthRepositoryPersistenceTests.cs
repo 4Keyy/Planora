@@ -4,7 +4,7 @@ using Planora.Auth.Domain.ValueObjects;
 using Planora.Auth.Infrastructure.Persistence;
 using Planora.Auth.Infrastructure.Persistence.Repositories;
 using Planora.BuildingBlocks.Infrastructure.Inbox;
-using Planora.BuildingBlocks.Infrastructure.Outbox;
+using Planora.BuildingBlocks.Application.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Moq;

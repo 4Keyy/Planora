@@ -1,6 +1,6 @@
-using Planora.BuildingBlocks.Infrastructure;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
-using Planora.BuildingBlocks.Infrastructure.Outbox;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.Category.Domain.Events;
 using MediatR;
 using Microsoft.Extensions.Logging;

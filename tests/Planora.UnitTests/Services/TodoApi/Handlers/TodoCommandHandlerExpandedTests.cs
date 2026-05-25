@@ -1,7 +1,7 @@
 using AutoMapper;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Domain.Interfaces;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Features.Todos.Commands.CreateTodo;
 using Planora.Todo.Application.Features.Todos.Commands.DeleteTodo;

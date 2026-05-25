@@ -1,7 +1,6 @@
 using System.Reflection;
 using Planora.BuildingBlocks.Application.Behaviors;
 using Planora.BuildingBlocks.Application.Services;
-using Planora.BuildingBlocks.Infrastructure.Services;
 
 namespace Planora.Messaging.Application
 {
@@ -27,7 +26,6 @@ namespace Planora.Messaging.Application
             services.AddAutoMapper(cfg => cfg.AddMaps(assembly));
 
             // Business Event Logger
-            services.AddScoped<IBusinessEventLogger, BusinessEventLogger>();
 
             return services;
         }

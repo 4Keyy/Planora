@@ -41,14 +41,4 @@ namespace Planora.BuildingBlocks.Infrastructure
     {
         Task DispatchAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default);
     }
-
-    public class DomainEventNotification<TDomainEvent> : INotification where TDomainEvent : IDomainEvent
-    {
-        public TDomainEvent DomainEvent { get; }
-
-        public DomainEventNotification(TDomainEvent domainEvent)
-        {
-            DomainEvent = domainEvent;
-        }
-    }
 }

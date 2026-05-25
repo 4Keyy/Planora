@@ -1,7 +1,7 @@
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Services;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;

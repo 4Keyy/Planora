@@ -4,7 +4,7 @@ using System.Security.Claims;
 
 namespace Planora.Category.Infrastructure.Services
 {
-    public sealed class CurrentUserService : BuildingBlocks.Infrastructure.Persistence.ICurrentUserService
+    public sealed class CurrentUserService : Planora.BuildingBlocks.Application.Persistence.ICurrentUserService
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
 

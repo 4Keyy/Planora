@@ -1,4 +1,4 @@
-namespace Planora.BuildingBlocks.Infrastructure.Persistence
+namespace Planora.BuildingBlocks.Application.Persistence
 {
     public interface ICurrentUserService
     {

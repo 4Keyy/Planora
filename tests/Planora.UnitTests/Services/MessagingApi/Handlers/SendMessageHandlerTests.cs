@@ -1,7 +1,7 @@
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
-using Planora.BuildingBlocks.Infrastructure.Persistence;
+using Planora.BuildingBlocks.Application.Persistence;
 using Planora.Messaging.Application.Features.Messages.Commands.SendMessage;
 using Planora.Messaging.Application.Services;
 using Planora.Messaging.Domain;

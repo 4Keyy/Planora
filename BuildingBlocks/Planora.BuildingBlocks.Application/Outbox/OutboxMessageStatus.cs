@@ -1,4 +1,4 @@
-namespace Planora.BuildingBlocks.Infrastructure.Outbox;
+namespace Planora.BuildingBlocks.Application.Outbox;
 
 public enum OutboxMessageStatus
 {

@@ -1,5 +1,5 @@
 using Planora.BuildingBlocks.Infrastructure;
-using Planora.BuildingBlocks.Infrastructure.Outbox;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.Category.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Moq;

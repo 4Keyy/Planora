@@ -1,5 +1,5 @@
 using Planora.BuildingBlocks.Domain.Interfaces;
-using Planora.BuildingBlocks.Infrastructure.Context;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.Todo.Domain.Entities;
@@ -41,7 +41,7 @@ namespace Planora.Todo.Infrastructure
             
             // Services
             services.AddHttpContextAccessor();
-            services.AddScoped<ICurrentUserContext, CurrentUserContext>();
+            services.AddScoped<ICurrentUserContext, Planora.BuildingBlocks.Infrastructure.Context.CurrentUserContext>();
             
             // gRPC client for Auth API friendship checks
             services.AddSingleton<ServiceKeyClientInterceptor>();
