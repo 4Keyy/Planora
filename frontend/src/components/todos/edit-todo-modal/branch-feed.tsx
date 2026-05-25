@@ -218,7 +218,12 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onDescriptionChange }:
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <FriendAvatar
-                friend={{ id: genesis.authorId, firstName: genesis.authorName?.split(" ")[0], lastName: genesis.authorName?.split(" ")[1] }}
+                friend={{
+                  id: genesis.authorId,
+                  firstName: genesis.authorName?.split(" ")[0],
+                  lastName: genesis.authorName?.split(" ")[1],
+                  profilePictureUrl: genesis.authorAvatarUrl,
+                }}
                 size={32}
               />
               <div>

@@ -435,6 +435,13 @@ export default function ProfilePage() {
       const res = await api.get("/auth/api/v1/users/me")
       const data = parseApiResponse<UserDto>(res.data)
       setUser(data)
+      updateUser({
+        userId: data.id,
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        profilePictureUrl: data.profilePictureUrl,
+      })
       setProfileForm({
         firstName: data.firstName,
         lastName: data.lastName,
@@ -1526,9 +1533,19 @@ export default function ProfilePage() {
                       <div className="space-y-2">
                         {outgoingRequests.map((request) => (
                           <div key={request.friendshipId} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50/70 p-3">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-black text-gray-950">{personName(request)}</p>
-                              <p className="truncate text-xs font-semibold text-gray-500">{request.email}</p>
+                            <div className="flex min-w-0 items-center gap-3">
+                              <Avatar
+                                src={request.profilePictureUrl}
+                                firstName={request.firstName}
+                                lastName={request.lastName}
+                                email={request.email}
+                                size={40}
+                                className="border border-gray-200 bg-gray-50"
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-black text-gray-950">{personName(request)}</p>
+                                <p className="truncate text-xs font-semibold text-gray-500">{request.email}</p>
+                              </div>
                             </div>
                             <Button size="sm" variant="secondary" onClick={() => handleRejectFriendRequest(request.friendshipId)}>
                               Cancel
@@ -1548,9 +1565,19 @@ export default function ProfilePage() {
                       <div className="space-y-2">
                         {incomingRequests.map((request) => (
                           <div key={request.friendshipId} className="flex flex-col gap-3 rounded-lg border border-gray-100 bg-gray-50/70 p-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-black text-gray-950">{personName(request)}</p>
-                              <p className="truncate text-xs font-semibold text-gray-500">{request.email}</p>
+                            <div className="flex min-w-0 items-center gap-3">
+                              <Avatar
+                                src={request.profilePictureUrl}
+                                firstName={request.firstName}
+                                lastName={request.lastName}
+                                email={request.email}
+                                size={40}
+                                className="border border-gray-200 bg-gray-50"
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-black text-gray-950">{personName(request)}</p>
+                                <p className="truncate text-xs font-semibold text-gray-500">{request.email}</p>
+                              </div>
                             </div>
                             <div className="flex gap-2">
                               <Button size="sm" onClick={() => handleAcceptFriendRequest(request.friendshipId)}>Accept</Button>
@@ -1579,10 +1606,20 @@ export default function ProfilePage() {
                       <div className="space-y-2">
                         {friends.items.map((friend) => (
                           <div key={friend.id} className="flex flex-col gap-3 rounded-lg border border-gray-100 bg-gray-50/70 p-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-black text-gray-950">{personName(friend)}</p>
-                              <p className="truncate text-xs font-semibold text-gray-500">{friend.email}</p>
-                              <p className="mt-1 text-[11px] font-semibold text-gray-400">Friends since {formatDateShort(friend.friendsSince)}</p>
+                            <div className="flex min-w-0 items-center gap-3">
+                              <Avatar
+                                src={friend.profilePictureUrl}
+                                firstName={friend.firstName}
+                                lastName={friend.lastName}
+                                email={friend.email}
+                                size={40}
+                                className="border border-gray-200 bg-gray-50"
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-black text-gray-950">{personName(friend)}</p>
+                                <p className="truncate text-xs font-semibold text-gray-500">{friend.email}</p>
+                                <p className="mt-1 text-[11px] font-semibold text-gray-400">Friends since {formatDateShort(friend.friendsSince)}</p>
+                              </div>
                             </div>
                             <Button size="sm" variant="secondary" onClick={() => handleRemoveFriend(friend.id)}>
                               <UserX className="h-4 w-4" />

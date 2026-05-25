@@ -4,6 +4,7 @@ import { useMemo, useCallback } from "react"
 import { Check, Globe2, Lock, UserRound, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FriendDto } from "@/types/auth"
+import { Avatar } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,14 +17,6 @@ const formatFriendName = (friend: FriendDto) => {
   if (fullName) return fullName
   if (friend.email) return friend.email.split("@")[0]
   return friend.id
-}
-
-const friendInitials = (friend: FriendDto) => {
-  const first = friend.firstName?.trim()?.[0]
-  const last = friend.lastName?.trim()?.[0]
-  if (first || last) return `${first ?? ""}${last ?? ""}`.toUpperCase()
-  if (friend.email) return friend.email.slice(0, 2).toUpperCase()
-  return friend.id.slice(0, 2).toUpperCase()
 }
 
 interface FriendMultiSelectProps {
@@ -120,10 +113,16 @@ export function FriendMultiSelect({
             {visibleSelectedFriends.slice(0, 3).map(friend => (
               <span
                 key={friend.id}
-                className="-ml-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-gray-900 text-[9px] font-black text-white shadow-sm first:ml-0"
+                className="-ml-1 flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border-2 border-white shadow-sm first:ml-0"
                 title={formatFriendName(friend)}
               >
-                {friendInitials(friend)}
+                <Avatar
+                  src={friend.profilePictureUrl}
+                  firstName={friend.firstName}
+                  lastName={friend.lastName}
+                  email={friend.email}
+                  size={24}
+                />
               </span>
             ))}
             {publicSelected && (
@@ -202,8 +201,15 @@ export function FriendMultiSelect({
                       selected ? "bg-gray-100 text-gray-950 focus:bg-gray-100" : "focus:bg-gray-50"
                     )}
                   >
-                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-gray-900 text-[10px] font-black text-white">
-                      {friendInitials(friend)}
+                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl">
+                      <Avatar
+                        src={friend.profilePictureUrl}
+                        firstName={friend.firstName}
+                        lastName={friend.lastName}
+                        email={friend.email}
+                        size={32}
+                        className="rounded-xl"
+                      />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-black">{formatFriendName(friend)}</span>

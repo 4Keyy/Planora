@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import { FriendMultiSelect } from "@/components/todos/friend-multi-select"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
+import * as config from "@/lib/config"
 import type { FriendDto } from "@/types/auth"
 import type { Category } from "@/types/category"
 
@@ -135,6 +136,28 @@ describe("small todo components", () => {
     render(<FriendMultiSelect friends={[]} selectedIds={[]} onChange={onChange} />)
     await user.click(screen.getByRole("button"))
     expect(await screen.findByText("No friends yet.")).toBeInTheDocument()
+  })
+
+  it("renders uploaded friend avatars before falling back to initials", () => {
+    vi.spyOn(config, "getApiBaseUrl").mockReturnValue("http://localhost:5000")
+
+    render(
+      <FriendMultiSelect
+        friends={[
+          friend("friend-1", {
+            firstName: "Ada",
+            lastName: "Lovelace",
+            profilePictureUrl: "/avatars/ada.png",
+          }),
+        ]}
+        selectedIds={["friend-1"]}
+        onChange={vi.fn()}
+      />,
+    )
+
+    const avatarImage = screen.getByAltText("Ada")
+    expect(avatarImage).toHaveAttribute("src", "http://localhost:5000/avatars/ada.png")
+    expect(screen.queryByText("AL")).not.toBeInTheDocument()
   })
 
   it("renders category filter modal, toggles, resets, and closes by Escape", async () => {
