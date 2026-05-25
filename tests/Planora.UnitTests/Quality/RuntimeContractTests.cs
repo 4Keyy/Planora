@@ -85,6 +85,34 @@ public class RuntimeContractTests
         Assert.Contains(routes, route => route.GetProperty("UpstreamPathTemplate").GetString() == "/categories/health");
     }
 
+    [Theory]
+    [InlineData("ocelot.json")]
+    [InlineData("ocelot.Docker.json")]
+    [Trait("TestType", "System")]
+    [Trait("TestType", "Regression")]
+    public void OcelotRateLimitedRoutes_ShouldDeclarePeriodAndLimit(string fileName)
+    {
+        var root = FindRepositoryRoot();
+        using var document = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(root, "Planora.ApiGateway", fileName)),
+            JsonDocumentOptions);
+        var routes = document.RootElement.GetProperty("Routes").EnumerateArray().ToArray();
+
+        var rateLimitedRoutes = routes
+            .Where(route => route.TryGetProperty("RateLimitOptions", out var options)
+                && options.TryGetProperty("EnableRateLimiting", out var enabled)
+                && enabled.GetBoolean())
+            .ToArray();
+
+        Assert.NotEmpty(rateLimitedRoutes);
+        Assert.All(rateLimitedRoutes, route =>
+        {
+            var options = route.GetProperty("RateLimitOptions");
+            Assert.Matches(@"^\d+(ms|s|m|h|d)$", options.GetProperty("Period").GetString() ?? string.Empty);
+            Assert.True(options.GetProperty("Limit").GetInt32() > 0);
+        });
+    }
+
     [Fact]
     [Trait("TestType", "System")]
     [Trait("TestType", "Regression")]

@@ -328,6 +328,7 @@ public class TodosWorkerCommentControllerTests
         TodoItemId: Guid.NewGuid(),
         AuthorId: Guid.NewGuid(),
         AuthorName: "Author",
+        AuthorAvatarUrl: null,
         Content: "A comment",
         CreatedAt: DateTime.UtcNow,
         UpdatedAt: null,

@@ -40,16 +40,6 @@ This directory is the project knowledge base for users, developers, operators, a
 | [`ROADMAP.md`](ROADMAP.md) | Confirmed gaps and recommended next work | maintainers |
 | [`DECISIONS/`](DECISIONS/) | Architecture decision records | architects, contributors |
 
-## Source Navigation Rule
-
-This repository includes a generated knowledge graph:
-
-- `graphify-out/GRAPH_REPORT.md`
-- `graphify-out/wiki/index.md`
-- `graphify-out/graph.json`
-
-For architecture and cross-module questions, check the graph first and use the wiki to decide which raw files to inspect. The `graphify-out/` directory is generated locally (it is git-ignored) — rebuild it with the Graphify tooling if it is missing.
-
 ## Main Code References
 
 | Topic | Files |
@@ -76,5 +66,3 @@ Update docs when changing:
 - frontend routes, auth token handling, API client behavior, hidden task behavior;
 - tests, CI jobs, security checks, or launch scripts.
 - production deployment assumptions, secret names, license terms, or vulnerability disclosure policy.
-
-After substantial code/config/test/docs changes, rebuild the knowledge graph according to the repository's Graphify rule.

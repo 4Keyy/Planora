@@ -71,7 +71,7 @@ Service-level rate limiting policies are configured in `BuildingBlocks/Planora.B
 | `auth` | 10 requests/minute/IP | refresh/logout/validate-token/password reset |
 | `data` | 50 requests/minute/IP | configured but no controller usage found in inspected routes |
 
-Ocelot route files currently set `RateLimitOptions.EnableRateLimiting` to `false` per route. Gateway `Program.cs` registers a limiter, but no `app.UseRateLimiter()` call was found there.
+Ocelot route files leave most routes unthrottled, but the realtime route enables `RateLimitOptions` with a 100 requests/minute window. Gateway `Program.cs` also registers an ASP.NET Core limiter, but no `app.UseRateLimiter()` call was found there.
 
 ## Gateway Route Map
 

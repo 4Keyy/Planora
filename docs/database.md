@@ -115,7 +115,7 @@ Default schema: `todo`
 | `TodoTag` | owned table `todo_tags`, tag name max 50 | `TodoItemConfiguration.cs` |
 | `TodoItemShare` | table `todo_item_shares`, composite key `(TodoItemId, SharedWithUserId)`, index by shared user | `Persistence/Configurations/TodoItemShareConfiguration.cs` |
 | `TodoItemWorker` | table `todo_item_workers`, composite PK `(TodoItemId, UserId)`, `JoinedAt` default `now()`, cascade FK to `TodoItems`; indexes on `UserId` and `TodoItemId` | `Persistence/Configurations/TodoItemWorkerConfiguration.cs` |
-| `TodoItemComment` | table `todo_item_comments`, PK `Id`, `AuthorId`, `AuthorName` max 200, `Content` max 2000, `IsSystemComment` bool (default false), soft delete, cascade FK to `TodoItems`; composite index `(TodoItemId, CreatedAt)` | `Persistence/Configurations/TodoItemCommentConfiguration.cs` |
+| `TodoItemComment` | table `todo_item_comments`, PK `Id`, `AuthorId`, `AuthorName` max 200, `AuthorAvatarUrl` nullable max 2048, `Content` max 2000, `IsSystemComment` bool (default false), `IsGenesisComment` bool (default false), soft delete, cascade FK to `TodoItems`; composite index `(TodoItemId, CreatedAt)` | `Persistence/Configurations/TodoItemCommentConfiguration.cs` |
 | `UserTodoViewPreference` | table `todo.user_todo_view_preferences`, composite key `(ViewerId, TodoItemId)`, `HiddenByViewer`, `CompletedByViewer` bool, `CompletedByViewerAt` nullable datetime, optional `ViewerCategoryId`, index `(TodoItemId, ViewerId)` | `Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs` |
 
 ### Worker Capacity Semantics
@@ -132,6 +132,8 @@ Committed EF migrations are stored locally but not in the repository (the `**/Mi
 |---|---|---|
 | `AddWorkersAndComments` | 2026-05-10 | Adds `todo_item_workers`, `todo_item_comments`, and related FK/indexes |
 | `AddSystemComment` | 2026-05-17 | Adds `is_system_comment bool NOT NULL DEFAULT false` to `todo_item_comments`; adds `completed_by_viewer` and `completed_by_viewer_at` to `user_todo_view_preferences` |
+| `AddGenesisComment` | 2026-05-18 | Adds `is_genesis_comment bool NOT NULL DEFAULT false` to `todo_item_comments` |
+| `AddCommentAvatarUrl` | 2026-05-25 | Adds `AuthorAvatarUrl varchar(2048) NULL` to `todo_item_comments`; adds `xmin` row-version column to `TodoItems` for EF Core optimistic concurrency |
 
 To apply manually:
 

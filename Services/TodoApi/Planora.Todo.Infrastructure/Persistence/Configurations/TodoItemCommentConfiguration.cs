@@ -15,6 +15,10 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
                 .IsRequired()
                 .HasMaxLength(200);
 
+            builder.Property(x => x.AuthorAvatarUrl)
+                .IsRequired(false)
+                .HasMaxLength(2048);
+
             builder.Property(x => x.Content)
                 .IsRequired()
                 .HasMaxLength(5000);

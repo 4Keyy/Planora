@@ -11,10 +11,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
-import { IconPicker } from "@/components/ui/icon-picker"
+import { ICON_PICKER_ITEMS } from "@/components/ui/icon-picker"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ModalPortal } from "@/components/ui/modal-portal"
-import { truncateText } from "@/lib/utils"
+import { ColorPicker } from "@/components/todos/edit-todo-modal/color-picker"
+import { cn, truncateText } from "@/lib/utils"
 import { ICON_MAP } from "@/lib/icon-map"
 
 type CategoryFormData = {
@@ -297,22 +298,22 @@ function CategoryModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={SPRING_STANDARD}
-          className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-white shadow-2xl z-[2001] scrollbar-hide"
+          className="relative z-[2001] max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] bg-white shadow-2xl scrollbar-hide"
           onClick={(e) => e.stopPropagation()}
         >
-        <div className="p-6 md:p-8 space-y-6">
+        <div className="p-6 md:p-8">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="flex items-center justify-between"
+            className="flex items-start justify-between gap-4"
           >
             <div>
               <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">
                 {title}
               </h2>
-              <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 md:text-xs">
                 {isEditing ? "Update category details" : "Organize your workspace"}
               </p>
             </div>
@@ -327,153 +328,180 @@ function CategoryModal({
             </motion.button>
           </motion.div>
 
-          {/* Form */}
-          <div className="space-y-4">
-            {/* Name input */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.05 }}
-              className="space-y-1.5"
-            >
-              <label className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-400">
-                Name *
-              </label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Work, Personal, Projects..."
-                maxLength={50}
-                showCount
-                className="border-none bg-gray-50/50 text-base md:text-lg font-bold focus-visible:ring-0 focus-visible:bg-gray-50 placeholder:text-gray-300 h-12 md:h-14 rounded-2xl"
-              />
-            </motion.div>
-
-            {/* Description input */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="space-y-1.5"
-            >
-              <label className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-400">
-                Description
-              </label>
-              <Input
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                placeholder="Optional..."
-                maxLength={500}
-                showCount
-                className="border-none bg-gray-50/50 text-sm font-bold focus-visible:ring-0 focus-visible:bg-gray-50 placeholder:text-gray-300 h-12 rounded-2xl"
-              />
-            </motion.div>
-
-            {/* Icon and Color */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.15 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-            >
-              <div className="space-y-1.5">
-                <label className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-400">
-                  Icon
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+            <div className="space-y-4">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.05 }}
+                className="space-y-1.5"
+              >
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 md:text-xs">
+                  Name *
                 </label>
-                <IconPicker selectedIcon={icon} onIconSelect={setIcon} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] md:text-xs font-black uppercase tracking-widest text-gray-400">
-                  Color
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Work, Personal, Projects..."
+                  maxLength={50}
+                  showCount
+                  className="h-12 rounded-2xl border-none bg-gray-50/60 text-base font-bold placeholder:text-gray-300 focus-visible:bg-gray-50 focus-visible:ring-0 md:h-14 md:text-lg"
+                />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="space-y-1.5"
+              >
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 md:text-xs">
+                  Description
                 </label>
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="h-10 w-12 cursor-pointer p-1 flex-shrink-0 rounded-xl border-none bg-gray-50"
-                  />
-                  <Input
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    placeholder="#6366f1"
-                    className="font-mono text-sm h-10 rounded-xl border-none bg-gray-50/50 focus-visible:ring-0"
-                    maxLength={7}
-                  />
+                <Input
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  placeholder="Optional..."
+                  maxLength={500}
+                  showCount
+                  className="h-12 rounded-2xl border-none bg-gray-50/60 text-sm font-bold placeholder:text-gray-300 focus-visible:bg-gray-50 focus-visible:ring-0"
+                />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.15 }}
+                className="space-y-1.5"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 md:text-xs">
+                    Icon
+                  </label>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-gray-300">
+                    {icon || "Folder"}
+                  </span>
                 </div>
-              </div>
-            </motion.div>
+                <div className="rounded-[1.75rem] bg-gray-50/80 p-3 ring-1 ring-gray-100">
+                  <div className="grid grid-cols-6 gap-2 sm:grid-cols-7">
+                    {ICON_PICKER_ITEMS.map((item) => {
+                      const IconComponent = item.icon
+                      const isSelected = (icon ?? "Folder") === item.name
+                      return (
+                        <motion.button
+                          key={item.name}
+                          type="button"
+                          whileHover={{ scale: 1.06 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setIcon(item.name)}
+                          className={cn(
+                            "flex h-11 w-full items-center justify-center rounded-2xl border transition-all duration-150",
+                            isSelected
+                              ? "border-black bg-black text-white shadow-lg shadow-black/15"
+                              : "border-transparent bg-white/80 text-gray-500 hover:border-gray-200 hover:text-gray-900"
+                          )}
+                          aria-label={`Select ${item.name} icon`}
+                          aria-pressed={isSelected}
+                        >
+                          <IconComponent className="h-4 w-4" />
+                        </motion.button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </motion.div>
 
-            {/* Preview */}
+              <AnimatePresence>
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-center text-[11px] font-bold text-red-600"
+                  >
+                    {error}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.2 }}
-              className="rounded-2xl border border-gray-100 bg-gray-50/80 p-3 flex items-center gap-3"
+              className="space-y-4"
             >
-              <div
-                className="h-10 w-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${color}20` }}
-              >
-                <PreviewIcon className="h-5 w-5" style={{ color }} />
-              </div>
-              <div>
-                <p className="text-sm font-black text-gray-900">
-                  {name || "Preview"}
-                </p>
-                <p className="text-xs text-gray-500 font-medium">
-                  {desc || "Description"}
-                </p>
-              </div>
-            </motion.div>
+              <div className="rounded-[1.75rem] bg-gradient-to-br from-gray-50 to-white p-4 ring-1 ring-gray-100">
+                <div className="mb-3 flex items-center gap-3">
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl"
+                    style={{ backgroundColor: `${color}20` }}
+                  >
+                    <PreviewIcon className="h-6 w-6" style={{ color }} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-gray-900">
+                      {name || "Preview"}
+                    </p>
+                    <p className="line-clamp-2 text-xs font-medium text-gray-500">
+                      {desc || "Description"}
+                    </p>
+                  </div>
+                </div>
 
-            {/* Error message */}
-            <AnimatePresence>
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                  transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-[11px] font-bold text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 text-center"
-                >
-                  {error}
-                </motion.p>
-              )}
-            </AnimatePresence>
+                <div className="flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-gray-100">
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="font-mono text-xs font-bold uppercase tracking-wide text-gray-500">
+                    {color}
+                  </span>
+                </div>
+              </div>
 
-            {/* Action buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.25 }}
-              className="flex gap-3 pt-4 border-t border-gray-50"
-            >
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="flex-1">
-                <Button
-                  variant="outline"
-                  className="w-full h-12 rounded-2xl font-bold border-gray-100 hover:bg-gray-50 text-gray-500"
-                  onClick={onClose}
-                  disabled={saving}
-                >
-                  Cancel
-                </Button>
-              </motion.div>
-              <motion.div
-                whileHover={!saving && name.trim() ? { scale: 1.02 } : undefined}
-                whileTap={!saving && name.trim() ? { scale: 0.98 } : undefined}
-                className="flex-1"
-              >
-                <Button
-                  className="w-full h-12 rounded-2xl font-bold bg-black hover:bg-gray-900 shadow-xl shadow-black/10 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed"
-                  onClick={handleSave}
-                  disabled={saving || !name.trim()}
-                >
-                  {saving ? "Saving..." : "Save"}
-                </Button>
-              </motion.div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 md:text-xs">
+                  Color
+                </label>
+                <div className="rounded-[1.75rem] bg-gray-50/80 p-4 ring-1 ring-gray-100">
+                  <ColorPicker value={color} onChange={setColor} />
+                </div>
+              </div>
             </motion.div>
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.25 }}
+            className="mt-6 flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row"
+          >
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="sm:flex-1">
+              <Button
+                variant="outline"
+                className="h-12 w-full rounded-2xl border-gray-100 font-bold text-gray-500 hover:bg-gray-50"
+                onClick={onClose}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+            </motion.div>
+            <motion.div
+              whileHover={!saving && name.trim() ? { scale: 1.02 } : undefined}
+              whileTap={!saving && name.trim() ? { scale: 0.98 } : undefined}
+              className="sm:flex-1"
+            >
+              <Button
+                className="h-12 w-full rounded-2xl bg-black font-bold shadow-xl shadow-black/10 hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                onClick={handleSave}
+                disabled={saving || !name.trim()}
+              >
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </motion.div>
+          </motion.div>
         </div>
         </motion.div>
       </div>

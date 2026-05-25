@@ -530,6 +530,49 @@ public class WorkersAndCommentsHandlerTests
     }
 
     [Fact]
+    public async Task GetComments_ByFriendWithPublicAccess_ShouldReturnPagedComments()
+    {
+        var ownerId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var todoId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
+        var comment = TodoItemComment.Create(todoId, ownerId, "Owner", "Visible comment");
+
+        var fixture = new CommentFixture(friendId, "Friend");
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        fixture.CommentRepository.Setup(x => x.GetPagedByTodoIdAsync(todo.Id, 1, 50, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(((IReadOnlyList<TodoItemComment>)[comment], 1));
+        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(friendId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await fixture.CreateGetCommentsHandler().Handle(
+            new GetCommentsQuery(todo.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!.Items);
+        Assert.False(result.Value.Items[0].IsOwn);
+    }
+
+    [Fact]
+    public async Task GetComments_ByNonFriendWithPublicAccess_ShouldThrowForbidden()
+    {
+        var ownerId = Guid.NewGuid();
+        var viewerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
+        var fixture = new CommentFixture(viewerId, "Viewer");
+
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(viewerId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateGetCommentsHandler().Handle(
+                new GetCommentsQuery(todo.Id), CancellationToken.None));
+    }
+
+    [Fact]
     public async Task GetComments_WithNoAccess_ShouldThrowForbidden()
     {
         var ownerId = Guid.NewGuid();
@@ -616,7 +659,7 @@ public class WorkersAndCommentsHandlerTests
             => new(CommentRepository.Object, TodoRepository.Object, UnitOfWork.Object, CurrentUser.Object);
 
         public GetCommentsQueryHandler CreateGetCommentsHandler()
-            => new(TodoRepository.Object, CommentRepository.Object, CurrentUser.Object);
+            => new(TodoRepository.Object, CommentRepository.Object, CurrentUser.Object, FriendshipService.Object);
     }
 
     private static TodoItemDto EmptyDto() => new()

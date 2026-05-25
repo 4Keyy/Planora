@@ -115,8 +115,10 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IDateTime, DateTimeService>();
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IEmailMessageSender, SmtpEmailMessageSender>();
         services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IFileStorageService, FileStorageService>();
     }
 
     private static void AddRedisForTokenBlacklist(IServiceCollection services, IConfiguration configuration)

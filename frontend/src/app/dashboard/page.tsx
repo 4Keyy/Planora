@@ -182,6 +182,7 @@ export default function DashboardPage() {
           pageNumber: page,
           pageSize,
           status: "Todo,InProgress",
+          isCompleted: false, // Explicitly request active tasks (backend now handles per-viewer completion)
         },
       })
       const items = res.data.items ?? []
@@ -261,12 +262,20 @@ export default function DashboardPage() {
   }, [isAuthenticated, hasHydrated, mounted, fetchTodos, fetchStats, fetchCategories, clearAuth, router])
 
   const activeStatsTodos = useMemo(() =>
-    statsTodos.filter(t => { const s = String(t.status).toLowerCase(); return s !== "done" && s !== "completed" }),
+    statsTodos.filter(t => { 
+      const s = String(t.status).toLowerCase(); 
+      const isDone = s === "done" || s === "completed";
+      return !isDone && t.isCompletedByViewer !== true;
+    }),
     [statsTodos]
   )
 
   const allCompletedStatsTodos = useMemo(() =>
-    statsTodos.filter(t => { const s = String(t.status).toLowerCase(); return s === "done" || s === "completed" }),
+    statsTodos.filter(t => { 
+      const s = String(t.status).toLowerCase(); 
+      const isDone = s === "done" || s === "completed";
+      return isDone || t.isCompletedByViewer === true;
+    }),
     [statsTodos]
   )
 
@@ -282,8 +291,11 @@ export default function DashboardPage() {
 
   const totalForStats = activeStatsTodos.length + recentCompletedStatsTodos.length
 
-  // Теперь todos содержит только активные задачи из fetchTodos
-  const activeTodos = useMemo(() => sortTasks(todos), [todos])
+  // Filter out tasks that are completed by the viewer (for shared/public tasks)
+  const activeTodos = useMemo(() => {
+    const filtered = todos.filter(t => t.isCompletedByViewer !== true)
+    return sortTasks(filtered)
+  }, [todos])
 
   useEffect(() => {
     if (loading) return
@@ -549,6 +561,15 @@ export default function DashboardPage() {
     } catch { }
   }
 
+  const handlePageChange = useCallback((page: number) => {
+    const maxPage = Math.max(1, Math.ceil(totalCount / pageSize))
+    const nextPage = Math.max(1, Math.min(maxPage, page))
+    if (nextPage === currentPage) return
+    setCurrentPage(nextPage)
+    void fetchTodos(nextPage)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [currentPage, totalCount, pageSize, fetchTodos])
+
   const totalPages = Math.ceil(totalCount / pageSize)
   const totalCountForStats = totalForStats
   const completedCountForStats = recentCompletedStatsTodos.length
@@ -773,12 +794,7 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        const newPage = Math.max(1, currentPage - 1)
-                        setCurrentPage(newPage)
-                        fetchTodos(newPage)
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }}
+                      onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
                       className="rounded-xl border-gray-300 font-bold px-5 hover:border-gray-400 hover:shadow-md"
                     >
@@ -799,11 +815,7 @@ export default function DashboardPage() {
                             key={pageNum}
                             whileHover={{ scale: 1.15 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              setCurrentPage(pageNum)
-                              fetchTodos(pageNum)
-                              window.scrollTo({ top: 0, behavior: 'smooth' })
-                            }}
+                            onClick={() => handlePageChange(pageNum)}
                             className={cn(
                               "w-9 h-9 rounded-lg text-xs font-bold transition-all duration-200 border",
                               currentPage === pageNum
@@ -835,10 +847,7 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setCurrentPage(p => Math.min(totalPages, p + 1))
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }}
+                      onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage >= totalPages}
                       className="rounded-xl border-gray-300 font-bold px-5 hover:border-gray-400 hover:shadow-md"
                     >
@@ -882,6 +891,12 @@ export default function DashboardPage() {
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
             onDeleteCategory={handleDeleteCategory}
+            onDescriptionChange={(desc) => {
+              const update = (prev: Todo[]) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t)
+              setTodos(update)
+              setStatsTodos(update)
+              setEditingTodo(prev => prev ? { ...prev, description: desc } : null)
+            }}
             onLeave={editingTodo ? async () => handleLeave(editingTodo.id) : undefined}
           />
         )}

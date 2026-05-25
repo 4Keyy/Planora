@@ -16,6 +16,7 @@ using Planora.Auth.Application.Features.Users.Queries.GetUsers;
 using Planora.Auth.Application.Features.Users.Queries.GetUserSecurity;
 using Planora.Auth.Application.Features.Users.Queries.GetUserSessions;
 using Planora.Auth.Application.Features.Users.Queries.GetUserStatistics;
+using Planora.Auth.Application.Features.Users.Commands.UploadAvatar;
 using Planora.BuildingBlocks.Application.Pagination;
 
 namespace Planora.Auth.Api.Controllers
@@ -46,6 +47,28 @@ namespace Planora.Auth.Api.Controllers
             if (result.IsFailure)
             {
                 return StatusCode(500, result.Error);
+            }
+
+            return Ok(result.Value);
+        }
+
+        [HttpPost("me/avatar")]
+        [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> UploadAvatar(
+            IFormFile file,
+            CancellationToken cancellationToken)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No file uploaded");
+            }
+
+            var result = await _mediator.Send(new UploadAvatarCommand { File = file }, cancellationToken);
+
+            if (result.IsFailure)
+            {
+                return BadRequest(result.Error);
             }
 
             return Ok(result.Value);

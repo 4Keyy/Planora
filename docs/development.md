@@ -2,16 +2,6 @@
 
 This guide is for contributors working inside the Planora codebase.
 
-## Start With The Graph
-
-Project rules require checking the knowledge graph first:
-
-1. read `graphify-out/GRAPH_REPORT.md`;
-2. navigate `graphify-out/wiki/index.md`;
-3. inspect raw files only when the graph points to a concrete implementation detail or when fresh evidence is required.
-
-After substantial code, config, dependency, test, or documentation changes, rebuild the graph.
-
 ## Local Workflow
 
 Recommended loop:
@@ -169,6 +159,7 @@ When changing behavior, update docs in the same change:
 - test command/coverage changed -> `docs/testing.md`, `TESTING.md`.
 - e2e or CI workflow changed -> `docs/testing.md`, `docs/deployment.md`, `README.md`.
 - production/secret process changed -> `docs/production.md`, `docs/secrets-management.md`, `SECURITY.md`.
+- production deployment assumptions, secret names, license terms, or vulnerability disclosure policy.
 
 ## Repository Hygiene
 
@@ -181,8 +172,21 @@ The repository ignores generated and machine-local state:
 - local AI/agent/editor state such as `.claude/`, `.codex/`, `.agents/`, `.cursor/`, `.gemini/`, `.mcp/`, `.roo/`, `.kiro/`, and local Claude/Codex/Gemini/OpenCode/Qwen JSON files;
 - local knowledge-base/editor workspace state such as `.obsidian/`.
 
-`AGENTS.md` is intentionally the repository-level policy file for Graphify and documentation discipline. Put machine-local or personal agent instructions in `AGENTS.local.md` or tool-specific local files instead.
+`AGENTS.md` is intentionally the repository-level policy file for documentation discipline. Put machine-local or personal agent instructions in `AGENTS.local.md` or tool-specific local files instead.
 
 Do not commit local agent settings, generated build outputs, secrets, database files, Docker override files, or generated migration folders.
 
 Mark uncertain behavior as "requires owner clarification" instead of documenting guesses.
+
+## Pull Request Checklist
+
+- [ ] Change is scoped to one clear behavior or documentation area.
+- [ ] Backend build/tests pass if backend changed.
+- [ ] Frontend lint/type-check/tests pass if frontend changed.
+- [ ] Playwright e2e passes if auth/todos/sharing/hidden behavior changed.
+- [ ] Markdown docs checks pass if docs changed.
+- [ ] API docs updated for route/DTO/status changes.
+- [ ] Database docs updated for EF/schema changes.
+- [ ] Security docs updated for auth/session/CSRF/JWT/CORS changes.
+- [ ] Production/secret docs updated for deployment or secret changes.
+- [ ] No secrets or generated artifacts are included.

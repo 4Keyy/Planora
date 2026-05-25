@@ -41,6 +41,14 @@
       "RateLimitOptions": { "EnableRateLimiting": false }
     },
     {
+      "DownstreamPathTemplate": "/avatars/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/avatars/{everything}",
+      "UpstreamHttpMethod": [ "GET" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/Authentication/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
@@ -211,7 +219,11 @@
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
       },
-      "RateLimitOptions": { "EnableRateLimiting": true }
+      "RateLimitOptions": {
+        "EnableRateLimiting": true,
+        "Period": "1m",
+        "Limit": 100
+      }
     }
   ],
   "GlobalConfiguration": {

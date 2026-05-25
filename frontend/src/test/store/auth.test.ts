@@ -164,6 +164,28 @@ describe("auth store", () => {
     expect(state.refreshTokenExpiresAt).toBe("2099-02-01T00:00:00.000Z")
   })
 
+  it("keeps the existing avatar when refresh payload has no avatar claim", () => {
+    useAuthStore.getState().setAuth({
+      accessToken: authToken(),
+      profilePictureUrl: "/avatars/original.png",
+    })
+
+    useAuthStore.getState().applyRefresh({
+      accessToken: authToken({
+        sub: "user-2",
+        email: "new@example.com",
+        firstName: "New",
+        lastName: "Name",
+      }),
+    })
+
+    expect(useAuthStore.getState().user).toMatchObject({
+      userId: "user-2",
+      email: "new@example.com",
+      profilePictureUrl: "/avatars/original.png",
+    })
+  })
+
   it("preserves existing metadata when refresh token has partial claims", () => {
     useAuthStore.getState().setAuth({
       accessToken: authToken({ roles: ["User"], emailVerified: true }),

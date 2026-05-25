@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
+import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, CheckCircle2, ChevronRight, History, SlidersHorizontal, X } from "lucide-react"
@@ -80,6 +81,11 @@ export default function TasksPage() {
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
   const [hintDismissed, setHintDismissed] = useState(false)
   const hintDismissedRef = useRef<boolean>(false)
+
+  // Smooth scroll to top when large panels collapse
+  useCollapseScroll(isCreateOpen)
+  useCollapseScroll(showCompleted)
+
   // Hydrate filter + hint state from localStorage after mount
   useEffect(() => {
     setFilterCategoryIds(readFilter())
@@ -469,11 +475,15 @@ export default function TasksPage() {
     }
   }, [todos, completedPreview, user?.userId, addToast])
 
-  const activeCount = todos.length
+  const activeCount = todos.filter(t => t.isCompletedByViewer !== true).length
   const doneCount = completedTotalCount
   const totalCount = activeCount + doneCount
 
-  const sortedTodos = useMemo(() => sortTasks(todos), [todos])
+  const sortedTodos = useMemo(() => {
+    const filtered = todos.filter(t => t.isCompletedByViewer !== true)
+    return sortTasks(filtered)
+  }, [todos])
+
   const sortedCompletedPreview = useMemo(() => sortTasks(completedPreview), [completedPreview])
   const visibleTodos = useMemo(() => {
     if (filterCategoryIds.length === 0) return sortedTodos
@@ -870,6 +880,12 @@ export default function TasksPage() {
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
             commentsRefreshKey={commentsRefreshKey}
+            onDescriptionChange={(desc) => {
+              const update = (prev: Todo[]) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t)
+              setTodos(update)
+              setCompletedPreview(update)
+              setEditingTodo(prev => prev ? { ...prev, description: desc } : null)
+            }}
             onLeave={async () => {
               const todo = editingTodo
               if (!todo) return

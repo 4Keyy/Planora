@@ -18,6 +18,7 @@ interface BranchFeedProps {
   todoId: string
   isOwner: boolean
   refreshKey?: number
+  onDescriptionChange?: (newDescription: string) => void
 }
 
 // Flat list item (day separator or comment)
@@ -39,7 +40,7 @@ function buildFeed(comments: TodoComment[]): FeedItem[] {
   return items
 }
 
-export function BranchFeed({ todoId, isOwner, refreshKey }: BranchFeedProps) {
+export function BranchFeed({ todoId, isOwner, refreshKey, onDescriptionChange }: BranchFeedProps) {
   const [comments,   setComments]   = useState<TodoComment[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page,       setPage]       = useState(1)
@@ -112,9 +113,11 @@ export function BranchFeed({ todoId, isOwner, refreshKey }: BranchFeedProps) {
         await deleteComment(todoId, genesis.id)
         setComments((prev) => prev.filter((c) => c.id !== genesis.id))
         setTotalCount((n) => Math.max(0, n - 1))
+        onDescriptionChange?.("")
       } else {
         const updated = await updateComment(todoId, genesis.id, content)
         setComments((prev) => prev.map((c) => (c.id === genesis.id ? updated : c)))
+        onDescriptionChange?.(content)
       }
       setEditingGenesis(false)
     } catch (e) {
@@ -181,6 +184,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey }: BranchFeedProps) {
         setComments((prev) => [c, ...prev])
         setTotalCount((n) => n + 1)
         setComposeMode("text")
+        onDescriptionChange?.(content)
       } else {
         const c = await addComment(todoId, content)
         setComments((prev) => [...prev, c])
@@ -214,7 +218,12 @@ export function BranchFeed({ todoId, isOwner, refreshKey }: BranchFeedProps) {
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <FriendAvatar
-                friend={{ id: genesis.authorId, firstName: genesis.authorName?.split(" ")[0], lastName: genesis.authorName?.split(" ")[1] }}
+                friend={{
+                  id: genesis.authorId,
+                  firstName: genesis.authorName?.split(" ")[0],
+                  lastName: genesis.authorName?.split(" ")[1],
+                  profilePictureUrl: genesis.authorAvatarUrl,
+                }}
                 size={32}
               />
               <div>
@@ -720,7 +729,12 @@ function MessageItem({
         zIndex: 1,
       }}>
         <FriendAvatar
-          friend={{ id: c.authorId, firstName: c.authorName?.split(" ")[0], lastName: c.authorName?.split(" ")[1] }}
+          friend={{ 
+            id: c.authorId, 
+            firstName: c.authorName?.split(" ")[0], 
+            lastName: c.authorName?.split(" ")[1],
+            profilePictureUrl: c.authorAvatarUrl 
+          }}
           size={26}
           style={{ boxShadow: "0 0 0 3px white" }}
         />

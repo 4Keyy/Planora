@@ -5,6 +5,7 @@ namespace Planora.Todo.Application.DTOs
         Guid TodoItemId,
         Guid AuthorId,
         string AuthorName,
+        string? AuthorAvatarUrl,
         string Content,
         DateTime CreatedAt,
         DateTime? UpdatedAt,

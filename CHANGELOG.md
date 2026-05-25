@@ -53,6 +53,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - The Application-layer architecture rule is now the strict form: `Planora.BuildingBlocks.Infrastructure` is in the forbidden-namespace list alongside every service-specific `*.Infrastructure` and `*.Api`. No `*.Application` project depends on any Infrastructure or Api namespace; nothing slips through review.
 - Build is warning-clean under `-warnaserror`; all 723 backend tests pass; markdownlint, frontend lint/type-check/test/build and the existing architecture suite stay green.
 
+
 ### Messaging contracts moved to the Application layer (2026-05-22)
 
 - `IEventBus`, `IIntegrationEventHandler<T>`, `IntegrationEvent`, `IDomainEventDispatcher`, `IDomainEventHandler<T>` and the eight `*IntegrationEvent` types were moved from `Planora.BuildingBlocks.Infrastructure.Messaging` to `Planora.BuildingBlocks.Application.Messaging` (and `.Events`). Application handlers and consumers no longer cross the layering boundary just to publish or consume integration events.
@@ -164,11 +165,11 @@ First public release of Planora — a .NET 9 microservice backend with a Next.js
 
 ### Repository Hygiene
 
-- Added repository rules for Graphify-first analysis and mandatory documentation synchronization after behavior/config/test changes.
+- Added repository rules for documentation synchronization after behavior/config/test changes.
 - Ignored AI/agent-local state, generated build artifacts, `tsconfig.tsbuildinfo`, and generated EF `Migrations/` folders.
 - Expanded repository hygiene ignores for nested assistant/tooling state, MCP config, local assistant prompts, and generated chat/history artifacts.
 - Removed tracked Claude local settings, Obsidian workspace/plugin state, frontend build output, frontend TypeScript build info, and generated EF migration files.
-- Hardened `.dockerignore` so local agent/editor state, Graphify output, tests, docs, build artifacts, and generated migrations stay out of Docker build contexts.
+- Hardened `.dockerignore` so local agent/editor state, tests, docs, build artifacts, and generated migrations stay out of Docker build contexts.
 - Bound RabbitMQ AMQP to `127.0.0.1:5672` in local Compose and added a runtime contract assertion for the localhost binding.
 - Replaced a JWT-shaped test fixture with a non-token invalid bearer value to reduce false positives in secret scanners.
 - Added database startup fallback that creates schema from the current EF model when no user-owned migrations exist.

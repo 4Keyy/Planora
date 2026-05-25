@@ -34,4 +34,4 @@ Tradeoffs:
 
 - Local startup requires more infrastructure.
 - Cross-service flows need contract tests.
-- Documentation and Graphify must stay current or navigation becomes expensive.
+- Documentation must stay current or navigation becomes expensive.

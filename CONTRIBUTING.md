@@ -4,10 +4,8 @@ Thanks for improving Planora. This repository has several service boundaries, so
 
 ## Before You Change Code
 
-1. Read `graphify-out/GRAPH_REPORT.md`.
-2. Use `graphify-out/wiki/index.md` to find the relevant service/community.
-3. Read only the raw files needed for the change.
-4. Check the relevant docs:
+1. Read only the raw files needed for the change.
+2. Check the relevant docs:
    - [`docs/architecture.md`](docs/architecture.md)
    - [`docs/codebase-map.md`](docs/codebase-map.md)
    - [`docs/development.md`](docs/development.md)
@@ -79,7 +77,6 @@ npx markdownlint-cli2 README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md TESTING
 - [ ] Database docs updated for EF/schema changes.
 - [ ] Security docs updated for auth/session/CSRF/JWT/CORS changes.
 - [ ] Production/secret docs updated for deployment or secret changes.
-- [ ] Graphify has been rebuilt after substantial code/config/test/docs changes.
 - [ ] No secrets or generated artifacts are included.
 
 ## Security Reports

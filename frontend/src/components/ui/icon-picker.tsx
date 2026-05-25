@@ -50,7 +50,7 @@ import {
   Hexagon,
 } from "lucide-react"
 
-const iconList = [
+export const ICON_PICKER_ITEMS = [
   { name: "CheckCircle2", icon: CheckCircle2 },
   { name: "Clock", icon: Clock },
   { name: "Target", icon: Target },
@@ -94,7 +94,7 @@ const iconList = [
   { name: "Circle", icon: Circle },
   { name: "Triangle", icon: Triangle },
   { name: "Hexagon", icon: Hexagon },
-]
+] as const
 
 interface IconPickerProps {
   selectedIcon: string | null
@@ -105,7 +105,7 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   const SelectedIconComponent =
-    iconList.find((i) => i.name === selectedIcon)?.icon || Tag
+    ICON_PICKER_ITEMS.find((i) => i.name === selectedIcon)?.icon || Tag
 
   return (
     <PopoverPrimitive.Root open={isOpen} onOpenChange={setIsOpen}>
@@ -140,7 +140,7 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
                 className="z-[5000] w-[min(320px,calc(100vw-24px))] rounded-3xl border border-gray-100 bg-white p-4 shadow-[0_20px_50px_rgba(0,0,0,0.15)] outline-none"
               >
                 <div className="grid max-h-[min(328px,calc(100vh-96px))] grid-cols-5 gap-2 overflow-y-auto p-4 custom-scrollbar">
-                {iconList.map((item) => {
+                {ICON_PICKER_ITEMS.map((item) => {
                   const IconComponent = item.icon
                   const isSelected = selectedIcon === item.name
                   return (

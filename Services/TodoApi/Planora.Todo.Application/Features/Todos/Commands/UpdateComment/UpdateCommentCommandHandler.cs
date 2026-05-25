@@ -58,6 +58,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateComment
                 comment.TodoItemId,
                 comment.AuthorId,
                 comment.AuthorName,
+                comment.AuthorAvatarUrl,
                 comment.Content,
                 comment.CreatedAt,
                 comment.UpdatedAt,

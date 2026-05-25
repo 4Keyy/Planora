@@ -47,6 +47,9 @@ namespace Planora.BuildingBlocks.Infrastructure.Context
             }
         }
 
+        public string? ProfilePictureUrl =>
+            _httpContextAccessor.HttpContext?.User.FindFirst("profilePictureUrl")?.Value;
+
         public IReadOnlyList<string> Roles =>
             _httpContextAccessor.HttpContext?.User
                 .FindAll(ClaimTypes.Role)

@@ -23,11 +23,18 @@ export function middleware(request: NextRequest) {
     ? `'self' ${apiOrigin} http://localhost:5132 http://127.0.0.1:5132`
     : `'self' ${apiOrigin}`
 
+  // In dev the avatar server may be on any HTTP origin (localhost, LAN IP, etc.),
+  // and SSR vs client can resolve to different hosts. Allowing all `http:` in dev
+  // is intentional — production locks it to the specific API origin only.
+  const imgSrc = isDev
+    ? `'self' data: https: http:`
+    : `'self' data: https: ${apiOrigin}`
+
   const cspParts = [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
+    `img-src ${imgSrc}`,
     "font-src 'self'",
     `connect-src ${connectSrc}`,
     "frame-ancestors 'none'",

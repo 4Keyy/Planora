@@ -6,6 +6,7 @@ namespace Planora.Auth.Application.Features.Authentication.Response.Login
         public string Email { get; init; } = string.Empty;
         public string FirstName { get; init; } = string.Empty;
         public string LastName { get; init; } = string.Empty;
+        public string? ProfilePictureUrl { get; init; }
         public string AccessToken { get; init; } = string.Empty;
         public string RefreshToken { get; init; } = string.Empty;
         public DateTime ExpiresAt { get; init; }

@@ -13,6 +13,7 @@ export type AuthUser = {
   email: string
   firstName: string
   lastName: string
+  profilePictureUrl?: string | null
 }
 
 /**
@@ -26,6 +27,7 @@ export type AuthPayload = {
   email?: string
   firstName?: string
   lastName?: string
+  profilePictureUrl?: string | null
 }
 
 /**
@@ -136,6 +138,7 @@ export const useAuthStore = create(
             email: payload.email ?? derivedUser?.email ?? state.user?.email ?? "",
             firstName: payload.firstName ?? derivedUser?.firstName ?? state.user?.firstName ?? "",
             lastName: payload.lastName ?? derivedUser?.lastName ?? state.user?.lastName ?? "",
+            profilePictureUrl: payload.profilePictureUrl ?? state.user?.profilePictureUrl,
           }
 
           return {
@@ -167,6 +170,9 @@ export const useAuthStore = create(
           const roles = getJwtRoles(decoded)
           const emailVerified = getJwtEmailVerified(decoded)
           const derivedUser = deriveUserFromToken(payload.accessToken)
+          const user = derivedUser
+            ? { ...derivedUser, profilePictureUrl: state.user?.profilePictureUrl }
+            : state.user
 
           return {
             accessToken: payload.accessToken,
@@ -175,7 +181,7 @@ export const useAuthStore = create(
             refreshTokenExpiresAt: payload.expiresAt ?? state.refreshTokenExpiresAt,
             roles: roles.length ? roles : state.roles,
             emailVerified: emailVerified ?? state.emailVerified,
-            user: derivedUser ?? state.user,
+            user,
             isAuthenticated: true,
           }
         }),
