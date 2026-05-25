@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { getApiBaseUrl } from "@/lib/config"
@@ -14,6 +14,12 @@ interface AvatarProps {
   className?: string
 }
 
+function resolveAvatarSrc(src: string): string {
+  if (src.startsWith("http")) return src
+  const base = getApiBaseUrl()
+  return `${base}${src.startsWith("/") ? src : `/${src}`}`
+}
+
 export function Avatar({
   src,
   firstName,
@@ -24,30 +30,29 @@ export function Avatar({
 }: AvatarProps) {
   const [error, setError] = useState(false)
 
+  // Start with null to avoid SSR/client mismatch — getApiBaseUrl() reads
+  // window.location which is only available in the browser.
+  const [fullSrc, setFullSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    setError(false)
+    if (!src) {
+      setFullSrc(null)
+      return
+    }
+    setFullSrc(resolveAvatarSrc(src))
+  }, [src])
+
   const initials = useMemo(() => {
     const first = firstName?.trim() || ""
     const last = lastName?.trim() || ""
     const e = email?.trim() || ""
 
-    if (first && last) {
-      return `${first[0]}${last[0]}`.toUpperCase()
-    }
-    if (first) {
-      return first.substring(0, 2).toUpperCase()
-    }
-    if (e) {
-      return e.substring(0, 2).toUpperCase()
-    }
+    if (first && last) return `${first[0]}${last[0]}`.toUpperCase()
+    if (first) return first.substring(0, 2).toUpperCase()
+    if (e) return e.substring(0, 2).toUpperCase()
     return "U"
   }, [firstName, lastName, email])
-
-  const fullSrc = useMemo(() => {
-    if (!src || error) return null
-    if (src.startsWith("http")) return src
-    // Use runtime getApiBaseUrl() so LAN IPs are resolved correctly.
-    const base = getApiBaseUrl()
-    return `${base}${src.startsWith("/") ? src : `/${src}`}`
-  }, [src, error])
 
   return (
     <div
@@ -57,14 +62,14 @@ export function Avatar({
       )}
       style={{ width: size, height: size }}
     >
-      {fullSrc ? (
+      {fullSrc && !error ? (
         <Image
           src={fullSrc}
           alt={firstName || "User"}
           fill
           className="aspect-square h-full w-full object-cover"
           onError={() => setError(true)}
-          unoptimized // Required if we don't want to configure domains in next.config.js for dynamic URLs
+          unoptimized
         />
       ) : (
         <span

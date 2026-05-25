@@ -371,10 +371,13 @@ export default function ProfilePage() {
 
   const isEmailVerified = user?.isEmailVerified ?? !!user?.emailVerifiedAt
   const avatarUrl = user?.profilePictureUrl || ""
-  const resolvedAvatarUrl = useMemo(() => {
-    if (!avatarUrl) return ""
-    if (avatarUrl.startsWith("http")) return avatarUrl
-    return `${getApiBaseUrl()}${avatarUrl.startsWith("/") ? avatarUrl : `/${avatarUrl}`}`
+
+  // Resolve after mount so window.location is available (avoids SSR/client mismatch).
+  const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState("")
+  useEffect(() => {
+    if (!avatarUrl) { setResolvedAvatarUrl(""); return }
+    if (avatarUrl.startsWith("http")) { setResolvedAvatarUrl(avatarUrl); return }
+    setResolvedAvatarUrl(`${getApiBaseUrl()}${avatarUrl.startsWith("/") ? avatarUrl : `/${avatarUrl}`}`)
   }, [avatarUrl])
   const displayName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
