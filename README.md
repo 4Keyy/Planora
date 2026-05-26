@@ -17,7 +17,7 @@
     <img alt="Security Scan" src="https://github.com/4Keyy/Planora/actions/workflows/security.yml/badge.svg" />
   </a>
   <a href="LICENSE">
-    <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" />
+    <img alt="License: Source-Available (Study Only)" src="https://img.shields.io/badge/license-source--available%20%28study%20only%29-orange.svg" />
   </a>
   <img alt=".NET" src="https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet" />
   <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs" />
@@ -70,7 +70,7 @@ The repository is not a single monolith — it is a service-oriented codebase wi
 - **Categories** — user-scoped CRUD with color, icon, and display order.
 - **Friendships** — request by user ID or email, accept/reject/remove, outgoing/incoming request tracking.
 - **Messaging & realtime** — direct messages and SignalR notification delivery.
-- **Observability** — Serilog structured logging, correlation IDs, health endpoints, RabbitMQ/Redis/PostgreSQL startup probes.
+- **Observability** — Serilog structured logging with correlation/span/operation enrichers, centralized OpenTelemetry (traces + metrics) with optional OTLP gRPC export, custom security/operations metrics (`planora.csrf.rejections`, `planora.grpc.unauthenticated`, `planora.outbox.*`), and a three-probe health surface (`/health/live`, `/health/ready`, aggregate `/health`).
 
 ## Requirements
 
@@ -148,7 +148,8 @@ npm --prefix frontend run build
 
 ```text
 Planora/
-├── BuildingBlocks/          Shared CQRS, Result model, repositories, middleware
+├── BuildingBlocks/          Shared CQRS, Result model, repositories, middleware,
+│                            OpenTelemetry pipeline, PlanoraMetrics, outbox/inbox
 ├── GrpcContracts/           .proto contracts shared between services
 ├── Planora.ApiGateway/      Ocelot gateway (routes, auth, rate limiting)
 ├── Services/
@@ -157,10 +158,17 @@ Planora/
 │   ├── CategoryApi/         Categories and category gRPC
 │   ├── MessagingApi/        Direct messages
 │   └── RealtimeApi/         SignalR hubs, notifications
+├── tools/
+│   └── Planora.Migrator/    One-shot EF Core migration runner CLI
+├── deploy/
+│   └── fly/                 Fly.io app manifests (gateway, services, migrator,
+│                            outbox-worker) — production hosting target
+├── perf/
+│   └── k6/                  k6 load-test scenarios (login, todo-list) + lib
 ├── frontend/                Next.js 15 (App Router, TypeScript, Tailwind)
-├── tests/                   xUnit backend unit tests
+├── tests/                   xUnit backend unit + integration tests
 ├── docs/                    Full documentation knowledge base
-├── .github/workflows/       CI, e2e, and security scan pipelines
+├── .github/workflows/       CI, e2e, security, SBOM, migrations, perf-smoke
 └── docker-compose.yml       Full local infrastructure stack
 ```
 
@@ -196,7 +204,10 @@ Full reference: [`docs/API.md`](docs/API.md)
 | [`docs/deployment.md`](docs/deployment.md) | Docker Compose, CI, deployment notes |
 | [`docs/production.md`](docs/production.md) | Production deployment checklist |
 | [`docs/secrets-management.md`](docs/secrets-management.md) | Secret inventory and rotation guide |
+| [`docs/INVARIANTS.md`](docs/INVARIANTS.md) | Closed-form architectural invariants enforced across the codebase |
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | Common failures and fixes |
+| [`deploy/fly/README.md`](deploy/fly/README.md) | Fly.io deployment template walkthrough |
+| [`perf/README.md`](perf/README.md) | k6 perf baseline scenarios and how to run them |
 
 ## Troubleshooting
 
@@ -223,4 +234,12 @@ To report a security vulnerability, see [`SECURITY.md`](SECURITY.md). Do not ope
 
 ## License
 
-Planora is released under the [MIT License](LICENSE).
+Planora is published under a **source-available, study-only license** — see [`LICENSE`](LICENSE) for the full text.
+
+This is deliberately **not** an open-source license:
+
+- You may **read and study** the code on your own machine.
+- You may **not** use it in any product, service, fork, redistribution, container image, hosted deployment, model training corpus, AI agent, or any other software or system — public or private, commercial or non-commercial.
+- Any use outside personal reading and study requires **prior written permission** from the copyright holder.
+
+If you find the code valuable, the right path is to ask. Do not assume permission is granted by absence of response.

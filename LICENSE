@@ -1,21 +1,197 @@
-MIT License
+Planora Source-Available License (Study-Only)
+Copyright (c) 2026 4Keyy (https://github.com/4Keyy)
 
-Copyright (c) 2026 Planora contributors
+All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+================================================================================
+1. PURPOSE OF THIS LICENSE
+================================================================================
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This repository ("the Software") — including all source code, configuration,
+build scripts, infrastructure manifests, schemas, tests, assets, and
+documentation — is published publicly for one purpose and one purpose only:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+    Personal, non-commercial reading and study of the source code.
+
+The Software is NOT open source. It is NOT free software. It is published
+under a deliberately restrictive license so that the public can read and
+learn from it without any of the rights normally granted by an open-source
+license.
+
+================================================================================
+2. WHAT YOU MAY DO
+================================================================================
+
+Subject to Section 3 below, you, as an individual, may:
+
+  (a) Browse the Software publicly on the hosting platform where this
+      repository is published.
+
+  (b) Clone or download a single working copy of the Software solely to
+      read, run, and study it on your own personal computer for the sole
+      purpose of learning how it is built.
+
+  (c) Quote short, attributed excerpts of the source code or documentation
+      in commentary, critique, technical reviews, educational material,
+      academic papers, or similar good-faith editorial contexts, subject
+      to applicable fair-use / fair-dealing law in your jurisdiction.
+
+  (d) Submit issues, security reports, or pull requests to the upstream
+      repository. By submitting a contribution you grant the copyright
+      holder a perpetual, worldwide, royalty-free, non-exclusive license
+      to use, modify, sublicense, and relicense your contribution as part
+      of the Software, on the same terms as the rest of the Software.
+
+================================================================================
+3. WHAT YOU MAY NOT DO
+================================================================================
+
+Without prior written permission from the copyright holder, you may NOT,
+in whole or in part, directly or indirectly:
+
+  (a) USE the Software, or any portion of it, in any product, service,
+      tool, library, internal tool, prototype, demo, hackathon entry,
+      portfolio piece, training dataset, model fine-tune, agent system,
+      or any other software or system, whether commercial or non-commercial,
+      whether public or private, whether for profit or not.
+
+  (b) COPY the Software or any portion of it into another repository,
+      package, container image, archive, distribution, or storage location
+      that is shared with any third party (including but not limited to
+      public mirrors, package registries, image registries, code-sharing
+      sites, gists, paste services, and AI training corpora).
+
+  (c) MODIFY, ADAPT, TRANSLATE, FORK PUBLICLY, or create derivative works
+      of the Software, except for a strictly private working copy on your
+      own machine used solely for the study purpose described in Section 2.
+
+  (d) MERGE, COMBINE, OR INTEGRATE the Software, in source or compiled
+      form, with any other software, library, framework, or system intended
+      to be run, deployed, distributed, or made available to any third
+      party.
+
+  (e) PUBLISH, DISTRIBUTE, SUBLICENSE, SELL, RENT, LEASE, LEND, HOST,
+      MIRROR, REPACKAGE, BUNDLE, OR OTHERWISE MAKE AVAILABLE the Software
+      or any portion of it to any third party, by any means, in any form
+      (source, object code, container image, binary, hosted service, API,
+      embedded system, or any other delivery channel).
+
+  (f) SUBLICENSE the Software or grant any rights in the Software to any
+      third party.
+
+  (g) REMOVE, OBSCURE, ALTER, OR REPLACE any copyright notice, license
+      notice, attribution, or this LICENSE file in any copy of the
+      Software you possess.
+
+  (h) USE the Software, or any portion of it, to TRAIN, FINE-TUNE,
+      DISTILL, EVALUATE, BENCHMARK, OR DERIVE WEIGHTS FOR any machine
+      learning model, large language model, code-generation model,
+      embedding model, agent, or AI system that will be used outside the
+      scope of strictly private personal study described in Section 2,
+      including but not limited to any model whose outputs are made
+      available to third parties.
+
+  (i) USE patterns, architecture, identifiers, structure, names,
+      configuration, or any other expressive element of the Software as
+      a template for any third-party product or service.
+
+  (j) DEPLOY, RUN, OR EXPOSE the Software, or any portion of it, on any
+      network endpoint accessible to any party other than yourself for
+      strictly personal study.
+
+  (k) Use the name "Planora", the project logo, or any other trademark,
+      service mark, or trade dress associated with the Software, except
+      to refer accurately to the upstream project in editorial commentary.
+
+================================================================================
+4. NO PERMISSION IS IMPLIED
+================================================================================
+
+The publication of this repository is NOT an offer of an open-source license.
+Public visibility is NOT consent. The presence of an "Open in" or "Fork"
+button on the hosting platform is NOT consent. The absence of a technical
+restriction is NOT consent. Each and every right not expressly granted in
+Section 2 above is reserved by the copyright holder.
+
+If a use is not explicitly permitted by Section 2, it is prohibited by
+Section 3, regardless of whether that specific use is named in Section 3.
+
+================================================================================
+5. CONTACT FOR PERMISSION
+================================================================================
+
+For any use that is not strictly permitted by Section 2 you must obtain
+prior, written, signed permission from the copyright holder. The copyright
+holder is under no obligation to respond, negotiate, or grant any such
+permission, and may revoke any permission previously granted at any time
+and for any reason.
+
+To request permission, open a clearly labeled discussion or issue on the
+upstream repository hosting platform. Do not assume permission is granted
+by lack of response.
+
+================================================================================
+6. TERMINATION
+================================================================================
+
+The rights granted in Section 2 terminate automatically and without notice
+upon any breach of Section 3 by you. On termination you must immediately:
+
+  (a) cease all use of the Software;
+  (b) delete every copy of the Software, in source or compiled form, that
+      is in your possession or control;
+  (c) destroy any derivative works of the Software in your possession.
+
+The provisions of Sections 3, 4, 5, 7, and 8 survive any termination.
+
+================================================================================
+7. NO WARRANTY; LIMITATION OF LIABILITY
+================================================================================
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+
+THE COPYRIGHT HOLDER DOES NOT WARRANT THAT THE SOFTWARE WILL MEET ANY
+REQUIREMENT, BE ERROR-FREE, BE UNINTERRUPTED, BE SECURE, OR PRODUCE ANY
+SPECIFIC RESULT. THE ENTIRE RISK OF USING, READING, OR INTERACTING WITH
+THE SOFTWARE IS YOURS.
+
+TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, PUNITIVE, OR CONSEQUENTIAL DAMAGES (INCLUDING BUT NOT
+LIMITED TO LOSS OF DATA, LOSS OF PROFITS, LOSS OF GOODWILL, OR BUSINESS
+INTERRUPTION), WHETHER IN AN ACTION OF CONTRACT, TORT (INCLUDING NEGLIGENCE),
+STRICT LIABILITY, OR OTHERWISE, ARISING FROM OR IN CONNECTION WITH THE
+SOFTWARE OR THIS LICENSE, EVEN IF THE COPYRIGHT HOLDER HAS BEEN ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGES.
+
+================================================================================
+8. GOVERNING LAW; SEVERABILITY; ENTIRE LICENSE
+================================================================================
+
+(a) This License is the entire and exclusive license between the copyright
+    holder and you with respect to the Software. It supersedes any prior
+    or contemporaneous statement, representation, communication, or marker
+    (including any open-source identifier the hosting platform may attach
+    automatically) that would suggest a different licensing arrangement.
+
+(b) If any provision of this License is held to be unenforceable or
+    invalid by a court of competent jurisdiction, the remaining provisions
+    will remain in full force and effect, and the unenforceable provision
+    will be construed to the minimum extent necessary to make it
+    enforceable and consistent with the intent of this License.
+
+(c) Failure by the copyright holder to enforce any provision of this
+    License is not a waiver of that provision or any other provision.
+
+================================================================================
+9. SUMMARY (NON-BINDING)
+================================================================================
+
+If you only remember one thing, remember this:
+
+    Look at the code. Learn from the code. Do not use the code.
+
+The legally binding terms are Sections 1 through 8 above. This summary is
+provided for convenience only and does not modify or limit those terms.
