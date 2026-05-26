@@ -32,6 +32,7 @@ This directory is the project knowledge base for users, developers, operators, a
 | [`production.md`](production.md) | Production deployment baseline, runtime topology, readiness checklist | operators, maintainers |
 | [`secrets-management.md`](secrets-management.md) | Secret inventory, storage rules, rotation guidance | operators, security reviewers |
 | [`INVARIANTS.md`](INVARIANTS.md) | Closed-form architectural invariants enforced across the codebase | reviewers, contributors |
+| [`observability.md`](observability.md) | OpenTelemetry / Loki / Grafana Cloud setup, custom metrics, alert recipes | operators, on-call |
 | [`development.md`](development.md) | Local workflows, adding features/endpoints/components | contributors |
 | [`troubleshooting.md`](troubleshooting.md) | Known startup/runtime failures and fixes | everyone |
 | [`faq.md`](faq.md) | Common user/developer questions | everyone |
@@ -58,7 +59,11 @@ This directory is the project knowledge base for users, developers, operators, a
 | Observability wiring | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs` |
 | Health probes | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs` |
 | Migration runner | `tools/Planora.Migrator/`, `.github/workflows/migrations.yml` |
-| Fly.io deployment | `deploy/fly/`, `deploy/fly/README.md` |
+| Fly.io deployment | `deploy/fly/`, `deploy/fly/README.md`, `deploy/fly/setup.ps1`, `deploy/fly/set-secrets.ps1` |
+| Continuous delivery | `.github/workflows/cd.yml` |
+| Phase-1 verification | `scripts/Verify-Phase1-Prereqs.ps1` |
+| Loki Serilog sink | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SerilogConfiguration.cs` (`TryAddLokiSink`) |
+| Frontend trace propagation | `frontend/src/lib/trace.ts`, axios interceptor in `frontend/src/lib/api.ts` |
 | Performance baseline | `perf/k6/`, `perf/README.md`, `.github/workflows/perf-smoke.yml` |
 
 ## Documentation Maintenance Checklist

@@ -18,12 +18,17 @@ Planora has confirmed local/container orchestration, validation CI, Docker-backe
 | `.github/workflows/security.yml` | security checks + CycloneDX SBOM artifact |
 | `.github/workflows/migrations.yml` | per-PR idempotent SQL migration script artifact |
 | `.github/workflows/perf-smoke.yml` | on-demand k6 perf scenarios against the Docker stack |
+| `.github/workflows/cd.yml` | tag-driven blue/green continuous delivery to Fly.io |
 | `.github/dependabot.yml` | dependency update automation |
+| `deploy/fly/setup.ps1` | idempotent `flyctl apps create` for every Planora app |
+| `deploy/fly/set-secrets.ps1` | reads `deploy/fly/.env.fly` and `flyctl secrets set --stage` per app |
+| `deploy/fly/.env.fly.example` | annotated secret template (`.env.fly` itself is gitignored) |
+| `scripts/Verify-Phase1-Prereqs.ps1` | read-only checker: flyctl auth, per-app secrets, repo build, `FLY_API_TOKEN` |
 | `.env.production.example` | production-oriented secret/config template |
 | `docs/production.md` | production deployment baseline |
 | `docs/secrets-management.md` | secret inventory and rotation guidance |
 
-No Kubernetes / Helm manifests, Terraform IaC, automated CD workflow, Vercel config, or production reverse-proxy config has been committed yet. The Fly.io manifests document the production shape; the corresponding `flyctl deploy` automation is intentionally deferred until Fly secrets and tokens have been provisioned upstream.
+The CD workflow ([`.github/workflows/cd.yml`](../.github/workflows/cd.yml)) is committed and ready to run; it is gated on a `FLY_API_TOKEN` repository secret. Until that secret is added, the workflow fails fast at the preflight step with an actionable error message and never touches Fly.io. No Kubernetes / Helm manifests, Terraform IaC, Vercel config, or production reverse-proxy config has been committed.
 
 ## Docker Compose Topology
 
@@ -138,6 +143,16 @@ CI is validation-only. It does not deploy.
 - Runs the chosen scenario (`login`, `todo-list`, or `all`);
 - Uploads the k6 summary and raw JSON as a 30-day-retention artifact.
 
+`.github/workflows/cd.yml`:
+
+- Triggers on pushed `v*` tags and on manual `workflow_dispatch` (with optional `ref` and `skip_migrations` inputs);
+- Single-flight via `concurrency: cd-fly-prod` with `cancel-in-progress: false` so a queued tag does not interrupt a deploy in progress;
+- `preflight` job verifies the `FLY_API_TOKEN` repository secret is set and validates every `deploy/fly/*.fly.toml` parses;
+- `migrate` job runs `flyctl machine run --rm planora-migrator -- --all` (skippable via the dispatch input);
+- `deploy-services` matrix deploys auth → category → todo → messaging → realtime in strict serial order (`max-parallel: 1`) with `--strategy bluegreen --wait-timeout 300`;
+- `deploy-gateway` runs LAST so the public edge never points at a half-deployed service;
+- `smoke-test` polls `https://planora-gateway.fly.dev/health/ready` for up to two minutes and fails the workflow if readiness never goes green.
+
 ## Production Notes
 
 Production deployment is now formalized as a baseline in [`production.md`](production.md), with secret handling in [`secrets-management.md`](secrets-management.md). It is still not automated by a deployment workflow in the repository. Before deploying beyond local development, define:
@@ -181,6 +196,33 @@ GET /realtime/health
 Source: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs`, every `Services/*/Program.cs`, `Planora.ApiGateway/ocelot*.json`.
 
 Fly.io machines use `/health/live` and `/health/ready` for their probes (`deploy/fly/*.fly.toml`).
+
+## Bootstrap workflow — zero to deployable in three commands
+
+A fresh Fly.io org goes from zero to first successful deploy in three
+checked-in PowerShell commands plus the GitHub repository secret. Every
+step is idempotent; rerunning is safe.
+
+```powershell
+# 1. Create every Planora app (no-op for apps that already exist)
+.\deploy\fly\setup.ps1 -Org <your-org>
+
+# 2. Fill in deploy/fly/.env.fly from the example template, then stage secrets
+Copy-Item deploy/fly/.env.fly.example deploy/fly/.env.fly
+# edit deploy/fly/.env.fly to fill in real values
+.\deploy\fly\set-secrets.ps1                     # --DryRun to preview
+
+# 3. Add FLY_API_TOKEN to the GitHub repository so cd.yml can run
+flyctl auth token | gh secret set FLY_API_TOKEN
+
+# 4. (optional) verify everything is wired before the first deploy
+.\scripts\Verify-Phase1-Prereqs.ps1
+```
+
+The verification script returns exit code = number of failed checks; it
+is safe to use as a CI gate. With `[OK]` across every line, the next
+`git tag v0.0.1 && git push --tags` (or a `workflow_dispatch` from the
+Actions tab) deploys the entire system through `.github/workflows/cd.yml`.
 
 ## Fly.io Deployment Topology
 

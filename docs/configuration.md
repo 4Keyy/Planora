@@ -55,6 +55,29 @@ The resource adds two static attributes: `deployment.environment` (from
 `ASPNETCORE_ENVIRONMENT`) and `service.namespace=planora`. The
 `service.instance.id` attribute is set to the container/machine hostname.
 
+## Centralized Logs (Grafana Loki)
+
+`SerilogConfiguration.TryAddLokiSink` adds a Grafana Loki sink to every
+service when a push URL is configured. Like the OTLP exporter, the sink
+is **only registered when the URL is present** — there is no fallback
+and no log noise when it is absent.
+
+| Variable / config key | Where read | Default | Meaning |
+|---|---|---|---|
+| `LOKI_URL` | environment variable (preferred) | unset | Loki push endpoint, e.g. `https://logs-prod-eu-west-0.grafana.net/loki/api/v1/push`. |
+| `Serilog:Loki:Url` | `appsettings.json` | unset | Same as `LOKI_URL`. |
+| `LOKI_USER` | environment variable | unset | Basic-auth user. For Grafana Cloud, the tenant / user id from the OTLP page. |
+| `Serilog:Loki:Credentials:Login` | `appsettings.json` | unset | Same. |
+| `LOKI_TOKEN` | environment variable | unset | Basic-auth password (Grafana Cloud instance API token with `logs:write` scope). |
+| `Serilog:Loki:Credentials:Password` | `appsettings.json` | unset | Same. |
+| `Serilog:Loki:MinimumLevel` | `appsettings.json` | `Information` | Minimum log event level shipped to Loki. |
+
+Labels emitted: `service_name`, `environment`. Per-request labels are
+intentionally absent so a per-stream-billed backend is not overloaded.
+The full operational walkthrough — Grafana Cloud setup, suggested alert
+rules, log-to-trace correlation — lives in
+[`observability.md`](observability.md).
+
 `.env.production.example` documents the keys expected by a production deployment or secret store. It includes:
 
 - public origins: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_API_GATEWAY_URL`, `Frontend__BaseUrl`, `Cors__AllowedOrigins__0`;

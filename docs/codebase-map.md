@@ -18,10 +18,11 @@ This map is organized by ownership boundary. It intentionally avoids generated a
 | `Start-Planora-Local.ps1` | local backend launcher | infra containers, local `dotnet run`, frontend |
 | `.editorconfig` | unified charset / EOL / indentation / C# analyzer severity hints | applies to every file in the repo |
 | `.gitleaks.toml` | gitleaks ruleset extension | Planora-specific secret detectors + env-var-interpolation allowlist |
-| `.github/workflows` | CI/security/e2e/SBOM/migrations/perf automation | `ci.yml`, `e2e.yml`, `security.yml`, `migrations.yml`, `perf-smoke.yml` |
+| `.github/workflows` | CI/security/e2e/SBOM/migrations/perf/CD automation | `ci.yml`, `e2e.yml`, `security.yml`, `migrations.yml`, `perf-smoke.yml`, `cd.yml` |
+| `scripts` | local PowerShell helpers (launcher + Phase-1 verification) | `HealthChecker.psm1`, `PidManager.psm1`, `PortChecker.psm1`, `Verify-Phase1-Prereqs.ps1` |
 | `graphify-out` | generated knowledge graph (gitignored) | `GRAPH_REPORT.md`, `wiki/index.md`, `graph.json` |
 | `tools/Planora.Migrator` | one-shot EF Core migration runner CLI | `Program.cs`, `Dockerfile` |
-| `deploy/fly` | Fly.io app manifests | eight `*.fly.toml` + `README.md` |
+| `deploy/fly` | Fly.io app manifests + bootstrap scripts | eight `*.fly.toml`, `setup.ps1`, `set-secrets.ps1`, `.env.fly.example`, `README.md` |
 | `perf` | k6 load-test scenarios and baseline | `k6/lib/`, `k6/scenarios/`, `README.md` |
 | `docs/INVARIANTS.md` | closed-form architectural invariants | `INV-OWN-*`, `INV-COMM-*`, `INV-AUTH-*`, `INV-OBS-*`, `INV-FLOW-*` |
 
