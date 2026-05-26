@@ -1,0 +1,91 @@
+# Planora gitleaks custom rules
+# Extends the default gitleaks ruleset (loaded automatically via `useDefault = true`).
+# Tightens detection around project-specific secret patterns documented in
+# docs/secrets-management.md and docker-compose.yml.
+
+title = "Planora gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# JwtSettings__Secret — strong-secret value, must never reach source control.
+[[rules]]
+id = "planora-jwt-secret"
+description = "Planora JwtSettings__Secret hard-coded value"
+regex = '''(?i)(JwtSettings__Secret|JWT_SECRET)\s*[:=]\s*['"]?([A-Za-z0-9+/=_\-]{16,})'''
+tags = ["secret", "planora", "jwt"]
+secretGroup = 2
+
+# GRPC_SERVICE_KEY — backplane shared secret. Compromise = lateral movement.
+[[rules]]
+id = "planora-grpc-service-key"
+description = "Planora GRPC_SERVICE_KEY hard-coded value"
+regex = '''(?i)(GRPC_SERVICE_KEY|GrpcSettings__ServiceKey)\s*[:=]\s*['"]?([A-Za-z0-9+/=_\-]{16,})'''
+tags = ["secret", "planora", "grpc"]
+secretGroup = 2
+
+# Postgres password in connection string with literal value
+[[rules]]
+id = "planora-postgres-connection-string-literal"
+description = "Postgres connection string with inlined password literal"
+regex = '''Host=[^;]+;.*Password=(?!\$\{|%[A-Z_])([^;'"\s]{6,})'''
+tags = ["secret", "planora", "postgres"]
+secretGroup = 1
+
+# RabbitMQ inlined credentials
+[[rules]]
+id = "planora-rabbit-password"
+description = "Planora RABBITMQ_PASSWORD hard-coded value"
+regex = '''(?i)(RABBITMQ_PASSWORD|RabbitMq__Password)\s*[:=]\s*['"]?(?!\$\{|%[A-Z_])([^\s'"]{6,})'''
+tags = ["secret", "planora", "rabbitmq"]
+secretGroup = 2
+
+# Redis inlined password (connection string form)
+[[rules]]
+id = "planora-redis-password-in-conn"
+description = "Redis connection string with inlined password literal"
+regex = '''redis:6379,\s*password=(?!\$\{|%[A-Z_])([A-Za-z0-9+/=_\-]{6,})'''
+tags = ["secret", "planora", "redis"]
+secretGroup = 1
+
+# Email__Password literal (Gmail app password)
+[[rules]]
+id = "planora-email-password"
+description = "Email provider password literal"
+regex = '''(?i)(Email__Password)\s*[:=]\s*['"]?(?!\$\{|%[A-Z_])([^\s'"]{6,})'''
+tags = ["secret", "planora", "email"]
+secretGroup = 2
+
+# Generic high-entropy base64-looking secrets sitting next to a *_SECRET = pattern
+[[rules]]
+id = "planora-generic-secret-assignment"
+description = "Generic high-entropy assignment to a SECRET / KEY / TOKEN variable"
+regex = '''(?i)(SECRET|TOKEN|KEY)\s*[:=]\s*['"](?!\$\{|%[A-Z_])([A-Za-z0-9+/=_\-]{32,})'''
+tags = ["secret", "planora", "generic"]
+secretGroup = 2
+
+# Allowlist — known safe references and docs that legitimately contain the *patterns*
+# without actual secrets.
+[allowlist]
+description = "Planora allowlist for documentation, examples, and CI templates"
+paths = [
+    '''(.*\.example$)''',
+    '''(.*\.template$)''',
+    '''graphify-out/.*''',
+    '''docs/secrets-management\.md''',
+    '''docs/configuration\.md''',
+    '''docs/auth-security\.md''',
+    '''CHANGELOG\.md''',
+    '''.gitleaks\.toml''',
+    '''docker-compose\.yml''',
+]
+regexes = [
+    # Environment variable interpolation form — not a literal secret
+    '''\$\{[A-Z_][A-Z0-9_]*(:[?-]?[^}]*)?\}''',
+    # ASP.NET configuration substitution
+    '''%[A-Z_][A-Z0-9_]*%''',
+    # Docker compose strict-required form
+    '''\$\{[A-Z_][A-Z0-9_]*:\?[^}]*\}''',
+    # Test fixtures with deliberately obvious dummy values
+    '''(?i)(test|dummy|fake|placeholder|example|change_?me)''',
+]

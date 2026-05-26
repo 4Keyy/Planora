@@ -1,0 +1,51 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,yml,yaml,css,scss,html,md}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{ps1,psm1,psd1}]
+indent_size = 4
+end_of_line = crlf
+
+[*.{cs,csproj,props,targets,sln}]
+indent_size = 4
+end_of_line = crlf
+
+# C# code style — surfaces but does not enforce (Directory.Build.props controls error level)
+[*.cs]
+# Naming conventions
+dotnet_naming_rule.interfaces_should_be_prefixed.severity = warning
+dotnet_naming_rule.interfaces_should_be_prefixed.symbols = interfaces
+dotnet_naming_rule.interfaces_should_be_prefixed.style = prefix_with_i
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_style.prefix_with_i.required_prefix = I
+dotnet_naming_style.prefix_with_i.capitalization = pascal_case
+
+# Modern C# idioms — surface as suggestion only to avoid breaking existing code under
+# Directory.Build.props's TreatWarningsAsErrors=true.
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_prefer_braces = true:suggestion
+csharp_style_namespace_declarations = file_scoped:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:silent
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+
+# Async correctness
+dotnet_diagnostic.CA2007.severity = none      # ConfigureAwait(false) — ASP.NET Core does not need it
+dotnet_diagnostic.VSTHRD200.severity = none   # Async suffix — already enforced by convention
+
+# Disposable / using — surface as suggestion until codebase is audited (avoid surprise CI breaks)
+dotnet_diagnostic.CA1816.severity = suggestion
+dotnet_diagnostic.CA2213.severity = suggestion
