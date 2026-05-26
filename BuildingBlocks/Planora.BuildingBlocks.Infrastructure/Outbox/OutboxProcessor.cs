@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using Planora.BuildingBlocks.Infrastructure.Observability;
+
 namespace Planora.BuildingBlocks.Infrastructure.Outbox
 {
     public sealed class OutboxProcessor : BackgroundService
@@ -48,6 +51,10 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
 
             var eventBus = scope.ServiceProvider.GetRequiredService<IEventBus>();
 
+            // Observability: capture wall-clock duration of one outbox pass; emitted at the end
+            // of this method regardless of how many messages are in the batch.
+            var batchStopwatch = Stopwatch.StartNew();
+
             var messages = await dbContext.Set<OutboxMessage>()
                 .Where(m => m.Status == OutboxMessageStatus.Pending ||
                            (m.Status == OutboxMessageStatus.Failed && m.NextRetryUtc <= DateTime.UtcNow))
@@ -57,6 +64,10 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
 
             foreach (var message in messages)
             {
+                // Backpressure signal: how long this message has been waiting since it was produced.
+                var lagSeconds = Math.Max(0, (DateTime.UtcNow - message.OccurredOnUtc).TotalSeconds);
+                PlanoraMetrics.OutboxMessageAge.Record(lagSeconds);
+
                 try
                 {
                     message.MarkAsProcessing();
@@ -68,6 +79,8 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
                         _logger.LogError("Event type {Type} not found", message.Type);
                         message.MarkAsFailed($"Event type {message.Type} not found");
                         await dbContext.SaveChangesAsync(cancellationToken);
+                        PlanoraMetrics.OutboxMessagesProcessed.Add(1,
+                            new KeyValuePair<string, object?>("outcome", "type_not_found"));
                         continue;
                     }
 
@@ -77,6 +90,8 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
                         _logger.LogError("Failed to deserialize event {Type}", message.Type);
                         message.MarkAsFailed("Deserialization failed");
                         await dbContext.SaveChangesAsync(cancellationToken);
+                        PlanoraMetrics.OutboxMessagesProcessed.Add(1,
+                            new KeyValuePair<string, object?>("outcome", "deserialize_failed"));
                         continue;
                     }
 
@@ -89,25 +104,35 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
                     message.MarkAsProcessed();
                     await dbContext.SaveChangesAsync(cancellationToken);
 
+                    PlanoraMetrics.OutboxMessagesProcessed.Add(1,
+                        new KeyValuePair<string, object?>("outcome", "processed"));
                     _logger.LogInformation("Processed outbox message {MessageId} of type {Type}", message.Id, message.Type);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error processing outbox message {MessageId}", message.Id);
 
+                    string outcome;
                     if (message.CanRetry)
                     {
                         message.MarkAsFailed(ex.Message);
+                        outcome = "failed";
                     }
                     else
                     {
                         _logger.LogError("Max retries reached for outbox message {MessageId}", message.Id);
                         message.MarkAsFailed($"Max retries exceeded: {ex.Message}");
+                        outcome = "retry_exhausted";
                     }
 
                     await dbContext.SaveChangesAsync(cancellationToken);
+                    PlanoraMetrics.OutboxMessagesProcessed.Add(1,
+                        new KeyValuePair<string, object?>("outcome", outcome));
                 }
             }
+
+            batchStopwatch.Stop();
+            PlanoraMetrics.OutboxBatchDuration.Record(batchStopwatch.Elapsed.TotalSeconds);
         }
     }
 }

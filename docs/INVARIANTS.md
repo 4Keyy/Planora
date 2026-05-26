@@ -120,6 +120,11 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, every service `Program.cs`.
 - Rationale: a single instrumentation surface means one place to add new instrumentations (gRPC client, RabbitMQ, SignalR), one place to configure sampling and resource attributes, and one place to flip exporters between vendors.
 
+**INV-OBS-6.** Custom Planora metrics are published through one shared `Meter` named `Planora.BuildingBlocks` defined in `BuildingBlocks.Infrastructure.Observability.PlanoraMetrics`. Services do not create their own `Meter` instances for cross-cutting concerns. New instruments follow OpenTelemetry semantic conventions: explicit units (`s`, `{rejection}`, `{message}`), low-cardinality tag values from a finite enumeration, and `_total` is implicit (added by the Prometheus exporter, not the instrument name).
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs`.
+- Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds).
+- Rationale: one meter = one configuration knob in `AddMeter("Planora.*")` (already wildcard-subscribed by `AddPlanoraTelemetry`), one place to audit cardinality before shipping to a metrics backend that bills per series.
+
 ---
 
 ## CI Quality Gates

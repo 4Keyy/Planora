@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Planora.BuildingBlocks.Infrastructure.Observability;
 
 namespace Planora.BuildingBlocks.Infrastructure.Middleware;
 
@@ -33,13 +34,17 @@ public sealed class CsrfProtectionMiddleware
         // Only validate CSRF tokens on state-modifying requests
         if (IsStateModifyingRequest(context.Request.Method) && !IsGrpcRequest(context.Request))
         {
-            if (!ValidateCsrfToken(context))
+            var (valid, reason) = ValidateCsrfToken(context);
+            if (!valid)
             {
+                PlanoraMetrics.CsrfRejections.Add(1,
+                    new KeyValuePair<string, object?>("reason", reason));
                 _logger.LogWarning(
-                    "CSRF validation failed: Method={Method} Path={Path} IP={IP}",
+                    "CSRF validation failed: Method={Method} Path={Path} IP={IP} Reason={Reason}",
                     context.Request.Method,
                     context.Request.Path,
-                    context.Connection.RemoteIpAddress);
+                    context.Connection.RemoteIpAddress,
+                    reason);
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 context.Response.ContentType = "application/json";
                 await context.Response.WriteAsync(
@@ -67,28 +72,34 @@ public sealed class CsrfProtectionMiddleware
                && request.Protocol.Equals("HTTP/2", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool ValidateCsrfToken(HttpContext context)
+    /// <summary>
+    /// Returns whether the request carries a valid CSRF double-submit token, along with a
+    /// low-cardinality reason tag (<c>missing_header</c> | <c>missing_cookie</c> | <c>mismatch</c>)
+    /// emitted on the rejection metric.
+    /// </summary>
+    private static (bool Valid, string Reason) ValidateCsrfToken(HttpContext context)
     {
         // Get CSRF token from request header (echoed by the frontend from the readable cookie)
         if (!context.Request.Headers.TryGetValue(CsrfHeaderName, out var headerToken)
             || string.IsNullOrWhiteSpace(headerToken))
         {
-            return false;
+            return (false, "missing_header");
         }
 
         // Get CSRF token from the readable XSRF-TOKEN cookie
         if (!context.Request.Cookies.TryGetValue(CsrfCookieName, out var cookieToken)
             || string.IsNullOrWhiteSpace(cookieToken))
         {
-            return false;
+            return (false, "missing_cookie");
         }
 
         // SECURITY: Use CryptographicOperations.FixedTimeEquals for timing-safe comparison.
         // A naive string == comparison can leak token length/content through timing side-channels.
         var headerBytes = Encoding.UTF8.GetBytes(headerToken.ToString());
         var cookieBytes = Encoding.UTF8.GetBytes(cookieToken);
-        return headerBytes.Length == cookieBytes.Length
+        var match = headerBytes.Length == cookieBytes.Length
                && CryptographicOperations.FixedTimeEquals(headerBytes, cookieBytes);
+        return (match, match ? "ok" : "mismatch");
     }
 }
 
