@@ -1,0 +1,234 @@
+name: CD (Fly.io)
+
+# Continuous delivery to Fly.io for tagged releases and on-demand promotions.
+#
+# Trigger:
+#   - push of an annotated tag matching v* (e.g. v1.2.3) — the canonical
+#     release path.
+#   - workflow_dispatch — manual promotion of an arbitrary ref, useful for
+#     hotfixes and emergency rollbacks.
+#
+# Required repository secret:
+#   FLY_API_TOKEN — generate with `flyctl auth token` after logging in.
+#                   Without it, every job fails fast with a clear message.
+#
+# Deployment topology (one fly.toml per app):
+#   deploy/fly/auth.fly.toml         -> planora-auth
+#   deploy/fly/category.fly.toml     -> planora-category
+#   deploy/fly/todo.fly.toml         -> planora-todo
+#   deploy/fly/messaging.fly.toml    -> planora-messaging
+#   deploy/fly/realtime.fly.toml     -> planora-realtime
+#   deploy/fly/gateway.fly.toml      -> planora-gateway
+#   deploy/fly/migrator.fly.toml     -> planora-migrator (one-shot, see below)
+#
+# Order of operations:
+#   1. Lint every fly.toml so syntax errors surface BEFORE any deploy starts.
+#   2. Run the migration runner once (`flyctl machine run --rm`). It applies
+#      pending EF Core migrations for every DB-owning service and exits.
+#   3. Deploy the backend services in dependency order: auth -> category
+#      -> todo -> messaging -> realtime.
+#   4. Deploy the gateway LAST so it never points at a service that has
+#      not finished its bluegreen swap.
+#   5. Smoke-test the public /health/ready endpoint.
+#
+# Strategy: bluegreen on every deploy with --wait-timeout 300s. A failed
+# release-command or health check rolls Fly back to the previous machine
+# generation automatically; the workflow surfaces the failure but does not
+# attempt manual rollback (that is the operator's call).
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or SHA to deploy. Defaults to the workflow ref.'
+        required: false
+        type: string
+      skip_migrations:
+        description: 'Skip the migrator step (use only when no schema has changed).'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Only one production deploy may run at a time. A second push of a new tag
+# while a deploy is in-flight is queued; manual cancellation is explicit.
+concurrency:
+  group: cd-fly-prod
+  cancel-in-progress: false
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+jobs:
+  preflight:
+    name: Preflight — secret + manifest sanity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Assert FLY_API_TOKEN is set
+        shell: bash
+        run: |
+          if [ -z "${FLY_API_TOKEN}" ]; then
+            echo "::error::FLY_API_TOKEN repository secret is not set. Create it with 'flyctl auth token' after 'flyctl auth login', then add it under repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+      - name: Install flyctl
+        # TODO(security): pin this action to a SHA before relying on this
+        # workflow in production. Run:
+        #   gh api /repos/superfly/flyctl-actions/git/refs/heads/master --jq .object.sha
+        # and replace `@master` with `@<sha>  # master at <date>`.
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Validate every fly.toml parses
+        shell: bash
+        run: |
+          set -e
+          for manifest in deploy/fly/*.fly.toml; do
+            echo "::group::Validate ${manifest}"
+            flyctl config validate --config "${manifest}"
+            echo "::endgroup::"
+          done
+
+  migrate:
+    name: Apply EF Core migrations
+    needs: preflight
+    if: ${{ !inputs.skip_migrations }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Run Planora.Migrator one-shot
+        shell: bash
+        # `flyctl machine run --rm` boots a fresh machine, executes the CMD,
+        # waits for it to exit, captures its exit code, then deletes the
+        # machine. The migrator's exit codes are:
+        #   0  success
+        #  64  bad arguments
+        #  70  one or more migrations failed
+        # The shell propagates the exit code so the workflow stops cleanly.
+        run: |
+          set -e
+          flyctl machine run \
+            --rm \
+            --app planora-migrator \
+            --config deploy/fly/migrator.fly.toml \
+            --dockerfile tools/Planora.Migrator/Dockerfile \
+            -- --all
+
+  deploy-services:
+    name: Deploy backend services
+    needs: [preflight, migrate]
+    # Allow the gate to pass even when migrate was skipped via workflow_dispatch.
+    if: ${{ always() && needs.preflight.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 1   # dependency order: each waits for the previous
+      matrix:
+        include:
+          - app: planora-auth
+            config: deploy/fly/auth.fly.toml
+            dockerfile: Services/AuthApi/Planora.Auth.Api/Dockerfile
+          - app: planora-category
+            config: deploy/fly/category.fly.toml
+            dockerfile: Services/CategoryApi/Planora.Category.Api/Dockerfile
+          - app: planora-todo
+            config: deploy/fly/todo.fly.toml
+            dockerfile: Services/TodoApi/Planora.Todo.Api/Dockerfile
+          - app: planora-messaging
+            config: deploy/fly/messaging.fly.toml
+            dockerfile: Services/MessagingApi/Planora.Messaging.Api/Dockerfile
+          - app: planora-realtime
+            config: deploy/fly/realtime.fly.toml
+            dockerfile: Services/RealtimeApi/Planora.Realtime.Api/Dockerfile
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy ${{ matrix.app }}
+        shell: bash
+        run: |
+          set -e
+          flyctl deploy \
+            --app "${{ matrix.app }}" \
+            --config "${{ matrix.config }}" \
+            --dockerfile "${{ matrix.dockerfile }}" \
+            --strategy bluegreen \
+            --wait-timeout 300 \
+            --build-arg PLANORA_VERSION="${{ github.ref_name }}"
+
+  deploy-gateway:
+    name: Deploy API Gateway (last)
+    needs: deploy-services
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy planora-gateway
+        shell: bash
+        run: |
+          set -e
+          flyctl deploy \
+            --app planora-gateway \
+            --config deploy/fly/gateway.fly.toml \
+            --dockerfile Planora.ApiGateway/Dockerfile \
+            --strategy bluegreen \
+            --wait-timeout 300 \
+            --build-arg PLANORA_VERSION="${{ github.ref_name }}"
+
+  smoke-test:
+    name: Smoke /health/ready
+    needs: deploy-gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve gateway public URL
+        id: gateway
+        shell: bash
+        # Fly serves <app>.fly.dev publicly when the app has a public service.
+        # We poll readiness for up to two minutes.
+        run: |
+          echo "url=https://planora-gateway.fly.dev" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for /health/ready
+        shell: bash
+        run: |
+          set -e
+          url="${{ steps.gateway.outputs.url }}/health/ready"
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error --max-time 5 "${url}" > /dev/null; then
+              echo "::notice::Gateway /health/ready is OK"
+              exit 0
+            fi
+            echo "Attempt ${attempt}/60 — gateway not ready yet"
+            sleep 2
+          done
+          echo "::error::Gateway /health/ready did not return 200 within 2 minutes"
+          exit 1

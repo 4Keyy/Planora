@@ -185,6 +185,11 @@ Services/AuthApi/Planora.Auth.Api/wwwroot/avatars/
 **/wwwroot/avatars/
 **/wwwroot/uploads/
 
+# Fly.io secret payloads — populated by hand from deploy/fly/.env.fly.example
+deploy/fly/.env.fly
+deploy/fly/*.env.fly
+!deploy/fly/.env.fly.example
+
 # Knowledge graph (generated — rebuild with /graphify)
 graphify-out/
 .graphify_*
