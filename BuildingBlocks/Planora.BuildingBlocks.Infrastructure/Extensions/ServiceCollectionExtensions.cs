@@ -102,10 +102,15 @@ public static class ServiceCollectionExtensions
                     Window = TimeSpan.FromMinutes(1)
                 }));
 
-        AddInMemoryPolicy(options, "auth", 10);
-        AddInMemoryPolicy(options, "login", 5);
-        AddInMemoryPolicy(options, "register", 3);
-        AddInMemoryPolicy(options, "data", 50);
+        AddInMemoryPolicy(options, "auth", 10, TimeSpan.FromMinutes(1));
+        AddInMemoryPolicy(options, "login", 5, TimeSpan.FromMinutes(1));
+        AddInMemoryPolicy(options, "register", 3, TimeSpan.FromMinutes(1));
+        AddInMemoryPolicy(options, "data", 50, TimeSpan.FromMinutes(1));
+        // Per-user upload throttle. Avatars are bytes-on-disk: even after PR-1's
+        // 5 MB cap + ImageSharp re-encoding, an attacker with a valid token could
+        // try to spin the storage layer at the generic "auth" rate (10/min). At
+        // 5/hour the worst-case write traffic is bounded to ~30 MB/hour/user.
+        AddInMemoryPolicy(options, "avatar-upload", 5, TimeSpan.FromHours(1));
     }
 
     private static void ConfigureRedisRateLimits(RateLimiterOptions options)
@@ -115,15 +120,16 @@ public static class ServiceCollectionExtensions
         options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(
             context => RedisRateLimitPartition.GetFixedWindowRateLimiter(
                 partitionKey: $"planora:rl:global:{PartitionKey(context)}",
-                factory: _ => RedisOptions(context, permitLimit: 100)));
+                factory: _ => RedisOptions(context, permitLimit: 100, window: TimeSpan.FromMinutes(1))));
 
-        AddRedisPolicy(options, "auth", 10, "planora:rl:auth");
-        AddRedisPolicy(options, "login", 5, "planora:rl:login");
-        AddRedisPolicy(options, "register", 3, "planora:rl:register");
-        AddRedisPolicy(options, "data", 50, "planora:rl:data");
+        AddRedisPolicy(options, "auth", 10, "planora:rl:auth", TimeSpan.FromMinutes(1));
+        AddRedisPolicy(options, "login", 5, "planora:rl:login", TimeSpan.FromMinutes(1));
+        AddRedisPolicy(options, "register", 3, "planora:rl:register", TimeSpan.FromMinutes(1));
+        AddRedisPolicy(options, "data", 50, "planora:rl:data", TimeSpan.FromMinutes(1));
+        AddRedisPolicy(options, "avatar-upload", 5, "planora:rl:avatar-upload", TimeSpan.FromHours(1));
     }
 
-    private static void AddInMemoryPolicy(RateLimiterOptions options, string name, int permitLimit) =>
+    private static void AddInMemoryPolicy(RateLimiterOptions options, string name, int permitLimit, TimeSpan window) =>
         options.AddPolicy(name, context =>
             RateLimitPartition.GetFixedWindowLimiter(
                 partitionKey: PartitionKey(context),
@@ -131,16 +137,16 @@ public static class ServiceCollectionExtensions
                 {
                     AutoReplenishment = true,
                     PermitLimit = permitLimit,
-                    Window = TimeSpan.FromMinutes(1)
+                    Window = window
                 }));
 
-    private static void AddRedisPolicy(RateLimiterOptions options, string name, int permitLimit, string keyPrefix) =>
+    private static void AddRedisPolicy(RateLimiterOptions options, string name, int permitLimit, string keyPrefix, TimeSpan window) =>
         options.AddPolicy(name, context =>
             RedisRateLimitPartition.GetFixedWindowRateLimiter(
                 partitionKey: $"{keyPrefix}:{PartitionKey(context)}",
-                factory: _ => RedisOptions(context, permitLimit)));
+                factory: _ => RedisOptions(context, permitLimit, window)));
 
-    private static RedisFixedWindowRateLimiterOptions RedisOptions(HttpContext context, int permitLimit)
+    private static RedisFixedWindowRateLimiterOptions RedisOptions(HttpContext context, int permitLimit, TimeSpan window)
     {
         // Resolve the singleton multiplexer once per partition. The partition is
         // cached by the rate-limiter middleware so this lookup runs at most once
@@ -150,7 +156,7 @@ public static class ServiceCollectionExtensions
         {
             ConnectionMultiplexerFactory = () => muxer,
             PermitLimit = permitLimit,
-            Window = TimeSpan.FromMinutes(1),
+            Window = window,
         };
     }
 
@@ -191,7 +197,19 @@ public static class ServiceCollectionExtensions
             return $"u:{userId}";
         }
 
-        var ip = context.Connection.RemoteIpAddress?.ToString();
-        return string.IsNullOrWhiteSpace(ip) ? "anon" : $"ip:{ip}";
+        var address = context.Connection.RemoteIpAddress;
+        if (address is null)
+        {
+            return "anon";
+        }
+
+        // Normalize IPv4-mapped IPv6 (::ffff:1.2.3.4) to plain IPv4 so a client that
+        // hits the service through different stacks does not get two separate buckets.
+        if (address.IsIPv4MappedToIPv6)
+        {
+            address = address.MapToIPv4();
+        }
+
+        return $"ip:{address}";
     }
 }

@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### PR-8 rate-limit: avatar-upload policy + IPv6 normalization (2026-05-26)
+
+**Per-endpoint policy.** The avatar upload endpoint previously inherited the generic `auth` policy (10/min/user), meaning an attacker with a valid token could upload 10× 5 MB files per minute = 50 MB/min/user disk churn even with PR-1's per-file caps in place. New `avatar-upload` policy (5/hour/user) bounds worst-case write traffic to ~30 MB/hour/user. `[EnableRateLimiting("avatar-upload")]` is now attached to `POST /users/me/avatar`.
+
+To support windows other than 1 minute, `AddInMemoryPolicy` / `AddRedisPolicy` / `RedisOptions` now take an explicit `TimeSpan window` parameter. Existing policies keep their 1-minute windows unchanged.
+
+**IPv6 normalization.** `PartitionKey` now collapses `IsIPv4MappedToIPv6` addresses (`::ffff:1.2.3.4`) to their IPv4 form via `IPAddress.MapToIPv4()`. Without this, a dual-stack listener gave a single client two buckets (one keyed by the v6-mapped form, one by the plain v4 form), effectively doubling their quota.
+
+**Tests** (+2, full = 713 green): `RateLimitPartitionKeyTests` gains `PartitionKey_NormalizesIPv4MappedIPv6ToIPv4` and `PartitionKey_HandlesPureIPv6Address`. Asserts dual-stack → same bucket, pure IPv6 → `ip:2001:db8::1`.
+
+**Docs.** `docs/auth-security.md` § "Rate Limiting" — new `avatar-upload` row and the IPv6-normalization note.
+
+Refs: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ServiceCollectionExtensions.cs`, `Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs`, `tests/Planora.UnitTests/Services/Infrastructure/RateLimitPartitionKeyTests.cs`.
+
 ### PR-6 security(stamp): close stamp-enforcement gap on Auth API (2026-05-26)
 
 **Security gap.** `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs`'s `AddJwtAuthentication` configured `JwtBearerOptions` without any `OnTokenValidated` hook, so it never invoked `SecurityStampValidator.IsTokenRevokedAsync`. Consumer services (Category, Todo via `AddJwtAuthenticationForConsumer`; Messaging, Realtime inline) all did this check — but Auth itself did not.

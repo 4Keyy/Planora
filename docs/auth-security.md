@@ -217,12 +217,14 @@ A `GlobalLimiter` applies a default cap of 100 requests/minute per IP to every e
 
 | Policy | Limit | Applied to |
 |---|---:|---|
-| global | 100/minute/IP | all services (default) |
-| `register` | 3/minute/IP | `POST /auth/register` |
-| `login` | 5/minute/IP | `POST /auth/login` |
-| `auth` | 10/minute/IP | refresh, logout, CSRF |
+| global | 100/minute/partition | all services (default) |
+| `register` | 3/minute/partition | `POST /auth/register` |
+| `login` | 5/minute/partition | `POST /auth/login` |
+| `auth` | 10/minute/partition | refresh, logout, CSRF |
+| `avatar-upload` | 5/hour/partition | `POST /users/me/avatar` |
+| `data` | 50/minute/partition | reserved for data-heavy endpoints |
 
-The `GlobalLimiter` and named policies are configured in `AddConfiguredRateLimiting(IConfiguration)` and partitioned by `RemoteIpAddress`. The backend is selected at startup:
+The `GlobalLimiter` and named policies are configured in `AddConfiguredRateLimiting(IConfiguration)` and partitioned by authenticated user id (JWT `sub` / `NameIdentifier`) with fallback to `RemoteIpAddress`. IPv4-mapped IPv6 addresses (`::ffff:1.2.3.4`) are normalized to their IPv4 form so dual-stack listeners do not split a client's quota into two buckets. The backend is selected at startup:
 
 - `RateLimiting:Backend = Redis` (production, set in `docker-compose.yml` for every service) — partitions are backed by `RedisRateLimitPartition.GetFixedWindowRateLimiter` from `RedisRateLimiting.AspNetCore`, so the per-IP counters are shared across every replica of every service. Without this, the in-memory limiter would let an attacker exceed the configured limits by a factor of `N` (the replica count).
 - Unset or anything else (tests, local dev) — falls back to the in-memory `FixedWindowRateLimiter`. The integration test factory deliberately leaves it unset, so the in-memory path stays the default for tests.

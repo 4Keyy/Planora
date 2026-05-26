@@ -59,6 +59,7 @@ namespace Planora.Auth.Api.Controllers
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(6 * 1024 * 1024)]
         [RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
+        [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("avatar-upload")]
         [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]

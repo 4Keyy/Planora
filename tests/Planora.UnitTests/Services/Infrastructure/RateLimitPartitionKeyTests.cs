@@ -123,6 +123,31 @@ public sealed class RateLimitPartitionKeyTests
         Assert.Throws<ArgumentNullException>(() => ServiceCollectionExtensions.PartitionKey(null!));
     }
 
+    [Fact]
+    [Trait("TestType", "Security")]
+    public void PartitionKey_NormalizesIPv4MappedIPv6ToIPv4()
+    {
+        // ::ffff:1.2.3.4 is the same client as 1.2.3.4 — both must land in one bucket
+        // so dual-stack listeners do not double the effective rate limit.
+        var dualStack = NewContext(remoteIp: IPAddress.Parse("::ffff:1.2.3.4"));
+        var plain = NewContext(remoteIp: IPAddress.Parse("1.2.3.4"));
+
+        Assert.Equal(
+            ServiceCollectionExtensions.PartitionKey(plain),
+            ServiceCollectionExtensions.PartitionKey(dualStack));
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public void PartitionKey_HandlesPureIPv6Address()
+    {
+        var context = NewContext(remoteIp: IPAddress.Parse("2001:db8::1"));
+
+        var key = ServiceCollectionExtensions.PartitionKey(context);
+
+        Assert.Equal("ip:2001:db8::1", key);
+    }
+
     private static DefaultHttpContext NewContext(IPAddress? remoteIp)
     {
         var ctx = new DefaultHttpContext();
