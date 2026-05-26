@@ -637,6 +637,7 @@ public class WorkersAndCommentsHandlerTests
         public Mock<IUnitOfWork> UnitOfWork { get; } = new();
         public Mock<ICurrentUserContext> CurrentUser { get; } = new();
         public Mock<IFriendshipService> FriendshipService { get; } = new();
+        public Mock<IUserService> UserService { get; } = new();
 
         public CommentFixture(Guid userId, string? name)
         {
@@ -647,6 +648,9 @@ public class WorkersAndCommentsHandlerTests
             CommentRepository.Setup(x => x.AddAsync(It.IsAny<TodoItemComment>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((TodoItemComment c, CancellationToken _) => c);
             CommentRepository.Setup(x => x.Update(It.IsAny<TodoItemComment>()));
+            // Default: no live avatars available (non-fatal; comments still load)
+            UserService.Setup(x => x.GetUserAvatarsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Dictionary<Guid, string>());
         }
 
         public AddCommentCommandHandler CreateAddHandler()
@@ -659,7 +663,7 @@ public class WorkersAndCommentsHandlerTests
             => new(CommentRepository.Object, TodoRepository.Object, UnitOfWork.Object, CurrentUser.Object);
 
         public GetCommentsQueryHandler CreateGetCommentsHandler()
-            => new(TodoRepository.Object, CommentRepository.Object, CurrentUser.Object, FriendshipService.Object);
+            => new(TodoRepository.Object, CommentRepository.Object, CurrentUser.Object, FriendshipService.Object, UserService.Object);
     }
 
     private static TodoItemDto EmptyDto() => new()

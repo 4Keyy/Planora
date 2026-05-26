@@ -53,7 +53,6 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - The Application-layer architecture rule is now the strict form: `Planora.BuildingBlocks.Infrastructure` is in the forbidden-namespace list alongside every service-specific `*.Infrastructure` and `*.Api`. No `*.Application` project depends on any Infrastructure or Api namespace; nothing slips through review.
 - Build is warning-clean under `-warnaserror`; all 723 backend tests pass; markdownlint, frontend lint/type-check/test/build and the existing architecture suite stay green.
 
-
 ### Messaging contracts moved to the Application layer (2026-05-22)
 
 - `IEventBus`, `IIntegrationEventHandler<T>`, `IntegrationEvent`, `IDomainEventDispatcher`, `IDomainEventHandler<T>` and the eight `*IntegrationEvent` types were moved from `Planora.BuildingBlocks.Infrastructure.Messaging` to `Planora.BuildingBlocks.Application.Messaging` (and `.Events`). Application handlers and consumers no longer cross the layering boundary just to publish or consume integration events.

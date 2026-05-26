@@ -575,3 +575,152 @@ describe("TaskComments", () => {
     expect(screen.getByText("started working on the task")).toBeInTheDocument()
   })
 })
+
+// ── Genesis card (pinned description) ─────────────────────────────────────────
+
+describe("TaskComments genesis card", () => {
+  const genesisComment = (overrides: Partial<TodoComment> = {}): TodoComment => ({
+    id: "g1",
+    todoItemId: "todo-1",
+    authorId: "",
+    authorName: "Alice",
+    content: "This is the task description.",
+    createdAt: new Date().toISOString(),
+    updatedAt: null,
+    isOwn: false,
+    isEdited: false,
+    isSystemComment: true,
+    isGenesisComment: true,
+    ...overrides,
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockFetch.mockResolvedValue({ items: [], totalCount: 0 })
+  })
+
+  it("renders the description card with label, author name, and content", async () => {
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment()], totalCount: 1 })
+    render(<TaskComments todoId="todo-1" isOwner={false} canComment={false} />)
+    await waitFor(() => expect(screen.getByText("Description")).toBeInTheDocument())
+    expect(screen.getByText(/by Alice/)).toBeInTheDocument()
+    expect(screen.getByText("This is the task description.")).toBeInTheDocument()
+  })
+
+  it("still renders description card when authorAvatarUrl is null", async () => {
+    mockFetch.mockResolvedValueOnce({
+      items: [genesisComment({ authorAvatarUrl: null })],
+      totalCount: 1,
+    })
+    render(<TaskComments todoId="todo-1" isOwner={false} canComment={false} />)
+    // Card must render regardless of whether the avatar image is available
+    await waitFor(() => expect(screen.getByText("Description")).toBeInTheDocument())
+    expect(screen.getByText("This is the task description.")).toBeInTheDocument()
+  })
+
+  it("shows the 'edited' badge when isEdited is true", async () => {
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment({ isEdited: true })], totalCount: 1 })
+    render(<TaskComments todoId="todo-1" isOwner={true} canComment={true} />)
+    await waitFor(() => expect(screen.getByText("edited")).toBeInTheDocument())
+  })
+
+  it("shows Edit and Delete buttons for the owner", async () => {
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment()], totalCount: 1 })
+    render(<TaskComments todoId="todo-1" isOwner={true} canComment={true} />)
+    await waitFor(() => expect(screen.getByTitle("Edit description")).toBeInTheDocument())
+    expect(screen.getByTitle("Delete description")).toBeInTheDocument()
+  })
+
+  it("does NOT show Edit/Delete buttons for non-owners", async () => {
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment()], totalCount: 1 })
+    render(<TaskComments todoId="todo-1" isOwner={false} canComment={false} />)
+    await waitFor(() => expect(screen.getByText("Description")).toBeInTheDocument())
+    expect(screen.queryByTitle("Edit description")).toBeNull()
+    expect(screen.queryByTitle("Delete description")).toBeNull()
+  })
+
+  it("enters edit mode showing textarea pre-filled with existing content", async () => {
+    // Use canComment=false so there's only one textbox (no comment input competing)
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment()], totalCount: 1 })
+    render(<TaskComments todoId="todo-1" isOwner={true} canComment={false} />)
+    await waitFor(() => expect(screen.getByTitle("Edit description")).toBeInTheDocument())
+
+    fireEvent.click(screen.getByTitle("Edit description"))
+    const textarea = screen.getByRole("textbox")
+    expect((textarea as HTMLTextAreaElement).value).toBe("This is the task description.")
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument()
+  })
+
+  it("cancels genesis edit on Cancel click", async () => {
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment()], totalCount: 1 })
+    render(<TaskComments todoId="todo-1" isOwner={true} canComment={false} />)
+    await waitFor(() => expect(screen.getByTitle("Edit description")).toBeInTheDocument())
+
+    fireEvent.click(screen.getByTitle("Edit description"))
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await waitFor(() =>
+      expect(screen.getByText("This is the task description.")).toBeInTheDocument(),
+    )
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull()
+  })
+
+  it("cancels genesis edit on Escape key", async () => {
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment()], totalCount: 1 })
+    render(<TaskComments todoId="todo-1" isOwner={true} canComment={false} />)
+    await waitFor(() => expect(screen.getByTitle("Edit description")).toBeInTheDocument())
+
+    fireEvent.click(screen.getByTitle("Edit description"))
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" })
+
+    await waitFor(() =>
+      expect(screen.getByText("This is the task description.")).toBeInTheDocument(),
+    )
+  })
+
+  it("saves genesis edit via Save button", async () => {
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment()], totalCount: 1 })
+    const updated = genesisComment({ content: "Updated description", isEdited: true })
+    mockUpdate.mockResolvedValueOnce(updated)
+
+    render(<TaskComments todoId="todo-1" isOwner={true} canComment={false} />)
+    await waitFor(() => expect(screen.getByTitle("Edit description")).toBeInTheDocument())
+
+    fireEvent.click(screen.getByTitle("Edit description"))
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Updated description" } })
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith("todo-1", "g1", "Updated description"),
+    )
+    await waitFor(() => expect(screen.getByText("Updated description")).toBeInTheDocument())
+  })
+
+  it("saves genesis edit via Ctrl+Enter shortcut", async () => {
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment()], totalCount: 1 })
+    mockUpdate.mockResolvedValueOnce(genesisComment({ content: "KB saved" }))
+
+    render(<TaskComments todoId="todo-1" isOwner={true} canComment={false} />)
+    await waitFor(() => expect(screen.getByTitle("Edit description")).toBeInTheDocument())
+
+    fireEvent.click(screen.getByTitle("Edit description"))
+    const textarea = screen.getByRole("textbox")
+    fireEvent.change(textarea, { target: { value: "KB saved" } })
+    fireEvent.keyDown(textarea, { key: "Enter", ctrlKey: true })
+
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith("todo-1", "g1", "KB saved"))
+  })
+
+  it("deletes the genesis card when Delete is clicked", async () => {
+    mockFetch.mockResolvedValueOnce({ items: [genesisComment()], totalCount: 1 })
+    mockDelete.mockResolvedValueOnce(undefined)
+
+    render(<TaskComments todoId="todo-1" isOwner={true} canComment={true} />)
+    await waitFor(() => expect(screen.getByTitle("Delete description")).toBeInTheDocument())
+
+    fireEvent.click(screen.getByTitle("Delete description"))
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith("todo-1", "g1"))
+    await waitFor(() => expect(screen.queryByText("This is the task description.")).toBeNull())
+  })
+})
