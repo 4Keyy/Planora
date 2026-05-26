@@ -180,6 +180,11 @@ tmp/
 # Local Development
 local-data/
 
+# Runtime user uploads — must never be committed
+Services/AuthApi/Planora.Auth.Api/wwwroot/avatars/
+**/wwwroot/avatars/
+**/wwwroot/uploads/
+
 # Knowledge graph (generated — rebuild with /graphify)
 graphify-out/
 .graphify_*
