@@ -29,3 +29,32 @@
 | Todo status | Backend task lifecycle enum: `Todo`, `InProgress`, `Done` | `Services/TodoApi/Planora.Todo.Domain/Enums` |
 | UserTodoViewPreference | Per-viewer hidden/category state for a shared todo | `UserTodoViewPreference.cs` |
 | XSRF-TOKEN | Readable CSRF cookie that frontend echoes in `X-CSRF-Token` | `AuthenticationController.GetCsrfToken` |
+| ADR | Architecture Decision Record — closed-form record of a decision and its rejected alternatives | `docs/DECISIONS/000*.md` |
+| BuildingBlocks | Shared kernel — domain primitives, CQRS abstractions, Result type, middleware, observability pipeline, outbox/inbox, gRPC interceptors | `BuildingBlocks/Planora.BuildingBlocks.*` |
+| CD pipeline | Tag-driven Fly.io blue/green deployment workflow | `.github/workflows/cd.yml` |
+| ConfigurationValidator | Startup-time check that rejects weak JWT secrets and missing gRPC keys before the host binds a port | `BuildingBlocks/.../Configuration/ConfigurationValidator.cs` |
+| Cosign | Sigstore tool for signing container images; planned for Phase 3 hardening | `docs/ROADMAP.md` |
+| CycloneDX SBOM | Software Bill of Materials artifact emitted per build, listing every NuGet and npm dependency | `.github/workflows/security.yml` `sbom` job |
+| Dependabot | Automated dependency-update PRs for npm, nuget, github-actions, docker ecosystems | `.github/dependabot.yml` |
+| Error budget | Allowed shortfall implied by an SLO; burning it pauses feature work in favour of reliability | [`docs/slo.md`](slo.md) |
+| Fly.io | Chosen production hosting target | `deploy/fly/`, `.github/workflows/cd.yml` |
+| `fly.toml` | Per-app Fly.io manifest declaring build context, env, health probes, concurrency, VM size | `deploy/fly/*.fly.toml` |
+| FLY_API_TOKEN | GitHub repository secret authenticating `flyctl` in the CD workflow | `.github/workflows/cd.yml` |
+| Grafana Cloud OTLP | Managed OTLP endpoint for traces and metrics; enabled by setting `OTEL_EXPORTER_OTLP_ENDPOINT` per app | [`docs/observability.md`](observability.md) |
+| Grafana Loki | Log aggregation backend; enabled by setting `LOKI_URL` per app | `SerilogConfiguration.TryAddLokiSink` |
+| INV-XYZ-N | Closed-form architectural invariant identifier | [`docs/INVARIANTS.md`](INVARIANTS.md) |
+| k6 | JavaScript load-test scenario runner | `perf/k6/`, `.github/workflows/perf-smoke.yml` |
+| OpenTelemetry (OTel) | Cross-cutting traces + metrics pipeline registered via `AddPlanoraTelemetry` | `BuildingBlocks/.../Logging/TelemetryConfiguration.cs` |
+| OTLP | OpenTelemetry Protocol — gRPC transport for traces and metrics; exporter is registered only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set | same |
+| Planora.Migrator | One-shot CLI applying pending EF Core migrations before each service rollout | `tools/Planora.Migrator/` |
+| PlanoraMetrics | Shared `Meter("Planora.BuildingBlocks")` publishing CSRF / gRPC / outbox instruments | `BuildingBlocks/.../Observability/PlanoraMetrics.cs` |
+| Rate-limit partition key | `u:<sub>` for authenticated requests, `ip:<address>` for anonymous; ensures users behind a shared NAT do not share a bucket | `ServiceCollectionExtensions.PartitionKey` |
+| RED metrics | Rate / Errors / Duration — the three signals captured by ASP.NET Core OTel instrumentation | [`docs/observability.md`](observability.md) "Querying" |
+| SBOM | See **CycloneDX SBOM** | same |
+| Security stamp | Per-user value rotated on password change; existing tokens are rejected after rotation | `Services/AuthApi/.../Security/SecurityStampService.cs` |
+| SLI | Service Level Indicator — the concrete metric a SLO measures | [`docs/slo.md`](slo.md) |
+| SLO | Service Level Objective — numeric target an SLI must satisfy over a rolling window | [`docs/slo.md`](slo.md) |
+| Stryker.NET | Mutation testing tool; runs on security-critical helpers | `tests/`, `stryker-config.json`, `stryker-auth.json` |
+| Trace context | W3C `traceparent` header carrying trace-id and span-id across the browser → backend boundary | `frontend/src/lib/trace.ts`, `AddPlanoraTelemetry` AspNetCore instrumentation |
+| TryAddLokiSink | Helper that adds a Grafana Loki Serilog sink when `LOKI_URL` is configured, no-op otherwise | `BuildingBlocks/.../Logging/SerilogConfiguration.cs` |
+| Verify-Phase1-Prereqs.ps1 | Read-only checker for flyctl auth, per-app secrets, build cleanliness, FLY_API_TOKEN | `scripts/Verify-Phase1-Prereqs.ps1` |

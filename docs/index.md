@@ -33,6 +33,8 @@ This directory is the project knowledge base for users, developers, operators, a
 | [`secrets-management.md`](secrets-management.md) | Secret inventory, storage rules, rotation guidance | operators, security reviewers |
 | [`INVARIANTS.md`](INVARIANTS.md) | Closed-form architectural invariants enforced across the codebase | reviewers, contributors |
 | [`observability.md`](observability.md) | OpenTelemetry / Loki / Grafana Cloud setup, custom metrics, alert recipes | operators, on-call |
+| [`slo.md`](slo.md) | Baseline service-level objectives + error-budget policy | operators, on-call, product |
+| [`caching.md`](caching.md) | Cache layers, naming, TTL convention, invalidation rules | backend developers, operators |
 | [`development.md`](development.md) | Local workflows, adding features/endpoints/components | contributors |
 | [`troubleshooting.md`](troubleshooting.md) | Known startup/runtime failures and fixes | everyone |
 | [`faq.md`](faq.md) | Common user/developer questions | everyone |

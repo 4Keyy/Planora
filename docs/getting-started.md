@@ -94,13 +94,20 @@ Expected local URLs:
 |---|---|
 | Frontend | `http://localhost:3000` |
 | API Gateway | `http://localhost:5132` |
-| Gateway health | `http://localhost:5132/health` |
-| Auth health via gateway | `http://localhost:5132/auth/health` |
-| Todo health via gateway | `http://localhost:5132/todos/health` |
-| Category health via gateway | `http://localhost:5132/categories/health` |
-| Messaging health via gateway | `http://localhost:5132/messaging/health` |
-| Realtime health via gateway | `http://localhost:5132/realtime/health` |
+| Gateway liveness probe | `http://localhost:5132/health/live` |
+| Gateway readiness probe | `http://localhost:5132/health/ready` |
+| Gateway aggregate health | `http://localhost:5132/health` |
+| Auth aggregate health via gateway | `http://localhost:5132/auth/health` |
+| Todo aggregate health via gateway | `http://localhost:5132/todos/health` |
+| Category aggregate health via gateway | `http://localhost:5132/categories/health` |
+| Messaging aggregate health via gateway | `http://localhost:5132/messaging/health` |
+| Realtime aggregate health via gateway | `http://localhost:5132/realtime/health` |
 | RabbitMQ UI | `http://localhost:15672` |
+
+A `503` on `/health/ready` is an intentional traffic hold while a
+dependency (Postgres / Redis / RabbitMQ) is warming up — `/health/live`
+will still return `200` because the process itself is alive. See
+[`docs/architecture.md`](architecture.md) "Health Probe Architecture".
 
 The frontend calls the gateway through `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:5132` in `frontend/next.config.js`.
 

@@ -206,6 +206,8 @@ Full reference: [`docs/API.md`](docs/API.md)
 | [`docs/secrets-management.md`](docs/secrets-management.md) | Secret inventory and rotation guide |
 | [`docs/INVARIANTS.md`](docs/INVARIANTS.md) | Closed-form architectural invariants enforced across the codebase |
 | [`docs/observability.md`](docs/observability.md) | OpenTelemetry / Loki / Grafana Cloud setup, alert recipes |
+| [`docs/slo.md`](docs/slo.md) | Baseline service-level objectives + error-budget policy |
+| [`docs/caching.md`](docs/caching.md) | Cache layers, naming, TTL convention, invalidation rules |
 | [`docs/troubleshooting.md`](docs/troubleshooting.md) | Common failures and fixes |
 | [`deploy/fly/README.md`](deploy/fly/README.md) | Fly.io deployment template walkthrough |
 | [`perf/README.md`](perf/README.md) | k6 perf baseline scenarios and how to run them |

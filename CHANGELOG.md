@@ -4,6 +4,30 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Phase 2 / Phase 3 entry-point — CSRF coverage ADR, per-user rate limit, SLOs, caching doc (2026-05-26)
+
+Two coordinated commits land the lowest-risk Phase 2 / Phase 3 entries and a full documentation hardening pass. Backend `dotnet build -warnaserror` remains clean (0/0); tests are 711/711 (was 703/703, +8 new partition-key tests).
+
+- **Per-user rate-limit partition** (`3de9a3b`, Phase 3 T3.7): `ServiceCollectionExtensions.PartitionKey` now resolves to `u:<sub>` for authenticated requests and `ip:<address>` for anonymous, with the literal `anon` as the fallback when no remote IP is available. The previous IP-only model collapsed every user behind a shared NAT (corporate proxy, mobile carrier CGN, household router) into one bucket. The two namespace prefixes (`u:` and `ip:`) prevent any user id text from ever colliding with a real IP in the Redis key space. Eight unit tests in `tests/Planora.UnitTests/Services/Infrastructure/RateLimitPartitionKeyTests.cs` pin the precedence down.
+
+- **ADR-0005 — CSRF middleware is bounded to Auth API** (Phase 2 T2.6): closed-form record documenting why CSRF middleware is intentionally registered only on Auth API. Auth is the only service that accepts a cookie credential (the refresh token, path-scoped to `/auth/api/v1/auth`); the four other services are bearer-only and have no CSRF surface. `withCredentials: true` on the frontend axios clients is correct because the refresh-cookie path scoping at the server side guarantees the cookie never reaches non-Auth services. The ADR enumerates the two rejected alternatives (register everywhere; drop `withCredentials` per-axios-instance) and locks the future contract: any new service that adds cookie-based auth must add the middleware in the same change.
+
+- **New `docs/observability.md`** entry was already cross-linked; this audit adds the operational supplements:
+  - **`docs/slo.md`** — baseline SLO catalogue with PromQL definitions: Gateway availability (≥99.5% / 28d), authenticated read p95 (≤400 ms), login p95 (≤800 ms), outbox freshness p95 (≤60 s), realtime fan-out (provisional). Includes the error-budget policy.
+  - **`docs/caching.md`** — single reference for every cached resource, TTL convention, invalidation rules (outbox-driven, idempotent), and explicit "what is NOT cached, and why" list.
+
+- **`docs/OPERATIONS.md` runbook expansion**: now includes the three-probe health surface, deployment commands (tag push + `gh workflow run` reroll), Migrator operations (local + Fly machine run), observability activation, and an Incident Pointers table that covers `/health/ready` 503s, CD pipeline failures, migration failures, outbox backpressure, gRPC service-key mismatch alerts, CSRF spikes, and silent Loki.
+
+- **`docs/ROADMAP.md` refresh**: replaces the pre-2026-05-26 snapshot with the current state — Phase 0 / Phase 1 closed, Phase 2+ confirmed-gaps table, master-plan-ordered recommendations with P1 / P2 / P3 / P4 priority labels, and the Phase-1 follow-ups that await external accounts (Grafana Cloud, Fly.io, Postgres provider). Now references ADR-0005.
+
+- **`docs/glossary.md` extension**: thirty new terms covering OpenTelemetry / OTLP / Grafana Cloud / Loki / Fly.io / `fly.toml` / FLY_API_TOKEN / Cosign / CycloneDX SBOM / Dependabot / k6 / SLI / SLO / Error budget / RED metrics / Stryker.NET / `INV-XYZ-N` / ADR / BuildingBlocks / ConfigurationValidator / PlanoraMetrics / Planora.Migrator / Rate-limit partition key / Security stamp / Trace context / TryAddLokiSink / Verify-Phase1-Prereqs.ps1.
+
+- **`docs/faq.md`**: license answer updated (no longer MIT), deployment guide answer rewritten around Fly.io, three new entries (CSRF coverage rationale, observability activation, prereq verification script).
+
+- **`docs/getting-started.md`**: health-endpoint table extended with the `/health/live` + `/health/ready` split and the intentional-503-on-readiness note.
+
+- **`docs/index.md`**: documentation map adds the new operational docs.
+
 ### Phase 1 closure — Grafana Loki + Fly.io CD + frontend OTel propagation (2026-05-26)
 
 Three coordinated commits close the remaining Phase 1 work that does not require external account registration. Everything is **no-op-safe**: nothing exporters, deploys, or ships logs until a single secret is set per integration. Backend remains `dotnet build -warnaserror` clean (0/0) with 703/703 tests passing (+6 new Loki tests on top of the previous 697); frontend 360/360 tests pass (+9 new traceparent tests on top of 351).

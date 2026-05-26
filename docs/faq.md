@@ -12,7 +12,18 @@ No. The backend is split into Auth, Todo, Category, Messaging, Realtime, and API
 
 ### Is there a public production deployment guide?
 
-Yes, there is now a production baseline in [`production.md`](production.md) and secret handling in [`secrets-management.md`](secrets-management.md). A concrete hosting target and deployment automation are still not committed.
+Yes. The production target is **Fly.io**; the per-app manifests live in
+[`../deploy/fly/`](../deploy/fly/), the CD workflow at
+[`.github/workflows/cd.yml`](../.github/workflows/cd.yml), and the
+zero-to-deployable walkthrough in
+[`deployment.md`](deployment.md) "Bootstrap workflow — zero to deployable
+in three commands". Migration governance is centralized in
+[`tools/Planora.Migrator/`](../tools/Planora.Migrator/).
+
+Activation depends on three external accounts that the maintainer
+registers when ready (Grafana Cloud, Fly.io, a Postgres provider — Neon
+is the recommendation). The codebase is no-op-safe until the
+corresponding env vars are set.
 
 ## Setup
 
@@ -106,7 +117,43 @@ Use GitHub Private Vulnerability Reporting as described in [`../SECURITY.md`](..
 
 ### What license does the project use?
 
-The repository includes an MIT [`../LICENSE`](../LICENSE).
+A deliberately restrictive **source-available, study-only** license — see
+[`../LICENSE`](../LICENSE). You may read the code and run a personal copy
+on your own machine to learn from it. You may **not** use it in any
+product, service, fork, redistribution, container image, hosted
+deployment, AI training corpus, or any other software — public or
+private, commercial or non-commercial. Any other use requires prior
+written permission from the copyright holder.
+
+### Are CSRF checks needed on Todo / Category / Messaging / Realtime?
+
+No. Those services are bearer-only — they do not accept cookie-based
+authentication. The browser cannot forge an `Authorization: Bearer`
+header on a cross-origin request, so there is no CSRF surface to defend.
+Auth API is the only service that accepts a cookie credential (the
+refresh token), and Auth API is the only one that registers
+`UseCsrfProtection`. The full rationale is in
+[ADR-0005](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md).
+
+### How do I turn on traces / metrics / logs in production?
+
+Set the relevant environment variable on every Fly.io app and restart:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT` (and `OTEL_EXPORTER_OTLP_HEADERS` for
+  Grafana Cloud auth) — activates OpenTelemetry traces + metrics.
+- `LOKI_URL` (with `LOKI_USER` / `LOKI_TOKEN`) — activates centralized
+  logs.
+
+No code change is required; the pipelines are no-op without these. See
+[`observability.md`](observability.md) for the full walkthrough.
+
+### How do I know production is ready to deploy from this checkout?
+
+Run `.\scripts\Verify-Phase1-Prereqs.ps1`. It checks flyctl auth, every
+Fly app's existence and required secret set, the local
+`dotnet build -warnaserror` state, and the `FLY_API_TOKEN` GitHub
+repository secret. Exit code = number of failed checks; `0` means the CD
+workflow is ready to fire.
 
 ## Documentation
 
