@@ -1,0 +1,29 @@
+# Fly.io app manifest — Migration Runner (Phase 1 T1.7).
+#
+# RESERVED: this app is checked in so the deployment naming + secret-set
+# pattern is fixed before the extraction lands. The referenced Dockerfile
+# does not yet exist. Do NOT `flyctl deploy` this app until the
+# Planora.Migrator project is in the solution.
+#
+# Once extracted, this app runs as a one-shot `flyctl machine run --rm`
+# step in the CD pipeline BEFORE each service rollout: applies pending
+# EF Core migrations for every service in dependency order, then exits.
+# The same image also publishes `dotnet ef migrations script --idempotent`
+# as a PR artifact for human review.
+
+app = "planora-migrator"
+primary_region = "ams"
+
+[build]
+  dockerfile = "../../tools/Planora.Migrator/Dockerfile"
+
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+
+# No long-running HTTP service. The machine is started ad-hoc by the CD pipeline.
+[processes]
+  app = "dotnet Planora.Migrator.dll --all"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

@@ -1,0 +1,48 @@
+# Fly.io app manifest — Realtime API (SignalR notification hub).
+# Internal-only; reached via planora-realtime.internal:443.
+# SignalR uses Redis backplane (the same Upstash Redis as the rest of the stack).
+
+app = "planora-realtime"
+primary_region = "ams"
+
+[build]
+  dockerfile = "../../Services/RealtimeApi/Planora.Realtime.Api/Dockerfile"
+
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+  ASPNETCORE_URLS = "http://+:8080"
+  JwtSettings__Issuer = "Planora.Auth"
+  JwtSettings__Audience = "Planora.Clients"
+  RateLimiting__Backend = "Redis"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"           # SignalR needs persistent connections — never auto-stop.
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    # SignalR holds long-lived connections — count concurrent connections, not requests.
+    type = "connections"
+    soft_limit = 500
+    hard_limit = 1000
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/health/live"
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "45s"
+    method = "GET"
+    path = "/health/ready"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

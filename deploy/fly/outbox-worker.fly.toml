@@ -1,0 +1,48 @@
+# Fly.io app manifest — Outbox Worker (Phase 4 T4.6).
+#
+# RESERVED: this app is checked in so the deployment naming + secret-set
+# pattern is fixed before the extraction lands. The referenced Dockerfile
+# does not yet exist. Do NOT `flyctl deploy` this app until the
+# Planora.Outbox.Worker project is in the solution.
+#
+# Once extracted, this worker assumes responsibility for processing every
+# service's OutboxMessage table via the same BuildingBlocks OutboxProcessor.
+# An advisory lock (pg_advisory_lock) prevents simultaneous in-process
+# processors from competing during the cutover window.
+
+app = "planora-outbox-worker"
+primary_region = "ams"
+
+[build]
+  dockerfile = "../../tools/Planora.Outbox.Worker/Dockerfile"
+
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+  ASPNETCORE_URLS = "http://+:8080"
+
+# No public service — worker exposes /health endpoints internally only.
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/health/live"
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "45s"
+    method = "GET"
+    path = "/health/ready"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
