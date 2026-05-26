@@ -134,10 +134,6 @@ namespace Planora.Todo.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AuthorAvatarUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
-
                     b.Property<Guid>("AuthorId")
                         .HasColumnType("uuid");
 

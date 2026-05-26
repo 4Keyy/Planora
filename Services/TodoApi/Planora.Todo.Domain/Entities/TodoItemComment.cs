@@ -9,7 +9,6 @@ namespace Planora.Todo.Domain.Entities
         public Guid TodoItemId { get; private set; }
         public Guid AuthorId { get; private set; }
         public string AuthorName { get; private set; } = string.Empty;
-        public string? AuthorAvatarUrl { get; private set; }
         public string Content { get; private set; } = string.Empty;
         public bool IsSystemComment { get; private set; }
         public bool IsGenesisComment { get; private set; }
@@ -23,8 +22,7 @@ namespace Planora.Todo.Domain.Entities
             Guid todoItemId,
             Guid authorId,
             string authorName,
-            string content,
-            string? authorAvatarUrl = null)
+            string content)
         {
             if (todoItemId == Guid.Empty)
                 throw new InvalidValueObjectException(nameof(TodoItemComment), "TodoItemId cannot be empty");
@@ -42,7 +40,6 @@ namespace Planora.Todo.Domain.Entities
                 TodoItemId = todoItemId,
                 AuthorId = authorId,
                 AuthorName = authorName.Trim(),
-                AuthorAvatarUrl = authorAvatarUrl,
                 Content = content.Trim(),
                 IsSystemComment = false,
             };
@@ -72,8 +69,7 @@ namespace Planora.Todo.Domain.Entities
         public static TodoItemComment CreateGenesis(
             Guid todoItemId,
             string content,
-            string authorName,
-            string? authorAvatarUrl = null)
+            string authorName)
         {
             if (todoItemId == Guid.Empty)
                 throw new InvalidValueObjectException(nameof(TodoItemComment), "TodoItemId cannot be empty");
@@ -87,8 +83,6 @@ namespace Planora.Todo.Domain.Entities
                 TodoItemId = todoItemId,
                 AuthorId = Guid.Empty,
                 AuthorName = string.IsNullOrWhiteSpace(authorName) ? string.Empty : authorName.Trim(),
-                // Normalise empty string → null so the live-avatar enrichment triggers on read
-                AuthorAvatarUrl = string.IsNullOrEmpty(authorAvatarUrl) ? null : authorAvatarUrl,
                 Content = content.Trim(),
                 IsSystemComment = true,
                 IsGenesisComment = true,

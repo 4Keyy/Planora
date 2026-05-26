@@ -4,6 +4,31 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### PR-5 comments: drop avatar snapshot, always batch-enrich with 60s cache (2026-05-26)
+
+The `TodoItemComment.AuthorAvatarUrl` column was a snapshot of the author's avatar at write time. It guaranteed that comments would *always* show stale avatars after the author updated their picture, because nothing invalidated the stored value. The fix here removes the column entirely and switches comment-listing to live batch enrichment via Auth gRPC, with an in-memory cache to keep paged reads cheap.
+
+What changed:
+- **Domain**: `TodoItemComment.AuthorAvatarUrl` removed. `Create` / `CreateGenesis` lose the optional `authorAvatarUrl` parameter.
+- **Configuration**: column removed from `TodoItemCommentConfiguration`.
+- **Migration**: new `RemoveCommentAvatarSnapshot` (2026-05-26) drops `AuthorAvatarUrl` from `todo_item_comments`. Down-migration adds it back as nullable varchar(2048).
+- **Read path**: `GetCommentsQueryHandler` now batch-fetches all needed `AuthorId`s in one call. No more "skip if snapshot present, else live fallback" — there's one source of truth.
+- **Write path**: `AddCommentCommandHandler` and `AddGenesisCommentCommandHandler` continue to return a DTO with the avatar URL — they pull it from the current user context (JWT claim) because the author *is* the caller. `UpdateCommentCommandHandler` resolves the author's current avatar via the same `IUserService` (cached call) to keep DTOs consistent.
+- **Caching**: new `CachingUserService` decorator wraps `UserGrpcService`. `IMemoryCache` with 60 s TTL, 10 000-entry size cap. Negative results are cached too, so a deleted user doesn't trigger a gRPC stampede during a comment-thread refresh.
+
+Why this is the right shape:
+- Slack/Linear/Figma all serve avatars through a separate identity-service call with short-TTL caches rather than denormalizing the URL into every domain object that mentions a user. This PR adopts that pattern.
+- Single source of truth: when a user uploads a new avatar, every comment thread reflects the change within 60 s without any cross-service event/backfill.
+
+Tests (+4 in the suite, full = 710 green):
+- `CachingUserServiceTests` (new) covers: same id served from cache on second call (1 inner call), partial cache hit only fetches missing ids, negative results cached (no stampede), empty input short-circuits.
+- `WorkersAndCommentsHandlerTests` updated to inject `IUserService` into the new `UpdateCommentCommandHandler` ctor.
+
+Breaking:
+- `TodoItemComment.AuthorAvatarUrl` is gone — direct consumers (none in the public API) must read from the DTO instead.
+
+Refs: `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItemComment.cs`, `Services/TodoApi/Planora.Todo.Application/Features/Todos/{Queries/GetComments,Commands/{AddComment,AddGenesisComment,UpdateComment,CreateTodo}}/*.cs`, `Services/TodoApi/Planora.Todo.Infrastructure/Services/CachingUserService.cs`, `Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.cs`, `docs/database.md`, `docs/architecture.md`.
+
 ### PR-3 deploy(fly): persistent volume for auth uploads (2026-05-26)
 
 `planora-auth` now mounts a Fly volume at `/data/uploads` (3 GB initial size, single-attach per machine). `ASPNETCORE_WEBROOT=/data/uploads` is set in `[env]` so Kestrel writes the WebRoot to the volume rather than the container's ephemeral layer. Without this, every `fly deploy` would wipe every user's avatar — a showstopper for any production-ish use.

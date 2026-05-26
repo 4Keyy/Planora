@@ -657,7 +657,7 @@ public class WorkersAndCommentsHandlerTests
             => new(TodoRepository.Object, CommentRepository.Object, UnitOfWork.Object, CurrentUser.Object, FriendshipService.Object);
 
         public UpdateCommentCommandHandler CreateUpdateHandler()
-            => new(CommentRepository.Object, TodoRepository.Object, UnitOfWork.Object, CurrentUser.Object);
+            => new(CommentRepository.Object, TodoRepository.Object, UnitOfWork.Object, CurrentUser.Object, UserService.Object);
 
         public DeleteCommentCommandHandler CreateDeleteHandler()
             => new(CommentRepository.Object, TodoRepository.Object, UnitOfWork.Object, CurrentUser.Object);

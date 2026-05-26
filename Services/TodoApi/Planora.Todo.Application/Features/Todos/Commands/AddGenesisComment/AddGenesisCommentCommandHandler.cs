@@ -46,20 +46,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.AddGenesisComment
                 ?? _currentUserContext.Email
                 ?? userId.ToString();
 
+            var comment = TodoItemComment.CreateGenesis(todoItem.Id, request.Content, authorName);
+            await _commentRepository.AddAsync(comment, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
             var authorAvatarUrl = string.IsNullOrEmpty(_currentUserContext.ProfilePictureUrl)
                 ? null
                 : _currentUserContext.ProfilePictureUrl;
-
-            var comment = TodoItemComment.CreateGenesis(todoItem.Id, request.Content, authorName, authorAvatarUrl);
-            await _commentRepository.AddAsync(comment, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Result<TodoCommentDto>.Success(new TodoCommentDto(
                 comment.Id,
                 comment.TodoItemId,
                 comment.AuthorId,
                 comment.AuthorName,
-                comment.AuthorAvatarUrl,
+                authorAvatarUrl,
                 comment.Content,
                 comment.CreatedAt,
                 comment.UpdatedAt,

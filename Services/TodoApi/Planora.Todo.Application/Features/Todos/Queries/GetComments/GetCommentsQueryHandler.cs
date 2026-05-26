@@ -1,8 +1,8 @@
-using Planora.BuildingBlocks.Application.Pagination;
+using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Application.CQRS;
+using Planora.BuildingBlocks.Application.Pagination;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
-using Planora.BuildingBlocks.Application.Context;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Services;
 using Planora.Todo.Domain.Repositories;
@@ -57,53 +57,41 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetComments
             var (items, totalCount) = await _commentRepository.GetPagedByTodoIdAsync(
                 request.TodoId, request.PageNumber, request.PageSize, cancellationToken);
 
-            // Collect all user IDs whose stored avatar URL is missing or empty so we can
-            // batch-fetch the current avatar from Auth as a live fallback.
+            // Always batch-fetch avatars via Auth gRPC. The snapshot column was removed in
+            // migration RemoveCommentAvatarSnapshot — single source of truth is the live
+            // user profile, cached by CachingUserService (60 s TTL) so a paged read does
+            // not multiply Auth load.
             //
             // Regular comments: AuthorId is the actual commenter.
-            // Genesis comment:  AuthorId = Guid.Empty by design (it's a system comment);
-            //                   the real author is always the task owner (todoItem.UserId).
-            var authorIdsNeedingAvatar = new HashSet<Guid>();
-
+            // Genesis comment:  AuthorId = Guid.Empty by design; the real author is the
+            //                   task owner (todoItem.UserId).
+            var authorIds = new HashSet<Guid>();
             foreach (var c in items)
             {
-                if (!string.IsNullOrEmpty(c.AuthorAvatarUrl))
-                    continue; // already stored — no lookup needed
-
                 if (c.IsGenesisComment)
                 {
-                    // Genesis comment's real author is the task owner
-                    authorIdsNeedingAvatar.Add(todoItem.UserId);
+                    authorIds.Add(todoItem.UserId);
                 }
                 else if (!c.IsSystemComment && c.AuthorId != Guid.Empty)
                 {
-                    authorIdsNeedingAvatar.Add(c.AuthorId);
+                    authorIds.Add(c.AuthorId);
                 }
             }
 
-            IReadOnlyDictionary<Guid, string> liveAvatars = new Dictionary<Guid, string>();
-            if (authorIdsNeedingAvatar.Count > 0)
-            {
-                liveAvatars = await _userService.GetUserAvatarsAsync(authorIdsNeedingAvatar, cancellationToken);
-            }
+            IReadOnlyDictionary<Guid, string> avatars = authorIds.Count > 0
+                ? await _userService.GetUserAvatarsAsync(authorIds, cancellationToken)
+                : new Dictionary<Guid, string>();
 
             var dtos = items.Select(c =>
             {
                 string? avatarUrl;
-                if (!string.IsNullOrEmpty(c.AuthorAvatarUrl))
+                if (c.IsGenesisComment)
                 {
-                    // Stored value wins
-                    avatarUrl = c.AuthorAvatarUrl;
-                }
-                else if (c.IsGenesisComment)
-                {
-                    // Live fallback keyed on the task owner
-                    liveAvatars.TryGetValue(todoItem.UserId, out avatarUrl);
+                    avatars.TryGetValue(todoItem.UserId, out avatarUrl);
                 }
                 else
                 {
-                    // Live fallback keyed on the actual commenter
-                    liveAvatars.TryGetValue(c.AuthorId, out avatarUrl);
+                    avatars.TryGetValue(c.AuthorId, out avatarUrl);
                 }
 
                 return new TodoCommentDto(

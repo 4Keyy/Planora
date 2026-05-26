@@ -2,6 +2,7 @@ using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Context;
 using Planora.Todo.Application.DTOs;
+using Planora.Todo.Application.Services;
 using Planora.Todo.Domain.Repositories;
 
 namespace Planora.Todo.Application.Features.Todos.Commands.UpdateComment
@@ -12,17 +13,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateComment
         private readonly ITodoRepository _todoRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserContext _currentUserContext;
+        private readonly IUserService _userService;
 
         public UpdateCommentCommandHandler(
             ITodoCommentRepository commentRepository,
             ITodoRepository todoRepository,
             IUnitOfWork unitOfWork,
-            ICurrentUserContext currentUserContext)
+            ICurrentUserContext currentUserContext,
+            IUserService userService)
         {
             _commentRepository = commentRepository;
             _todoRepository = todoRepository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
+            _userService = userService;
         }
 
         public async Task<Result<TodoCommentDto>> Handle(UpdateCommentCommand request, CancellationToken cancellationToken)
@@ -53,12 +57,22 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateComment
             _commentRepository.Update(comment);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // Genesis comments are authored by the task owner (AuthorId is Empty); for them we
+            // resolve the avatar of the todo's owner, not the current editor.
+            var resolvedAuthorId = comment.IsGenesisComment ? userId : comment.AuthorId;
+            string? authorAvatarUrl = null;
+            if (resolvedAuthorId != Guid.Empty)
+            {
+                var avatars = await _userService.GetUserAvatarsAsync(new[] { resolvedAuthorId }, cancellationToken);
+                avatars.TryGetValue(resolvedAuthorId, out authorAvatarUrl);
+            }
+
             return Result<TodoCommentDto>.Success(new TodoCommentDto(
                 comment.Id,
                 comment.TodoItemId,
                 comment.AuthorId,
                 comment.AuthorName,
-                comment.AuthorAvatarUrl,
+                authorAvatarUrl,
                 comment.Content,
                 comment.CreatedAt,
                 comment.UpdatedAt,

@@ -52,7 +52,16 @@ namespace Planora.Todo.Infrastructure
                     o.Address = new Uri(authGrpcUrl))
                 .AddInterceptor<ServiceKeyClientInterceptor>();
             services.AddScoped<IFriendshipService, Services.FriendshipGrpcService>();
-            services.AddScoped<IUserService, Services.UserGrpcService>();
+
+            // Avatar enrichment: gRPC call is wrapped by an in-memory cache so paged
+            // comment reads do not hammer Auth for the same authors over and over.
+            // CachingUserService → UserGrpcService → AuthService.gRPC.
+            services.AddMemoryCache(options => { options.SizeLimit = 10_000; });
+            services.AddScoped<Services.UserGrpcService>();
+            services.AddScoped<IUserService>(sp => new Services.CachingUserService(
+                sp.GetRequiredService<Services.UserGrpcService>(),
+                sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+                sp.GetRequiredService<ILogger<Services.CachingUserService>>()));
 
             // gRPC client for Category API (port 5282 local / env-configurable)
             var categoryGrpcUrl = configuration["GrpcServices:CategoryApi"] ?? "http://localhost:5282";
