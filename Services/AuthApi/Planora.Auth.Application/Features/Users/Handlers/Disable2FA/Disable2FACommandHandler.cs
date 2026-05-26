@@ -7,17 +7,20 @@ namespace Planora.Auth.Application.Features.Users.Handlers.Disable2FA
         private readonly IAuthUnitOfWork _unitOfWork;
         private readonly IPasswordHasher _passwordHasher;
         private readonly ICurrentUserService _currentUserService;
+        private readonly ISecurityStampService _securityStamp;
         private readonly ILogger<Disable2FACommandHandler> _logger;
 
         public Disable2FACommandHandler(
             IAuthUnitOfWork unitOfWork,
             IPasswordHasher passwordHasher,
             ICurrentUserService currentUserService,
+            ISecurityStampService securityStamp,
             ILogger<Disable2FACommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _currentUserService = currentUserService;
+            _securityStamp = securityStamp;
             _logger = logger;
         }
 
@@ -60,6 +63,13 @@ namespace Planora.Auth.Application.Features.Users.Handlers.Disable2FA
 
                 _unitOfWork.Users.Update(user);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // SECURITY: disabling 2FA reduces the account's security posture.
+                // Rotate the security stamp so every existing access token is rejected
+                // on its next authenticated request — the user re-authenticates on
+                // every device, eliminating the window where a stolen access token
+                // could continue to operate against a now-weaker account.
+                await _securityStamp.SetStampAsync(user.Id, cancellationToken);
 
                 _logger.LogInformation("2FA disabled for user: {UserId}", user.Id);
                 return Result.Success();

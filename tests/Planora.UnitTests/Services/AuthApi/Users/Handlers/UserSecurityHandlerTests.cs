@@ -278,6 +278,53 @@ public class UserSecurityHandlerTests
     }
 
     [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task Disable2FA_ShouldRotateSecurityStamp_OnSuccess()
+    {
+        var userId = Guid.NewGuid();
+        var fixture = new AuthUserFixture(userId);
+        var user = CreateUser();
+        user.EnableTwoFactor("secret");
+        fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.PasswordHasher.Setup(x => x.VerifyPassword("password", user.PasswordHash)).Returns(true);
+
+        var result = await fixture.CreateDisable2FAHandler().Handle(
+            new Disable2FACommand { Password = "password" },
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        // SECURITY: stamp MUST rotate so existing access tokens are rejected on next request.
+        fixture.SecurityStamp.Verify(
+            x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task Disable2FA_ShouldNotRotateSecurityStamp_OnFailure()
+    {
+        var userId = Guid.NewGuid();
+        var fixture = new AuthUserFixture(userId);
+        var user = CreateUser();
+        user.EnableTwoFactor("secret");
+        fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.PasswordHasher.Setup(x => x.VerifyPassword("wrong", user.PasswordHash)).Returns(false);
+
+        var result = await fixture.CreateDisable2FAHandler().Handle(
+            new Disable2FACommand { Password = "wrong" },
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        // A failed disable attempt MUST NOT invalidate active sessions —
+        // otherwise a bystander observing a wrong-password attempt could DoS the user.
+        fixture.SecurityStamp.Verify(
+            x => x.SetStampAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task RevokeAllSessions_ShouldRequirePasswordAndRevokeActiveRefreshTokens()
     {
         var userId = Guid.NewGuid();
@@ -350,6 +397,54 @@ public class UserSecurityHandlerTests
     }
 
     [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task RevokeAllSessions_ShouldRotateSecurityStamp_OnSuccess()
+    {
+        var userId = Guid.NewGuid();
+        var fixture = new AuthUserFixture(userId);
+        var user = CreateUser();
+        user.AddRefreshToken("refresh-token", "127.0.0.1", DateTime.UtcNow.AddDays(7));
+        fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.PasswordHasher.Setup(x => x.VerifyPassword("password", user.PasswordHash)).Returns(true);
+
+        var result = await fixture.CreateRevokeAllSessionsHandler().Handle(
+            new RevokeAllSessionsCommand { Password = "password" },
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        // SECURITY: revoking refresh tokens alone leaves outstanding access tokens
+        // valid until they expire. The stamp rotation is what makes "revoke all
+        // sessions" actually invalidate the live access tokens.
+        fixture.SecurityStamp.Verify(
+            x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task RevokeAllSessions_ShouldNotRotateSecurityStamp_OnInvalidPassword()
+    {
+        var userId = Guid.NewGuid();
+        var fixture = new AuthUserFixture(userId);
+        var user = CreateUser();
+        user.AddRefreshToken("refresh-token", "127.0.0.1", DateTime.UtcNow.AddDays(7));
+        fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.PasswordHasher.Setup(x => x.VerifyPassword("wrong", user.PasswordHash)).Returns(false);
+
+        var result = await fixture.CreateRevokeAllSessionsHandler().Handle(
+            new RevokeAllSessionsCommand { Password = "wrong" },
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        // Wrong-password attempt must not lock out an otherwise-valid session.
+        fixture.SecurityStamp.Verify(
+            x => x.SetStampAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
     public async Task GetUserSecurity_ShouldMapActiveSessionsAndRecentLogins()
     {
         var userId = Guid.NewGuid();
@@ -412,6 +507,7 @@ public class UserSecurityHandlerTests
         public Mock<ICurrentUserService> CurrentUser { get; } = new();
         public Mock<IEmailService> EmailService { get; } = new();
         public Mock<IMapper> Mapper { get; } = new();
+        public Mock<ISecurityStampService> SecurityStamp { get; } = new();
 
         public AuthUserFixture(Guid? userId)
         {
@@ -460,6 +556,7 @@ public class UserSecurityHandlerTests
                 UnitOfWork.Object,
                 PasswordHasher.Object,
                 CurrentUser.Object,
+                SecurityStamp.Object,
                 Mock.Of<ILogger<Disable2FACommandHandler>>());
 
         public RevokeAllSessionsCommandHandler CreateRevokeAllSessionsHandler()
@@ -467,6 +564,7 @@ public class UserSecurityHandlerTests
                 UnitOfWork.Object,
                 PasswordHasher.Object,
                 CurrentUser.Object,
+                SecurityStamp.Object,
                 Mock.Of<ILogger<RevokeAllSessionsCommandHandler>>());
 
         public GetUserSecurityQueryHandler CreateGetUserSecurityHandler()

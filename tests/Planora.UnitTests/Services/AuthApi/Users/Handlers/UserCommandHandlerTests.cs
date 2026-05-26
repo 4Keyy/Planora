@@ -148,6 +148,37 @@ public sealed class UserCommandHandlerTests
         Assert.NotNull(publishedEvent);
         Assert.Equal(user.Id, publishedEvent!.UserId);
         Assert.Equal(user.Email.Value, publishedEvent.Email);
+
+        // SECURITY: stamp MUST rotate so any outstanding access token issued before
+        // the deletion is rejected on its next authenticated request. Without this,
+        // a stolen / leaked token could continue to hit endpoints whose handler
+        // does not separately check IsDeleted, even though the user is now gone.
+        fixture.SecurityStamp.Verify(
+            x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task DeleteUser_ShouldNotRotateSecurityStamp_OnInvalidPassword()
+    {
+        var user = CreateUser("delete-wrong-pwd@example.com", "Delete", "WrongPwd");
+        var fixture = CreateDeleteFixture(user.Id);
+        fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.PasswordHasher.Setup(x => x.VerifyPassword(It.IsAny<string>(), user.PasswordHash)).Returns(false);
+
+        var result = await fixture.Handler.Handle(
+            new DeleteUserCommand { Password = "wrong" },
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("INVALID_PASSWORD", result.Error!.Code);
+        // A wrong-password deletion attempt must not lock out the legitimate user.
+        fixture.SecurityStamp.Verify(
+            x => x.SetStampAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        Assert.False(user.IsDeleted);
     }
 
     [Fact]
@@ -307,6 +338,7 @@ public sealed class UserCommandHandlerTests
         var passwordHasher = new Mock<IPasswordHasher>();
         var currentUser = new Mock<ICurrentUserService>();
         var eventBus = new Mock<IEventBus>();
+        var securityStamp = new Mock<ISecurityStampService>();
         unitOfWork.SetupGet(x => x.Users).Returns(users.Object);
         currentUser.SetupGet(x => x.UserId).Returns(currentUserId);
 
@@ -315,11 +347,13 @@ public sealed class UserCommandHandlerTests
             users,
             passwordHasher,
             eventBus,
+            securityStamp,
             new DeleteUserCommandHandler(
                 unitOfWork.Object,
                 passwordHasher.Object,
                 currentUser.Object,
                 eventBus.Object,
+                securityStamp.Object,
                 Mock.Of<ILogger<DeleteUserCommandHandler>>()));
     }
 
@@ -363,6 +397,7 @@ public sealed class UserCommandHandlerTests
         Mock<IUserRepository> Users,
         Mock<IPasswordHasher> PasswordHasher,
         Mock<IEventBus> EventBus,
+        Mock<ISecurityStampService> SecurityStamp,
         DeleteUserCommandHandler Handler);
 
     private sealed record Confirm2FaFixture(

@@ -173,13 +173,28 @@ Code:
 
 ## Access Token Invalidation (Security Stamp)
 
-When a user changes their password, all existing access tokens are invalidated by updating a per-user security stamp in Redis. The `TokenBlacklistFilter` validates the security stamp on every authorized request; mismatches return `401 Unauthorized` and force the client to re-authenticate with the new credentials.
+Every command that materially changes the security posture of an account rotates a per-user security stamp in Redis. The `TokenBlacklistFilter` validates the stamp on every authorized request; mismatches return `401 Unauthorized` and force the client to re-authenticate.
+
+| Command | Why the stamp rotates |
+|---|---|
+| `ChangePasswordCommandHandler` | Password is the primary credential — historical tokens become invalid. |
+| `ResetPasswordCommandHandler` | Same reason; reset is just a different proof-of-ownership for the same password change. |
+| `ChangeEmailCommandHandler` | Email change re-binds the identity; old tokens carry stale identity claims. |
+| `Disable2FACommandHandler` | Disabling 2FA reduces the account's security posture — invalidate live sessions so the user re-authenticates on every device. |
+| `RevokeAllSessionsCommandHandler` | The command's raison d'être. Refresh-token revocation alone leaves outstanding access tokens valid until their natural expiry; the stamp rotation makes "revoke all" actually do what the name says. |
+| `DeleteUserCommandHandler` | Account is soft-deleted — outstanding tokens must not continue to hit endpoints whose handlers do not separately check `IsDeleted`. |
+
+The stamp rotates **only on successful execution** of the command. A wrong-password attempt does not invalidate active sessions — otherwise an observer could DoS a legitimate user. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin both the success-path stamp call and the failure-path absence-of-call.
+
+The stamp is NOT rotated on 2FA enable / 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
 
 Code:
 
 - `Services/AuthApi/Planora.Auth.Application/Common/Interfaces/ISecurityStampService.cs`
 - `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`
 - `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`
+- Command handlers under `Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/` and `.../Authentication/Handlers/`.
+- See [`INVARIANTS.md`](INVARIANTS.md) `INV-AUTH-4` for the closed-form rule.
 
 ## Rate Limiting
 

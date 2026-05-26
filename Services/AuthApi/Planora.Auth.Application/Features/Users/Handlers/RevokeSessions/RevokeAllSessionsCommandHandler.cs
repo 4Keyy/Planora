@@ -7,17 +7,20 @@ namespace Planora.Auth.Application.Features.Users.Handlers.RevokeSessions
         private readonly IAuthUnitOfWork _unitOfWork;
         private readonly IPasswordHasher _passwordHasher;
         private readonly ICurrentUserService _currentUserService;
+        private readonly ISecurityStampService _securityStamp;
         private readonly ILogger<RevokeAllSessionsCommandHandler> _logger;
 
         public RevokeAllSessionsCommandHandler(
             IAuthUnitOfWork unitOfWork,
             IPasswordHasher passwordHasher,
             ICurrentUserService currentUserService,
+            ISecurityStampService securityStamp,
             ILogger<RevokeAllSessionsCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _currentUserService = currentUserService;
+            _securityStamp = securityStamp;
             _logger = logger;
         }
 
@@ -57,6 +60,13 @@ namespace Planora.Auth.Application.Features.Users.Handlers.RevokeSessions
 
                 _unitOfWork.Users.Update(user);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // SECURITY: this command's raison d'être. Refresh-token revocation alone
+                // kills future refresh attempts but leaves outstanding access tokens
+                // valid until they expire on their own. Rotating the security stamp
+                // makes every existing access token fail on its next authenticated
+                // request, so "revoke all sessions" actually does what the name says.
+                await _securityStamp.SetStampAsync(user.Id, cancellationToken);
 
                 _logger.LogInformation("All sessions revoked for user: {UserId}", user.Id);
                 return Result.Success();

@@ -10,6 +10,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
         private readonly IPasswordHasher _passwordHasher;
         private readonly ICurrentUserService _currentUserService;
         private readonly IEventBus _eventBus;
+        private readonly ISecurityStampService _securityStamp;
         private readonly ILogger<DeleteUserCommandHandler> _logger;
 
         public DeleteUserCommandHandler(
@@ -17,12 +18,14 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
             IPasswordHasher passwordHasher,
             ICurrentUserService currentUserService,
             IEventBus eventBus,
+            ISecurityStampService securityStamp,
             ILogger<DeleteUserCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _currentUserService = currentUserService;
             _eventBus = eventBus;
+            _securityStamp = securityStamp;
             _logger = logger;
         }
 
@@ -59,6 +62,13 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
             // Persist the soft-delete BEFORE publishing the integration event so that
             // if the publish fails the deletion can be retried without losing data.
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // SECURITY: rotate the security stamp on soft-delete so that any access
+            // token issued before the deletion is immediately rejected. Without
+            // this, a deleted user's outstanding token could still hit endpoints
+            // until it expired naturally — and any handler that did not separately
+            // check IsDeleted would treat the request as authentic.
+            await _securityStamp.SetStampAsync(user.Id, cancellationToken);
 
             // Publish cross-service integration event so TodoApi, CategoryApi, and
             // MessagingApi can clean up data owned by this user.

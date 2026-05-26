@@ -4,6 +4,30 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Phase 3 T3.5 — security-stamp rotation expanded to 2FA-disable, revoke-all-sessions, account-delete (2026-05-26)
+
+`INV-AUTH-4` previously documented only password-change as a stamp-rotating event. Three additional command handlers now also rotate the stamp on success:
+
+- **`Disable2FACommandHandler`** — disabling 2FA reduces the account's security posture; rotating forces re-authentication on every device, eliminating the window where a stolen access token could continue to operate against a now-weaker account.
+- **`RevokeAllSessionsCommandHandler`** — this command's raison d'être was previously broken. Refresh-token revocation alone leaves outstanding access tokens valid until they expire on their own; the stamp rotation makes "revoke all sessions" actually invalidate the live access tokens, not just future refreshes.
+- **`DeleteUserCommandHandler`** — outstanding access tokens must not continue to hit endpoints whose handlers do not separately check `IsDeleted`. Rotation is published BEFORE the cross-service `UserDeletedIntegrationEvent` so the local session is invalidated even if the event publish fails and the deletion is retried later.
+
+The new logic runs **only on successful execution**. Five new regression tests pin the contract down:
+
+- `Disable2FA_ShouldRotateSecurityStamp_OnSuccess`
+- `Disable2FA_ShouldNotRotateSecurityStamp_OnFailure` (wrong-password must not DoS the user)
+- `RevokeAllSessions_ShouldRotateSecurityStamp_OnSuccess`
+- `RevokeAllSessions_ShouldNotRotateSecurityStamp_OnInvalidPassword`
+- `DeleteUser_ShouldNotRotateSecurityStamp_OnInvalidPassword`
+
+The existing `DeleteUser_ShouldSoftDeleteDeactivatePersistAndPublishCleanupEvent` test was extended with a `SecurityStamp.Verify(...Times.Once)` assertion at its end.
+
+Stamp rotation is NOT triggered on 2FA enable or 2FA confirm — enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
+
+`docs/INVARIANTS.md` `INV-AUTH-4` rewritten to list the six rotating commands exhaustively. `docs/auth-security.md` "Access Token Invalidation (Security Stamp)" section gains a per-handler rationale table and references the new tests.
+
+Verification: `dotnet build Planora.sln -warnaserror` 0/0; tests **716/716 passed** (was 711/711, +5 new regression tests).
+
 ### Phase 2 entry — OpenAPI artifact per service, Swagger surface unified (2026-05-26)
 
 Closes Phase 2 T2.2 from the master plan. The OpenAPI document is now a checked-in CI contract on every PR that touches the controller surface; the foundation for the generated TypeScript client lands without any frontend code change yet.

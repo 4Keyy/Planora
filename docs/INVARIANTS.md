@@ -60,9 +60,18 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`, ADR-0003.
 - Open question: services other than Auth do not run CSRF middleware (Phase 2 T2.6).
 
-**INV-AUTH-4.** Password change invalidates **all** existing access tokens for that user via security stamp rotation. Subsequent requests with old tokens return `401`.
+**INV-AUTH-4.** Every command that materially changes the security posture of an account rotates the user's security stamp, so any access token issued before the change is rejected on its next authenticated request. The list is exhaustive:
 
-- Evidence: `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`.
+- password change (`ChangePasswordCommandHandler`);
+- password reset (`ResetPasswordCommandHandler`);
+- email change confirmation (`ChangeEmailCommandHandler`);
+- 2FA disable (`Disable2FACommandHandler`);
+- revoke all sessions (`RevokeAllSessionsCommandHandler`);
+- account soft-delete (`DeleteUserCommandHandler`).
+
+Stamp rotation runs **only on successful execution** — a wrong-password attempt MUST NOT invalidate active sessions, otherwise an observer can DoS the user. Stamp rotation is NOT triggered on 2FA enable or 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
+
+- Evidence: `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`, and the six command handlers listed above. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin the stamp call for success paths and its absence for failure paths.
 
 **INV-AUTH-5.** TOTP secrets are encrypted at rest with ASP.NET Core Data Protection, keys persisted to Redis under `Planora:Auth:DataProtection-Keys`, scoped to application name `Planora.Auth`. Recovery codes are hashed with BCrypt before storage.
 
