@@ -33,6 +33,9 @@ namespace Planora.Category.Api
             // ✨ Enterprise-Grade Unified Serilog Configuration
             builder.ConfigureEnterpriseLogging("category-api");
 
+            // OpenTelemetry — traces + metrics. No-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
+            builder.Services.AddPlanoraTelemetry(builder.Configuration, defaultServiceName: "CategoryService");
+
             // Category Application (MediatR behaviors, validators, AutoMapper profiles)
             builder.Services.AddCategoryApplication();
 

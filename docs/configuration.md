@@ -31,7 +31,31 @@ These are enforced with `${VAR:?message}` in `docker-compose.yml`.
 | `JWT_SECRET` | yes | all backend services and gateway through `JwtSettings__Secret` | Must be at least 32 characters and identical for every service. |
 | `GRPC_SERVICE_KEY` | yes | All inter-service gRPC channels (Auth, Todo, Category, Messaging, Realtime) | Authenticates internal gRPC channels via `x-service-key` metadata. Must be identical for every service; at least 16 characters is enforced, 32+ recommended. |
 
-## Production Environment Template
+## OpenTelemetry (Observability)
+
+Every backend service and the API Gateway are instrumented via the shared
+`TelemetryConfiguration.AddPlanoraTelemetry(...)` extension in
+`BuildingBlocks.Infrastructure.Logging`. Wiring is fully optional — if no
+exporter endpoint is configured the pipeline is a no-op (no background
+connection attempts, no log noise) while still recording in-process traces
+and metrics that any future exporter can pick up.
+
+| Variable / config key | Where read | Default | Meaning |
+|---|---|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | environment variable, standard OTel | unset | OTLP gRPC endpoint (e.g. `http://otel-collector:4317` or Grafana Cloud OTLP URL). When unset, no exporter is registered. |
+| `OpenTelemetry:OtlpEndpoint` | `appsettings.json` | unset | Same as `OTEL_EXPORTER_OTLP_ENDPOINT`; the env var wins if both are set. |
+| `OpenTelemetry:ServiceName` | `appsettings.json` | per-service default (`AuthService`, `TodoService`, `CategoryService`, `MessagingService`, `RealtimeService`, `ApiGateway`) | Overrides the resource `service.name` attribute. |
+| `OpenTelemetry:ServiceVersion` | `appsettings.json` | entry assembly version | Resource `service.version` attribute. |
+| `OpenTelemetry:ConsoleExporter:Enabled` | `appsettings.json` | `false` | When `true`, writes spans and metrics to stdout — useful for local debugging only. |
+| `OpenTelemetry:Tracing:Enabled` | `appsettings.json` | `true` | Kill switch for the entire tracing pipeline. |
+| `OpenTelemetry:Metrics:Enabled` | `appsettings.json` | `true` | Kill switch for the entire metrics pipeline. |
+| `OpenTelemetry:Tracing:CaptureDbStatementText` | `appsettings.json` | `true` | When `true`, EF Core SQL text is captured in span attributes. SQL may contain PII via parameter values; restrict trace-backend access accordingly, or set to `false` if the trace backend is not trusted with this data. |
+
+The resource adds two static attributes: `deployment.environment` (from
+`ASPNETCORE_ENVIRONMENT`) and `service.namespace=planora`. The
+`service.instance.id` attribute is set to the container/machine hostname.
+
+
 
 `.env.production.example` documents the keys expected by a production deployment or secret store. It includes:
 

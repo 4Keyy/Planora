@@ -27,6 +27,9 @@ public class Program
         // ✨ Enterprise-Grade Unified Serilog Configuration
         builder.ConfigureEnterpriseLogging("realtime-api");
 
+        // OpenTelemetry — traces + metrics. No-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
+        builder.Services.AddPlanoraTelemetry(builder.Configuration, defaultServiceName: "RealtimeService");
+
         builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
 

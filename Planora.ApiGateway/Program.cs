@@ -1,6 +1,7 @@
 using Planora.ApiGateway.Configuration;
 using Planora.ApiGateway.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
+using Planora.BuildingBlocks.Infrastructure.Logging;
 using Planora.BuildingBlocks.Infrastructure.Middleware;
 using System.Threading.RateLimiting;
 
@@ -35,6 +36,11 @@ public class Program
             builder.Services.AddOcelotConfiguration(builder.Configuration);
             builder.Services.AddControllers();
             builder.Services.AddHealthChecks();
+
+            // OpenTelemetry — traces + metrics. No-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
+            // The gateway is the canonical entrypoint for traceparent propagation — every
+            // browser request gets stamped here and the W3C context flows into downstream services.
+            builder.Services.AddPlanoraTelemetry(builder.Configuration, defaultServiceName: "ApiGateway");
 
             // Rate Limiting
             builder.Services.AddRateLimiter(options =>

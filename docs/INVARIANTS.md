@@ -116,6 +116,10 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs`.
 - Rationale: orchestrators (Fly.io machines, k8s) need distinct liveness vs readiness semantics; aggregate `/health` cannot distinguish "process is dead, restart me" from "I'm alive but Postgres is slow, don't route to me yet".
 
+**INV-OBS-5.** Every backend service and the API Gateway wire OpenTelemetry through the single shared `TelemetryConfiguration.AddPlanoraTelemetry(...)` extension. Services do not call `services.AddOpenTelemetry()` directly. The pipeline is no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OpenTelemetry:OtlpEndpoint`) is unset — no exporters, no background connections, no log noise — while still recording in-process traces and metrics so any future exporter can be added without code changes. Custom activity sources and meters published as `Planora.*` are auto-discovered. `/health*` paths are excluded from request tracing to suppress probe noise.
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, every service `Program.cs`.
+- Rationale: a single instrumentation surface means one place to add new instrumentations (gRPC client, RabbitMQ, SignalR), one place to configure sampling and resource attributes, and one place to flip exporters between vendors.
+
 ---
 
 ## CI Quality Gates

@@ -1,45 +1,22 @@
+using Planora.BuildingBlocks.Infrastructure.Logging;
+
 namespace Planora.Auth.Api.Configuration
 {
+    /// <summary>
+    /// Thin Auth-side wrapper that preserves the historical entry-point name
+    /// <c>AddOpenTelemetryConfiguration</c> (referenced by unit tests). All telemetry
+    /// configuration is centralized in
+    /// <see cref="TelemetryConfiguration.AddPlanoraTelemetry"/>.
+    /// </summary>
     public static class OpenTelemetryExtensions
     {
+        public const string DefaultServiceName = "AuthService";
+
         public static IServiceCollection AddOpenTelemetryConfiguration(
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            var serviceName = configuration.GetValue<string>("OpenTelemetry:ServiceName") ?? "AuthService";
-            var serviceVersion = configuration.GetValue<string>("OpenTelemetry:ServiceVersion") ?? "1.0.0";
-
-            services.AddOpenTelemetry()
-                .ConfigureResource(resource => resource
-                    .AddService(
-                        serviceName: serviceName,
-                        serviceVersion: serviceVersion,
-                        serviceInstanceId: Environment.MachineName))
-                .WithTracing(tracing => tracing
-                    .AddAspNetCoreInstrumentation(options =>
-                    {
-                        options.RecordException = true;
-                        options.Filter = (httpContext) =>
-                        {
-                            return !httpContext.Request.Path.StartsWithSegments("/health");
-                        };
-                    })
-                    .AddEntityFrameworkCoreInstrumentation(options =>
-                    {
-                        options.SetDbStatementForText = true;
-                        options.SetDbStatementForStoredProcedure = true;
-                    })
-                    .AddHttpClientInstrumentation(options =>
-                    {
-                        options.RecordException = true;
-                    })
-                    .AddSource(serviceName)
-                    .AddConsoleExporter()
-                    )
-                .WithMetrics(metrics => metrics
-                    .AddMeter(serviceName));
-
-            return services;
+            return services.AddPlanoraTelemetry(configuration, DefaultServiceName);
         }
     }
 }

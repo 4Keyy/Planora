@@ -31,6 +31,9 @@ namespace Planora.Messaging.Api
             // ✨ Enterprise-Grade Unified Serilog Configuration
             builder.ConfigureEnterpriseLogging("messaging-api");
 
+            // OpenTelemetry — traces + metrics. No-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
+            builder.Services.AddPlanoraTelemetry(builder.Configuration, defaultServiceName: "MessagingService");
+
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
