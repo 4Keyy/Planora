@@ -190,6 +190,10 @@ deploy/fly/.env.fly
 deploy/fly/*.env.fly
 !deploy/fly/.env.fly.example
 
+# Generated OpenAPI artifacts — extracted by .github/workflows/openapi.yml or
+# locally via `dotnet swagger tofile`. Treat as build output, never commit.
+openapi/
+
 # Knowledge graph (generated — rebuild with /graphify)
 graphify-out/
 .graphify_*

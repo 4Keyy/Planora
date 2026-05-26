@@ -158,7 +158,11 @@ When a PR changes anything in `BuildingBlocks/**`, `Services/**`, `GrpcContracts
 
 The workflow stands up Postgres + Redis + RabbitMQ as GitHub Actions services so the boot path completes; Redis and RabbitMQ failures degrade gracefully through the existing service `Program.cs` waiters, but providing all three keeps the boot deterministic. The JSON is validated post-extraction with `jq -e '.openapi and .info.title and .paths'` so a malformed document fails the job rather than slipping through as a zero-byte artifact.
 
-The artifacts are the contract that a future generated TypeScript client (Phase 2 T2.2 in the master plan) will be derived from. Reviewers can already diff the documents across PRs to spot breaking-change additions, removed properties, or renamed schemas before they reach the frontend.
+After extraction every artifact is linted by **Spectral** (`@stoplight/spectral-cli`) against the ruleset declared in [`.spectral.yaml`](../.spectral.yaml). The CI step runs with `--fail-severity=error` so contract-stability rules (`oas3-schema`, `operation-success-response`, `path-keys-no-trailing-slash`, `oas3-valid-media-example`, `oas3-valid-schema-example`, `operation-operationId-unique`, `operation-operationId-valid-in-url`) gate the merge. Documentation-friendliness rules (`info-description`, `operation-description`, `tag-description`, `oas3-parameter-description`) are downgraded to `hint`: they surface in the job log so reviewers see the gaps, but do not block the merge while controller XML doc coverage is incomplete.
+
+Schema ids are sanitised at extraction time by `PlanoraSwaggerExtensions.SanitizeSchemaId` — closed-generic CLR FullNames like `PagedResult\`1[[FriendDto, Planora.Auth.Application, Version=1.0.0.0, …]]` are collapsed via a regex replacement of every non-alphanumeric-or-dot character into a single `_` so the resulting `$ref` is a valid URI-reference fragment and Spectral's `oas3-schema` accepts it. Determinism and round-trip are pinned by `tests/Planora.UnitTests/Services/Infrastructure/PlanoraSwaggerSchemaIdTests.cs`.
+
+The artifacts are the contract that a future generated TypeScript client (Phase 2 T2.1 in the master plan) will be derived from. Reviewers can already diff the documents across PRs to spot breaking-change additions, removed properties, or renamed schemas before they reach the frontend; Spectral pre-validates the diff so a malformed contract never reaches the diff window.
 
 ## What The Tests Cover
 

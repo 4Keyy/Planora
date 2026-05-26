@@ -1,0 +1,36 @@
+# Spectral configuration for Planora OpenAPI artifacts.
+#
+# Lints the swagger.json documents produced by .github/workflows/openapi.yml
+# (one per HTTP service: auth, category, todo, messaging, realtime) against
+# the OpenAPI 3.0 specification plus a small set of Planora-specific quality
+# rules.
+#
+# Severity philosophy:
+#   error / warn -- contract-stability rules that catch real client-breakage
+#                   potential. These show up in the PR diff.
+#   hint         -- documentation niceties that the controller XML docs do
+#                   not yet cover completely. Surfaced, not blocking.
+#   off          -- rules that conflict with the chosen controller routing
+#                   convention and have been deliberately suppressed.
+extends:
+  - "spectral:oas"
+rules:
+  # Documentation hints -- surface but do not block merges.
+  info-description: hint
+  info-contact: hint
+  info-license: hint
+  oas3-api-servers: hint
+  operation-description: hint
+  tag-description: hint
+  oas3-parameter-description: hint
+  oas3-server-not-example.com: hint
+
+  # Contract stability -- keep strict.
+  operation-tag-defined: warn
+  operation-operationId: warn
+  operation-operationId-unique: error
+  operation-operationId-valid-in-url: error
+  operation-success-response: error
+  path-keys-no-trailing-slash: error
+  oas3-valid-media-example: error
+  oas3-valid-schema-example: error

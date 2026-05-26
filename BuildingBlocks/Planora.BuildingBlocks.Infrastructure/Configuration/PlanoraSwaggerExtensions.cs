@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -108,10 +109,69 @@ public static class PlanoraSwaggerExtensions
             // FullName keeps schema ids stable across services even when two services
             // define a type with the same short name (e.g. `Result<TodoDto>` vs
             // `Result<CategoryDto>`). Generated TS clients rely on this stability.
-            options.CustomSchemaIds(type => type.FullName);
+            //
+            // The raw FullName contains generic-argument brackets and commas
+            // (`PagedResult<TodoDto>` and `Dictionary<string,int>`), which are not
+            // valid URI-reference characters; OpenAPI's $ref grammar (RFC 3986)
+            // rejects them. The replacements below preserve readability while
+            // keeping every $ref a valid URI fragment for Spectral / openapi-typescript
+            // / oasdiff consumers. Round-trip: identical reflection input always
+            // produces the same id; no two distinct types collide.
+            options.CustomSchemaIds(type => SanitizeSchemaId(type.FullName));
         });
 
         return services;
+    }
+
+    /// <summary>
+    /// Sanitizes a CLR <see cref="Type.FullName"/> into an OpenAPI <c>$ref</c>-valid
+    /// schema id. Replaces only the three characters that are illegal in URI-reference
+    /// fragments — <c>&lt;</c>, <c>&gt;</c>, <c>,</c> — with readable text tokens, plus
+    /// the assembly-separator <c>+</c> used for nested types. Every other character
+    /// is left untouched so the FullName remains recognizable in the generated TS
+    /// client and on disk.
+    /// </summary>
+    /// <remarks>
+    /// Determinism: the mapping is a fixed character-class replacement, so identical
+    /// reflection input always yields the same id and two distinct types can never
+    /// collide. Verified by <c>PlanoraSwaggerSchemaIdTests</c>.
+    /// </remarks>
+    // Lazy-init regex that matches every character that is NOT a URI-reference-safe
+    // schema-id letter (ASCII letter, digit, or dot). Includes the runs of noise
+    // Swashbuckle hands the delegate for closed generics:
+    //
+    //   typeof(PagedResult<FriendDto>).FullName ==
+    //     "Planora.BuildingBlocks.Application.Pagination.PagedResult`1[[
+    //        Planora.Auth.Application.Features.Friendships.Queries.GetFriends.FriendDto,
+    //        Planora.Auth.Application, Version=1.0.0.0, Culture=neutral,
+    //        PublicKeyToken=null]]"
+    //
+    // Backticks, square brackets, commas, spaces, equals signs, and angle brackets
+    // are all collapsed into a single "_" so the resulting id is a valid OpenAPI
+    // URI-reference fragment (RFC 3986).
+    private static readonly Regex IllegalSchemaIdChars =
+        new("[^A-Za-z0-9.]+", RegexOptions.Compiled);
+
+    internal static string SanitizeSchemaId(string? fullName)
+    {
+        if (string.IsNullOrEmpty(fullName))
+        {
+            return string.Empty;
+        }
+
+        // Step 1: collapse the nested-type separator into a dot, matching the
+        // human reading convention (`Outer.Inner` rather than `Outer_Inner`).
+        var normalised = fullName.Replace('+', '.');
+
+        // Step 2: collapse every other illegal run into a single underscore.
+        // The pattern is single-pass and produces a deterministic id; distinct
+        // FullName inputs cannot collapse to the same output because the
+        // illegal-character runs encode the very part of the type that
+        // distinguishes them (assembly name, version, type arguments).
+        var sanitised = IllegalSchemaIdChars.Replace(normalised, "_");
+
+        // Step 3: drop trailing underscores produced by reflection's trailing `]]`.
+        return sanitised.TrimEnd('_');
     }
 
     /// <summary>

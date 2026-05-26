@@ -167,6 +167,16 @@ jobs:
           jq '{openapi, info, path_count: (.paths | length), schema_count: (.components.schemas // {} | length)}' openapi/${{ matrix.service }}.json
           echo "::endgroup::"
 
+      - name: Lint with Spectral
+        # Hard-fail only on rules at severity = error. Warnings and hints are
+        # surfaced in the job log via stylish output but do not gate the PR.
+        # The `.spectral.yaml` at the repo root is auto-discovered.
+        run: |
+          npx --yes @stoplight/spectral-cli@latest lint \
+            --format=stylish \
+            --fail-severity=error \
+            openapi/${{ matrix.service }}.json
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: openapi-${{ matrix.service }}

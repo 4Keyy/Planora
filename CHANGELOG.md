@@ -4,6 +4,24 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Phase 2 T2.2 follow-on — Spectral OpenAPI linting + schema-id sanitisation (2026-05-26)
+
+Locks the OpenAPI contract quality before any consumer (eventual TypeScript client, oasdiff comparison) lands. Two coordinated pieces.
+
+Schema-id sanitisation at the Swashbuckle source. `PlanoraSwaggerExtensions.CustomSchemaIds` previously called `type.FullName` verbatim, which produced reflection-style closed-generic strings containing back-tick (`` ` ``), square brackets, commas, spaces, and equals signs — every one of those is illegal in an OpenAPI `$ref` URI-reference fragment per RFC 3986. Five `oas3-schema` errors fired on a baseline `auth.json` extraction. The new private `SanitizeSchemaId` helper collapses every non-`[A-Za-z0-9.]` run into a single underscore via a compiled regex and trims trailing underscores. The mapping is deterministic, distinct CLR FullNames never collide, and the resulting id stays human-readable. Nine unit tests pin the contract: plain FullName preserved verbatim; generic brackets replaced; nested-type plus-separator normalised to dot; reflection-style assembly-qualified noise (back-tick + `[[...]]`) collapsed; null / empty / underscored / digit / dot inputs handled; determinism (same input → same id); distinct inputs (e.g. `Result<UserDto>` vs `Result<TodoDto>`) never collapse to the same id.
+
+Spectral OpenAPI linting in CI. New `.spectral.yaml` at the repo root extends the standard `spectral:oas` ruleset and tunes severities — contract-stability rules (`oas3-schema`, `operation-success-response`, `path-keys-no-trailing-slash`, `oas3-valid-media-example`, `oas3-valid-schema-example`, `operation-operationId-unique`, `operation-operationId-valid-in-url`) are **error** and gate the merge; documentation niceties (`info-description`, `operation-description`, `tag-description`, `oas3-parameter-description`, `oas3-api-servers`, `info-contact`, `info-license`) are downgraded to **hint** so they surface in the job log without blocking. The controller XML doc coverage will close these over time; today the OpenAPI artifact emits 76 warnings + 66 hints across auth alone, all of which need `[SwaggerOperation]` / XML-doc additions on controllers, not framework fixes. `operation-tag-defined` and `operation-operationId` stay at **warn**.
+
+`.github/workflows/openapi.yml` adds a "Lint with Spectral" step per matrix job (auth / category / todo / messaging / realtime) using `npx @stoplight/spectral-cli@latest lint --format=stylish --fail-severity=error`. After the fix, baseline `auth.json` runs at 0 errors, 76 warnings, 66 hints — the previous five `oas3-schema` errors are gone.
+
+`.gitignore` adds `openapi/` so local extraction (`dotnet swagger tofile --output openapi/<service>.json`) never accidentally lands in a commit. The CI workflow continues to create and upload its own copy.
+
+New invariant `INV-API-4` in `docs/INVARIANTS.md` codifies the linting contract and the sanitiser's role. `docs/testing.md` "OpenAPI Artifacts (per PR)" section is rewritten to walk through both pieces and the linked test suite.
+
+Verification: `dotnet build Planora.sln -warnaserror` is 0/0; `dotnet test` passes 733/733 (was 725/725, +8 new schema-id sanitiser tests). Local Spectral run against a fresh `auth.json` exits 0.
+
+Refs: `.spectral.yaml`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/PlanoraSwaggerExtensions.cs` (`SanitizeSchemaId`), `docs/INVARIANTS.md` `INV-API-4`, off-repo MASTER_PLAN Phase 2 T2.2 follow-on.
+
 ### Phase 3 T3.2 — outbox dead-letter terminal state, retry-cycle bug fix (2026-05-26)
 
 Fixes a real bug in the outbox processor where a message that hit `MaxRetries`
