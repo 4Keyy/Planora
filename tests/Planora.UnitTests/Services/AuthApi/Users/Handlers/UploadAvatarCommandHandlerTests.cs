@@ -49,6 +49,55 @@ public sealed class UploadAvatarCommandHandlerTests
     }
 
     [Fact]
+    [Trait("TestType", "Observability")]
+    public async Task UploadAvatar_ShouldRecordOutcomeMetric_ForEveryTerminalPath()
+    {
+        var user = CreateUser();
+        var processed = new ProcessedAvatar(
+            ContentHash: "h",
+            Variants: new[]
+            {
+                new AvatarVariant(AvatarSize.Small, new byte[] { 1 }, "image/webp", ".webp", 64, 64),
+                new AvatarVariant(AvatarSize.Medium, new byte[] { 2 }, "image/webp", ".webp", 128, 128),
+                new AvatarVariant(AvatarSize.Large, new byte[] { 3 }, "image/webp", ".webp", 512, 512),
+            });
+        var fixture = CreateFixture(user.Id);
+        fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.Processor
+            .Setup(x => x.ProcessAvatarAsync(It.IsAny<Stream>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ProcessedAvatar>.Success(processed));
+        fixture.AvatarStorage.Setup(x => x.PutAsync(user.Id, processed, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AvatarManifest("/s", "/m", "/l", "h"));
+        fixture.Mapper.Setup(x => x.Map<UserDto>(user)).Returns(new UserDto { Id = user.Id, Email = user.Email.Value });
+
+        await fixture.Handler.Handle(new UploadAvatarCommand { File = CreateFile(new byte[1]) }, CancellationToken.None);
+
+        fixture.Metrics.Verify(x => x.RecordOutcome("success"), Times.Once);
+        fixture.Metrics.Verify(x => x.RecordVariantBytes("small", 1), Times.Once);
+        fixture.Metrics.Verify(x => x.RecordVariantBytes("medium", 1), Times.Once);
+        fixture.Metrics.Verify(x => x.RecordVariantBytes("large", 1), Times.Once);
+    }
+
+    [Theory]
+    [Trait("TestType", "Observability")]
+    [InlineData("INVALID_FILE_SIZE", "rejected_size")]
+    [InlineData("UNSUPPORTED_MEDIA_TYPE", "rejected_mime")]
+    [InlineData("INVALID_IMAGE_CONTENT", "rejected_content")]
+    public async Task UploadAvatar_ShouldMapProcessorErrorCodeToMetricOutcome(string errorCode, string expectedOutcome)
+    {
+        var user = CreateUser();
+        var fixture = CreateFixture(user.Id);
+        fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.Processor
+            .Setup(x => x.ProcessAvatarAsync(It.IsAny<Stream>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ProcessedAvatar>.Failure(Error.Validation(errorCode, "x")));
+
+        await fixture.Handler.Handle(new UploadAvatarCommand { File = CreateFile(new byte[1]) }, CancellationToken.None);
+
+        fixture.Metrics.Verify(x => x.RecordOutcome(expectedOutcome), Times.Once);
+    }
+
+    [Fact]
     [Trait("TestType", "Security")]
     public async Task UploadAvatar_ShouldPropagateProcessorRejectionWithoutTouchingStorage()
     {
@@ -146,6 +195,7 @@ public sealed class UploadAvatarCommandHandlerTests
 
         var storage = new Mock<IAvatarStorage>();
         var processor = new Mock<IImageProcessor>();
+        var metrics = new Mock<IAvatarMetrics>();
         var mapper = new Mock<IMapper>();
         var logger = new Mock<ILogger<UploadAvatarCommandHandler>>();
 
@@ -154,10 +204,11 @@ public sealed class UploadAvatarCommandHandlerTests
             current.Object,
             storage.Object,
             processor.Object,
+            metrics.Object,
             mapper.Object,
             logger.Object);
 
-        return new Fixture(handler, users, uow, current, storage, processor, mapper);
+        return new Fixture(handler, users, uow, current, storage, processor, metrics, mapper);
     }
 
     private sealed record Fixture(
@@ -167,5 +218,6 @@ public sealed class UploadAvatarCommandHandlerTests
         Mock<ICurrentUserService> Current,
         Mock<IAvatarStorage> AvatarStorage,
         Mock<IImageProcessor> Processor,
+        Mock<IAvatarMetrics> Metrics,
         Mock<IMapper> Mapper);
 }

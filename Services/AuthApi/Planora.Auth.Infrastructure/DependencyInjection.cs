@@ -118,6 +118,7 @@ public static class DependencyInjection
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IImageProcessor, ImageSharpImageProcessor>();
         services.AddScoped<IAvatarStorage, LocalAvatarStorage>();
+        services.AddSingleton<IAvatarMetrics, AvatarMetrics>();
         services.AddScoped<IEmailMessageSender, SmtpEmailMessageSender>();
         services.AddScoped<IEmailService, EmailService>();
     }

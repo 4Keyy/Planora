@@ -69,4 +69,25 @@ public static class PlanoraMetrics
         name: "planora.outbox.message.age",
         unit: "s",
         description: "Lag between when an outbox message was produced and when the processor picked it up.");
+
+    /// <summary>
+    /// Counter incremented every time the avatar upload pipeline accepts or rejects a file.
+    /// Tag <c>outcome</c> ∈ {<c>success</c>, <c>rejected_size</c>, <c>rejected_mime</c>,
+    /// <c>rejected_content</c>, <c>not_authenticated</c>, <c>user_missing</c>}.
+    /// Low cardinality (six values) so safe to keep on a Prometheus/Loki label.
+    /// </summary>
+    public static readonly Counter<long> AvatarUploads = Meter.CreateCounter<long>(
+        name: "planora.avatar.uploads",
+        unit: "{upload}",
+        description: "Number of avatar upload attempts, partitioned by outcome.");
+
+    /// <summary>
+    /// Histogram of WebP variant byte size emitted by the avatar pipeline. Tag <c>size</c>
+    /// ∈ {<c>small</c>, <c>medium</c>, <c>large</c>}. Helps detect ImageSharp encoder
+    /// regressions or unusually large variants.
+    /// </summary>
+    public static readonly Histogram<long> AvatarVariantBytes = Meter.CreateHistogram<long>(
+        name: "planora.avatar.variant.bytes",
+        unit: "By",
+        description: "Re-encoded WebP variant size in bytes, per variant tier.");
 }

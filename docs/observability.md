@@ -51,6 +51,8 @@ auto-subscribed by `AddPlanoraTelemetry`:
 | `planora.outbox.messages` | Counter | `{message}` | `outcome ∈ {processed, failed, type_not_found, deserialize_failed, retry_exhausted}`. The four non-`processed` outcomes are also the dead-letter signal — `type_not_found` and `deserialize_failed` are immediate dead-letter (no retry budget consumed); `retry_exhausted` is the transient-failure path that ran out of attempts (RetryCount = 3). `failed` is a still-recoverable transient failure with retries remaining. |
 | `planora.outbox.batch.duration` | Histogram | `s` | (none) |
 | `planora.outbox.message.age` | Histogram | `s` | (none) — the backpressure signal |
+| `planora.avatar.uploads` | Counter | `{upload}` | `outcome ∈ {success, rejected_size, rejected_mime, rejected_content, not_authenticated, user_missing}`. Use the four `rejected_*` outcomes for "is an attacker probing the upload endpoint?" alerting (`rejected_mime` spikes = polyglot attempts; `rejected_size` spikes = DoS attempts). |
+| `planora.avatar.variant.bytes` | Histogram | `By` | `size ∈ {small, medium, large}` — the WebP variant emitted by `ImageSharpImageProcessor`. Use p95 to catch encoder regressions or unexpectedly large variants. |
 
 The cardinality budget is bounded by design: every tag value is from a
 finite enumeration. No user-ids, IP addresses, or raw error strings ever
@@ -193,6 +195,36 @@ week of production data.
     severity: warning
   annotations:
     summary: Sustained CSRF token mismatch rate — investigate possible attack or stale frontend bundle
+
+- alert: PlanoraAvatarUploadAbuse
+  expr: |
+    sum(rate(planora_avatar_uploads_total{outcome=~"rejected_size|rejected_mime|rejected_content"}[5m])) > 1
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: |
+      Sustained avatar-upload rejections (>1/s for 5 min). `rejected_size`
+      spike = burst-DoS attempt past the 5 MB cap; `rejected_mime` /
+      `rejected_content` = polyglot/exploit-payload probing. Cross-check
+      the rate-limit logs (avatar-upload policy is 5/hour/user) — a single
+      bad actor should be capped quickly; sustained noise means either
+      many compromised tokens or a misbehaving client.
+
+- alert: PlanoraOutboxDeadLetter
+  expr: |
+    increase(planora_outbox_messages_total{outcome="dead_lettered"}[5m]) > 0
+  for: 1m
+  labels:
+    severity: critical
+  annotations:
+    summary: |
+      An outbox message terminally dead-lettered. Unlike
+      `PlanoraOutboxPoison` (which fires on the four retry-related
+      outcomes), this catches anything that lands in the explicit
+      DeadLettered terminal state from PR-4 of the outbox state-machine
+      fix (commit 4837bb4). Operator action: inspect the row, fix the
+      handler, requeue via the admin endpoint (when it lands).
 ```
 
 ## Sensitive Data Considerations

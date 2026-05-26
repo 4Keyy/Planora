@@ -4,6 +4,38 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### PR-9 observability: avatar upload metrics + dead-letter alert (2026-05-26)
+
+Adds two metrics to the shared `PlanoraMetrics` meter and one new alert rule for production monitoring.
+
+**Metrics.**
+- `planora.avatar.uploads{outcome}` (Counter) — every avatar upload attempt is tagged with one of six terminal outcomes: `success`, `rejected_size`, `rejected_mime`, `rejected_content`, `not_authenticated`, `user_missing`. The `rejected_*` outcomes double as attack-pattern indicators (size spike → DoS attempt past the 5 MB cap; mime/content spike → polyglot/exploit probing).
+- `planora.avatar.variant.bytes{size}` (Histogram) — bytes per emitted WebP variant, partitioned by `small`/`medium`/`large`. p95 spike → ImageSharp encoder regression or a class of source images that resists compression.
+
+**Architecture.** Application layer must not depend on Infrastructure (architecture test pins this). To stay clean, a new `IAvatarMetrics` port lives in `Auth.Application/Common/Interfaces/`; its `AvatarMetrics` implementation in `Auth.Infrastructure/Services/Common/` wraps `PlanoraMetrics`. The handler depends on the port, the architecture test stays green.
+
+**Alert rule** added to `docs/observability.md` § "Suggested Alerts":
+
+```yaml
+- alert: PlanoraAvatarUploadAbuse
+  expr: sum(rate(planora_avatar_uploads_total{outcome=~"rejected_size|rejected_mime|rejected_content"}[5m])) > 1
+  for: 5m
+  severity: warning
+```
+
+Also added `PlanoraOutboxDeadLetter` (per the operations runbook gap flagged in the original audit — `dead_lettered` should page before users notice).
+
+**Tests** (+4, full = 717 green):
+- `UploadAvatar_ShouldRecordOutcomeMetric_ForEveryTerminalPath` — asserts `RecordOutcome("success")` plus three `RecordVariantBytes` calls on the happy path.
+- `UploadAvatar_ShouldMapProcessorErrorCodeToMetricOutcome` (Theory, 3 cases) — INVALID_FILE_SIZE → rejected_size, UNSUPPORTED_MEDIA_TYPE → rejected_mime, INVALID_IMAGE_CONTENT → rejected_content.
+
+**Docs.**
+- `docs/observability.md` § "Built-in Custom Metrics" — new rows for both instruments with cardinality notes and use-case guidance.
+- `docs/observability.md` § "Suggested Alerts" — new `PlanoraAvatarUploadAbuse` and `PlanoraOutboxDeadLetter` rules.
+- `CHANGELOG.md`: this entry.
+
+Refs: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs`, `Services/AuthApi/Planora.Auth.Application/Common/Interfaces/IAvatarMetrics.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/AvatarMetrics.cs`, `docs/observability.md`.
+
 ### PR-8 rate-limit: avatar-upload policy + IPv6 normalization (2026-05-26)
 
 **Per-endpoint policy.** The avatar upload endpoint previously inherited the generic `auth` policy (10/min/user), meaning an attacker with a valid token could upload 10× 5 MB files per minute = 50 MB/min/user disk churn even with PR-1's per-file caps in place. New `avatar-upload` policy (5/hour/user) bounds worst-case write traffic to ~30 MB/hour/user. `[EnableRateLimiting("avatar-upload")]` is now attached to `POST /users/me/avatar`.
