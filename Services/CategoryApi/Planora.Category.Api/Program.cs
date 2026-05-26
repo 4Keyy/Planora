@@ -2,6 +2,7 @@ using Planora.BuildingBlocks.Infrastructure;
 using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.Category.Application.Features.IntegrationEvents;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
@@ -91,6 +92,10 @@ namespace Planora.Category.Api
                 options.Filters.Add<ResultToActionResultFilter>();
             });
 
+            // OpenAPI / Swagger
+            builder.Services.AddPlanoraSwaggerGen(
+                title: "Planora Category API",
+                description: "User-owned category CRUD + Category gRPC for cross-service metadata lookup.");
 
             var app = builder.Build();
 
@@ -188,6 +193,9 @@ namespace Planora.Category.Api
 
                 app.UseAuthentication();
                 app.UseAuthorization();
+
+                // Swagger UI in Development / Staging only (production never exposes it)
+                app.UsePlanoraSwagger(app.Environment, documentTitle: "Planora Category API");
 
                 // Routes
                 app.MapControllers();

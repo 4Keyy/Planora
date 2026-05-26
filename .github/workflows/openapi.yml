@@ -1,0 +1,174 @@
+name: OpenAPI
+
+# Emits the canonical OpenAPI 3.0 document per HTTP service as a per-PR
+# artifact. The document is the contract the eventual generated TypeScript
+# client will be derived from (master plan Phase 2 T2.2), so attaching it
+# to every PR that touches a controller / DTO / response shape lets
+# reviewers diff the surface area before approving the change.
+#
+# The Swashbuckle.AspNetCore.Cli tool boots the service's host briefly,
+# extracts the swagger.json from DI, then exits. Postgres, Redis, and
+# RabbitMQ are provided so the host can complete its startup waiters;
+# Redis/RabbitMQ failures degrade gracefully in service code so this job
+# is forgiving of brief container start-up.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'BuildingBlocks/**'
+      - 'Services/**'
+      - 'GrpcContracts/**'
+      - '.config/dotnet-tools.json'
+      - 'Directory.Packages.props'
+      - '.github/workflows/openapi.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: auth
+            project: Services/AuthApi/Planora.Auth.Api
+            dll: Planora.Auth.Api.dll
+            db: planora_auth_db
+            db_key: AuthDatabase
+          - service: category
+            project: Services/CategoryApi/Planora.Category.Api
+            dll: Planora.Category.Api.dll
+            db: planora_category
+            db_key: CategoryDatabase
+          - service: todo
+            project: Services/TodoApi/Planora.Todo.Api
+            dll: Planora.Todo.Api.dll
+            db: planora_todo
+            db_key: TodoDatabase
+          - service: messaging
+            project: Services/MessagingApi/Planora.Messaging.Api
+            dll: Planora.Messaging.Api.dll
+            db: planora_messaging
+            db_key: MessagingDatabase
+          - service: realtime
+            project: Services/RealtimeApi/Planora.Realtime.Api
+            dll: Planora.Realtime.Api.dll
+            db: ""        # no DB
+            db_key: ""
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dotnet tools (swashbuckle.aspnetcore.cli)
+        run: dotnet tool restore
+
+      - name: Restore solution
+        run: dotnet restore Planora.sln
+
+      - name: Build ${{ matrix.service }} (Release)
+        run: dotnet build ${{ matrix.project }} --configuration Release --no-restore
+
+      - name: Create per-service database
+        if: matrix.db != ''
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d postgres -c "CREATE DATABASE ${{ matrix.db }};" || true
+
+      - name: Extract OpenAPI document
+        env:
+          # Safe placeholder secrets so ConfigurationValidator's startup
+          # checks accept the boot. The host degrades gracefully when
+          # Redis / RabbitMQ are slow to connect; placeholders satisfy the
+          # length and presence rules without exposing real values.
+          ASPNETCORE_ENVIRONMENT: Development
+          JwtSettings__Secret: "0123456789abcdef0123456789abcdef0123456789abcdef"
+          JwtSettings__Issuer: "Planora.Auth"
+          JwtSettings__Audience: "Planora.Clients"
+          GrpcSettings__ServiceKey: "0123456789abcdef0123456789abcdef"
+          ConnectionStrings__Redis: "localhost:6379"
+          RabbitMq__HostName: "localhost"
+          RabbitMq__UserName: "guest"
+          RabbitMq__Password: "guest"
+          GrpcServices__AuthApi: "http://localhost:5031"
+          GrpcServices__CategoryApi: "http://localhost:5282"
+        run: |
+          mkdir -p openapi
+          # Per-service connection string when the matrix declares a DB.
+          if [ -n "${{ matrix.db_key }}" ]; then
+            export ConnectionStrings__${{ matrix.db_key }}="Host=localhost;Port=5432;Database=${{ matrix.db }};Username=postgres;Password=postgres"
+          fi
+          dotnet swagger tofile \
+            --output openapi/${{ matrix.service }}.json \
+            ${{ matrix.project }}/bin/Release/net9.0/${{ matrix.dll }} \
+            v1
+
+      - name: Validate the document is non-empty and well-formed
+        run: |
+          set -e
+          test -s openapi/${{ matrix.service }}.json
+          # Parse the JSON to confirm structure; jq returns non-zero on bad JSON.
+          jq -e '.openapi and .info.title and .paths' openapi/${{ matrix.service }}.json > /dev/null
+
+      - name: Show document summary
+        run: |
+          echo "::group::${{ matrix.service }} summary"
+          jq '{openapi, info, path_count: (.paths | length), schema_count: (.components.schemas // {} | length)}' openapi/${{ matrix.service }}.json
+          echo "::endgroup::"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: openapi-${{ matrix.service }}
+          path: openapi/${{ matrix.service }}.json
+          retention-days: 30

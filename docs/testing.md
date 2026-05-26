@@ -19,6 +19,7 @@ Planora has backend xUnit tests, frontend Vitest tests, Docker-backed Playwright
 | Load / perf scenarios | `perf/k6/scenarios`, `perf/k6/lib`, `perf/README.md` | k6 (JavaScript) |
 | Perf CI dispatch | `.github/workflows/perf-smoke.yml` | workflow_dispatch only |
 | Migration script artifacts | `.github/workflows/migrations.yml` | `dotnet ef migrations script --idempotent`, matrix-fanned across the four DB-owning services |
+| OpenAPI artifacts | `.github/workflows/openapi.yml` | `dotnet swagger tofile`, matrix-fanned across all five HTTP services |
 
 ## Backend Commands
 
@@ -150,6 +151,14 @@ k6 run --out json=perf/results/todo-list.json `
 ## Migration Script Artifacts (per PR)
 
 When a PR changes a migration, an entity, a DbContext, a persistence configuration, [`tools/Planora.Migrator/`](../tools/Planora.Migrator/), the central package versions, or the workflow itself, [`.github/workflows/migrations.yml`](../.github/workflows/migrations.yml) runs `dotnet ef migrations script --idempotent` for each of the four DB-owning services and attaches the resulting `.sql` files as 30-day-retention artifacts. The scripts are guarded by `__EFMigrationsHistory` lookups so re-running them on an already-migrated schema is a no-op — the exact statements that `Planora.Migrator --all` will execute against production.
+
+## OpenAPI Artifacts (per PR)
+
+When a PR changes anything in `BuildingBlocks/**`, `Services/**`, `GrpcContracts/**`, `.config/dotnet-tools.json`, `Directory.Packages.props`, or the workflow itself, [`.github/workflows/openapi.yml`](../.github/workflows/openapi.yml) extracts a fresh `swagger.json` for each of the five HTTP services (auth, category, todo, messaging, realtime) via the `Swashbuckle.AspNetCore.Cli` local tool (`dotnet swagger tofile`). Each artifact is uploaded with 30-day retention.
+
+The workflow stands up Postgres + Redis + RabbitMQ as GitHub Actions services so the boot path completes; Redis and RabbitMQ failures degrade gracefully through the existing service `Program.cs` waiters, but providing all three keeps the boot deterministic. The JSON is validated post-extraction with `jq -e '.openapi and .info.title and .paths'` so a malformed document fails the job rather than slipping through as a zero-byte artifact.
+
+The artifacts are the contract that a future generated TypeScript client (Phase 2 T2.2 in the master plan) will be derived from. Reviewers can already diff the documents across PRs to spot breaking-change additions, removed properties, or renamed schemas before they reach the frontend.
 
 ## What The Tests Cover
 

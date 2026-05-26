@@ -8,6 +8,13 @@
         "dotnet-stryker"
       ],
       "rollForward": false
+    },
+    "swashbuckle.aspnetcore.cli": {
+      "version": "6.9.0",
+      "commands": [
+        "swagger"
+      ],
+      "rollForward": false
     }
   }
 }

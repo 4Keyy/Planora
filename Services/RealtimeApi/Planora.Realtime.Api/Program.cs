@@ -1,3 +1,4 @@
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Logging;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
@@ -32,6 +33,11 @@ public class Program
 
         builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
+
+            // OpenAPI / Swagger — covers notification controllers; SignalR hubs are not part of the OpenAPI surface.
+            builder.Services.AddPlanoraSwaggerGen(
+                title: "Planora Realtime API",
+                description: "Notification submission and SignalR connection management. The SignalR hub itself is not part of the OpenAPI surface.");
 
             // gRPC — service-key authentication on inter-service channels
             builder.Services.AddSingleton<ServiceKeyServerInterceptor>();
@@ -167,6 +173,9 @@ public class Program
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // Swagger UI in Development / Staging only
+            app.UsePlanoraSwagger(app.Environment, documentTitle: "Planora Realtime API");
 
             app.MapControllers();
             app.MapGrpcService<RealtimeGrpcService>();

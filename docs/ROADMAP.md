@@ -24,7 +24,7 @@ remaining gaps for Phase 2+.
 | Area | Gap | Evidence |
 |---|---|---|
 | API response shape | Frontend handles three distinct shapes (`{value}`, `{data, success, meta}`, raw) through `parseApiResponse`. | `frontend/src/lib/api.ts:43-63`, `docs/architecture.md:191-200` |
-| OpenAPI artifact | Swashbuckle is referenced centrally but no CI step publishes the per-service `openapi.json` artifact. | `Directory.Packages.props` lists Swashbuckle; no workflow emits the document. |
+<!-- OpenAPI artifact gap: CLOSED 2026-05-26 by .github/workflows/openapi.yml — every PR that touches BuildingBlocks/Services/GrpcContracts attaches a per-service openapi.json. -->
 | BuildingBlocks god-module | `Planora.BuildingBlocks.Infrastructure` accumulates Logging + Caching + Messaging + Middleware + Outbox + Inbox + Grpc + Resilience in one assembly. | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/*` |
 | `BaseRepository` / `OutboxRepository` duplicated | Implementations exist in three service Infrastructure projects with near-identical code. | Auth / Category / Messaging Infrastructure folders |
 | Realtime persistence | The Realtime service has no DbContext; notification state is in-memory. | absence in `Services/RealtimeApi/Planora.Realtime.Infrastructure` |
@@ -42,7 +42,7 @@ remaining gaps for Phase 2+.
 
 | Priority | Recommendation | Why |
 |---|---|---|
-| P1 | **T2.2 — OpenAPI artifact in CI**. Run `dotnet swagger tofile` per service in a new workflow, upload `openapi.json` as a PR artifact, run Spectral linting against it. | Foundation for a generated TS client; locks the API contract before T2.1 risk lands. |
+| **DONE** | **T2.2 — OpenAPI artifact in CI** (`.github/workflows/openapi.yml`). `dotnet swagger tofile` per service, Postgres + Redis + RabbitMQ provided as GitHub Actions services, JSON validated with `jq` before upload. Foundation for the generated TS client. Spectral linting + a public Stoplight-style viewer remain as follow-ups. | |
 | P1 | **T2.3 — Consolidate `BaseRepository` and `OutboxRepository`** into `BuildingBlocks.Infrastructure.Persistence.BaseRepository<TEntity, TDbContext>`. Delete the per-service duplicates behind an `[Obsolete]` adapter for one release. | Three drift surfaces collapse to one. Behaviour-pinning mutation tests run on the shared implementation. |
 | P1 | **T2.1 — API response unification** (RFC 7807 ProblemDetails for errors + flat DTOs for success). Migrate behind an `X-Api-Version: 2` header with 5% / 50% / 100% canary. | Closes the longest-living source of silent frontend regressions; unblocks the generated TS client. |
 | P2 | **T2.4 — BuildingBlocks split** into `Observability`, `Messaging`, `Web`, `Security`, `Persistence` sub-packages. | Forces explicit dependency declarations; the cohesion score on the dependency graph rises immediately. |

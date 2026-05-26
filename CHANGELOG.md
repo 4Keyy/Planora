@@ -4,6 +4,29 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Phase 2 entry — OpenAPI artifact per service, Swagger surface unified (2026-05-26)
+
+Closes Phase 2 T2.2 from the master plan. The OpenAPI document is now a checked-in CI contract on every PR that touches the controller surface; the foundation for the generated TypeScript client lands without any frontend code change yet.
+
+- **Unified Swagger wiring** — new `BuildingBlocks.Infrastructure.Configuration.PlanoraSwaggerExtensions` with `AddPlanoraSwaggerGen(title, description, documentVersion = "v1", infoVersion = null)` and `UsePlanoraSwagger(env, documentTitle)`. The middleware mounts only when the environment is `Development` or `Staging`; production never exposes the interactive Swagger UI (information-disclosure concern). Schema ids use `type.FullName` for stability across services. JWT bearer is the only declared security scheme. The shared helper added `Swashbuckle.AspNetCore` + `.Annotations` references to `BuildingBlocks.Infrastructure.csproj` so the per-service projects need no extra package reference.
+
+- **Per-service registration** — `AddPlanoraSwaggerGen` + `UsePlanoraSwagger` wired in Category, Todo, Messaging, and Realtime `Program.cs` (Auth was already wired; its `SwaggerConfiguration.cs` becomes a thin wrapper around the BuildingBlocks helper that preserves the `Info.Version = "v1.0.0"` semantic version pinned by `AuthApiConfigurationTests`). The Gateway is intentionally skipped — Ocelot routes are derived from `ocelot*.json` and not from controller metadata.
+
+- **CLI tool** — `Swashbuckle.AspNetCore.Cli` 6.9.0 added as a local tool in `.config/dotnet-tools.json` alongside the existing `dotnet-stryker`. Local extraction works after `dotnet tool restore`:
+
+  ```powershell
+  dotnet swagger tofile --output openapi/<service>.json `
+    Services/<service>Api/Planora.<Service>.Api/bin/Release/net9.0/Planora.<Service>.Api.dll v1
+  ```
+
+- **CI workflow `.github/workflows/openapi.yml`** — triggers on PRs touching `BuildingBlocks/**`, `Services/**`, `GrpcContracts/**`, `.config/dotnet-tools.json`, `Directory.Packages.props`, or this workflow itself. Provides Postgres + Redis + RabbitMQ as GitHub Actions services so the boot path completes deterministically (Redis/RabbitMQ failures degrade gracefully but providing both keeps timing predictable). Matrix-fans across the five HTTP services (auth, category, todo, messaging, realtime). Each artifact passes a `jq -e '.openapi and .info.title and .paths'` validation before upload; a malformed document fails the job rather than shipping as a zero-byte file. Per-service artifacts have 30-day retention.
+
+- **Invariant** — `INV-API-3` codifies the convention: services do not call `services.AddSwaggerGen()` directly; the OpenAPI surface is the CI artifact, not a runtime endpoint exposed in production.
+
+- **Docs** — `docs/INVARIANTS.md`, `docs/testing.md`, `docs/deployment.md`, `docs/codebase-map.md`, `docs/ROADMAP.md` reflect the new surface; the previous "OpenAPI artifact" confirmed-gap row is removed (closed).
+
+Verification: `dotnet build Planora.sln -warnaserror` remains 0/0. Tests are 711/711 (no change in count — the new wiring is exercised by the existing `AuthApiConfigurationTests`, which pinned both the `Info.Version = "v1.0.0"` semantic version and the bearer security scheme; the test caught the initial refactor's conflation of the route version and the info version and was fixed before merge).
+
 ### Phase 2 / Phase 3 entry-point — CSRF coverage ADR, per-user rate limit, SLOs, caching doc (2026-05-26)
 
 Two coordinated commits land the lowest-risk Phase 2 / Phase 3 entries and a full documentation hardening pass. Backend `dotnet build -warnaserror` remains clean (0/0); tests are 711/711 (was 703/703, +8 new partition-key tests).

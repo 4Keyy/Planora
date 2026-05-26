@@ -1,4 +1,5 @@
 using Planora.BuildingBlocks.Infrastructure;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
@@ -92,6 +93,10 @@ namespace Planora.Todo.Api
                 options.Filters.Add<ResultToActionResultFilter>();
             });
 
+            // OpenAPI / Swagger
+            builder.Services.AddPlanoraSwaggerGen(
+                title: "Planora Todo API",
+                description: "Todo CRUD, sharing, viewer preferences, hidden-state redaction, and worker membership.");
 
             var app = builder.Build();
 
@@ -196,6 +201,9 @@ namespace Planora.Todo.Api
 
                 app.UseAuthentication();
                 app.UseAuthorization();
+
+                // Swagger UI in Development / Staging only
+                app.UsePlanoraSwagger(app.Environment, documentTitle: "Planora Todo API");
 
                 // Routes
                 app.MapControllers();

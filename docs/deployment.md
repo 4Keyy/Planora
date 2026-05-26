@@ -19,6 +19,7 @@ Planora has confirmed local/container orchestration, validation CI, Docker-backe
 | `.github/workflows/migrations.yml` | per-PR idempotent SQL migration script artifact |
 | `.github/workflows/perf-smoke.yml` | on-demand k6 perf scenarios against the Docker stack |
 | `.github/workflows/cd.yml` | tag-driven blue/green continuous delivery to Fly.io |
+| `.github/workflows/openapi.yml` | per-PR OpenAPI document extraction for every HTTP service |
 | `.github/dependabot.yml` | dependency update automation |
 | `deploy/fly/setup.ps1` | idempotent `flyctl apps create` for every Planora app |
 | `deploy/fly/set-secrets.ps1` | reads `deploy/fly/.env.fly` and `flyctl secrets set --stage` per app |

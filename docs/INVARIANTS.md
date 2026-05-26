@@ -154,6 +154,13 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 - Evidence: `frontend/src/lib/trace.ts`, `frontend/src/lib/api.ts`, `frontend/src/test/lib/trace.test.ts`.
 - Rationale: end-to-end traces (browser → gateway → service → DB) require a propagated W3C context. Bundling the full OpenTelemetry browser SDK would add ~80 KB for a 50-line need. The backend already extracts and continues the context through `AddPlanoraTelemetry`'s AspNetCore instrumentation; the browser side only needs to emit a valid header.
 
+## API Contract
+
+**INV-API-3.** Every HTTP service wires Swagger / OpenAPI through the single shared `PlanoraSwaggerExtensions.AddPlanoraSwaggerGen(title, description)` extension. Services do not call `services.AddSwaggerGen()` directly. The Swagger UI middleware mounts only when the environment is `Development` or `Staging` (`UsePlanoraSwagger`); production never exposes the interactive UI. The OpenAPI document for each service is extracted offline in CI via `dotnet swagger tofile` and attached to every PR that touches a controller, DTO, BuildingBlocks, GrpcContracts, or `Directory.Packages.props`.
+
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/PlanoraSwaggerExtensions.cs`, every service `Program.cs`, `.github/workflows/openapi.yml`, `.config/dotnet-tools.json`.
+- Rationale: one Swagger registration surface, one CI artifact contract, one place to evolve the schema-id and security-scheme conventions before the eventual generated TypeScript client lands (Phase 2 T2.2). The dev/staging gate keeps the interactive UI off the production attack surface.
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs`.
 - Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds).
 - Rationale: one meter = one configuration knob in `AddMeter("Planora.*")` (already wildcard-subscribed by `AddPlanoraTelemetry`), one place to audit cardinality before shipping to a metrics backend that bills per series.
