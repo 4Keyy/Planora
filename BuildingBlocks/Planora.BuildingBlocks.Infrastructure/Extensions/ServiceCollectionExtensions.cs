@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.RateLimiting;
 using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 using RedisRateLimiting;
 using StackExchange.Redis;
@@ -153,6 +154,44 @@ public static class ServiceCollectionExtensions
         };
     }
 
-    private static string PartitionKey(HttpContext context) =>
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+    /// <summary>
+    /// Resolves the rate-limit partition key for the current request.
+    /// </summary>
+    /// <remarks>
+    /// Precedence:
+    /// <list type="number">
+    /// <item><description>
+    /// Authenticated user id (from the JWT <c>sub</c> or <see cref="ClaimTypes.NameIdentifier"/>
+    /// claim) when present. Without this, every user behind a shared NAT — corporate proxy,
+    /// mobile carrier CGN, household router — collapses into one bucket and starves each
+    /// other under the configured limits.
+    /// </description></item>
+    /// <item><description>
+    /// Remote IP address as the fallback for anonymous traffic (login, register, refresh
+    /// before the token exists). Prefixed with <c>ip:</c> so the user/ip namespaces cannot
+    /// collide in the Redis key space.
+    /// </description></item>
+    /// <item><description>
+    /// Literal <c>anon</c> when no remote IP is available — used by test contexts and by
+    /// pipelines that ran the request before connection metadata was attached.
+    /// </description></item>
+    /// </list>
+    /// Exposed as <c>public</c> so unit tests can pin the precedence down directly without
+    /// reaching through the public rate-limit policy surface. The function is pure — no
+    /// side effects — so widening the visibility carries no risk.
+    /// </remarks>
+    public static string PartitionKey(HttpContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var userId = context.User?.FindFirst("sub")?.Value
+                     ?? context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            return $"u:{userId}";
+        }
+
+        var ip = context.Connection.RemoteIpAddress?.ToString();
+        return string.IsNullOrWhiteSpace(ip) ? "anon" : $"ip:{ip}";
+    }
 }
