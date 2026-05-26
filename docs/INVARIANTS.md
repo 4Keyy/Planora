@@ -39,6 +39,11 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs`.
 - Rationale: at-least-once delivery; atomicity with business state.
 
+**INV-COMM-3a.** `OutboxMessage` owns its retry / dead-letter state machine. The processor never sets `Status` directly — it calls `MarkAsFailed` (for transient errors) or `MarkAsDeadLettered` (for shape errors that cannot recover on replay, such as `Type.GetType` returning null or `JsonSerializer.Deserialize` returning null). `MarkAsFailed` increments `RetryCount`; while retries remain it schedules `NextRetryUtc` and leaves the row in `Pending`; once the budget is exhausted it auto-transitions to the terminal `OutboxMessageStatus.DeadLettered` and clears `NextRetryUtc` so the polling WHERE clause cannot re-pick the row.
+
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/OutboxMessage.cs`, `OutboxMessageStatus.cs`, `tests/Planora.UnitTests/Services/Infrastructure/OutboxMessageStateMachineTests.cs`.
+- Rationale: a previous implementation re-failed exhausted messages on every cycle forever because `Status == Failed && NextRetryUtc <= now` stayed true with a stale timestamp. The terminal `DeadLettered` state — never picked by the polling predicate — eliminates the cycle. Replay after a fix is an operator action (manual SQL update from `DeadLettered` back to `Pending` after the root cause is corrected); the processor never resurrects dead-lettered rows on its own.
+
 **INV-COMM-4.** Every integration-event consumer uses the Inbox pattern (`IIdempotentMessageHandler`) to deduplicate messages by `messageId`. Handlers must be idempotent under replay.
 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs`.

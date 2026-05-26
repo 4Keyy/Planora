@@ -4,6 +4,79 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Phase 3 T3.2 — outbox dead-letter terminal state, retry-cycle bug fix (2026-05-26)
+
+Fixes a real bug in the outbox processor where a message that hit `MaxRetries`
+was left in `Status=Failed` with a stale `NextRetryUtc` in the past, so the
+polling `WHERE Status==Pending OR (Status==Failed AND NextRetryUtc<=now)`
+re-picked the row on every cycle forever. Each cycle emitted a
+`retry_exhausted` metric event and consumed a slot in the per-batch limit
+(20 messages per pass), starving newer messages from being processed.
+
+The fix lands as four small atomic moves:
+
+- New terminal state `OutboxMessageStatus.DeadLettered = 4` added to the
+  enum. Enum-value additions are forward-compatible with the existing
+  `int`-typed status column — no EF migration required across Auth /
+  Category / Messaging / Todo outbox tables.
+
+- `OutboxMessage.MarkAsFailed` auto-transitions to `DeadLettered` when
+  `RetryCount` reaches `MaxRetries`, clearing `NextRetryUtc` so the
+  polling WHERE clause cannot re-pick the row. The state machine now
+  owns the retry/dead-letter decision — the processor never sets
+  `Status` directly.
+
+- New `OutboxMessage.MarkAsDeadLettered(reason)` for hard non-recoverable
+  failures (type-not-found, deserialize-failed) that should not consume
+  the retry budget. The processor's `catch` block uses it for the two
+  shape-error branches.
+
+- `OutboxMessage.CanRetry` tightened: returns false once the row is
+  `DeadLettered` or `Processed`, not just on retry-count.
+
+- `OutboxMessage.IsDeadLettered` convenience predicate for the
+  processor's outcome-tag decision.
+
+- `OutboxProcessor.cs` catch block simplified — the `(CanRetry ? : )`
+  branch is gone; the entity decides. The outcome tag is now derived
+  from `message.IsDeadLettered` after the SaveChanges, so a single code
+  path covers both "still recoverable" and "just dead-lettered". The
+  dead-letter event also writes a distinct ERROR log line so the row's
+  final state shows up in Loki searches.
+
+Observability changes are doc-only at the metric level — the existing instruments already cover this:
+
+- `planora.outbox.messages{outcome="retry_exhausted"}` already existed —
+  its description in `docs/observability.md` is rewritten to make the
+  four "dead-letter" outcomes explicit: `retry_exhausted`,
+  `type_not_found`, `deserialize_failed` (all terminal) plus the
+  still-recoverable `failed`.
+
+- `PlanoraOutboxPoison` alert rule extended to fire on
+  `outcome=~"retry_exhausted|type_not_found|deserialize_failed"` so the
+  on-call gets paged for ALL three terminal-failure outcomes, not just
+  retry exhaustion. Annotation includes the operator's replay procedure
+  (DeadLettered -> Pending after fixing the root cause).
+
+Regression tests live in the new `tests/Planora.UnitTests/Services/Infrastructure/OutboxMessageStateMachineTests.cs`
+pins the state machine down with nine cases:
+
+- new message is Pending with full retry budget;
+- MarkAsProcessed is terminal;
+- 1st failure: 1-minute back-off, RetryCount=1;
+- 2nd failure: 5-minute back-off, RetryCount=2;
+- retry-budget exhaustion: status=DeadLettered, NextRetryUtc=null, RetryCount=MaxRetries (the bug fix this file exists to pin);
+- MarkAsDeadLettered skips the retry budget entirely;
+- MarkAsDeadLettered after partial retries preserves RetryCount;
+- the polling-predicate REPRODUCTION never matches a dead-lettered row (the historical bug was the second clause matching it);
+- CanRetry is false once processed.
+
+Invariant `INV-COMM-3a` in `docs/INVARIANTS.md` codifies the entity-owned state machine: the processor never sets `Status` directly. Future changes that touch the outbox state machine must go through `MarkAsFailed` / `MarkAsDeadLettered` and the regression suite catches shortcuts.
+
+Verification: `dotnet build Planora.sln -warnaserror` is 0/0; `dotnet test` passes 725/725 (was 716/716, +9 new outbox state-machine tests). No EF migration is required.
+
+Refs: docs/INVARIANTS.md INV-COMM-3a, docs/observability.md, off-repo MASTER_PLAN Phase 3 T3.2.
+
 ### Phase 3 T3.5 — security-stamp rotation expanded to 2FA-disable, revoke-all-sessions, account-delete (2026-05-26)
 
 `INV-AUTH-4` previously documented only password-change as a stamp-rotating event. Three additional command handlers now also rotate the stamp on success:

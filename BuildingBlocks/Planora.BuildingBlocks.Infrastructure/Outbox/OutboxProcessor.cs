@@ -77,7 +77,10 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
                     if (eventType == null)
                     {
                         _logger.LogError("Event type {Type} not found", message.Type);
-                        message.MarkAsFailed($"Event type {message.Type} not found");
+                        // Non-recoverable: the assembly that defines this type either does
+                        // not ship with the current processor build, or the FQN was renamed.
+                        // Re-trying will fail identically — dead-letter immediately.
+                        message.MarkAsDeadLettered($"Event type {message.Type} not found");
                         await dbContext.SaveChangesAsync(cancellationToken);
                         PlanoraMetrics.OutboxMessagesProcessed.Add(1,
                             new KeyValuePair<string, object?>("outcome", "type_not_found"));
@@ -88,7 +91,9 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
                     if (@event == null)
                     {
                         _logger.LogError("Failed to deserialize event {Type}", message.Type);
-                        message.MarkAsFailed("Deserialization failed");
+                        // Non-recoverable: the stored Content shape does not match the
+                        // current Type contract. Retry will fail identically.
+                        message.MarkAsDeadLettered($"Deserialization failed for {message.Type}");
                         await dbContext.SaveChangesAsync(cancellationToken);
                         PlanoraMetrics.OutboxMessagesProcessed.Add(1,
                             new KeyValuePair<string, object?>("outcome", "deserialize_failed"));
@@ -112,20 +117,23 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
                 {
                     _logger.LogError(ex, "Error processing outbox message {MessageId}", message.Id);
 
-                    string outcome;
-                    if (message.CanRetry)
+                    // MarkAsFailed owns the retry / dead-letter decision:
+                    // - retries remaining -> schedules NextRetryUtc and stays Pending
+                    // - retries exhausted -> auto-transitions to DeadLettered
+                    // The processor no longer needs the (CanRetry ? : ) branch, which
+                    // historically left exhausted messages cycling forever with a stale
+                    // NextRetryUtc in the past.
+                    message.MarkAsFailed(ex.Message);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+
+                    var outcome = message.IsDeadLettered ? "retry_exhausted" : "failed";
+                    if (message.IsDeadLettered)
                     {
-                        message.MarkAsFailed(ex.Message);
-                        outcome = "failed";
-                    }
-                    else
-                    {
-                        _logger.LogError("Max retries reached for outbox message {MessageId}", message.Id);
-                        message.MarkAsFailed($"Max retries exceeded: {ex.Message}");
-                        outcome = "retry_exhausted";
+                        _logger.LogError(
+                            "Outbox message {MessageId} dead-lettered after {RetryCount} attempts: {Error}",
+                            message.Id, message.RetryCount, message.Error);
                     }
 
-                    await dbContext.SaveChangesAsync(cancellationToken);
                     PlanoraMetrics.OutboxMessagesProcessed.Add(1,
                         new KeyValuePair<string, object?>("outcome", outcome));
                 }

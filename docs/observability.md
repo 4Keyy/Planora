@@ -48,7 +48,7 @@ auto-subscribed by `AddPlanoraTelemetry`:
 |---|---|---|---|
 | `planora.csrf.rejections` | Counter | `{rejection}` | `reason ∈ {missing_header, missing_cookie, mismatch}` |
 | `planora.grpc.unauthenticated` | Counter | `{rejection}` | `reason ∈ {missing_key, short_key, mismatch}` |
-| `planora.outbox.messages` | Counter | `{message}` | `outcome ∈ {processed, failed, type_not_found, deserialize_failed, retry_exhausted}` |
+| `planora.outbox.messages` | Counter | `{message}` | `outcome ∈ {processed, failed, type_not_found, deserialize_failed, retry_exhausted}`. The four non-`processed` outcomes are also the dead-letter signal — `type_not_found` and `deserialize_failed` are immediate dead-letter (no retry budget consumed); `retry_exhausted` is the transient-failure path that ran out of attempts (RetryCount = 3). `failed` is a still-recoverable transient failure with retries remaining. |
 | `planora.outbox.batch.duration` | Histogram | `s` | (none) |
 | `planora.outbox.message.age` | Histogram | `s` | (none) — the backpressure signal |
 
@@ -172,12 +172,18 @@ week of production data.
 
 - alert: PlanoraOutboxPoison
   expr: |
-    increase(planora_outbox_messages_total{outcome="retry_exhausted"}[15m]) > 0
+    increase(planora_outbox_messages_total{outcome=~"retry_exhausted|type_not_found|deserialize_failed"}[15m]) > 0
   for: 1m
   labels:
     severity: warning
   annotations:
-    summary: At least one outbox message exhausted retries and was dropped to the dead-letter state
+    summary: |
+      At least one outbox message reached the terminal DeadLettered state.
+      `retry_exhausted` = transient failure ran out of retries; the underlying
+      cause needs a fix, after which operators replay by updating the row
+      back to Pending. `type_not_found` / `deserialize_failed` = shape error
+      that will fail identically on replay — requires either a schema fix or
+      the row to be purged.
 
 - alert: PlanoraCsrfAttackPattern
   expr: |
