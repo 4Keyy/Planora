@@ -57,6 +57,12 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.15" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.5.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="9.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="9.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.15" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
     <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.18.0" />
     <PackageVersion Include="BCrypt.Net-Next" Version="4.1.0" />

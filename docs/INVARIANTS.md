@@ -143,6 +143,10 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 
 **INV-FLOW-1.** Migrations are committed alongside the schema change that produced them. A schema change is never merged without its EF migration.
 
+**INV-FLOW-4.** Production migrations are applied by the dedicated `Planora.Migrator` CLI (`tools/Planora.Migrator/`), not by services calling `Database.MigrateAsync()` at startup. The migrator runs as a one-shot init step before service rollout — never simultaneously with the running service — so two replicas cannot race the migration history. The `.github/workflows/migrations.yml` workflow attaches an idempotent SQL script artifact (`dotnet ef migrations script --idempotent`) to every PR whose schema-relevant paths change; reviewers see exactly what will execute.
+- Evidence: `tools/Planora.Migrator/Program.cs`, `.github/workflows/migrations.yml`, `deploy/fly/migrator.fly.toml`.
+- Rationale: EF Core's `Database.MigrateAsync` at app startup is a footgun in HA: two replicas booting the same schema change at once corrupt `__EFMigrationsHistory`. Idempotent script + one-shot runner removes the race and makes the migration auditable.
+
 **INV-FLOW-2.** Runtime user uploads (`Services/AuthApi/Planora.Auth.Api/wwwroot/avatars/`) and other generated content are gitignored. They never appear in `git status` of a clean working tree.
 
 **INV-FLOW-3.** Conventional commits: `feat / fix / docs / style / refactor / perf / test / chore / ci / build`. Each commit ships one logical unit, with docs updated as part of the same commit when behavior or contracts changed.

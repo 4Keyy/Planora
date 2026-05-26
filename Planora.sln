@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36623.8
@@ -90,6 +90,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planora.UnitTests", "tests\Planora.UnitTests\Planora.UnitTests.csproj", "{71A0F0F6-CF15-41A1-9AB3-552D672DA7E1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planora.ErrorHandlingTests", "tests\Planora.ErrorHandlingTests\Planora.ErrorHandlingTests.csproj", "{7B460F39-C79C-46C9-8B13-8D0E934D564F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Planora.Migrator", "tools\Planora.Migrator\Planora.Migrator.csproj", "{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -425,6 +429,18 @@ Global
 		{7B460F39-C79C-46C9-8B13-8D0E934D564F}.Release|x64.Build.0 = Release|Any CPU
 		{7B460F39-C79C-46C9-8B13-8D0E934D564F}.Release|x86.ActiveCfg = Release|Any CPU
 		{7B460F39-C79C-46C9-8B13-8D0E934D564F}.Release|x86.Build.0 = Release|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Debug|x64.Build.0 = Debug|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Debug|x86.Build.0 = Debug|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Release|x64.ActiveCfg = Release|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Release|x64.Build.0 = Release|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Release|x86.ActiveCfg = Release|Any CPU
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -462,6 +478,7 @@ Global
 		{D8F8FF48-B87C-4257-ABA1-DC02CE059AEC} = {04487B2A-98ED-4ECC-ACD6-E85E603A8586}
 		{71A0F0F6-CF15-41A1-9AB3-552D672DA7E1} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{7B460F39-C79C-46C9-8B13-8D0E934D564F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{7F3F794F-A4D6-4956-93D9-3F3BDDC27CAF} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {827C9E2C-6C57-4032-A034-78BDD884EC76}

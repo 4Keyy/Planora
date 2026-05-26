@@ -1,0 +1,95 @@
+name: Migration Scripts
+
+# Emits per-service idempotent SQL migration scripts as PR artifacts so reviewers
+# see exactly what `Planora.Migrator --all` will execute against the target
+# database before approving the change. The scripts are produced via
+# `dotnet ef migrations script --idempotent`, which guards every statement with
+# a `__EFMigrationsHistory` lookup so re-running them on an up-to-date schema
+# is a no-op.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Services/**/Migrations/**'
+      - 'Services/**/Persistence/**'
+      - 'Services/**/Domain/Entities/**'
+      - 'BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/**'
+      - 'tools/Planora.Migrator/**'
+      - 'Directory.Packages.props'
+      - '.github/workflows/migrations.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-scripts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: auth
+            project: Services/AuthApi/Planora.Auth.Infrastructure
+            startup: Services/AuthApi/Planora.Auth.Api
+            context: AuthDbContext
+          - name: category
+            project: Services/CategoryApi/Planora.Category.Infrastructure
+            startup: Services/CategoryApi/Planora.Category.Api
+            context: CategoryDbContext
+          - name: todo
+            project: Services/TodoApi/Planora.Todo.Infrastructure
+            startup: Services/TodoApi/Planora.Todo.Api
+            context: TodoDbContext
+          - name: messaging
+            project: Services/MessagingApi/Planora.Messaging.Infrastructure
+            startup: Services/MessagingApi/Planora.Messaging.Api
+            context: MessagingDbContext
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef --version 9.0.15
+
+      - name: Generate idempotent SQL script for ${{ matrix.name }}
+        env:
+          # dotnet ef may execute OnConfiguring with placeholder values; provide
+          # safe non-secret defaults so the design-time host boots.
+          ConnectionStrings__AuthDatabase: "Host=localhost;Database=planora_auth_db;Username=postgres;Password=postgres"
+          ConnectionStrings__CategoryDatabase: "Host=localhost;Database=planora_category;Username=postgres;Password=postgres"
+          ConnectionStrings__TodoDatabase: "Host=localhost;Database=planora_todo;Username=postgres;Password=postgres"
+          ConnectionStrings__MessagingDatabase: "Host=localhost;Database=planora_messaging;Username=postgres;Password=postgres"
+          JwtSettings__Secret: "0123456789abcdef0123456789abcdef0123456789abcdef"
+          GrpcSettings__ServiceKey: "0123456789abcdef0123456789abcdef"
+        run: |
+          mkdir -p migration-scripts
+          dotnet ef migrations script \
+            --idempotent \
+            --project ${{ matrix.project }} \
+            --startup-project ${{ matrix.startup }} \
+            --context ${{ matrix.context }} \
+            --output migration-scripts/${{ matrix.name }}.sql \
+            --no-build || (echo "::error::Migration script generation failed for ${{ matrix.name }}" && exit 1)
+
+      - name: Report script size and head
+        run: |
+          set -e
+          echo "::group::${{ matrix.name }}.sql ($(wc -l < migration-scripts/${{ matrix.name }}.sql) lines)"
+          head -50 migration-scripts/${{ matrix.name }}.sql
+          echo "::endgroup::"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: migration-script-${{ matrix.name }}
+          path: migration-scripts/${{ matrix.name }}.sql
+          retention-days: 30
