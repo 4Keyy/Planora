@@ -1,6 +1,6 @@
 # Testing
 
-Planora has backend xUnit tests, frontend Vitest tests, Docker-backed Playwright e2e tests, markdown documentation checks, CI jobs, and coverage configuration.
+Planora has backend xUnit tests, frontend Vitest tests, Docker-backed Playwright e2e tests, on-demand **k6 load scenarios**, markdown documentation checks, mutation tests (Stryker.NET), per-PR EF migration script artifacts, CI jobs, and coverage configuration.
 
 ## Test Inventory
 
@@ -16,6 +16,9 @@ Planora has backend xUnit tests, frontend Vitest tests, Docker-backed Playwright
 | Frontend coverage settings | `frontend/vitest.config.ts` | V8 coverage |
 | Markdown lint | `.markdownlint-cli2.jsonc` | markdownlint-cli2 |
 | Markdown link check | `.lychee.toml`, `.github/workflows/ci.yml` | lychee offline mode |
+| Load / perf scenarios | `perf/k6/scenarios`, `perf/k6/lib`, `perf/README.md` | k6 (JavaScript) |
+| Perf CI dispatch | `.github/workflows/perf-smoke.yml` | workflow_dispatch only |
+| Migration script artifacts | `.github/workflows/migrations.yml` | `dotnet ef migrations script --idempotent`, matrix-fanned across the four DB-owning services |
 
 ## Backend Commands
 
@@ -120,6 +123,33 @@ npm --prefix frontend run e2e:report
 ```
 
 `E2E_VERIFY_EMAIL_FROM_LOGS=false` exists as a skip switch for environments that cannot expose Docker logs, but the full auth/sharing flow requires email verification because friendship requests require verified active users.
+
+## Performance / Load (k6)
+
+The k6 baseline lives in [`perf/k6/`](../perf/k6/). Two scenarios ship today; both share `lib/api.js` (CSRF bootstrap, register, login) so new scenarios extend the lib instead of duplicating boilerplate.
+
+| Scenario | Endpoint(s) | Stage profile | Key thresholds |
+|---|---|---|---|
+| `scenarios/login.js` | `POST /auth/api/v1/auth/login` after CSRF fetch and one-time register | warmup 10s @ 1 VU → ramp 20s @ 5 VUs → steady 30s @ 10 VUs | `login p95<800ms`, `p99<1500ms` (steady), `csrf p95<200ms`, `http_req_failed<1%` |
+| `scenarios/todo-list.js` | `GET /todos/api/v1/todos?pageNumber=1&pageSize=20` (real auth context) | warmup 10s @ 1 VU → steady 30s @ 10 VUs | `todo_list p95<400ms`, `p99<800ms`, `http_req_failed<1%` |
+
+Run locally against the Docker stack:
+
+```powershell
+docker compose --env-file .env up -d --build
+k6 run perf/k6/scenarios/todo-list.js -e API_BASE_URL=http://127.0.0.1:5132
+
+# With JSON output for later diffing against a baseline:
+k6 run --out json=perf/results/todo-list.json `
+  perf/k6/scenarios/todo-list.js `
+  -e API_BASE_URL=http://127.0.0.1:5132
+```
+
+[`.github/workflows/perf-smoke.yml`](../.github/workflows/perf-smoke.yml) reproduces the same flow in CI on `workflow_dispatch` — load tests are deliberately not on every PR. Absolute latency numbers are hardware-bound; the value is in catching `+20%`-class regressions on the same runner class. Baselines, when established for a release-candidate hardware shape, live under `perf/baselines/`.
+
+## Migration Script Artifacts (per PR)
+
+When a PR changes a migration, an entity, a DbContext, a persistence configuration, [`tools/Planora.Migrator/`](../tools/Planora.Migrator/), the central package versions, or the workflow itself, [`.github/workflows/migrations.yml`](../.github/workflows/migrations.yml) runs `dotnet ef migrations script --idempotent` for each of the four DB-owning services and attaches the resulting `.sql` files as 30-day-retention artifacts. The scripts are guarded by `__EFMigrationsHistory` lookups so re-running them on an already-migrated schema is a no-op — the exact statements that `Planora.Migrator --all` will execute against production.
 
 ## What The Tests Cover
 

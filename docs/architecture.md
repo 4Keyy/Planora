@@ -237,6 +237,34 @@ Security is split across frontend, gateway, and services:
 
 Detailed security documentation: [`auth-security.md`](auth-security.md).
 
+## Observability Architecture
+
+Observability is a first-class, cross-cutting concern wired identically in every service through a single shared extension. The pipeline is **safe-by-default**: if no OTLP endpoint is configured, the spans and metrics are still produced in-process but no exporter is registered, so there are no background connections, no log noise, and no need to reconfigure environments before merging telemetry-related changes.
+
+- **Tracing pipeline** — `BuildingBlocks.Infrastructure.Logging.TelemetryConfiguration.AddPlanoraTelemetry(IConfiguration, defaultServiceName)` registers ASP.NET Core request tracing (with a `/health*` filter that suppresses probe noise), HttpClient tracing (covers gRPC-over-HTTP/2 transport), and Entity Framework Core tracing. The wildcard `Planora.*` subscription auto-discovers any service-defined `ActivitySource`.
+- **Metrics pipeline** — same extension wires ASP.NET Core request metrics, HttpClient metrics, and .NET runtime metrics (GC, threadpool, exceptions, working set). Custom counters and histograms published through `BuildingBlocks.Infrastructure.Observability.PlanoraMetrics` (Meter name `Planora.BuildingBlocks`) are auto-discovered through the same wildcard.
+- **Custom Planora instruments** (`PlanoraMetrics.cs`):
+  - `planora.csrf.rejections{reason}` — populated by `CsrfProtectionMiddleware`. Reasons: `missing_header`, `missing_cookie`, `mismatch`.
+  - `planora.grpc.unauthenticated{reason}` — populated by `ServiceKeyServerInterceptor`. Reasons: `missing_key`, `short_key`, `mismatch`.
+  - `planora.outbox.messages{outcome}` — populated by `OutboxProcessor`. Outcomes: `processed`, `failed`, `type_not_found`, `deserialize_failed`, `retry_exhausted`.
+  - `planora.outbox.batch.duration` (histogram, seconds) — wall-clock per outbox pass.
+  - `planora.outbox.message.age` (histogram, seconds) — `now - OccurredOnUtc` at the moment the processor picks the row up; the canonical backpressure signal.
+- **Resource attributes** — every span and metric carries `service.name`, `service.version` (from the entry-assembly version), `service.instance.id` (machine hostname), `service.namespace=planora`, and `deployment.environment` (from `ASPNETCORE_ENVIRONMENT`).
+- **Configuration keys** — `OpenTelemetry:OtlpEndpoint` (or the standard `OTEL_EXPORTER_OTLP_ENDPOINT` env var), `OpenTelemetry:ServiceName` / `ServiceVersion`, `OpenTelemetry:ConsoleExporter:Enabled` (debug only), `OpenTelemetry:Tracing:Enabled` / `Metrics:Enabled` (kill switches), `OpenTelemetry:Tracing:CaptureDbStatementText` (PII control on EF SQL capture). Full catalogue in [`configuration.md`](configuration.md).
+- **Logs** — Serilog enrichers from `BuildingBlocks.Infrastructure.Logging` populate `CorrelationId`, `SpanId`, `OperationName`, `UserId`, and `ServiceName` on every log line.
+
+## Health Probe Architecture
+
+Every service and the Gateway publish three health-probe endpoints through a single extension `BuildingBlocks.Infrastructure.Extensions.HealthCheckExtensions.MapPlanoraHealthEndpoints(IEndpointRouteBuilder)`:
+
+| Endpoint | Tag matched | Orchestrator action on failure |
+|---|---|---|
+| `/health/live` | `live` (vacuously healthy when no `live` checks are registered) | restart the machine — the process is wedged |
+| `/health/ready` | `ready` (e.g. `AddDatabaseHealthCheck` tags Npgsql probes with `ready`) | hold traffic off this instance until dependencies recover |
+| `/health` | (no predicate — aggregate of every registered check) | retained for backwards-compatible consumers (docker-compose healthchecks, ad-hoc curl) |
+
+Liveness and readiness are deliberately distinct: an aggregate `/health` cannot distinguish "process dead — restart me" from "process alive but Postgres is slow — do not route to me yet". Fly.io's `[[http_service.checks]]` blocks point at the two split endpoints (`deploy/fly/*.fly.toml`).
+
 ## Architecture Decisions
 
 ADRs are stored in [`DECISIONS/`](DECISIONS/):

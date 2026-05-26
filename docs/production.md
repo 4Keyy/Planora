@@ -99,17 +99,15 @@ docker build -f Services/RealtimeApi/Planora.Realtime.Api/Dockerfile -t planora/
 
 ## Schema And Migration Policy
 
-Confirmed behavior: Auth, Todo, Category, and Messaging initialize schema during startup. If EF migrations exist in the service assembly, startup applies pending migrations. If no migrations exist, startup creates schema from the current EF model.
+Today's behavior: Auth, Todo, Category, and Messaging initialize schema during startup. If EF migrations exist in the service assembly, startup applies pending migrations. If no migrations exist, startup creates schema from the current EF model.
 
-The repository ignores generated `Migrations/` folders by policy, so forks/installations can own their migration history. Production owners should choose one policy:
+The **chosen production migration runner is [`tools/Planora.Migrator/`](../tools/Planora.Migrator/)** — a standalone CLI that applies pending EF Core migrations for the four DB-owning services without running the full service host. On Fly.io the runner is invoked as a one-shot `flyctl machine run --rm planora-migrator -- --all` before each service rollout. The `__EFMigrationsHistory` lookup guard in `dotnet ef migrations script --idempotent` (also produced as a per-PR artifact by [`.github/workflows/migrations.yml`](../.github/workflows/migrations.yml)) makes re-running the same script a no-op.
 
 | Policy | When to use | Tradeoff |
 |---|---|---|
 | First-run model bootstrap | Local Docker installs and throwaway environments without migration files. | Fast and simple; not an auditable migration history. |
-| Startup migrations | Small controlled deployments where only one instance starts migrations at a time. | Simpler, but can race during multi-replica rollouts. |
-| Pre-deploy migration job | Production/staging environments with multiple replicas. | More explicit and safer, but requires a separate migration runner. |
-
-For production, prefer generating service-owned migrations and running them through a controlled deployment step. If using pre-deploy migration jobs, review startup schema behavior before enabling multi-replica automatic rollout.
+| Startup migrations (current default) | Today's path until the CD pipeline lands; safe for single-replica rollouts. | Multi-replica rollouts race the migration history. |
+| Pre-deploy migration job via `Planora.Migrator` (target state) | Production / staging with multiple replicas. | Requires the CD workflow to invoke the migrator before each service rollout; covered by [`INV-FLOW-4`](INVARIANTS.md) once cutover happens. |
 
 Code references:
 
@@ -147,10 +145,12 @@ Do not roll back application images across incompatible database migrations with
 
 ## Production Gaps To Track
 
-| Gap | Why it matters |
-|---|---|
-| No production frontend deployment target | Users need a defined Next.js hosting strategy. |
-| No reverse-proxy/TLS config | Cookies, CORS, WebSocket forwarding, and HTTPS behavior depend on the edge. |
-| No deployment workflow | CI validates but does not publish or promote images. |
-| No secret manager integration | Production should not depend on a plaintext `.env` file. |
-| No backup/restore playbook | PostgreSQL is the durable system of record. |
+| Gap | Why it matters | Current status |
+|---|---|---|
+| No production frontend deployment target | Users need a defined Next.js hosting strategy. | Still open. Vercel / Fly machines for Next.js are both candidates. |
+| No reverse-proxy/TLS config | Cookies, CORS, WebSocket forwarding, and HTTPS behavior depend on the edge. | Fly.io proxy terminates TLS for every app; cookie `Secure` is set via `!IsDevelopment()`. |
+| No deployment workflow | CI validates but does not publish or promote images. | [`deploy/fly/*.fly.toml`](../deploy/fly/) define the shape; the corresponding `flyctl deploy` CD workflow is the next deliverable. |
+| Migrator not yet invoked by CD | Without it, production multi-replica rollouts can race the migration history. | [`tools/Planora.Migrator/`](../tools/Planora.Migrator/) is committed; cutover happens when the CD workflow lands and disables startup migration. |
+| OTLP exporter inactive | Traces and metrics are produced in-process but not exported. | Set `OTEL_EXPORTER_OTLP_ENDPOINT` (and `OTEL_EXPORTER_OTLP_HEADERS` where required) on every Fly app to activate. |
+| No secret manager integration | Production should not depend on a plaintext `.env` file. | Adopt Fly secrets / Doppler / Vault before the first production deploy; document the choice in [`secrets-management.md`](secrets-management.md). |
+| No backup/restore playbook | PostgreSQL is the durable system of record. | Define snapshot schedule (Neon point-in-time or Fly Postgres volume snapshots), restore drill, and `pg_dump` cadence before going live. |

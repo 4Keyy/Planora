@@ -16,8 +16,14 @@ This map is organized by ownership boundary. It intentionally avoids generated a
 | `coverage.runsettings` | .NET coverage configuration | excludes generated/migration/program files |
 | `Start-Planora-Docker.ps1` | Docker backend launcher | preflight, Compose, frontend |
 | `Start-Planora-Local.ps1` | local backend launcher | infra containers, local `dotnet run`, frontend |
-| `.github/workflows` | CI/security/e2e automation | `ci.yml`, `e2e.yml`, `security.yml` |
-| `graphify-out` | generated knowledge graph | `GRAPH_REPORT.md`, `wiki/index.md`, `graph.json` |
+| `.editorconfig` | unified charset / EOL / indentation / C# analyzer severity hints | applies to every file in the repo |
+| `.gitleaks.toml` | gitleaks ruleset extension | Planora-specific secret detectors + env-var-interpolation allowlist |
+| `.github/workflows` | CI/security/e2e/SBOM/migrations/perf automation | `ci.yml`, `e2e.yml`, `security.yml`, `migrations.yml`, `perf-smoke.yml` |
+| `graphify-out` | generated knowledge graph (gitignored) | `GRAPH_REPORT.md`, `wiki/index.md`, `graph.json` |
+| `tools/Planora.Migrator` | one-shot EF Core migration runner CLI | `Program.cs`, `Dockerfile` |
+| `deploy/fly` | Fly.io app manifests | eight `*.fly.toml` + `README.md` |
+| `perf` | k6 load-test scenarios and baseline | `k6/lib/`, `k6/scenarios/`, `README.md` |
+| `docs/INVARIANTS.md` | closed-form architectural invariants | `INV-OWN-*`, `INV-COMM-*`, `INV-AUTH-*`, `INV-OBS-*`, `INV-FLOW-*` |
 
 ## Shared Backend Building Blocks
 
@@ -32,6 +38,11 @@ Important files:
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/EnhancedGlobalExceptionMiddleware.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/JwtAuthenticationExtensions.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs` (`MapPlanoraHealthEndpoints`, `/health/live` + `/health/ready` + aggregate `/health`)
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs` (`AddPlanoraTelemetry` — single OpenTelemetry surface for every service)
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs` (shared `Meter("Planora.BuildingBlocks")` exposing `planora.csrf.rejections`, `planora.grpc.unauthenticated`, `planora.outbox.*`)
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyServerInterceptor.cs` / `ServiceKeyClientInterceptor.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs`
 

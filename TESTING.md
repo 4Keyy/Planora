@@ -54,12 +54,27 @@ E2E config:
 - `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts`
 - `.github/workflows/e2e.yml`
 
+## Load / Performance (k6)
+
+On-demand load scenarios live in `perf/k6/` (helpers in `lib/`, scenarios in `scenarios/`). Run any scenario against a running Docker stack:
+
+```powershell
+docker compose --env-file .env up -d --build
+k6 run perf/k6/scenarios/todo-list.js -e API_BASE_URL=http://127.0.0.1:5132
+```
+
+See [`perf/README.md`](perf/README.md) for thresholds, baselines, and CI integration via `.github/workflows/perf-smoke.yml` (manual dispatch).
+
 ## CI
 
 `.github/workflows/ci.yml` runs markdown lint/link checks, backend restore/build/test, and frontend lint/type-check/test/build.
 
 `.github/workflows/e2e.yml` runs Docker-backed Playwright e2e for auth/todos/sharing/hidden.
 
-`.github/workflows/security.yml` runs Gitleaks, CodeQL SAST, Trivy IaC scanning, NuGet vulnerability checks, and npm audit.
+`.github/workflows/security.yml` runs Gitleaks (with Planora-specific rules in `.gitleaks.toml`), CodeQL SAST, Trivy IaC scanning, NuGet vulnerability checks, npm audit, and a CycloneDX SBOM artifact job.
+
+`.github/workflows/migrations.yml` attaches a per-service idempotent SQL migration script as a 30-day PR artifact whenever schema-relevant paths change.
+
+`.github/workflows/perf-smoke.yml` runs the k6 scenarios on demand against the full Docker stack.
 
 See [`docs/testing.md`](docs/testing.md) for coverage details, manual QA, and recommended tests for new changes.

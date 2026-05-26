@@ -16,6 +16,9 @@ Planora depends on a small set of high-impact secrets. This guide defines how th
 | `Email__Password` | only when SMTP email is enabled | Auth email delivery | Gmail App Password or SMTP password | `EmailOptions.cs`, `SmtpEmailMessageSender.cs` |
 | `Email__Username` | only when SMTP email is enabled | Auth email delivery | Gmail/SMTP account username | `EmailOptions.cs`, `SmtpEmailMessageSender.cs` |
 | `Cors__AllowedOrigins__*` | production-specific | ASP.NET CORS policy | browser origin allow-list | service configuration |
+| `GRPC_SERVICE_KEY` / `GrpcSettings__ServiceKey` | yes | every gRPC server + client (Auth, Todo, Category, Messaging, Realtime, Gateway) | symmetric shared secret validating the `x-service-key` metadata header on every internal gRPC call | `docker-compose.yml`, `ServiceKey*Interceptor.cs` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | optional | every backend service + Gateway | OTLP gRPC endpoint for trace + metric export; when unset, the OpenTelemetry pipeline is a silent no-op | `TelemetryConfiguration.cs`, `docs/configuration.md` |
+| `OTEL_EXPORTER_OTLP_HEADERS` | optional | every backend service + Gateway | headers (e.g. `Authorization=Basic ...`) required by the OTLP backend (Grafana Cloud, observability vendors) | standard OpenTelemetry env var |
 
 Gmail SMTP is supported through the Auth API email service. `Email__Password` must be a Google App Password when `Email__Provider=GmailSmtp`; do not store a normal Google account password in project files.
 
@@ -54,6 +57,8 @@ PowerShell alternative:
 | `RABBITMQ_PASSWORD` | Update broker user password, update all services, restart workers/subscribers, verify queues and connection logs. |
 | `Frontend__BaseUrl` / CORS origins | Update configuration and verify registration, password reset, login, and browser API calls. |
 | `Email__Password` | Revoke the old Google App Password or SMTP credential, create a replacement, update the secret store, restart Auth API, and send a test verification email. |
+| `GRPC_SERVICE_KEY` | Rotate across **every** service simultaneously — the symmetric shared-secret model has no per-service identity yet, so any drift between server and client values breaks the backplane. Generate a new value (≥32 characters), update every Fly app / docker-compose env, restart in dependency order (Auth → Category → Todo → Messaging → Realtime → Gateway). Watch the `planora.grpc.unauthenticated` metric — a non-zero `mismatch` rate during rotation indicates one service did not pick up the new value. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_HEADERS` | Update on every app simultaneously to avoid a partial export window. The OTel pipeline reads the values at startup; restart the apps to pick up new endpoints. Setting the endpoint for the first time activates trace + metric export without a code change. |
 
 ## GitHub Actions Secrets
 

@@ -55,8 +55,6 @@ The resource adds two static attributes: `deployment.environment` (from
 `ASPNETCORE_ENVIRONMENT`) and `service.namespace=planora`. The
 `service.instance.id` attribute is set to the container/machine hostname.
 
-
-
 `.env.production.example` documents the keys expected by a production deployment or secret store. It includes:
 
 - public origins: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_API_GATEWAY_URL`, `Frontend__BaseUrl`, `Cors__AllowedOrigins__0`;

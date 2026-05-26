@@ -2,6 +2,8 @@
 
 This guide is for contributors working inside the Planora codebase.
 
+> **Read [`INVARIANTS.md`](INVARIANTS.md) before opening a PR.** It records the closed-form architectural rules every reviewer enforces (service ownership, gRPC trust, outbox/inbox correctness, auth storage, observability conventions, migration governance). Code style itself is governed by [`.editorconfig`](../.editorconfig); the build runs under `-warnaserror` via [`Directory.Build.props`](../Directory.Build.props).
+
 ## Local Workflow
 
 Recommended loop:
@@ -35,6 +37,23 @@ For e2e changes:
 ```powershell
 docker compose --env-file .env up -d --build
 npm --prefix frontend run e2e
+```
+
+For migration-touching changes:
+
+```powershell
+# Preview pending migrations without applying them
+dotnet run --project tools/Planora.Migrator -- --all --list-pending
+
+# Apply, after setting ConnectionStrings__*Database env vars
+dotnet run --project tools/Planora.Migrator -- --all
+```
+
+For performance regression sniffing:
+
+```powershell
+docker compose --env-file .env up -d --build
+k6 run perf/k6/scenarios/todo-list.js -e API_BASE_URL=http://127.0.0.1:5132
 ```
 
 For documentation-only changes:

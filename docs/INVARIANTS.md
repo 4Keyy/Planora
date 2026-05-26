@@ -9,14 +9,17 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 ## Service Ownership
 
 **INV-OWN-1.** Each domain owns its own PostgreSQL database. No service reads or writes another service's tables.
-- Domain → DB mapping: Auth → `planora_auth_db`; Todo → `planora_todo`; Category → `planora_category`; Messaging → `planora_messaging`. Realtime currently has no DB ([CSP-6](../C:/Users/fkeyy/Desktop/Planora-MASTER-PLAN.md)).
+
+- Domain → DB mapping: Auth → `planora_auth_db`; Todo → `planora_todo`; Category → `planora_category`; Messaging → `planora_messaging`. Realtime currently has no DB (CSP-6).
 - Cross-service reads happen via gRPC (synchronous) or RabbitMQ integration events (asynchronous), never via shared DB schemas.
 - Enforcement: `docker-compose.yml` connection-string envs are scoped per service; PR review rejects cross-service `ConnectionStrings__` references.
 
 **INV-OWN-2.** Identity is owned by Auth. No other service mints, validates, or rotates JWT/refresh tokens. Friendship existence is owned by Auth.
+
 - Evidence: `Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs`, `Services/AuthApi/Planora.Auth.Domain/Entities/Friendship.cs`.
 
 **INV-OWN-3.** Todo never reads Auth DB directly. Friend-list lookups go through `IFriendshipService` → gRPC. Avatar enrichment goes through `GetUserAvatarsBatch` gRPC.
+
 - Evidence: `docs/architecture.md:166-171`.
 
 ---
@@ -24,16 +27,20 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 ## Cross-service Communication
 
 **INV-COMM-1.** All synchronous internal calls go through gRPC contracts in `GrpcContracts/Protos/`. Internal HTTP-to-HTTP calls between services are forbidden.
+
 - Exception: API Gateway is the only HTTP ingress; it never makes internal HTTP calls except to its own health endpoints.
 
-**INV-COMM-2.** Every gRPC server registers `ServiceKeyServerInterceptor`. Every gRPC client uses `ServiceKeyClientInterceptor`. Calls without a matching `x-service-key` are rejected with `Unauthenticated`. Until [CSP-3](../C:/Users/fkeyy/Desktop/Planora-MASTER-PLAN.md) (mTLS migration) lands, this is the only line of defence for the backplane.
+**INV-COMM-2.** Every gRPC server registers `ServiceKeyServerInterceptor`. Every gRPC client uses `ServiceKeyClientInterceptor`. Calls without a matching `x-service-key` are rejected with `Unauthenticated`. Until CSP-3 (mTLS migration) lands, this is the only line of defence for the backplane.
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyServerInterceptor.cs`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyClientInterceptor.cs`.
 
 **INV-COMM-3.** Integration events flow through the Outbox pattern only. Code must not call `IEventBus.Publish` directly from a request handler — events are written into the service's outbox table inside the same DB transaction as the business mutation, and `OutboxProcessor` ships them to RabbitMQ.
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs`.
 - Rationale: at-least-once delivery; atomicity with business state.
 
 **INV-COMM-4.** Every integration-event consumer uses the Inbox pattern (`IIdempotentMessageHandler`) to deduplicate messages by `messageId`. Handlers must be idempotent under replay.
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs`.
 
 ---
@@ -41,19 +48,24 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 ## Authentication & Sessions
 
 **INV-AUTH-1.** Access tokens live **only in frontend memory**. They are never persisted to `localStorage`, `sessionStorage`, or any cookie.
+
 - Evidence: `frontend/src/store/auth.ts` (Zustand persist includes user metadata + expiry, not the raw token).
 
 **INV-AUTH-2.** Refresh tokens live **only in an httpOnly + SameSite=Strict cookie**, scoped to `/auth/api/v1/auth`. The frontend cannot read them. They are never returned in response bodies.
+
 - Evidence: `Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs`, ADR-0002.
 
 **INV-AUTH-3.** State-changing browser requests to Auth API carry the double-submit CSRF token (`X-CSRF-Token` header + readable `XSRF-TOKEN` cookie). Validation is constant-time.
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`, ADR-0003.
-- Open question: services other than Auth do not run CSRF middleware ([Phase 2 T2.6](../C:/Users/fkeyy/Desktop/Planora-MASTER-PLAN.md)).
+- Open question: services other than Auth do not run CSRF middleware (Phase 2 T2.6).
 
 **INV-AUTH-4.** Password change invalidates **all** existing access tokens for that user via security stamp rotation. Subsequent requests with old tokens return `401`.
+
 - Evidence: `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`.
 
 **INV-AUTH-5.** TOTP secrets are encrypted at rest with ASP.NET Core Data Protection, keys persisted to Redis under `Planora:Auth:DataProtection-Keys`, scoped to application name `Planora.Auth`. Recovery codes are hashed with BCrypt before storage.
+
 - Evidence: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs`.
 
 ---
@@ -65,9 +77,11 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 **INV-AZ-2.** Admin-only endpoints carry `[Authorize(Roles = "Admin")]`. Role assignment happens in Auth DB seed only. Application code never grants `Admin` from request input.
 
 **INV-AZ-3.** Hidden shared/public todos are **redacted server-side** via `HiddenTodoDtoFactory`. The frontend never receives sensitive content for a hidden todo. Visual fields (`Priority`, `IsPublic`, `HasSharedAudience`, `IsVisuallyUrgent`) are preserved for non-content frame rendering.
+
 - Evidence: `Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs`, ADR-0004.
 
 **INV-AZ-4.** Todo comment threads require an accepted friendship between the viewer and the todo owner (when the todo is shared/public). Friendship check is mandatory in the comment handler.
+
 - Evidence: commit `5a3a83e` — "require friendship to read todo comments".
 
 ---
@@ -87,16 +101,18 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 ## Configuration & Secrets
 
 **INV-CFG-1.** Secrets never appear in `appsettings.json`, `appsettings.*.json` committed to git, code, comments, or test fixtures. Secrets come from environment variables in dev/CI and from a secret manager in production.
+
 - Tooling: gitleaks runs in `.github/workflows/security.yml` with Planora-specific rules in `.gitleaks.toml`.
 
 **INV-CFG-2.** Docker-compose required secrets use the strict form `${VAR:?VAR env var must be set}`. Stack does not start with a missing required secret.
+
 - Evidence: `docker-compose.yml`.
 
 **INV-CFG-3.** `GRPC_SERVICE_KEY` and `JwtSettings__Secret` are validated at service startup by `ConfigurationValidator` (minimum 16 chars for service key, minimum 32 chars for JWT secret). Failure aborts startup, never falls back to a default.
 
 ---
 
-## API Surface (until [Phase 2 T2.1](../C:/Users/fkeyy/Desktop/Planora-MASTER-PLAN.md) lands)
+## API Surface (until Phase 2 T2.1 lands)
 
 **INV-API-1.** Error responses follow `ApiResponse<object>.Failed(...)` shape produced by `EnhancedGlobalExceptionMiddleware`. New controllers must not throw raw `Exception` to client — they let middleware translate it.
 
@@ -104,7 +120,7 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 
 ---
 
-## Observability (until [Phase 1 T1.1](../C:/Users/fkeyy/Desktop/Planora-MASTER-PLAN.md) lands)
+## Observability (until Phase 1 T1.1 lands)
 
 **INV-OBS-1.** Every request gets a correlation id via `CorrelationIdMiddleware`. Every log line carries `CorrelationId`, `SpanId`, `OperationName`, `UserId` (when present), and `ServiceName` via Serilog enrichers.
 
@@ -113,14 +129,17 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 **INV-OBS-3.** Business events go through `IBusinessEventLogger`. They are structured logs, not free-form `_logger.LogInformation`.
 
 **INV-OBS-4.** Every service exposes three health-probe endpoints: `/health/live` (process liveness, no external deps), `/health/ready` (dependencies reachable, ready to accept traffic), and `/health` (aggregate, retained for backwards-compatible consumers like docker-compose). Wiring is centralized in `MapPlanoraHealthEndpoints()`; services do not call `MapHealthChecks` directly. Liveness checks carry tag `live`, readiness checks carry tag `ready`.
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs`.
 - Rationale: orchestrators (Fly.io machines, k8s) need distinct liveness vs readiness semantics; aggregate `/health` cannot distinguish "process is dead, restart me" from "I'm alive but Postgres is slow, don't route to me yet".
 
 **INV-OBS-5.** Every backend service and the API Gateway wire OpenTelemetry through the single shared `TelemetryConfiguration.AddPlanoraTelemetry(...)` extension. Services do not call `services.AddOpenTelemetry()` directly. The pipeline is no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OpenTelemetry:OtlpEndpoint`) is unset — no exporters, no background connections, no log noise — while still recording in-process traces and metrics so any future exporter can be added without code changes. Custom activity sources and meters published as `Planora.*` are auto-discovered. `/health*` paths are excluded from request tracing to suppress probe noise.
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, every service `Program.cs`.
 - Rationale: a single instrumentation surface means one place to add new instrumentations (gRPC client, RabbitMQ, SignalR), one place to configure sampling and resource attributes, and one place to flip exporters between vendors.
 
 **INV-OBS-6.** Custom Planora metrics are published through one shared `Meter` named `Planora.BuildingBlocks` defined in `BuildingBlocks.Infrastructure.Observability.PlanoraMetrics`. Services do not create their own `Meter` instances for cross-cutting concerns. New instruments follow OpenTelemetry semantic conventions: explicit units (`s`, `{rejection}`, `{message}`), low-cardinality tag values from a finite enumeration, and `_total` is implicit (added by the Prometheus exporter, not the instrument name).
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs`.
 - Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds).
 - Rationale: one meter = one configuration knob in `AddMeter("Planora.*")` (already wildcard-subscribed by `AddPlanoraTelemetry`), one place to audit cardinality before shipping to a metrics backend that bills per series.
@@ -144,6 +163,7 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 **INV-FLOW-1.** Migrations are committed alongside the schema change that produced them. A schema change is never merged without its EF migration.
 
 **INV-FLOW-4.** Production migrations are applied by the dedicated `Planora.Migrator` CLI (`tools/Planora.Migrator/`), not by services calling `Database.MigrateAsync()` at startup. The migrator runs as a one-shot init step before service rollout — never simultaneously with the running service — so two replicas cannot race the migration history. The `.github/workflows/migrations.yml` workflow attaches an idempotent SQL script artifact (`dotnet ef migrations script --idempotent`) to every PR whose schema-relevant paths change; reviewers see exactly what will execute.
+
 - Evidence: `tools/Planora.Migrator/Program.cs`, `.github/workflows/migrations.yml`, `deploy/fly/migrator.fly.toml`.
 - Rationale: EF Core's `Database.MigrateAsync` at app startup is a footgun in HA: two replicas booting the same schema change at once corrupt `__EFMigrationsHistory`. Idempotent script + one-shot runner removes the race and makes the migration auditable.
 
@@ -156,7 +176,7 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 ## What this file is not
 
 - This is not a style guide. Style lives in `.editorconfig`.
-- This is not a roadmap. Future work lives in `docs/ROADMAP.md` and the master plan at `C:\Users\fkeyy\Desktop\Planora-MASTER-PLAN.md` (off-repo).
+- This is not a roadmap. Future work lives in `docs/ROADMAP.md` and the off-repo master plan owned by the maintainer.
 - This is not aspirational. Every rule above is currently observable in code, configuration, or CI.
 
-When [Phase 2](../C:/Users/fkeyy/Desktop/Planora-MASTER-PLAN.md) closes the API-response and Realtime-persistence gaps, the corresponding caveats above are removed and the rule is tightened.
+When Phase 2 closes the API-response and Realtime-persistence gaps, the corresponding caveats above are removed and the rule is tightened.

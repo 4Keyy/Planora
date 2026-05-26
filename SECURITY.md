@@ -51,11 +51,17 @@ These targets are policy goals, not automated guarantees in the current reposito
 - A global rate limiter (100 req/min/IP) covers every endpoint; Auth endpoints have stricter named policies.
 - SignalR `NotificationHub` validates subscription topics against a static allowlist before granting group membership.
 - CORS uses explicit origins with credentials.
+- All inter-service gRPC calls are authenticated by a shared `x-service-key` metadata header; the `ServiceKeyServerInterceptor` rejects calls under `Unauthenticated` and emits the `planora.grpc.unauthenticated{reason}` counter with a low-cardinality reason tag (`missing_key`, `short_key`, `mismatch`) so credential-compromise activity is observable in real time.
+- The CSRF middleware emits `planora.csrf.rejections{reason}` (`missing_header`, `missing_cookie`, `mismatch`) so anomalous rejection patterns are dashboardable.
+- Centralized OpenTelemetry pipeline (see [`docs/configuration.md`](docs/configuration.md) "OpenTelemetry (Observability)" section) — traces and metrics are produced in every service via `AddPlanoraTelemetry`; the OTLP gRPC exporter activates only when `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OpenTelemetry:OtlpEndpoint`) is set.
 
 Key code:
 
 - `Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyServerInterceptor.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/JwtAuthenticationExtensions.cs`
 - `Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordValidator.cs`
 - `frontend/src/store/auth.ts`
@@ -74,20 +80,29 @@ Never commit `.env`. At minimum, set strong local/production values for:
 
 `JWT_SECRET` must be at least 32 characters and identical across the gateway and every backend service.
 
+## Secret Scanning
+
+`.github/workflows/security.yml` runs Gitleaks on every push and pull request, with the upstream default ruleset extended by [`.gitleaks.toml`](.gitleaks.toml). The Planora-specific rules detect inlined values for `JwtSettings__Secret` / `JWT_SECRET`, `GRPC_SERVICE_KEY` / `GrpcSettings__ServiceKey`, Postgres / Redis connection-string passwords, `RABBITMQ_PASSWORD`, `Email__Password`, and generic high-entropy `SECRET` / `TOKEN` / `KEY` assignments. The allowlist explicitly excludes environment-variable interpolation forms (`${VAR:?...}`, `%VAR%`) so the docker-compose strict-required pattern does not trigger false positives.
+
+## Software Bill Of Materials (SBOM)
+
+`.github/workflows/security.yml` includes a CycloneDX SBOM job that emits a per-project SBOM for the .NET solution (`dotnet CycloneDX`, excluding test projects) and a single SBOM for the frontend npm tree (`@cyclonedx/cyclonedx-npm`). SBOMs are uploaded as an artifact with 90-day retention so the supply-chain inventory of every commit on `main` is retrievable.
+
 ## Production Security Notes
 
-The repository now includes a production baseline, but no automated production deployment target is committed. Before production use, define:
+The repository now includes a production baseline ([`docs/production.md`](docs/production.md)), Fly.io deployment manifests ([`deploy/fly/`](deploy/fly/) and [`deploy/fly/README.md`](deploy/fly/README.md)), and a one-shot migration runner ([`tools/Planora.Migrator/`](tools/Planora.Migrator/)), but the CD workflow that wires them together is not yet committed. Before production use, define:
 
 - HTTPS termination and forwarded header policy;
 - secure cookie behavior behind the proxy;
 - secret management outside plaintext `.env` files;
 - network isolation for PostgreSQL, Redis, and RabbitMQ;
 - RabbitMQ AMQP binding/firewalling;
-- backup/restore and migration policy;
-- observability sinks and alerting.
+- backup/restore and migration policy (the migrator is the chosen runner; the CD pipeline that invokes it pre-deploy is pending);
+- observability sinks (set `OTEL_EXPORTER_OTLP_ENDPOINT` on every Fly app to activate trace + metric export) and alerting.
 
 References:
 
 - [`docs/production.md`](docs/production.md)
 - [`docs/secrets-management.md`](docs/secrets-management.md)
+- [`deploy/fly/README.md`](deploy/fly/README.md)
 - [`.env.production.example`](.env.production.example)

@@ -13,8 +13,11 @@ Planora is a .NET 9 microservice backend with a Next.js 15 frontend:
 - `Services/CategoryApi/` - user-owned categories.
 - `Services/MessagingApi/` - direct messages.
 - `Services/RealtimeApi/` - SignalR notifications and connection tracking.
-- `BuildingBlocks/` - shared domain/application/infrastructure primitives.
+- `BuildingBlocks/` - shared domain/application/infrastructure primitives, the centralized OpenTelemetry pipeline (`AddPlanoraTelemetry`), the `PlanoraMetrics` Meter, the outbox/inbox primitives, and the three-probe health surface (`MapPlanoraHealthEndpoints`).
 - `GrpcContracts/` - service-to-service contracts.
+- `tools/Planora.Migrator/` - one-shot EF Core migration runner CLI (`--all` / `--service <name>` / `--list-pending`).
+- `deploy/fly/` - Fly.io app manifests for the production hosting target.
+- `perf/k6/` - k6 load-test scenarios establishing the regression-detection baseline.
 
 ## Confirmed Runtime Shape
 
@@ -49,9 +52,13 @@ Architecture decision records live in [`docs/DECISIONS/`](docs/DECISIONS/):
 - CSRF double-submit cookie;
 - viewer-specific hidden shared todo visibility.
 
+Closed-form architectural invariants — rules every reviewer enforces — live in [`docs/INVARIANTS.md`](docs/INVARIANTS.md).
+
 ## Read More
 
 - [`docs/architecture.md`](docs/architecture.md) - full architecture and data flow.
+- [`docs/INVARIANTS.md`](docs/INVARIANTS.md) - closed-form architectural invariants.
 - [`docs/codebase-map.md`](docs/codebase-map.md) - directory and critical file map.
 - [`docs/database.md`](docs/database.md) - persistence model.
 - [`docs/auth-security.md`](docs/auth-security.md) - authentication and security.
+- [`deploy/fly/README.md`](deploy/fly/README.md) - Fly.io deployment template walkthrough.

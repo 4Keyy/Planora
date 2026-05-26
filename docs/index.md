@@ -31,6 +31,7 @@ This directory is the project knowledge base for users, developers, operators, a
 | [`deployment.md`](deployment.md) | Docker Compose, CI/CD, production notes | operators, maintainers |
 | [`production.md`](production.md) | Production deployment baseline, runtime topology, readiness checklist | operators, maintainers |
 | [`secrets-management.md`](secrets-management.md) | Secret inventory, storage rules, rotation guidance | operators, security reviewers |
+| [`INVARIANTS.md`](INVARIANTS.md) | Closed-form architectural invariants enforced across the codebase | reviewers, contributors |
 | [`development.md`](development.md) | Local workflows, adding features/endpoints/components | contributors |
 | [`troubleshooting.md`](troubleshooting.md) | Known startup/runtime failures and fixes | everyone |
 | [`faq.md`](faq.md) | Common user/developer questions | everyone |
@@ -54,6 +55,11 @@ This directory is the project knowledge base for users, developers, operators, a
 | Database models | `*/Infrastructure/Persistence/*DbContext.cs`, `*/Infrastructure/Persistence/Configurations` |
 | Tests | `tests/Planora.UnitTests`, `tests/Planora.ErrorHandlingTests`, `frontend/src/test` |
 | E2E tests | `frontend/e2e`, `frontend/playwright.config.ts`, `.github/workflows/e2e.yml` |
+| Observability wiring | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs` |
+| Health probes | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs` |
+| Migration runner | `tools/Planora.Migrator/`, `.github/workflows/migrations.yml` |
+| Fly.io deployment | `deploy/fly/`, `deploy/fly/README.md` |
+| Performance baseline | `perf/k6/`, `perf/README.md`, `.github/workflows/perf-smoke.yml` |
 
 ## Documentation Maintenance Checklist
 

@@ -49,6 +49,21 @@ Code:
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs`
 - `Services/*/Planora.*.Api/Program.cs`
 
+## Migration Governance
+
+For production rollouts the project ships a dedicated, standalone migration runner — [`tools/Planora.Migrator/`](../tools/Planora.Migrator/) — that replaces the implicit "every service applies pending migrations at startup" pattern, which is unsafe under HA (two replicas racing the same migration can corrupt `__EFMigrationsHistory`).
+
+| Concern | How it is handled |
+|---|---|
+| Pre-deploy migration | `dotnet Planora.Migrator.dll --all` (or `--service <name>` for a single service). On Fly.io: `flyctl machine run --rm planora-migrator -- --all`. |
+| Review-time visibility | `.github/workflows/migrations.yml` runs `dotnet ef migrations script --idempotent` for each of the four DB-owning services on every PR whose schema-relevant paths change, and attaches the `.sql` files as 30-day-retention artifacts. |
+| Idempotence | The generated scripts wrap every statement in a `__EFMigrationsHistory` lookup so re-running them on an up-to-date schema is a no-op. |
+| Connection-string priority | The CLI reads `ConnectionStrings__<Name>` from env vars / `appsettings.json` first; `--connection-string` overrides everything. |
+| Failure semantics | The CLI returns `0` on success, `64` on bad args, `70` if any one service migration failed. |
+| Auth / Category DbContexts | Both require an `IDomainEventDispatcher` for their constructors; the migrator injects a `NoOpDomainEventDispatcher` because migrations never raise domain events. |
+
+This convention is locked in by [`docs/INVARIANTS.md`](INVARIANTS.md) `INV-FLOW-4`. Until the CD pipeline lands and invokes the migrator pre-deploy, services continue to auto-migrate at startup as described in the previous section. The cutover is a single change in the CD workflow plus disabling startup migration in each service.
+
 ## Auth Database
 
 DbContext: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs`
