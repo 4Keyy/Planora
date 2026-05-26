@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
+using Planora.Auth.Application.Common.Interfaces;
 
 namespace Planora.Auth.Infrastructure.Services.Common;
 
@@ -24,20 +25,24 @@ public sealed class LocalFileStorageService : IFileStorageService
         string folder,
         CancellationToken cancellationToken = default)
     {
-        var normalizedFolder = NormalizeSegment(folder);
-        var uploadsRoot = ResolveUploadsRoot();
-        var targetDirectory = Path.Combine(uploadsRoot, normalizedFolder);
-        Directory.CreateDirectory(targetDirectory);
-
-        var extension = Path.GetExtension(fileName);
-        var safeBaseName = string.IsNullOrWhiteSpace(Path.GetFileNameWithoutExtension(fileName))
-            ? "file"
-            : InvalidCharsRegex.Replace(Path.GetFileNameWithoutExtension(fileName), string.Empty);
-        var generatedFileName = $"{safeBaseName}-{Guid.NewGuid():N}{extension}";
-        var fullPath = Path.Combine(targetDirectory, generatedFileName);
+        var (fullPath, generatedFileName, normalizedFolder) = PrepareTarget(fileName, folder);
 
         await using var fileStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
         await stream.CopyToAsync(fileStream, cancellationToken);
+
+        return $"/{normalizedFolder}/{generatedFileName}";
+    }
+
+    public async Task<string> SaveBytesAsync(
+        byte[] bytes,
+        string fileName,
+        string folder,
+        CancellationToken cancellationToken = default)
+    {
+        var (fullPath, generatedFileName, normalizedFolder) = PrepareTarget(fileName, folder);
+
+        await using var fileStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await fileStream.WriteAsync(bytes, cancellationToken);
 
         return $"/{normalizedFolder}/{generatedFileName}";
     }
@@ -50,7 +55,17 @@ public sealed class LocalFileStorageService : IFileStorageService
         }
 
         var relativePath = filePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-        var fullPath = Path.Combine(ResolveUploadsRoot(), relativePath);
+        var uploadsRoot = ResolveUploadsRoot();
+        var fullPath = Path.GetFullPath(Path.Combine(uploadsRoot, relativePath));
+
+        // Guard against path traversal — must remain under uploadsRoot.
+        var normalizedRoot = Path.GetFullPath(uploadsRoot)
+            .TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("Refused to delete file outside uploads root: {Path}", filePath);
+            return;
+        }
 
         if (!File.Exists(fullPath))
         {
@@ -59,6 +74,46 @@ public sealed class LocalFileStorageService : IFileStorageService
 
         File.Delete(fullPath);
         _logger.LogInformation("Deleted uploaded file at {Path}", filePath);
+    }
+
+    private (string FullPath, string GeneratedFileName, string NormalizedFolder) PrepareTarget(
+        string fileName,
+        string folder)
+    {
+        var normalizedFolder = NormalizeSegment(folder);
+        var uploadsRoot = ResolveUploadsRoot();
+        var targetDirectory = Path.Combine(uploadsRoot, normalizedFolder);
+        Directory.CreateDirectory(targetDirectory);
+
+        var extension = Path.GetExtension(fileName);
+        var rawBase = Path.GetFileNameWithoutExtension(fileName);
+        var safeBaseName = string.IsNullOrWhiteSpace(rawBase)
+            ? "file"
+            : InvalidCharsRegex.Replace(rawBase, string.Empty);
+        if (string.IsNullOrWhiteSpace(safeBaseName))
+        {
+            safeBaseName = "file";
+        }
+
+        var generatedFileName = string.IsNullOrEmpty(extension)
+            ? safeBaseName
+            : $"{safeBaseName}{extension}";
+        // Make sure caller-provided base name never collides with another upload.
+        if (!safeBaseName.Contains('-') || !Guid.TryParseExact(safeBaseName.Split('-').Last(), "N", out _))
+        {
+            generatedFileName = $"{safeBaseName}-{Guid.NewGuid():N}{extension}";
+        }
+
+        var fullPath = Path.GetFullPath(Path.Combine(targetDirectory, generatedFileName));
+
+        var normalizedRoot = Path.GetFullPath(uploadsRoot)
+            .TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Resolved upload path escapes the uploads root");
+        }
+
+        return (fullPath, generatedFileName, normalizedFolder);
     }
 
     private string ResolveUploadsRoot()
@@ -74,7 +129,16 @@ public sealed class LocalFileStorageService : IFileStorageService
 
     private static string NormalizeSegment(string segment)
     {
-        var trimmed = segment.Trim().Trim('/', '\\');
-        return string.IsNullOrWhiteSpace(trimmed) ? "uploads" : trimmed;
+        var trimmed = (segment ?? string.Empty).Trim().Trim('/', '\\');
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return "uploads";
+        }
+        // Reject anything containing path separators or relative components.
+        if (trimmed.Contains('/') || trimmed.Contains('\\') || trimmed.Contains("..", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Folder must be a single path segment", nameof(segment));
+        }
+        return trimmed;
     }
 }

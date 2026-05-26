@@ -4,6 +4,30 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### PR-1 avatar pipeline — server-side validation + ImageSharp re-encoding (2026-05-26)
+
+**Security.** `POST /auth/api/v1/users/me/avatar` is now defended in depth. Previously the handler accepted any `IFormFile` bytes, wrote them to disk verbatim using the original filename, and trusted the client's `Content-Type`. A 100 MB EXE renamed to `.jpg` would have been stored exactly as uploaded. The new pipeline:
+
+1. `[RequestSizeLimit(6 MB)]` + `[RequestFormLimits]` cap the multipart body at the edge before the handler runs.
+2. `UploadAvatarCommandValidator` (FluentValidation) enforces 5 MB max and the `image/jpeg|png|webp` MIME whitelist.
+3. `ImageSharpImageProcessor` re-checks magic bytes (JPEG `FF D8 FF`, PNG `89 50 4E 47 0D 0A 1A 0A`, WEBP `RIFF…WEBP`) regardless of declared `Content-Type` — spoofed headers cannot bypass it.
+4. ImageSharp decodes the file, enforces 64×64..4096×4096, strips `ExifProfile` / `IccProfile` / `XmpProfile`, then re-encodes to WebP (lossy q=85). The output is a brand-new byte stream; polyglot files, embedded scripts, or metadata-borne PII cannot survive the round-trip.
+5. `LocalFileStorageService` now validates the folder argument (rejects path separators / `..`), normalizes filenames, and refuses both `SaveBytesAsync` and `DeleteFile` operations that resolve outside the uploads root.
+
+**Bug fix.** Removed a duplicate `AddScoped<IFileStorageService, FileStorageService>()` registration that was shadowing `LocalFileStorageService`. The `FileStorageService.cs` file is deleted — its `Guid.NewGuid()_{userFileName}` naming scheme was the actively-resolved one and would have allowed user-controlled extensions to land on disk.
+
+**Breaking.** Avatar URLs are now always `/avatars/avatar-<guid>.webp`. Previous extensions (`.jpg`, `.png`) are no longer used. Existing avatar URLs on `User.ProfilePictureUrl` continue to resolve until the user re-uploads. Error codes split into `413 INVALID_FILE_SIZE` and `415 UNSUPPORTED_MEDIA_TYPE` (previously generic `400`).
+
+**API.** New columns in `docs/API.md` § "Avatar upload" document limits, MIME whitelist, error codes, and output format. `docs/features.md`, `docs/auth-security.md` § "Avatar File Pipeline", and new invariant `INV-AZ-5` in `docs/INVARIANTS.md` capture the contract.
+
+**Tests.** `+16` tests across `UploadAvatarCommandHandlerTests`, `ImageSharpImageProcessorTests`, and `LocalFileStorageServiceTests` cover authentication, processor rejection, EXIF stripping, magic-byte sniff, min-dimension floor, path-traversal guards, and external-URL preservation. Full suite: 718/718 (was 702/702).
+
+**Packages.** `SixLabors.ImageSharp 3.1.11` added (latest stable; closes GHSA-2cmq-823j-5qj8 + GHSA-rxmq-m78w-7wmc).
+
+Security: closes upload-side DoS, polyglot file, EXIF privacy leak, and shadow-DI registration footguns.
+
+Refs: `Services/AuthApi/Planora.Auth.Application/Features/Users/{Commands,Validators,Handlers}/UploadAvatar/*`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/{ImageSharpImageProcessor,LocalFileStorageService}.cs`, `Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs`, `docs/INVARIANTS.md` `INV-AZ-5`.
+
 ### Phase 2 T2.2 follow-on — Spectral OpenAPI linting + schema-id sanitisation (2026-05-26)
 
 Locks the OpenAPI contract quality before any consumer (eventual TypeScript client, oasdiff comparison) lands. Two coordinated pieces.

@@ -272,9 +272,36 @@ Canonical prefix: `/auth/api/v1/users`
 | `DELETE` | `/me/sessions/{tokenId}` | bearer + CSRF | revoke session |
 | `POST` | `/me/sessions/revoke-all` | bearer + CSRF | revoke all sessions |
 | `GET` | `/me/login-history?pageNumber=&pageSize=` | bearer | login history |
+| `POST` | `/me/avatar` | bearer + CSRF + `multipart/form-data` | upload profile avatar |
 | `GET` | `/statistics` | admin | user statistics |
 | `GET` | `/` | admin | paged users |
 | `GET` | `/{userId}` | admin | user detail |
+
+### Avatar upload
+
+`POST /auth/api/v1/users/me/avatar` accepts a single `file` field as `multipart/form-data`.
+
+| Limit | Value | Enforced by |
+|---|---|---|
+| Max body size | 6 MB (5 MB payload + multipart overhead) | `[RequestSizeLimit]` on the action |
+| Max image bytes | 5 MB | `UploadAvatarCommandValidator` + `ImageSharpImageProcessor` |
+| Allowed MIME | `image/jpeg`, `image/png`, `image/webp` | content-type whitelist + magic-byte sniff |
+| Min dimensions | 64×64 | ImageSharp decoder check |
+| Max dimensions | 4096×4096 | ImageSharp decoder check |
+| Output format | always `image/webp` (re-encoded server-side, lossy q=85) | `ImageSharpImageProcessor` |
+| Metadata stripping | EXIF / ICC / XMP cleared before re-encode | `ImageSharpImageProcessor` |
+
+Error codes:
+
+| HTTP | Error code | Cause |
+|---|---|---|
+| `400` | `INVALID_IMAGE_CONTENT` | File is not a decodable image, or fails min-dimension check |
+| `413` | `INVALID_FILE_SIZE` | Payload exceeds 5 MB |
+| `415` | `UNSUPPORTED_MEDIA_TYPE` | MIME or magic bytes outside JPEG/PNG/WEBP whitelist |
+| `401` | `NOT_AUTHENTICATED` | Missing/invalid bearer token |
+| `404` | `USER_NOT_FOUND` | Authenticated user record was deleted |
+
+Success returns `UserDto` with the updated `profilePictureUrl` pointing at the stored WebP (relative URL `/avatars/avatar-<guid>.webp`). Any previous avatar under the `/avatars/` prefix is deleted before the new one is persisted. External URLs (set previously via `PUT /me`) are left in place.
 
 `GET /me` and admin user detail responses include `isEmailVerified` and `emailVerifiedAt`. `isEmailVerified` is the direct boolean status; `emailVerifiedAt` is present when the verification timestamp is known.
 

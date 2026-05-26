@@ -8,5 +8,11 @@ public interface IFileStorageService
         string folder,
         CancellationToken cancellationToken = default);
 
+    Task<string> SaveBytesAsync(
+        byte[] bytes,
+        string fileName,
+        string folder,
+        CancellationToken cancellationToken = default);
+
     void DeleteFile(string filePath);
 }

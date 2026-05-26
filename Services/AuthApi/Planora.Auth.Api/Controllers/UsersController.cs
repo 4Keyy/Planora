@@ -52,9 +52,17 @@ namespace Planora.Auth.Api.Controllers
             return Ok(result.Value);
         }
 
+        // Hard cap: 6 MB allows ~5 MB payload + multipart overhead. Image pipeline enforces
+        // exact byte/dimension/format limits and re-encodes the bytes to WebP, so anything
+        // accepted past this point goes through a fully validated bytestream.
         [HttpPost("me/avatar")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(6 * 1024 * 1024)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 6 * 1024 * 1024)]
         [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
+        [ProducesResponseType(StatusCodes.Status415UnsupportedMediaType)]
         public async Task<IActionResult> UploadAvatar(
             IFormFile file,
             CancellationToken cancellationToken)
@@ -68,7 +76,12 @@ namespace Planora.Auth.Api.Controllers
 
             if (result.IsFailure)
             {
-                return BadRequest(result.Error);
+                return result.Error!.Code switch
+                {
+                    "INVALID_FILE_SIZE" => StatusCode(StatusCodes.Status413PayloadTooLarge, result.Error),
+                    "UNSUPPORTED_MEDIA_TYPE" => StatusCode(StatusCodes.Status415UnsupportedMediaType, result.Error),
+                    _ => BadRequest(result.Error),
+                };
             }
 
             return Ok(result.Value);

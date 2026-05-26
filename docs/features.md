@@ -78,6 +78,7 @@ Let users manage profile data, password/email changes, email verification, sessi
 | Area | Behavior |
 |---|---|
 | Profile update | `firstName` and `lastName` required, max 100; profile picture URL max 500 and must be absolute HTTP/HTTPS if present. |
+| Avatar upload | `POST /me/avatar` accepts JPEG/PNG/WEBP up to 5 MB, 64×64..4096×4096. Server validates MIME, magic bytes, and dimensions, then re-encodes to WebP (lossy q=85) and strips EXIF/ICC/XMP. Output URL is `/avatars/avatar-<guid>.webp`. Previous avatars under `/avatars/` are deleted on upload; externally hosted URLs are not touched. |
 | Password strength | min 8, max 128, uppercase, lowercase, digit, special char; also weak/sequential/repeating checks in infrastructure. |
 | Email verification | registration/change-email create a 24-hour token; `GET /auth/api/v1/users/verify-email?token=...` confirms it; profile `POST /me/verify-email` sends a fresh link for the signed-in user. `Email__Provider=GmailSmtp` sends real Gmail messages; default `Log` provider writes links to Auth API logs. User DTOs expose `isEmailVerified` and `emailVerifiedAt`. |
 | Compromised password check | HIBP k-anonymity lookup is enabled by config default in `PasswordValidator`; lookup failure logs and does not block. |

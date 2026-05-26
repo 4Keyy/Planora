@@ -276,6 +276,24 @@ Code:
 - `Services/TodoApi/Planora.Todo.Application/Features/Todos/TodoViewerStateResolver.cs`
 - `docs/DECISIONS/0004-viewer-specific-todo-visibility.md`
 
+## Avatar File Pipeline
+
+`POST /auth/api/v1/users/me/avatar` is the only file-upload endpoint in the system. It is defended in depth:
+
+1. **Edge size cap** — `[RequestSizeLimit(6 MB)]` and `[RequestFormLimits(MultipartBodyLengthLimit = 6 MB)]` on the action reject oversized bodies before any handler runs. 6 MB allows 5 MB image + multipart overhead.
+2. **Validation** — `UploadAvatarCommandValidator` (FluentValidation) enforces presence, size ≤ 5 MB, and MIME ∈ {`image/jpeg`, `image/png`, `image/webp`}.
+3. **Magic-byte sniff** — `ImageSharpImageProcessor` re-checks the first 12 bytes against JPEG (`FF D8 FF`), PNG (`89 50 4E 47 0D 0A 1A 0A`), and WEBP (`RIFF…WEBP`) signatures. A spoofed `Content-Type` cannot bypass this.
+4. **Decode + dimension check** — ImageSharp parses the file; rejects anything outside `64×64..4096×4096`. Malformed/exploit-crafted payloads fail decode and are rejected with `INVALID_IMAGE_CONTENT`.
+5. **Metadata stripping** — `ExifProfile`, `IccProfile`, and `XmpProfile` are explicitly cleared. EXIF GPS and similar privacy leaks cannot survive an upload.
+6. **Re-encoding to WebP** — the decoded image is re-emitted as lossy WebP (quality 85). The result is a brand-new byte stream produced by ImageSharp; any polyglot or steganographic payload in the source is discarded.
+7. **Storage** — `LocalFileStorageService.SaveBytesAsync` writes to `wwwroot/avatars/avatar-<guid>.webp` under the configured `WebRootPath`. The folder name is validated to be a single segment (no `..`, no `/`, no `\`). Filenames are normalized to remove invalid OS characters and always suffixed with a fresh GUID.
+8. **Old-avatar cleanup** — if the user's previous `ProfilePictureUrl` starts with `/avatars/`, the file is deleted from disk before the new one is persisted. External URLs (set via `PUT /me` with an absolute http(s) URL) are left in place.
+9. **Path-traversal guard** — both `SaveBytesAsync` and `DeleteFile` resolve absolute paths and refuse to operate outside the uploads root.
+
+Error responses use HTTP `413` for size violations and `415` for unsupported media so clients can distinguish them from generic `400` validation errors.
+
+Code: `Services/AuthApi/Planora.Auth.Application/Features/Users/{Commands,Validators,Handlers}/UploadAvatar`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/{ImageSharpImageProcessor,LocalFileStorageService}.cs`.
+
 ## Logging And Sensitive Data
 
 Structured logging uses Serilog and shared logging helpers. API Gateway explicitly avoids logging Authorization token details in JWT events. HTTP logging middleware is used across services and is described in shared infrastructure.
