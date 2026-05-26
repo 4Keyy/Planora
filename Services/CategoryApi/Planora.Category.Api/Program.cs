@@ -190,8 +190,8 @@ namespace Planora.Category.Api
                 app.MapControllers();
                 app.MapGrpcService<CategoryGrpcService>();
 
-                // Health Checks
-                app.MapHealthChecks("/health");
+                // Health Checks — /health/live, /health/ready, /health (aggregate)
+                app.MapPlanoraHealthEndpoints();
 
                 var appLogger = app.Services.GetRequiredService<ILogger<Program>>();
                 appLogger.LogInformation("🚀 CategoryApi started successfully");

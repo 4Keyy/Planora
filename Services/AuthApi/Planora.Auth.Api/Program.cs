@@ -238,8 +238,8 @@ namespace Planora.Auth.Api
                 app.MapControllers();
                 app.MapGrpcService<Planora.Auth.Api.Grpc.AuthGrpcService>();
 
-                // Health Checks
-                app.MapHealthChecks("/health");
+                // Health Checks — /health/live, /health/ready, /health (aggregate)
+                app.MapPlanoraHealthEndpoints();
 
                 var appLogger = app.Services.GetRequiredService<ILogger<Program>>();
                 appLogger.LogInformation("🚀 AuthApi started successfully");

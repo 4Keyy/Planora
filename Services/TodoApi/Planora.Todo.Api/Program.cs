@@ -198,8 +198,8 @@ namespace Planora.Todo.Api
                 app.MapControllers();
                 app.MapGrpcService<TodoGrpcService>();
 
-                // Health Checks
-                app.MapHealthChecks("/health");
+                // Health Checks — /health/live, /health/ready, /health (aggregate)
+                app.MapPlanoraHealthEndpoints();
 
                 var appLogger = app.Services.GetRequiredService<ILogger<Program>>();
                 appLogger.LogInformation("🚀 TodoApi started successfully");

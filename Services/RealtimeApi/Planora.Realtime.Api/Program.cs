@@ -168,7 +168,8 @@ public class Program
             app.MapControllers();
             app.MapGrpcService<RealtimeGrpcService>();
             app.MapHub<NotificationHub>("/hubs/notifications");
-            app.MapHealthChecks("/health");
+            // Health Checks — /health/live, /health/ready, /health (aggregate)
+            app.MapPlanoraHealthEndpoints();
 
             try
             {

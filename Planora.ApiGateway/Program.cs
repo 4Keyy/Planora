@@ -1,5 +1,6 @@
 using Planora.ApiGateway.Configuration;
 using Planora.ApiGateway.Extensions;
+using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Middleware;
 using System.Threading.RateLimiting;
 
@@ -183,9 +184,12 @@ public class Program
                 });
             });
 
-            app.MapHealthChecks("/health");
-
-            app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
+            // Health Checks — /health/live, /health/ready, /health (aggregate).
+            // The UseWhen branch above continues to short-circuit /health with an inline JSON
+            // response (so the request never reaches Ocelot proxying); the endpoint
+            // registrations published here serve /health/live and /health/ready for orchestrator
+            // liveness/readiness probes (Fly.io / k8s).
+            app.MapPlanoraHealthEndpoints();
 
             await app.UseOcelot();
 

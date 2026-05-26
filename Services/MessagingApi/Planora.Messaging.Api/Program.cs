@@ -211,8 +211,8 @@ namespace Planora.Messaging.Api
                 app.MapControllers();
                 app.MapGrpcService<MessagingGrpcService>();
 
-                // Health Checks
-                app.MapHealthChecks("/health");
+                // Health Checks — /health/live, /health/ready, /health (aggregate)
+                app.MapPlanoraHealthEndpoints();
 
                 var appLogger = app.Services.GetRequiredService<ILogger<Program>>();
                 appLogger.LogInformation("🚀 MessagingApi started successfully");

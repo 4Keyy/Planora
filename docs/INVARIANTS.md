@@ -112,6 +112,10 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 
 **INV-OBS-3.** Business events go through `IBusinessEventLogger`. They are structured logs, not free-form `_logger.LogInformation`.
 
+**INV-OBS-4.** Every service exposes three health-probe endpoints: `/health/live` (process liveness, no external deps), `/health/ready` (dependencies reachable, ready to accept traffic), and `/health` (aggregate, retained for backwards-compatible consumers like docker-compose). Wiring is centralized in `MapPlanoraHealthEndpoints()`; services do not call `MapHealthChecks` directly. Liveness checks carry tag `live`, readiness checks carry tag `ready`.
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs`.
+- Rationale: orchestrators (Fly.io machines, k8s) need distinct liveness vs readiness semantics; aggregate `/health` cannot distinguish "process is dead, restart me" from "I'm alive but Postgres is slow, don't route to me yet".
+
 ---
 
 ## CI Quality Gates
