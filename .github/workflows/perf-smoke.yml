@@ -1,0 +1,109 @@
+name: Perf Smoke
+
+# k6 scenarios run on demand against the full Planora Docker stack.
+# Intentionally `workflow_dispatch` only — load tests should not block routine
+# PR merges, but every release-candidate branch should exercise these scenarios
+# and the operator should compare the summary against perf/baselines/local.md
+# before promoting.
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Scenario to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - login
+          - todo-list
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Create e2e environment
+        shell: bash
+        run: |
+          {
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "REDIS_PASSWORD=$(openssl rand -hex 24)"
+            echo "RABBITMQ_USER=planora_perf"
+            echo "RABBITMQ_PASSWORD=$(openssl rand -hex 24)"
+            echo "JWT_SECRET=$(openssl rand -base64 64)"
+            echo "GRPC_SERVICE_KEY=$(openssl rand -base64 32)"
+            echo "NEXT_PUBLIC_API_URL=http://127.0.0.1:5132"
+          } > .env.perf
+
+      - name: Start Docker stack
+        run: docker compose --env-file .env.perf up -d --build
+
+      - name: Wait for gateway health
+        shell: bash
+        run: |
+          endpoints=(
+            "http://127.0.0.1:5132/health"
+            "http://127.0.0.1:5132/auth/health"
+            "http://127.0.0.1:5132/todos/health"
+          )
+          for endpoint in "${endpoints[@]}"; do
+            echo "Waiting for ${endpoint}"
+            for attempt in {1..90}; do
+              if curl --fail --silent --show-error "${endpoint}" > /dev/null; then
+                break
+              fi
+              if [ "${attempt}" -eq 90 ]; then
+                docker compose --env-file .env.perf ps
+                docker compose --env-file .env.perf logs --tail=200
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+
+      - name: Install k6
+        run: |
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Run login scenario
+        if: ${{ inputs.scenario == 'login' || inputs.scenario == 'all' }}
+        run: |
+          mkdir -p perf/results
+          k6 run --summary-export=perf/results/login-summary.json \
+                 --out json=perf/results/login.json \
+                 -e API_BASE_URL=http://127.0.0.1:5132 \
+                 perf/k6/scenarios/login.js
+
+      - name: Run todo-list scenario
+        if: ${{ inputs.scenario == 'todo-list' || inputs.scenario == 'all' }}
+        run: |
+          mkdir -p perf/results
+          k6 run --summary-export=perf/results/todo-list-summary.json \
+                 --out json=perf/results/todo-list.json \
+                 -e API_BASE_URL=http://127.0.0.1:5132 \
+                 perf/k6/scenarios/todo-list.js
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: perf-results
+          path: perf/results/
+          retention-days: 30
+
+      - name: Stop Docker stack
+        if: always()
+        run: docker compose --env-file .env.perf down --remove-orphans
