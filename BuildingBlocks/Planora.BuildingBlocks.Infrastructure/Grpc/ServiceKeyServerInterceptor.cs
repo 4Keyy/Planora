@@ -2,6 +2,7 @@ using Grpc.Core;
 using Grpc.Core.Interceptors;
 using System.Security.Cryptography;
 using System.Text;
+using Planora.BuildingBlocks.Infrastructure.Observability;
 
 namespace Planora.BuildingBlocks.Infrastructure.Grpc;
 
@@ -67,14 +68,25 @@ public sealed class ServiceKeyServerInterceptor : Interceptor
         var key = context.RequestHeaders.GetValue("x-service-key");
         if (key is null)
         {
+            PlanoraMetrics.GrpcUnauthenticated.Add(1,
+                new KeyValuePair<string, object?>("reason", "missing_key"));
             _logger.LogWarning("gRPC call rejected: missing x-service-key header | Method: {Method}", context.Method);
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Service key required"));
         }
 
         var actualKeyBytes = Encoding.UTF8.GetBytes(key);
-        if (actualKeyBytes.Length != _expectedKeyBytes.Length ||
-            !CryptographicOperations.FixedTimeEquals(actualKeyBytes, _expectedKeyBytes))
+        if (actualKeyBytes.Length != _expectedKeyBytes.Length)
         {
+            PlanoraMetrics.GrpcUnauthenticated.Add(1,
+                new KeyValuePair<string, object?>("reason", "short_key"));
+            _logger.LogWarning("gRPC call rejected: invalid x-service-key | Method: {Method}", context.Method);
+            throw new RpcException(new Status(StatusCode.Unauthenticated, "Invalid service key"));
+        }
+
+        if (!CryptographicOperations.FixedTimeEquals(actualKeyBytes, _expectedKeyBytes))
+        {
+            PlanoraMetrics.GrpcUnauthenticated.Add(1,
+                new KeyValuePair<string, object?>("reason", "mismatch"));
             _logger.LogWarning("gRPC call rejected: invalid x-service-key | Method: {Method}", context.Method);
             throw new RpcException(new Status(StatusCode.Unauthenticated, "Invalid service key"));
         }
