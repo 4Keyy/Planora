@@ -4,6 +4,7 @@ import { getCsrfToken, shouldIncludeCsrfToken, clearCsrfToken, CSRF_HEADER_NAME 
 import { refreshAccessToken } from "@/lib/auth-public"
 import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
 import { getApiBaseUrl } from "@/lib/config"
+import { newTraceparent } from "@/lib/trace"
 import type { Todo, TodoComment } from "@/types/todo"
 import type { AuthTokenDto } from "@/types/auth"
 
@@ -133,11 +134,21 @@ api.interceptors.request.use(async (config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
 
+  // OBSERVABILITY: emit a W3C traceparent on every outbound request so the
+  // backend OpenTelemetry pipeline stitches the resulting spans into a
+  // single end-to-end trace (frontend -> gateway -> service -> DB).
+  // Each request gets its own trace-id; per-action correlation (one user
+  // click fanning out into N requests) can be layered on top later by passing
+  // an explicit trace-id through axios `headers.traceparent`.
+  config.headers = config.headers ?? {}
+  if (!config.headers.traceparent) {
+    config.headers.traceparent = newTraceparent()
+  }
+
   // Add CSRF token to state-modifying requests
   if (shouldIncludeCsrfToken(config.method || 'GET')) {
     try {
       const csrfToken = await getCsrfToken()
-      config.headers = config.headers ?? {}
       config.headers[CSRF_HEADER_NAME] = csrfToken
     } catch (error) {
       console.error('[API] Failed to add CSRF token:', error)
