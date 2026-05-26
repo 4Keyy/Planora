@@ -202,7 +202,11 @@ namespace Planora.Auth.Api
                 Planora.BuildingBlocks.Infrastructure.Logging.HttpLoggingMiddlewareExtensions.UseHttpLogging(app);
 
                 app.UseResponseCompression();
-                var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+                // WebRoot honors ASPNETCORE_WEBROOT when set (Fly.io maps this to the
+                // persistent volume at /data/uploads). Fallback is the local wwwroot folder.
+                var webRootPath = !string.IsNullOrWhiteSpace(app.Environment.WebRootPath)
+                    ? app.Environment.WebRootPath
+                    : Path.Combine(app.Environment.ContentRootPath, "wwwroot");
                 Directory.CreateDirectory(webRootPath);
                 Directory.CreateDirectory(Path.Combine(webRootPath, "avatars"));
                 app.UseStaticFiles(new StaticFileOptions

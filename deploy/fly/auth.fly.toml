@@ -10,6 +10,7 @@ primary_region = "ams"
 [env]
   ASPNETCORE_ENVIRONMENT = "Production"
   ASPNETCORE_URLS = "http://+:8080"
+  ASPNETCORE_WEBROOT = "/data/uploads"
   JwtSettings__Issuer = "Planora.Auth"
   JwtSettings__Audience = "Planora.Clients"
   RateLimiting__Backend = "Redis"
@@ -44,3 +45,18 @@ primary_region = "ams"
 [[vm]]
   size = "shared-cpu-1x"
   memory = "512mb"
+
+# SECURITY/DURABILITY: avatar uploads land under /data/uploads, which is backed
+# by a Fly volume so files survive deploys, scale-down, and machine moves.
+# Without this mount the WebRoot is on the ephemeral container filesystem and
+# every user's avatar disappears on the next "fly deploy". Pair with
+# ASPNETCORE_WEBROOT=/data/uploads in [env] so Kestrel actually writes there.
+#
+# Bootstrap (per region):
+#   fly volumes create planora_auth_uploads -a planora-auth -r ams -s 3
+# Multi-region replicas: create one volume per region, all named the same.
+# See deploy/fly/README.md for the canonical procedure.
+[mounts]
+  source = "planora_auth_uploads"
+  destination = "/data/uploads"
+  initial_size = "3gb"

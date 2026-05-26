@@ -74,6 +74,24 @@ flyctl secrets set `
                  --strategy bluegreen --wait-timeout 300
    ```
 
+## Persistent volumes
+
+`planora-auth` mounts a Fly volume at `/data/uploads` for user-uploaded avatars.
+Without it the container filesystem is ephemeral and avatars vanish on every
+`fly deploy`. Bootstrap once per region:
+
+```powershell
+flyctl volumes create planora_auth_uploads --app planora-auth --region ams --size 3
+```
+
+For multi-region replicas, create one volume per region with the same source
+name (`planora_auth_uploads`). Fly auto-binds them per machine. The webroot is
+configured via `ASPNETCORE_WEBROOT=/data/uploads` in `auth.fly.toml` `[env]`
+so Kestrel writes static assets to the volume rather than the container layer.
+
+When PR-4 (Cloudflare R2) lands, this volume becomes a development/fallback
+target only — production uploads go directly to R2.
+
 ## Notes
 
 - **Internal traffic** uses Fly's `<app>.internal:443` `.flycast` hostnames

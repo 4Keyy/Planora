@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### PR-3 deploy(fly): persistent volume for auth uploads (2026-05-26)
+
+`planora-auth` now mounts a Fly volume at `/data/uploads` (3 GB initial size, single-attach per machine). `ASPNETCORE_WEBROOT=/data/uploads` is set in `[env]` so Kestrel writes the WebRoot to the volume rather than the container's ephemeral layer. Without this, every `fly deploy` would wipe every user's avatar — a showstopper for any production-ish use.
+
+`Program.cs` now resolves WebRoot from `app.Environment.WebRootPath` (which respects `ASPNETCORE_WEBROOT`) and falls back to `ContentRootPath/wwwroot` for local dev. The change is transparent to local development.
+
+Bootstrap (per region):
+
+```powershell
+flyctl volumes create planora_auth_uploads --app planora-auth --region ams --size 3
+```
+
+Doc updates: `deploy/fly/README.md` gains a new "Persistent volumes" section documenting the bootstrap and the future-state note that PR-4 (Cloudflare R2) will demote this mount to dev/fallback.
+
+This PR is a no-op locally but unblocks `fly deploy` from being a destructive operation against user data.
+
 ### PR-2 avatar variants + content-hash paths + immutable cache (2026-05-26)
 
 Productionizes the avatar storage layer. Three variants per upload (64/128/512 px) are encoded server-side via ImageSharp `ResizeMode.Crop` + Lanczos3, written under content-addressed URLs `/avatars/{userId:N}/{contentHash}/{size}.webp`, and served with `Cache-Control: public, max-age=31536000, immutable` + `X-Content-Type-Options: nosniff`.
