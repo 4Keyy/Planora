@@ -4,6 +4,29 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### PR-6 security(stamp): close stamp-enforcement gap on Auth API (2026-05-26)
+
+**Security gap.** `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs`'s `AddJwtAuthentication` configured `JwtBearerOptions` without any `OnTokenValidated` hook, so it never invoked `SecurityStampValidator.IsTokenRevokedAsync`. Consumer services (Category, Todo via `AddJwtAuthenticationForConsumer`; Messaging, Realtime inline) all did this check — but Auth itself did not.
+
+That meant after a password change, 2FA disable, revoke-all-sessions, account delete, or email change, every other service correctly rejected the user's old access token, but Auth's own surface (e.g. `/me`, `/me/sessions`, `/me/login-history`, even `/me/change-password`) kept accepting it until natural expiry. The whole stamp-rotation machinery was undermined by its own owner.
+
+This commit wires the same `OnTokenValidated → SecurityStampValidator.IsTokenRevokedAsync` hook into Auth's bearer options.
+
+**Pin test.** New `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs` builds the Auth infra container and asserts that `JwtBearerOptions.Events.OnTokenValidated` is non-null. If a future refactor removes the wiring, this test fails before the regression ships.
+
+**Docs.**
+- `docs/auth-security.md` § "Stamp enforcement coverage" — new coverage table listing how each service enforces the stamp.
+- `docs/INVARIANTS.md` `INV-AUTH-4` — explicit clause that stamp rotation is meaningless without per-service enforcement; pointer to the coverage table and the new wiring test.
+- `CHANGELOG.md`: this entry.
+
+Email-change rotation was already in place via `ChangeEmailCommandHandler:100`; the earlier audit incorrectly flagged it as missing. No code change there — INVARIANTS now mentions it explicitly.
+
+Tests: 711/711 (was 710/710, +1 wiring assertion).
+
+Security: closes the stamp-bypass-on-Auth gap; brings the stamp coverage from 4/5 services to 5/5.
+
+Refs: `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs`, `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs`, `docs/auth-security.md`, `docs/INVARIANTS.md` `INV-AUTH-4`.
+
 ### PR-5 comments: drop avatar snapshot, always batch-enrich with 60s cache (2026-05-26)
 
 The `TodoItemComment.AuthorAvatarUrl` column was a snapshot of the author's avatar at write time. It guaranteed that comments would *always* show stale avatars after the author updated their picture, because nothing invalidated the stored value. The fix here removes the column entirely and switches comment-listing to live batch enrichment via Auth gRPC, with an in-memory cache to keep paged reads cheap.

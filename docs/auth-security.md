@@ -188,11 +188,26 @@ The stamp rotates **only on successful execution** of the command. A wrong-passw
 
 The stamp is NOT rotated on 2FA enable / 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
 
+### Stamp enforcement coverage
+
+Every service that accepts JWT-authenticated requests must wire the stamp check into its `JwtBearerOptions.OnTokenValidated` event. Without it, a rotated token would still work against that service's endpoints until natural expiry — defeating the rotation. Current coverage:
+
+| Service | Mechanism | Verified by |
+|---|---|---|
+| Auth API | inline `OnTokenValidated` calling `SecurityStampValidator.IsTokenRevokedAsync` in `Planora.Auth.Infrastructure.DependencyInjection.AddJwtAuthentication` | `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs` |
+| Category API | shared `AddJwtAuthenticationForConsumer` | `JwtAuthenticationExtensions.cs` |
+| Todo API | shared `AddJwtAuthenticationForConsumer` | `JwtAuthenticationExtensions.cs` |
+| Messaging API | inline `OnTokenValidated` | `Services/MessagingApi/Planora.Messaging.Api/Program.cs` |
+| Realtime API | inline `OnTokenValidated` | `Services/RealtimeApi/Planora.Realtime.Api/Program.cs` |
+| API Gateway | downstream services enforce; gateway only routes | n/a (defense-in-depth handled at consumers) |
+
 Code:
 
 - `Services/AuthApi/Planora.Auth.Application/Common/Interfaces/ISecurityStampService.cs`
 - `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`
 - `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Security/SecurityStampValidator.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/JwtAuthenticationExtensions.cs`
 - Command handlers under `Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/` and `.../Authentication/Handlers/`.
 - See [`INVARIANTS.md`](INVARIANTS.md) `INV-AUTH-4` for the closed-form rule.
 

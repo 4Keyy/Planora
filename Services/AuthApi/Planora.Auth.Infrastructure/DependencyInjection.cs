@@ -183,6 +183,27 @@ public static class DependencyInjection
                 ClockSkew = TimeSpan.Zero,
                 RequireExpirationTime = true
             };
+
+            // SECURITY: enforce the per-user security stamp on every authenticated Auth API
+            // request. Without this hook, access tokens issued before a password change,
+            // 2FA disable, revoke-all-sessions, account delete, or email change would
+            // continue to work against Auth itself until they expired naturally — defeating
+            // the whole purpose of rotating the stamp. Consumer services (Todo, Category,
+            // Messaging, Realtime) already enforce this via AddJwtAuthenticationForConsumer;
+            // Auth API must enforce it equally on its own surface.
+            options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+            {
+                OnTokenValidated = async context =>
+                {
+                    var redis = context.HttpContext.RequestServices
+                        .GetService<StackExchange.Redis.IConnectionMultiplexer>();
+                    if (await Planora.BuildingBlocks.Infrastructure.Security
+                        .SecurityStampValidator.IsTokenRevokedAsync(redis, context.Principal))
+                    {
+                        context.Fail("Token revoked by a security event");
+                    }
+                },
+            };
         });
 
         services.AddAuthorization();
