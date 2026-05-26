@@ -5,7 +5,6 @@ using Planora.Auth.Application.Features.Users.Commands.UploadAvatar;
 using Planora.Auth.Application.Features.Users.Handlers.UploadAvatar;
 using Planora.Auth.Domain.Entities;
 using Planora.Auth.Domain.Repositories;
-using Planora.Auth.Domain.ValueObjects;
 using Planora.BuildingBlocks.Domain;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -28,8 +27,8 @@ public sealed class UploadAvatarCommandHandlerTests
         Assert.True(result.IsFailure);
         Assert.Equal("NOT_AUTHENTICATED", result.Error!.Code);
         fixture.Users.Verify(x => x.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
-        fixture.Storage.Verify(x => x.SaveBytesAsync(
-            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+        fixture.AvatarStorage.Verify(x => x.PutAsync(
+            It.IsAny<Guid>(), It.IsAny<ProcessedAvatar>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -58,7 +57,7 @@ public sealed class UploadAvatarCommandHandlerTests
         fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.Processor
             .Setup(x => x.ProcessAvatarAsync(It.IsAny<Stream>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<ProcessedImage>.Failure(Error.Validation("INVALID_FILE_SIZE", "too big")));
+            .ReturnsAsync(Result<ProcessedAvatar>.Failure(Error.Validation("INVALID_FILE_SIZE", "too big")));
 
         var result = await fixture.Handler.Handle(
             new UploadAvatarCommand { File = CreateFile(new byte[1]) },
@@ -66,68 +65,52 @@ public sealed class UploadAvatarCommandHandlerTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("INVALID_FILE_SIZE", result.Error!.Code);
-        fixture.Storage.Verify(x => x.SaveBytesAsync(
-            It.IsAny<byte[]>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+        fixture.AvatarStorage.Verify(x => x.PutAsync(
+            It.IsAny<Guid>(), It.IsAny<ProcessedAvatar>(), It.IsAny<CancellationToken>()),
             Times.Never);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     [Trait("TestType", "Functional")]
-    public async Task UploadAvatar_ShouldDeleteOldAvatarAndPersistNewUrl()
+    public async Task UploadAvatar_ShouldStoreVariantsAndPersistCanonicalUrl()
     {
-        var user = CreateUser(existingAvatarUrl: "/avatars/old-deadbeef.webp");
-        var processedBytes = new byte[] { 1, 2, 3, 4 };
-        var savedUrl = "/avatars/avatar-newhash.webp";
+        var user = CreateUser(existingAvatarUrl: "/avatars/oldhash/128.webp");
+        var processed = new ProcessedAvatar(
+            ContentHash: "abc123",
+            Variants: new[]
+            {
+                new AvatarVariant(AvatarSize.Small, new byte[] { 1 }, "image/webp", ".webp", 64, 64),
+                new AvatarVariant(AvatarSize.Medium, new byte[] { 2 }, "image/webp", ".webp", 128, 128),
+                new AvatarVariant(AvatarSize.Large, new byte[] { 3 }, "image/webp", ".webp", 512, 512),
+            });
+        var manifest = new AvatarManifest(
+            SmallUrl: $"/avatars/{user.Id:N}/abc123/64.webp",
+            MediumUrl: $"/avatars/{user.Id:N}/abc123/128.webp",
+            LargeUrl: $"/avatars/{user.Id:N}/abc123/512.webp",
+            ContentHash: "abc123");
 
         var fixture = CreateFixture(user.Id);
         fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.Processor
             .Setup(x => x.ProcessAvatarAsync(It.IsAny<Stream>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<ProcessedImage>.Success(
-                new ProcessedImage(processedBytes, "image/webp", ".webp", 128, 128)));
-        fixture.Storage
-            .Setup(x => x.SaveBytesAsync(processedBytes, It.IsAny<string>(), "avatars", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(savedUrl);
+            .ReturnsAsync(Result<ProcessedAvatar>.Success(processed));
+        fixture.AvatarStorage
+            .Setup(x => x.PutAsync(user.Id, processed, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(manifest);
         fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         fixture.Mapper.Setup(x => x.Map<UserDto>(user))
-            .Returns(new UserDto { Id = user.Id, Email = user.Email.Value, ProfilePictureUrl = savedUrl });
+            .Returns(new UserDto { Id = user.Id, Email = user.Email.Value, ProfilePictureUrl = manifest.CanonicalUrl });
 
         var result = await fixture.Handler.Handle(
             new UploadAvatarCommand { File = CreateFile(new byte[1]) },
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(savedUrl, result.Value!.ProfilePictureUrl);
-        fixture.Storage.Verify(x => x.DeleteFile("/avatars/old-deadbeef.webp"), Times.Once);
-        fixture.Storage.Verify(x => x.SaveBytesAsync(processedBytes,
-            It.Is<string>(name => name.EndsWith(".webp")),
-            "avatars", It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(manifest.MediumUrl, result.Value!.ProfilePictureUrl);
+        Assert.Equal(manifest.MediumUrl, user.ProfilePictureUrl);
+        fixture.AvatarStorage.Verify(x => x.PutAsync(user.Id, processed, It.IsAny<CancellationToken>()), Times.Once);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        Assert.Equal(savedUrl, user.ProfilePictureUrl);
-    }
-
-    [Fact]
-    [Trait("TestType", "Security")]
-    public async Task UploadAvatar_ShouldNotDeleteExternallyHostedAvatar()
-    {
-        var user = CreateUser(existingAvatarUrl: "https://cdn.example.com/old.png");
-        var fixture = CreateFixture(user.Id);
-        fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        fixture.Processor
-            .Setup(x => x.ProcessAvatarAsync(It.IsAny<Stream>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result<ProcessedImage>.Success(new ProcessedImage(new byte[] { 1 }, "image/webp", ".webp", 128, 128)));
-        fixture.Storage
-            .Setup(x => x.SaveBytesAsync(It.IsAny<byte[]>(), It.IsAny<string>(), "avatars", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("/avatars/avatar-new.webp");
-        fixture.Mapper.Setup(x => x.Map<UserDto>(user)).Returns(new UserDto { Id = user.Id, Email = user.Email.Value });
-
-        var result = await fixture.Handler.Handle(
-            new UploadAvatarCommand { File = CreateFile(new byte[1]) },
-            CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        fixture.Storage.Verify(x => x.DeleteFile(It.IsAny<string>()), Times.Never);
     }
 
     private static User CreateUser(string? existingAvatarUrl = null)
@@ -161,7 +144,7 @@ public sealed class UploadAvatarCommandHandlerTests
         var current = new Mock<ICurrentUserService>();
         current.SetupGet(x => x.UserId).Returns(userId);
 
-        var storage = new Mock<IFileStorageService>();
+        var storage = new Mock<IAvatarStorage>();
         var processor = new Mock<IImageProcessor>();
         var mapper = new Mock<IMapper>();
         var logger = new Mock<ILogger<UploadAvatarCommandHandler>>();
@@ -182,7 +165,7 @@ public sealed class UploadAvatarCommandHandlerTests
         Mock<IUserRepository> Users,
         Mock<IAuthUnitOfWork> UnitOfWork,
         Mock<ICurrentUserService> Current,
-        Mock<IFileStorageService> Storage,
+        Mock<IAvatarStorage> AvatarStorage,
         Mock<IImageProcessor> Processor,
         Mock<IMapper> Mapper);
 }

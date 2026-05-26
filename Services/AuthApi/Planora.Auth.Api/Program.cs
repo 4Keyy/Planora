@@ -204,10 +204,23 @@ namespace Planora.Auth.Api
                 app.UseResponseCompression();
                 var webRootPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
                 Directory.CreateDirectory(webRootPath);
+                Directory.CreateDirectory(Path.Combine(webRootPath, "avatars"));
                 app.UseStaticFiles(new StaticFileOptions
                 {
                     FileProvider = new PhysicalFileProvider(webRootPath),
-                    RequestPath = string.Empty
+                    RequestPath = string.Empty,
+                    ServeUnknownFileTypes = false,
+                    OnPrepareResponse = ctx =>
+                    {
+                        // Avatar URLs are content-addressed (/avatars/{userId}/{hash}/{size}.webp),
+                        // so the URL changes whenever the bytes change — making `immutable` safe.
+                        var path = ctx.Context.Request.Path.Value;
+                        if (path is not null && path.StartsWith("/avatars/", StringComparison.Ordinal))
+                        {
+                            ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=31536000, immutable";
+                            ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                        }
+                    },
                 });
                 app.UseCors(app.Environment.IsDevelopment() ? "AllowAll" : "Production");
 

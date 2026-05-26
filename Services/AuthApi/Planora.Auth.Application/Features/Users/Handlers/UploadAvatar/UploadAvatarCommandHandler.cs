@@ -9,11 +9,9 @@ namespace Planora.Auth.Application.Features.Users.Handlers.UploadAvatar
 {
     public sealed class UploadAvatarCommandHandler : IRequestHandler<UploadAvatarCommand, Planora.BuildingBlocks.Domain.Result<UserDto>>
     {
-        private const string AvatarFolder = "avatars";
-
         private readonly IAuthUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IFileStorageService _fileStorageService;
+        private readonly IAvatarStorage _avatarStorage;
         private readonly IImageProcessor _imageProcessor;
         private readonly IMapper _mapper;
         private readonly ILogger<UploadAvatarCommandHandler> _logger;
@@ -21,14 +19,14 @@ namespace Planora.Auth.Application.Features.Users.Handlers.UploadAvatar
         public UploadAvatarCommandHandler(
             IAuthUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
-            IFileStorageService fileStorageService,
+            IAvatarStorage avatarStorage,
             IImageProcessor imageProcessor,
             IMapper mapper,
             ILogger<UploadAvatarCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
-            _fileStorageService = fileStorageService;
+            _avatarStorage = avatarStorage;
             _imageProcessor = imageProcessor;
             _mapper = mapper;
             _logger = logger;
@@ -68,28 +66,15 @@ namespace Planora.Auth.Application.Features.Users.Handlers.UploadAvatar
                 return Planora.BuildingBlocks.Domain.Result<UserDto>.Failure(processed.Error!);
             }
 
-            // Replace old avatar only if it points at our managed folder.
-            if (!string.IsNullOrEmpty(user.ProfilePictureUrl)
-                && user.ProfilePictureUrl.StartsWith($"/{AvatarFolder}/", StringComparison.Ordinal))
-            {
-                _fileStorageService.DeleteFile(user.ProfilePictureUrl);
-            }
+            var manifest = await _avatarStorage.PutAsync(user.Id, processed.Value!, cancellationToken);
 
-            var image = processed.Value!;
-            var storedFileName = $"avatar-{Guid.NewGuid():N}{image.Extension}";
-            var avatarUrl = await _fileStorageService.SaveBytesAsync(
-                image.Data,
-                storedFileName,
-                AvatarFolder,
-                cancellationToken);
-
-            user.UpdateProfile(user.FirstName, user.LastName, avatarUrl, user.Id);
+            user.UpdateProfile(user.FirstName, user.LastName, manifest.CanonicalUrl, user.Id);
             _unitOfWork.Users.Update(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
-                "Avatar updated: UserId={UserId} Url={AvatarUrl} Size={Bytes}B {Width}x{Height}",
-                user.Id, avatarUrl, image.Data.Length, image.Width, image.Height);
+                "Avatar updated: UserId={UserId} Hash={Hash} CanonicalUrl={Url}",
+                user.Id, manifest.ContentHash, manifest.CanonicalUrl);
 
             var userDto = _mapper.Map<UserDto>(user);
             return Planora.BuildingBlocks.Domain.Result<UserDto>.Success(userDto);

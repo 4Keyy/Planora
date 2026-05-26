@@ -117,6 +117,7 @@ public static class DependencyInjection
         services.AddScoped<IDateTime, DateTimeService>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IImageProcessor, ImageSharpImageProcessor>();
+        services.AddScoped<IAvatarStorage, LocalAvatarStorage>();
         services.AddScoped<IEmailMessageSender, SmtpEmailMessageSender>();
         services.AddScoped<IEmailService, EmailService>();
     }

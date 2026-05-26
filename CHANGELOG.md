@@ -4,6 +4,28 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### PR-2 avatar variants + content-hash paths + immutable cache (2026-05-26)
+
+Productionizes the avatar storage layer. Three variants per upload (64/128/512 px) are encoded server-side via ImageSharp `ResizeMode.Crop` + Lanczos3, written under content-addressed URLs `/avatars/{userId:N}/{contentHash}/{size}.webp`, and served with `Cache-Control: public, max-age=31536000, immutable` + `X-Content-Type-Options: nosniff`.
+
+Why this matters:
+- **Bandwidth**: navbar thumbnails (32-40 px on screen) now pull the 64 px variant instead of the full-resolution source. Profile detail uses 512 px. Comment lists use 64 px.
+- **Cache invalidation**: SHA-256 prefix of all variant bytes drives the path segment. Same bytes → same URL → CDN deduplicates; new bytes → new URL → no busting query-strings needed and `immutable` is safe.
+- **Lifecycle**: every successful upload prunes the user's prior `{hash}/` subdirectory. Disk footprint stays at `~3 × 30 KB ≈ 90 KB` per user.
+- **Service contract**: new `IAvatarStorage` (PutAsync / DeleteAsync) replaces the file-storage call in the upload handler. The legacy `IFileStorageService.SaveBytesAsync` stays available for non-avatar uploads (none today). Storage path-traversal guard remains.
+
+Static-file serving: `Services/AuthApi/Planora.Auth.Api/Program.cs` adds an `OnPrepareResponse` filter that scopes the immutable cache to `/avatars/` only — other static assets (if added later) are untouched. `ServeUnknownFileTypes = false` denies content-sniffing.
+
+Tests (+8 in the suite, full = 706 green):
+- `UploadAvatarCommandHandlerTests`: now drives an `IAvatarStorage` mock; verifies canonical URL = medium variant URL and ProfilePictureUrl is persisted.
+- `ImageSharpImageProcessorTests`: variant count + dimensions, EXIF stripped from every variant, deterministic 16-char content hash.
+- `LocalAvatarStorageTests` (new): three files materialize under the hash subdir; older revisions pruned on next upload; DeleteAsync clears the whole user tree; empty Guid rejected.
+
+Breaking:
+- Avatar URL scheme changed from `/avatars/avatar-<guid>.webp` (PR-1) to `/avatars/{userId:N}/{hash}/{size}.webp`. Existing PR-1 URLs continue to resolve until next upload. No DB migration required — `User.ProfilePictureUrl` remains a relative-URL `varchar`.
+
+Refs: `Services/AuthApi/Planora.Auth.Application/Common/Interfaces/{IAvatarStorage,IImageProcessor}.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/{ImageSharpImageProcessor,LocalAvatarStorage}.cs`, `Services/AuthApi/Planora.Auth.Api/Program.cs`, `docs/INVARIANTS.md` `INV-AZ-5`.
+
 ### PR-1 avatar pipeline — server-side validation + ImageSharp re-encoding (2026-05-26)
 
 **Security.** `POST /auth/api/v1/users/me/avatar` is now defended in depth. Previously the handler accepted any `IFormFile` bytes, wrote them to disk verbatim using the original filename, and trusted the client's `Content-Type`. A 100 MB EXE renamed to `.jpg` would have been stored exactly as uploaded. The new pipeline:

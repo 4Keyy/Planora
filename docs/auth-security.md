@@ -286,9 +286,11 @@ Code:
 4. **Decode + dimension check** — ImageSharp parses the file; rejects anything outside `64×64..4096×4096`. Malformed/exploit-crafted payloads fail decode and are rejected with `INVALID_IMAGE_CONTENT`.
 5. **Metadata stripping** — `ExifProfile`, `IccProfile`, and `XmpProfile` are explicitly cleared. EXIF GPS and similar privacy leaks cannot survive an upload.
 6. **Re-encoding to WebP** — the decoded image is re-emitted as lossy WebP (quality 85). The result is a brand-new byte stream produced by ImageSharp; any polyglot or steganographic payload in the source is discarded.
-7. **Storage** — `LocalFileStorageService.SaveBytesAsync` writes to `wwwroot/avatars/avatar-<guid>.webp` under the configured `WebRootPath`. The folder name is validated to be a single segment (no `..`, no `/`, no `\`). Filenames are normalized to remove invalid OS characters and always suffixed with a fresh GUID.
-8. **Old-avatar cleanup** — if the user's previous `ProfilePictureUrl` starts with `/avatars/`, the file is deleted from disk before the new one is persisted. External URLs (set via `PUT /me` with an absolute http(s) URL) are left in place.
-9. **Path-traversal guard** — both `SaveBytesAsync` and `DeleteFile` resolve absolute paths and refuse to operate outside the uploads root.
+7. **Variants** — three sizes are produced server-side per upload: `64×64`, `128×128`, `512×512`, each cropped center via Lanczos3. Clients pick the closest fit; bandwidth is saved by avoiding full-resolution downloads for thumbnail rendering.
+8. **Storage** — `LocalAvatarStorage.PutAsync` writes variants to `{WebRoot}/avatars/{userId:N}/{contentHash}/{size}.webp`. The hash is the lowercase hex SHA-256 prefix (16 chars) of all variant bytes concatenated. Content-addressed paths make URL invalidation automatic when bytes change.
+9. **Old-avatar cleanup** — `LocalAvatarStorage` prunes every prior hash subdirectory for the user on successful `PutAsync`; only the latest revision persists. Account deletion triggers `DeleteAsync` to remove the user's avatar tree entirely.
+10. **Path-traversal guard** — storage refuses to write or delete anything that resolves outside the uploads root.
+11. **Cache-Control** — `Services/AuthApi/Planora.Auth.Api/Program.cs` configures `UseStaticFiles` to emit `Cache-Control: public, max-age=31536000, immutable` and `X-Content-Type-Options: nosniff` for any URL under `/avatars/`. `ServeUnknownFileTypes` is `false` so only known content types ship.
 
 Error responses use HTTP `413` for size violations and `415` for unsupported media so clients can distinguish them from generic `400` validation errors.
 

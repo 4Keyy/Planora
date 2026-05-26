@@ -301,7 +301,9 @@ Error codes:
 | `401` | `NOT_AUTHENTICATED` | Missing/invalid bearer token |
 | `404` | `USER_NOT_FOUND` | Authenticated user record was deleted |
 
-Success returns `UserDto` with the updated `profilePictureUrl` pointing at the stored WebP (relative URL `/avatars/avatar-<guid>.webp`). Any previous avatar under the `/avatars/` prefix is deleted before the new one is persisted. External URLs (set previously via `PUT /me`) are left in place.
+Success returns `UserDto` with `profilePictureUrl` pointing at the canonical (medium, 128px) WebP variant. Three variants are persisted for every upload — the URL scheme is `/avatars/{userId:N}/{contentHash}/{size}.webp` where `size ∈ {64, 128, 512}`. Clients build other variant URLs by swapping the size segment.
+
+The path is content-addressed: changing the avatar produces a new hash subdirectory, and the previous one is pruned. This makes `Cache-Control: public, max-age=31536000, immutable` safe for `/avatars/*` — the URL itself changes when the bytes change. Static-file serving is configured in `Services/AuthApi/Planora.Auth.Api/Program.cs` with `X-Content-Type-Options: nosniff` and `ServeUnknownFileTypes = false`.
 
 `GET /me` and admin user detail responses include `isEmailVerified` and `emailVerifiedAt`. `isEmailVerified` is the direct boolean status; `emailVerifiedAt` is present when the verification timestamp is known.
 
