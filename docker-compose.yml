@@ -110,7 +110,7 @@ services:
       realtime-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -148,7 +148,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -187,7 +187,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -229,7 +229,7 @@ services:
       category-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -265,7 +265,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -304,7 +304,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/health/ready"]
       interval: 10s
       timeout: 5s
       retries: 5

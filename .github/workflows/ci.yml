@@ -36,6 +36,14 @@ jobs:
       - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: '9.0.x'
+          # CPM: hash every input that can change the restore graph (csproj graph
+          # + central package versions + build props). No packages.lock.json yet,
+          # so the action hashes these files to derive the cache key.
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+            Directory.Build.props
       - run: dotnet restore Planora.sln
       - run: dotnet build Planora.sln --no-restore --configuration Release -warnaserror
       - run: dotnet test Planora.sln --no-build --configuration Release --collect:"XPlat Code Coverage" --settings coverage.runsettings --results-directory ./coverage/backend

@@ -109,6 +109,12 @@ jobs:
       - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+            Directory.Build.props
+            .config/dotnet-tools.json
 
       - name: Restore dotnet tools (swashbuckle.aspnetcore.cli)
         run: dotnet tool restore
