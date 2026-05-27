@@ -1,5 +1,6 @@
 using Planora.Auth.Api.Configuration;
 using Planora.Auth.Infrastructure.Security;
+using Planora.BuildingBlocks.Infrastructure.Logging;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -85,7 +86,7 @@ public sealed class AuthApiConfigurationTests
     [Fact]
     [Trait("TestType", "Module")]
     [Trait("TestType", "Regression")]
-    public void AddOpenTelemetryConfiguration_ShouldRegisterTracingMetricsWithConfiguredServiceName()
+    public void AddPlanoraTelemetry_ShouldRegisterTracingMetricsWithConfiguredServiceName()
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -97,7 +98,7 @@ public sealed class AuthApiConfigurationTests
             })
             .Build();
 
-        var returned = services.AddOpenTelemetryConfiguration(configuration);
+        var returned = services.AddPlanoraTelemetry(configuration, "AuthService");
 
         Assert.Same(services, returned);
         Assert.Contains(services, descriptor =>
@@ -119,13 +120,13 @@ public sealed class AuthApiConfigurationTests
     [Fact]
     [Trait("TestType", "Module")]
     [Trait("TestType", "Regression")]
-    public void AddOpenTelemetryConfiguration_ShouldUseDefaults_WhenConfigurationIsMissing()
+    public void AddPlanoraTelemetry_ShouldUseDefaults_WhenConfigurationIsMissing()
     {
         var services = new ServiceCollection();
         services.AddLogging();
         var configuration = new ConfigurationBuilder().Build();
 
-        var returned = services.AddOpenTelemetryConfiguration(configuration);
+        var returned = services.AddPlanoraTelemetry(configuration, "AuthService");
 
         Assert.Same(services, returned);
         Assert.NotEmpty(services);

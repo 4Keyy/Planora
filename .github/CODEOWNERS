@@ -1,0 +1,49 @@
+# Code-ownership policy for Planora. Until additional contributors land,
+# the maintainer reviews every PR; the entries below codify which surfaces are
+# *especially* sensitive (security primitives, observability pipeline, schema
+# migrations, deployment manifests) so a future multi-reviewer setup keeps the
+# right eyes on the right diffs.
+
+# Default owner for everything not matched below.
+*                                                       @4Keyy
+
+# Security primitives — auth flows, JWT, CSRF, gRPC interceptors, security stamp.
+BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Security/     @4Keyy
+BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/   @4Keyy
+BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/         @4Keyy
+BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/JwtAuthenticationExtensions.cs @4Keyy
+Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/    @4Keyy
+Services/AuthApi/Planora.Auth.Api/Filters/                         @4Keyy
+SECURITY.md                                                        @4Keyy
+docs/auth-security.md                                              @4Keyy
+docs/secrets-management.md                                         @4Keyy
+
+# Observability pipeline — INV-OBS-* invariants enforced here.
+BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/      @4Keyy
+BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/ @4Keyy
+
+# Outbox / inbox state machines — at-least-once delivery and idempotency.
+BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/       @4Keyy
+BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/        @4Keyy
+BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/          @4Keyy
+BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/ @4Keyy
+
+# Migrator + EF schema — wrong move here corrupts production __EFMigrationsHistory.
+tools/Planora.Migrator/                                            @4Keyy
+**/Migrations/                                                     @4Keyy
+
+# CI/CD + deployment manifests + Dockerfiles — supply-chain blast radius.
+.github/workflows/                                                 @4Keyy
+.github/dependabot.yml                                             @4Keyy
+deploy/                                                            @4Keyy
+**/Dockerfile                                                      @4Keyy
+docker-compose.yml                                                 @4Keyy
+
+# Architectural truth.
+docs/INVARIANTS.md                                                 @4Keyy
+docs/DECISIONS/                                                    @4Keyy
+docs/ROADMAP.md                                                    @4Keyy
+ARCHITECTURE.md                                                    @4Keyy
+
+# Gateway — the only public HTTP edge.
+Planora.ApiGateway/                                                @4Keyy

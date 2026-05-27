@@ -8,8 +8,12 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
                 .NotEmpty().WithMessage("Title is required")
                 .MaximumLength(200).WithMessage("Title cannot exceed 200 characters");
 
+            // Aligned with TodoItem.Description column (varchar(2000)) configured in
+            // Todo.Infrastructure/Persistence/Configurations/TodoItemConfiguration.cs.
+            // The previous 5000-char ceiling caused silent server-side truncation of
+            // descriptions >2000 chars instead of a 400 with a clear validation error.
             RuleFor(x => x.Description)
-                .MaximumLength(5000).WithMessage("Description cannot exceed 5000 characters")
+                .MaximumLength(2000).WithMessage("Description cannot exceed 2000 characters")
                 .When(x => !string.IsNullOrEmpty(x.Description));
 
             // DueDate validation removed - allow past dates for flexibility
