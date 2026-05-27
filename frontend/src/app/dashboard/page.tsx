@@ -5,6 +5,7 @@ import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, CheckCircle2 } from "lucide-react"
+import axios from "axios"
 import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { cn } from "@/lib/utils"
@@ -120,11 +121,14 @@ export default function DashboardPage() {
   // Smooth scroll to top when create panel collapses
   useCollapseScroll(isCreateOpen)
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await api.get<CategoryResponse>("/categories/api/v1/categories")
+      const res = await api.get<CategoryResponse>("/categories/api/v1/categories", { signal })
+      if (signal?.aborted) return
       setCategories(normalizeCategoryResponse(res.data))
-    } catch { }
+    } catch (err) {
+      if (axios.isCancel(err) || signal?.aborted) return
+    }
   }, [])
 
   const enrichTodosWithAuthorNames = useCallback(async (items: Todo[]) => {
@@ -156,15 +160,19 @@ export default function DashboardPage() {
     })
   }, [user?.userId])
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (signal?: AbortSignal) => {
     try {
       const res = await api.get<{ items: Todo[] }>("/todos/api/v1/todos", {
         params: { pageNumber: 1, pageSize: 1000 },
+        signal,
       })
+      if (signal?.aborted) return
       const items = res.data.items ?? []
       const enriched = await enrichTodosWithAuthorNames(items)
+      if (signal?.aborted) return
       setStatsTodos(enriched)
     } catch (err) {
+      if (axios.isCancel(err) || signal?.aborted) return
       console.error("Failed to fetch stats:", err)
     }
   }, [enrichTodosWithAuthorNames])
@@ -174,7 +182,7 @@ export default function DashboardPage() {
   // be torn down and re-added on every pagination click).
   useEffect(() => { currentPageRef.current = currentPage }, [currentPage])
 
-  const fetchTodos = useCallback(async (page = currentPageRef.current) => {
+  const fetchTodos = useCallback(async (page = currentPageRef.current, signal?: AbortSignal) => {
     try {
       setLoading(true)
       const res = await api.get<{ items: Todo[]; totalCount: number }>("/todos/api/v1/todos", {
@@ -184,16 +192,20 @@ export default function DashboardPage() {
           status: "Todo,InProgress",
           isCompleted: false, // Explicitly request active tasks (backend now handles per-viewer completion)
         },
+        signal,
       })
+      if (signal?.aborted) return
       const items = res.data.items ?? []
       const enriched = await enrichTodosWithAuthorNames(items)
+      if (signal?.aborted) return
       setTodos(enriched)
       setTotalCount(res.data.totalCount ?? 0)
       setLastFetchedPage(page)
     } catch (err) {
+      if (axios.isCancel(err) || signal?.aborted) return
       setError(err instanceof Error ? err.message : "Failed to load todos")
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [pageSize, enrichTodosWithAuthorNames])
 
@@ -255,10 +267,15 @@ export default function DashboardPage() {
       return
     }
 
-    // Only fetch data if authenticated
-    fetchTodos()
-    fetchStats()
-    fetchCategories()
+    // Cancel all three mount-time fetches on unmount or auth change so a
+    // rapid route switch does not race setState on an unmounted component.
+    const controller = new AbortController()
+    void Promise.all([
+      fetchTodos(currentPageRef.current, controller.signal),
+      fetchStats(controller.signal),
+      fetchCategories(controller.signal),
+    ])
+    return () => controller.abort()
   }, [isAuthenticated, hasHydrated, mounted, fetchTodos, fetchStats, fetchCategories, clearAuth, router])
 
   const activeStatsTodos = useMemo(() =>
