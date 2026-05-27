@@ -84,6 +84,16 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 - Evidence: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs`.
 
+**INV-AUTH-6.** Refresh-token rotation enforces **reuse detection**. When `RefreshTokenCommandHandler` is presented with a refresh-token value that is already revoked with reason `"Replaced by new token"`, the entire refresh-token chain for that user is revoked (reason `"Reuse detected — chain invalidated"`) and the user's security stamp is rotated. Both effects are persisted in the same SaveChangesAsync call as the revocation. The handler returns Unauthorized; no new token is minted.
+
+- Evidence: `Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/RefreshToken/RefreshTokenCommandHandler.cs`, `tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthLifecycleHandlerTests.cs::RefreshToken_WhenReplayed_InvalidatesChainAndRotatesStamp`.
+- Rationale: a replayed rotated token is either a buggy client racing its own refresh or — much more likely — an attacker presenting a stolen value. Invalidating the chain logs the legitimate user out across all devices and, paired with stamp rotation, immediately retires every minted access token. The user must re-authenticate; the attacker is left holding revoked credentials.
+
+**INV-AUTH-7.** Every JWT-validating wiring point reads `ClockSkew` from one source — `Planora.BuildingBlocks.Infrastructure.Configuration.SecurityConstants.SecurityPolicies.TokenClockSkewSeconds`. No service writes a literal `TimeSpan.Zero` or numeric seconds value into `TokenValidationParameters.ClockSkew`. The pinned tests at `tests/Planora.UnitTests/Services/AuthApi/Configuration/AuthApiConfigurationTests.cs` and `tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs` assert the value matches the constant.
+
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/SecurityConstants.cs:126`, every JWT bearer registration across Auth, Todo, Category, Messaging, Realtime, Gateway, and the standalone TokenService validation paths.
+- Rationale: pre-audit, six wiring points used `TimeSpan.Zero`, one used `30 s`, one used `5 s`, and the central `TokenClockSkewSeconds = 5` constant was unused. The divergence produced intermittent 401s under NTP drift between Fly machines. A single source eliminates the entire class of clock-skew regressions.
+
 ---
 
 ## Authorization & Privacy
@@ -153,10 +163,10 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs`.
 - Rationale: orchestrators (Fly.io machines, k8s) need distinct liveness vs readiness semantics; aggregate `/health` cannot distinguish "process is dead, restart me" from "I'm alive but Postgres is slow, don't route to me yet".
 
-**INV-OBS-5.** Every backend service and the API Gateway wire OpenTelemetry through the single shared `TelemetryConfiguration.AddPlanoraTelemetry(...)` extension. Services do not call `services.AddOpenTelemetry()` directly. The pipeline is no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OpenTelemetry:OtlpEndpoint`) is unset — no exporters, no background connections, no log noise — while still recording in-process traces and metrics so any future exporter can be added without code changes. Custom activity sources and meters published as `Planora.*` are auto-discovered. `/health*` paths are excluded from request tracing to suppress probe noise.
+**INV-OBS-5.** Every backend service and the API Gateway wire OpenTelemetry through the single shared `TelemetryConfiguration.AddPlanoraTelemetry(...)` extension. Services do not call `services.AddOpenTelemetry()` directly **and do not introduce per-service wrappers** around `AddPlanoraTelemetry`. The pipeline is no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OpenTelemetry:OtlpEndpoint`) is unset — no exporters, no background connections, no log noise — while still recording in-process traces and metrics so any future exporter can be added without code changes. Custom activity sources and meters published as `Planora.*` are auto-discovered. `/health*` paths are excluded from request tracing to suppress probe noise. EF Core SQL text capture (`SetDbStatementForText`) is **off by default** and opted in per environment via `OpenTelemetry:Tracing:CaptureDbStatementText=true` — keeping potential PII in parameter values out of trace exports unless the operator consciously enables it.
 
-- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, every service `Program.cs`.
-- Rationale: a single instrumentation surface means one place to add new instrumentations (gRPC client, RabbitMQ, SignalR), one place to configure sampling and resource attributes, and one place to flip exporters between vendors.
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, every service `Program.cs` (each calls `builder.Services.AddPlanoraTelemetry(...)` directly).
+- Rationale: a single instrumentation surface means one place to add new instrumentations (gRPC client, RabbitMQ, SignalR), one place to configure sampling and resource attributes, and one place to flip exporters between vendors. Wrapper helpers around the canonical call invariably drift — Auth API used to ship an `AddOpenTelemetryConfiguration` wrapper that survived two refactors before the audit deleted it.
 
 **INV-OBS-6.** Custom Planora metrics are published through one shared `Meter` named `Planora.BuildingBlocks` defined in `BuildingBlocks.Infrastructure.Observability.PlanoraMetrics`. Services do not create their own `Meter` instances for cross-cutting concerns. New instruments follow OpenTelemetry semantic conventions: explicit units (`s`, `{rejection}`, `{message}`), low-cardinality tag values from a finite enumeration, and `_total` is implicit (added by the Prometheus exporter, not the instrument name).
 
@@ -208,10 +218,15 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 **INV-FLOW-1.** Migrations are committed alongside the schema change that produced them. A schema change is never merged without its EF migration.
 
-**INV-FLOW-4.** Production migrations are applied by the dedicated `Planora.Migrator` CLI (`tools/Planora.Migrator/`), not by services calling `Database.MigrateAsync()` at startup. The migrator runs as a one-shot init step before service rollout — never simultaneously with the running service — so two replicas cannot race the migration history. The `.github/workflows/migrations.yml` workflow attaches an idempotent SQL script artifact (`dotnet ef migrations script --idempotent`) to every PR whose schema-relevant paths change; reviewers see exactly what will execute.
+**INV-FLOW-4.** Production migrations are applied by the dedicated `Planora.Migrator` CLI (`tools/Planora.Migrator/`), not by services calling `Database.MigrateAsync()` at startup. The migrator runs as a one-shot init step before service rollout — never simultaneously with the running service — so two replicas cannot race the migration history. The `.github/workflows/migrations.yml` workflow attaches an idempotent SQL script artifact (`dotnet ef migrations script --idempotent`) to every PR whose schema-relevant paths change; reviewers see exactly what will execute. The same workflow asserts every non-empty generated script carries `IF [NOT] EXISTS` markers — guarding against a future EF-tooling regression where `--idempotent` silently produces non-idempotent SQL.
 
 - Evidence: `tools/Planora.Migrator/Program.cs`, `.github/workflows/migrations.yml`, `deploy/fly/migrator.fly.toml`.
 - Rationale: EF Core's `Database.MigrateAsync` at app startup is a footgun in HA: two replicas booting the same schema change at once corrupt `__EFMigrationsHistory`. Idempotent script + one-shot runner removes the race and makes the migration auditable.
+
+**INV-FLOW-5.** `Planora.Migrator` rejects schema drift. Before applying pending migrations for any service, the migrator enumerates the database's `__EFMigrationsHistory` (`GetAppliedMigrationsAsync`) and compares it to the migrations present in the compiled assembly (`Database.GetMigrations()`). Any applied migration that is not in the code set is treated as drift; the migrator logs an error, returns a non-zero exit code, and refuses to apply anything for that service. Operators must reconcile (restore the missing migration files in code, or reset the target environment) before re-running.
+
+- Evidence: `tools/Planora.Migrator/Program.cs::RunForServiceAsync`.
+- Rationale: a developer who deletes a migration file locally, or a deploy that targets a database advanced past the current code's known migration set, leaves `__EFMigrationsHistory` in an unrecognisable state. Partially applying additional migrations on top of that history corrupts the chain. Failing fast with a clear message is the only safe path.
 
 **INV-FLOW-2.** Runtime user uploads (`Services/AuthApi/Planora.Auth.Api/wwwroot/avatars/`) and other generated content are gitignored. They never appear in `git status` of a clean working tree.
 

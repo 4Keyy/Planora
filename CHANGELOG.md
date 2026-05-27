@@ -4,6 +4,50 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Phase 1.5 audit-hotfix wave (2026-05-27)
+
+A four-commit hotfix wave executed against the master plan
+(`/root/.claude/plans/staff-melodic-oasis.md`). Closes every P0 and
+P1 finding from the audit that did not require architectural refactoring.
+Five new invariants added (INV-AUTH-6, INV-AUTH-7, INV-FLOW-5, INV-OBS-5
+strengthened, INV-OBS-10 implicit in INV-OBS-5).
+
+**Backend hygiene (wave A — H1, H8, H17, H18).**
+
+- **H1 — JWT `ClockSkew` unified.** Six wiring points (Auth JwtConfiguration, Auth DependencyInjection, Auth TokenService ×2, Messaging Program, Realtime Program) used `TimeSpan.Zero`; the BuildingBlocks consumer extension used `30 s`; Gateway used `5 s`; `SecurityConstants.TokenClockSkewSeconds` was 5 and unused. Every wiring now reads `SecurityConstants.SecurityPolicies.TokenClockSkewSeconds` (set to 30 s, tolerates Fly NTP drift). Pinned tests updated. New INV-AUTH-7.
+- **H8 — EF SQL text capture default-off.** `SetDbStatementForText` defaults to `false` to remove PII risk from trace exports; opt in per environment via `OpenTelemetry:Tracing:CaptureDbStatementText=true`. INV-OBS-5 strengthened.
+- **H17 — `CacheService.RemoveByPatternAsync` implemented.** Redis `SCAN` + `KeyDeleteAsync` (UNLINK) in 500-key batches with the StackExchangeRedisCache instance-name prefix. Skips replicas, cancellation-aware, no-ops cleanly when no multiplexer is registered.
+- **H18 — Idempotent fallback hash MD5 → SHA256.** Truncated to 16 bytes; removes the CA5351 static-analyzer flag with identical determinism.
+
+**CI/CD/infra hygiene (wave B — H5, H7, H16, H21, H22, H23, P2-MIG-002).**
+
+- **H5 — `superfly/flyctl-actions/setup-flyctl@master` SHA-pinned** to `ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1` (v1.6) across all four CD workflow occurrences.
+- **H7 — docker-compose healthchecks** switched from aggregate `/health` to `/health/ready`, matching INV-OBS-4 semantics and the Fly manifest probes.
+- **H16 — `npm audit --audit-level=high`** (was `moderate`). High-severity transitive CVEs now block CI.
+- **H21 — Trivy IaC fail-on-high.** Two-pass scan: first uploads SARIF for the Security tab, second fails the job on HIGH/CRITICAL.
+- **H22 — NuGet cache enabled.** `actions/setup-dotnet@v5 cache: true` across `ci.yml`, `security.yml`, `openapi.yml`, `migrations.yml`. `cache-dependency-path` hashes every csproj plus `Directory.Packages.props` + `Directory.Build.props` so the key changes only when the restore graph changes.
+- **H23 — CD `/health/live` smoke** added before `/health/ready` poll. 30 s liveness probe distinguishes "gateway crashed" from "backends slow to warm up".
+- **P2-MIG-002 — Idempotence marker check.** `migrations.yml` greps for `IF [NOT] EXISTS` in every non-empty generated script; fails if `--idempotent` ever silently produces non-idempotent SQL.
+
+**Frontend P0/P1 (wave C — H9, H10, H11, H13, H14, H15).**
+
+- **H9 — Hydration year mismatch fixed** on the landing page footer (`app/page.tsx`). Already-mounted `mounted` flag reused; matches the existing pattern on auth/login and auth/register.
+- **H10 — Rehydrate race closed.** Zustand `onRehydrateStorage` explicitly pins `isAuthenticated=false` when `accessToken` is absent on rehydrate. Prevents a brief render window where guards saw `isAuthenticated=true` before `restoreSession()` resolved.
+- **H11 — CSRF 403 retry on the main axios client.** Matches the existing `auth-public.ts` retry semantics. The `_csrfRetry` flag bounds the retry to one round-trip; a second 403 propagates to the caller.
+- **H13 — Cross-tab logout via BroadcastChannel.** `clearAuth()` publishes a logout message on the `planora-auth` channel; `SecurityInitializer` subscribes and calls `clearAuth(true)` on receipt (silent flag prevents echo). New `@/lib/auth-broadcast` module owns the channel name.
+- **H14 — Traceparent reuse on 401 retry.** `extractTraceId` + `traceparentForExistingTrace` keep the original trace-id intact while a fresh span-id is generated; backend collector groups the retry under the same trace.
+- **H15 — CSP additions.** `object-src 'none'; child-src 'none'; worker-src 'self'`. Defence-in-depth against reflected XSS payloads via `<object>`, `<embed>`, or worker spawn.
+
+**Security/integrity (wave D — H2, H3, H4, H6, H19).**
+
+- **H2 — Refresh-token reuse detection.** `RefreshTokenCommandHandler` now treats presentation of a previously-rotated token as a replay attack: every active refresh token on the user is revoked with reason `"Reuse detected — chain invalidated"`, the security stamp is rotated, and Unauthorized is returned. New INV-AUTH-6. Pinned by `RefreshToken_WhenReplayed_InvalidatesChainAndRotatesStamp`.
+- **H3 — Todo description max length reconciled** at 2000 chars in both `CreateTodoCommandValidator` and `UpdateTodoCommandValidator`. Matches the existing `varchar(2000)` column; eliminates silent server-side truncation.
+- **H4 — Auth API telemetry wrapper removed.** `Services/AuthApi/.../Configuration/OpenTelemetryExtensions.cs` deleted; `Program.cs` calls `AddPlanoraTelemetry(builder.Configuration, "AuthService")` directly, matching every other service. INV-OBS-5 strengthened to explicitly forbid wrappers around the canonical call.
+- **H6 — Migrator schema-drift guard.** Refuses to start a migration run when the database has applied migrations absent from the compiled code base. New INV-FLOW-5.
+- **H19 — `CODEOWNERS` file** codifies security primitives, observability pipeline, outbox state machine, migrator, CI/CD, deployment manifests, and INVARIANTS as protected paths.
+
+**Deferred (planned for follow-up commits).** H12 (AbortController on data fetches) and H20 (Husky pre-commit hooks) — both wider-scope than the rest of Phase 1.5 and tracked in the master plan.
+
 ### PR-9 observability: avatar upload metrics + dead-letter alert (2026-05-26)
 
 Adds two metrics to the shared `PlanoraMetrics` meter and one new alert rule for production monitoring.

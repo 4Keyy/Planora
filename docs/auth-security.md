@@ -183,6 +183,7 @@ Every command that materially changes the security posture of an account rotates
 | `Disable2FACommandHandler` | Disabling 2FA reduces the account's security posture — invalidate live sessions so the user re-authenticates on every device. |
 | `RevokeAllSessionsCommandHandler` | The command's raison d'être. Refresh-token revocation alone leaves outstanding access tokens valid until their natural expiry; the stamp rotation makes "revoke all" actually do what the name says. |
 | `DeleteUserCommandHandler` | Account is soft-deleted — outstanding tokens must not continue to hit endpoints whose handlers do not separately check `IsDeleted`. |
+| `RefreshTokenCommandHandler` (reuse path) | A presented refresh token already revoked with reason `"Replaced by new token"` indicates either a buggy client racing its own refresh or — much more likely — an attacker presenting a stolen value. The handler revokes the entire chain and rotates the stamp so any already-minted access tokens become invalid on next call. See INV-AUTH-6. |
 
 The stamp rotates **only on successful execution** of the command. A wrong-password attempt does not invalidate active sessions — otherwise an observer could DoS a legitimate user. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin both the success-path stamp call and the failure-path absence-of-call.
 
