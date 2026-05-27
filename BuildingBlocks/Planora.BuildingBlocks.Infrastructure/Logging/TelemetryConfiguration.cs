@@ -38,9 +38,10 @@ namespace Planora.BuildingBlocks.Infrastructure.Logging;
 /// same wildcard match.
 /// </para>
 /// <para>
-/// SECURITY: <c>SetDbStatementForText</c> is enabled on EF Core instrumentation. SQL text in
-/// span attributes may contain PII through parameter values. Restrict trace-backend access
-/// accordingly, or set <c>OpenTelemetry:Tracing:CaptureDbStatementText=false</c> to disable.
+/// SECURITY: <c>SetDbStatementForText</c> is DISABLED by default on EF Core instrumentation —
+/// SQL text in span attributes may contain PII through parameter values. Opt in by setting
+/// <c>OpenTelemetry:Tracing:CaptureDbStatementText=true</c> in development or staging
+/// environments where trace-backend access is restricted and PII risk is acceptable.
 /// </para>
 /// </remarks>
 public static class TelemetryConfiguration
@@ -67,7 +68,9 @@ public static class TelemetryConfiguration
         var consoleEnabled = section.GetValue<bool>("ConsoleExporter:Enabled");
         var tracingEnabled = section.GetValue<bool?>("Tracing:Enabled") ?? true;
         var metricsEnabled = section.GetValue<bool?>("Metrics:Enabled") ?? true;
-        var captureDbText = section.GetValue<bool?>("Tracing:CaptureDbStatementText") ?? true;
+        // SECURITY: default-off. SQL text in spans leaks parameter values (potential PII).
+        // Opt in per-environment via OpenTelemetry:Tracing:CaptureDbStatementText=true.
+        var captureDbText = section.GetValue<bool?>("Tracing:CaptureDbStatementText") ?? false;
         var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
 
         var otelBuilder = services.AddOpenTelemetry()

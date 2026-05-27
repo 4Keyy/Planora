@@ -65,10 +65,13 @@ public sealed class IdempotentMessageHandler<TEvent> : IIntegrationEventHandler<
                 return guidValue;
         }
 
-        // Fallback: generate deterministic GUID from event content
+        // Fallback: generate deterministic GUID from event content. SHA256 truncated to
+        // 16 bytes — MD5 is fast but cryptographically broken and trips static analyzers
+        // (CA5351); SHA256 has the same determinism property without the audit-tooling
+        // friction. The truncation is acceptable because the GUID is used only as an
+        // idempotency key in the inbox table, not as a security primitive.
         var json = System.Text.Json.JsonSerializer.Serialize(@event);
-        using var md5 = System.Security.Cryptography.MD5.Create();
-        var hash = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes(json));
-        return new Guid(hash);
+        var fullHash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json));
+        return new Guid(fullHash.AsSpan(0, 16));
     }
 }

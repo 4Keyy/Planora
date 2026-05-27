@@ -187,7 +187,9 @@ public sealed class AuthApiConfigurationTests
         Assert.True(bearerOptions.TokenValidationParameters.RequireExpirationTime);
         Assert.Equal("test-issuer", bearerOptions.TokenValidationParameters.ValidIssuer);
         Assert.Equal("test-audience", bearerOptions.TokenValidationParameters.ValidAudience);
-        Assert.Equal(TimeSpan.Zero, bearerOptions.TokenValidationParameters.ClockSkew);
+        Assert.Equal(
+            TimeSpan.FromSeconds(Planora.BuildingBlocks.Infrastructure.Configuration.SecurityConstants.SecurityPolicies.TokenClockSkewSeconds),
+            bearerOptions.TokenValidationParameters.ClockSkew);
         var signingKey = Assert.IsType<SymmetricSecurityKey>(bearerOptions.TokenValidationParameters.IssuerSigningKey);
         Assert.Equal(CreateJwtSecret(), Encoding.UTF8.GetString(signingKey.Key));
         Assert.NotNull(authorization.GetPolicy("RequireAdminRole"));

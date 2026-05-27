@@ -1,5 +1,6 @@
 using Planora.ApiGateway.Configuration;
 using Planora.ApiGateway.Extensions;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Logging;
 using Planora.BuildingBlocks.Infrastructure.Middleware;
@@ -118,7 +119,7 @@ public class Program
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
                         IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secret)),
-                        ClockSkew = TimeSpan.FromSeconds(5)
+                        ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds)
                     };
                     
                     // Add event handlers for debugging

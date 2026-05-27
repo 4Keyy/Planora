@@ -53,7 +53,7 @@ namespace Planora.Messaging.Api
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
                         IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secret!)),
-                        ClockSkew = TimeSpan.Zero,
+                        ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds),
                         NameClaimType = "sub"
                     };
                     options.Events = new JwtBearerEvents
