@@ -2,6 +2,11 @@
 # Extends the default gitleaks ruleset (loaded automatically via `useDefault = true`).
 # Tightens detection around project-specific secret patterns documented in
 # docs/secrets-management.md and docker-compose.yml.
+#
+# NB: gitleaks v8 uses the go-re2 regex engine, which does NOT support Perl
+# lookaheads / lookbehinds. Don't add `(?!...)` to rule regexes — the binary
+# panics at startup. Env-var interpolation like `${VAR}` / `%VAR%` is filtered
+# downstream by the [allowlist].regexes section.
 
 title = "Planora gitleaks configuration"
 
@@ -28,7 +33,7 @@ secretGroup = 2
 [[rules]]
 id = "planora-postgres-connection-string-literal"
 description = "Postgres connection string with inlined password literal"
-regex = '''Host=[^;]+;.*Password=(?!\$\{|%[A-Z_])([^;'"\s]{6,})'''
+regex = '''Host=[^;]+;.*Password=([^;'"\s]{6,})'''
 tags = ["secret", "planora", "postgres"]
 secretGroup = 1
 
@@ -36,7 +41,7 @@ secretGroup = 1
 [[rules]]
 id = "planora-rabbit-password"
 description = "Planora RABBITMQ_PASSWORD hard-coded value"
-regex = '''(?i)(RABBITMQ_PASSWORD|RabbitMq__Password)\s*[:=]\s*['"]?(?!\$\{|%[A-Z_])([^\s'"]{6,})'''
+regex = '''(?i)(RABBITMQ_PASSWORD|RabbitMq__Password)\s*[:=]\s*['"]?([^\s'"]{6,})'''
 tags = ["secret", "planora", "rabbitmq"]
 secretGroup = 2
 
@@ -44,7 +49,7 @@ secretGroup = 2
 [[rules]]
 id = "planora-redis-password-in-conn"
 description = "Redis connection string with inlined password literal"
-regex = '''redis:6379,\s*password=(?!\$\{|%[A-Z_])([A-Za-z0-9+/=_\-]{6,})'''
+regex = '''redis:6379,\s*password=([A-Za-z0-9+/=_\-]{6,})'''
 tags = ["secret", "planora", "redis"]
 secretGroup = 1
 
@@ -52,7 +57,7 @@ secretGroup = 1
 [[rules]]
 id = "planora-email-password"
 description = "Email provider password literal"
-regex = '''(?i)(Email__Password)\s*[:=]\s*['"]?(?!\$\{|%[A-Z_])([^\s'"]{6,})'''
+regex = '''(?i)(Email__Password)\s*[:=]\s*['"]?([^\s'"]{6,})'''
 tags = ["secret", "planora", "email"]
 secretGroup = 2
 
@@ -60,7 +65,7 @@ secretGroup = 2
 [[rules]]
 id = "planora-generic-secret-assignment"
 description = "Generic high-entropy assignment to a SECRET / KEY / TOKEN variable"
-regex = '''(?i)(SECRET|TOKEN|KEY)\s*[:=]\s*['"](?!\$\{|%[A-Z_])([A-Za-z0-9+/=_\-]{32,})'''
+regex = '''(?i)(SECRET|TOKEN|KEY)\s*[:=]\s*['"]([A-Za-z0-9+/=_\-]{32,})'''
 tags = ["secret", "planora", "generic"]
 secretGroup = 2
 
