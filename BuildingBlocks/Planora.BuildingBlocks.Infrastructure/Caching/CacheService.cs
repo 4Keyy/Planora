@@ -11,6 +11,12 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
         // produce a single 50 000-element DEL that blocks the Redis event loop.
         private const int UnlinkBatchSize = 500;
 
+        // Defence against an unbounded callsite accidentally emitting per-id prefixes
+        // and exploding the planora.cache.operations cardinality budget. Anything past
+        // this length is collapsed to "_long_" so the metric stays useful.
+        private const int MaxPrefixLength = 48;
+        private const string PrefixFallback = "_other_";
+
         private readonly IDistributedCache _distributedCache;
         private readonly IMemoryCache _memoryCache;
         private readonly CacheOptions _options;
@@ -33,11 +39,13 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
 
         public async Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
         {
+            var prefix = ExtractPrefix(key);
             try
             {
                 if (_options.UseLocalCache && _memoryCache.TryGetValue(key, out T? cachedValue))
                 {
                     _logger.LogDebug("Cache hit (L1 Memory) for key: {Key}", key);
+                    RecordCacheOperation(prefix, "hit_l1");
                     return cachedValue;
                 }
 
@@ -45,6 +53,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
                 if (string.IsNullOrEmpty(cachedData))
                 {
                     _logger.LogDebug("Cache miss for key: {Key}", key);
+                    RecordCacheOperation(prefix, "miss");
                     return default;
                 }
 
@@ -61,13 +70,36 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
                 }
 
                 _logger.LogDebug("Cache hit (L2 Redis) for key: {Key}", key);
+                RecordCacheOperation(prefix, "hit_l2");
                 return value;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting cache for key: {Key}", key);
+                RecordCacheOperation(prefix, "error");
                 return default;
             }
+        }
+
+        private static void RecordCacheOperation(string prefix, string outcome)
+        {
+            Planora.BuildingBlocks.Infrastructure.Observability.PlanoraMetrics.CacheOperations.Add(
+                1,
+                new System.Diagnostics.TagList { { "prefix", prefix }, { "outcome", outcome } });
+        }
+
+        // Extract a low-cardinality dimension from the cache key. CacheKeyBuilder produces
+        // colon-delimited keys like "User:<guid>" or "Todo:list:userId:<guid>"; the first
+        // segment is the entity name and is the single useful dimension to partition by.
+        // Long or empty prefixes collapse to a fallback so the metric stays bounded even
+        // if a future callsite forgets the convention.
+        private static string ExtractPrefix(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return PrefixFallback;
+            var colon = key.IndexOf(':');
+            var first = colon >= 0 ? key[..colon] : key;
+            if (first.Length == 0 || first.Length > MaxPrefixLength) return PrefixFallback;
+            return first;
         }
 
         public async Task SetAsync<T>(

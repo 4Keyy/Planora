@@ -90,4 +90,21 @@ public static class PlanoraMetrics
         name: "planora.avatar.variant.bytes",
         unit: "By",
         description: "Re-encoded WebP variant size in bytes, per variant tier.");
+
+    /// <summary>
+    /// Counter incremented on every cache <c>GetAsync</c> call. Tags:
+    /// <c>prefix</c> — first colon-delimited segment of the cache key
+    /// (entity name when callers use <c>CacheKeyBuilder.ForEntity</c>);
+    /// <c>outcome</c> ∈ {<c>hit_l1</c>, <c>hit_l2</c>, <c>miss</c>, <c>error</c>}.
+    /// Hit ratio is derived in the metrics back-end:
+    /// <c>sum(rate(planora_cache_operations_total{outcome=~"hit_.*"}[5m])) /
+    /// sum(rate(planora_cache_operations_total[5m])) by (prefix)</c>.
+    /// Cardinality is bounded by the set of entity prefixes the codebase emits
+    /// (low double-digits); a cap is enforced in <c>CacheService</c> to defend
+    /// against an unbounded callsite leaking arbitrary segments.
+    /// </summary>
+    public static readonly Counter<long> CacheOperations = Meter.CreateCounter<long>(
+        name: "planora.cache.operations",
+        unit: "{operation}",
+        description: "Cache get operations, partitioned by key prefix and outcome (hit_l1 / hit_l2 / miss / error).");
 }

@@ -181,7 +181,7 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 **INV-OBS-6.** Custom Planora metrics are published through one shared `Meter` named `Planora.BuildingBlocks` defined in `BuildingBlocks.Infrastructure.Observability.PlanoraMetrics`. Services do not create their own `Meter` instances for cross-cutting concerns. New instruments follow OpenTelemetry semantic conventions: explicit units (`s`, `{rejection}`, `{message}`), low-cardinality tag values from a finite enumeration, and `_total` is implicit (added by the Prometheus exporter, not the instrument name).
 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs`.
-- Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds).
+- Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds), `planora.avatar.uploads{outcome}`, `planora.avatar.variant.bytes{size}` (histogram, bytes), `planora.cache.operations{prefix,outcome}`.
 - Rationale: one meter = one configuration knob in `AddMeter("Planora.*")` (already wildcard-subscribed by `AddPlanoraTelemetry`), one place to audit cardinality before shipping to a metrics backend that bills per series.
 
 **INV-OBS-7.** Centralized logs ship through Grafana Loki via `SerilogConfiguration.TryAddLokiSink`. The sink is registered only when `LOKI_URL` (or `Serilog:Loki:Url`) is set; with no URL the helper returns false and no sink is added, so there is no background connection and no log noise. Both Serilog configuration entry points (`WebApplicationBuilder` and `IHostBuilder`) call the same helper — there is one implementation. Labels are restricted to `service_name` and `environment`; per-request labels are forbidden to bound cardinality.
@@ -207,7 +207,7 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 - Rationale: the OpenAPI artifact is a public contract once a TS client is generated from it. Spectral catches breaking-change classes (missing 2xx response, schemas with no valid example, paths with trailing slashes, duplicate or URL-illegal operation ids) before they reach a consuming client. The sanitised schema ids guarantee every artifact passes `oas3-schema` regardless of how exotic the CLR generic-type tree becomes.
 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs`.
-- Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds).
+- Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds), `planora.avatar.uploads{outcome}`, `planora.avatar.variant.bytes{size}` (histogram, bytes), `planora.cache.operations{prefix,outcome}`.
 - Rationale: one meter = one configuration knob in `AddMeter("Planora.*")` (already wildcard-subscribed by `AddPlanoraTelemetry`), one place to audit cardinality before shipping to a metrics backend that bills per series.
 
 ---

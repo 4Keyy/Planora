@@ -97,10 +97,28 @@ For caches that depend on a piece of data the producer cannot enumerate
 
 The Redis instance health is part of the readiness probe (see
 [`docs/architecture.md`](architecture.md) "Health Probe Architecture").
-Future work: a `planora.cache.hit_ratio` metric per cache key prefix is on
-the master plan as a Phase 4 follow-up. Until then, infer hit-ratio from
-gRPC call rates (a falling category-gRPC RPS at the same Todo RPS = the
-cache is working).
+
+`CacheService.GetAsync` emits the `planora.cache.operations` counter on every
+read. Tags:
+
+- `prefix` — the first colon-delimited segment of the cache key. With the
+  `CacheKeyBuilder.ForEntity<T>(id)` convention this is the entity class
+  name (`User`, `Todo`, `Category`, …) — low cardinality by design. Keys
+  whose first segment exceeds 48 characters or is empty collapse to
+  `_other_` so a future buggy callsite cannot blow up the time-series
+  cardinality budget.
+- `outcome` ∈ `hit_l1` (in-process MemoryCache), `hit_l2` (Redis),
+  `miss`, `error` (exception during the read path).
+
+Hit ratio is derived in the metrics back-end with a Prometheus query:
+
+    sum by (prefix) (rate(planora_cache_operations_total{outcome=~"hit_.*"}[5m]))
+    /
+    sum by (prefix) (rate(planora_cache_operations_total[5m]))
+
+A persistent low ratio per prefix (< 0.5 sustained) usually means the
+TTL is too short for the access pattern, or the invalidator is firing
+on a key that should be sticky.
 
 ## References
 
