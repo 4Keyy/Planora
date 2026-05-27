@@ -114,6 +114,16 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 - Evidence: `Services/AuthApi/Planora.Auth.Application/Features/Users/Validators/UploadAvatar/UploadAvatarCommandValidator.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/{ImageSharpImageProcessor,LocalAvatarStorage}.cs`, `Services/AuthApi/Planora.Auth.Api/Program.cs`, `docs/auth-security.md` § Avatar File Pipeline.
 
+**INV-AZ-6.** The gRPC client interceptor (`ServiceKeyClientInterceptor`) emits exactly one outbound credential — `x-service-key`. It never propagates the inbound HTTP `Authorization` (Bearer JWT) header or any cookie into outgoing gRPC metadata. Trust contexts are kept fully separate: the inbound HTTP request authenticates the *user*, the outbound gRPC call authenticates the *peer service*. Pinned by `ServiceKeyInterceptorTests.ClientInterceptor_DoesNotLeakAuthorizationHeaderIntoOutgoingMetadata`.
+
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyClientInterceptor.cs`, `tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs`.
+- Rationale: confusing the two contexts would let a peer service mint forged identities by reusing the original user's JWT against a third service.
+
+**INV-AZ-7.** The API Gateway processes `X-Forwarded-For` / `X-Forwarded-Proto` / `X-Forwarded-Host` **only when** `ForwardedHeaders:KnownProxies` is non-empty in configuration. With an empty list (the default), `UseForwardedHeaders` is never registered and external clients cannot spoof their IP into rate-limit partitioning or downstream logs.
+
+- Evidence: `Planora.ApiGateway/Program.cs` — the conditional `Configure<ForwardedHeadersOptions>` + `app.UseForwardedHeaders()` block guarded by `knownProxies.Length > 0`.
+- Rationale: trusting forwarded headers unconditionally creates a rate-limit bypass (`X-Forwarded-For: <victim-ip>`) — the audit's P1 spoofing risk. Production deployments behind Fly must configure the Fly edge range explicitly.
+
 ---
 
 ## Data Integrity
