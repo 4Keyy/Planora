@@ -218,9 +218,18 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 **INV-CI-2.** `dotnet test` (unit + integration + ErrorHandling tests) and `npm run test:coverage` must be green on every PR.
 
-**INV-CI-3.** Security pipeline runs on every PR and weekly schedule: gitleaks, `dotnet list package --vulnerable`, `npm audit --audit-level=moderate`, CodeQL SAST (csharp + javascript-typescript), Trivy IaC. A new HIGH or CRITICAL finding must be triaged before merge.
+**INV-CI-3.** Security pipeline runs on every PR and weekly schedule: gitleaks, `dotnet list package --vulnerable`, `npm audit --audit-level=high`, CodeQL SAST (csharp + javascript-typescript), Trivy IaC (with a fail-on-HIGH/CRITICAL second pass). A new HIGH or CRITICAL finding must be triaged before merge.
 
 **INV-CI-4.** E2E pipeline (`docker compose up` + Playwright) must pass for any PR that touches `BuildingBlocks/**`, `GrpcContracts/**`, `Planora.ApiGateway/**`, `Services/**`, `frontend/**`, `docker-compose.yml`, or `postgres/**`.
+
+---
+
+## Performance
+
+**INV-PERF-1.** Integration tests guard against N+1 query regressions via the `N1SentinelInterceptor` from `BuildingBlocks.Infrastructure.Persistence`. New integration suites that exercise a request-scoped data path wrap the call under test in `using (N1SentinelInterceptor.BeginScope(threshold: …)) { … }`. A SQL fingerprint that executes more than the threshold within the scope throws `N1SentinelException` and fails the test. Outside an active scope the interceptor is a no-op and ships zero runtime cost in production. Legitimate repeats (e.g. an intentional foreach over related entities) opt out via a `whitelist` substring rather than by removing the scope.
+
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/N1Sentinel.cs`, `tests/Planora.UnitTests/BuildingBlocks/Persistence/N1SentinelTests.cs`.
+- Rationale: N+1 patterns are cheap to write, expensive to catch in code review, and only visible in production-load traces. A test-side interceptor closes the gap before the query reaches a real database.
 
 ---
 
