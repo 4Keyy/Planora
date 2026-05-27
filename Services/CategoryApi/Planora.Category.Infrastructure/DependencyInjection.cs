@@ -34,7 +34,11 @@ namespace Planora.Category.Infrastructure
             services.AddScoped<ICategoryRepository, CategoryRepository>();
             services.AddScoped<BuildingBlocks.Domain.Interfaces.IRepository<Domain.Entities.Category>, CategoryRepository>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<Planora.BuildingBlocks.Application.Outbox.IOutboxRepository, Persistence.Repositories.OutboxRepository>();
+            // T2.3 — canonical outbox repository. The per-service legacy adapter at
+            // Persistence.Repositories.OutboxRepository is kept [Obsolete] for one release.
+            services.AddScoped<
+                Planora.BuildingBlocks.Application.Outbox.IOutboxRepository,
+                Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<CategoryDbContext>>();
 
             // Services
             services.AddHttpContextAccessor();
