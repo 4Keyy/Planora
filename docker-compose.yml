@@ -30,7 +30,21 @@ services:
       - "127.0.0.1:6379:6379"
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"]
+    # T4.8: maxmemory + allkeys-lru evicts least-recently-used keys when the cap
+    # is reached, so unbounded growth in cache prefixes never OOMs the container.
+    # 256 MB is the local-dev baseline — production (Upstash / Fly Redis) sizes
+    # via the provider plan and ignores this directive. AOF persistence stays on
+    # so session data and rate-limit counters survive container restarts.
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--requirepass"
+      - "${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
+      - "--maxmemory"
+      - "256mb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
     volumes:
       - redis_data:/data
     restart: unless-stopped
