@@ -47,7 +47,27 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable
     {
         var eventName = @event.GetType().Name;
         var connection = await _connectionManager.GetConnectionAsync(cancellationToken);
-        var channel = await connection.CreateChannelAsync();
+
+        // SECURITY / RELIABILITY (T4.7): publisher confirms + mandatory flag.
+        //
+        //   publisherConfirmationsEnabled:        broker MUST ack every publish.
+        //   publisherConfirmationTrackingEnabled: BasicPublishAsync awaits the ack
+        //                                          and throws PublishException on nack.
+        //   mandatory: true on BasicPublishAsync: an unroutable message (no queue
+        //                                          bound to the matching routing key)
+        //                                          returns and surfaces as a publish
+        //                                          failure instead of silently
+        //                                          disappearing.
+        //
+        // The combination guarantees that PublishAsync's task completion ==
+        // broker durability commitment for the message. The outer Outbox processor
+        // depends on this guarantee: if PublishAsync returns success, the outbox
+        // row is safe to mark Processed; if it throws, the row stays Pending and
+        // the message is retried per the OutboxMessage state machine (INV-COMM-3a).
+        var channelOpts = new CreateChannelOptions(
+            publisherConfirmationsEnabled: true,
+            publisherConfirmationTrackingEnabled: true);
+        var channel = await connection.CreateChannelAsync(channelOpts, cancellationToken);
 
         try
         {
@@ -65,9 +85,15 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable
                 Type = eventName
             };
 
-            await channel.BasicPublishAsync(ExchangeName, eventName, false, properties, body, cancellationToken);
+            await channel.BasicPublishAsync(
+                exchange: ExchangeName,
+                routingKey: eventName,
+                mandatory: true,
+                basicProperties: properties,
+                body: body,
+                cancellationToken: cancellationToken);
 
-            _logger.LogInformation("Published event {EventName} with ID {EventId}", eventName, @event.Id);
+            _logger.LogInformation("Published event {EventName} with ID {EventId} (broker confirmed)", eventName, @event.Id);
         }
         catch (Exception ex)
         {

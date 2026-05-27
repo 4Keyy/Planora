@@ -62,20 +62,41 @@ jobs:
   codeql:
     name: CodeQL SAST
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        language: [csharp, javascript-typescript]
+        # build-mode is per-language: csharp uses autobuild so CodeQL can run the
+        # data-flow taint queries that need the compiled IL (the dataflow precision
+        # buildless mode cannot reach); javascript-typescript stays buildless because
+        # its extractor does not need a build step.
+        include:
+          - language: csharp
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # C# autobuild needs the .NET SDK on PATH. Cache so the second build
+      # (during analyze) reuses the NuGet restore from the first.
+      - if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+            Directory.Build.props
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@f52b05f4acaaa234e44466e66d29050e135ea9ef # v4.36.0
         with:
           languages: ${{ matrix.language }}
-          # Buildless analysis — no .NET/Node build step needed, faster and robust.
-          build-mode: none
+          build-mode: ${{ matrix.build-mode }}
           queries: security-extended
+
       - name: Analyze
         uses: github/codeql-action/analyze@f52b05f4acaaa234e44466e66d29050e135ea9ef # v4.36.0
         with:
