@@ -4,13 +4,16 @@ import { getCsrfToken, shouldIncludeCsrfToken, clearCsrfToken, CSRF_HEADER_NAME 
 import { refreshAccessToken } from "@/lib/auth-public"
 import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
 import { getApiBaseUrl } from "@/lib/config"
-import { newTraceparent } from "@/lib/trace"
+import { newTraceparent, extractTraceId, traceparentForExistingTrace } from "@/lib/trace"
 import type { Todo, TodoComment } from "@/types/todo"
 import type { AuthTokenDto } from "@/types/auth"
 
 const BASE_URL = getApiBaseUrl()
 let refreshPromise: Promise<AuthTokenDto> | null = null
-type RetriableRequestConfig = NonNullable<AxiosError["config"]> & { _retry?: boolean }
+type RetriableRequestConfig = NonNullable<AxiosError["config"]> & {
+  _retry?: boolean
+  _csrfRetry?: boolean
+}
 type HiddenStateResponse = {
   hidden: boolean
   categoryName?: string | null
@@ -208,6 +211,14 @@ api.interceptors.response.use(
             useAuthStore.getState().applyRefresh(refreshed)
             originalRequest.headers = originalRequest.headers ?? {}
             originalRequest.headers.Authorization = `Bearer ${refreshed.accessToken}`
+            // OBSERVABILITY: keep the original trace-id but issue a fresh span-id so
+            // the backend collector groups the retry under the same trace. The span-id
+            // must change because span-ids are unique-per-span by W3C spec.
+            const originalTraceparent = originalRequest.headers.traceparent as string | undefined
+            const traceId = extractTraceId(originalTraceparent ?? null)
+            originalRequest.headers.traceparent = traceId
+              ? traceparentForExistingTrace(traceId)
+              : newTraceparent()
             return api(originalRequest)
           } catch {
             console.warn("[API] Token refresh failed, clearing auth")
@@ -232,11 +243,24 @@ api.interceptors.response.use(
         }
       }
 
-      // Handle 403 Forbidden (CSRF token failure or permission denied)
+      // Handle 403 Forbidden — could be CSRF expiry (recoverable) or genuine
+      // permission denial. Retry ONCE on state-mutating requests with a fresh
+      // CSRF token; the request interceptor will fetch a new token because the
+      // previous one was cleared. Genuine permission errors fail the second
+      // attempt with a 403 again, at which point we surface the error.
       if (error.response.status === 403) {
-        console.warn('[API] Forbidden - possible CSRF token failure')
-        // Clear CSRF token to force refresh on next request
         clearCsrfToken()
+        const originalRequest = error.config as RetriableRequestConfig | undefined
+        if (
+          originalRequest &&
+          !originalRequest._csrfRetry &&
+          shouldIncludeCsrfToken(originalRequest.method || "GET")
+        ) {
+          originalRequest._csrfRetry = true
+          console.warn("[API] 403 — retrying with fresh CSRF token")
+          return api(originalRequest)
+        }
+        console.warn("[API] 403 — not retried (non-mutating, retry already attempted, or no config)")
       }
     } else if (error.request) {
       console.error("[Network Error]", error.message)

@@ -40,6 +40,12 @@ export function middleware(request: NextRequest) {
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
+    // Defence-in-depth: deny plugin objects, embedded browsing contexts, and
+    // dedicated workers spawned from foreign origins. None of these are used by
+    // the app today; locking them down narrows the reflected-XSS payload surface.
+    "object-src 'none'",
+    "child-src 'none'",
+    "worker-src 'self'",
   ]
 
   if (!isDev && apiOrigin.startsWith('https://')) {
