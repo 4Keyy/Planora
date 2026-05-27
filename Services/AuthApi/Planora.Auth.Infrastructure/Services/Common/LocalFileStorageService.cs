@@ -6,7 +6,10 @@ namespace Planora.Auth.Infrastructure.Services.Common;
 
 public sealed class LocalFileStorageService : IFileStorageService
 {
-    private static readonly Regex InvalidCharsRegex = new($"[{Regex.Escape(new string(Path.GetInvalidFileNameChars()))}]", RegexOptions.Compiled);
+    // Hardcoded cross-platform invalid set — Path.GetInvalidFileNameChars() on Linux
+    // returns only NUL and '/', so a name like "danger:name?.webp" would slip through
+    // on Linux but be rejected on Windows. Anything not in [A-Za-z0-9._-] is stripped.
+    private static readonly Regex InvalidCharsRegex = new("[^A-Za-z0-9._-]", RegexOptions.Compiled);
 
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<LocalFileStorageService> _logger;

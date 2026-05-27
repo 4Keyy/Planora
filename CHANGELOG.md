@@ -9,6 +9,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 Adds two metrics to the shared `PlanoraMetrics` meter and one new alert rule for production monitoring.
 
 **Metrics.**
+
 - `planora.avatar.uploads{outcome}` (Counter) — every avatar upload attempt is tagged with one of six terminal outcomes: `success`, `rejected_size`, `rejected_mime`, `rejected_content`, `not_authenticated`, `user_missing`. The `rejected_*` outcomes double as attack-pattern indicators (size spike → DoS attempt past the 5 MB cap; mime/content spike → polyglot/exploit probing).
 - `planora.avatar.variant.bytes{size}` (Histogram) — bytes per emitted WebP variant, partitioned by `small`/`medium`/`large`. p95 spike → ImageSharp encoder regression or a class of source images that resists compression.
 
@@ -26,10 +27,12 @@ Adds two metrics to the shared `PlanoraMetrics` meter and one new alert rule for
 Also added `PlanoraOutboxDeadLetter` (per the operations runbook gap flagged in the original audit — `dead_lettered` should page before users notice).
 
 **Tests** (+4, full = 717 green):
+
 - `UploadAvatar_ShouldRecordOutcomeMetric_ForEveryTerminalPath` — asserts `RecordOutcome("success")` plus three `RecordVariantBytes` calls on the happy path.
 - `UploadAvatar_ShouldMapProcessorErrorCodeToMetricOutcome` (Theory, 3 cases) — INVALID_FILE_SIZE → rejected_size, UNSUPPORTED_MEDIA_TYPE → rejected_mime, INVALID_IMAGE_CONTENT → rejected_content.
 
 **Docs.**
+
 - `docs/observability.md` § "Built-in Custom Metrics" — new rows for both instruments with cardinality notes and use-case guidance.
 - `docs/observability.md` § "Suggested Alerts" — new `PlanoraAvatarUploadAbuse` and `PlanoraOutboxDeadLetter` rules.
 - `CHANGELOG.md`: this entry.
@@ -61,6 +64,7 @@ This commit wires the same `OnTokenValidated → SecurityStampValidator.IsTokenR
 **Pin test.** New `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs` builds the Auth infra container and asserts that `JwtBearerOptions.Events.OnTokenValidated` is non-null. If a future refactor removes the wiring, this test fails before the regression ships.
 
 **Docs.**
+
 - `docs/auth-security.md` § "Stamp enforcement coverage" — new coverage table listing how each service enforces the stamp.
 - `docs/INVARIANTS.md` `INV-AUTH-4` — explicit clause that stamp rotation is meaningless without per-service enforcement; pointer to the coverage table and the new wiring test.
 - `CHANGELOG.md`: this entry.
@@ -78,6 +82,7 @@ Refs: `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs`, `te
 The `TodoItemComment.AuthorAvatarUrl` column was a snapshot of the author's avatar at write time. It guaranteed that comments would *always* show stale avatars after the author updated their picture, because nothing invalidated the stored value. The fix here removes the column entirely and switches comment-listing to live batch enrichment via Auth gRPC, with an in-memory cache to keep paged reads cheap.
 
 What changed:
+
 - **Domain**: `TodoItemComment.AuthorAvatarUrl` removed. `Create` / `CreateGenesis` lose the optional `authorAvatarUrl` parameter.
 - **Configuration**: column removed from `TodoItemCommentConfiguration`.
 - **Migration**: new `RemoveCommentAvatarSnapshot` (2026-05-26) drops `AuthorAvatarUrl` from `todo_item_comments`. Down-migration adds it back as nullable varchar(2048).
@@ -86,14 +91,17 @@ What changed:
 - **Caching**: new `CachingUserService` decorator wraps `UserGrpcService`. `IMemoryCache` with 60 s TTL, 10 000-entry size cap. Negative results are cached too, so a deleted user doesn't trigger a gRPC stampede during a comment-thread refresh.
 
 Why this is the right shape:
+
 - Slack/Linear/Figma all serve avatars through a separate identity-service call with short-TTL caches rather than denormalizing the URL into every domain object that mentions a user. This PR adopts that pattern.
 - Single source of truth: when a user uploads a new avatar, every comment thread reflects the change within 60 s without any cross-service event/backfill.
 
 Tests (+4 in the suite, full = 710 green):
+
 - `CachingUserServiceTests` (new) covers: same id served from cache on second call (1 inner call), partial cache hit only fetches missing ids, negative results cached (no stampede), empty input short-circuits.
 - `WorkersAndCommentsHandlerTests` updated to inject `IUserService` into the new `UpdateCommentCommandHandler` ctor.
 
 Breaking:
+
 - `TodoItemComment.AuthorAvatarUrl` is gone — direct consumers (none in the public API) must read from the DTO instead.
 
 Refs: `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItemComment.cs`, `Services/TodoApi/Planora.Todo.Application/Features/Todos/{Queries/GetComments,Commands/{AddComment,AddGenesisComment,UpdateComment,CreateTodo}}/*.cs`, `Services/TodoApi/Planora.Todo.Infrastructure/Services/CachingUserService.cs`, `Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.cs`, `docs/database.md`, `docs/architecture.md`.
@@ -119,6 +127,7 @@ This PR is a no-op locally but unblocks `fly deploy` from being a destructive op
 Productionizes the avatar storage layer. Three variants per upload (64/128/512 px) are encoded server-side via ImageSharp `ResizeMode.Crop` + Lanczos3, written under content-addressed URLs `/avatars/{userId:N}/{contentHash}/{size}.webp`, and served with `Cache-Control: public, max-age=31536000, immutable` + `X-Content-Type-Options: nosniff`.
 
 Why this matters:
+
 - **Bandwidth**: navbar thumbnails (32-40 px on screen) now pull the 64 px variant instead of the full-resolution source. Profile detail uses 512 px. Comment lists use 64 px.
 - **Cache invalidation**: SHA-256 prefix of all variant bytes drives the path segment. Same bytes → same URL → CDN deduplicates; new bytes → new URL → no busting query-strings needed and `immutable` is safe.
 - **Lifecycle**: every successful upload prunes the user's prior `{hash}/` subdirectory. Disk footprint stays at `~3 × 30 KB ≈ 90 KB` per user.
@@ -127,11 +136,13 @@ Why this matters:
 Static-file serving: `Services/AuthApi/Planora.Auth.Api/Program.cs` adds an `OnPrepareResponse` filter that scopes the immutable cache to `/avatars/` only — other static assets (if added later) are untouched. `ServeUnknownFileTypes = false` denies content-sniffing.
 
 Tests (+8 in the suite, full = 706 green):
+
 - `UploadAvatarCommandHandlerTests`: now drives an `IAvatarStorage` mock; verifies canonical URL = medium variant URL and ProfilePictureUrl is persisted.
 - `ImageSharpImageProcessorTests`: variant count + dimensions, EXIF stripped from every variant, deterministic 16-char content hash.
 - `LocalAvatarStorageTests` (new): three files materialize under the hash subdir; older revisions pruned on next upload; DeleteAsync clears the whole user tree; empty Guid rejected.
 
 Breaking:
+
 - Avatar URL scheme changed from `/avatars/avatar-<guid>.webp` (PR-1) to `/avatars/{userId:N}/{hash}/{size}.webp`. Existing PR-1 URLs continue to resolve until next upload. No DB migration required — `User.ProfilePictureUrl` remains a relative-URL `varchar`.
 
 Refs: `Services/AuthApi/Planora.Auth.Application/Common/Interfaces/{IAvatarStorage,IImageProcessor}.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/{ImageSharpImageProcessor,LocalAvatarStorage}.cs`, `Services/AuthApi/Planora.Auth.Api/Program.cs`, `docs/INVARIANTS.md` `INV-AZ-5`.
