@@ -29,6 +29,21 @@ Docker backend mode:
 .\Start-Planora-Docker.ps1
 ```
 
+### Optional — Install pre-commit hooks
+
+A one-shot per-clone setup installs ESLint (frontend) and `dotnet format`
+(backend) gates so style and basic-lint regressions never reach CI:
+
+```bash
+./scripts/install-hooks.sh
+```
+
+The script sets `git config core.hooksPath .githooks` for the current
+working clone — nothing global is changed. Bypass for an emergency commit
+with `git commit --no-verify`. Disable with `git config --unset
+core.hooksPath`. The gates only run on the files actually staged; a
+no-op commit is instant.
+
 ## Required Checks
 
 Run the checks relevant to your change:

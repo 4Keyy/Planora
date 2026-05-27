@@ -6,6 +6,7 @@ import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, CheckCircle2, ChevronRight, History, SlidersHorizontal, X } from "lucide-react"
+import axios from "axios"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
@@ -150,11 +151,12 @@ export default function TasksPage() {
     writeHintSeen()
   }, [])
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories")
+      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories", { signal })
       setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
     } catch (error) {
+      if (axios.isCancel(error) || signal?.aborted) return
       console.error("Failed to fetch categories:", error)
     }
   }, [])
@@ -188,7 +190,7 @@ export default function TasksPage() {
     })
   }, [user?.userId])
 
-  const fetchActiveTodos = useCallback(async () => {
+  const fetchActiveTodos = useCallback(async (signal?: AbortSignal) => {
     setLoading(true)
     try {
       const all: Todo[] = []
@@ -196,8 +198,10 @@ export default function TasksPage() {
       let totalCount: number | null = null
 
       while (true) {
+        if (signal?.aborted) return
         const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", {
           params: { pageNumber: page, pageSize: ACTIVE_PAGE_SIZE, isCompleted: false },
+          signal,
         })
         const items = res.data.items ?? []
         const nextTotal = res.data.totalCount
@@ -215,32 +219,39 @@ export default function TasksPage() {
         if (page > 100) break
       }
 
+      if (signal?.aborted) return
       const enriched = await enrichTodosWithAuthorNames(all)
+      if (signal?.aborted) return
       setTodos(enriched)
     } catch (error) {
+      if (axios.isCancel(error) || signal?.aborted) return
       console.error("Failed to fetch active todos:", error)
       addToast({ type: "error", title: "Failed to load tasks" })
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [addToast, enrichTodosWithAuthorNames])
 
-  const fetchCompletedPreview = useCallback(async () => {
+  const fetchCompletedPreview = useCallback(async (signal?: AbortSignal) => {
     setCompletedLoading(true)
     try {
       const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", {
         params: { pageNumber: 1, pageSize: COMPLETED_PREVIEW_SIZE, isCompleted: true },
+        signal,
       })
+      if (signal?.aborted) return
       const items = res.data.items ?? []
       const enriched = await enrichTodosWithAuthorNames(items)
+      if (signal?.aborted) return
       setCompletedPreview(enriched)
       setCompletedTotalCount(res.data.totalCount ?? enriched.length)
     } catch (error) {
+      if (axios.isCancel(error) || signal?.aborted) return
       console.error("Failed to fetch completed preview:", error)
       setCompletedPreview([])
       setCompletedTotalCount(0)
     } finally {
-      setCompletedLoading(false)
+      if (!signal?.aborted) setCompletedLoading(false)
     }
   }, [enrichTodosWithAuthorNames])
 
@@ -253,9 +264,16 @@ export default function TasksPage() {
       return
     }
 
-    fetchActiveTodos()
-    fetchCompletedPreview()
-    fetchCategories()
+    // Cancel all in-flight mount-time fetches on unmount or auth change so a
+    // rapid route switch does not leave stale fetches racing to setState on an
+    // unmounted component.
+    const controller = new AbortController()
+    void Promise.all([
+      fetchActiveTodos(controller.signal),
+      fetchCompletedPreview(controller.signal),
+      fetchCategories(controller.signal),
+    ])
+    return () => controller.abort()
   }, [isAuthenticated, hasHydrated, router, fetchActiveTodos, fetchCompletedPreview, fetchCategories, clearAuth])
 
   useEffect(() => {
