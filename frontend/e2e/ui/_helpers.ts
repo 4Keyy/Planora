@@ -97,6 +97,40 @@ async function waitForVerificationToken(email: string): Promise<string> {
 }
 
 /**
+ * Registers a fresh user via the API gateway and captures the verification
+ * token from Auth-API container logs **without** consuming it. Useful for
+ * UI specs that want to drive the verify-email page itself.
+ */
+export async function registerUserAndCaptureVerificationToken(
+  label: string,
+): Promise<{ user: UiUser; verificationToken: string }> {
+  const ctx = await request.newContext({ baseURL: API_BASE });
+  try {
+    const csrf = await fetchCsrfToken(ctx);
+    const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const email = `e2e-ui-${label}-${runId}@example.test`;
+    const firstName = `E2E ${label}`;
+    const lastName = 'User';
+
+    const response = await ctx.post('/auth/api/v1/auth/register', {
+      headers: { 'X-CSRF-Token': csrf },
+      data: { email, password: UI_PASSWORD, confirmPassword: UI_PASSWORD, firstName, lastName },
+    });
+    expect(response.ok(), `register ${email}`).toBeTruthy();
+    const body = await response.json();
+    const userId: string = body.userId ?? body.UserId;
+
+    const verificationToken = await waitForVerificationToken(email);
+    return {
+      user: { email, userId, firstName, lastName },
+      verificationToken,
+    };
+  } finally {
+    await ctx.dispose();
+  }
+}
+
+/**
  * Triggers a password-reset email via the public Auth endpoint, then scrapes
  * the Auth-API container logs for the resulting reset link. Returns the
  * token portion of the link, ready to paste into the reset UI.
