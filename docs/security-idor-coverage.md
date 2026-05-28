@@ -17,83 +17,87 @@ Conventions:
   the attacker cannot tell the difference between "doesn't exist" and
   "isn't yours"). `gRPC peer check` means the cross-service caller must
   present the right service key.
-- **Status** — `pinned` means a unit/integration test exists; `relies
-  on filter` means coverage is implicit through the EF global filter and
-  the handler patterns; `gap` is an explicit hole that should be filled
-  before the related code is touched again.
+- **Status** — `pinned` means an explicit cross-user xUnit test exists
+  and is named in the third column; `covered by suite` means the handler
+  carries `_currentUserService` reads + filter-based protection but the
+  specific cross-user scenario is implicit in the handler's broader test
+  class (every test sets `currentUser` to one identity and the handler
+  resolves rows scoped to that identity); `gap` is an explicit hole that
+  should be filled before the related code is touched again.
+
+The xUnit test class names in the right column are the **actual files
+that ship in `tests/Planora.UnitTests/`** — verified at commit time.
 
 ## Auth API
 
 | Method + path | Resource | Mechanism | Status |
 |---|---|---|---|
-| `PATCH /auth/api/v1/users/{userId}` | User | Self-only — handler derives the target from `_currentUserService`, route param exists only for symmetry. | pinned by `UpdateUserCommandHandler` tests |
-| `DELETE /auth/api/v1/users/{userId}` | User | Self-only — same shape. | pinned by `DeleteUserCommandHandler` tests |
-| `POST /auth/api/v1/users/{userId}/avatar` | User | Self-only — handler ignores the route param if it disagrees with the current-user claim. | relies on filter |
-| `GET /auth/api/v1/users/sessions` | RefreshToken | Self-only — query filters by current user. | relies on filter |
-| `DELETE /auth/api/v1/users/sessions/{tokenId}` | RefreshToken | `RevokeSessionCommandHandler` rejects with `Forbidden` if `token.UserId != currentUser`. | pinned (see handler) |
-| `POST /auth/api/v1/friendships/requests` | Friendship | Self-as-requester. Body-supplied `friendId` is the *target* — not an IDOR vector because creating outbound requests is by design. | relies on uniqueness constraint |
-| `POST /auth/api/v1/friendships/requests/{friendshipId}/accept` | Friendship | Acceptor must be the addressee. | pinned by `FriendshipAcceptHandlerTests` |
-| `POST /auth/api/v1/friendships/requests/{friendshipId}/reject` | Friendship | Same — acceptor must be the addressee. | pinned by `FriendshipRejectHandlerTests` |
-| `DELETE /auth/api/v1/friendships/{friendId}` | Friendship | Either party can delete — `userId` matches one side of the row. | pinned by `RemoveFriendHandlerTests` |
+| `PATCH /auth/api/v1/users/{userId}` | User | Self-only — handler derives the target from `_currentUserService`, route param exists only for symmetry. | covered by `Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs` |
+| `DELETE /auth/api/v1/users/{userId}` | User | Self-only — same shape. | covered by `Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs` |
+| `POST /auth/api/v1/users/{userId}/avatar` | User | Self-only — handler ignores the route param if it disagrees with the current-user claim. | covered by `Services/AuthApi/Users/Handlers/UploadAvatarCommandHandlerTests.cs` |
+| `GET /auth/api/v1/users/sessions` | RefreshToken | Self-only — query filters by current user. | covered by `Services/AuthApi/Users/Handlers/UserQueryHandlerTests.cs` |
+| `DELETE /auth/api/v1/users/sessions/{tokenId}` | RefreshToken | `RevokeSessionCommandHandler` rejects with `Forbidden` if `token.UserId != currentUser`. | pinned by `Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs::RevokeSession_WhenTokenBelongsToAnotherUser_ReturnsForbidden` |
+| `POST /auth/api/v1/friendships/requests` | Friendship | Self-as-requester. Body-supplied `friendId` is the *target* — not an IDOR vector because creating outbound requests is by design. | pinned by `Services/AuthApi/Friendships/FriendshipHandlerTests.cs::SendFriendRequest_ShouldRejectSelfMissingFriendAndExistingRelationship` |
+| `POST /auth/api/v1/friendships/requests/{friendshipId}/accept` | Friendship | Acceptor must be the addressee. | pinned by `Services/AuthApi/Friendships/FriendshipHandlerTests.cs::AcceptRejectAndRemove_ShouldEnforceActorAndPersistStateTransitions` |
+| `POST /auth/api/v1/friendships/requests/{friendshipId}/reject` | Friendship | Same — acceptor must be the addressee. | same as accept (one combined test asserts all three transitions enforce actor) |
+| `DELETE /auth/api/v1/friendships/{friendId}` | Friendship | Either party can delete — `userId` matches one side of the row. | same as above (combined test) |
 
 ## Todo API
 
 | Method + path | Resource | Mechanism | Status |
 |---|---|---|---|
-| `GET /todos/api/v1/todos/{id}` | TodoItem | Owner OR shared-with-current-user OR public. `GetTodoByIdQueryHandler` applies the visibility predicate. | pinned by `GetTodoByIdHandlerTests` |
-| `PUT /todos/api/v1/todos/{id}` | TodoItem | Owner-only mutation. | pinned by `UpdateTodoHandlerTests` (IDOR scenario covered) |
-| `DELETE /todos/api/v1/todos/{id}` | TodoItem | Owner-only. | pinned by `DeleteTodoHandlerTests` |
-| `PATCH /todos/api/v1/todos/{id}/hidden` | TodoItem | Viewer-only — every authenticated user may hide a *visible* todo for themselves; viewer-preference row keys on `(userId, todoId)`. Cross-user IDOR is irrelevant because hidden state is per-viewer. | pinned by `HideTodoHandlerTests` |
-| `PATCH /todos/api/v1/todos/{id}/viewer-preferences` | UserTodoViewPreference | Same as hidden — viewer scope is the current user. | pinned by `ViewerPreferenceHandlerTests` |
-| `POST /todos/api/v1/todos/{id}/join` | TodoItemWorker | Viewer joins an open public todo. IDOR not applicable. | relies on visibility predicate |
-| `POST /todos/api/v1/todos/{id}/leave` | TodoItemWorker | Viewer leaves; row keyed on `(userId, todoId)`. | relies on visibility predicate |
-| `GET /todos/api/v1/todos/{id}/comments` | TodoItemComment | Friend-of-owner OR owner (INV-AZ-4). Non-friend non-owner gets 404. | pinned by `GetCommentsHandlerTests` |
-| `POST /todos/api/v1/todos/{id}/comments` | TodoItemComment | Same as GET — friend gate enforced server-side. | pinned by `AddCommentHandlerTests` |
-| `POST /todos/api/v1/todos/{id}/genesis` | TodoItemComment | Owner-only — only the original owner can mark a genesis comment. | pinned by `GenesisCommentHandlerTests` |
-| `PUT /todos/api/v1/todos/{id}/comments/{commentId}` | TodoItemComment | Comment author OR todo owner. | pinned by `EditCommentHandlerTests` |
-| `DELETE /todos/api/v1/todos/{id}/comments/{commentId}` | TodoItemComment | Comment author OR todo owner. | pinned by `DeleteCommentHandlerTests` |
+| `GET /todos/api/v1/todos/{id}` | TodoItem | Owner OR shared-with-current-user OR public. `GetTodoByIdQueryHandler` applies the visibility predicate. | pinned by `Services/TodoApi/Handlers/TodoOwnershipHandlerTests.cs::GetTodoById_ShouldRejectSharedTodo_WhenFriendshipNoLongerExists` |
+| `PUT /todos/api/v1/todos/{id}` | TodoItem | Owner-only mutation. | pinned by `Services/TodoApi/Handlers/TodoOwnershipHandlerTests.cs::UpdateTodo_*` |
+| `DELETE /todos/api/v1/todos/{id}` | TodoItem | Owner-only. | covered by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs` |
+| `PATCH /todos/api/v1/todos/{id}/hidden` | TodoItem | Viewer-only — every authenticated user may hide a *visible* todo for themselves; viewer-preference row keys on `(userId, todoId)`. Cross-user IDOR is irrelevant because hidden state is per-viewer. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` + `TodoCommandHandlerExpandedTests.cs` (per-viewer scope) |
+| `PATCH /todos/api/v1/todos/{id}/viewer-preferences` | UserTodoViewPreference | Same as hidden — viewer scope is the current user. | covered by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs` |
+| `POST /todos/api/v1/todos/{id}/join` | TodoItemWorker | Viewer joins an open public todo. IDOR not applicable (visibility predicate is the gate). | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
+| `POST /todos/api/v1/todos/{id}/leave` | TodoItemWorker | Viewer leaves; row keyed on `(userId, todoId)`. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
+| `GET /todos/api/v1/todos/{id}/comments` | TodoItemComment | Friend-of-owner OR owner (INV-AZ-4). Non-friend non-owner gets 404. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
+| `POST /todos/api/v1/todos/{id}/comments` | TodoItemComment | Same as GET — friend gate enforced server-side. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
+| `POST /todos/api/v1/todos/{id}/genesis` | TodoItemComment | Owner-only — only the original owner can mark a genesis comment. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
+| `PUT /todos/api/v1/todos/{id}/comments/{commentId}` | TodoItemComment | Comment author OR todo owner. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
+| `DELETE /todos/api/v1/todos/{id}/comments/{commentId}` | TodoItemComment | Comment author OR todo owner. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
 
 ## Category API
 
 | Method + path | Resource | Mechanism | Status |
 |---|---|---|---|
-| `PUT /categories/api/v1/categories/{id}` | Category | Owner-only — query filtered by `userId`. | pinned by `UpdateCategoryHandlerTests` |
-| `DELETE /categories/api/v1/categories/{id}` | Category | Owner-only — same filter. | pinned by `DeleteCategoryHandlerTests` |
+| `PUT /categories/api/v1/categories/{id}` | Category | Owner-only — query filtered by `userId`. | pinned by `Services/CategoryApi/Handlers/UpdateCategoryCommandHandlerTests.cs` |
+| `DELETE /categories/api/v1/categories/{id}` | Category | Owner-only — same filter. | covered by `Services/CategoryApi/Handlers/CreateDeleteCategoryCommandHandlerTests.cs` |
 
 ## Messaging API
 
 | Method + path | Resource | Mechanism | Status |
 |---|---|---|---|
-| `GET /messaging/api/v1/messages` | Message | Sender OR recipient — pagination query filters both sides by current user. | relies on filter |
-| `POST /messaging/api/v1/messages` | Message | New row — sender derived from `_currentUserService`, not request body. | pinned (handler reads current user) |
+| `GET /messaging/api/v1/messages` | Message | Sender OR recipient — pagination query filters both sides by current user. | covered by `Services/MessagingApi/Messages/GetMessagesQueryHandlerTests.cs` |
+| `POST /messaging/api/v1/messages` | Message | New row — sender derived from `_currentUserService`, not request body. | covered by `Services/MessagingApi/Handlers/SendMessageHandlerTests.cs` |
 
 ## Realtime API
 
 | Method + path | Resource | Mechanism | Status |
 |---|---|---|---|
-| `POST /realtime/api/v1/notifications/broadcast` | Notification | Admin-only via `[Authorize(Roles = "Admin")]`. | pinned by `BroadcastNotificationControllerTests` |
-| `GET /realtime/api/v1/connections/stats` | (none, aggregate) | Admin-only via `[Authorize(Roles = "Admin")]`. | pinned by `ConnectionsControllerTests` |
+| `POST /realtime/api/v1/notifications/broadcast` | Notification | Admin-only via `[Authorize(Roles = "Admin")]`. | covered by `Services/RealtimeApi/Controllers/NotificationsControllerTests.cs` |
+| `GET /realtime/api/v1/connections/stats` | (none, aggregate) | Admin-only via `[Authorize(Roles = "Admin")]`. | covered by `Services/RealtimeApi/Controllers/ConnectionsControllerTests.cs` |
 
 ## Cross-service gRPC
 
 | Procedure | Mechanism | Status |
 |---|---|---|
-| `Auth.FriendshipService/AreFriends` | gRPC service-key on every request (INV-COMM-2). Caller passes the *requesting user's* id in the payload — caller is trusted by the key, not by the payload. | pinned by `ServiceKeyInterceptorTests` |
-| `Auth.UserService/GetUserAvatarsByIds` | Same — service-key. | pinned by `ServiceKeyInterceptorTests` |
-| `Category.CategoryService/GetCategoryById` | Same — service-key. | pinned by `ServiceKeyInterceptorTests` |
+| `Auth.FriendshipService/AreFriends` | gRPC service-key on every request (INV-COMM-2). Caller passes the *requesting user's* id in the payload — caller is trusted by the key, not by the payload. | pinned by `tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs` |
+| `Auth.UserService/GetUserAvatarsByIds` | Same — service-key. | pinned by `tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs` |
+| `Category.CategoryService/GetCategoryById` | Same — service-key. | pinned by `tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs` |
 
-## What's missing (audit gaps to fix when handlers are next touched)
+## Known gaps
 
-None of the rows above are currently marked `gap` — every IDOR-relevant
-endpoint either has an explicit handler test or relies on a documented
-filter/visibility predicate. The forward step is **T3.6 auto-generation**:
-a code-gen step in `tools/` that reads the controller surface and emits an
-xUnit theory test per IDOR row in this table, so future drift (a handler
-losing its ownership check) fails CI before merge. That work is out of
-scope for this commit because it depends on the OpenAPI document being the
-single source of truth for the endpoint surface, which lands with
-**T2.1 / T2.2-fu**.
+None at the time of this commit. Every row above is either explicitly
+pinned by a named test or covered by a broader handler test class. If a
+future audit finds a new gap, add a row to this section with the endpoint,
+the missing assertion, and an effort estimate; remove the row when the
+test ships.
 
-Until then: any PR that adds a new authorized endpoint with a path
-parameter must add a row to this table and an explicit handler test, and
-the reviewer must reject the PR if either is missing.
+The forward step (T3.6 auto-generation) emits one xUnit theory per row
+once the OpenAPI source-of-truth (T2.1) lands. Until then: this table is
+the curated baseline. Any PR adding a new authorized endpoint with a
+path parameter must update this table and ship an explicit handler test,
+and the reviewer must reject the PR if either is missing.

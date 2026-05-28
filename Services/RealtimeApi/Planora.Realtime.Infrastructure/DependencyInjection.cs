@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Outbox;
+using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.Realtime.Application.Interfaces;
 using Planora.Realtime.Infrastructure.Persistence;
@@ -38,6 +41,16 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("RealtimeDatabase");
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
+            // RealtimeDbContext takes IDomainEventDispatcher in its constructor for
+            // parity with sister DbContexts. Realtime's entities (Notification,
+            // NotificationDelivery, OutboxMessage) emit zero domain events today —
+            // they are server-managed audit rows, not aggregates with behaviour —
+            // so a no-op dispatcher is the correct registration. If a future commit
+            // adds domain events to Realtime entities the dispatcher upgrades to the
+            // reflection-based BuildingBlocks implementation via a TryAddScoped
+            // override at that time.
+            services.TryAddScoped<IDomainEventDispatcher, NoOpDomainEventDispatcher>();
+
             services.AddDbContext<RealtimeDbContext>(options =>
                 options.UseNpgsql(connectionString, npgsqlOptions =>
                 {
@@ -62,5 +75,14 @@ public static class DependencyInjection
         }
 
         return services;
+    }
+
+    private sealed class NoOpDomainEventDispatcher : IDomainEventDispatcher
+    {
+        public Task DispatchAsync(IDomainEvent domainEvent, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task DispatchAsync(IEnumerable<IDomainEvent> domainEvents, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

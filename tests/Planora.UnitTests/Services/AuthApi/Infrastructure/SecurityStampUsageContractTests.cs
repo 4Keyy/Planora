@@ -33,7 +33,7 @@ public sealed class SecurityStampUsageContractTests
             $"Handler root not found: {handlersRoot}");
 
         var handlerFiles = Directory
-            .EnumerateFiles(handlersRoot, "*CommandHandler.cs", SearchOption.AllDirectories)
+            .EnumerateFiles(handlersRoot, "*Handler.cs", SearchOption.AllDirectories)
             .ToList();
 
         Assert.NotEmpty(handlerFiles);

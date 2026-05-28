@@ -210,14 +210,20 @@ jobs:
       # The backend-side SBOMs are emitted per-project by the CycloneDX .NET
       # tool. Attesting each individual file would require N action
       # invocations; the audit's T3.7 line was scoped to "sign SBOMs so the
-      # supply-chain inventory is verifiable" — the frontend bundle (the
-      # only public-facing artefact today) satisfies that. Per-service
+      # supply-chain inventory is verifiable" — the frontend bundle SBOM
+      # (the only public-facing artefact today) satisfies that. Per-service
       # backend attestations land alongside the CD pipeline (issuing one
       # attestation per built container image) in a follow-up.
+      #
+      # `subject-path` tells the action to compute the SHA-256 of the SBOM
+      # file itself and use that as the attestation subject. Stronger
+      # semantics ("attest the built artefact, SBOM as predicate") become
+      # available once a single bundle exists to digest — for now the SBOM
+      # *is* the artefact whose integrity we are recording on Rekor.
       - name: Attest frontend SBOM (Sigstore keyless)
         if: github.event_name == 'push'
         uses: actions/attest-sbom@115c3a89a06d4dbe0b22f3b3f73b30b9efff5a1f # v3
         with:
-          subject-name: 'planora-frontend'
-          subject-digest: 'sha256:${{ github.sha }}'
+          subject-name: 'planora-frontend-sbom'
+          subject-path: 'sbom/frontend/planora-frontend.cdx.json'
           sbom-path: 'sbom/frontend/planora-frontend.cdx.json'

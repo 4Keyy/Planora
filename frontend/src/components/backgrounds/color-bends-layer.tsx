@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, lazy, useEffect, useState } from "react"
+import { Suspense, lazy, useState } from "react"
 
 const ColorBends = lazy(() =>
   import("./color-bends").then(m => ({ default: m.ColorBends }))
@@ -10,29 +10,29 @@ const ColorBends = lazy(() =>
  * T4.10 — heuristically pick the cheapest fragment-shader iteration count that
  * still looks reasonable on the current device. Low-end mobile (≤2 logical
  * cores) gets 1 iteration; a typical laptop (4–7) gets 2; desktop/workstation
- * (≥8) gets 3 for the richer ribboning. Always returns 1 during SSR (no
- * `navigator`) and on first paint, so hydration is deterministic. The runtime
- * upgrade happens silently on mount.
+ * (≥8) gets 3 for the richer ribboning.
+ *
+ * The detection runs in `useState`'s initializer so the first render gets the
+ * final value — a `useEffect`-driven update would rebuild the WebGL scene
+ * twice on mount (the renderer is in the child's effect deps). SSR has no
+ * `navigator`, so the SSR path falls through to the conservative 1; the
+ * client hydrates with its actual core count, but Next.js does not flag this
+ * mismatch because the value is consumed as a prop on the lazy child, not
+ * rendered into the markup directly.
  */
-function useAdaptiveIterations(): number {
-  const [iterations, setIterations] = useState(1)
-
-  useEffect(() => {
-    const cores = typeof navigator !== "undefined"
-      && typeof navigator.hardwareConcurrency === "number"
-      ? navigator.hardwareConcurrency
-      : 4
-    if (cores >= 8) setIterations(3)
-    else if (cores >= 4) setIterations(2)
-    else setIterations(1)
-  }, [])
-
-  return iterations
+function detectIterations(): number {
+  if (typeof navigator === "undefined") return 1
+  const cores = typeof navigator.hardwareConcurrency === "number"
+    ? navigator.hardwareConcurrency
+    : 4
+  if (cores >= 8) return 3
+  if (cores >= 4) return 2
+  return 1
 }
 
 /** Drop once into the root layout — gives every page the ColorBends WebGL background. */
 export function ColorBendsLayer() {
-  const iterations = useAdaptiveIterations()
+  const [iterations] = useState(detectIterations)
 
   return (
     <Suspense fallback={null}>
