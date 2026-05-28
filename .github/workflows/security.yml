@@ -93,14 +93,14 @@ jobs:
             Directory.Build.props
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@f52b05f4acaaa234e44466e66d29050e135ea9ef # v4.36.0
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           queries: security-extended
 
       - name: Analyze
-        uses: github/codeql-action/analyze@f52b05f4acaaa234e44466e66d29050e135ea9ef # v4.36.0
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           category: "/language:${{ matrix.language }}"
 
@@ -111,7 +111,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Trivy misconfiguration scan (SARIF for Security tab)
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: config
           scan-ref: .
@@ -119,7 +119,7 @@ jobs:
           output: trivy-iac.sarif
           severity: CRITICAL,HIGH,MEDIUM
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@f52b05f4acaaa234e44466e66d29050e135ea9ef # v4.36.0
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           sarif_file: trivy-iac.sarif
           category: trivy-iac
@@ -127,7 +127,7 @@ jobs:
         # Two-pass: the first run produces SARIF for the Security tab (which
         # cannot fail the job), the second blocks the PR on HIGH/CRITICAL.
         # MEDIUM is intentionally informational — Trivy is noisy at that level.
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: config
           scan-ref: .
@@ -222,7 +222,7 @@ jobs:
       # *is* the artefact whose integrity we are recording on Rekor.
       - name: Attest frontend SBOM (Sigstore keyless)
         if: github.event_name == 'push'
-        uses: actions/attest-sbom@115c3a89a06d4dbe0b22f3b3f73b30b9efff5a1f # v3
+        uses: actions/attest-sbom@4651f806c01d8637787e274ac3bdf724ef169f34 # v3.0.0
         with:
           subject-name: 'planora-frontend-sbom'
           subject-path: 'sbom/frontend/planora-frontend.cdx.json'

@@ -83,7 +83,7 @@ jobs:
           fi
 
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1.6
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Validate every fly.toml parses
         shell: bash
@@ -107,7 +107,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1.6
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Run Planora.Migrator one-shot
         shell: bash
@@ -160,7 +160,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1.6
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Deploy ${{ matrix.app }}
         shell: bash
@@ -185,7 +185,7 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # v1.6
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Deploy planora-gateway
         shell: bash
