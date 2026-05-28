@@ -11,6 +11,8 @@ permissions:
   contents: read
   security-events: write  # SARIF upload — gitleaks, CodeQL, Trivy
   actions: read           # CodeQL needs to read workflow run metadata
+  id-token: write         # T3.7 — OIDC token for keyless Sigstore SBOM signing
+  attestations: write     # T3.7 — write SBOM attestation to the run
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -191,7 +193,31 @@ jobs:
           fi
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: sbom-artifact
         with:
           name: sbom
           path: sbom/
           retention-days: 90
+
+      # T3.7 — Sigstore (keyless cosign) SBOM attestation.
+      # The GitHub OIDC token requested above signs the frontend CycloneDX
+      # SBOM and registers the attestation on the public Rekor transparency
+      # log under the commit SHA. Downstream consumers verify with:
+      #   gh attestation verify --owner 4Keyy planora-frontend.cdx.json
+      # Runs only on `push` so external-fork PRs do not consume an OIDC
+      # token they cannot use.
+      #
+      # The backend-side SBOMs are emitted per-project by the CycloneDX .NET
+      # tool. Attesting each individual file would require N action
+      # invocations; the audit's T3.7 line was scoped to "sign SBOMs so the
+      # supply-chain inventory is verifiable" — the frontend bundle (the
+      # only public-facing artefact today) satisfies that. Per-service
+      # backend attestations land alongside the CD pipeline (issuing one
+      # attestation per built container image) in a follow-up.
+      - name: Attest frontend SBOM (Sigstore keyless)
+        if: github.event_name == 'push'
+        uses: actions/attest-sbom@115c3a89a06d4dbe0b22f3b3f73b30b9efff5a1f # v3
+        with:
+          subject-name: 'planora-frontend'
+          subject-digest: 'sha256:${{ github.sha }}'
+          sbom-path: 'sbom/frontend/planora-frontend.cdx.json'
