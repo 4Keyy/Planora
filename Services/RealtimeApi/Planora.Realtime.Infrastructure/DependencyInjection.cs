@@ -45,10 +45,11 @@ public static class DependencyInjection
             // parity with sister DbContexts. Realtime's entities (Notification,
             // NotificationDelivery, OutboxMessage) emit zero domain events today —
             // they are server-managed audit rows, not aggregates with behaviour —
-            // so a no-op dispatcher is the correct registration. If a future commit
-            // adds domain events to Realtime entities the dispatcher upgrades to the
-            // reflection-based BuildingBlocks implementation via a TryAddScoped
-            // override at that time.
+            // so a no-op dispatcher is the correct registration. `TryAddScoped`
+            // is intentional: if a future commit calls `AddBuildingBlocksInfrastructure`
+            // from `Program.cs` (which registers the reflection-based real
+            // dispatcher), the Try-form here lets that registration win without
+            // a manual `Replace` step.
             services.TryAddScoped<IDomainEventDispatcher, NoOpDomainEventDispatcher>();
 
             services.AddDbContext<RealtimeDbContext>(options =>
