@@ -79,11 +79,13 @@ infrastructure that does not yet exist in the dev container.
 
 ### Frontend
 
-- `npm run typecheck` + `npm run lint` — green.
+- `npm run type-check` + `npm run lint` — green.
 - `npm test` — Vitest suite green.
 - `npm run e2e -- --project=api` — existing API contract spec green.
-- `npm run e2e -- --project=ui` — 5 new UI specs green when the frontend is
-  reachable on `E2E_FRONTEND_URL` (gracefully skip otherwise).
+- `npm run e2e -- --project=ui` — 8 new UI specs (login, register,
+  forgot-password, reset-password, tasks-page, profile-update,
+  verify-email — 12 tests across 7 spec files) green when the frontend
+  is reachable on `E2E_FRONTEND_URL` (gracefully skip otherwise).
 
 ### CI
 
@@ -171,7 +173,9 @@ infrastructure that does not yet exist in the dev container.
   add` was not available in the dev container. INV-FLOW-5 ensures the
   drift surfaces loudly when the migration is generated locally and
   applied.
-- **T2.6 covers 5 of 7 critical flows.** The 2FA setup/disable and
+- **T2.6 covers 6 of 7 critical flows** (login, register,
+  forgot-password, reset-password, verify-email-link, profile update;
+  tasks-page surface partially covered). The 2FA setup/disable and
   sharing/hidden UI specs are tracked as separate work.
 - **T3.7 attestation subject** uses the SBOM file's own SHA-256 (via
   `subject-path`) rather than the digest of a built artefact. Tightens
