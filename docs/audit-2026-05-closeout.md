@@ -65,6 +65,7 @@ infrastructure that does not yet exist in the dev container.
 ## 3. Verification
 
 ### Backend
+
 - `dotnet build` — all projects compile.
 - `dotnet test --filter "Category!=Integration"` — unit tests green, including:
   - `SecurityStampUsageContractTests` (T3.5)
@@ -77,6 +78,7 @@ infrastructure that does not yet exist in the dev container.
 - `dotnet test --filter "TestType=Security"` — every security-trait test green.
 
 ### Frontend
+
 - `npm run typecheck` + `npm run lint` — green.
 - `npm test` — Vitest suite green.
 - `npm run e2e -- --project=api` — existing API contract spec green.
@@ -84,15 +86,17 @@ infrastructure that does not yet exist in the dev container.
   reachable on `E2E_FRONTEND_URL` (gracefully skip otherwise).
 
 ### CI
+
 - `.github/workflows/security.yml` — gitleaks, dotnet-vuln, npm-audit (high),
   CodeQL (per-language build-mode), Trivy IaC (fail-on-high), SBOM generation,
   Sigstore attestation.
 - `.github/workflows/migrations.yml` — idempotence marker check.
 - `.github/workflows/nuget-vuln-pr.yml` — nightly vulnerable-NuGet auto-PR.
-- `.github/workflows/e2e.yml` — docker stack + Chromium + frontend build/start
-  + Playwright (api + ui projects).
+- `.github/workflows/e2e.yml` — docker stack + Chromium + frontend build/start,
+  Playwright (api + ui projects).
 
 ### Operational
+
 - `docker compose --env-file .env up -d --build` — stack comes healthy on
   `/health/ready` for every service.
 - `flyctl postgres config update --idle-in-transaction-session-timeout 30000`

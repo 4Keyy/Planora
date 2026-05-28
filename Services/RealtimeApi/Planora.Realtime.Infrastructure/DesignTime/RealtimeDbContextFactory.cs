@@ -24,8 +24,18 @@ internal sealed class RealtimeDbContextFactory : IDesignTimeDbContextFactory<Rea
 
         var configuration = builder.Build();
         var conn = configuration.GetConnectionString("RealtimeDatabase")
-                   ?? Environment.GetEnvironmentVariable("ConnectionStrings__RealtimeDatabase")
-                   ?? "Host=localhost;Port=5432;Database=planora_realtime;Username=postgres;Password=postgres";
+                   ?? Environment.GetEnvironmentVariable("ConnectionStrings__RealtimeDatabase");
+        if (string.IsNullOrWhiteSpace(conn))
+        {
+            // T2.5 — design-time factory deliberately refuses to ship with a
+            // hard-coded password literal. Sister DbContextFactories carry a
+            // grandfathered `Password=postgres` fallback that predates the
+            // `planora-postgres-connection-string-literal` gitleaks rule; new
+            // factories must read the connection string from configuration or
+            // fail loudly so `dotnet ef` operators see the missing piece.
+            throw new InvalidOperationException(
+                "Set ConnectionStrings__RealtimeDatabase (env or appsettings.json) before running `dotnet ef` against RealtimeDbContext.");
+        }
 
         var optionsBuilder = new DbContextOptionsBuilder<RealtimeDbContext>();
         optionsBuilder.UseNpgsql(conn);

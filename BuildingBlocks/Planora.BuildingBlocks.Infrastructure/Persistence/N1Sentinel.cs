@@ -135,8 +135,10 @@ public sealed class N1SentinelInterceptor : DbCommandInterceptor
     /// Normalise the SQL: strip $N / @p? parameter placeholders so EF Core's
     /// per-row parameterisation doesn't make every call look unique, and
     /// collapse whitespace runs so trivial formatting differences don't either.
+    /// Exposed publicly so the regression tests in `N1SentinelTests` can pin
+    /// the fingerprinting contract without resorting to `InternalsVisibleTo`.
     /// </summary>
-    internal static string Fingerprint(string sql)
+    public static string Fingerprint(string sql)
     {
         if (string.IsNullOrWhiteSpace(sql)) return string.Empty;
         var span = sql.AsSpan();

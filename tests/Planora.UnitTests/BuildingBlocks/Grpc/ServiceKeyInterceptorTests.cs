@@ -196,7 +196,7 @@ public class ServiceKeyInterceptorTests
             headers,
             h => h.Key.Equals("cookie", StringComparison.OrdinalIgnoreCase));
         // Only the service key is the expected outbound credential.
-        Assert.Single(headers.Where(h => h.Key.Equals("x-service-key", StringComparison.OrdinalIgnoreCase)));
+        Assert.Single(headers, h => h.Key.Equals("x-service-key", StringComparison.OrdinalIgnoreCase));
     }
 
     private sealed class HeaderCallContext : ServerCallContext
