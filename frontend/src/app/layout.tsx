@@ -45,13 +45,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* T4.10 — global MotionConfig with reducedMotion="user" makes every
             framer-motion component in the tree automatically honour the OS
             prefers-reduced-motion setting (transforms collapse, opacity stays).
-            Individual components can still override via useReducedMotion(). */}
+            Individual components can still override via useReducedMotion().
+            Toaster lives inside the provider too — its slide/fade animations
+            otherwise bypass the preference. ColorBendsLayer stays outside
+            because it does its own `prefers-reduced-motion: reduce` check
+            via `window.matchMedia` against the WebGL render loop. */}
         <MotionPreferencesProvider>
           <ErrorBoundary>
             {children}
           </ErrorBoundary>
+          <Toaster />
         </MotionPreferencesProvider>
-        <Toaster />
       </body>
     </html>
   )
