@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### T2.6 cont. — forgot-password + tasks-page UI specs (2026-05-28)
+
+Two more UI flows on the T2.6 scaffold.
+
+* `e2e/ui/auth-forgot-password.ui.spec.ts` — happy path types a registered
+  email, asserts the success banner replaces the form; anti-enumeration
+  scenario submits an unknown email and pins that the *same* success
+  banner appears (so the UI cannot leak account existence).
+* `e2e/ui/tasks-page.ui.spec.ts` — post-login arrival on `/tasks`,
+  opens the create-task panel via its aria-labelled toggle, fills the
+  title input, then closes the panel. The full create-flow validation
+  (category selection) lands in a dedicated follow-up spec so this one
+  stays robust against category-UI churn.
+
 ### T2.6 start — Playwright browser-rendered E2E scaffold + login flow (2026-05-28)
 
 First slice of master-plan T2.6 (Phase 2): real-browser UI coverage on the
