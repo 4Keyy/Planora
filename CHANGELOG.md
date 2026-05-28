@@ -4,6 +4,34 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### T4.10 — Motion preferences + hardware-adaptive WebGL background (2026-05-28)
+
+Closes the two scoped halves of master-plan T4.10 that don't require a wider
+bundle refactor.
+
+* `frontend/src/components/motion-preferences-provider.tsx` (new) — single
+  `MotionConfig reducedMotion="user"` boundary wired into the root layout.
+  Every nested `framer-motion` component now respects the OS-level
+  `prefers-reduced-motion: reduce` setting automatically: transforms and
+  physics collapse, opacity and colour transitions remain, no per-component
+  `useReducedMotion()` boilerplate required. The framer-motion `loading.tsx`
+  + `celebration.tsx` paths that previously animated transforms on every
+  visit now stay still for motion-sensitive users.
+* `frontend/src/components/backgrounds/color-bends-layer.tsx` — heuristic
+  `useAdaptiveIterations` picks 1 / 2 / 3 fragment-shader iterations based
+  on `navigator.hardwareConcurrency` (≤2 / 4–7 / ≥8 cores). Cuts the GPU
+  load on low-end mobile in half versus the previous hard-coded `2`, while
+  giving desktops a richer effect. Returns 1 during SSR so hydration is
+  deterministic; the runtime upgrade happens silently on mount.
+* `frontend/src/test/components/color-bends.test.tsx` — parameterised
+  smoke test pins that the layer keeps rendering across all three buckets.
+
+Deferred (out of scope for this commit): full dynamic-import of
+`framer-motion` per route. Currently every page that imports `motion.*`
+ships the framer-motion bundle eagerly. Moving auth pages to a lazy
+`<m.div>` + `LazyMotion` setup is a larger refactor tracked in the master
+plan.
+
 ### T3.5 — Security-stamp expansion + contract test (2026-05-28)
 
 Extends INV-AUTH-4 with a forward-looking rotation policy and pins it with a

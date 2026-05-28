@@ -11,6 +11,7 @@ import { Toaster } from "@/components/ui/toast"
 import { SecurityInitializer } from "@/components/security-initializer"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
+import { MotionPreferencesProvider } from "@/components/motion-preferences-provider"
 
 export const metadata = {
   title: "Planora | Private Shared Tasks",
@@ -36,9 +37,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className={cn("text-gray-900 antialiased min-h-screen bg-transparent")}>
         <ColorBendsLayer />
         <SecurityInitializer />
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+        {/* T4.10 — global MotionConfig with reducedMotion="user" makes every
+            framer-motion component in the tree automatically honour the OS
+            prefers-reduced-motion setting (transforms collapse, opacity stays).
+            Individual components can still override via useReducedMotion(). */}
+        <MotionPreferencesProvider>
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+        </MotionPreferencesProvider>
         <Toaster />
       </body>
     </html>

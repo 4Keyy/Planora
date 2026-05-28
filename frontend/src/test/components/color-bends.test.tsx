@@ -286,4 +286,30 @@ describe("ColorBendsLayer", () => {
     const { unmount } = render(<ColorBendsLayer />)
     expect(() => unmount()).not.toThrow()
   })
+
+  // T4.10 — `iterations` is no longer hard-coded; it adapts to navigator.hardwareConcurrency.
+  // The layer still renders cleanly across the three core-count buckets.
+  it.each([
+    ["low-end mobile", 2],
+    ["typical laptop", 4],
+    ["desktop / workstation", 16],
+  ])("renders without throwing on %s (%i cores)", async (_label, cores) => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(
+      Navigator.prototype,
+      "hardwareConcurrency",
+    )
+    Object.defineProperty(navigator, "hardwareConcurrency", {
+      configurable: true,
+      get: () => cores,
+    })
+
+    try {
+      const { container } = render(<ColorBendsLayer />)
+      await waitFor(() => expect(container.querySelector("div")).not.toBeNull())
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(Navigator.prototype, "hardwareConcurrency", originalDescriptor)
+      }
+    }
+  })
 })
