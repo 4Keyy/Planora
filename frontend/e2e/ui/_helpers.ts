@@ -96,6 +96,39 @@ async function waitForVerificationToken(email: string): Promise<string> {
   throw new Error(`Verification token for ${email} not found in ${AUTH_LOG_CONTAINER} logs.`);
 }
 
+/**
+ * Triggers a password-reset email via the public Auth endpoint, then scrapes
+ * the Auth-API container logs for the resulting reset link. Returns the
+ * token portion of the link, ready to paste into the reset UI.
+ *
+ * Distinct from `waitForVerificationToken` because reset emails carry a
+ * different Subject (`Reset your Planora password`) and arrive after the
+ * verification email; matching by Subject avoids returning the older
+ * verification token by mistake.
+ */
+export async function requestPasswordResetAndCaptureToken(email: string): Promise<string> {
+  const ctx = await request.newContext({ baseURL: API_BASE });
+  try {
+    const csrf = await fetchCsrfToken(ctx);
+    const response = await ctx.post('/auth/api/v1/auth/request-password-reset', {
+      headers: { 'X-CSRF-Token': csrf },
+      data: { email },
+    });
+    expect(response.ok(), `request password reset for ${email}`).toBeTruthy();
+  } finally {
+    await ctx.dispose();
+  }
+
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    const logs = getAuthLogs();
+    const token = extractResetToken(logs, email);
+    if (token) return token;
+    await delay(2_000);
+  }
+  throw new Error(`Reset token for ${email} not found in ${AUTH_LOG_CONTAINER} logs.`);
+}
+
 function getAuthLogs(): string {
   try {
     return execFileSync('docker', ['logs', '--tail', '500', AUTH_LOG_CONTAINER], {
@@ -113,6 +146,21 @@ function extractVerificationToken(logs: string, email: string): string | undefin
   const re = new RegExp(`${escapeRegExp(email)}[^\n]*token=([A-Za-z0-9_\\-\\.]+)`);
   const match = logs.match(re);
   return match?.[1];
+}
+
+function extractResetToken(logs: string, email: string): string | undefined {
+  // EmailService.LogDevelopmentEmail logs:
+  //   [EMAIL:LOG] Subject="Reset your Planora password", To=<email>, Link=<url>
+  // Subject is the disambiguator vs the verification email which also contains token=.
+  // Match the whole line that mentions both "Reset" and the email, then extract token=.
+  const lines = logs.split('\n').reverse();
+  for (const line of lines) {
+    if (!line.includes(email)) continue;
+    if (!/Reset/i.test(line)) continue;
+    const tokenMatch = line.match(/token=([A-Za-z0-9_\-.]+)/);
+    if (tokenMatch?.[1]) return tokenMatch[1];
+  }
+  return undefined;
 }
 
 function escapeRegExp(value: string): string {

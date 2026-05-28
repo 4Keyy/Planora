@@ -4,6 +4,38 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### T3.6 — IDOR coverage baseline (2026-05-28)
+
+Hand-curated coverage map for every `[Authorize]` endpoint that takes a
+resource-identifier path parameter. Pairs each endpoint with the IDOR
+protection mechanism (owner check, viewer filter, friend gate, role gate)
+and pins which test or invariant verifies it.
+
+* `docs/security-idor-coverage.md` (new) — tables for Auth, Todo,
+  Category, Messaging, Realtime services + cross-service gRPC. Each row
+  carries one of `pinned by <test>`, `relies on filter`, or `gap`. The
+  current pass shows zero `gap` rows; the forward step is auto-generation
+  once T2.1's OpenAPI source-of-truth lands.
+* `docs/INVARIANTS.md` — new **INV-AZ-8** codifies the contract: any PR
+  adding an authorized resource-identifier endpoint must update the
+  coverage table and ship an explicit cross-user test, or reviewers
+  reject.
+
+### T2.6 cont. — reset-password + profile-update UI specs (2026-05-28)
+
+Two more UI flows on the T2.6 scaffold.
+
+* `e2e/ui/auth-reset-password.ui.spec.ts` — end-to-end forgot → reset →
+  login loop. Triggers the reset email via the API path, scrapes the
+  Auth-API container logs for the reset token (subject-disambiguated
+  from the verification email by matching `Reset` in the log line),
+  opens `/auth/reset-password?token=...`, sets a new password, signs in
+  with the new password to prove the rotation took effect.
+* `e2e/ui/profile-update.ui.spec.ts` — log in, navigate to `/profile`,
+  rename via the first-name field, reload to confirm persistence.
+* `e2e/ui/_helpers.ts` — adds `requestPasswordResetAndCaptureToken`
+  helper (triggers the reset, polls auth logs, returns the token).
+
 ### T2.7 — ADR-0006: `force-dynamic` + CSP nonce trade-off documented (2026-05-28)
 
 Closes the open question called out in the master plan ("T2.7: Needs ADR on

@@ -134,6 +134,8 @@ The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Pla
 
 **INV-AZ-7.** The API Gateway processes `X-Forwarded-For` / `X-Forwarded-Proto` / `X-Forwarded-Host` **only when** `ForwardedHeaders:KnownProxies` is non-empty in configuration. With an empty list (the default), `UseForwardedHeaders` is never registered and external clients cannot spoof their IP into rate-limit partitioning or downstream logs.
 
+**INV-AZ-8.** Every `[Authorize]` endpoint that takes a resource-identifier path parameter is enumerated in `docs/security-idor-coverage.md` with the IDOR protection mechanism (owner check, viewer filter, friend gate, role gate) and a pointer to the test or invariant that pins it. Reviewers MUST reject any PR that adds such an endpoint without (a) updating the coverage table and (b) shipping an explicit cross-user test. The forward step (T3.6 auto-generation) emits one xUnit theory per row once the OpenAPI source-of-truth (T2.1) lands; until then the table is the curated baseline.
+
 - Evidence: `Planora.ApiGateway/Program.cs` — the conditional `Configure<ForwardedHeadersOptions>` + `app.UseForwardedHeaders()` block guarded by `knownProxies.Length > 0`.
 - Rationale: trusting forwarded headers unconditionally creates a rate-limit bypass (`X-Forwarded-For: <victim-ip>`) — the audit's P1 spoofing risk. Production deployments behind Fly must configure the Fly edge range explicitly.
 
