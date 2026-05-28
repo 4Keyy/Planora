@@ -37,6 +37,15 @@ namespace Planora.Category.Infrastructure.Persistence.Configurations
 
             builder.HasIndex(x => new { x.Status, x.OccurredOnUtc });
             builder.HasIndex(x => x.ProcessedOnUtc);
+
+            // T4.2 — partial index covering the canonical polling predicate
+            // (`Status = 'Pending' OR (Status = 'Failed' AND NextRetryUtc <= NOW)`).
+            // Excluding `Processed` + `DeadLettered` keeps the index small even when
+            // the table grows: those terminal rows accumulate until the cleanup
+            // sweep runs and would otherwise bloat the read path on every poll.
+            builder.HasIndex(x => new { x.Status, x.NextRetryUtc, x.OccurredOnUtc })
+                .HasFilter("\"Status\" IN ('Pending', 'Failed')")
+                .HasDatabaseName("ix_outbox_messages_active");
         }
     }
 }

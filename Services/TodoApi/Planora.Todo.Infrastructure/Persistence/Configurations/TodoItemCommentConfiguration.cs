@@ -33,6 +33,10 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
                 .HasDefaultValue(false);
 
             builder.HasIndex(x => new { x.TodoItemId, x.CreatedAt });
+            // T4.2 — FK on AuthorId lacked an index. "Comments authored by X"
+            // queries (audit views, moderation, account-deletion cascade scan)
+            // would otherwise seq-scan the table once a thread accumulates.
+            builder.HasIndex(x => x.AuthorId);
 
             builder.HasOne<TodoItem>()
                 .WithMany()

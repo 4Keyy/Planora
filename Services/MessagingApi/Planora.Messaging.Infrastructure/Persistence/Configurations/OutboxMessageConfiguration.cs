@@ -1,9 +1,24 @@
+using Planora.BuildingBlocks.Application.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Planora.BuildingBlocks.Application.Outbox;
 
-namespace Planora.Realtime.Infrastructure.Persistence.Configurations;
+namespace Planora.Messaging.Infrastructure.Persistence.Configurations;
 
+/// <summary>
+/// EF entity configuration for `OutboxMessage` in the Messaging service.
+///
+/// Brings the Messaging-side schema in line with Auth / Category / Realtime —
+/// previously the DbSet was declared on `MessagingDbContext` but no explicit
+/// configuration was applied, so EF used defaults (no indexes beyond the PK).
+/// This caused the outbox processor to seq-scan the table on every poll once
+/// the table grew past a few thousand rows.
+///
+/// Indexes match the canonical shape:
+///   * `(Status, OccurredOnUtc)` — Pending-branch poll ordering.
+///   * `ProcessedOnUtc` — cleanup sweep.
+///   * Partial `(Status, NextRetryUtc, OccurredOnUtc)` filtered to
+///     `Status IN ('Pending', 'Failed')` — T4.2 read-path optimisation.
+/// </summary>
 public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage>
 {
     public void Configure(EntityTypeBuilder<OutboxMessage> builder)

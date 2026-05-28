@@ -4,6 +4,35 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### T4.2 — DB index audit, first pass (2026-05-28)
+
+Targeted index improvements landing as EF entity configurations. Migration
+files generate when the next `dotnet ef migrations add` runs against a
+development environment with `dotnet ef` available.
+
+* **Outbox partial composite index** — Auth, Category, Messaging, and
+  Realtime each gain
+  `HasIndex(Status, NextRetryUtc, OccurredOnUtc).HasFilter("Status IN ('Pending', 'Failed')")`
+  named `ix_outbox_messages_active`. Directly covers the canonical polling
+  predicate in `OutboxRepository<TContext>.GetPendingMessagesAsync`. Excluding
+  `Processed`/`DeadLettered` rows keeps the index small even when the table
+  accumulates ahead of the cleanup sweep. New INV-COMM-5 pins the convention.
+* **Messaging `OutboxMessageConfiguration`** added (was missing — Messaging
+  declared the DbSet but never applied an explicit configuration, so EF
+  used defaults, leaving the outbox table without any non-PK index). The
+  new config matches Auth/Category/Realtime exactly.
+* **`MessagingDbContext.OnModelCreating`** now calls
+  `ApplyConfigurationsFromAssembly` so future entity configs are picked up
+  automatically, matching sister services.
+* **`TodoItemComment.AuthorId`** gains a non-unique index. Audit and
+  account-deletion cascade scans previously seq-scanned the table once a
+  thread accumulated comments.
+
+Deferred to a `dotnet ef`-equipped follow-up: the actual EF migration
+files + `ModelSnapshot` updates. Schema-drift guard (INV-FLOW-5) will
+prevent silent partial application — operators see the drift and run the
+migrator explicitly.
+
 ### T2.6 cont. — forgot-password + tasks-page UI specs (2026-05-28)
 
 Two more UI flows on the T2.6 scaffold.

@@ -1,5 +1,6 @@
 using Planora.BuildingBlocks.Infrastructure.Inbox;
 using Planora.BuildingBlocks.Application.Outbox;
+using System.Reflection;
 
 namespace Planora.Messaging.Infrastructure.Persistence
 {
@@ -17,6 +18,12 @@ namespace Planora.Messaging.Infrastructure.Persistence
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // T4.2 — pick up `OutboxMessageConfiguration` and any future IEntityTypeConfiguration
+            // colocated in this assembly. The inline Message entity wiring below remains for
+            // backwards compatibility; new entities should land as standalone configuration
+            // classes under `Persistence/Configurations/`.
+            modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
             modelBuilder.Entity<Message>(builder =>
             {

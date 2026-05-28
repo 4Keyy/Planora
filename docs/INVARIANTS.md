@@ -48,6 +48,8 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs`.
 
+**INV-COMM-5.** Every service that holds an `OutboxMessages` table indexes the canonical polling predicate (`Status = 'Pending' OR (Status = 'Failed' AND NextRetryUtc <= NOW)`) with a partial composite index `(Status, NextRetryUtc, OccurredOnUtc) WHERE Status IN ('Pending', 'Failed')` named `ix_outbox_messages_active`. Excluding the terminal `Processed` and `DeadLettered` rows keeps the index small even when the table accumulates ahead of the cleanup sweep. Auth, Category, Messaging, and Realtime services all carry this index; the configurations live under each service's `Persistence/Configurations/OutboxMessageConfiguration.cs`.
+
 ---
 
 ## Authentication & Sessions
