@@ -4,6 +4,36 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### T2.5 — Realtime persistence scaffold (2026-05-28)
+
+Adds the durable persistence layer for the Realtime service so notifications
+survive pod restarts (master plan T2.5, Phase 2). This commit ships the
+**additive scaffold half**:
+
+- `Planora.Realtime.Domain.Entities.Notification` — durable record of every
+  consumed `NotificationEvent`, deduplicated by `SourceEventId`.
+- `Planora.Realtime.Domain.Entities.NotificationDelivery` — per-recipient
+  delivery state (`Pending → Delivered | NotConnected | Failed`) decoupled
+  from the parent so reconnect-replay is cheap.
+- `Planora.Realtime.Infrastructure.Persistence.RealtimeDbContext` with the two
+  entities + `OutboxMessages` table for fan-out integration events.
+- EF entity configurations including the `SourceEventId` unique index, the
+  per-user index, soft-delete filter, and the canonical
+  `OutboxMessage` table shape consistent with sister services.
+- `RealtimeDbContextFactory` (design-time) so `dotnet ef` commands resolve
+  the context without booting ASP.NET.
+- `tools/Planora.Migrator/Program.cs` registers the `realtime` service in the
+  one-shot migration runner.
+- DI registration is **conditional on `ConnectionStrings:RealtimeDatabase`**
+  being present so test and dev hosts without the DB still start clean.
+- New INV-DATA-5 in `docs/INVARIANTS.md` codifies the durability contract.
+
+**Deferred (next commit, requires `dotnet ef`).** The initial EF migration
+itself (`InitialRealtimeSchema`) and the `NotificationService` rewire that
+persists-before-pushing. The connection string in `docker-compose.yml` is
+left commented for the same reason — flipping it on without the schema
+applied would crash startup.
+
 ### Phase 1.5 audit-hotfix wave (2026-05-27)
 
 A four-commit hotfix wave executed against the master plan

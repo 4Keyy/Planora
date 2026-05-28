@@ -136,6 +136,8 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 **INV-DATA-4.** Soft-deleted rows are filtered by global query filters. Admin/audit paths that need to see deleted rows must call `.IgnoreQueryFilters()` explicitly and document the reason in code.
 
+**INV-DATA-5.** Realtime notifications are durable. Every `NotificationEvent` consumed from RabbitMQ lands in `Planora.Realtime.Domain.Entities.Notification` before being fanned out to SignalR; per-recipient delivery state is tracked in `NotificationDelivery` with `Pending → Delivered | NotConnected | Failed` semantics. Notifications are deduplicated by `SourceEventId` (unique index) so transient redeliveries from the broker never insert twice. A restarted Realtime pod can replay missed notifications to clients on reconnect instead of losing them with its in-process state.
+
 ---
 
 ## Configuration & Secrets

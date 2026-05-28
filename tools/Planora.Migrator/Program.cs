@@ -8,6 +8,7 @@ using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.Auth.Infrastructure.Persistence;
 using Planora.Category.Infrastructure.Persistence;
 using Planora.Messaging.Infrastructure.Persistence;
+using Planora.Realtime.Infrastructure.Persistence;
 using Planora.Todo.Infrastructure.Persistence;
 
 namespace Planora.Migrator;
@@ -39,6 +40,8 @@ internal static class Program
         new("category",  "CategoryDatabase",  typeof(CategoryDbContext),  RequiresDispatcher: true),
         new("todo",      "TodoDatabase",      typeof(TodoDbContext),      RequiresDispatcher: false),
         new("messaging", "MessagingDatabase", typeof(MessagingDbContext), RequiresDispatcher: false),
+        // T2.5 — Realtime persisted Notification + NotificationDelivery + Outbox schema.
+        new("realtime",  "RealtimeDatabase",  typeof(RealtimeDbContext),  RequiresDispatcher: true),
     ];
 
     public static async Task<int> Main(string[] args)
@@ -253,11 +256,11 @@ internal static class Program
               Planora.Migrator --service <name> --connection-string "Host=..."
 
             SERVICES
-              auth, category, todo, messaging
+              auth, category, todo, messaging, realtime
 
             CONFIG
               Connection strings: ConnectionStrings__AuthDatabase, ConnectionStrings__CategoryDatabase,
-              ConnectionStrings__TodoDatabase, ConnectionStrings__MessagingDatabase
+              ConnectionStrings__TodoDatabase, ConnectionStrings__MessagingDatabase, ConnectionStrings__RealtimeDatabase
               (envvar or appsettings.json). Override per-run with --connection-string.
 
             EXIT CODES

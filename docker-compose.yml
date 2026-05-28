@@ -263,6 +263,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
+      # T2.5 — durable Notification + NotificationDelivery log. Activated by the
+      # follow-up commit that lands the initial EF migration. Pool sizing matches
+      # sister services (T4.4): 10 max, 60s idle reaper.
+      # ConnectionStrings__RealtimeDatabase: "Host=postgres;Port=5432;Database=planora_realtime;Username=postgres;Password=${POSTGRES_PASSWORD};Maximum Pool Size=10;Connection Idle Lifetime=60;"
       REDIS_CONNECTION: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set},abortConnect=false"
       RateLimiting__Backend: Redis
       RABBITMQ_HOST: "rabbitmq"
