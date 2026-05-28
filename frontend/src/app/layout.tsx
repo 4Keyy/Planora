@@ -26,6 +26,11 @@ export const metadata = {
 // (src/middleware.ts) is applied to Next.js inline scripts. A statically
 // prerendered page cannot carry a per-request nonce, which would leave the
 // strict script-src blocking the framework's own bootstrap scripts.
+//
+// The full trade-off (TTFB cost vs nonce-only script-src) is documented in
+// ADR-0006 (`docs/DECISIONS/0006-force-dynamic-and-csp-nonce.md`). Removing
+// this line requires landing hash-based CSP first — see the sunset
+// conditions in that ADR.
 export const dynamic = "force-dynamic"
 
 export default function RootLayout({ children }: { children: ReactNode }) {

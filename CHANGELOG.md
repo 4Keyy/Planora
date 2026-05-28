@@ -4,6 +4,24 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### T2.7 — ADR-0006: `force-dynamic` + CSP nonce trade-off documented (2026-05-28)
+
+Closes the open question called out in the master plan ("T2.7: Needs ADR on
+CSP nonce trade-off") and the audit finding **P0-FORCE-DYNAMIC**.
+
+* `docs/DECISIONS/0006-force-dynamic-and-csp-nonce.md` — new ADR examining
+  the fork in the road (static prerender + nonce is impossible; hash-based
+  CSP is the unblock), documenting the **decision to keep** `force-dynamic`
+  + per-request nonce until one of three sunset conditions ships
+  (hash-based CSP wiring, a Next.js minor publishing a stable hash manifest
+  API, or a vetted community plugin), and rejecting the alternatives
+  (`'unsafe-inline'`, per-route opt-in, hand-rolled hashing) with reasons.
+* `frontend/src/app/layout.tsx` — comment on the `force-dynamic` line now
+  references the ADR so a future contributor sees the rationale at the
+  call site, not just in the audit notes.
+* P0-FORCE-DYNAMIC is reclassified from "fix immediately" to "open
+  contingent on hash-CSP work" in the master plan tracking.
+
 ### T4.2 — DB index audit, first pass (2026-05-28)
 
 Targeted index improvements landing as EF entity configurations. Migration
