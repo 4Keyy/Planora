@@ -65,20 +65,31 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`, ADR-0003.
 - Open question: services other than Auth do not run CSRF middleware (Phase 2 T2.6).
 
-**INV-AUTH-4.** Every command that materially changes the security posture of an account rotates the user's security stamp, so any access token issued before the change is rejected on its next authenticated request. The list is exhaustive:
+**INV-AUTH-4.** Every command that materially changes the security posture of an account rotates the user's security stamp, so any access token issued before the change is rejected on its next authenticated request. The list of *currently-shipped* rotation points:
 
 - password change (`ChangePasswordCommandHandler`);
 - password reset (`ResetPasswordCommandHandler`);
 - email change confirmation (`ChangeEmailCommandHandler`);
 - 2FA disable (`Disable2FACommandHandler`);
 - revoke all sessions (`RevokeAllSessionsCommandHandler`);
-- account soft-delete (`DeleteUserCommandHandler`).
+- account soft-delete (`DeleteUserCommandHandler`);
+- refresh-token reuse detection (`RefreshTokenCommandHandler`, see INV-AUTH-6).
 
-Stamp rotation runs **only on successful execution** — a wrong-password attempt MUST NOT invalidate active sessions, otherwise an observer can DoS the user. Stamp rotation is NOT triggered on 2FA enable or 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
+**Forward-looking policy (T3.5).** Any future command that mutates the security posture of an account MUST rotate the stamp. Concretely this covers (when implemented):
+
+- **role assignment / revocation** — adding or removing a `UserRole` row;
+- **admin force-logout** — an admin-initiated session revocation against a target user;
+- **manual lock / suspend** issued by an operator;
+- **email change** that bypasses the standard confirmation flow (admin override);
+- any new command that changes the set of access claims, the set of permitted scopes, or the set of resources the user can reach.
+
+Stamp rotation runs **only on successful execution** — a wrong-password attempt MUST NOT invalidate active sessions, otherwise an observer can DoS the user. Stamp rotation is NOT triggered on 2FA enable or 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit. Stamp rotation is NOT triggered on profile updates (first name, last name, avatar) because the access-claim set is unchanged. Stamp rotation is NOT triggered on revoking a *single* refresh token (`RevokeSessionCommandHandler`) because the user chose that specific session — other sessions remain authorized.
 
 Stamp rotation is meaningless unless **every** JWT-accepting service enforces the check on every authenticated request. All five services — Auth, Category, Todo, Messaging, Realtime — wire `SecurityStampValidator.IsTokenRevokedAsync` into `JwtBearerOptions.OnTokenValidated`. Auth API enforces this in `Planora.Auth.Infrastructure.DependencyInjection.AddJwtAuthentication`; consumer services use the shared `AddJwtAuthenticationForConsumer` or an equivalent inline hook. The coverage table lives in `docs/auth-security.md` § "Stamp enforcement coverage".
 
-- Evidence: `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs` (Auth's `AddJwtAuthentication`), the six command handlers listed above, and `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs` which pins the Auth wiring. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin the stamp call for success paths and its absence for failure paths.
+The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Planora.UnitTests): any handler that injects `ISecurityStampService` must also invoke `SetStampAsync` somewhere in its body. The test is a source-file scan over `Services/AuthApi/Planora.Auth.Application/Features/**/Handlers/` so a future handler that forgets the rotation call (or drops it during refactoring) fails CI before merge.
+
+- Evidence: `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs` (Auth's `AddJwtAuthentication`), the seven command handlers listed above, `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs` which pins the Auth wiring, and `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/SecurityStampUsageContractTests.cs` which pins the forward-looking policy. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin the stamp call for success paths and its absence for failure paths.
 
 **INV-AUTH-5.** TOTP secrets are encrypted at rest with ASP.NET Core Data Protection, keys persisted to Redis under `Planora:Auth:DataProtection-Keys`, scoped to application name `Planora.Auth`. Recovery codes are hashed with BCrypt before storage.
 

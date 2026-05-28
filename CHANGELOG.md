@@ -4,6 +4,42 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### T3.5 — Security-stamp expansion + contract test (2026-05-28)
+
+Extends INV-AUTH-4 with a forward-looking rotation policy and pins it with a
+source-file contract test (master plan T3.5, Phase 3).
+
+**Why.** Today's INV-AUTH-4 lists the seven shipped rotation points (password
+change, password reset, email change confirmation, 2FA disable, revoke-all,
+delete, refresh-token reuse detection). Future handlers — role assignment,
+admin force-logout, admin lock, admin email override — must also rotate the
+stamp, but nothing in CI catches a missing call until a security review picks
+it up. The contract test closes that loop.
+
+**What landed.**
+
+- `SecurityStampUsageContractTests` (`tests/Planora.UnitTests/Services/AuthApi/Infrastructure/`):
+  source-file scan over every `*CommandHandler.cs` under
+  `Services/AuthApi/Planora.Auth.Application/Features/**/Handlers/`. A handler
+  whose constructor takes `ISecurityStampService` must also call
+  `SetStampAsync` somewhere in its body, or the test fails. Two safety nets:
+  a sanity check that at least one injector was scanned (catches regex drift)
+  and an explicit anchor type to force the application assembly to load.
+- `docs/INVARIANTS.md` — INV-AUTH-4 rewritten to (a) list shipped rotation
+  points including INV-AUTH-6's refresh-reuse path, (b) document the
+  forward-looking policy with the four expected future rotation commands,
+  (c) document the *opt-outs* (profile updates, single-session revocation),
+  and (d) reference the new contract test.
+- `docs/auth-security.md` — stamp table mirrors the invariant; new
+  "Forward-looking rotation policy (T3.5)" subsection enumerates expected
+  future rotation points and cites the contract test as the enforcement
+  mechanism.
+
+**Scope notes.** No production code changed — the three obvious gap candidates
+(`UpdateUserCommandHandler`, `RevokeSessionCommandHandler`) are deliberate
+opt-outs and the rationale is now documented. The remaining forward-looking
+items (role-change, admin force-logout) ship when their handlers ship.
+
 ### T2.5 — Realtime persistence scaffold (2026-05-28)
 
 Adds the durable persistence layer for the Realtime service so notifications

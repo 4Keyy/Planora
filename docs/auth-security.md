@@ -189,6 +189,20 @@ The stamp rotates **only on successful execution** of the command. A wrong-passw
 
 The stamp is NOT rotated on 2FA enable / 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
 
+The stamp is NOT rotated on profile-only updates (`UpdateUserCommandHandler` — first name, last name, avatar) because the access-claim set is unchanged. It is NOT rotated on revoking a *single* refresh token (`RevokeSessionCommandHandler`) because the user chose that specific session — other sessions remain authorized by design.
+
+### Forward-looking rotation policy (T3.5)
+
+Any future command that mutates the security posture of an account MUST rotate the stamp. The exhaustive list of expected future rotation points — to be added when their handlers ship:
+
+- **Role assignment / revocation** — adding or removing a `UserRole` row changes the claim set and therefore the access surface.
+- **Admin force-logout** — an admin-initiated session-revocation against a target user must invalidate that user's access tokens, not just refresh tokens.
+- **Manual lock / suspend** issued by an operator — same reason as `RevokeAllSessions` but driven by an admin command rather than the user.
+- **Email change via admin override** — bypassing the standard confirmation flow still re-binds identity, so stamp rotation applies.
+- Any new command that changes the set of access claims, the set of permitted scopes, or the set of resources the user can reach.
+
+The policy is enforced automatically by `SecurityStampUsageContractTests` (`tests/Planora.UnitTests/Services/AuthApi/Infrastructure/SecurityStampUsageContractTests.cs`): a source-file scan asserts that every handler injecting `ISecurityStampService` also invokes `SetStampAsync`. A future handler that silently drops the rotation (e.g. during a refactor) fails CI before merge.
+
 ### Stamp enforcement coverage
 
 Every service that accepts JWT-authenticated requests must wire the stamp check into its `JwtBearerOptions.OnTokenValidated` event. Without it, a rotated token would still work against that service's endpoints until natural expiry — defeating the rotation. Current coverage:

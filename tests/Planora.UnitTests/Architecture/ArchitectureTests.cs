@@ -19,6 +19,7 @@ public sealed class ArchitectureTests
         ("Planora.Todo.Domain", typeof(global::Planora.Todo.Domain.Entities.TodoItem).Assembly),
         ("Planora.Category.Domain", typeof(global::Planora.Category.Domain.Entities.Category).Assembly),
         ("Planora.Messaging.Domain", typeof(global::Planora.Messaging.Domain.Entities.Message).Assembly),
+        ("Planora.Realtime.Domain", typeof(global::Planora.Realtime.Domain.Entities.Notification).Assembly),
     };
 
     private static readonly (string Name, Assembly Assembly)[] ApplicationAssemblies =
