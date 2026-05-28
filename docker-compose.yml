@@ -7,6 +7,17 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD env var must be set}
       POSTGRES_INITDB_ARGS: "-c shared_preload_libraries=uuid-ossp"
+    # T4.5 — kill transactions stuck idle past 30 s so a leaked DbContext or a
+    # client crash mid-transaction cannot indefinitely hold a connection
+    # (which would otherwise starve the per-service pool — see T4.4 pool sizing).
+    # 30 s leaves plenty of headroom for legitimate long batches while bounding
+    # the worst-case starvation window. Fly Postgres applies the same value via
+    # `flyctl postgres config update --idle-in-transaction-session-timeout 30000`
+    # — documented in deploy/fly/README.md.
+    command:
+      - "postgres"
+      - "-c"
+      - "idle_in_transaction_session_timeout=30000"
     ports:
       - "127.0.0.1:5433:5432"
     volumes:

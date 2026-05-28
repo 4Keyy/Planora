@@ -4,6 +4,21 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### T4.5 — Postgres `idle_in_transaction_session_timeout = 30s` (2026-05-28)
+
+Postgres-side backstop for the per-service Npgsql pool (`Maximum Pool Size=10`,
+T4.4). A leaked `DbContext` or a client crash mid-transaction would otherwise
+hold a connection open indefinitely, starving the pool and surfacing as
+cascading timeouts on unrelated endpoints. 30 s leaves headroom for
+legitimate long batches (outbox cleanup, avatar re-encode) while bounding
+the worst-case starvation window.
+
+- `docker-compose.yml` — `postgres` service `command` adds
+  `-c idle_in_transaction_session_timeout=30000`.
+- `deploy/fly/README.md` — new "Postgres tuning" section documents the
+  `flyctl postgres config update --idle-in-transaction-session-timeout 30000`
+  command for Fly Postgres clusters.
+
 ### T4.10 — Motion preferences + hardware-adaptive WebGL background (2026-05-28)
 
 Closes the two scoped halves of master-plan T4.10 that don't require a wider
