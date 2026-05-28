@@ -4,6 +4,40 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### T2.6 start — Playwright browser-rendered E2E scaffold + login flow (2026-05-28)
+
+First slice of master-plan T2.6 (Phase 2): real-browser UI coverage on the
+critical user flows. This commit lands the scaffolding plus the **login**
+flow; remaining flows (register UI, forgot-password, reset-password,
+verify-email-link, todo CRUD, sharing/hidden, profile update, 2FA setup)
+land incrementally as separate specs that the same scaffold already
+supports.
+
+* `frontend/playwright.config.ts` — splits the suite into two projects.
+  `api` keeps the existing request-context tests; `ui` (new) uses Chromium
+  with `Desktop Chrome` device emulation. Both projects coexist; selectors
+  are file-name based (`*.api.spec.ts` vs `e2e/ui/*.ui.spec.ts`).
+* `frontend/e2e/ui/_helpers.ts` — shared setup: `requireFrontendReachable`
+  (skips the whole suite if the Next.js URL doesn't respond inside 5 s),
+  `registerVerifiedUser` (reuses the API path so UI specs aren't gated on
+  re-driving the registration form), `submitLoginForm` (locator helpers
+  by visible label).
+* `frontend/e2e/ui/auth-login.ui.spec.ts` — two scenarios: happy-path
+  login routes to `/tasks` with the user's name visible in the navbar;
+  wrong-password leaves the user on `/auth/login` with the error banner
+  visible.
+* `.github/workflows/e2e.yml` — installs Chromium, builds the frontend
+  (production, not dev), starts `next start` on port 3000, waits for
+  readiness, runs the whole Playwright suite (both projects), and cleans
+  up the frontend PID at the end. Existing API job semantics preserved —
+  `E2E_FRONTEND_URL` newly exported.
+* `frontend/e2e/README.md` (new) — operator-facing doc on the two-project
+  setup, local UI runs, and the skip-friendly design.
+
+The scaffold is intentionally additive: existing CI matrix entries that
+do not export `E2E_FRONTEND_URL` continue to run only the `api` project
+(UI specs gracefully skip).
+
 ### T4.5 — Postgres `idle_in_transaction_session_timeout = 30s` (2026-05-28)
 
 Postgres-side backstop for the per-service Npgsql pool (`Maximum Pool Size=10`,
