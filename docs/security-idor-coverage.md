@@ -32,15 +32,19 @@ that ship in `tests/Planora.UnitTests/`** — verified at commit time.
 
 | Method + path | Resource | Mechanism | Status |
 |---|---|---|---|
-| `PATCH /auth/api/v1/users/{userId}` | User | Self-only — handler derives the target from `_currentUserService`, route param exists only for symmetry. | covered by `Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs` |
-| `DELETE /auth/api/v1/users/{userId}` | User | Self-only — same shape. | covered by `Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs` |
-| `POST /auth/api/v1/users/{userId}/avatar` | User | Self-only — handler ignores the route param if it disagrees with the current-user claim. | covered by `Services/AuthApi/Users/Handlers/UploadAvatarCommandHandlerTests.cs` |
-| `GET /auth/api/v1/users/sessions` | RefreshToken | Self-only — query filters by current user. | covered by `Services/AuthApi/Users/Handlers/UserQueryHandlerTests.cs` |
-| `DELETE /auth/api/v1/users/sessions/{tokenId}` | RefreshToken | `RevokeSessionCommandHandler` rejects with `Forbidden` if `token.UserId != currentUser`. | pinned by `Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs::RevokeSession_WhenTokenBelongsToAnotherUser_ReturnsForbidden` |
+| `PUT /auth/api/v1/users/me` | User | Self-only — handler derives the target from `_currentUserService`; no path parameter. | covered by `Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs` |
+| `DELETE /auth/api/v1/users/me` | User | Self-only — no path parameter. | covered by `Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs` |
+| `POST /auth/api/v1/users/me/avatar` | User | Self-only — no path parameter. | covered by `Services/AuthApi/Users/Handlers/UploadAvatarCommandHandlerTests.cs` |
+| `GET /auth/api/v1/users/me/sessions` | RefreshToken | Self-only — handler queries `_currentUserService`; no path parameter. | covered by `Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs` (GetUserSecurity tests) |
+| `DELETE /auth/api/v1/users/me/sessions/{tokenId}` | RefreshToken | `RevokeSessionCommandHandler` rejects with `Forbidden` if `token.UserId != currentUser`. | pinned by `Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs::RevokeSession_WhenTokenBelongsToAnotherUser_ReturnsForbidden` |
+| `GET /auth/api/v1/users/{userId:guid}` | User | Admin-only via `[Authorize(Roles = "Admin")]`. Role gate, not IDOR. | covered by `Services/AuthApi/Controllers/UsersControllerTests.cs` |
+| `GET /auth/api/v1/users` | User (list) | Admin-only via `[Authorize(Roles = "Admin")]`. Role gate, not IDOR. | covered by `Services/AuthApi/Users/Handlers/GetUsersQueryHandlerTests.cs` |
+| `GET /auth/api/v1/users/statistics` | Aggregate | Admin-only via `[Authorize(Roles = "Admin")]`. Role gate, not IDOR. | covered by `Services/AuthApi/Users/Handlers/UserQueryHandlerTests.cs` |
 | `POST /auth/api/v1/friendships/requests` | Friendship | Self-as-requester. Body-supplied `friendId` is the *target* — not an IDOR vector because creating outbound requests is by design. | pinned by `Services/AuthApi/Friendships/FriendshipHandlerTests.cs::SendFriendRequest_ShouldRejectSelfMissingFriendAndExistingRelationship` |
 | `POST /auth/api/v1/friendships/requests/{friendshipId}/accept` | Friendship | Acceptor must be the addressee. | pinned by `Services/AuthApi/Friendships/FriendshipHandlerTests.cs::AcceptRejectAndRemove_ShouldEnforceActorAndPersistStateTransitions` |
 | `POST /auth/api/v1/friendships/requests/{friendshipId}/reject` | Friendship | Same — acceptor must be the addressee. | same as accept (one combined test asserts all three transitions enforce actor) |
 | `DELETE /auth/api/v1/friendships/{friendId}` | Friendship | Either party can delete — `userId` matches one side of the row. | same as above (combined test) |
+| `POST /auth/api/v1/analytics/events` | Analytics event | No path parameter — accepts the event body for the current user. | covered by `Services/AuthApi/Controllers/AnalyticsControllerTests.cs` |
 
 ## Todo API
 
@@ -77,8 +81,10 @@ that ship in `tests/Planora.UnitTests/`** — verified at commit time.
 
 | Method + path | Resource | Mechanism | Status |
 |---|---|---|---|
+| `POST /realtime/api/v1/notifications/send` | Notification | Self-only — controller derives target user from the JWT `sub` claim (`User.FindFirst("sub")?.Value`); the body type is server-whitelisted to prevent type injection. | covered by `Services/RealtimeApi/Controllers/NotificationsControllerTests.cs` |
 | `POST /realtime/api/v1/notifications/broadcast` | Notification | Admin-only via `[Authorize(Roles = "Admin")]`. | covered by `Services/RealtimeApi/Controllers/NotificationsControllerTests.cs` |
-| `GET /realtime/api/v1/connections/stats` | (none, aggregate) | Admin-only via `[Authorize(Roles = "Admin")]`. | covered by `Services/RealtimeApi/Controllers/ConnectionsControllerTests.cs` |
+| `GET /realtime/api/v1/connections/active` | Connection (list) | Self-only — returns only the authenticated user's own connection ids. | covered by `Services/RealtimeApi/Controllers/ConnectionsControllerTests.cs` |
+| `GET /realtime/api/v1/connections/stats` | Aggregate | Admin-only via `[Authorize(Roles = "Admin")]`. | covered by `Services/RealtimeApi/Controllers/ConnectionsControllerTests.cs` |
 
 ## Cross-service gRPC
 
