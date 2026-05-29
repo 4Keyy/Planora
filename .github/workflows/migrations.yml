@@ -9,7 +9,7 @@ name: Migration Scripts
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'Services/**/Migrations/**'
       - 'Services/**/Persistence/**'

@@ -14,7 +14,7 @@ name: OpenAPI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'BuildingBlocks/**'
       - 'Services/**'

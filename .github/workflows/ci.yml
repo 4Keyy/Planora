@@ -1,9 +1,9 @@
 name: CI
 on:
   push:
-    branches: [main, 'audit/**', 'fix/**', 'claude/**']
+    branches: [main, develop, 'audit/**', 'fix/**']
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 # Minimum permissions. Each job only receives what it needs.
 permissions:
