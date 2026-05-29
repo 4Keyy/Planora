@@ -312,6 +312,7 @@ export function Navbar() {
                   lastName={user?.lastName}
                   email={user?.email}
                   size={32}
+                  priority
                 />
               </motion.button>
 

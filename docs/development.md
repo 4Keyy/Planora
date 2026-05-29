@@ -166,6 +166,31 @@ saves the handshake (~100-300 ms on a cold connection). If the URL is
 malformed the tag is omitted; the hint is a hint, never a hard
 dependency.
 
+### Avatar `priority` for LCP-critical surfaces
+
+The `Avatar` component (`frontend/src/components/ui/avatar.tsx`) wraps
+`next/image`, which is lazy by default. Most avatars (lists, friend
+multi-select, comment authors) want to stay lazy and out of the LCP
+budget. The one exception is the navbar's current-user avatar — it
+sits above the fold on every authenticated page and is an LCP
+candidate. Pass `priority` there:
+
+```tsx
+<Avatar
+  src={user?.profilePictureUrl}
+  firstName={user?.firstName}
+  lastName={user?.lastName}
+  email={user?.email}
+  size={32}
+  priority   // ← only the navbar avatar
+/>
+```
+
+Set `priority` **only** for above-the-fold avatars on critical pages.
+Setting it elsewhere wastes network on images the user never sees,
+and Next.js will warn in dev when more than one `priority` image is
+visible at once.
+
 ## Database Changes
 
 1. Change the domain/entity in the owning service.

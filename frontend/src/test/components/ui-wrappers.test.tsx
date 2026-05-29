@@ -1,12 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { Avatar } from "@/components/ui/avatar"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { ModalPortal } from "@/components/ui/modal-portal"
 import { Textarea } from "@/components/ui/textarea"
 import { Toaster } from "@/components/ui/toast"
+import * as config from "@/lib/config"
 import { useToastStore } from "@/store/toast"
 
 describe("input and textarea wrappers", () => {
@@ -216,5 +218,93 @@ describe("toast store and toaster", () => {
     fireEvent.click(screen.getByRole("button"))
 
     expect(useToastStore.getState().toasts).toHaveLength(0)
+  })
+})
+
+describe("Avatar", () => {
+  beforeEach(() => {
+    vi.spyOn(config, "getApiBaseUrl").mockReturnValue("http://localhost:5000")
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("renders initials fallback when no src is supplied", () => {
+    render(<Avatar firstName="Ada" lastName="Lovelace" />)
+    expect(screen.getByText("AL")).toBeInTheDocument()
+    expect(screen.queryByRole("img")).not.toBeInTheDocument()
+  })
+
+  it("falls back to the first two letters of email when no name is present", () => {
+    render(<Avatar email="zoe@example.com" />)
+    expect(screen.getByText("ZO")).toBeInTheDocument()
+  })
+
+  it("falls back to a literal 'U' when nothing identifies the user", () => {
+    render(<Avatar />)
+    expect(screen.getByText("U")).toBeInTheDocument()
+  })
+
+  it("renders the optimised image once a relative src is resolved against the API origin", async () => {
+    render(
+      <Avatar
+        src="/avatars/ada.png"
+        firstName="Ada"
+        lastName="Lovelace"
+      />,
+    )
+
+    const img = await screen.findByAltText("Ada")
+    const src = img.getAttribute("src") ?? ""
+    expect(decodeURIComponent(src)).toContain("http://localhost:5000/avatars/ada.png")
+    expect(screen.queryByText("AL")).not.toBeInTheDocument()
+  })
+
+  it("default-renders a lazy-loaded image (no priority prop)", async () => {
+    render(
+      <Avatar
+        src="/avatars/ada.png"
+        firstName="Ada"
+        lastName="Lovelace"
+      />,
+    )
+
+    const img = await screen.findByAltText("Ada")
+    // next/image lazy by default — the loading attribute is `lazy` when
+    // `priority` is not set. fetchpriority should also stay at its default.
+    expect(img.getAttribute("loading")).toBe("lazy")
+  })
+
+  it("opts the image out of lazy-loading when priority is set", async () => {
+    render(
+      <Avatar
+        src="/avatars/ada.png"
+        firstName="Ada"
+        lastName="Lovelace"
+        priority
+      />,
+    )
+
+    const img = await screen.findByAltText("Ada")
+    // next/image translates `priority` into `loading="eager"` and
+    // `fetchpriority="high"`. We assert the visible attribute we need — an
+    // LCP-critical avatar must not be lazy-deferred.
+    expect(img.getAttribute("loading")).not.toBe("lazy")
+  })
+
+  it("preserves the absolute http(s) src verbatim (no API-origin rewrite)", async () => {
+    render(
+      <Avatar
+        src="https://cdn.example.com/u/ada.png"
+        firstName="Ada"
+        lastName="Lovelace"
+      />,
+    )
+
+    const img = await screen.findByAltText("Ada")
+    const src = img.getAttribute("src") ?? ""
+    // The optimiser-routed url should contain the original absolute URL after decoding.
+    expect(decodeURIComponent(src)).toContain("https://cdn.example.com/u/ada.png")
   })
 })
