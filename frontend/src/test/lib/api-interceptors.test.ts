@@ -206,9 +206,12 @@ describe("api interceptors", () => {
     await expect(responseRejected()(forbiddenSecond)).rejects.toBe(forbiddenSecond)
     expect(warnSpy).toHaveBeenCalledWith("[API] 403 — not retried (non-mutating, retry already attempted, or no config)")
 
+    // Outside production a no-response network error is logged via console.warn
+    // (not console.error) so backend hot-reload restarts don't raise the Next.js
+    // dev error overlay. The test environment is non-production.
     const network = { request: {}, message: "offline" }
     await expect(responseRejected()(network)).rejects.toBe(network)
-    expect(errorSpy).toHaveBeenCalledWith("[Network Error]", "offline")
+    expect(warnSpy).toHaveBeenCalledWith("[Network Error]", "offline")
 
     const setupError = { message: "bad config" }
     await expect(responseRejected()(setupError)).rejects.toBe(setupError)
