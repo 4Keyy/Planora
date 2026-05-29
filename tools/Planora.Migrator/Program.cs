@@ -7,6 +7,7 @@ using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.Auth.Infrastructure.Persistence;
 using Planora.Category.Infrastructure.Persistence;
+using Planora.Collaboration.Infrastructure.Persistence;
 using Planora.Messaging.Infrastructure.Persistence;
 using Planora.Todo.Infrastructure.Persistence;
 
@@ -39,6 +40,7 @@ internal static class Program
         new("category",  "CategoryDatabase",  typeof(CategoryDbContext),  RequiresDispatcher: true),
         new("todo",      "TodoDatabase",      typeof(TodoDbContext),      RequiresDispatcher: false),
         new("messaging", "MessagingDatabase", typeof(MessagingDbContext), RequiresDispatcher: false),
+        new("collaboration", "CollaborationDatabase", typeof(CollaborationDbContext), RequiresDispatcher: false),
     ];
 
     public static async Task<int> Main(string[] args)

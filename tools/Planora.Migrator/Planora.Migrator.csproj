@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\Services\CategoryApi\Planora.Category.Infrastructure\Planora.Category.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\TodoApi\Planora.Todo.Infrastructure\Planora.Todo.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\MessagingApi\Planora.Messaging.Infrastructure\Planora.Messaging.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\CollaborationApi\Planora.Collaboration.Infrastructure\Planora.Collaboration.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

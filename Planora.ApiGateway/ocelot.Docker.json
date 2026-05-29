@@ -27,6 +27,14 @@
     {
       "DownstreamPathTemplate": "/health",
       "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "collaboration-api", "Port": 80 } ],
+      "UpstreamPathTemplate": "/collaboration/health",
+      "UpstreamHttpMethod": [ "GET" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [ { "Host": "category-api", "Port": 80 } ],
       "UpstreamPathTemplate": "/categories/health",
       "UpstreamHttpMethod": [ "GET" ],
@@ -142,6 +150,22 @@
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [ { "Host": "todo-api", "Port": 80 } ],
       "UpstreamPathTemplate": "/todos/api/v1/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "collaboration-api", "Port": 80 } ],
+      "UpstreamPathTemplate": "/collaboration/api/v1/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
       "AuthenticationOptions": {
         "AuthenticationProviderKey": "Bearer",

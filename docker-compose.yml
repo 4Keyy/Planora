@@ -204,9 +204,10 @@ services:
     container_name: planora-todo-api
     ports:
       - "127.0.0.1:5100:80"
+      - "127.0.0.1:5101:81"
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
-      ASPNETCORE_URLS: "http://+:80"
+      ASPNETCORE_URLS: "http://+:80;http://+:81"
       ConnectionStrings__TodoDatabase: "Host=postgres;Port=5432;Database=planora_todo;Username=postgres;Password=${POSTGRES_PASSWORD};"
       RateLimiting__Backend: Redis
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
@@ -227,6 +228,48 @@ services:
       rabbitmq:
         condition: service_healthy
       category-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - planora-network
+    restart: on-failure
+
+  # Collaboration API (task comment timeline / "ветки" + comment notifications)
+  collaboration-api:
+    build:
+      context: .
+      dockerfile: Services/CollaborationApi/Planora.Collaboration.Api/Dockerfile
+    container_name: planora-collaboration-api
+    ports:
+      - "127.0.0.1:5060:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: "http://+:80"
+      ConnectionStrings__CollaborationDatabase: "Host=postgres;Port=5432;Database=planora_collaboration;Username=postgres;Password=${POSTGRES_PASSWORD};"
+      RateLimiting__Backend: Redis
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
+      RabbitMq__HostName: "rabbitmq"
+      RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+      JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
+      JwtSettings__Issuer: "Planora.Auth"
+      JwtSettings__Audience: "Planora.Clients"
+      GrpcServices__AuthApi: "http://auth-api:80"
+      GrpcServices__TodoApi: "http://todo-api:81"
+      GrpcSettings__ServiceKey: ${GRPC_SERVICE_KEY:?GRPC_SERVICE_KEY env var must be set}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      todo-api:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]

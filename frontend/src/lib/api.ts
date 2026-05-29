@@ -312,7 +312,7 @@ export const fetchComments = async (
   pageSize = 50,
 ): Promise<PagedCommentsResponse> => {
   const { data } = await api.get<ApiResponse<PagedCommentsResponse>>(
-    `/todos/api/v1/todos/${todoId}/comments`,
+    `/collaboration/api/v1/comments/${todoId}`,
     { params: { pageNumber, pageSize } },
   )
   return parseApiResponse(data)
@@ -320,7 +320,7 @@ export const fetchComments = async (
 
 export const addComment = async (todoId: string, content: string): Promise<TodoComment> => {
   const { data } = await api.post<ApiResponse<TodoComment>>(
-    `/todos/api/v1/todos/${todoId}/comments`,
+    `/collaboration/api/v1/comments/${todoId}`,
     { content },
   )
   return parseApiResponse(data)
@@ -332,19 +332,19 @@ export const updateComment = async (
   content: string,
 ): Promise<TodoComment> => {
   const { data } = await api.put<ApiResponse<TodoComment>>(
-    `/todos/api/v1/todos/${todoId}/comments/${commentId}`,
+    `/collaboration/api/v1/comments/${todoId}/${commentId}`,
     { content },
   )
   return parseApiResponse(data)
 }
 
 export const deleteComment = async (todoId: string, commentId: string): Promise<void> => {
-  await api.delete(`/todos/api/v1/todos/${todoId}/comments/${commentId}`)
+  await api.delete(`/collaboration/api/v1/comments/${todoId}/${commentId}`)
 }
 
 export const addGenesisComment = async (todoId: string, content: string): Promise<TodoComment> => {
   const { data } = await api.post<ApiResponse<TodoComment>>(
-    `/todos/api/v1/todos/${todoId}/genesis`,
+    `/collaboration/api/v1/comments/${todoId}/genesis`,
     { content },
   )
   return parseApiResponse(data)
