@@ -71,7 +71,7 @@ internal static class Program
             ? Services
             : Services.Where(s => parsed.Services.Contains(s.Name, StringComparer.OrdinalIgnoreCase)).ToList();
 
-        if (selected.Count == 0)
+        if (selected.Count == 0 && !parsed.BackfillCollaboration)
         {
             logger.LogError("No matching services. Valid names: {Names}", string.Join(", ", Services.Select(s => s.Name)));
             return ExitBadArgs;
@@ -96,6 +96,30 @@ internal static class Program
 
             var ok = await RunForServiceAsync(service, connectionString, parsed.ListPendingOnly, loggerFactory);
             anyFailure |= !ok;
+        }
+
+        if (parsed.BackfillCollaboration && !parsed.ListPendingOnly)
+        {
+            var todoConn = configuration.GetConnectionString("TodoDatabase");
+            var collabConn = configuration.GetConnectionString("CollaborationDatabase");
+            if (string.IsNullOrWhiteSpace(todoConn) || string.IsNullOrWhiteSpace(collabConn))
+            {
+                logger.LogError(
+                    "Backfill requires ConnectionStrings__TodoDatabase and ConnectionStrings__CollaborationDatabase.");
+                anyFailure = true;
+            }
+            else
+            {
+                try
+                {
+                    await CollaborationBackfill.RunAsync(todoConn, collabConn, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Collaboration backfill failed.");
+                    anyFailure = true;
+                }
+            }
         }
 
         overallStopwatch.Stop();
@@ -188,6 +212,7 @@ internal static class Program
     {
         var allServices = false;
         var listPending = false;
+        var backfillCollaboration = false;
         string? overrideConnStr = null;
         var services = new List<string>();
 
@@ -200,6 +225,9 @@ internal static class Program
                     break;
                 case "--list-pending":
                     listPending = true;
+                    break;
+                case "--backfill-collaboration":
+                    backfillCollaboration = true;
                     break;
                 case "--service" when i + 1 < args.Length:
                     services.Add(args[++i]);
@@ -215,12 +243,12 @@ internal static class Program
             }
         }
 
-        if (!allServices && services.Count == 0)
+        if (!allServices && services.Count == 0 && !backfillCollaboration)
         {
             return null;
         }
 
-        return new ParsedArgs(allServices, services, listPending, overrideConnStr);
+        return new ParsedArgs(allServices, services, listPending, backfillCollaboration, overrideConnStr);
     }
 
     private static void PrintUsage()
@@ -233,14 +261,21 @@ internal static class Program
               Planora.Migrator --service <name> [--service <name> ...]
               Planora.Migrator --all --list-pending
               Planora.Migrator --service <name> --connection-string "Host=..."
+              Planora.Migrator --backfill-collaboration
 
             SERVICES
-              auth, category, todo, messaging
+              auth, category, todo, messaging, collaboration
 
             CONFIG
               Connection strings: ConnectionStrings__AuthDatabase, ConnectionStrings__CategoryDatabase,
-              ConnectionStrings__TodoDatabase, ConnectionStrings__MessagingDatabase
+              ConnectionStrings__TodoDatabase, ConnectionStrings__MessagingDatabase,
+              ConnectionStrings__CollaborationDatabase
               (envvar or appsettings.json). Override per-run with --connection-string.
+
+            BACKFILL
+              --backfill-collaboration copies todo.todo_item_comments ->
+              collaboration.comments (idempotent). Needs ConnectionStrings__TodoDatabase
+              and ConnectionStrings__CollaborationDatabase.
 
             EXIT CODES
               0   success
@@ -259,6 +294,7 @@ internal static class Program
         bool AllServices,
         List<string> Services,
         bool ListPendingOnly,
+        bool BackfillCollaboration,
         string? OverrideConnectionString);
 
     /// <summary>
