@@ -15,14 +15,40 @@
     Wipes code build artifacts (bin/obj/.next) and forces a full rebuild.
     Database volumes are NOT touched.
 
+.PARAMETER ExitAfterHealthCheck
+    Start everything, verify health endpoints, then shut down. Intended for
+    CI / smoke tests. Exit code is non-zero if any service failed its check.
+
+.PARAMETER SkipFrontend
+    Start the backend stack only; do not launch the Next.js frontend.
+
+.PARAMETER NoBrowser
+    Do not open the browser automatically once the frontend is healthy.
+
+.PARAMETER SkipBuild
+    Skip the dotnet build step and start services from existing output
+    (--no-build). Fastest option when only restarting unchanged binaries.
+
 .EXAMPLE
     .\Start-Planora-Local.ps1
 .EXAMPLE
     .\Start-Planora-Local.ps1 -Clean
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -SkipBuild
 #>
 param(
+    # Wipe bin/obj/.next, restore, and rebuild images with --no-cache. Data volumes preserved.
     [switch]$Clean,
-    [switch]$ExitAfterHealthCheck
+    # Start everything, verify health, then shut down (used by CI / smoke tests).
+    [switch]$ExitAfterHealthCheck,
+    # Do not start the Next.js frontend (backend-only run).
+    [switch]$SkipFrontend,
+    # Do not open the browser once the frontend is healthy.
+    [switch]$NoBrowser,
+    # Reuse existing build output - skip the dotnet build step (fastest iteration).
+    [switch]$SkipBuild
 )
 
 Set-StrictMode -Version Latest
@@ -417,6 +443,23 @@ function Invoke-DotnetBackendBuild {
     Write-Step "Building .NET backend services..."
     $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
+    # PERF: build the whole solution in a single dotnet invocation. MSBuild resolves
+    # the project dependency graph and compiles shared projects (BuildingBlocks) once,
+    # in parallel where possible - far faster than 6 sequential per-project builds that
+    # each re-evaluate the same shared references.
+    $sln = Join-Path $RepoRoot "Planora.sln"
+    if (Test-Path $sln) {
+        & dotnet build $sln --configuration Debug --verbosity minimal 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Fail "Solution build failed - inspect the errors above"
+            return $false
+        }
+        $elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
+        Write-OK ".NET backend build complete ($($elapsed)s)"
+        return $true
+    }
+
+    # Fallback: no solution file - build each service project individually.
     foreach ($name in $ServiceDefs.Keys) {
         $def = $ServiceDefs[$name]
         $projectPath = Join-Path $RepoRoot $def.Project
@@ -445,14 +488,30 @@ function Invoke-DotnetBackendBuild {
 function Import-EnvFile {
     $envFile = Join-Path $RepoRoot ".env"
     if (-not (Test-Path $envFile)) { return }
+
+    # SECURITY: load every secret into the *parent* process environment block only.
+    # Child service processes (dotnet run, npm) are launched with Start-Process and
+    # inherit this block automatically — so secrets never appear on a child process
+    # command line (visible via Get-CimInstance Win32_Process) nor in the transcript.
     Get-Content $envFile | ForEach-Object {
         if ($_ -match '^\s*([^#=]+?)\s*=\s*(.*)\s*$') {
             $k = $Matches[1].Trim()
-            $v = $Matches[2].Trim()
-            $v = Convert-EnvValueForLocal -Key $k -Value $v
+            $v = Convert-EnvValueForLocal -Key $k -Value $Matches[2].Trim()
             [System.Environment]::SetEnvironmentVariable($k, $v, "Process")
+
+            # Mirror docker-compose.yml env var mappings so `dotnet run` on the host
+            # receives the same ASP.NET Core config key names the containers get.
+            switch ($k) {
+                "JWT_SECRET"        { [System.Environment]::SetEnvironmentVariable("JwtSettings__Secret",    $v, "Process") }
+                "GRPC_SERVICE_KEY"  { [System.Environment]::SetEnvironmentVariable("GrpcSettings__ServiceKey", $v, "Process") }
+                "RABBITMQ_USER"     { [System.Environment]::SetEnvironmentVariable("RabbitMq__UserName",      $v, "Process") }
+                "RABBITMQ_PASSWORD" { [System.Environment]::SetEnvironmentVariable("RabbitMq__Password",      $v, "Process") }
+            }
         }
     }
+
+    # ASP.NET Core environment + local Redis connection (host-mapped ports).
+    [System.Environment]::SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development", "Process")
     Set-LocalRedisConnectionEnvironment
 }
 
@@ -520,35 +579,11 @@ function Start-DotnetService {
     $ts      = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
     $svcLog  = Join-Path $LogDir "$Name-$ts.log"
 
-    # Build the inline command: set env vars, then start without rebuilding
-    $envSetup  = '$env:ASPNETCORE_ENVIRONMENT=''Development''; '
-
-    $envFile = Join-Path $RepoRoot ".env"
-    if (Test-Path $envFile) {
-        Get-Content $envFile | ForEach-Object {
-            if ($_ -match '^\s*([^#=]+?)\s*=\s*(.*)\s*$') {
-                $k = $Matches[1].Trim()
-                $v = Convert-EnvValueForLocal -Key $k -Value $Matches[2].Trim()
-                $v = $v.Replace("'", "''")
-                $envSetup += "`$env:$k='$v'; "
-                # Mirror docker-compose.yml env var mappings so dotnet run gets the same
-                # ASP.NET Core config key names that containers receive.
-                switch ($k) {
-                    "JWT_SECRET"        { $envSetup += "`$env:JwtSettings__Secret='$v'; " }
-                    "GRPC_SERVICE_KEY"  { $envSetup += "`$env:GrpcSettings__ServiceKey='$v'; " }
-                    "RABBITMQ_USER"     { $envSetup += "`$env:RabbitMq__UserName='$v'; " }
-                    "RABBITMQ_PASSWORD" { $envSetup += "`$env:RabbitMq__Password='$v'; " }
-                }
-            }
-        }
-    }
-
-    $redisConnection = (Get-LocalRedisConnectionString).Replace("'", "''")
-    $envSetup += "`$env:ConnectionStrings__Redis='$redisConnection'; "
-    $envSetup += "`$env:Redis__Configuration='$redisConnection'; "
-    $envSetup += "`$env:REDIS_CONNECTION='$redisConnection'; "
-
-    $cmd = $envSetup + 'dotnet run --project "' + $projectPath + '" --no-launch-profile --no-build 2>&1 | Tee-Object -FilePath "' + $svcLog + '"'
+    # SECURITY: no secrets are embedded in this command line. All env vars
+    # (JWT secret, gRPC key, RabbitMQ creds, Redis connection, ASP.NET env)
+    # were loaded into this process's environment block by Import-EnvFile and
+    # are inherited automatically by the child process below.
+    $cmd = 'dotnet run --project "' + $projectPath + '" --no-launch-profile --no-build 2>&1 | Tee-Object -FilePath "' + $svcLog + '"'
 
     $proc = Start-Process powershell `
         -ArgumentList @("-NoProfile", "-NonInteractive", "-Command", $cmd) `
@@ -631,10 +666,12 @@ function Invoke-AllHealthChecks {
             Timeout   = 120
         }
     }
-    $services += @{
-        Name      = "frontend"
-        HealthUrl = "http://127.0.0.1:$FrontendPort"
-        Timeout   = 180
+    if (-not $SkipFrontend) {
+        $services += @{
+            Name      = "frontend"
+            HealthUrl = "http://127.0.0.1:$FrontendPort"
+            Timeout   = 180
+        }
     }
 
     $results = Test-AllServicesHealthy -Services $services -OverallTimeoutSeconds 240
@@ -824,12 +861,16 @@ if (-not $infraOk) {
 
 # -- Step 5: Build .NET backend services -------------------------------------
 Write-Host ""
-$backendBuildOk = Invoke-DotnetBackendBuild
-if (-not $backendBuildOk) {
-    Write-Fail "Backend build failed. Fix the compilation errors above and retry."
-    $Failures.Add("Backend build failed")
-    try { Stop-Transcript | Out-Null } catch {}
-    exit 1
+if ($SkipBuild) {
+    Write-Warn "SkipBuild specified - reusing existing build output (services start with --no-build)"
+} else {
+    $backendBuildOk = Invoke-DotnetBackendBuild
+    if (-not $backendBuildOk) {
+        Write-Fail "Backend build failed. Fix the compilation errors above and retry."
+        $Failures.Add("Backend build failed")
+        try { Stop-Transcript | Out-Null } catch {}
+        exit 1
+    }
 }
 
 # -- Step 6: Start .NET backend services -------------------------------------
@@ -846,12 +887,17 @@ $elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
 Write-OK "All .NET service processes launched ($($elapsed)s)"
 
 # -- Step 7: Start frontend --------------------------------------------------
-Write-Host ""
-Write-Step "Starting Next.js frontend..."
-$stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
-Start-Frontend
-$elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
-Write-OK "Frontend launch triggered ($($elapsed)s)"
+if ($SkipFrontend) {
+    Write-Host ""
+    Write-Warn "SkipFrontend specified - frontend will not be started"
+} else {
+    Write-Host ""
+    Write-Step "Starting Next.js frontend..."
+    $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
+    Start-Frontend
+    $elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
+    Write-OK "Frontend launch triggered ($($elapsed)s)"
+}
 
 # -- Step 8: Wait for health endpoints ---------------------------------------
 Write-Host ""
@@ -859,7 +905,7 @@ $healthResults = Invoke-AllHealthChecks
 
 # -- Step 9: Open browser (if frontend is healthy) ---------------------------
 $frontendHealthy = $healthResults | Where-Object { $_.ServiceName -eq "frontend" -and $_.Status -eq "Healthy" }
-if ($frontendHealthy -and -not $ExitAfterHealthCheck) {
+if ($frontendHealthy -and -not $ExitAfterHealthCheck -and -not $NoBrowser -and -not $SkipFrontend) {
     try { Start-Process "http://localhost:3000" | Out-Null } catch {}
 }
 

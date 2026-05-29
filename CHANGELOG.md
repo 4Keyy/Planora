@@ -18,6 +18,22 @@ ignored cancellations in their own `catch`, yet the interceptor fired first.
   `console.warn` outside production so backend hot-reload restarts no longer
   trigger the dev overlay; production logging is unchanged.
 
+### perf/security — Start-Planora-Local.ps1 hardening (2026-05-29)
+
+The local launcher no longer embeds secrets in child-process command lines,
+builds faster, and gained run-mode flags.
+
+* **Security** — `JWT_SECRET`, `GRPC_SERVICE_KEY`, RabbitMQ credentials and
+  the Redis connection string are now loaded only into the launcher's own
+  process environment (`Import-EnvFile`) and inherited by `dotnet run` / `npm`
+  children. They are no longer interpolated into the `-Command` string, so
+  they no longer appear in `Win32_Process` command lines or the transcript.
+* **Performance** — backend build is a single `dotnet build Planora.sln`
+  invocation (MSBuild compiles shared `BuildingBlocks` once) instead of six
+  sequential per-project builds; falls back to per-project if no `.sln`.
+* **Flexibility** — new switches `-SkipFrontend`, `-NoBrowser`, `-SkipBuild`
+  for backend-only runs, headless runs, and fast no-rebuild restarts.
+
 ### T3.6 — IDOR coverage baseline (2026-05-28)
 
 Hand-curated coverage map for every `[Authorize]` endpoint that takes a
