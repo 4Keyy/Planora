@@ -174,6 +174,15 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // Request cancellation is normal control flow, not an error: React effects
+    // abort in-flight requests on unmount/dependency change, and a newer fetch
+    // supersedes an older one. axios rejects these with ERR_CANCELED. Swallow
+    // them silently so they never reach console.error (which raises the Next.js
+    // dev error overlay) — the awaiting component already ignores cancellations.
+    if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
+      return Promise.reject(error)
+    }
+
     if (error.response) {
       logApiHttpError(error)
       
@@ -263,7 +272,14 @@ api.interceptors.response.use(
         console.warn("[API] 403 — not retried (non-mutating, retry already attempted, or no config)")
       }
     } else if (error.request) {
-      console.error("[Network Error]", error.message)
+      // No response received (backend unreachable, DNS failure, timeout). In dev
+      // this is common during hot-reload/backend restarts and would otherwise
+      // spam the error overlay, so downgrade to a warning outside production.
+      if (process.env.NODE_ENV === "production") {
+        console.error("[Network Error]", error.message)
+      } else {
+        console.warn("[Network Error]", error.message)
+      }
     } else {
       console.error("[Request Error]", error.message)
     }

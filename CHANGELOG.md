@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix — suppress canceled-request noise in the API client (2026-05-29)
+
+Aborted requests are normal control flow (React effects abort in-flight
+requests on unmount/dependency change; a newer fetch supersedes an older
+one), but the axios response interceptor was logging them via
+`console.error`, which raises the Next.js dev error overlay. Pages already
+ignored cancellations in their own `catch`, yet the interceptor fired first.
+
+* `frontend/src/lib/api.ts` — the response error handler now short-circuits
+  on `axios.isCancel(error)` / `ERR_CANCELED` and rejects silently.
+* Genuine no-response network errors are downgraded from `console.error` to
+  `console.warn` outside production so backend hot-reload restarts no longer
+  trigger the dev overlay; production logging is unchanged.
+
 ### T3.6 — IDOR coverage baseline (2026-05-28)
 
 Hand-curated coverage map for every `[Authorize]` endpoint that takes a
