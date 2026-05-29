@@ -5,6 +5,8 @@ using Planora.Todo.Application.Features.Todos.Commands.DeleteTodo;
 using Planora.Todo.Application.Features.Todos.Commands.UpdateTodo;
 using Planora.Todo.Application.Features.Todos.Queries.GetTodosByCategory;
 using Planora.Todo.Application.Features.Todos.Queries.GetUserTodos;
+using Planora.Todo.Application.Services;
+using Planora.Todo.Domain.Repositories;
 using MediatR;
 
 namespace Planora.Todo.Api.Grpc;
@@ -12,12 +14,64 @@ namespace Planora.Todo.Api.Grpc;
 public class TodoGrpcService : TodoService.TodoServiceBase
 {
     private readonly IMediator _mediator;
+    private readonly ITodoRepository _todoRepository;
+    private readonly IFriendshipService _friendshipService;
     private readonly ILogger<TodoGrpcService> _logger;
 
-    public TodoGrpcService(IMediator mediator, ILogger<TodoGrpcService> logger)
+    public TodoGrpcService(
+        IMediator mediator,
+        ITodoRepository todoRepository,
+        IFriendshipService friendshipService,
+        ILogger<TodoGrpcService> logger)
     {
         _mediator = mediator;
+        _todoRepository = todoRepository;
+        _friendshipService = friendshipService;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Authorises a comment/timeline operation for a task. Encapsulates the exact
+    /// ownership / sharing / public + friendship rules the comment handlers used to apply,
+    /// so the Collaboration service never reads Todo's database (INV-OWN-1).
+    /// </summary>
+    public override async Task<CheckTaskCommentAccessResponse> CheckTaskCommentAccess(
+        CheckTaskCommentAccessRequest request, ServerCallContext context)
+    {
+        if (!Guid.TryParse(request.TaskId, out var taskId) ||
+            !Guid.TryParse(request.RequesterId, out var requesterId))
+        {
+            throw new RpcException(new global::Grpc.Core.Status(
+                global::Grpc.Core.StatusCode.InvalidArgument, "task_id and requester_id must be valid GUIDs"));
+        }
+
+        var todoItem = await _todoRepository.GetByIdWithIncludesAsync(taskId, context.CancellationToken);
+        if (todoItem is null)
+        {
+            return new CheckTaskCommentAccessResponse { Exists = false, HasAccess = false, OwnerId = string.Empty };
+        }
+
+        var isOwner = todoItem.UserId == requesterId;
+        var isSharedDirectly = todoItem.SharedWith.Any(s => s.SharedWithUserId == requesterId);
+        var hasVisibility = todoItem.IsPublic || isSharedDirectly;
+        var isFriend = hasVisibility && !isOwner
+            && await _friendshipService.AreFriendsAsync(requesterId, todoItem.UserId, context.CancellationToken);
+        var hasAccess = isOwner || (isSharedDirectly && isFriend) || (todoItem.IsPublic && isFriend);
+
+        var response = new CheckTaskCommentAccessResponse
+        {
+            Exists = true,
+            HasAccess = hasAccess,
+            OwnerId = todoItem.UserId.ToString(),
+        };
+
+        // Notification recipients: owner + workers + shared-with audience.
+        var participants = new HashSet<Guid> { todoItem.UserId };
+        foreach (var w in todoItem.Workers) participants.Add(w.UserId);
+        foreach (var s in todoItem.SharedWith) participants.Add(s.SharedWithUserId);
+        response.ParticipantIds.AddRange(participants.Where(id => id != Guid.Empty).Select(id => id.ToString()));
+
+        return response;
     }
 
     public override async Task<GetUserTodosResponse> GetUserTodos(GetUserTodosRequest request, ServerCallContext context)

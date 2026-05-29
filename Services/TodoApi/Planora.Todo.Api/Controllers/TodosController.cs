@@ -12,11 +12,6 @@ using Planora.Todo.Application.Features.Todos.Queries.GetTodosByCategory;
 using Planora.Todo.Application.Features.Todos.Queries.GetTodoById;
 using Planora.Todo.Application.Features.Todos.Commands.JoinTodo;
 using Planora.Todo.Application.Features.Todos.Commands.LeaveTodo;
-using Planora.Todo.Application.Features.Todos.Commands.AddComment;
-using Planora.Todo.Application.Features.Todos.Commands.AddGenesisComment;
-using Planora.Todo.Application.Features.Todos.Commands.UpdateComment;
-using Planora.Todo.Application.Features.Todos.Commands.DeleteComment;
-using Planora.Todo.Application.Features.Todos.Queries.GetComments;
 
 namespace Planora.Todo.Api.Controllers
 {
@@ -201,83 +196,6 @@ namespace Planora.Todo.Api.Controllers
                 return BadRequest(result.Error);
             return NoContent();
         }
-
-        [HttpGet("{id}/comments")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<PagedResult<TodoCommentDto>>> GetComments(
-            [FromRoute] Guid id,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 50,
-            CancellationToken cancellationToken = default)
-        {
-            var result = await _mediator.Send(new GetCommentsQuery(id, pageNumber, pageSize), cancellationToken);
-            if (result.IsFailure)
-                return BadRequest(result.Error);
-            return Ok(result.Value);
-        }
-
-        [HttpPost("{id}/genesis")]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<TodoCommentDto>> AddGenesisComment(
-            [FromRoute] Guid id,
-            [FromBody] AddGenesisCommentRequest request,
-            CancellationToken cancellationToken = default)
-        {
-            var result = await _mediator.Send(new AddGenesisCommentCommand(id, request.Content), cancellationToken);
-            if (result.IsFailure)
-                return BadRequest(result.Error);
-            return StatusCode(StatusCodes.Status201Created, result.Value);
-        }
-
-        [HttpPost("{id}/comments")]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<TodoCommentDto>> AddComment(
-            [FromRoute] Guid id,
-            [FromBody] AddCommentRequest request,
-            CancellationToken cancellationToken = default)
-        {
-            var result = await _mediator.Send(new AddCommentCommand(id, request.Content), cancellationToken);
-            if (result.IsFailure)
-                return BadRequest(result.Error);
-            return StatusCode(StatusCodes.Status201Created, result.Value);
-        }
-
-        [HttpPut("{id}/comments/{commentId}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<TodoCommentDto>> UpdateComment(
-            [FromRoute] Guid id,
-            [FromRoute] Guid commentId,
-            [FromBody] UpdateCommentRequest request,
-            CancellationToken cancellationToken = default)
-        {
-            var result = await _mediator.Send(new UpdateCommentCommand(id, commentId, request.Content), cancellationToken);
-            if (result.IsFailure)
-                return BadRequest(result.Error);
-            return Ok(result.Value);
-        }
-
-        [HttpDelete("{id}/comments/{commentId}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> DeleteComment(
-            [FromRoute] Guid id,
-            [FromRoute] Guid commentId,
-            CancellationToken cancellationToken = default)
-        {
-            var result = await _mediator.Send(new DeleteCommentCommand(id, commentId), cancellationToken);
-            if (result.IsFailure)
-                return BadRequest(result.Error);
-            return NoContent();
-        }
     }
 }
 
@@ -287,6 +205,3 @@ public sealed record SetViewerPreferenceRequest(
     Guid? ViewerCategoryId = null,
     bool UpdateViewerCategory = false,
     bool? CompletedByViewer = null);
-public sealed record AddGenesisCommentRequest(string Content);
-public sealed record AddCommentRequest(string Content);
-public sealed record UpdateCommentRequest(string Content);

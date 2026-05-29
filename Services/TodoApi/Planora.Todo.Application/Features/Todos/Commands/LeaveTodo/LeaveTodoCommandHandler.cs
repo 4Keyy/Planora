@@ -1,6 +1,9 @@
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
+using Planora.Todo.Application.Common;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Repositories;
 using Microsoft.Extensions.Logging;
@@ -12,20 +15,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
         private readonly ITodoRepository _repository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserContext _currentUserContext;
-        private readonly ITodoCommentRepository _commentRepository;
+        private readonly IOutboxRepository _outboxRepository;
         private readonly ILogger<LeaveTodoCommandHandler> _logger;
 
         public LeaveTodoCommandHandler(
             ITodoRepository repository,
             IUnitOfWork unitOfWork,
             ICurrentUserContext currentUserContext,
-            ITodoCommentRepository commentRepository,
+            IOutboxRepository outboxRepository,
             ILogger<LeaveTodoCommandHandler> logger)
         {
             _repository = repository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
-            _commentRepository = commentRepository;
+            _outboxRepository = outboxRepository;
             _logger = logger;
         }
 
@@ -44,8 +47,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
             todoItem.RemoveWorker(userId);
 
             var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-            var systemComment = TodoItemComment.CreateSystem(todoItem.Id, $"{userName} left the task");
-            await _commentRepository.AddAsync(systemComment, cancellationToken);
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.Left),
+                cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

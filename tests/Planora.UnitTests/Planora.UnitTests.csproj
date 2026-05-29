@@ -40,6 +40,10 @@
     <ProjectReference Include="..\..\Services\TodoApi\Planora.Todo.Application\Planora.Todo.Application.csproj" />
     <ProjectReference Include="..\..\Services\TodoApi\Planora.Todo.Domain\Planora.Todo.Domain.csproj" />
     <ProjectReference Include="..\..\Services\TodoApi\Planora.Todo.Infrastructure\Planora.Todo.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\CollaborationApi\Planora.Collaboration.Api\Planora.Collaboration.Api.csproj" />
+    <ProjectReference Include="..\..\Services\CollaborationApi\Planora.Collaboration.Application\Planora.Collaboration.Application.csproj" />
+    <ProjectReference Include="..\..\Services\CollaborationApi\Planora.Collaboration.Domain\Planora.Collaboration.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\CollaborationApi\Planora.Collaboration.Infrastructure\Planora.Collaboration.Infrastructure.csproj" />
     <ProjectReference Include="..\..\GrpcContracts\GrpcContracts.csproj" />
   </ItemGroup>
 

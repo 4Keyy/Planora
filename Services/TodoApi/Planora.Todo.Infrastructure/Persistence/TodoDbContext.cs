@@ -7,7 +7,8 @@ namespace Planora.Todo.Infrastructure.Persistence
         public DbSet<TodoItem> TodoItems => Set<TodoItem>();
         public DbSet<TodoItemShare> TodoItemShares => Set<TodoItemShare>();
         public DbSet<UserTodoViewPreference> UserTodoViewPreferences => Set<UserTodoViewPreference>();
-        public DbSet<TodoItemComment> TodoItemComments => Set<TodoItemComment>();
+        public DbSet<Planora.BuildingBlocks.Application.Outbox.OutboxMessage> OutboxMessages =>
+            Set<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
