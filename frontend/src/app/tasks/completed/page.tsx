@@ -14,7 +14,14 @@ import { TodoCard } from "@/components/todos/todo-card"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
-import { EditTodoModal } from "@/components/todos/edit-todo-modal"
+import dynamic from "next/dynamic"
+// Edit modal mounts only when the user clicks a completed task. Lazy-load
+// keeps it out of the initial completed-page bundle; the framer-motion
+// enter animation absorbs the chunk fetch on first open.
+const EditTodoModal = dynamic(
+  () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
+  { ssr: false },
+)
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 import { getTaskWeight } from "@/utils/sort-tasks"

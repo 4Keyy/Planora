@@ -15,8 +15,18 @@ import { Todo, isTodoOwner, toApiTodoStatus, type CreateTodoPayload, type Update
 import { TodoCard } from "@/components/todos/todo-card"
 import { useToastStore } from "@/store/toast"
 import { Category } from "@/types/category"
-import { EditTodoModal } from "@/components/todos/edit-todo-modal"
-import { CreateTodoPanel } from "@/components/todos/create-todo-panel"
+import dynamic from "next/dynamic"
+// Lazy-load the editing surface: it only mounts when a user clicks edit or
+// opens the create panel. Cuts dashboard First Load JS without touching UX —
+// the framer-motion enter animation absorbs the chunk fetch on first open.
+const EditTodoModal = dynamic(
+  () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
+  { ssr: false },
+)
+const CreateTodoPanel = dynamic(
+  () => import("@/components/todos/create-todo-panel").then((m) => ({ default: m.CreateTodoPanel })),
+  { ssr: false },
+)
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
