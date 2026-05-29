@@ -128,6 +128,15 @@ export default function DashboardPage() {
   const friendNameCache = useRef<Map<string, string>>(new Map())
   const currentPageRef = useRef(currentPage)
 
+  // PERF: TodoCard is memoized and ignores callback identity, so the handlers it
+  // holds may be from an earlier render. We mirror the live lists into refs and
+  // read them inside the handlers, guaranteeing those (possibly stale) closures
+  // always operate on the current data while staying referentially stable.
+  const todosRef = useRef(todos)
+  const statsTodosRef = useRef(statsTodos)
+  todosRef.current = todos
+  statsTodosRef.current = statsTodos
+
   // Smooth scroll to top when create panel collapses
   useCollapseScroll(isCreateOpen)
 
@@ -372,8 +381,8 @@ export default function DashboardPage() {
     finally { setDeletingTodo(null) }
   }
 
-  const handleComplete = async (todoId: string) => {
-    const existing = todos.find(t => t.id === todoId) || statsTodos.find(t => t.id === todoId)
+  const handleComplete = useCallback(async (todoId: string) => {
+    const existing = todosRef.current.find(t => t.id === todoId) || statsTodosRef.current.find(t => t.id === todoId)
     if (!existing) return
 
     const isOwner = isTodoOwner(existing, user?.userId)
@@ -427,7 +436,7 @@ export default function DashboardPage() {
     } catch {
       addToast({ type: "error", title: "Failed to update task" })
     }
-  }
+  }, [user?.userId, addToast, fetchTodos])
 
 
   const handleUpdate = async (todoId: string, payload: UpdateTodoPayload) => {
@@ -474,7 +483,7 @@ export default function DashboardPage() {
   }, [todos, statsTodos, addToast])
 
   const handleJoin = useCallback(async (todoId: string) => {
-    const existing = todos.find(t => t.id === todoId) ?? statsTodos.find(t => t.id === todoId)
+    const existing = todosRef.current.find(t => t.id === todoId) ?? statsTodosRef.current.find(t => t.id === todoId)
     if (!existing) return
     const isOwnerTask = !!user?.userId && existing.userId === user.userId
     try {
@@ -494,7 +503,7 @@ export default function DashboardPage() {
     } catch {
       addToast({ type: "error", title: "Could not take task" })
     }
-  }, [todos, statsTodos, user?.userId, addToast])
+  }, [user?.userId, addToast])
 
   const handleLeave = useCallback(async (todoId: string) => {
     const existing = todos.find(t => t.id === todoId) ?? statsTodos.find(t => t.id === todoId)
@@ -520,7 +529,7 @@ export default function DashboardPage() {
   }, [todos, statsTodos, user?.userId, addToast])
 
   const handleToggleHidden = useCallback(async (todoId: string) => {
-    const existing = todos.find(t => t.id === todoId) ?? statsTodos.find(t => t.id === todoId)
+    const existing = todosRef.current.find(t => t.id === todoId) ?? statsTodosRef.current.find(t => t.id === todoId)
     if (!existing) return
     const newHidden = !(existing.hidden ?? false)
     const isOwner = !!user?.userId && existing.userId === user.userId
@@ -578,7 +587,7 @@ export default function DashboardPage() {
       }
       addToast({ type: "error", title: "Failed to update task visibility" })
     }
-  }, [todos, statsTodos, addToast, user?.userId])
+  }, [addToast, user?.userId])
 
   const handleDeleteCategory = async (categoryId: string) => {
     try {
@@ -610,11 +619,12 @@ export default function DashboardPage() {
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-br from-white via-white to-gray-50 rounded-2xl p-6 md:p-8 shadow-card border border-gray-100 relative overflow-hidden group hover:shadow-lg transition-all duration-500"
       >
-        {/* Decorative background elements */}
-        <motion.div
-          animate={{ opacity: [0.02, 0.05, 0.02] }}
-          transition={{ duration: 6, repeat: Infinity }}
-          className="absolute top-0 right-0 w-80 h-80 bg-black rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none opacity-[0.02]"
+        {/* Decorative background elements.
+            PERF: this is a 320px element with blur-3xl. Animating its opacity on an
+            infinite loop forced a full-frame repaint of a large blurred surface every
+            frame for the lifetime of the page. Rendered statically instead. */}
+        <div
+          className="absolute top-0 right-0 w-80 h-80 bg-black rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none opacity-[0.03]"
         />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-gray-400 rounded-full translate-y-1/3 -translate-x-1/3 blur-3xl pointer-events-none opacity-[0.01]" />
 

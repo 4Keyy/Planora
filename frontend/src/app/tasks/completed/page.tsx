@@ -53,6 +53,11 @@ export default function CompletedTasksPage() {
   const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
   const friendNameCache = useRef<Map<string, string>>(new Map())
 
+  // PERF: live mirror for the memoized TodoCard's (possibly stale) handler
+  // closures to read from. See the equivalent note on the dashboard.
+  const todosRef = useRef(todos)
+  todosRef.current = todos
+
   const fetchCategories = useCallback(async () => {
     try {
       const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories")
@@ -151,7 +156,7 @@ export default function CompletedTasksPage() {
   }, [loading, totalCount, currentPage, todos.length, lastFetchedPage])
 
   const handleComplete = async (todoId: string) => {
-    const existing = todos.find((t) => t.id === todoId)
+    const existing = todosRef.current.find((t) => t.id === todoId)
     if (!existing) return
 
     try {
@@ -224,7 +229,7 @@ export default function CompletedTasksPage() {
   }, [todos, addToast])
 
   const handleToggleHidden = useCallback(async (todoId: string) => {
-    const existing = todos.find(t => t.id === todoId)
+    const existing = todosRef.current.find(t => t.id === todoId)
     if (!existing) return
     const newHidden = !(existing.hidden ?? false)
     const isOwner = isTodoOwner(existing, user?.userId)
@@ -260,7 +265,7 @@ export default function CompletedTasksPage() {
       }
       addToast({ type: "error", title: "Failed to update task visibility" })
     }
-  }, [todos, addToast, user?.userId])
+  }, [addToast, user?.userId])
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 

@@ -4,6 +4,35 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### perf — frontend render optimization: memoized cards, lighter motion, windowed feed (2026-05-29)
+
+The app felt slow and janky because every task list re-rendered all of its
+(very heavy) cards on any state change, several decorative animations ran on an
+infinite loop, and `/tasks` mounted the entire task list at once.
+
+* **Memoized `TodoCard`** — `frontend/src/components/todos/todo-card.tsx` now
+  exports a `React.memo` wrapper comparing on `todo` identity + `variant`. A card
+  only re-renders when its own todo object changes, so completing one task no
+  longer re-renders the whole grid. Function props are excluded from the compare
+  intentionally (see below).
+* **Stable, ref-backed handlers** — dashboard, `/tasks`, and `/tasks/completed`
+  read their live lists through refs (`todosRef`, `statsTodosRef`,
+  `completedPreviewRef`) inside the card handlers, so a memoized card holding an
+  older callback closure still acts on current data. This is what makes ignoring
+  callback identity in the memo safe.
+* **Trimmed always-on animations** — removed `repeat: Infinity` loops that ran
+  regardless of interaction: the collapsed-card category icon now only spins on
+  hover, the "delay" badge is static, and the dashboard header's large
+  `blur-3xl` decorative blob no longer animates its opacity every frame (a
+  full-surface repaint that ran for the page's whole lifetime).
+* **Windowed `/tasks` feed** — `frontend/src/app/tasks/page.tsx` keeps the single
+  infinite-scroll feed and full client-side filtering, but mounts cards in a
+  growing window (initial 24, +24 per `IntersectionObserver` step, 600px
+  pre-load) instead of rendering hundreds at once. Data is still fetched in full.
+
+Performance: list interactions no longer re-render every card; `/tasks` initial
+mount is bounded to a small window regardless of task count.
+
 ### fix — suppress canceled-request noise in the API client (2026-05-29)
 
 Aborted requests are normal control flow (React effects abort in-flight

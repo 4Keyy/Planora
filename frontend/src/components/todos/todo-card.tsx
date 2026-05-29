@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import {
   Trash, Check, Calendar, AlertTriangle, Share2, Eye, Clock, Zap, Users,
@@ -65,7 +65,7 @@ interface TodoCardProps {
 /**
  * TodoCard Component - Displays individual todo item with actions
  */
-export function TodoCard({
+function TodoCardComponent({
   todo,
   onComplete,
   onDelete,
@@ -521,12 +521,18 @@ export function TodoCard({
               </div>
               {CategoryIcon && (
                 <motion.div
-                  animate={{
-                    rotate: isCardHovered ? [0, 8, -8, 0] : [0, 10, -10, 0],
-                    scale: isCardHovered ? 1.15 : 1,
-                  }}
+                  // PERF: only run the rotation loop while hovered. Idle collapsed
+                  // cards previously animated forever (repeat: Infinity), keeping the
+                  // compositor busy every frame for every card on screen.
+                  animate={
+                    shouldReduceMotion
+                      ? { rotate: 0, scale: 1 }
+                      : isCardHovered
+                        ? { rotate: [0, 8, -8, 0], scale: 1.15 }
+                        : { rotate: 0, scale: 1 }
+                  }
                   transition={{
-                    rotate: { duration: isCardHovered ? 0.6 : 3, repeat: Infinity },
+                    rotate: isCardHovered ? { duration: 0.6, repeat: Infinity } : { duration: 0.32 },
                     scale: { duration: 0.32 },
                   }}
                 >
@@ -838,14 +844,12 @@ export function TodoCard({
                         </div>
                       )}
                       {todo.delay && (
-                        <motion.div
-                          animate={{ scale: [1, 1.05, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
+                        <div
                           className="flex items-center gap-1.5 text-[10px] font-bold text-orange-700 bg-orange-50 px-2 py-1 rounded-lg border border-orange-200/80 shadow-sm"
                         >
                           <AlertTriangle className="h-3 w-3" />
                           <span>{todo.delay} delay</span>
-                        </motion.div>
+                        </div>
                       )}
                     </motion.div>
                   )}
@@ -859,3 +863,20 @@ export function TodoCard({
     </>
   )
 }
+
+/**
+ * PERF: TodoCard is an expensive render (dozens of motion nodes, several
+ * AnimatePresence trees). Lists can mount many of them, and a parent state
+ * change (hover, an optimistic setTodos elsewhere) would otherwise re-render
+ * every card. We memoize on the todo identity + variant: a card only re-renders
+ * when its own todo object reference changes (parents update todos immutably).
+ *
+ * Function props are intentionally excluded from the comparison. Callers pass
+ * handlers that read the latest list state through refs, so a card holding an
+ * older closure still operates on current data — the closure identity is
+ * irrelevant to correctness, and including it would defeat the memo entirely.
+ */
+export const TodoCard = memo(
+  TodoCardComponent,
+  (prev, next) => prev.todo === next.todo && prev.variant === next.variant,
+)

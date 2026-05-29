@@ -41,6 +41,14 @@ import { ICON_MAP } from "@/lib/icon-map"
 
 const ACTIVE_PAGE_SIZE = 200
 const COMPLETED_PREVIEW_SIZE = 20
+// PERF: the active feed keeps the "all tasks in one scroll" UX, but only mounts
+// a window of cards into the DOM. TodoCard is expensive, so mounting hundreds at
+// once is what made this page lag. We render an initial batch and grow it as the
+// user scrolls (IntersectionObserver sentinel), capping mounted cards regardless
+// of how many tasks exist. Data is still fetched in full so client-side category
+// filtering stays instant.
+const INITIAL_VISIBLE_TASKS = 24
+const VISIBLE_TASKS_CHUNK = 24
 const TODO_MASONRY_BREAKPOINTS = [
   { maxWidth: 1400, columns: 3 },
   { maxWidth: 900, columns: 2 },
@@ -83,6 +91,13 @@ export default function TasksPage() {
   const [completedLoading, setCompletedLoading] = useState(false)
 
   const friendNameCache = useRef<Map<string, string>>(new Map())
+
+  // PERF: live mirrors of the lists for the memoized TodoCard's (possibly stale)
+  // handler closures to read from. See the equivalent note on the dashboard.
+  const todosRef = useRef(todos)
+  const completedPreviewRef = useRef(completedPreview)
+  todosRef.current = todos
+  completedPreviewRef.current = completedPreview
 
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
   const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
@@ -294,7 +309,7 @@ export default function TasksPage() {
   }, [fetchActiveTodos])
 
   const handleComplete = async (id: string) => {
-    const existingTodo = todos.find((t) => t.id === id) ?? completedPreview.find((t) => t.id === id)
+    const existingTodo = todosRef.current.find((t) => t.id === id) ?? completedPreviewRef.current.find((t) => t.id === id)
     if (!existingTodo) return
 
     const currentUserId = user?.userId
@@ -441,7 +456,7 @@ export default function TasksPage() {
   }
 
   const handleToggleHidden = useCallback(async (todoId: string) => {
-    const existing = todos.find(t => t.id === todoId) ?? completedPreview.find(t => t.id === todoId)
+    const existing = todosRef.current.find(t => t.id === todoId) ?? completedPreviewRef.current.find(t => t.id === todoId)
     if (!existing) return
     const newHidden = !(existing.hidden ?? false)
     const isOwner = isTodoOwner(existing, user?.userId)
@@ -502,7 +517,7 @@ export default function TasksPage() {
       }
       addToast({ type: "error", title: "Failed to update task visibility" })
     }
-  }, [todos, completedPreview, user?.userId, addToast])
+  }, [user?.userId, addToast])
 
   const activeCount = todos.filter(t => t.isCompletedByViewer !== true).length
   const doneCount = completedTotalCount
@@ -518,6 +533,41 @@ export default function TasksPage() {
     if (filterCategoryIds.length === 0) return sortedTodos
     return sortedTodos.filter(t => filterCategoryIds.includes(t.categoryId ?? ""))
   }, [sortedTodos, filterCategoryIds])
+
+  // PERF: progressive mounting window over the active feed (see constants above).
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_TASKS)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+
+  // Reset the window only on an intentional context switch (filter change). We
+  // deliberately do NOT reset on data mutations, so an optimistic update (e.g.
+  // completing one task) never collapses the user's scroll position.
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_TASKS)
+  }, [filterCategoryIds])
+
+  const renderedTodos = useMemo(
+    () => visibleTodos.slice(0, visibleCount),
+    [visibleTodos, visibleCount],
+  )
+  const hasMoreTodos = visibleCount < visibleTodos.length
+
+  useEffect(() => {
+    if (!hasMoreTodos) return
+    const el = loadMoreRef.current
+    if (!el) return
+    // Pre-load the next batch ~600px before the sentinel reaches the viewport so
+    // new cards are mounted by the time the user scrolls to them (no blank gap).
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleCount((count) => count + VISIBLE_TASKS_CHUNK)
+        }
+      },
+      { rootMargin: "600px 0px" },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMoreTodos])
 
   return (
     <div className="space-y-6">
@@ -766,8 +816,9 @@ export default function TasksPage() {
                 )}
               </div>
             ) : (
+              <>
               <MasonryColumns
-                items={visibleTodos}
+                items={renderedTodos}
                 getKey={(todo) => todo.id}
                 getItemWeight={getTaskWeight}
                 columns={4}
@@ -811,6 +862,14 @@ export default function TasksPage() {
                   />
                 )}
               />
+              {hasMoreTodos && (
+                <div
+                  ref={loadMoreRef}
+                  aria-hidden="true"
+                  className="h-6 w-full"
+                />
+              )}
+              </>
             )}
           </div>
 
