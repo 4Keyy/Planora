@@ -419,3 +419,37 @@ Allowlisted product event names:
 - `HIDDEN_TODO_REVEALED`
 - `SESSION_RESTORED`
 - `TOKEN_REFRESH_FAILED`
+
+## Animated Background
+
+The app ships a fragment-shader background (`ColorBends`) rendered via
+Three.js, wrapped in a lazy + Suspense layer (`ColorBendsLayer`) that is
+dropped once into the root layout and sits behind all content.
+
+### Defaults
+
+| Setting | Value |
+|---|---|
+| Colors | `["#d4d4d4", "#9e9e9e", "#616161"]` (light → mid → dark grey) |
+| Rotation | `-65°` |
+| Speed | `0.36` |
+| Scale | `1.4` |
+| Frequency | `1` |
+| WarpStrength | `1` |
+| MouseInfluence | `0.8` |
+| Noise | `0` (disabled) |
+| Parallax | `0.65` |
+| Iterations | adaptive (1 / 2 / 3 by `navigator.hardwareConcurrency`) |
+| Intensity | `1.2` |
+| BandWidth | `6` |
+| Transparent | `true` |
+
+### Implementation
+
+- `frontend/src/components/backgrounds/color-bends.tsx` — Three.js component; exports `ColorBends` and `hexToVec3`.
+- `frontend/src/components/backgrounds/color-bends-layer.tsx` — lazy + Suspense wrapper; chooses fragment-shader iterations per device, applies `fixed inset-0 -z-10 pointer-events-none`.
+- Iteration heuristic (`useState(detectIterations)` so first paint is final): ≤ 2 cores → 1, 4–7 cores → 2, ≥ 8 cores → 3.
+- Honours `prefers-reduced-motion: reduce` directly (single static frame, no RAF loop). Framer-motion components honour the same preference via the global `MotionConfig reducedMotion="user"` in `frontend/src/app/layout.tsx`.
+- Pauses on `visibilitychange` (tab hidden) and resumes on tab visible.
+- Pointer tracking via `window` (not container) so mouse influence still applies through `pointer-events-none`.
+- Full cleanup on unmount: `cancelAnimationFrame`, `ResizeObserver.disconnect`, `renderer.dispose()`, `renderer.forceContextLoss()`, canvas `removeChild`.

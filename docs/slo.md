@@ -77,7 +77,7 @@ consumers see a producer's event within one minute at p95.
 |---|---|
 | SLI | `histogram_quantile(0.95, sum(rate(planora_outbox_message_age_seconds_bucket[5m])) by (le))` |
 | Objective | **p95 ≤ 60 s** over the rolling 28-day window |
-| Error budget | A p95 above 60 s for ≥ 10 minutes burns the budget. Sustained burn is the signal that the outbox processor needs to be extracted from the API process (master plan Phase 4 T4.6). |
+| Error budget | A p95 above 60 s for ≥ 10 minutes burns the budget. Sustained burn is the signal that the outbox processor needs to be extracted from the API process into the dedicated worker app (`deploy/fly/outbox-worker.fly.toml`). |
 | Owner | `OutboxProcessor` (currently in-process; tracked for extraction) |
 | Source | `PlanoraMetrics.OutboxMessageAge` histogram |
 
@@ -88,11 +88,11 @@ delivered to every connected target within 5 seconds.
 
 | Field | Value |
 |---|---|
-| SLI | Not yet directly observable. Until Phase 2 T2.5 adds Realtime persistence, fan-out time is best-effort and not metric-instrumented. The proxy metric today is gateway request latency for the notification submission endpoints. |
+| SLI | Not yet directly observable. Until the Realtime persistence behaviour rewire (INV-DATA-5) and the matching `planora.realtime.fanout.latency` instrumentation ship, fan-out time is best-effort and not metric-instrumented. The proxy metric today is gateway request latency for the notification submission endpoints. |
 | Objective | **(provisional)** p95 submission → SignalR group send ≤ 5 s once instrumented. |
 | Error budget | TBD post-instrumentation. |
 | Owner | Realtime API |
-| Source | OpenTelemetry SignalR instrumentation + a new custom metric `planora.realtime.fanout.latency` (planned, Phase 2). |
+| Source | OpenTelemetry SignalR instrumentation + a planned `planora.realtime.fanout.latency` histogram. |
 
 This SLO is published as **provisional** so operators can see the gap and
 the team can plan toward closing it.

@@ -2,10 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-05-28
-- Relates to: master-plan T2.7 (Phase 2)
-- Supersedes / clarifies: the open question called out in `docs/ROADMAP.md`
-  and the audit finding P0-FORCE-DYNAMIC (root cause RC-1 in
-  `/root/.claude/plans/staff-melodic-oasis.md`).
+- Relates to: frontend rendering strategy and CSP design
+- Supersedes / clarifies: the long-standing open question of whether the
+  `force-dynamic` global on the App Router root layout should be removed.
 
 ## Context
 
@@ -111,7 +110,7 @@ Until then:
   SSR cost even when its data is build-time-knowable.
 - CDN HTML caching is unavailable. HTML cache hit ratio = 0.
 - TTFB on cold-start regions includes the SSR latency for every navigation.
-- Frontend bundle audit (T4.10) cannot rely on static HTML for any route.
+- Frontend bundle-size auditing cannot rely on static HTML for any route.
 
 These costs are accepted in exchange for the nonce-only `script-src`.
 
@@ -173,10 +172,8 @@ nonce problem.
 
 ## References
 
-- `frontend/src/app/layout.tsx:29` — the `force-dynamic` global.
+- `frontend/src/app/layout.tsx` — the `force-dynamic` global.
 - `frontend/src/middleware.ts` — the per-request nonce pipeline.
 - `docs/INVARIANTS.md` — INV-CSP family (if added by a follow-up).
-- Audit finding P0-FORCE-DYNAMIC in
-  `/root/.claude/plans/staff-melodic-oasis.md` (RC-1 + T2.7).
 - ADR-0003 (CSRF double-submit) — different attack surface, same
   "documented intentional trade-off" pattern.

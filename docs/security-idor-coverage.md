@@ -3,9 +3,8 @@
 This document enumerates every `[Authorize]` endpoint that takes a
 resource-identifier path parameter and pairs it with the test (or
 mechanism) that verifies it cannot be exercised against another user's
-resource. Maintained alongside master-plan **T3.6** (Phase 3) — the
-forward step is auto-generation; this hand-curated table is the
-interim baseline.
+resource. Hand-curated; one row per endpoint. Auto-generation from the
+OpenAPI surface is the planned successor.
 
 Conventions:
 
@@ -96,14 +95,15 @@ that ship in `tests/Planora.UnitTests/`** — verified at commit time.
 
 ## Known gaps
 
-None at the time of this commit. Every row above is either explicitly
-pinned by a named test or covered by a broader handler test class. If a
-future audit finds a new gap, add a row to this section with the endpoint,
-the missing assertion, and an effort estimate; remove the row when the
-test ships.
+None at the time of writing. Every row above is either explicitly pinned
+by a named test or covered by a broader handler test class. If a future
+review finds a new gap, add a row to this section with the endpoint, the
+missing assertion, and an effort estimate; remove the row when the test
+ships.
 
-The forward step (T3.6 auto-generation) emits one xUnit theory per row
-once the OpenAPI source-of-truth (T2.1) lands. Until then: this table is
-the curated baseline. Any PR adding a new authorized endpoint with a
-path parameter must update this table and ship an explicit handler test,
-and the reviewer must reject the PR if either is missing.
+## Maintenance contract
+
+Any PR adding a new authorized endpoint with a path parameter must
+update this table and ship an explicit cross-user handler test. Reviewers
+reject PRs that omit either side. See `INV-AZ-8` in
+[`INVARIANTS.md`](INVARIANTS.md).

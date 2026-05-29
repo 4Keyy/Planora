@@ -33,7 +33,7 @@
 | BuildingBlocks | Shared kernel — domain primitives, CQRS abstractions, Result type, middleware, observability pipeline, outbox/inbox, gRPC interceptors | `BuildingBlocks/Planora.BuildingBlocks.*` |
 | CD pipeline | Tag-driven Fly.io blue/green deployment workflow | `.github/workflows/cd.yml` |
 | ConfigurationValidator | Startup-time check that rejects weak JWT secrets and missing gRPC keys before the host binds a port | `BuildingBlocks/.../Configuration/ConfigurationValidator.cs` |
-| Cosign | Sigstore tool for signing container images; planned for Phase 3 hardening | `docs/ROADMAP.md` |
+| Cosign | Sigstore tool for keyless artifact signing; used by the SBOM attestation step in CI | `.github/workflows/security.yml` |
 | CycloneDX SBOM | Software Bill of Materials artifact emitted per build, listing every NuGet and npm dependency | `.github/workflows/security.yml` `sbom` job |
 | Dependabot | Automated dependency-update PRs for npm, nuget, github-actions, docker ecosystems | `.github/dependabot.yml` |
 | Error budget | Allowed shortfall implied by an SLO; burning it pauses feature work in favour of reliability | [`docs/slo.md`](slo.md) |

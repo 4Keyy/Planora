@@ -191,7 +191,7 @@ The stamp is NOT rotated on 2FA enable / 2FA confirm because enabling strengthen
 
 The stamp is NOT rotated on profile-only updates (`UpdateUserCommandHandler` — first name, last name, avatar) because the access-claim set is unchanged. It is NOT rotated on revoking a *single* refresh token (`RevokeSessionCommandHandler`) because the user chose that specific session — other sessions remain authorized by design.
 
-### Forward-looking rotation policy (T3.5)
+### Forward-looking rotation policy
 
 Any future command that mutates the security posture of an account MUST rotate the stamp. The exhaustive list of expected future rotation points — to be added when their handlers ship:
 

@@ -162,7 +162,7 @@ After extraction every artifact is linted by **Spectral** (`@stoplight/spectral-
 
 Schema ids are sanitised at extraction time by `PlanoraSwaggerExtensions.SanitizeSchemaId` — closed-generic CLR FullNames like `PagedResult\`1[[FriendDto, Planora.Auth.Application, Version=1.0.0.0, …]]` are collapsed via a regex replacement of every non-alphanumeric-or-dot character into a single `_` so the resulting `$ref` is a valid URI-reference fragment and Spectral's `oas3-schema` accepts it. Determinism and round-trip are pinned by `tests/Planora.UnitTests/Services/Infrastructure/PlanoraSwaggerSchemaIdTests.cs`.
 
-The artifacts are the contract that a future generated TypeScript client (Phase 2 T2.1 in the master plan) will be derived from. Reviewers can already diff the documents across PRs to spot breaking-change additions, removed properties, or renamed schemas before they reach the frontend; Spectral pre-validates the diff so a malformed contract never reaches the diff window.
+The artifacts are the contract that any future generated TypeScript client will be derived from. Reviewers can already diff the documents across PRs to spot breaking-change additions, removed properties, or renamed schemas before they reach the frontend; Spectral pre-validates the diff so a malformed contract never reaches the diff window.
 
 ## What The Tests Cover
 
