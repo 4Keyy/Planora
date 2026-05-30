@@ -1,5 +1,4 @@
 using Planora.BuildingBlocks.Application.Context;
-using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
