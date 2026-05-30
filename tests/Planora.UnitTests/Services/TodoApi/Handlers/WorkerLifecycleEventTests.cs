@@ -3,6 +3,7 @@ using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain.Exceptions;
+using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Features.Todos.Commands.JoinTodo;
 using Planora.Todo.Application.Features.Todos.Commands.LeaveTodo;
