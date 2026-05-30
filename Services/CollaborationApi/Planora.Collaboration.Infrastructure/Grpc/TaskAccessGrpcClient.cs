@@ -1,4 +1,5 @@
 using Grpc.Core;
+using Planora.Collaboration.Application.Exceptions;
 using Planora.Collaboration.Application.Services;
 using Planora.GrpcContracts;
 
@@ -8,7 +9,8 @@ namespace Planora.Collaboration.Infrastructure.Grpc
     /// Authorises comment operations by delegating to TodoApi over gRPC. TodoApi owns the task
     /// aggregate and the ownership / sharing / public + friendship rules; this client never reads
     /// Todo's database (INV-OWN-1). The <c>x-service-key</c> header is injected by the shared
-    /// <see cref="ServiceKeyClientInterceptor"/> registered on the channel (INV-COMM-2).
+    /// <see cref="Planora.BuildingBlocks.Infrastructure.Grpc.ServiceKeyClientInterceptor"/>
+    /// registered on the channel (INV-COMM-2).
     /// </summary>
     public sealed class TaskAccessGrpcClient : ITaskAccessService
     {
@@ -48,16 +50,21 @@ namespace Planora.Collaboration.Infrastructure.Grpc
 
                 return new TaskAccessResult(response.Exists, response.HasAccess, ownerId, participants);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (RpcException ex)
             {
+                // Fail closed: Todo could not authorise the request. Surface a clean 503 (via the
+                // shared DomainException → ProblemDetails mapping) instead of a raw gRPC fault.
                 _logger.LogWarning(
                     ex,
-                    "Todo gRPC failed while checking comment access for task {TaskId}, requester {RequesterId}: Status={Status}",
+                    "Todo gRPC unavailable while checking comment access for task {TaskId}, requester {RequesterId}: Status={Status}",
                     taskId, requesterId, ex.StatusCode);
-                // Fail closed: no access decision available → deny. Treated as "exists, no access"
-                // so callers surface 403 rather than 404 when Todo is transiently unavailable.
-                throw;
+                throw new ExternalServiceUnavailableException("TodoApi", "CheckTaskCommentAccess", ex);
             }
         }
     }
 }
+

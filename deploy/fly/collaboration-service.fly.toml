@@ -1,0 +1,35 @@
+app = "planora-collaboration"
+primary_region = "fra"
+
+[build]
+dockerfile = "../../Services/CollaborationApi/Planora.Collaboration.Api/Dockerfile"
+ignorefile = "../../.dockerignore"
+
+[env]
+ASPNETCORE_ENVIRONMENT = "Docker"
+ASPNETCORE_URLS = "http://+:8080"
+GrpcServices__AuthApi = "http://planora-auth.flycast:80"
+GrpcServices__TodoApi = "http://planora-todo.flycast:80"
+ServiceName = "collaboration-service"
+
+[http_service]
+internal_port = 8080
+force_https = false
+auto_stop_machines = true
+auto_start_machines = true
+min_machines_running = 0
+processes = ["app"]
+
+[[vm]]
+size = "shared-cpu-1x"
+memory = "512mb"
+
+[checks]
+[checks.health]
+grpc = false
+method = "get"
+path = "/health"
+port = 8080
+interval = "15s"
+timeout = "5s"
+grace_period = "30s"
