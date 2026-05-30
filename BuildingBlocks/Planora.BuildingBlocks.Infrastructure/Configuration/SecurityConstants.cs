@@ -121,9 +121,14 @@ public static class SecurityConstants
         public const int AccountLockoutMinutes = 30;
 
         /// <summary>
-        /// Clock skew tolerance for token validation in seconds
+        /// Clock skew tolerance for token validation in seconds. Single source of truth
+        /// shared by every JWT bearer wiring point — Auth API, every consumer service,
+        /// the Gateway, and the TokenService's own validation path. 30 s is chosen to
+        /// tolerate NTP drift between Fly machines (which can spike to tens of seconds
+        /// under load) while still keeping the post-expiry replay window an order of
+        /// magnitude tighter than the JwtBearer default of 5 minutes.
         /// </summary>
-        public const int TokenClockSkewSeconds = 5;
+        public const int TokenClockSkewSeconds = 30;
 
         /// <summary>
         /// Maximum request body size in bytes (5 MB)

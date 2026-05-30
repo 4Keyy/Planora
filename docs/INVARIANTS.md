@@ -2,7 +2,7 @@
 
 These are **closed-form rules** that hold across the system at all times. Violations are reverted, not negotiated. Each invariant carries the evidence and the enforcement plan.
 
-This file is short by design. If a rule belongs here, it belongs forever. Items with conditional or temporary status live in [docs/ROADMAP.md](ROADMAP.md) instead.
+This file is short by design. If a rule belongs here, it belongs forever. Conditional or temporary items belong in ADRs (`docs/DECISIONS/`) until they harden into invariants.
 
 ---
 
@@ -48,6 +48,8 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs`.
 
+**INV-COMM-5.** Every service that holds an `OutboxMessages` table indexes the canonical polling predicate (`Status = 'Pending' OR (Status = 'Failed' AND NextRetryUtc <= NOW)`) with a partial composite index `(Status, NextRetryUtc, OccurredOnUtc) WHERE Status IN ('Pending', 'Failed')` named `ix_outbox_messages_active`. Excluding the terminal `Processed` and `DeadLettered` rows keeps the index small even when the table accumulates ahead of the cleanup sweep. Auth, Category, Messaging, and Realtime services all carry this index; the configurations live under each service's `Persistence/Configurations/OutboxMessageConfiguration.cs`.
+
 ---
 
 ## Authentication & Sessions
@@ -62,27 +64,47 @@ This file is short by design. If a rule belongs here, it belongs forever. Items 
 
 **INV-AUTH-3.** State-changing browser requests to Auth API carry the double-submit CSRF token (`X-CSRF-Token` header + readable `XSRF-TOKEN` cookie). Validation is constant-time.
 
-- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`, ADR-0003.
-- Open question: services other than Auth do not run CSRF middleware (Phase 2 T2.6).
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`, ADR-0003, ADR-0005 (CSRF coverage is intentionally bounded to Auth API).
 
-**INV-AUTH-4.** Every command that materially changes the security posture of an account rotates the user's security stamp, so any access token issued before the change is rejected on its next authenticated request. The list is exhaustive:
+**INV-AUTH-4.** Every command that materially changes the security posture of an account rotates the user's security stamp, so any access token issued before the change is rejected on its next authenticated request. The list of *currently-shipped* rotation points:
 
 - password change (`ChangePasswordCommandHandler`);
 - password reset (`ResetPasswordCommandHandler`);
 - email change confirmation (`ChangeEmailCommandHandler`);
 - 2FA disable (`Disable2FACommandHandler`);
 - revoke all sessions (`RevokeAllSessionsCommandHandler`);
-- account soft-delete (`DeleteUserCommandHandler`).
+- account soft-delete (`DeleteUserCommandHandler`);
+- refresh-token reuse detection (`RefreshTokenCommandHandler`, see INV-AUTH-6).
 
-Stamp rotation runs **only on successful execution** — a wrong-password attempt MUST NOT invalidate active sessions, otherwise an observer can DoS the user. Stamp rotation is NOT triggered on 2FA enable or 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
+**Forward-looking policy.** Any future command that mutates the security posture of an account MUST rotate the stamp. Concretely this covers (when implemented):
+
+- **role assignment / revocation** — adding or removing a `UserRole` row;
+- **admin force-logout** — an admin-initiated session revocation against a target user;
+- **manual lock / suspend** issued by an operator;
+- **email change** that bypasses the standard confirmation flow (admin override);
+- any new command that changes the set of access claims, the set of permitted scopes, or the set of resources the user can reach.
+
+Stamp rotation runs **only on successful execution** — a wrong-password attempt MUST NOT invalidate active sessions, otherwise an observer can DoS the user. Stamp rotation is NOT triggered on 2FA enable or 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit. Stamp rotation is NOT triggered on profile updates (first name, last name, avatar) because the access-claim set is unchanged. Stamp rotation is NOT triggered on revoking a *single* refresh token (`RevokeSessionCommandHandler`) because the user chose that specific session — other sessions remain authorized.
 
 Stamp rotation is meaningless unless **every** JWT-accepting service enforces the check on every authenticated request. All five services — Auth, Category, Todo, Messaging, Realtime — wire `SecurityStampValidator.IsTokenRevokedAsync` into `JwtBearerOptions.OnTokenValidated`. Auth API enforces this in `Planora.Auth.Infrastructure.DependencyInjection.AddJwtAuthentication`; consumer services use the shared `AddJwtAuthenticationForConsumer` or an equivalent inline hook. The coverage table lives in `docs/auth-security.md` § "Stamp enforcement coverage".
 
-- Evidence: `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs` (Auth's `AddJwtAuthentication`), the six command handlers listed above, and `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs` which pins the Auth wiring. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin the stamp call for success paths and its absence for failure paths.
+The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Planora.UnitTests): any handler that injects `ISecurityStampService` must also invoke `SetStampAsync` somewhere in its body. The test is a source-file scan over `Services/AuthApi/Planora.Auth.Application/Features/**/Handlers/` so a future handler that forgets the rotation call (or drops it during refactoring) fails CI before merge.
+
+- Evidence: `Services/AuthApi/Planora.Auth.Api/Filters/TokenBlacklistFilter.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/SecurityStampService.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs` (Auth's `AddJwtAuthentication`), the seven command handlers listed above, `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs` which pins the Auth wiring, and `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/SecurityStampUsageContractTests.cs` which pins the forward-looking policy. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin the stamp call for success paths and its absence for failure paths.
 
 **INV-AUTH-5.** TOTP secrets are encrypted at rest with ASP.NET Core Data Protection, keys persisted to Redis under `Planora:Auth:DataProtection-Keys`, scoped to application name `Planora.Auth`. Recovery codes are hashed with BCrypt before storage.
 
 - Evidence: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs`.
+
+**INV-AUTH-6.** Refresh-token rotation enforces **reuse detection**. When `RefreshTokenCommandHandler` is presented with a refresh-token value that is already revoked with reason `"Replaced by new token"`, the entire refresh-token chain for that user is revoked (reason `"Reuse detected — chain invalidated"`) and the user's security stamp is rotated. Both effects are persisted in the same SaveChangesAsync call as the revocation. The handler returns Unauthorized; no new token is minted.
+
+- Evidence: `Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/RefreshToken/RefreshTokenCommandHandler.cs`, `tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthLifecycleHandlerTests.cs::RefreshToken_WhenReplayed_InvalidatesChainAndRotatesStamp`.
+- Rationale: a replayed rotated token is either a buggy client racing its own refresh or — much more likely — an attacker presenting a stolen value. Invalidating the chain logs the legitimate user out across all devices and, paired with stamp rotation, immediately retires every minted access token. The user must re-authenticate; the attacker is left holding revoked credentials.
+
+**INV-AUTH-7.** Every JWT-validating wiring point reads `ClockSkew` from one source — `Planora.BuildingBlocks.Infrastructure.Configuration.SecurityConstants.SecurityPolicies.TokenClockSkewSeconds`. No service writes a literal `TimeSpan.Zero` or numeric seconds value into `TokenValidationParameters.ClockSkew`. The pinned tests at `tests/Planora.UnitTests/Services/AuthApi/Configuration/AuthApiConfigurationTests.cs` and `tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs` assert the value matches the constant.
+
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/SecurityConstants.cs`, every JWT bearer registration across Auth, Todo, Category, Messaging, Realtime, Gateway, and the standalone TokenService validation paths.
+- Rationale: divergent clock-skew values across services produce intermittent 401s under NTP drift between machines. A single source eliminates the entire class of clock-skew regressions.
 
 ---
 
@@ -104,6 +126,18 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 - Evidence: `Services/AuthApi/Planora.Auth.Application/Features/Users/Validators/UploadAvatar/UploadAvatarCommandValidator.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/{ImageSharpImageProcessor,LocalAvatarStorage}.cs`, `Services/AuthApi/Planora.Auth.Api/Program.cs`, `docs/auth-security.md` § Avatar File Pipeline.
 
+**INV-AZ-6.** The gRPC client interceptor (`ServiceKeyClientInterceptor`) emits exactly one outbound credential — `x-service-key`. It never propagates the inbound HTTP `Authorization` (Bearer JWT) header or any cookie into outgoing gRPC metadata. Trust contexts are kept fully separate: the inbound HTTP request authenticates the *user*, the outbound gRPC call authenticates the *peer service*. Pinned by `ServiceKeyInterceptorTests.ClientInterceptor_DoesNotLeakAuthorizationHeaderIntoOutgoingMetadata`.
+
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyClientInterceptor.cs`, `tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs`.
+- Rationale: confusing the two contexts would let a peer service mint forged identities by reusing the original user's JWT against a third service.
+
+**INV-AZ-7.** The API Gateway processes `X-Forwarded-For` / `X-Forwarded-Proto` / `X-Forwarded-Host` **only when** `ForwardedHeaders:KnownProxies` is non-empty in configuration. With an empty list (the default), `UseForwardedHeaders` is never registered and external clients cannot spoof their IP into rate-limit partitioning or downstream logs.
+
+**INV-AZ-8.** Every `[Authorize]` endpoint that takes a resource-identifier path parameter is enumerated in `docs/security-idor-coverage.md` with the IDOR protection mechanism (owner check, viewer filter, friend gate, role gate) and a pointer to the test or invariant that pins it. Reviewers MUST reject any PR that adds such an endpoint without (a) updating the coverage table and (b) shipping an explicit cross-user test.
+
+- Evidence: `Planora.ApiGateway/Program.cs` — the conditional `Configure<ForwardedHeadersOptions>` + `app.UseForwardedHeaders()` block guarded by `knownProxies.Length > 0`.
+- Rationale: trusting forwarded headers unconditionally creates a rate-limit bypass (`X-Forwarded-For: <victim-ip>`). Production deployments behind Fly must configure the Fly edge range explicitly.
+
 ---
 
 ## Data Integrity
@@ -115,6 +149,8 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 **INV-DATA-3.** Read-only queries use `.AsNoTracking()`. Mutating workflows do not.
 
 **INV-DATA-4.** Soft-deleted rows are filtered by global query filters. Admin/audit paths that need to see deleted rows must call `.IgnoreQueryFilters()` explicitly and document the reason in code.
+
+**INV-DATA-5 (scaffold; behaviour follow-up pending).** The Realtime persistence contract is defined: every `NotificationEvent` consumed from RabbitMQ lands in `Planora.Realtime.Domain.Entities.Notification` before fan-out to SignalR; per-recipient delivery state is tracked in `NotificationDelivery` with `Pending → Delivered | NotConnected | Failed`; deduplicated by `SourceEventId` (unique index) so transient redeliveries from the broker never insert twice. The domain entities, the `RealtimeDbContext`, the EF configurations, the migrator registration, and the conditional DI are in place. The `NotificationService` rewire (persist-before-push, idempotent on replay) and the initial EF migration ship next; until then `NotificationService` bypasses persistence and the scaffold is dormant — connection-string-aware activation means dev hosts without `ConnectionStrings__RealtimeDatabase` start clean.
 
 ---
 
@@ -132,7 +168,7 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 ---
 
-## API Surface (until Phase 2 T2.1 lands)
+## API Surface
 
 **INV-API-1.** Error responses follow `ApiResponse<object>.Failed(...)` shape produced by `EnhancedGlobalExceptionMiddleware`. New controllers must not throw raw `Exception` to client — they let middleware translate it.
 
@@ -140,7 +176,7 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 ---
 
-## Observability (until Phase 1 T1.1 lands)
+## Observability
 
 **INV-OBS-1.** Every request gets a correlation id via `CorrelationIdMiddleware`. Every log line carries `CorrelationId`, `SpanId`, `OperationName`, `UserId` (when present), and `ServiceName` via Serilog enrichers.
 
@@ -153,15 +189,15 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs`.
 - Rationale: orchestrators (Fly.io machines, k8s) need distinct liveness vs readiness semantics; aggregate `/health` cannot distinguish "process is dead, restart me" from "I'm alive but Postgres is slow, don't route to me yet".
 
-**INV-OBS-5.** Every backend service and the API Gateway wire OpenTelemetry through the single shared `TelemetryConfiguration.AddPlanoraTelemetry(...)` extension. Services do not call `services.AddOpenTelemetry()` directly. The pipeline is no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OpenTelemetry:OtlpEndpoint`) is unset — no exporters, no background connections, no log noise — while still recording in-process traces and metrics so any future exporter can be added without code changes. Custom activity sources and meters published as `Planora.*` are auto-discovered. `/health*` paths are excluded from request tracing to suppress probe noise.
+**INV-OBS-5.** Every backend service and the API Gateway wire OpenTelemetry through the single shared `TelemetryConfiguration.AddPlanoraTelemetry(...)` extension. Services do not call `services.AddOpenTelemetry()` directly **and do not introduce per-service wrappers** around `AddPlanoraTelemetry`. The pipeline is no-op when `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OpenTelemetry:OtlpEndpoint`) is unset — no exporters, no background connections, no log noise — while still recording in-process traces and metrics so any future exporter can be added without code changes. Custom activity sources and meters published as `Planora.*` are auto-discovered. `/health*` paths are excluded from request tracing to suppress probe noise. EF Core SQL text capture (`SetDbStatementForText`) is **off by default** and opted in per environment via `OpenTelemetry:Tracing:CaptureDbStatementText=true` — keeping potential PII in parameter values out of trace exports unless the operator consciously enables it.
 
-- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, every service `Program.cs`.
-- Rationale: a single instrumentation surface means one place to add new instrumentations (gRPC client, RabbitMQ, SignalR), one place to configure sampling and resource attributes, and one place to flip exporters between vendors.
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, every service `Program.cs` (each calls `builder.Services.AddPlanoraTelemetry(...)` directly).
+- Rationale: a single instrumentation surface means one place to add new instrumentations (gRPC client, RabbitMQ, SignalR), one place to configure sampling and resource attributes, and one place to flip exporters between vendors. Wrapper helpers around the canonical call invariably drift, so they are explicitly forbidden.
 
 **INV-OBS-6.** Custom Planora metrics are published through one shared `Meter` named `Planora.BuildingBlocks` defined in `BuildingBlocks.Infrastructure.Observability.PlanoraMetrics`. Services do not create their own `Meter` instances for cross-cutting concerns. New instruments follow OpenTelemetry semantic conventions: explicit units (`s`, `{rejection}`, `{message}`), low-cardinality tag values from a finite enumeration, and `_total` is implicit (added by the Prometheus exporter, not the instrument name).
 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs`.
-- Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds).
+- Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds), `planora.avatar.uploads{outcome}`, `planora.avatar.variant.bytes{size}` (histogram, bytes), `planora.cache.operations{prefix,outcome}`.
 - Rationale: one meter = one configuration knob in `AddMeter("Planora.*")` (already wildcard-subscribed by `AddPlanoraTelemetry`), one place to audit cardinality before shipping to a metrics backend that bills per series.
 
 **INV-OBS-7.** Centralized logs ship through Grafana Loki via `SerilogConfiguration.TryAddLokiSink`. The sink is registered only when `LOKI_URL` (or `Serilog:Loki:Url`) is set; with no URL the helper returns false and no sink is added, so there is no background connection and no log noise. Both Serilog configuration entry points (`WebApplicationBuilder` and `IHostBuilder`) call the same helper — there is one implementation. Labels are restricted to `service_name` and `environment`; per-request labels are forbidden to bound cardinality.
@@ -179,16 +215,12 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 **INV-API-3.** Every HTTP service wires Swagger / OpenAPI through the single shared `PlanoraSwaggerExtensions.AddPlanoraSwaggerGen(title, description)` extension. Services do not call `services.AddSwaggerGen()` directly. The Swagger UI middleware mounts only when the environment is `Development` or `Staging` (`UsePlanoraSwagger`); production never exposes the interactive UI. The OpenAPI document for each service is extracted offline in CI via `dotnet swagger tofile` and attached to every PR that touches a controller, DTO, BuildingBlocks, GrpcContracts, or `Directory.Packages.props`.
 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/PlanoraSwaggerExtensions.cs`, every service `Program.cs`, `.github/workflows/openapi.yml`, `.config/dotnet-tools.json`.
-- Rationale: one Swagger registration surface, one CI artifact contract, one place to evolve the schema-id and security-scheme conventions before the eventual generated TypeScript client lands (Phase 2 T2.2). The dev/staging gate keeps the interactive UI off the production attack surface.
+- Rationale: one Swagger registration surface, one CI artifact contract, one place to evolve the schema-id and security-scheme conventions before any generated TypeScript client lands. The dev/staging gate keeps the interactive UI off the production attack surface.
 
 **INV-API-4.** Every extracted `openapi/<service>.json` artifact is linted by Spectral in CI with `--fail-severity=error`. The configuration lives at `.spectral.yaml` (extends `spectral:oas`) and treats contract-stability rules (`oas3-schema`, `operation-success-response`, `path-keys-no-trailing-slash`, `oas3-valid-media-example`, `oas3-valid-schema-example`, `operation-operationId-unique`, `operation-operationId-valid-in-url`) as errors. Documentation-friendliness rules (`info-description`, `operation-description`, `tag-description`, `oas3-parameter-description`) are downgraded to `hint` until the controller XML doc coverage is complete. Schema ids are sanitised by `PlanoraSwaggerExtensions.SanitizeSchemaId` so closed-generic CLR FullNames produce URI-reference-safe `$ref` fragments that Spectral's `oas3-schema` accepts.
 
 - Evidence: `.spectral.yaml`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/PlanoraSwaggerExtensions.cs` (`SanitizeSchemaId`), `.github/workflows/openapi.yml` "Lint with Spectral" step, `tests/Planora.UnitTests/Services/Infrastructure/PlanoraSwaggerSchemaIdTests.cs`.
 - Rationale: the OpenAPI artifact is a public contract once a TS client is generated from it. Spectral catches breaking-change classes (missing 2xx response, schemas with no valid example, paths with trailing slashes, duplicate or URL-illegal operation ids) before they reach a consuming client. The sanitised schema ids guarantee every artifact passes `oas3-schema` regardless of how exotic the CLR generic-type tree becomes.
-
-- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs`.
-- Currently published: `planora.csrf.rejections{reason}`, `planora.grpc.unauthenticated{reason}`, `planora.outbox.messages{outcome}`, `planora.outbox.batch.duration` (histogram, seconds), `planora.outbox.message.age` (histogram, seconds).
-- Rationale: one meter = one configuration knob in `AddMeter("Planora.*")` (already wildcard-subscribed by `AddPlanoraTelemetry`), one place to audit cardinality before shipping to a metrics backend that bills per series.
 
 ---
 
@@ -198,9 +230,18 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 **INV-CI-2.** `dotnet test` (unit + integration + ErrorHandling tests) and `npm run test:coverage` must be green on every PR.
 
-**INV-CI-3.** Security pipeline runs on every PR and weekly schedule: gitleaks, `dotnet list package --vulnerable`, `npm audit --audit-level=moderate`, CodeQL SAST (csharp + javascript-typescript), Trivy IaC. A new HIGH or CRITICAL finding must be triaged before merge.
+**INV-CI-3.** Security pipeline runs on every PR and weekly schedule: gitleaks, `dotnet list package --vulnerable`, `npm audit --audit-level=high`, CodeQL SAST (csharp + javascript-typescript), Trivy IaC (with a fail-on-HIGH/CRITICAL second pass). A new HIGH or CRITICAL finding must be triaged before merge.
 
 **INV-CI-4.** E2E pipeline (`docker compose up` + Playwright) must pass for any PR that touches `BuildingBlocks/**`, `GrpcContracts/**`, `Planora.ApiGateway/**`, `Services/**`, `frontend/**`, `docker-compose.yml`, or `postgres/**`.
+
+---
+
+## Performance
+
+**INV-PERF-1.** Integration tests guard against N+1 query regressions via the `N1SentinelInterceptor` from `BuildingBlocks.Infrastructure.Persistence`. New integration suites that exercise a request-scoped data path wrap the call under test in `using (N1SentinelInterceptor.BeginScope(threshold: …)) { … }`. A SQL fingerprint that executes more than the threshold within the scope throws `N1SentinelException` and fails the test. Outside an active scope the interceptor is a no-op and ships zero runtime cost in production. Legitimate repeats (e.g. an intentional foreach over related entities) opt out via a `whitelist` substring rather than by removing the scope.
+
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/N1Sentinel.cs`, `tests/Planora.UnitTests/BuildingBlocks/Persistence/N1SentinelTests.cs`.
+- Rationale: N+1 patterns are cheap to write, expensive to catch in code review, and only visible in production-load traces. A test-side interceptor closes the gap before the query reaches a real database.
 
 ---
 
@@ -208,10 +249,15 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 
 **INV-FLOW-1.** Migrations are committed alongside the schema change that produced them. A schema change is never merged without its EF migration.
 
-**INV-FLOW-4.** Production migrations are applied by the dedicated `Planora.Migrator` CLI (`tools/Planora.Migrator/`), not by services calling `Database.MigrateAsync()` at startup. The migrator runs as a one-shot init step before service rollout — never simultaneously with the running service — so two replicas cannot race the migration history. The `.github/workflows/migrations.yml` workflow attaches an idempotent SQL script artifact (`dotnet ef migrations script --idempotent`) to every PR whose schema-relevant paths change; reviewers see exactly what will execute.
+**INV-FLOW-4.** Production migrations are applied by the dedicated `Planora.Migrator` CLI (`tools/Planora.Migrator/`), not by services calling `Database.MigrateAsync()` at startup. The migrator runs as a one-shot init step before service rollout — never simultaneously with the running service — so two replicas cannot race the migration history. The `.github/workflows/migrations.yml` workflow attaches an idempotent SQL script artifact (`dotnet ef migrations script --idempotent`) to every PR whose schema-relevant paths change; reviewers see exactly what will execute. The same workflow asserts every non-empty generated script carries `IF [NOT] EXISTS` markers — guarding against a future EF-tooling regression where `--idempotent` silently produces non-idempotent SQL.
 
 - Evidence: `tools/Planora.Migrator/Program.cs`, `.github/workflows/migrations.yml`, `deploy/fly/migrator.fly.toml`.
 - Rationale: EF Core's `Database.MigrateAsync` at app startup is a footgun in HA: two replicas booting the same schema change at once corrupt `__EFMigrationsHistory`. Idempotent script + one-shot runner removes the race and makes the migration auditable.
+
+**INV-FLOW-5.** `Planora.Migrator` rejects schema drift. Before applying pending migrations for any service, the migrator enumerates the database's `__EFMigrationsHistory` (`GetAppliedMigrationsAsync`) and compares it to the migrations present in the compiled assembly (`Database.GetMigrations()`). Any applied migration that is not in the code set is treated as drift; the migrator logs an error, returns a non-zero exit code, and refuses to apply anything for that service. Operators must reconcile (restore the missing migration files in code, or reset the target environment) before re-running.
+
+- Evidence: `tools/Planora.Migrator/Program.cs::RunForServiceAsync`.
+- Rationale: a developer who deletes a migration file locally, or a deploy that targets a database advanced past the current code's known migration set, leaves `__EFMigrationsHistory` in an unrecognisable state. Partially applying additional migrations on top of that history corrupts the chain. Failing fast with a clear message is the only safe path.
 
 **INV-FLOW-2.** Runtime user uploads (`Services/AuthApi/Planora.Auth.Api/wwwroot/avatars/`) and other generated content are gitignored. They never appear in `git status` of a clean working tree.
 
@@ -222,7 +268,5 @@ Stamp rotation is meaningless unless **every** JWT-accepting service enforces th
 ## What this file is not
 
 - This is not a style guide. Style lives in `.editorconfig`.
-- This is not a roadmap. Future work lives in `docs/ROADMAP.md` and the off-repo master plan owned by the maintainer.
-- This is not aspirational. Every rule above is currently observable in code, configuration, or CI.
-
-When Phase 2 closes the API-response and Realtime-persistence gaps, the corresponding caveats above are removed and the rule is tightened.
+- This is not a roadmap. Future work is tracked through ADRs in `docs/DECISIONS/`.
+- This is not aspirational. Every rule above is currently observable in code, configuration, or CI. When a tightening lands (e.g. the API-response unification or the Realtime persistence behaviour rewire), the corresponding caveat is removed and the rule is restated.

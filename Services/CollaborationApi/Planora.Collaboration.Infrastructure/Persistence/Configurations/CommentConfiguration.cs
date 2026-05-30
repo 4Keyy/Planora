@@ -34,6 +34,13 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Configurations
 
             // Optimised for timeline reads (ordered by creation per task).
             builder.HasIndex(x => new { x.TaskId, x.CreatedAt });
+
+            // Index on AuthorId (carried over from develop T4.2): "comments authored by X"
+            // queries — the UserDeleted cascade cleanup and moderation/audit views — would
+            // otherwise seq-scan the table once a thread accumulates. Collaboration owns no
+            // TodoItem aggregate, so there is no foreign key to the task (INV-OWN-1) — the
+            // task↔comment link lives only as the TaskId value.
+            builder.HasIndex(x => x.AuthorId);
         }
     }
 }

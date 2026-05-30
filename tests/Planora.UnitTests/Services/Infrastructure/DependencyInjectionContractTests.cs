@@ -53,7 +53,10 @@ using AuthUnitOfWorkImpl = Planora.Auth.Infrastructure.Persistence.AuthUnitOfWor
 using CategoryEntity = Planora.Category.Domain.Entities.Category;
 using CategoryUserDeletedEventConsumer = Planora.Category.Application.Features.IntegrationEvents.UserDeletedEventConsumer;
 using CategoryCurrentUserServiceImpl = Planora.BuildingBlocks.Infrastructure.Persistence.CurrentUserService;
-using CategoryOutboxRepository = Planora.Category.Infrastructure.Persistence.Repositories.OutboxRepository;
+// T2.3 — Category now registers the canonical `OutboxRepository<CategoryDbContext>`
+// directly. The legacy adapter at `Category.Infrastructure.Persistence.Repositories.OutboxRepository`
+// is `[Obsolete]` and no longer wired through DI.
+using CategoryOutboxRepository = Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<Planora.Category.Infrastructure.Persistence.CategoryDbContext>;
 using CategoryRepositoryInterface = Planora.BuildingBlocks.Domain.Interfaces.IRepository<Planora.Category.Domain.Entities.Category>;
 using GenericTodoRepository = Planora.BuildingBlocks.Domain.Interfaces.IRepository<Planora.Todo.Domain.Entities.TodoItem>;
 using MediatR;
@@ -146,7 +149,9 @@ public class DependencyInjectionContractTests
         Assert.True(jwtOptions.TokenValidationParameters.ValidateIssuerSigningKey);
         Assert.Equal("Planora.Auth", jwtOptions.TokenValidationParameters.ValidIssuer);
         Assert.Equal("Planora.Clients", jwtOptions.TokenValidationParameters.ValidAudience);
-        Assert.Equal(TimeSpan.Zero, jwtOptions.TokenValidationParameters.ClockSkew);
+        Assert.Equal(
+            TimeSpan.FromSeconds(Planora.BuildingBlocks.Infrastructure.Configuration.SecurityConstants.SecurityPolicies.TokenClockSkewSeconds),
+            jwtOptions.TokenValidationParameters.ClockSkew);
         Assert.IsType<RabbitMqConnectionManager>(provider.GetRequiredService<IRabbitMqConnectionManager>());
     }
 

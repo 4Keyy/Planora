@@ -151,6 +151,54 @@ public class ServiceKeyInterceptorTests
         Assert.Equal("already-set-key-for-idempotency", serviceKeyHeaders![0].Value);
     }
 
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public void ClientInterceptor_DoesNotLeakAuthorizationHeaderIntoOutgoingMetadata()
+    {
+        // SECURITY (INV-COMM-2 hardening): an HTTP request that lands at a service
+        // carries a Bearer token in Authorization. If that service then turns around
+        // and emits a gRPC call to a peer, the gRPC interceptor MUST construct
+        // metadata from scratch (x-service-key only) and MUST NOT propagate the
+        // inbound HTTP Authorization header. Confusing the two trust contexts would
+        // let a peer service mint forged identities by reusing the original user's
+        // JWT. The interceptor does not have access to HTTP context, so this is
+        // pinned by checking the outgoing metadata contains x-service-key only —
+        // no Authorization, no other surprises.
+        var interceptor = new ServiceKeyClientInterceptor(Config(ValidKey));
+        var method = new Method<string, string>(
+            MethodType.Unary, "TestService", "TestMethod",
+            Marshallers.StringMarshaller, Marshallers.StringMarshaller);
+        var context = new ClientInterceptorContext<string, string>(
+            method, "localhost", new CallOptions());
+        ClientInterceptorContext<string, string>? captured = null;
+
+        interceptor.AsyncUnaryCall(
+            "req",
+            context,
+            (_, ctx) =>
+            {
+                captured = ctx;
+                return new AsyncUnaryCall<string>(
+                    Task.FromResult("ok"),
+                    Task.FromResult(new Metadata()),
+                    () => Status.DefaultSuccess,
+                    () => new Metadata(),
+                    () => { });
+            });
+
+        Assert.NotNull(captured);
+        var headers = captured!.Value.Options.Headers ?? new Metadata();
+        Assert.DoesNotContain(
+            headers,
+            h => h.Key.Equals("authorization", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(
+            headers,
+            h => h.Key.Equals("cookie", StringComparison.OrdinalIgnoreCase));
+        // Only the service key is the expected outbound credential.
+        Assert.Single(headers, h => h.Key.Equals("x-service-key", StringComparison.OrdinalIgnoreCase));
+    }
+
     private sealed class HeaderCallContext : ServerCallContext
     {
         public HeaderCallContext(Metadata headers) => RequestHeadersCore = headers;

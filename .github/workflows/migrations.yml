@@ -9,7 +9,7 @@ name: Migration Scripts
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'Services/**/Migrations/**'
       - 'Services/**/Persistence/**'
@@ -57,6 +57,11 @@ jobs:
       - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+            Directory.Build.props
 
       - name: Install dotnet-ef
         run: dotnet tool install --global dotnet-ef --version 9.0.15
@@ -87,6 +92,27 @@ jobs:
           echo "::group::${{ matrix.name }}.sql ($(wc -l < migration-scripts/${{ matrix.name }}.sql) lines)"
           head -50 migration-scripts/${{ matrix.name }}.sql
           echo "::endgroup::"
+
+      - name: Validate idempotence markers are present
+        # `dotnet ef migrations script --idempotent` wraps every statement in an
+        # IF NOT EXISTS / IF EXISTS guard. If the generated SQL is non-empty but
+        # carries zero guards, the --idempotent flag silently failed (EF tooling
+        # regression) and re-running the migrator would corrupt the history. We
+        # only enforce this when the file actually contains migration content.
+        run: |
+          set -e
+          script="migration-scripts/${{ matrix.name }}.sql"
+          # An "empty" generated script still emits the COMMIT scaffolding; treat
+          # < 30 lines as no-content and skip the guard check.
+          lines=$(wc -l < "${script}")
+          if [ "${lines}" -lt 30 ]; then
+            echo "::notice::${{ matrix.name }}.sql appears empty (${lines} lines); skipping idempotence-marker check."
+            exit 0
+          fi
+          if ! grep -q -E "IF (NOT )?EXISTS" "${script}"; then
+            echo "::error::${{ matrix.name }}.sql has migration content but no IF [NOT] EXISTS guards. --idempotent flag did not produce idempotent SQL."
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

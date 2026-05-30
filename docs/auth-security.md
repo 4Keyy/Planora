@@ -183,10 +183,25 @@ Every command that materially changes the security posture of an account rotates
 | `Disable2FACommandHandler` | Disabling 2FA reduces the account's security posture — invalidate live sessions so the user re-authenticates on every device. |
 | `RevokeAllSessionsCommandHandler` | The command's raison d'être. Refresh-token revocation alone leaves outstanding access tokens valid until their natural expiry; the stamp rotation makes "revoke all" actually do what the name says. |
 | `DeleteUserCommandHandler` | Account is soft-deleted — outstanding tokens must not continue to hit endpoints whose handlers do not separately check `IsDeleted`. |
+| `RefreshTokenCommandHandler` (reuse path) | A presented refresh token already revoked with reason `"Replaced by new token"` indicates either a buggy client racing its own refresh or — much more likely — an attacker presenting a stolen value. The handler revokes the entire chain and rotates the stamp so any already-minted access tokens become invalid on next call. See INV-AUTH-6. |
 
 The stamp rotates **only on successful execution** of the command. A wrong-password attempt does not invalidate active sessions — otherwise an observer could DoS a legitimate user. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin both the success-path stamp call and the failure-path absence-of-call.
 
 The stamp is NOT rotated on 2FA enable / 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
+
+The stamp is NOT rotated on profile-only updates (`UpdateUserCommandHandler` — first name, last name, avatar) because the access-claim set is unchanged. It is NOT rotated on revoking a *single* refresh token (`RevokeSessionCommandHandler`) because the user chose that specific session — other sessions remain authorized by design.
+
+### Forward-looking rotation policy
+
+Any future command that mutates the security posture of an account MUST rotate the stamp. The exhaustive list of expected future rotation points — to be added when their handlers ship:
+
+- **Role assignment / revocation** — adding or removing a `UserRole` row changes the claim set and therefore the access surface.
+- **Admin force-logout** — an admin-initiated session-revocation against a target user must invalidate that user's access tokens, not just refresh tokens.
+- **Manual lock / suspend** issued by an operator — same reason as `RevokeAllSessions` but driven by an admin command rather than the user.
+- **Email change via admin override** — bypassing the standard confirmation flow still re-binds identity, so stamp rotation applies.
+- Any new command that changes the set of access claims, the set of permitted scopes, or the set of resources the user can reach.
+
+The policy is enforced automatically by `SecurityStampUsageContractTests` (`tests/Planora.UnitTests/Services/AuthApi/Infrastructure/SecurityStampUsageContractTests.cs`): a source-file scan asserts that every handler injecting `ISecurityStampService` also invokes `SetStampAsync`. A future handler that silently drops the rotation (e.g. during a refactor) fails CI before merge.
 
 ### Stamp enforcement coverage
 

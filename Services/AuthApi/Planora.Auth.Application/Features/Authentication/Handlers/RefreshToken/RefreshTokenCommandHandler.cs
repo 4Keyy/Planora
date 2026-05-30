@@ -1,3 +1,4 @@
+using Planora.Auth.Application.Common.Interfaces;
 using Planora.Auth.Application.Features.Authentication.Commands.RefreshToken;
 using RefreshTokenEntity = Planora.Auth.Domain.Entities.RefreshToken;
 
@@ -5,20 +6,31 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
 {
     public sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, Result<TokenDto>>
     {
+        // Mirror of RefreshTokenCommandHandler's own rotation reason — kept in sync
+        // with the call to refreshToken.Revoke(..., "Replaced by new token", ...).
+        // Detecting this exact reason on a presented refresh token tells us the
+        // legitimate client already rotated past this value; any presenter is a
+        // replay attack and we must invalidate the entire chain.
+        private const string RotationRevokeReason = "Replaced by new token";
+        private const string ReuseDetectedReason = "Reuse detected — chain invalidated";
+
         private readonly IAuthUnitOfWork _unitOfWork;
         private readonly ITokenService _tokenService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly ISecurityStampService _securityStamp;
         private readonly ILogger<RefreshTokenCommandHandler> _logger;
 
         public RefreshTokenCommandHandler(
             IAuthUnitOfWork unitOfWork,
             ITokenService tokenService,
             ICurrentUserService currentUserService,
+            ISecurityStampService securityStamp,
             ILogger<RefreshTokenCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
             _tokenService = tokenService;
             _currentUserService = currentUserService;
+            _securityStamp = securityStamp;
             _logger = logger;
         }
 
@@ -42,7 +54,40 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
                 // Get the refresh token from user's collection (properly tracked)
                 var refreshToken = user.RefreshTokens.FirstOrDefault(rt => rt.Token == command.RefreshToken);
 
-                if (refreshToken == null || !refreshToken.IsActive)
+                if (refreshToken == null)
+                {
+                    _logger.LogWarning("Refresh token row not found on user: {UserId}", user.Id);
+                    return Result.Failure<TokenDto>(
+                        Error.Unauthorized("INVALID_REFRESH_TOKEN", "Refresh token is no longer valid"));
+                }
+
+                // SECURITY: refresh-token reuse detection. If this token was already rotated
+                // by the legitimate client (revoked with RotationRevokeReason), the presenter
+                // is either an attacker replaying a stolen value or a buggy client racing its
+                // own refresh. Either way, the safe response is to invalidate every active
+                // refresh token for this user AND rotate the security stamp so any already-
+                // minted access tokens become invalid on their next authenticated call.
+                if (refreshToken.IsRevoked
+                    && string.Equals(refreshToken.RevokedReason, RotationRevokeReason, StringComparison.Ordinal))
+                {
+                    var attackerIp = _currentUserService.IpAddress ?? "unknown";
+                    _logger.LogWarning(
+                        "Refresh-token reuse detected for user {UserId} from IP {Ip}; revoking chain and rotating stamp.",
+                        user.Id, attackerIp);
+
+                    foreach (var live in user.RefreshTokens.Where(rt => rt.IsActive).ToList())
+                    {
+                        live.Revoke(attackerIp, ReuseDetectedReason);
+                        _unitOfWork.RefreshTokens.Update(live);
+                    }
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    await _securityStamp.SetStampAsync(user.Id, cancellationToken);
+
+                    return Result.Failure<TokenDto>(
+                        Error.Unauthorized("INVALID_REFRESH_TOKEN", "Refresh token is no longer valid"));
+                }
+
+                if (!refreshToken.IsActive)
                 {
                     _logger.LogWarning(
                         "Refresh token not active: User: {UserId}",

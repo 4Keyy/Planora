@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Planora pre-commit hook. Runs only on the files staged for the current commit.
+# Activate per-clone with `scripts/install-hooks.sh` (sets core.hooksPath = .githooks).
+#
+# Two cheap, locally-runnable gates:
+#   1. Frontend: ESLint on staged .ts/.tsx/.js/.jsx (errors only, no auto-fix).
+#   2. Backend:  dotnet format --verify-no-changes on the touched solution.
+#
+# Both gates pass quickly on a no-op commit. Skip the hook for emergency commits
+# with `git commit --no-verify`.
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# Files staged for commit (added, copied, modified, renamed — not deleted).
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR)
+if [[ ${#staged[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+# --- Frontend ----------------------------------------------------------------
+
+frontend_files=()
+for f in "${staged[@]}"; do
+  case "$f" in
+    frontend/*.ts|frontend/*.tsx|frontend/*.js|frontend/*.jsx|\
+    frontend/**/*.ts|frontend/**/*.tsx|frontend/**/*.js|frontend/**/*.jsx)
+      frontend_files+=("$f")
+      ;;
+  esac
+done
+
+if [[ ${#frontend_files[@]} -gt 0 ]]; then
+  if [[ -x frontend/node_modules/.bin/eslint ]]; then
+    # ESLint accepts paths relative to its CWD; strip the "frontend/" prefix.
+    eslint_targets=()
+    for f in "${frontend_files[@]}"; do
+      eslint_targets+=("${f#frontend/}")
+    done
+    echo "[pre-commit] eslint ${#eslint_targets[@]} staged frontend file(s)…"
+    ( cd frontend && ./node_modules/.bin/eslint --max-warnings=0 "${eslint_targets[@]}" )
+  else
+    echo "[pre-commit] frontend/node_modules/.bin/eslint missing — run 'npm --prefix frontend install' to enable the gate. Skipping for now."
+  fi
+fi
+
+# --- Backend -----------------------------------------------------------------
+
+backend_files=()
+for f in "${staged[@]}"; do
+  case "$f" in
+    *.cs|*.csproj|*.props|*.sln)
+      backend_files+=("$f")
+      ;;
+  esac
+done
+
+if [[ ${#backend_files[@]} -gt 0 ]]; then
+  if command -v dotnet >/dev/null 2>&1; then
+    echo "[pre-commit] dotnet format --verify-no-changes on Planora.sln…"
+    dotnet format Planora.sln --verify-no-changes --severity warn --no-restore || {
+      echo "[pre-commit] dotnet format reported issues. Run 'dotnet format Planora.sln' to apply, then re-stage."
+      exit 1
+    }
+  else
+    echo "[pre-commit] dotnet CLI not on PATH — skipping the backend format check."
+  fi
+fi
+
+exit 0

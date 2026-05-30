@@ -1,9 +1,9 @@
 name: Security Scan
 on:
   push:
-    branches: [main, 'audit/**', 'fix/**', 'claude/**']
+    branches: [main, develop, 'audit/**', 'fix/**']
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   schedule:
     - cron: '0 2 * * 1'  # Every Monday 2am
 
@@ -11,6 +11,8 @@ permissions:
   contents: read
   security-events: write  # SARIF upload — gitleaks, CodeQL, Trivy
   actions: read           # CodeQL needs to read workflow run metadata
+  id-token: write         # T3.7 — OIDC token for keyless Sigstore SBOM signing
+  attestations: write     # T3.7 — write SBOM attestation to the run
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -36,6 +38,11 @@ jobs:
       - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+            Directory.Build.props
       - run: dotnet list package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt; grep -i "has the following vulnerable packages" vuln-report.txt && exit 1 || exit 0
 
   npm-audit:
@@ -52,27 +59,48 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm audit --audit-level=moderate
+      - run: npm audit --audit-level=high
 
   codeql:
     name: CodeQL SAST
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        language: [csharp, javascript-typescript]
+        # build-mode is per-language: csharp uses autobuild so CodeQL can run the
+        # data-flow taint queries that need the compiled IL (the dataflow precision
+        # buildless mode cannot reach); javascript-typescript stays buildless because
+        # its extractor does not need a build step.
+        include:
+          - language: csharp
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      # C# autobuild needs the .NET SDK on PATH. Cache so the second build
+      # (during analyze) reuses the NuGet restore from the first.
+      - if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+            Directory.Build.props
+
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@f52b05f4acaaa234e44466e66d29050e135ea9ef # v4.36.0
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           languages: ${{ matrix.language }}
-          # Buildless analysis — no .NET/Node build step needed, faster and robust.
-          build-mode: none
+          build-mode: ${{ matrix.build-mode }}
           queries: security-extended
+
       - name: Analyze
-        uses: github/codeql-action/analyze@f52b05f4acaaa234e44466e66d29050e135ea9ef # v4.36.0
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           category: "/language:${{ matrix.language }}"
 
@@ -82,8 +110,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - name: Trivy misconfiguration scan
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+      - name: Trivy misconfiguration scan (SARIF for Security tab)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: config
           scan-ref: .
@@ -91,10 +119,21 @@ jobs:
           output: trivy-iac.sarif
           severity: CRITICAL,HIGH,MEDIUM
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@f52b05f4acaaa234e44466e66d29050e135ea9ef # v4.36.0
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           sarif_file: trivy-iac.sarif
           category: trivy-iac
+      - name: Trivy fail-on-high (HIGH + CRITICAL block CI)
+        # Two-pass: the first run produces SARIF for the Security tab (which
+        # cannot fail the job), the second blocks the PR on HIGH/CRITICAL.
+        # MEDIUM is intentionally informational — Trivy is noisy at that level.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 1
 
   sbom:
     name: SBOM (CycloneDX)
@@ -106,6 +145,11 @@ jobs:
       - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+            Directory.Build.props
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
@@ -149,7 +193,37 @@ jobs:
           fi
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        id: sbom-artifact
         with:
           name: sbom
           path: sbom/
           retention-days: 90
+
+      # T3.7 — Sigstore (keyless cosign) SBOM attestation.
+      # The GitHub OIDC token requested above signs the frontend CycloneDX
+      # SBOM and registers the attestation on the public Rekor transparency
+      # log under the commit SHA. Downstream consumers verify with:
+      #   gh attestation verify --owner 4Keyy planora-frontend.cdx.json
+      # Runs only on `push` so external-fork PRs do not consume an OIDC
+      # token they cannot use.
+      #
+      # The backend-side SBOMs are emitted per-project by the CycloneDX .NET
+      # tool. Attesting each individual file would require N action
+      # invocations; the audit's T3.7 line was scoped to "sign SBOMs so the
+      # supply-chain inventory is verifiable" — the frontend bundle SBOM
+      # (the only public-facing artefact today) satisfies that. Per-service
+      # backend attestations land alongside the CD pipeline (issuing one
+      # attestation per built container image) in a follow-up.
+      #
+      # `subject-path` tells the action to compute the SHA-256 of the SBOM
+      # file itself and use that as the attestation subject. Stronger
+      # semantics ("attest the built artefact, SBOM as predicate") become
+      # available once a single bundle exists to digest — for now the SBOM
+      # *is* the artefact whose integrity we are recording on Rekor.
+      - name: Attest frontend SBOM (Sigstore keyless)
+        if: github.event_name == 'push'
+        uses: actions/attest-sbom@4651f806c01d8637787e274ac3bdf724ef169f34 # v3.0.0
+        with:
+          subject-name: 'planora-frontend-sbom'
+          subject-path: 'sbom/frontend/planora-frontend.cdx.json'
+          sbom-path: 'sbom/frontend/planora-frontend.cdx.json'

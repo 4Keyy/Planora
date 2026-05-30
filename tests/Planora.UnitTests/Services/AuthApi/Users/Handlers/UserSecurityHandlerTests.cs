@@ -7,10 +7,12 @@ using Planora.Auth.Application.Features.Users.Commands.ChangeEmail;
 using Planora.Auth.Application.Features.Users.Commands.ChangePassword;
 using Planora.Auth.Application.Features.Users.Commands.Disable2FA;
 using Planora.Auth.Application.Features.Users.Commands.RevokeAllSessions;
+using Planora.Auth.Application.Features.Users.Commands.RevokeSession;
 using Planora.Auth.Application.Features.Users.Handlers.ChangeEmail;
 using Planora.Auth.Application.Features.Users.Handlers.ChangePassword;
 using Planora.Auth.Application.Features.Users.Handlers.Disable2FA;
 using Planora.Auth.Application.Features.Users.Handlers.GetUserSecurity;
+using Planora.Auth.Application.Features.Users.Handlers.RevokeSession;
 using Planora.Auth.Application.Features.Users.Handlers.RevokeSessions;
 using Planora.Auth.Application.Features.Users.Queries.GetUserSecurity;
 using Planora.Auth.Domain.Entities;
@@ -491,6 +493,48 @@ public class UserSecurityHandlerTests
         Assert.Equal("GET_SECURITY_ERROR", failed.Error!.Code);
     }
 
+    /// <summary>
+    /// T3.6 — explicit cross-user IDOR test for `RevokeSessionCommandHandler`.
+    /// The handler already rejects via `token.UserId != currentUser` →
+    /// `Forbidden`, but until now no test pinned that contract. Closing the
+    /// gap documented in `docs/security-idor-coverage.md`.
+    /// </summary>
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task RevokeSession_WhenTokenBelongsToAnotherUser_ReturnsForbidden()
+    {
+        var attackerId = Guid.NewGuid();
+        var victimId = Guid.NewGuid();
+        var fixture = new AuthUserFixture(attackerId);
+        fixture.UnitOfWork.SetupGet(x => x.RefreshTokens).Returns(fixture.RefreshTokens.Object);
+
+        var victimToken = new RefreshTokenEntity(
+            victimId,
+            "victim-token",
+            "10.0.0.1",
+            DateTime.UtcNow.AddDays(7));
+        fixture.RefreshTokens
+            .Setup(x => x.GetByIdAsync(victimToken.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(victimToken);
+
+        var result = await fixture
+            .CreateRevokeSessionHandler()
+            .Handle(new RevokeSessionCommand { TokenId = victimToken.Id }, CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("ACCESS_DENIED", result.Error!.Code);
+        // Critical: the attacker's call must not have mutated the victim's token.
+        Assert.False(victimToken.IsRevoked, "the victim's token must not be revoked by an attacker's request");
+        fixture.RefreshTokens.Verify(
+            x => x.Update(It.IsAny<RefreshTokenEntity>()),
+            Times.Never,
+            "no Update call must happen when the actor does not own the token");
+        fixture.UnitOfWork.Verify(
+            x => x.SaveChangesAsync(It.IsAny<CancellationToken>()),
+            Times.Never,
+            "no SaveChangesAsync must happen when the actor does not own the token");
+    }
+
     private static User CreateUser(string email = "user@example.com")
         => User.Create(Email.Create(email), "old-hash", "Ada", "Lovelace");
 
@@ -566,6 +610,12 @@ public class UserSecurityHandlerTests
                 CurrentUser.Object,
                 SecurityStamp.Object,
                 Mock.Of<ILogger<RevokeAllSessionsCommandHandler>>());
+
+        public RevokeSessionCommandHandler CreateRevokeSessionHandler()
+            => new(
+                UnitOfWork.Object,
+                CurrentUser.Object,
+                Mock.Of<ILogger<RevokeSessionCommandHandler>>());
 
         public GetUserSecurityQueryHandler CreateGetUserSecurityHandler()
             => new(

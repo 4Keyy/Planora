@@ -1,0 +1,165 @@
+name: NuGet Vulnerability Auto-PR
+
+# Compensating workflow for the dependabot-disabled NuGet ecosystem.
+#
+# Why this exists: Dependabot cannot scope updates to the central
+# Directory.Packages.props file (CPM), so we keep its NuGet ecosystem at
+# open-pull-requests-limit: 0 and instead run this nightly job. If
+# `dotnet list package --vulnerable` reports any high/critical advisories
+# in the locked transitive graph, the workflow opens (or updates) a
+# tracking PR with the report body.
+#
+# Authority model:
+#   - Branch name is stable (security/nuget-vuln-tracking) so re-runs
+#     update the same PR instead of fanning out duplicates.
+#   - PR body is the raw report — reviewers see exactly what shipped.
+#   - The PR carries a single label so it's easy to triage.
+#   - No code changes are pushed; only a marker file in the report branch
+#     so the PR has a delta to surface. Maintainer edits Directory.Packages.props
+#     themselves to apply fixes (per the dependabot-disabled rationale).
+
+on:
+  schedule:
+    # 03:00 UTC every day — quiet hours globally, well clear of CI peaks.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: nuget-vuln-pr
+  cancel-in-progress: false
+
+jobs:
+  scan-and-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REPORT_BRANCH: security/nuget-vuln-tracking
+      REPORT_FILE: .github/security/nuget-vuln-report.md
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+            Directory.Build.props
+
+      - name: Restore solution
+        run: dotnet restore Planora.sln
+
+      - name: Scan for vulnerable packages
+        id: scan
+        shell: bash
+        run: |
+          set -e
+          report=$(dotnet list package --vulnerable --include-transitive 2>&1 || true)
+          echo "$report" > /tmp/vuln-raw.txt
+
+          # The scanner prints "has the following vulnerable packages" exactly
+          # when at least one advisory matches; everything else is informational.
+          if echo "$report" | grep -qi "has the following vulnerable packages"; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            # Limit Body to high/critical to keep noise out of the PR.
+            high_only=$(echo "$report" | awk '/Severity: (High|Critical)/{p=1} /^[^ ]/{if(p&&!/^>/){p=0}} p' || true)
+            if [ -z "$high_only" ]; then
+              # Fall back to the full report if filtering produced nothing
+              # (parser changed) — better to over-report than miss findings.
+              high_only="$report"
+            fi
+            echo "$high_only" > /tmp/vuln-body.txt
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Close any existing tracking PR when scan is clean
+        if: steps.scan.outputs.found == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -e
+          pr_number=$(gh pr list --head "${REPORT_BRANCH}" --state open --json number --jq '.[0].number' || true)
+          if [ -n "${pr_number}" ]; then
+            gh pr close "${pr_number}" --comment "No vulnerable packages on the latest scheduled scan; closing tracking PR. The branch is preserved so the next regression reopens this same PR rather than spawning a new one."
+          fi
+
+      - name: Prepare tracking branch + report file
+        if: steps.scan.outputs.found == 'true'
+        shell: bash
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Detach from main so we never accidentally push to it. Reset to a fresh
+          # tracking branch every run so the PR diff is always "current report vs main".
+          git fetch origin main
+          git checkout -B "${REPORT_BRANCH}" origin/main
+
+          mkdir -p "$(dirname "${REPORT_FILE}")"
+          {
+            echo "# NuGet Vulnerable Packages — Tracking Report"
+            echo
+            echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "Apply fixes by bumping the affected package versions in \`Directory.Packages.props\`."
+            echo
+            echo '```'
+            cat /tmp/vuln-body.txt
+            echo '```'
+          } > "${REPORT_FILE}"
+
+          git add "${REPORT_FILE}"
+          if git diff --cached --quiet; then
+            echo "::notice::No content change in tracking report; PR (if open) stays as is."
+          else
+            git commit -m "security(nuget): refresh vulnerability tracking report"
+            git push --force-with-lease origin "${REPORT_BRANCH}"
+          fi
+
+      - name: Open or update tracking PR
+        if: steps.scan.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -e
+          existing=$(gh pr list --head "${REPORT_BRANCH}" --state open --json number --jq '.[0].number' || true)
+          body=$(cat <<EOF
+          The nightly NuGet vulnerability scanner found packages with HIGH or CRITICAL advisories in the resolved restore graph.
+
+          Reviewer action:
+          1. Read the report at \`${REPORT_FILE}\` on this branch.
+          2. Bump the affected versions in \`Directory.Packages.props\` (NOT in this PR's branch — open a separate fix PR against \`main\`).
+          3. Once \`main\` is clean, the next scheduled run will close this PR automatically.
+
+          This PR is a *tracking* artefact only. Do not merge it. Do not push code fixes onto its branch — the workflow resets the branch on every run.
+          EOF
+          )
+
+          if [ -n "${existing}" ]; then
+            gh pr edit "${existing}" --body "${body}" || true
+            gh pr comment "${existing}" --body "Updated vulnerability report from the latest nightly scan. See the report file diff for the current findings."
+          else
+            gh pr create \
+              --title "security(nuget): vulnerable packages found by nightly scan" \
+              --body "${body}" \
+              --base main \
+              --head "${REPORT_BRANCH}" \
+              --label "security" || \
+              gh pr create \
+                --title "security(nuget): vulnerable packages found by nightly scan" \
+                --body "${body}" \
+                --base main \
+                --head "${REPORT_BRANCH}"
+          fi

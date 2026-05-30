@@ -4,6 +4,21 @@ using Planora.BuildingBlocks.Application.Pagination;
 
 namespace Planora.BuildingBlocks.Infrastructure.Persistence
 {
+    /// <summary>
+    /// Canonical repository base. Single source of truth for soft-delete handling,
+    /// AsNoTracking discipline on read queries, pagination, and specification dispatch.
+    /// Service-side per-context adapters (Auth/Messaging) wrap this with a thin
+    /// concrete-typed shim only to expose the service's own DbContext to subclasses.
+    /// </summary>
+    /// <remarks>
+    /// Soft-delete strategy:
+    ///   - This base applies an explicit <c>!IsDeleted</c> predicate on every read.
+    ///   - Services that ALSO configure <c>HasQueryFilter</c> (Auth) get redundant
+    ///     filtering — harmless because the SQL optimiser collapses it.
+    ///   - Services without HasQueryFilter (Todo) rely solely on this predicate.
+    ///   - <see cref="GetByIdAsync"/> intentionally does not use AsNoTracking so
+    ///     the returned entity is trackable for subsequent mutations.
+    /// </remarks>
     public abstract class BaseRepository<TEntity, TId, TContext> : IRepository<TEntity, TId>
         where TEntity : BaseEntity
         where TContext : DbContext
@@ -25,34 +40,37 @@ namespace Planora.BuildingBlocks.Infrastructure.Persistence
             // FirstOrDefaultAsync always goes to the store and works correctly everywhere.
             // The !IsDeleted predicate keeps GetByIdAsync consistent with every other query
             // method on this base — a soft-deleted entity must never be returned by id.
+            // No AsNoTracking: callers typically chain Update on the result.
             var guidId = (Guid)(object)id!;
             return await DbSet.FirstOrDefaultAsync(e => e.Id == guidId && !e.IsDeleted, cancellationToken);
         }
 
         public virtual async Task<IReadOnlyList<TEntity>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            return await DbSet.Where(e => !e.IsDeleted).ToListAsync(cancellationToken);
+            // INV-DATA-3: AsNoTracking on read queries. Mutation flows must use
+            // GetByIdAsync (tracking) or a service-side query that opts back into tracking.
+            return await DbSet.AsNoTracking().Where(e => !e.IsDeleted).ToListAsync(cancellationToken);
         }
 
         public virtual async Task<IReadOnlyList<TEntity>> FindAsync(
             Expression<Func<TEntity, bool>> predicate,
             CancellationToken cancellationToken = default)
         {
-            return await DbSet.Where(predicate).Where(e => !e.IsDeleted).ToListAsync(cancellationToken);
+            return await DbSet.AsNoTracking().Where(predicate).Where(e => !e.IsDeleted).ToListAsync(cancellationToken);
         }
 
         public virtual async Task<TEntity?> FindFirstAsync(
             Expression<Func<TEntity, bool>> predicate,
             CancellationToken cancellationToken = default)
         {
-            return await DbSet.Where(predicate).Where(e => !e.IsDeleted).FirstOrDefaultAsync(cancellationToken);
+            return await DbSet.AsNoTracking().Where(predicate).Where(e => !e.IsDeleted).FirstOrDefaultAsync(cancellationToken);
         }
 
         public virtual async Task<bool> ExistsAsync(
             Expression<Func<TEntity, bool>> predicate,
             CancellationToken cancellationToken = default)
         {
-            return await DbSet.Where(e => !e.IsDeleted).AnyAsync(predicate, cancellationToken);
+            return await DbSet.AsNoTracking().Where(e => !e.IsDeleted).AnyAsync(predicate, cancellationToken);
         }
 
         public virtual async Task<int> CountAsync(
@@ -60,9 +78,9 @@ namespace Planora.BuildingBlocks.Infrastructure.Persistence
             CancellationToken cancellationToken = default)
         {
             if (predicate == null)
-                return await DbSet.Where(e => !e.IsDeleted).CountAsync(cancellationToken);
+                return await DbSet.AsNoTracking().Where(e => !e.IsDeleted).CountAsync(cancellationToken);
 
-            return await DbSet.Where(e => !e.IsDeleted).CountAsync(predicate, cancellationToken);
+            return await DbSet.AsNoTracking().Where(e => !e.IsDeleted).CountAsync(predicate, cancellationToken);
         }
 
         public virtual async Task<TEntity> AddAsync(TEntity entity, CancellationToken cancellationToken = default)
@@ -110,7 +128,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Persistence
             CancellationToken cancellationToken = default)
         {
             var (safePageNumber, safePageSize) = PaginationParameters.Normalize(pageNumber, pageSize);
-            var query = DbSet.Where(e => !e.IsDeleted).AsQueryable();
+            var query = DbSet.AsNoTracking().Where(e => !e.IsDeleted).AsQueryable();
 
             if (predicate != null)
                 query = query.Where(predicate);

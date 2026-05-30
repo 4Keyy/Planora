@@ -129,6 +129,68 @@ Important frontend files:
 - `frontend/src/store/auth.ts` - token/user/session state.
 - `frontend/src/types/todo.ts` - todo status/priority type conversions.
 
+### Bundle-size discipline
+
+Pages that ship heavy components only reached after user interaction
+(modals, drawers, infrequent panels) lazy-load them via `next/dynamic`.
+The currently lazy-loaded surfaces are:
+
+| Component | Loaded on | Loaded from |
+|---|---|---|
+| `EditTodoModal` | first click of an edit affordance | `tasks/page.tsx`, `dashboard/page.tsx`, `tasks/completed/page.tsx` |
+| `CreateTodoPanel` | first time the create panel opens | `tasks/page.tsx`, `dashboard/page.tsx` |
+| `ColorBends` (WebGL background) | hydration of `ColorBendsLayer` | `app/layout.tsx` |
+
+When adding a new heavy component (rule of thumb: > 10 kB gzipped, or
+pulls in framer-motion or three.js), prefer:
+
+```tsx
+const HeavyModal = dynamic(
+  () => import("@/components/.../heavy-modal").then((m) => ({ default: m.HeavyModal })),
+  { ssr: false },
+)
+```
+
+`ssr: false` is appropriate when the component is rendered in a
+`"use client"` page and never needs SSR-pre-rendered markup. The
+framer-motion enter animation on conditionally-rendered modals absorbs
+the chunk fetch, so there is no visible delay on first open.
+
+### API origin preconnect
+
+`frontend/src/app/layout.tsx` emits `<link rel="preconnect">` and
+`<link rel="dns-prefetch">` for the API gateway origin (read from
+`NEXT_PUBLIC_API_URL` at build time). This opens the TCP + TLS
+connection in parallel with the page render so the first auth call
+saves the handshake (~100-300 ms on a cold connection). If the URL is
+malformed the tag is omitted; the hint is a hint, never a hard
+dependency.
+
+### Avatar `priority` for LCP-critical surfaces
+
+The `Avatar` component (`frontend/src/components/ui/avatar.tsx`) wraps
+`next/image`, which is lazy by default. Most avatars (lists, friend
+multi-select, comment authors) want to stay lazy and out of the LCP
+budget. The one exception is the navbar's current-user avatar — it
+sits above the fold on every authenticated page and is an LCP
+candidate. Pass `priority` there:
+
+```tsx
+<Avatar
+  src={user?.profilePictureUrl}
+  firstName={user?.firstName}
+  lastName={user?.lastName}
+  email={user?.email}
+  size={32}
+  priority   // ← only the navbar avatar
+/>
+```
+
+Set `priority` **only** for above-the-fold avatars on critical pages.
+Setting it elsewhere wastes network on images the user never sees,
+and Next.js will warn in dev when more than one `priority` image is
+visible at once.
+
 ## Database Changes
 
 1. Change the domain/entity in the owning service.

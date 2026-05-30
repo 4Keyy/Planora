@@ -1,51 +1,47 @@
 namespace Planora.Auth.Infrastructure.Persistence.Repositories;
 
+/// <summary>
+/// Compatibility wrapper preserved during Phase 2 T2.3. Auth never registered this
+/// repository in DI (no <c>services.AddScoped&lt;IOutboxRepository&gt;</c> in Auth's
+/// <c>DependencyInjection</c>) but the type was present in two prior audits, so we
+/// keep it as a thin pass-through to the canonical
+/// <see cref="Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository{TContext}"/>
+/// for one release. The pre-consolidation query was buggy — it never picked up
+/// <c>Failed</c>-with-<c>NextRetryUtc</c> rows; the canonical implementation has
+/// the correct INV-COMM-3a polling predicate.
+/// </summary>
+[Obsolete("Register Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<AuthDbContext> instead. Will be removed.")]
 public sealed class OutboxRepository : IOutboxRepository
 {
-    private readonly AuthDbContext _context;
+    private readonly Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<AuthDbContext> _inner;
 
     public OutboxRepository(AuthDbContext context)
     {
-        _context = context;
+        _inner = new Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<AuthDbContext>(context);
     }
 
+    public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        => _inner.AddAsync(message, cancellationToken);
+
+    public Task<IReadOnlyList<OutboxMessage>> GetPendingMessagesAsync(int batchSize, CancellationToken cancellationToken = default)
+        => _inner.GetPendingMessagesAsync(batchSize, cancellationToken);
+
+    public Task UpdateAsync(OutboxMessage message, CancellationToken cancellationToken = default)
+        => _inner.UpdateAsync(message, cancellationToken);
+
+    public Task DeleteProcessedMessagesAsync(DateTime olderThan, CancellationToken cancellationToken = default)
+        => _inner.DeleteProcessedMessagesAsync(olderThan, cancellationToken);
+
+    /// <summary>
+    /// Historical alias retained for callers that expected the "GetUnprocessed" name.
+    /// Returns a concrete <see cref="List{T}"/> — callers that depended on the
+    /// concrete type continue to compile.
+    /// </summary>
     public async Task<List<OutboxMessage>> GetUnprocessedMessagesAsync(
         int batchSize = 10,
         CancellationToken cancellationToken = default)
     {
-        return await _context.OutboxMessages
-            .Where(m => m.Status == OutboxMessageStatus.Pending)
-            .OrderBy(m => m.OccurredOnUtc)
-            .Take(batchSize)
-            .ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<OutboxMessage>> GetPendingMessagesAsync(int batchSize, CancellationToken cancellationToken = default)
-    {
-        return await GetUnprocessedMessagesAsync(batchSize, cancellationToken);
-    }
-
-    public async Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default)
-    {
-        await _context.OutboxMessages.AddAsync(message, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task UpdateAsync(OutboxMessage message, CancellationToken cancellationToken = default)
-    {
-        _context.OutboxMessages.Update(message);
-        await _context.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task DeleteProcessedMessagesAsync(
-        DateTime olderThan,
-        CancellationToken cancellationToken = default)
-    {
-        var messagesToDelete = await _context.OutboxMessages
-            .Where(m => m.Status == OutboxMessageStatus.Processed && m.ProcessedOnUtc < olderThan)
-            .ToListAsync(cancellationToken);
-
-        _context.OutboxMessages.RemoveRange(messagesToDelete);
-        await _context.SaveChangesAsync(cancellationToken);
+        var pending = await _inner.GetPendingMessagesAsync(batchSize, cancellationToken);
+        return [.. pending];
     }
 }

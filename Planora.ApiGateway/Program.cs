@@ -1,8 +1,11 @@
 using Planora.ApiGateway.Configuration;
 using Planora.ApiGateway.Extensions;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Logging;
 using Planora.BuildingBlocks.Infrastructure.Middleware;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 using System.Threading.RateLimiting;
 
 namespace Planora.ApiGateway;
@@ -36,6 +39,44 @@ public class Program
             builder.Services.AddOcelotConfiguration(builder.Configuration);
             builder.Services.AddControllers();
             builder.Services.AddHealthChecks();
+
+            // SECURITY: forwarded-header processing is OPT-IN per environment.
+            // The gateway sits behind Fly's edge proxy in production; without trusting
+            // X-Forwarded-For the rate-limit partition key collapses to the Fly edge
+            // IP (one bucket for every user). With unconditional trust, ANY client can
+            // spoof X-Forwarded-For: <victim-ip> and bypass the rate limit by
+            // poisoning the bucket.
+            //
+            // Resolution: enable ForwardedHeaders only when at least one KnownProxy is
+            // configured. The proxy list is supplied via appsettings or the
+            // ForwardedHeaders__KnownProxies environment variable (CIDR-aware
+            // entries are still treated as individual IPs here — KnownNetworks is the
+            // CIDR-aware alternative when needed). Production deployments must set
+            // the Fly edge range; development leaves the section empty and the
+            // middleware is not registered.
+            var knownProxies = builder.Configuration
+                .GetSection("ForwardedHeaders:KnownProxies")
+                .Get<string[]>() ?? Array.Empty<string>();
+            if (knownProxies.Length > 0)
+            {
+                builder.Services.Configure<ForwardedHeadersOptions>(options =>
+                {
+                    options.ForwardedHeaders =
+                        ForwardedHeaders.XForwardedFor
+                        | ForwardedHeaders.XForwardedProto
+                        | ForwardedHeaders.XForwardedHost;
+                    options.ForwardLimit = 1;
+                    options.KnownProxies.Clear();
+                    options.KnownNetworks.Clear();
+                    foreach (var proxy in knownProxies)
+                    {
+                        if (IPAddress.TryParse(proxy, out var parsed))
+                        {
+                            options.KnownProxies.Add(parsed);
+                        }
+                    }
+                });
+            }
 
             // OpenTelemetry — traces + metrics. No-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
             // The gateway is the canonical entrypoint for traceparent propagation — every
@@ -118,7 +159,7 @@ public class Program
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
                         IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secret)),
-                        ClockSkew = TimeSpan.FromSeconds(5)
+                        ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds)
                     };
                     
                     // Add event handlers for debugging
@@ -149,6 +190,16 @@ public class Program
             builder.Services.AddHealthChecks();
 
             var app = builder.Build();
+
+            // SECURITY: process X-Forwarded-* BEFORE HTTPS redirection. With this in
+            // place HttpsRedirection sees the true client protocol and does not
+            // double-redirect HTTPS-terminated edge traffic. UseForwardedHeaders
+            // only runs when KnownProxies is non-empty (see Configure above);
+            // otherwise it is a no-op safe against header spoofing.
+            if (knownProxies.Length > 0)
+            {
+                app.UseForwardedHeaders();
+            }
 
             // SECURITY: Redirect HTTP to HTTPS in non-development environments.
             if (!builder.Environment.IsDevelopment())

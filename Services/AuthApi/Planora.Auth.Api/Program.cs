@@ -45,8 +45,8 @@ namespace Planora.Auth.Api
             // Rate Limiting
             builder.Services.AddConfiguredRateLimiting(builder.Configuration);
 
-            // OpenTelemetry
-            builder.Services.AddOpenTelemetryConfiguration(builder.Configuration);
+            // OpenTelemetry — canonical entry point shared by every service (INV-OBS-5).
+            builder.Services.AddPlanoraTelemetry(builder.Configuration, defaultServiceName: "AuthService");
 
             builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
             {

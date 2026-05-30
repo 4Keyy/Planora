@@ -14,7 +14,14 @@ import { TodoCard } from "@/components/todos/todo-card"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
-import { EditTodoModal } from "@/components/todos/edit-todo-modal"
+import dynamic from "next/dynamic"
+// Edit modal mounts only when the user clicks a completed task. Lazy-load
+// keeps it out of the initial completed-page bundle; the framer-motion
+// enter animation absorbs the chunk fetch on first open.
+const EditTodoModal = dynamic(
+  () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
+  { ssr: false },
+)
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 import { getTaskWeight } from "@/utils/sort-tasks"
@@ -45,6 +52,11 @@ export default function CompletedTasksPage() {
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
   const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
   const friendNameCache = useRef<Map<string, string>>(new Map())
+
+  // PERF: live mirror for the memoized TodoCard's (possibly stale) handler
+  // closures to read from. See the equivalent note on the dashboard.
+  const todosRef = useRef(todos)
+  todosRef.current = todos
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -144,7 +156,7 @@ export default function CompletedTasksPage() {
   }, [loading, totalCount, currentPage, todos.length, lastFetchedPage])
 
   const handleComplete = async (todoId: string) => {
-    const existing = todos.find((t) => t.id === todoId)
+    const existing = todosRef.current.find((t) => t.id === todoId)
     if (!existing) return
 
     try {
@@ -217,7 +229,7 @@ export default function CompletedTasksPage() {
   }, [todos, addToast])
 
   const handleToggleHidden = useCallback(async (todoId: string) => {
-    const existing = todos.find(t => t.id === todoId)
+    const existing = todosRef.current.find(t => t.id === todoId)
     if (!existing) return
     const newHidden = !(existing.hidden ?? false)
     const isOwner = isTodoOwner(existing, user?.userId)
@@ -253,7 +265,7 @@ export default function CompletedTasksPage() {
       }
       addToast({ type: "error", title: "Failed to update task visibility" })
     }
-  }, [todos, addToast, user?.userId])
+  }, [addToast, user?.userId])
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 

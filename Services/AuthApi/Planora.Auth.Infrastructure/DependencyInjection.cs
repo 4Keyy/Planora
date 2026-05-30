@@ -5,6 +5,7 @@ using Planora.Auth.Application.Common.Options;
 using Planora.Auth.Infrastructure.Services.Common;
 using Planora.Auth.Infrastructure.Services.Messaging;
 using Planora.Auth.Infrastructure.Services.Security;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Application.Messaging;
@@ -181,7 +182,7 @@ public static class DependencyInjection
                 ValidIssuer = jwtSettings.Issuer,
                 ValidAudience = jwtSettings.Audience,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Secret)),
-                ClockSkew = TimeSpan.Zero,
+                ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds),
                 RequireExpirationTime = true
             };
 

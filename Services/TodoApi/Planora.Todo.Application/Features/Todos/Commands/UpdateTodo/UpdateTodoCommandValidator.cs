@@ -13,8 +13,10 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 .MaximumLength(200).WithMessage("Title cannot exceed 200 characters")
                 .When(x => !string.IsNullOrEmpty(x.Title));
 
+            // See CreateTodoCommandValidator for the rationale — must match
+            // TodoItemConfiguration.HasMaxLength(2000) for the Description column.
             RuleFor(x => x.Description)
-                .MaximumLength(5000).WithMessage("Description cannot exceed 5000 characters")
+                .MaximumLength(2000).WithMessage("Description cannot exceed 2000 characters")
                 .When(x => !string.IsNullOrEmpty(x.Description));
 
             // Date validations removed - allow any dates including past dates

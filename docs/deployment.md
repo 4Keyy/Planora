@@ -123,7 +123,7 @@ CI is validation-only. It does not deploy.
 - CodeQL SAST (C# and JavaScript/TypeScript, `security-extended` query suite);
 - Trivy IaC/Dockerfile misconfiguration scan (SARIF upload);
 - NuGet vulnerability check;
-- npm audit (`--audit-level=moderate`);
+- npm audit (`--audit-level=high`, blocks merge on HIGH or CRITICAL vulnerabilities);
 - CycloneDX SBOM artifact (`dotnet CycloneDX` + `@cyclonedx/cyclonedx-npm`), uploaded with 90-day retention;
 - weekly schedule.
 

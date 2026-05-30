@@ -9,6 +9,7 @@ using Planora.Auth.Infrastructure.Persistence;
 using Planora.Category.Infrastructure.Persistence;
 using Planora.Collaboration.Infrastructure.Persistence;
 using Planora.Messaging.Infrastructure.Persistence;
+using Planora.Realtime.Infrastructure.Persistence;
 using Planora.Todo.Infrastructure.Persistence;
 
 namespace Planora.Migrator;
@@ -40,6 +41,8 @@ internal static class Program
         new("category",  "CategoryDatabase",  typeof(CategoryDbContext),  RequiresDispatcher: true),
         new("todo",      "TodoDatabase",      typeof(TodoDbContext),      RequiresDispatcher: false),
         new("messaging", "MessagingDatabase", typeof(MessagingDbContext), RequiresDispatcher: false),
+        // T2.5 — Realtime persisted Notification + NotificationDelivery + Outbox schema.
+        new("realtime",  "RealtimeDatabase",  typeof(RealtimeDbContext),  RequiresDispatcher: true),
         new("collaboration", "CollaborationDatabase", typeof(CollaborationDbContext), RequiresDispatcher: false),
     ];
 
@@ -155,10 +158,30 @@ internal static class Program
         {
             var context = (DbContext)scope.ServiceProvider.GetRequiredService(service.DbContextType);
 
+            // SCHEMA DRIFT GUARD — applied set must be a subset of code set.
+            // Any "ghost" migration recorded in __EFMigrationsHistory but absent from the
+            // compiled assembly indicates a developer deleted a migration file locally,
+            // or a deploy ran against a database that was on a more advanced schema than
+            // the one shipping now. Either case is a hard stop: silently running a partial
+            // migration would corrupt the history. Operators must reconcile manually.
+            var codeSet = context.Database.GetMigrations().ToHashSet(StringComparer.Ordinal);
+            var applied = (await context.Database.GetAppliedMigrationsAsync()).ToList();
+            var drifted = applied.Where(m => !codeSet.Contains(m)).ToList();
+            if (drifted.Count > 0)
+            {
+                logger.LogError(
+                    "Schema drift detected: {Count} migration(s) applied to the database are not in the current code base: {Migrations}. " +
+                    "Either restore the migration files in code, or reset the target environment, before re-running. " +
+                    "Migrator will not partially apply against an unknown schema.",
+                    drifted.Count, string.Join(", ", drifted));
+                sw.Stop();
+                return false;
+            }
+
             var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
             if (pending.Count == 0)
             {
-                logger.LogInformation("No pending migrations.");
+                logger.LogInformation("No pending migrations. Applied so far: {AppliedCount}.", applied.Count);
                 sw.Stop();
                 return true;
             }
@@ -264,12 +287,12 @@ internal static class Program
               Planora.Migrator --backfill-collaboration
 
             SERVICES
-              auth, category, todo, messaging, collaboration
+              auth, category, todo, messaging, realtime, collaboration
 
             CONFIG
               Connection strings: ConnectionStrings__AuthDatabase, ConnectionStrings__CategoryDatabase,
               ConnectionStrings__TodoDatabase, ConnectionStrings__MessagingDatabase,
-              ConnectionStrings__CollaborationDatabase
+              ConnectionStrings__RealtimeDatabase, ConnectionStrings__CollaborationDatabase
               (envvar or appsettings.json). Override per-run with --connection-string.
 
             BACKFILL
