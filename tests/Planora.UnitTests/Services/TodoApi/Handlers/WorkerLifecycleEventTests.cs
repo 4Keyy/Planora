@@ -106,7 +106,19 @@ public sealed class WorkerLifecycleEventTests
                 .Callback<OutboxMessage, CancellationToken>((m, _) => _captured = m)
                 .Returns(Task.CompletedTask);
             Mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>()))
-                .Returns(new TodoItemDto { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), Title = "t", Status = "Todo" });
+                .Returns(new TodoItemDto
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = Guid.NewGuid(),
+                    Title = "t",
+                    Status = "Todo",
+                    Priority = "Medium",
+                    IsPublic = true,
+                    Hidden = false,
+                    IsCompleted = false,
+                    Tags = Array.Empty<string>(),
+                    CreatedAt = DateTime.UtcNow,
+                });
         }
 
         public void AssertActivityPublished(string activityType)
