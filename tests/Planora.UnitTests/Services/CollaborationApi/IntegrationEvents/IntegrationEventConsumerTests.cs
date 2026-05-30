@@ -37,9 +37,11 @@ public sealed class IntegrationEventConsumerTests
         await consumer.HandleAsync(
             new TaskCreatedIntegrationEvent(taskId, owner, "Alice", "My description"), CancellationToken.None);
 
-        Assert.Equal(2, added.Count);
-        Assert.Contains(added, c => c.IsSystemComment && !c.IsGenesisComment && c.Content.Contains("created the task"));
-        Assert.Contains(added, c => c.IsGenesisComment && c.Content == "My description");
+        // Exactly two comments, in order: the "created" system comment then the genesis comment.
+        Assert.Collection(
+            added,
+            c => Assert.True(c.IsSystemComment && !c.IsGenesisComment && c.Content.Contains("created the task")),
+            c => Assert.True(c.IsGenesisComment && c.Content == "My description"));
         uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
