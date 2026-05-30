@@ -84,6 +84,7 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | Todo endpoints & sharing | `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`, `Services/TodoApi/Planora.Todo.Application/Features/Todos` |
 | Category endpoints | `Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs` |
 | Messaging endpoints | `Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs` |
+| Collaboration (comment timeline) endpoints | `Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs` |
 | Realtime endpoints & hubs | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Api/Hubs` |
 | Database models | `*/Infrastructure/Persistence/*DbContext.cs`, `*/Infrastructure/Persistence/Configurations` |
 | Backend tests | `tests/Planora.UnitTests`, `tests/Planora.ErrorHandlingTests` |

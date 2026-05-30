@@ -94,26 +94,48 @@ Critical files:
 - `Controllers/TodosController.cs`
 - `Features/Todos/Queries/GetUserTodos/GetUserTodosQueryHandler.cs`
 - `Features/Todos/Queries/GetTodoById/GetTodoByIdQueryHandler.cs`
-- `Features/Todos/Queries/GetComments/GetCommentsQueryHandler.cs`
-- `Features/Todos/Commands/CreateTodo/CreateTodoCommandHandler.cs`
-- `Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs`
+- `Features/Todos/Commands/CreateTodo/CreateTodoCommandHandler.cs` — publishes `TaskCreatedIntegrationEvent`
+- `Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs` — publishes `TaskActivityIntegrationEvent`
 - `Features/Todos/Commands/JoinTodo/JoinTodoCommandHandler.cs`
 - `Features/Todos/Commands/LeaveTodo/LeaveTodoCommandHandler.cs`
-- `Features/Todos/Commands/AddComment/AddCommentCommandHandler.cs`
-- `Features/Todos/Commands/UpdateComment/UpdateCommentCommandHandler.cs`
-- `Features/Todos/Commands/DeleteComment/DeleteCommentCommandHandler.cs`
+- `Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs` — publishes `TaskDeletedIntegrationEvent`
 - `Features/Todos/Commands/SetTodoHidden/SetTodoHiddenCommandHandler.cs`
 - `Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs`
+- `Features/Todos/Common/OutboxExtensions.cs` — helper to enqueue integration events in the unit of work
 - `Features/Todos/TodoViewerStateResolver.cs`
 - `Features/Todos/HiddenTodoDtoFactory.cs`
+- `Api/Grpc/TodoGrpcService.cs` — includes `CheckTaskCommentAccess` (authorises Collaboration)
 - `Domain/Entities/TodoItem.cs` — aggregate root with `Workers`, `RequiredWorkers`, `IsCapacityFull`
 - `Domain/Entities/TodoItemWorker.cs`
-- `Domain/Entities/TodoItemComment.cs`
-- `Domain/Repositories/ITodoCommentRepository.cs`
 - `Persistence/TodoDbContext.cs`
-- `Persistence/Repositories/TodoCommentRepository.cs`
 - `Persistence/Configurations/TodoItemWorkerConfiguration.cs`
-- `Persistence/Configurations/TodoItemCommentConfiguration.cs`
+- `Persistence/Configurations/OutboxMessageConfiguration.cs`
+
+> The comment timeline ("ветки") is no longer in Todo — it lives in the **Collaboration Service** below.
+
+## Collaboration Service
+
+| Path | Purpose |
+|---|---|
+| `Services/CollaborationApi/Planora.Collaboration.Api` | comment HTTP controller, startup, integration-event subscriptions |
+| `Services/CollaborationApi/Planora.Collaboration.Application` | comment commands/queries/validators, DTO, Inbox consumers, service ports |
+| `Services/CollaborationApi/Planora.Collaboration.Domain` | `Comment` aggregate, domain event, repository contract |
+| `Services/CollaborationApi/Planora.Collaboration.Infrastructure` | EF Core context/configuration/repository, Todo+Auth gRPC clients, outbox |
+
+Critical files:
+
+- `Api/Controllers/CommentsController.cs` — `/api/v1/comments` (get/add/genesis/update/delete)
+- `Api/Program.cs` — subscribes to `TaskCreated`/`TaskActivity`/`TaskDeleted`/`UserDeleted`
+- `Application/Features/Comments/Commands/*` — handlers + FluentValidation validators
+- `Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs`
+- `Application/Features/IntegrationEvents/*EventConsumer.cs` — Inbox materialisation (idempotent)
+- `Application/Services/ITaskAccessService.cs` / `IUserService.cs` — outward ports
+- `Domain/Entities/Comment.cs` — `Create` / `CreateSystem` / `CreateGenesis` / `Update*`
+- `Domain/Repositories/ICommentRepository.cs`
+- `Infrastructure/Grpc/TaskAccessGrpcClient.cs` — wraps `TodoService.CheckTaskCommentAccess`
+- `Infrastructure/Grpc/{UserGrpcService,CachingUserService}.cs` — avatar enrichment (60 s cache)
+- `Infrastructure/Persistence/CollaborationDbContext.cs`
+- `Infrastructure/Persistence/Configurations/CommentConfiguration.cs`
 
 ## Category Service
 

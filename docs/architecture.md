@@ -48,6 +48,7 @@ flowchart LR
 | Todo API | todos, sharing, hidden state, viewer categories | `Services/TodoApi/Planora.Todo.Api/Program.cs`, `Controllers/TodosController.cs` |
 | Category API | category CRUD and category gRPC | `Services/CategoryApi/Planora.Category.Api/Program.cs` |
 | Messaging API | direct message HTTP/gRPC | `Services/MessagingApi/Planora.Messaging.Api/Program.cs` |
+| Collaboration API | task comment timeline ("ветки"): user/genesis/system comments + comment notifications | `Services/CollaborationApi/Planora.Collaboration.Api/Program.cs`, `Controllers/CommentsController.cs` |
 | Realtime API | SignalR notification hub and notification controllers | `Services/RealtimeApi/Planora.Realtime.Api/Program.cs` |
 
 ## Service Boundaries
@@ -55,9 +56,10 @@ flowchart LR
 | Service | Owns | Does not own |
 |---|---|---|
 | Auth | users, roles, user roles, refresh tokens, login history, password history, friendships, audit logs, auth outbox/inbox | todos, categories, messages |
-| Todo | todo items, tags, todo shares, viewer preferences | user profiles, category definitions, friendship source of truth |
+| Todo | todo items, tags, todo shares, viewer preferences, task-lifecycle outbox | user profiles, category definitions, friendship source of truth, comment timeline |
 | Category | categories | todo assignments beyond category id references |
 | Messaging | messages and messaging outbox/inbox | friendship ownership |
+| Collaboration | task comment timeline (user/genesis/system comments), comment notifications outbox | task aggregate, task access rules (delegated to Todo via gRPC), friendship source of truth |
 | Realtime | SignalR connections, notification fan-out, Redis backplane | durable notification database |
 | Gateway | public route mapping and ingress concerns | domain rules |
 
@@ -167,7 +169,8 @@ Confirmed cross-service checks:
 
 - Todo checks friendship through Auth before exposing public/direct-shared friend todos or accepting shared users.
 - Todo asks Category for category metadata and category ownership.
-- Todo always batch-fetches current user avatar URLs from Auth (`GetUserAvatarsBatch` gRPC) when serving comment threads. The snapshot column on `TodoItemComment` was removed in migration `RemoveCommentAvatarSnapshot`; live enrichment is wrapped by `CachingUserService` (in-memory, 60 s TTL, 10 000-entry size cap) so paged comment reads stay cheap while bounding staleness after a user changes their avatar.
+- Collaboration authorises every comment read/write through `TodoService.CheckTaskCommentAccess` (owner / shared / public + friendship), so it never reads Todo's database (INV-OWN-1) and never duplicates the sharing rules.
+- Collaboration batch-fetches current user avatar URLs from Auth (`GetUserAvatarsBatch` gRPC) when serving comment threads. Live enrichment is wrapped by `CachingUserService` (in-memory, 60 s TTL) so paged comment reads stay cheap while bounding staleness after a user changes their avatar.
 - Messaging has Auth-related gRPC support in service configuration.
 
 ### Asynchronous RabbitMQ
@@ -176,14 +179,21 @@ RabbitMQ contracts (`IEventBus`, `IIntegrationEventHandler`, `IntegrationEvent`,
 
 | Subscriber | Event |
 |---|---|
-| Todo API | `CategoryDeletedIntegrationEvent`, `UserDeletedIntegrationEvent` |
+| Todo API | `CategoryDeletedIntegrationEvent`, `UserDeletedIntegrationEvent`, `FriendshipRemovedIntegrationEvent` |
 | Category API | `UserDeletedIntegrationEvent` |
+| Collaboration API | `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`, `TaskDeletedIntegrationEvent`, `UserDeletedIntegrationEvent` |
 | Realtime API | `NotificationEvent` |
+
+Publishers via outbox:
+
+- Todo publishes `TaskCreated` / `TaskActivity` / `TaskDeleted` on task lifecycle (create, complete/start/leave, delete) — these drive the Collaboration timeline instead of the old in-transaction comment writes.
+- Collaboration publishes `NotificationEvent` per participant when a comment is added; Realtime delivers it over SignalR.
 
 Code:
 
 - `Services/TodoApi/Planora.Todo.Api/Program.cs`
 - `Services/CategoryApi/Planora.Category.Api/Program.cs`
+- `Services/CollaborationApi/Planora.Collaboration.Api/Program.cs`
 - `Services/RealtimeApi/Planora.Realtime.Api/Program.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Application/Messaging` (contracts + events)
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging` (RabbitMQ implementation)

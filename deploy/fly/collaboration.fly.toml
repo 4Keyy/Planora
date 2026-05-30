@@ -1,0 +1,37 @@
+app = "planora-collaboration"
+primary_region = "ams"
+
+[build]
+  dockerfile = "../../Services/CollaborationApi/Planora.Collaboration.Api/Dockerfile"
+
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+  ASPNETCORE_URLS = "http://+:8080"
+  GrpcServices__AuthApi = "https://planora-auth.internal:443"
+  GrpcServices__TodoApi = "https://planora-todo.internal:443"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/health/live"
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "45s"
+    method = "GET"
+    path = "/health/ready"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

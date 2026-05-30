@@ -52,15 +52,25 @@ that ship in `tests/Planora.UnitTests/`** — verified at commit time.
 | `GET /todos/api/v1/todos/{id}` | TodoItem | Owner OR shared-with-current-user OR public. `GetTodoByIdQueryHandler` applies the visibility predicate. | pinned by `Services/TodoApi/Handlers/TodoOwnershipHandlerTests.cs::GetTodoById_ShouldRejectSharedTodo_WhenFriendshipNoLongerExists` |
 | `PUT /todos/api/v1/todos/{id}` | TodoItem | Owner-only mutation. | pinned by `Services/TodoApi/Handlers/TodoOwnershipHandlerTests.cs::UpdateTodo_*` |
 | `DELETE /todos/api/v1/todos/{id}` | TodoItem | Owner-only. | covered by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs` |
-| `PATCH /todos/api/v1/todos/{id}/hidden` | TodoItem | Viewer-only — every authenticated user may hide a *visible* todo for themselves; viewer-preference row keys on `(userId, todoId)`. Cross-user IDOR is irrelevant because hidden state is per-viewer. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` + `TodoCommandHandlerExpandedTests.cs` (per-viewer scope) |
+| `PATCH /todos/api/v1/todos/{id}/hidden` | TodoItem | Viewer-only — every authenticated user may hide a *visible* todo for themselves; viewer-preference row keys on `(userId, todoId)`. Cross-user IDOR is irrelevant because hidden state is per-viewer. | covered by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs` (per-viewer scope) |
 | `PATCH /todos/api/v1/todos/{id}/viewer-preferences` | UserTodoViewPreference | Same as hidden — viewer scope is the current user. | covered by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs` |
-| `POST /todos/api/v1/todos/{id}/join` | TodoItemWorker | Viewer joins an open public todo. IDOR not applicable (visibility predicate is the gate). | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
-| `POST /todos/api/v1/todos/{id}/leave` | TodoItemWorker | Viewer leaves; row keyed on `(userId, todoId)`. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
-| `GET /todos/api/v1/todos/{id}/comments` | TodoItemComment | Friend-of-owner OR owner (INV-AZ-4). Non-friend non-owner gets 404. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
-| `POST /todos/api/v1/todos/{id}/comments` | TodoItemComment | Same as GET — friend gate enforced server-side. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
-| `POST /todos/api/v1/todos/{id}/genesis` | TodoItemComment | Owner-only — only the original owner can mark a genesis comment. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
-| `PUT /todos/api/v1/todos/{id}/comments/{commentId}` | TodoItemComment | Comment author OR todo owner. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
-| `DELETE /todos/api/v1/todos/{id}/comments/{commentId}` | TodoItemComment | Comment author OR todo owner. | covered by `Services/TodoApi/Handlers/WorkersAndCommentsHandlerTests.cs` |
+| `POST /todos/api/v1/todos/{id}/join` | TodoItemWorker | Viewer joins an open public todo. IDOR not applicable (visibility predicate is the gate). | covered by `Services/TodoApi/Domain/TodoItemWorkerTests.cs` (capacity/eviction) + handler access checks |
+| `POST /todos/api/v1/todos/{id}/leave` | TodoItemWorker | Viewer leaves; row keyed on `(userId, todoId)`. | covered by `Services/TodoApi/Domain/TodoItemWorkerTests.cs` |
+
+## Collaboration API
+
+Base path `/collaboration/api/v1/comments`. The comment timeline moved out of Todo into the
+Collaboration service. Every route delegates the access decision to Todo via the
+`TodoService.CheckTaskCommentAccess` gRPC call (owner / shared / public + friendship, INV-AZ-4),
+so the friend gate is enforced server-side in one place and never duplicated.
+
+| Endpoint | Entity | Access rule | Coverage |
+|---|---|---|---|
+| `GET /collaboration/api/v1/comments/{taskId}` | Comment | Friend-of-owner OR owner (Todo `CheckTaskCommentAccess`). Missing task → 404; no access → 403. | `Services/CollaborationApi/Handlers/CommentCommandHandlerTests.cs`, `Services/CollaborationApi/IntegrationEvents/IntegrationEventConsumerTests.cs` |
+| `POST /collaboration/api/v1/comments/{taskId}` | Comment | Same access check as GET; denied access → 403. | `CommentCommandHandlerTests.cs` (grant/deny/not-found) |
+| `POST /collaboration/api/v1/comments/{taskId}/genesis` | Comment | Owner-only (`ownerId == requester`); one genesis per task. | `CommentCommandHandlerTests.cs` (non-owner → 403, duplicate guard) |
+| `PUT /collaboration/api/v1/comments/{taskId}/{commentId}` | Comment | Comment author; task owner for genesis. Wrong task scope → 404. | `CommentCommandHandlerTests.cs` |
+| `DELETE /collaboration/api/v1/comments/{taskId}/{commentId}` | Comment | Comment author OR task owner; non-genesis system comments are undeletable. | `CommentCommandHandlerTests.cs` (author/stranger/system) |
 
 ## Category API
 

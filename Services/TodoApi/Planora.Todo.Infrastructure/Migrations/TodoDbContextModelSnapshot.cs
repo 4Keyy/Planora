@@ -128,24 +128,15 @@ namespace Planora.Todo.Infrastructure.Migrations
                     b.ToTable("TodoItems", "todo");
                 });
 
-            modelBuilder.Entity("Planora.Todo.Domain.Entities.TodoItemComment", b =>
+            modelBuilder.Entity("Planora.BuildingBlocks.Application.Outbox.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AuthorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AuthorName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(5000)
-                        .HasColumnType("character varying(5000)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -159,23 +150,35 @@ namespace Planora.Todo.Infrastructure.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                        .HasColumnType("boolean");
 
-                    b.Property<bool>("IsGenesisComment")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                    b.Property<DateTime?>("NextRetryUtc")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsSystemComment")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
+                    b.Property<DateTime>("OccurredOnUtc")
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("TodoItemId")
-                        .HasColumnType("uuid");
+                    b.Property<DateTime?>("ProcessedOnUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RetryCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -185,9 +188,11 @@ namespace Planora.Todo.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TodoItemId", "CreatedAt");
+                    b.HasIndex("ProcessedOnUtc");
 
-                    b.ToTable("todo_item_comments", "todo");
+                    b.HasIndex("Status", "OccurredOnUtc");
+
+                    b.ToTable("OutboxMessages", "todo");
                 });
 
             modelBuilder.Entity("Planora.Todo.Domain.Entities.TodoItemShare", b =>
@@ -285,15 +290,6 @@ namespace Planora.Todo.Infrastructure.Migrations
                         });
 
                     b.Navigation("Tags");
-                });
-
-            modelBuilder.Entity("Planora.Todo.Domain.Entities.TodoItemComment", b =>
-                {
-                    b.HasOne("Planora.Todo.Domain.Entities.TodoItem", null)
-                        .WithMany()
-                        .HasForeignKey("TodoItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("Planora.Todo.Domain.Entities.TodoItemShare", b =>

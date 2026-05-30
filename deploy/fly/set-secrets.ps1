@@ -134,6 +134,11 @@ $matrix = [ordered]@{
         'ConnectionStrings__MessagingDatabase',
         'GrpcServices__AuthApi'
     )
+    'planora-collaboration' = $shared + @(
+        'ConnectionStrings__CollaborationDatabase',
+        'GrpcServices__AuthApi',
+        'GrpcServices__TodoApi'
+    )
     'planora-realtime'    = $shared
     'planora-gateway'     = $shared + @('Frontend__BaseUrl')
     'planora-outbox-worker' = $shared
@@ -141,7 +146,8 @@ $matrix = [ordered]@{
         'ConnectionStrings__AuthDatabase',
         'ConnectionStrings__CategoryDatabase',
         'ConnectionStrings__TodoDatabase',
-        'ConnectionStrings__MessagingDatabase'
+        'ConnectionStrings__MessagingDatabase',
+        'ConnectionStrings__CollaborationDatabase'
     )
 }
 

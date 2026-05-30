@@ -4,6 +4,44 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat — extract task comment timeline into the Collaboration microservice (2026-05-29)
+
+The task comment timeline ("ветки") — user, genesis, and system comments — moved out of TodoApi
+into a new **Collaboration** service (`Services/CollaborationApi`, database `planora_collaboration`,
+gateway prefix `/collaboration/api/v1/comments`). The new service follows the exact platform
+template: clean architecture, BuildingBlocks wiring, Serilog + OpenTelemetry, the shared global
+exception middleware, JWT + security-stamp validation, rate limiting, response compression, health
+endpoints, the Outbox pattern, and a non-root Dockerfile.
+
+**Responsibility split.**
+
+* TodoApi no longer contains any comment code. It now publishes task-lifecycle integration events
+  through its own outbox — `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`
+  (completed/started/left), `TaskDeletedIntegrationEvent` — and exposes `TodoService.CheckTaskCommentAccess`
+  over gRPC. The EF migration `RemoveCommentsAddOutbox` drops `todo_item_comments` and adds `todo.OutboxMessages`.
+* Collaboration owns `collaboration.comments`. It authorises every read/write via the Todo gRPC
+  access check (owner / shared / public + friendship — never reading Todo's DB, INV-OWN-1),
+  materialises system/genesis comments from the Todo events through idempotent Inbox consumers,
+  and fans out a `NotificationEvent` per participant on each new comment (Outbox → RabbitMQ →
+  Realtime/SignalR).
+
+**Errors & validation.** gRPC faults from the Todo access check surface as HTTP 503 via a
+`DomainException` (`ExternalServiceUnavailableException`); FluentValidation validators reject
+malformed input as 400 through the shared `ValidationBehavior`.
+
+**Data migration.** `Planora.Migrator --backfill-collaboration` idempotently copies
+`todo.todo_item_comments` → `collaboration.comments`; run it before applying `RemoveCommentsAddOutbox`.
+
+**Frontend.** Comment API calls repoint to `/collaboration/api/v1/comments/*`; the `CommentDto` JSON
+shape is unchanged so the timeline UI is untouched.
+
+**Tests.** Added Collaboration domain, handler (access matrix + notification fan-out), and
+integration-event consumer (replay-safe materialisation, cascade/user-deletion) suites, plus
+`WorkerLifecycleEventTests` pinning the new event-based worker lifecycle in TodoApi.
+
+**Docs.** Updated `architecture.md`, `database.md`, `API.md`, `codebase-map.md`, `features.md`,
+`testing.md`, `security-idor-coverage.md`, `overview.md`, `index.md`, `glossary.md`, and `INVARIANTS.md`.
+
 ### perf — frontend render optimization: memoized cards, lighter motion, windowed feed (2026-05-29)
 
 The app felt slow and janky because every task list re-rendered all of its

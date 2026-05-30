@@ -647,7 +647,7 @@ public class TodoCommandHandlerExpandedTests
     {
         public Mock<IRepository<TodoItem>> GenericRepository { get; } = new();
         public Mock<ITodoRepository> TodoRepository { get; } = new();
-        public Mock<ITodoCommentRepository> CommentRepository { get; } = new();
+        public Mock<Planora.BuildingBlocks.Application.Outbox.IOutboxRepository> OutboxRepository { get; } = new();
         public Mock<IUnitOfWork> UnitOfWork { get; } = new();
         public Mock<IMapper> Mapper { get; } = new();
         public Mock<ICurrentUserContext> CurrentUser { get; } = new();
@@ -672,7 +672,7 @@ public class TodoCommandHandlerExpandedTests
                 CurrentUser.Object,
                 CategoryGrpcClient.Object,
                 FriendshipService.Object,
-                Mock.Of<ITodoCommentRepository>());
+                Mock.Of<Planora.BuildingBlocks.Application.Outbox.IOutboxRepository>());
 
         public UpdateTodoCommandHandler CreateUpdateHandler()
             => new(
@@ -684,7 +684,7 @@ public class TodoCommandHandlerExpandedTests
                 CategoryGrpcClient.Object,
                 FriendshipService.Object,
                 ViewerPreferences.Object,
-                Mock.Of<ITodoCommentRepository>());
+                Mock.Of<Planora.BuildingBlocks.Application.Outbox.IOutboxRepository>());
 
         public SetTodoHiddenCommandHandler CreateSetHiddenHandler()
             => new(
@@ -708,7 +708,7 @@ public class TodoCommandHandlerExpandedTests
         public DeleteTodoCommandHandler CreateDeleteHandler()
             => new(
                 GenericRepository.Object,
-                CommentRepository.Object,
+                OutboxRepository.Object,
                 UnitOfWork.Object,
                 Mock.Of<ILogger<DeleteTodoCommandHandler>>(),
                 CurrentUser.Object);

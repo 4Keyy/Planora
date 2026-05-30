@@ -10,7 +10,7 @@ This file is short by design. If a rule belongs here, it belongs forever. Condit
 
 **INV-OWN-1.** Each domain owns its own PostgreSQL database. No service reads or writes another service's tables.
 
-- Domain → DB mapping: Auth → `planora_auth_db`; Todo → `planora_todo`; Category → `planora_category`; Messaging → `planora_messaging`. Realtime currently has no DB (CSP-6).
+- Domain → DB mapping: Auth → `planora_auth_db`; Todo → `planora_todo`; Category → `planora_category`; Messaging → `planora_messaging`; Collaboration → `planora_collaboration` (task comment timeline / "ветки"). Realtime currently has no DB (CSP-6).
 - Cross-service reads happen via gRPC (synchronous) or RabbitMQ integration events (asynchronous), never via shared DB schemas.
 - Enforcement: `docker-compose.yml` connection-string envs are scoped per service; PR review rejects cross-service `ConnectionStrings__` references.
 
@@ -118,9 +118,9 @@ The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Pla
 
 - Evidence: `Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs`, ADR-0004.
 
-**INV-AZ-4.** Todo comment threads require an accepted friendship between the viewer and the todo owner (when the todo is shared/public). Friendship check is mandatory in the comment handler.
+**INV-AZ-4.** Task comment threads ("ветки") require an accepted friendship between the viewer and the task owner (when the task is shared/public). The comment timeline is owned by the Collaboration service, which never reads Todo's database: it authorises every comment read/write through the `TodoService.CheckTaskCommentAccess` gRPC call, which applies the exact owner / shared / public + friendship rule. The friendship check therefore remains mandatory and centralised in TodoApi (INV-OWN-2/3).
 
-- Evidence: commit `5a3a83e` — "require friendship to read todo comments".
+- Evidence: commit `5a3a83e` — "require friendship to read todo comments"; `Services/TodoApi/Planora.Todo.Api/Grpc/TodoGrpcService.cs` (`CheckTaskCommentAccess`); `Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/**`.
 
 **INV-AZ-5.** User-uploaded avatars are server-validated, re-encoded to WebP, and stripped of EXIF/ICC/XMP metadata before persistence. Raw bytes from `IFormFile` never reach disk. Only `image/jpeg`, `image/png`, `image/webp` are accepted, capped at 5 MB and 4096×4096; magic bytes are sniffed regardless of declared `Content-Type`. Storage is content-addressed under `/avatars/{userId}/{contentHash}/{size}.webp` and served with `Cache-Control: public, max-age=31536000, immutable`.
 

@@ -10,6 +10,22 @@ service TodoService {
   rpc CreateTodo (CreateTodoRequest) returns (CreateTodoResponse);
   rpc UpdateTodo (UpdateTodoRequest) returns (UpdateTodoResponse);
   rpc DeleteTodo (DeleteTodoRequest) returns (DeleteTodoResponse);
+  // Authorises a comment/timeline operation for a task. Encapsulates the task's
+  // ownership / sharing / public + friendship rules so the Collaboration service
+  // never has to read Todo's database or know about the sharing model.
+  rpc CheckTaskCommentAccess (CheckTaskCommentAccessRequest) returns (CheckTaskCommentAccessResponse);
+}
+
+message CheckTaskCommentAccessRequest {
+  string task_id = 1;
+  string requester_id = 2;
+}
+
+message CheckTaskCommentAccessResponse {
+  bool exists = 1;          // the task exists and is not deleted
+  bool has_access = 2;      // requester may read/write the task's comments
+  string owner_id = 3;      // task owner — genesis author + notification target
+  repeated string participant_ids = 4; // owner + workers + shared-with — notification recipients
 }
 
 message TodoItemModel {

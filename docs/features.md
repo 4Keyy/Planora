@@ -234,53 +234,72 @@ Allow friends to claim participation slots on public or shared tasks. The task o
 - `WorkerJoinButton` renders nothing for the owner; shows "Join" (indigo) for eligible friends; shows disabled "Full" with a lock icon when at capacity; shows "Leave" (outlined) when already working.
 - `onJoin` / `onLeave` callbacks on `TodoCard` optimistically update `isWorking` and `workerCount` in local state.
 
-## Task Comments
+## Task Comments (Collaboration Service)
 
 ### Purpose
 
-Provide a persistent discussion thread on public and shared tasks. Only the owner and active workers can post; anyone with task access can read.
+Provide a persistent discussion timeline ("ветки") on public and shared tasks: user comments, the
+genesis comment (the task's description), and auto-generated system comments for lifecycle events.
+The timeline is owned by the dedicated **Collaboration** service, decoupled from the Todo aggregate.
+
+### Architecture
+
+The Collaboration service owns the comment data (`planora_collaboration.collaboration.comments`) and
+never reads the Todo database. Two integration boundaries keep it consistent (INV-OWN-1):
+
+- **Authorisation (synchronous gRPC):** every read/write calls `TodoService.CheckTaskCommentAccess`,
+  which returns `exists`, `hasAccess` (owner / shared / public + friendship), `ownerId`, and
+  `participantIds`. Collaboration applies no sharing rules of its own.
+- **System/genesis comments (asynchronous, Outbox→Inbox):** Todo publishes task-lifecycle events; the
+  Collaboration Inbox consumers materialise the corresponding system/genesis comments. This replaces
+  the former in-transaction comment writes inside the Todo handlers.
 
 ### Implementation
 
-- `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItemComment.cs`
-- `Services/TodoApi/Planora.Todo.Domain/Events/TodoCommentAddedDomainEvent.cs`
-- `Services/TodoApi/Planora.Todo.Domain/Repositories/ITodoCommentRepository.cs`
-- `Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoCommentRepository.cs`
-- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/AddComment/`
-- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateComment/`
-- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteComment/`
-- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetComments/`
-- `frontend/src/components/todos/task-comments.tsx`
+- `Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs`
+- `Services/CollaborationApi/Planora.Collaboration.Domain/Repositories/ICommentRepository.cs`
+- `Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/{AddComment,AddGenesisComment,UpdateComment,DeleteComment}/` (handler + FluentValidation validator)
+- `Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/`
+- `Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/` (Inbox consumers)
+- `Services/CollaborationApi/Planora.Collaboration.Infrastructure/Grpc/{TaskAccessGrpcClient,UserGrpcService,CachingUserService}.cs`
+- `Services/TodoApi/Planora.Todo.Api/Grpc/TodoGrpcService.cs` — `CheckTaskCommentAccess`
+- `frontend/src/components/todos/task-comments.tsx` (calls `/collaboration/api/v1/comments/*`)
 
 ### Key Rules
 
 | Rule | Detail |
 |---|---|
-| Read access | owner, any user with task access (public/shared) who is also friends with the owner |
-| Write access | owner or active worker (in `todo_item_workers`) |
-| Content limits | max 2000 characters; cannot be empty |
-| `AuthorName` | denormalized at write time from JWT `name` or `given_name` claim, falling back to email then userId |
-| Edit rules | only the comment author can edit their own comment |
-| Delete rules | comment author OR task owner can delete; results in soft delete |
-| `IsEdited` | true when `UpdatedAt > CreatedAt + 5 seconds`; always false for system comments |
-| `UpdatedAt` on create | not set on creation; only set when content is actually updated via `UpdateContent` |
-| Cascade delete | todo soft-delete also soft-deletes all comments via `SoftDeleteByTodoIdAsync` |
-| Pagination | `GET {id}/comments` accepts `pageNumber` (default 1) and `pageSize` (default 50); sorted oldest-first |
+| Read access | any user the Todo access check returns `hasAccess` for (owner, or friend with public/shared visibility) |
+| Write access | same `hasAccess` rule; the access decision is owned by Todo, not duplicated here |
+| Content limits | comment max 2000 chars; genesis max 5000 chars; cannot be empty (FluentValidation + domain) |
+| `AuthorName` | denormalized at write time from JWT `name`/`email`/userId |
+| Edit rules | comment author edits their own comment; only the task owner edits the genesis comment |
+| Delete rules | comment author OR task owner; soft delete; non-genesis system comments cannot be deleted |
+| `IsEdited` | true when `UpdatedAt > CreatedAt + 5 seconds`; genesis counts, other system comments never |
+| Cascade delete | task delete emits `TaskDeletedIntegrationEvent`; the consumer soft-deletes the timeline |
+| User delete | `UserDeletedIntegrationEvent` soft-deletes all comments authored by that user |
+| Notifications | adding a comment enqueues a `NotificationEvent` per other participant (Outbox → Realtime/SignalR) |
+| Pagination | `GET /comments/{taskId}` accepts `pageNumber` (default 1) and `pageSize` (default 50); oldest-first |
 
 ### System Comments
 
-System comments are auto-generated by the backend on task lifecycle events. They are never authored by a user — `AuthorId = Guid.Empty`, `AuthorName = ""`, `isOwn = false`, `isEdited = false`, and `isSystemComment = true` in every response. Users cannot create, edit, or delete system comments.
+System comments are materialised by the Collaboration Inbox consumers from Todo task-lifecycle
+integration events. They are never authored by a user — `AuthorId = Guid.Empty`, `AuthorName = ""`,
+`isOwn = false`, `isSystemComment = true`. The genesis comment is a system comment with
+`isGenesisComment = true` whose effective author is the task owner.
 
-| Event | System comment text | Handler |
-|---|---|---|
-| Task created | `"{name} created the task"` | `CreateTodoCommandHandler` |
-| Owner sets status → InProgress | `"{name} started working on the task"` | `UpdateTodoCommandHandler` |
-| Owner sets status → Todo (from InProgress) | `"{name} left the task"` | `UpdateTodoCommandHandler` |
-| Non-owner worker joined | `"{name} started working on the task"` | `JoinTodoCommandHandler` |
-| Non-owner worker left | `"{name} left the task"` | `LeaveTodoCommandHandler` |
-| Task completed (owner or viewer) | `"{name} completed the task"` | `UpdateTodoCommandHandler` |
+| Todo trigger | Integration event | System comment text | Collaboration consumer |
+|---|---|---|---|
+| Task created | `TaskCreatedIntegrationEvent` | `"{name} created the task"` (+ genesis from description) | `TaskCreatedEventConsumer` |
+| Owner → InProgress | `TaskActivityIntegrationEvent (StartedWorking)` | `"{name} started working on the task"` | `TaskActivityEventConsumer` |
+| Owner → Todo (from InProgress) | `TaskActivityIntegrationEvent (Left)` | `"{name} left the task"` | `TaskActivityEventConsumer` |
+| Worker joined | `TaskWorkerJoined`→`TaskActivity (StartedWorking)` | `"{name} started working on the task"` | `TaskActivityEventConsumer` |
+| Worker left | `TaskActivityIntegrationEvent (Left)` | `"{name} left the task"` | `TaskActivityEventConsumer` |
+| Task completed | `TaskActivityIntegrationEvent (Completed)` | `"{name} completed the task"` | `TaskActivityEventConsumer` |
 
-`{name}` is resolved from `ICurrentUserContext.Name`, then `Email`, then `UserId.ToString()` as a fallback.
+`{name}` is captured in the event by Todo (from `ICurrentUserContext.Name` → `Email` → `UserId`),
+so Collaboration needs no extra lookup to render the sentence. Consumers are idempotent under replay
+(INV-COMM-4) — e.g. genesis creation is guarded by a uniqueness check.
 
 ### Frontend Behavior
 
