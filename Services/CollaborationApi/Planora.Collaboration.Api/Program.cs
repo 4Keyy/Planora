@@ -1,4 +1,5 @@
 using Planora.BuildingBlocks.Infrastructure;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Logging;

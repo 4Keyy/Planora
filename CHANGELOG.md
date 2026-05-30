@@ -15,11 +15,11 @@ endpoints, the Outbox pattern, and a non-root Dockerfile.
 
 **Responsibility split.**
 
-- TodoApi no longer contains any comment code. It now publishes task-lifecycle integration events
+* TodoApi no longer contains any comment code. It now publishes task-lifecycle integration events
   through its own outbox — `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`
   (completed/started/left), `TaskDeletedIntegrationEvent` — and exposes `TodoService.CheckTaskCommentAccess`
   over gRPC. The EF migration `RemoveCommentsAddOutbox` drops `todo_item_comments` and adds `todo.OutboxMessages`.
-- Collaboration owns `collaboration.comments`. It authorises every read/write via the Todo gRPC
+* Collaboration owns `collaboration.comments`. It authorises every read/write via the Todo gRPC
   access check (owner / shared / public + friendship — never reading Todo's DB, INV-OWN-1),
   materialises system/genesis comments from the Todo events through idempotent Inbox consumers,
   and fans out a `NotificationEvent` per participant on each new comment (Outbox → RabbitMQ →
