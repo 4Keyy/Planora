@@ -42,6 +42,22 @@ integration-event consumer (replay-safe materialisation, cascade/user-deletion) 
 **Docs.** Updated `architecture.md`, `database.md`, `API.md`, `codebase-map.md`, `features.md`,
 `testing.md`, `security-idor-coverage.md`, `overview.md`, `index.md`, `glossary.md`, and `INVARIANTS.md`.
 
+### fix — genesis comment edits up to 5000 chars (Collaboration) (2026-05-31)
+
+`UpdateCommentCommandValidator` capped every comment edit at 2000 characters, but a
+genesis comment (the task description) is allowed up to 5000 — both on create
+(`AddGenesisCommentCommandValidator`) and in the domain (`Comment.UpdateGenesisContent`).
+The blanket validator ceiling ran in the `ValidationBehavior` pipeline before the handler,
+so editing a description to 2001-5000 characters was wrongly rejected with a 400, contradicting
+the domain, `features.md`, and the documented PUT behavior in `API.md`.
+
+The validator cannot distinguish a genesis comment from a regular one (it sees only the ids and
+content), so it now enforces just the upper bound (5000); the domain applies the exact per-kind
+limit — 2000 for a regular comment via `Comment.UpdateContent`, 5000 for genesis via
+`UpdateGenesisContent` — and a violation surfaces as a 400 (`ErrorCategory.Validation`). Added
+`UpdateCommentCommandValidatorTests` pinning the boundaries (accepts 3000 and 5000, rejects empty
+and 5001, requires both ids).
+
 ### fix — green CI/security after the Collaboration split, and a fuller local launcher (2026-05-31)
 
 Repaired every red gate left by the Collaboration extraction and brought the local launcher
