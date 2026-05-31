@@ -11,7 +11,7 @@ This map is organized by ownership boundary. It intentionally avoids generated a
 | `.env.production.example` | production key template | secret/config checklist for deployment platforms |
 | `docker-compose.yml` | local infrastructure and backend containers | service ports, env injection, health checks |
 | `Planora.sln` | backend solution | includes services and tests |
-| `Directory.Build.props` | shared .NET project defaults | `net9.0`, nullable, warnings as errors |
+| `Directory.Build.props` | shared .NET project defaults | `net10.0`, nullable, warnings as errors |
 | `Directory.Packages.props` | central NuGet versions | ASP.NET Core, EF Core, MediatR, Ocelot, Serilog, test packages |
 | `coverage.runsettings` | .NET coverage configuration | excludes generated/migration/program files |
 | `Start-Planora-Docker.ps1` | Docker backend launcher | preflight, Compose, frontend |

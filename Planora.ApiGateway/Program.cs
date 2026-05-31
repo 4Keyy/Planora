@@ -67,7 +67,7 @@ public class Program
                         | ForwardedHeaders.XForwardedHost;
                     options.ForwardLimit = 1;
                     options.KnownProxies.Clear();
-                    options.KnownNetworks.Clear();
+                    options.KnownIPNetworks.Clear();
                     foreach (var proxy in knownProxies)
                     {
                         if (IPAddress.TryParse(proxy, out var parsed))

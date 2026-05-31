@@ -4,6 +4,35 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### build — migrate the backend from .NET 9 to .NET 10 (LTS) (2026-05-31)
+
+Moved the entire backend to **.NET 10** (10.0.8 runtime), applying the Dependabot
+`dotnet/sdk` and `dotnet/aspnet` 9→10 image bumps as a coherent framework migration
+rather than a tag-only change (a net9 app cannot run on the `aspnet:10.0` runtime).
+
+* **Target framework** — `Directory.Build.props` and all 32 `.csproj` now target `net10.0`.
+* **Packages** — every runtime-aligned `Microsoft.*` package (EF Core, ASP.NET Core,
+  Extensions.*, Diagnostics.HealthChecks.*, Mvc.Testing) moved 9.0.15 → 10.0.8, and
+  `Npgsql.EntityFrameworkCore.PostgreSQL` 9.0.4 → 10.0.2.
+* **Framework-provided packages** — dropped the explicit `System.Text.Json` /
+  `System.Text.Encodings.Web` references (now supplied by the shared framework; the old
+  10.0.7 pin was also a downgrade from the framework's 10.0.8). Removed the unused
+  `Microsoft.AspNetCore.OpenApi` reference from all six service APIs — the project uses
+  Swashbuckle, and that package pulled Microsoft.OpenApi v2, which broke Swashbuckle 6.9.0
+  (CS7069). `NU1510` (package pruning advisory) is kept as a non-blocking warning.
+* **API deprecations fixed** — `ForwardedHeadersOptions.KnownNetworks` →
+  `KnownIPNetworks` (gateway, ASPDEPR005); `Rfc2898DeriveBytes` constructors →
+  the static `Rfc2898DeriveBytes.Pbkdf2` (Auth `PasswordHasher`, SYSLIB0060). The
+  password hash is **byte-identical** (same salt, 100k iterations, SHA-512, UTF-8), so
+  existing stored hashes keep verifying.
+* **Images & CI** — all 7 service Dockerfiles and the Migrator runtime image bumped to
+  the `10.0` tags; `actions/setup-dotnet` pinned to `10.0.x` across every workflow.
+
+Builds clean under `-warnaserror` and all 791 backend tests pass on net10.0.
+
+Security: no change to the password hashing parameters or output; the migration only
+swaps the obsolete API for its supported static equivalent.
+
 ### feat — extract task comment timeline into the Collaboration microservice (2026-05-29)
 
 The task comment timeline ("ветки") — user, genesis, and system comments — moved out of TodoApi

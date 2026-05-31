@@ -215,7 +215,7 @@ Generated `Migrations/` folders are ignored by repository policy. Clean local/Do
 
 | Area | Convention |
 |---|---|
-| Backend target | `.NET 9`, nullable enabled, implicit usings enabled |
+| Backend target | `.NET 10`, nullable enabled, implicit usings enabled |
 | Warnings | treated as errors, with NuGet advisory warnings excluded from error mode |
 | Packages | central package management in `Directory.Packages.props` |
 | Backend validation | FluentValidation |

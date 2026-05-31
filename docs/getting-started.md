@@ -6,7 +6,7 @@ This guide takes a clean local checkout to a running Planora app.
 
 | Requirement | Recommended version | Used by |
 |---|---:|---|
-| .NET SDK | 9.x | backend services and xUnit tests |
+| .NET SDK | 10.x | backend services and xUnit tests |
 | Node.js | current LTS compatible with Next.js 15 | frontend |
 | npm | bundled with Node | frontend dependencies/scripts |
 | Docker Desktop | recent stable | PostgreSQL, Redis, RabbitMQ, optional backend containers |
@@ -14,7 +14,7 @@ This guide takes a clean local checkout to a running Planora app.
 
 Evidence:
 
-- `Directory.Build.props` sets `TargetFramework` to `net9.0`.
+- `Directory.Build.props` sets `TargetFramework` to `net10.0`.
 - `frontend/package.json` uses `next` `^15.5.15`, React `18.3.1`, TypeScript `^5.7.2`.
 - `docker-compose.yml` defines PostgreSQL 16, Redis 7, RabbitMQ 3.13, and backend containers.
 - `Start-Planora-*.ps1` imports helper modules from `scripts/*.psm1`; those files avoid non-ASCII punctuation so Windows PowerShell can parse them reliably.

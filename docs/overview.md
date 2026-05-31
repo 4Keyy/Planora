@@ -1,6 +1,6 @@
 # Overview
 
-Planora is a personal productivity and sharing system. The visible product is a Next.js web app; the backend is split into .NET 9 services behind an Ocelot API Gateway.
+Planora is a personal productivity and sharing system. The visible product is a Next.js web app; the backend is split into .NET 10 services behind an Ocelot API Gateway.
 
 The core workflow is:
 

@@ -1,12 +1,12 @@
 # Planora
 
 > A personal productivity and task-collaboration platform, built as a
-> production-grade .NET 9 microservices backend behind an Ocelot API gateway,
+> production-grade .NET 10 microservices backend behind an Ocelot API gateway,
 > with a Next.js 15 frontend.
 
 [![CI](https://github.com/4Keyy/Planora/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/4Keyy/Planora/actions/workflows/ci.yml)
 [![Security Scan](https://github.com/4Keyy/Planora/actions/workflows/security.yml/badge.svg?branch=develop)](https://github.com/4Keyy/Planora/actions/workflows/security.yml)
-[![.NET 9](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![License: Source-Available](https://img.shields.io/badge/license-Source--Available%20(Study--Only)-red.svg)](LICENSE)
 
@@ -71,7 +71,7 @@ compose file.
 
 | Layer | Technologies |
 |---|---|
-| **Backend** | .NET 9 · ASP.NET Core · EF Core · MediatR (CQRS) · FluentValidation · AutoMapper |
+| **Backend** | .NET 10 · ASP.NET Core · EF Core · MediatR (CQRS) · FluentValidation · AutoMapper |
 | **Data & messaging** | PostgreSQL · Redis · RabbitMQ · gRPC (internal) · transactional Outbox/Inbox |
 | **Gateway** | Ocelot |
 | **Frontend** | Next.js 15 · React 18 · TypeScript (strict) · Tailwind CSS · Zustand · Axios |
@@ -98,7 +98,7 @@ Planora holds itself to a set of closed-form
 
 ### Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/)
+- [.NET 10 SDK](https://dotnet.microsoft.com/)
 - [Node.js 20+](https://nodejs.org/)
 - [Docker & Docker Compose](https://docs.docker.com/)
 
