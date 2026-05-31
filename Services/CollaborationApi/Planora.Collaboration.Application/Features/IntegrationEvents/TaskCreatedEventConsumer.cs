@@ -30,20 +30,13 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
         {
             var ownerName = string.IsNullOrWhiteSpace(@event.OwnerName) ? "Someone" : @event.OwnerName;
 
+            // Only the "created the task" timeline event is materialised here. The description
+            // ("Author's Note") is NOT copied into a genesis comment — it stays a single source
+            // of truth in Todo and Collaboration synthesises the note on read (see
+            // GetCommentsQueryHandler). This removes the description-duplication that left old
+            // tasks with an empty branch and new tasks waiting on this event.
             var systemComment = Comment.CreateSystem(@event.TaskId, $"{ownerName} created the task");
             await _commentRepository.AddAsync(systemComment, cancellationToken);
-
-            if (!string.IsNullOrWhiteSpace(@event.Description))
-            {
-                // Idempotency guard: genesis is unique per task, so a redelivered event
-                // never produces a second description.
-                var existingGenesis = await _commentRepository.GetGenesisCommentAsync(@event.TaskId, cancellationToken);
-                if (existingGenesis is null)
-                {
-                    var genesisComment = Comment.CreateGenesis(@event.TaskId, @event.Description!, ownerName);
-                    await _commentRepository.AddAsync(genesisComment, cancellationToken);
-                }
-            }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

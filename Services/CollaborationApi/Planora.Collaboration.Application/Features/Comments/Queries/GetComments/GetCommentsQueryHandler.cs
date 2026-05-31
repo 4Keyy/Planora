@@ -46,48 +46,63 @@ namespace Planora.Collaboration.Application.Features.Comments.Queries.GetComment
             var (items, totalCount) = await _commentRepository.GetPagedByTaskIdAsync(
                 request.TaskId, request.PageNumber, request.PageSize, cancellationToken);
 
-            // Always batch-fetch avatars via Auth gRPC (single source of truth is the live
-            // user profile), cached by CachingUserService (60 s TTL) so a paged read does not
-            // multiply Auth load.
-            //
-            // Regular comments: AuthorId is the actual commenter.
-            // Genesis comment:  AuthorId = Guid.Empty by design; the real author is the
-            //                   task owner (access.OwnerId).
+            // The genesis (the task description) is synthesised on the FIRST page only, from the
+            // live task description returned by the Todo access check — Collaboration stores no
+            // copy of it (single source of truth in Todo). This makes the description appear
+            // instantly, always match the task card, and work for tasks created before this service.
+            var hasGenesis = request.PageNumber <= 1 && !string.IsNullOrWhiteSpace(access.Description);
+
+            // Resolve author identity LIVE (display name + avatar) so a profile rename is reflected
+            // everywhere and the name is never a stored copy. Author ids: real comment authors plus
+            // the task owner (the synthesised genesis author).
             var authorIds = new HashSet<Guid>();
             foreach (var c in items)
-            {
-                if (c.IsGenesisComment)
-                {
-                    if (access.OwnerId != Guid.Empty)
-                        authorIds.Add(access.OwnerId);
-                }
-                else if (!c.IsSystemComment && c.AuthorId != Guid.Empty)
-                {
+                if (!c.IsSystemComment && c.AuthorId != Guid.Empty)
                     authorIds.Add(c.AuthorId);
-                }
+            if (hasGenesis && access.OwnerId != Guid.Empty)
+                authorIds.Add(access.OwnerId);
+
+            IReadOnlyDictionary<Guid, UserProfile> profiles = authorIds.Count > 0
+                ? await _userService.GetUserProfilesAsync(authorIds, cancellationToken)
+                : new Dictionary<Guid, UserProfile>();
+
+            var dtos = new List<CommentDto>(items.Count + (hasGenesis ? 1 : 0));
+
+            if (hasGenesis)
+            {
+                profiles.TryGetValue(access.OwnerId, out var ownerProfile);
+                // Stable, deterministic id (the task id) so the pinned note keeps a constant React
+                // key across reloads/pages. Editing it routes to the task, not to a comment id.
+                dtos.Add(new CommentDto(
+                    request.TaskId,
+                    request.TaskId,
+                    access.OwnerId,
+                    ownerProfile?.DisplayName ?? string.Empty,
+                    ownerProfile?.AvatarUrl,
+                    access.Description,
+                    access.TaskCreatedAt ?? DateTime.UtcNow,
+                    UpdatedAt: null,
+                    IsOwn: access.OwnerId == userId,
+                    IsEdited: false,
+                    IsSystemComment: true,
+                    IsGenesisComment: true));
             }
 
-            IReadOnlyDictionary<Guid, string> avatars = authorIds.Count > 0
-                ? await _userService.GetUserAvatarsAsync(authorIds, cancellationToken)
-                : new Dictionary<Guid, string>();
-
-            var dtos = items.Select(c =>
+            foreach (var c in items)
             {
-                string? avatarUrl;
-                if (c.IsGenesisComment)
+                string authorName = c.AuthorName;
+                string? avatarUrl = null;
+                if (!c.IsSystemComment && profiles.TryGetValue(c.AuthorId, out var p))
                 {
-                    avatars.TryGetValue(access.OwnerId, out avatarUrl);
-                }
-                else
-                {
-                    avatars.TryGetValue(c.AuthorId, out avatarUrl);
+                    if (!string.IsNullOrWhiteSpace(p.DisplayName)) authorName = p.DisplayName;
+                    avatarUrl = p.AvatarUrl;
                 }
 
-                return new CommentDto(
+                dtos.Add(new CommentDto(
                     c.Id,
                     c.TaskId,
                     c.AuthorId,
-                    c.AuthorName,
+                    authorName,
                     avatarUrl,
                     c.Content,
                     c.CreatedAt,
@@ -95,11 +110,12 @@ namespace Planora.Collaboration.Application.Features.Comments.Queries.GetComment
                     IsOwn: !c.IsSystemComment && c.AuthorId == userId,
                     IsEdited: c.IsEdited,
                     IsSystemComment: c.IsSystemComment,
-                    IsGenesisComment: c.IsGenesisComment);
-            }).ToList();
+                    IsGenesisComment: false));
+            }
 
             return Result<PagedResult<CommentDto>>.Success(
-                new PagedResult<CommentDto>(dtos, request.PageNumber, request.PageSize, totalCount));
+                new PagedResult<CommentDto>(
+                    dtos, request.PageNumber, request.PageSize, totalCount + (hasGenesis ? 1 : 0)));
         }
     }
 }

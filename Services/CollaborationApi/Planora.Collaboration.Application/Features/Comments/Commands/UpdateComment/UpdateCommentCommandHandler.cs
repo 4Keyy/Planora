@@ -13,20 +13,17 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
         private readonly ICommentRepository _commentRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserContext _currentUserContext;
-        private readonly ITaskAccessService _taskAccessService;
         private readonly IUserService _userService;
 
         public UpdateCommentCommandHandler(
             ICommentRepository commentRepository,
             IUnitOfWork unitOfWork,
             ICurrentUserContext currentUserContext,
-            ITaskAccessService taskAccessService,
             IUserService userService)
         {
             _commentRepository = commentRepository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
-            _taskAccessService = taskAccessService;
             _userService = userService;
         }
 
@@ -40,49 +37,39 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
             if (comment.TaskId != request.TaskId)
                 throw new EntityNotFoundException("Comment", request.CommentId);
 
-            // Genesis comments are owned by the task owner (AuthorId is Empty); for them we
-            // resolve the avatar of the task's owner, not the current editor.
-            Guid resolvedAuthorId = comment.AuthorId;
-
-            if (comment.IsGenesisComment)
-            {
-                var access = await _taskAccessService.CheckCommentAccessAsync(request.TaskId, userId, cancellationToken);
-                if (!access.Exists)
-                    throw new EntityNotFoundException("Task", request.TaskId);
-                if (access.OwnerId != userId)
-                    throw new ForbiddenException("Only the task owner can edit the description");
-
-                comment.UpdateGenesisContent(request.Content, userId);
-                resolvedAuthorId = access.OwnerId;
-            }
-            else
-            {
-                comment.UpdateContent(request.Content, userId);
-            }
+            // The task description ("Author's Note") is no longer a stored comment — it is edited
+            // on the task itself (PUT /todos), so this handler only edits real user comments.
+            comment.UpdateContent(request.Content, userId);
 
             _commentRepository.Update(comment);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // Resolve the author's current name + avatar live (never a stored copy).
+            string authorName = comment.AuthorName;
             string? authorAvatarUrl = null;
-            if (resolvedAuthorId != Guid.Empty)
+            if (comment.AuthorId != Guid.Empty)
             {
-                var avatars = await _userService.GetUserAvatarsAsync(new[] { resolvedAuthorId }, cancellationToken);
-                avatars.TryGetValue(resolvedAuthorId, out authorAvatarUrl);
+                var profiles = await _userService.GetUserProfilesAsync(new[] { comment.AuthorId }, cancellationToken);
+                if (profiles.TryGetValue(comment.AuthorId, out var profile))
+                {
+                    if (!string.IsNullOrWhiteSpace(profile.DisplayName)) authorName = profile.DisplayName;
+                    authorAvatarUrl = profile.AvatarUrl;
+                }
             }
 
             return Result<CommentDto>.Success(new CommentDto(
                 comment.Id,
                 comment.TaskId,
                 comment.AuthorId,
-                comment.AuthorName,
+                authorName,
                 authorAvatarUrl,
                 comment.Content,
                 comment.CreatedAt,
                 comment.UpdatedAt,
-                IsOwn: !comment.IsGenesisComment,
+                IsOwn: comment.AuthorId == userId,
                 IsEdited: comment.IsEdited,
                 IsSystemComment: comment.IsSystemComment,
-                IsGenesisComment: comment.IsGenesisComment));
+                IsGenesisComment: false));
         }
     }
 }

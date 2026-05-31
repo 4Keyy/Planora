@@ -4,7 +4,6 @@ using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.Collaboration.Application.Features.Comments.Commands.AddComment;
-using Planora.Collaboration.Application.Features.Comments.Commands.AddGenesisComment;
 using Planora.Collaboration.Application.Features.Comments.Commands.DeleteComment;
 using Planora.Collaboration.Application.Features.Comments.Commands.UpdateComment;
 using Planora.Collaboration.Application.Services;
@@ -67,55 +66,6 @@ public sealed class CommentCommandHandlerTests
             fixture.AddHandler().Handle(new AddCommentCommand(fixture.TaskId, "x"), CancellationToken.None));
     }
 
-    // ─── AddGenesisComment ──────────────────────────────────────────────────────
-
-    [Fact]
-    [Trait("TestType", "Functional")]
-    public async Task AddGenesis_AsOwner_WhenNoneExists_Persists()
-    {
-        var fixture = new Fixture();
-        fixture.GrantAccess(owner: fixture.UserId);
-        fixture.Comments
-            .Setup(x => x.GetGenesisCommentAsync(fixture.TaskId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Comment?)null);
-
-        var result = await fixture.GenesisHandler().Handle(
-            new AddGenesisCommentCommand(fixture.TaskId, "The description"), CancellationToken.None);
-
-        Assert.True(result.IsSuccess);
-        Assert.True(result.Value!.IsGenesisComment);
-        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    [Trait("TestType", "Security")]
-    public async Task AddGenesis_AsNonOwner_ThrowsForbidden()
-    {
-        var fixture = new Fixture();
-        fixture.GrantAccess(owner: Guid.NewGuid()); // someone else owns the task
-
-        await Assert.ThrowsAsync<ForbiddenException>(() =>
-            fixture.GenesisHandler().Handle(new AddGenesisCommentCommand(fixture.TaskId, "x"), CancellationToken.None));
-    }
-
-    [Fact]
-    [Trait("TestType", "Regression")]
-    public async Task AddGenesis_WhenAlreadyExists_FailsWithoutDuplicate()
-    {
-        var fixture = new Fixture();
-        fixture.GrantAccess(owner: fixture.UserId);
-        fixture.Comments
-            .Setup(x => x.GetGenesisCommentAsync(fixture.TaskId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Comment.CreateGenesis(fixture.TaskId, "existing", "Owner"));
-
-        var result = await fixture.GenesisHandler().Handle(
-            new AddGenesisCommentCommand(fixture.TaskId, "second"), CancellationToken.None);
-
-        Assert.True(result.IsFailure);
-        Assert.Equal("GENESIS_ALREADY_EXISTS", result.Error!.Code);
-        fixture.Comments.Verify(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
     // ─── DeleteComment ──────────────────────────────────────────────────────────
 
     [Fact]
@@ -170,8 +120,8 @@ public sealed class CommentCommandHandlerTests
         var comment = Comment.Create(fixture.TaskId, fixture.UserId, "Me", "old");
         fixture.Comments.Setup(x => x.GetByIdAsync(comment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(comment);
         fixture.Users
-            .Setup(x => x.GetUserAvatarsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new Dictionary<Guid, string>());
+            .Setup(x => x.GetUserProfilesAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, UserProfile>());
 
         var result = await fixture.UpdateHandler().Handle(
             new UpdateCommentCommand(fixture.TaskId, comment.Id, "new content"), CancellationToken.None);
@@ -222,26 +172,23 @@ public sealed class CommentCommandHandlerTests
 
         public void GrantAccess(Guid owner, IReadOnlyList<Guid>? participants = null) =>
             Access.Setup(x => x.CheckCommentAccessAsync(TaskId, UserId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new TaskAccessResult(true, true, owner, participants ?? new[] { owner }));
+                .ReturnsAsync(new TaskAccessResult(true, true, owner, participants ?? new[] { owner }, string.Empty, null));
 
         public void DenyAccess() =>
             Access.Setup(x => x.CheckCommentAccessAsync(TaskId, UserId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new TaskAccessResult(true, false, Guid.NewGuid(), Array.Empty<Guid>()));
+                .ReturnsAsync(new TaskAccessResult(true, false, Guid.NewGuid(), Array.Empty<Guid>(), string.Empty, null));
 
         public void TaskDoesNotExist() =>
             Access.Setup(x => x.CheckCommentAccessAsync(TaskId, UserId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new TaskAccessResult(false, false, Guid.Empty, Array.Empty<Guid>()));
+                .ReturnsAsync(new TaskAccessResult(false, false, Guid.Empty, Array.Empty<Guid>(), string.Empty, null));
 
         public AddCommentCommandHandler AddHandler() =>
             new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object, Outbox.Object);
-
-        public AddGenesisCommentCommandHandler GenesisHandler() =>
-            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object);
 
         public DeleteCommentCommandHandler DeleteHandler() =>
             new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object);
 
         public UpdateCommentCommandHandler UpdateHandler() =>
-            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object, Users.Object);
+            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Users.Object);
     }
 }

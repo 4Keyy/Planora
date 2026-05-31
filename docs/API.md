@@ -507,7 +507,7 @@ Update body fields are optional:
 Rules:
 
 - title required on create, max 200;
-- validators allow description max 5000, EF config stores max 2000;
+- description optional, max 2000 (validators and the EF column agree);
 - expected date cannot be after due date;
 - category must belong to current user;
 - shared users must be accepted friends;
@@ -570,12 +570,17 @@ The Collaboration service owns the task **comment timeline** ("ветки"). It 
 every route authorises against the task via the `TodoService.CheckTaskCommentAccess` gRPC call,
 which applies the same owner / shared / public + friendship rule the Todo handlers used to.
 
+The pinned **"Author's Note"** (the task description) is **not** stored here. It is the single
+source of truth on the task (`TodoItem.Description`, owned by Todo) and is synthesised into the
+timeline on read from the same `CheckTaskCommentAccess` call (so it appears instantly, always
+matches the task card, and is present for tasks created before this service existed). Edit the
+description via the task itself (`PUT /todos/api/v1/todos/{id}`), not through a comment endpoint.
+
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `/{taskId}?pageNumber=1&pageSize=50` | get paginated comments (oldest-first) |
+| `GET` | `/{taskId}?pageNumber=1&pageSize=50` | get paginated comments (oldest-first); page 1 also includes the synthesised Author's Note |
 | `POST` | `/{taskId}` | add a comment |
-| `POST` | `/{taskId}/genesis` | set the task description (genesis comment, owner only, one per task) |
-| `PUT` | `/{taskId}/{commentId}` | edit a comment (author; owner for genesis) |
+| `PUT` | `/{taskId}/{commentId}` | edit a regular comment (author only) |
 | `DELETE` | `/{taskId}/{commentId}` | soft-delete a comment (author or task owner) |
 
 ### `GET /collaboration/api/v1/comments/{taskId}`
@@ -606,14 +611,16 @@ is kept so frontend timeline components are unchanged):
 ```
 
 `isOwn` is `true` when `authorId == currentUserId` AND `isSystemComment` is `false`. `isEdited` is
-`true` when `updatedAt > createdAt + 5 seconds` (genesis counts as editable; other system comments
-never do).
+`true` when `updatedAt > createdAt + 5 seconds` for a regular user comment; system comments
+(including the synthesised genesis) never report `isEdited`.
 
 System comments (`isSystemComment: true`) are materialised automatically from Todo task-lifecycle
 integration events (created / completed / started / left). They have `authorId = Guid.Empty`,
-`authorName = ""`, `isOwn = false`. The genesis comment is the task's initial description: it is a
-system comment with `isGenesisComment: true` whose author is the task owner. Avatars are batch-fetched
-live from Auth (`GetUserAvatarsBatch`, 60 s cache) — never stored on the comment row.
+`authorName = ""`, `isOwn = false`. The **genesis** entry (`isGenesisComment: true`, only on page 1)
+is the synthesised Author's Note: it is **not stored** — its `content` is the live task description,
+its author is the task owner, and its `id` equals the task id. Author identity (name + avatar) for
+both regular comments and the genesis is resolved **live** from Auth (`GetUserProfilesBatch`, 60 s
+cache) — never a stored copy, so a profile rename is reflected everywhere.
 
 Errors: `400` unauthenticated; `403` no access / non-friend; `404` task not found; `503` if the Todo
 access check is unavailable.
@@ -625,23 +632,22 @@ Add a comment. Caller must have task access. Body: `{ "content": "Great progress
 (via outbox → RabbitMQ → Realtime/SignalR) to every other participant. Errors: `400` validation;
 `403` no access; `404` task not found.
 
-### `POST /collaboration/api/v1/comments/{taskId}/genesis`
-
-Set the task description as the genesis comment. **Owner only**, one per task. Body:
-`{ "content": "..." }` — required, max 5000 characters. Success `201 Created`: `CommentDto`. Errors:
-`400` validation or `GENESIS_ALREADY_EXISTS`; `403` not owner; `404` task not found.
+> **The task description (Author's Note) is edited on the task, not here.** Use
+> `PUT /todos/api/v1/todos/{id}` with the new `description` (owner only). There is no genesis
+> comment endpoint — the description is a single source of truth in Todo, synthesised into the
+> timeline on read.
 
 ### `PUT /collaboration/api/v1/comments/{taskId}/{commentId}`
 
-Edit a comment. Only the author may edit a regular comment; only the task owner may edit the genesis
-comment. Body: `{ "content": "Updated text" }` — required, max 2000 characters (5000 for genesis).
-Success `200`: updated `CommentDto`. Errors: `400` wrong task scope; `403` not author/owner; `404`
-not found.
+Edit a regular user comment. Only the author may edit it. Body: `{ "content": "Updated text" }` —
+required, max 2000 characters. Success `200`: updated `CommentDto` (author name/avatar resolved
+live). Errors: `400` wrong task scope / validation; `403` not author; `404` not found.
 
 ### `DELETE /collaboration/api/v1/comments/{taskId}/{commentId}`
 
-Soft-delete a comment. Allowed for the comment author or the task owner. Non-genesis system comments
-cannot be deleted. Success `204 No Content`. Errors: `403` not allowed; `404` not found.
+Soft-delete a comment. Allowed for the comment author or the task owner. Plain system comments
+cannot be deleted (the Author's Note is cleared by editing the task description to empty). Success
+`204 No Content`. Errors: `403` not allowed; `404` not found.
 
 ## Messaging
 

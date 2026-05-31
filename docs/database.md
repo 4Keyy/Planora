@@ -169,9 +169,10 @@ dotnet ef database update `
   --startup-project Services/TodoApi/Planora.Todo.Api
 ```
 
-### Important Caveat
+### Description length
 
-`CreateTodoCommandValidator` and `UpdateTodoCommandValidator` allow description max length 5000, but `TodoItemConfiguration` configures the persisted column max length as 2000. Treat 2000 as the safe limit until the code is reconciled.
+`CreateTodoCommandValidator`, `UpdateTodoCommandValidator`, and the `TodoItemConfiguration`
+`Description` column all agree on a 2000-character maximum.
 
 ## Category Database
 
@@ -232,31 +233,33 @@ DbContext: `Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persi
 
 Default schema: `collaboration`
 
-Owns the task **comment timeline** ("ветки") — regular user comments, the genesis comment
-(the task's initial description), and auto-generated system comments (created / completed /
-started / left). The service never reads the Todo database: it authorises every operation
-through the `TodoService.CheckTaskCommentAccess` gRPC call (INV-OWN-1) and enriches avatars
-through Auth's `GetUserAvatarsBatch` gRPC (60 s in-memory cache via `CachingUserService`).
+Owns the task **comment timeline** ("ветки") — regular user comments and auto-generated system
+comments (created / completed / started / left). The pinned "Author's Note" (the task description)
+is **not** stored here: it is the single source of truth on the task (Todo) and is synthesised on
+read from `TodoService.CheckTaskCommentAccess` (which now also returns the live `description` +
+`taskCreatedAt`). The service never reads the Todo database (INV-OWN-1) and resolves author identity
+(name + avatar) live through Auth's `GetUserProfilesBatch` gRPC (60 s in-memory cache via
+`CachingUserService`) — no stored copy of the name.
 
 ### Tables / DbSets
 
 | DbSet/table | Purpose |
 |---|---|
-| `comments` | unified timeline: user / genesis / system comments, soft-deletable |
+| `comments` | timeline: user + system comments, soft-deletable (the Author's Note/description is synthesised on read, not stored; legacy genesis rows, if any, are excluded by the read query) |
 | `OutboxMessages` | `NotificationEvent` fan-out to RabbitMQ (consumed by Realtime → SignalR) |
 
 ### Important Configuration
 
 | Entity | Important fields/indexes | Code |
 |---|---|---|
-| `Comment` | PK `Id`, `TaskId` (value link to the Todo task — no FK, INV-OWN-1), `AuthorId`, `AuthorName` max 200, `Content` max 5000, `IsSystemComment`/`IsGenesisComment` bool (default false), soft delete, `xmin` optimistic concurrency; indexes `(TaskId, CreatedAt)` for timeline reads and `AuthorId` for the user-deletion cascade / moderation scans | `Persistence/Configurations/CommentConfiguration.cs` |
+| `Comment` | PK `Id`, `TaskId` (value link to the Todo task — no FK, INV-OWN-1), `AuthorId`, `AuthorName` max 200 (fallback only — identity resolved live), `Content` max 5000, `IsSystemComment`/`IsGenesisComment` bool (default false; new rows never set genesis — kept only so legacy genesis rows are filtered out on read), soft delete, `xmin` optimistic concurrency; indexes `(TaskId, CreatedAt)` for timeline reads and `AuthorId` for the user-deletion cascade / moderation scans | `Persistence/Configurations/CommentConfiguration.cs` |
 | `OutboxMessage` | table `collaboration.OutboxMessages`, status stored as string, indexes `(Status, OccurredOnUtc)` and `ProcessedOnUtc` | `Persistence/Configurations/OutboxMessageConfiguration.cs` |
 
 ### Event Flow
 
 - **Inbound (Inbox):** subscribes to `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`,
   `TaskDeletedIntegrationEvent` (from Todo) and `UserDeletedIntegrationEvent` (from Auth). Handlers
-  are idempotent under replay (INV-COMM-4) — e.g. genesis is guarded by a uniqueness lookup.
+  are idempotent under replay (INV-COMM-4).
 - **Outbound (Outbox):** `AddComment` writes a `NotificationEvent` per participant
   (owner + workers + shared-with, minus the author) so RealtimeApi can push a SignalR notification.
 

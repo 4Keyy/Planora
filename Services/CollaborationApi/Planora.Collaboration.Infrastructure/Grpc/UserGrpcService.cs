@@ -17,28 +17,32 @@ namespace Planora.Collaboration.Infrastructure.Grpc
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<IReadOnlyDictionary<Guid, string>> GetUserAvatarsAsync(
+        public async Task<IReadOnlyDictionary<Guid, UserProfile>> GetUserProfilesAsync(
             IEnumerable<Guid> userIds,
             CancellationToken cancellationToken = default)
         {
             var ids = userIds.Distinct().ToList();
             if (ids.Count == 0)
-                return new Dictionary<Guid, string>();
+                return new Dictionary<Guid, UserProfile>();
 
             try
             {
-                var request = new GetUserAvatarsBatchRequest();
+                var request = new GetUserProfilesBatchRequest();
                 request.UserIds.AddRange(ids.Select(id => id.ToString()));
 
-                var response = await _client.GetUserAvatarsBatchAsync(
+                var response = await _client.GetUserProfilesBatchAsync(
                     request,
                     cancellationToken: cancellationToken);
 
-                var result = new Dictionary<Guid, string>();
-                foreach (var kvp in response.AvatarUrls)
+                var result = new Dictionary<Guid, UserProfile>();
+                foreach (var kvp in response.Profiles)
                 {
-                    if (Guid.TryParse(kvp.Key, out var guid) && !string.IsNullOrEmpty(kvp.Value))
-                        result[guid] = kvp.Value;
+                    if (Guid.TryParse(kvp.Key, out var guid))
+                    {
+                        result[guid] = new UserProfile(
+                            kvp.Value.DisplayName ?? string.Empty,
+                            string.IsNullOrEmpty(kvp.Value.AvatarUrl) ? null : kvp.Value.AvatarUrl);
+                    }
                 }
 
                 return result;
@@ -47,16 +51,16 @@ namespace Planora.Collaboration.Infrastructure.Grpc
             {
                 _logger.LogWarning(
                     ex,
-                    "Auth gRPC unavailable while fetching avatars for {Count} users: Status={Status}",
+                    "Auth gRPC unavailable while fetching profiles for {Count} users: Status={Status}",
                     ids.Count,
                     ex.StatusCode);
-                // Non-fatal — comment thread still loads, just without live avatars
-                return new Dictionary<Guid, string>();
+                // Non-fatal — comment thread still loads, callers fall back to stored data
+                return new Dictionary<Guid, UserProfile>();
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to fetch user avatars from Auth gRPC");
-                return new Dictionary<Guid, string>();
+                _logger.LogWarning(ex, "Failed to fetch user profiles from Auth gRPC");
+                return new Dictionary<Guid, UserProfile>();
             }
         }
     }

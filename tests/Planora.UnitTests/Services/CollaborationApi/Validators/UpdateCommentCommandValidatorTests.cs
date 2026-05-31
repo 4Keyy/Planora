@@ -3,10 +3,9 @@ using Planora.Collaboration.Application.Features.Comments.Commands.UpdateComment
 namespace Planora.UnitTests.Services.CollaborationApi.Validators;
 
 /// <summary>
-/// The update validator enforces only the upper bound across both comment kinds (5000),
-/// because it cannot tell a genesis comment from a regular one. The exact per-kind limit
-/// (2000 regular / 5000 genesis) is enforced by the domain. This pins the regression where
-/// the validator's blanket 2000 cap wrongly rejected valid 2001-5000 char genesis edits.
+/// The update command edits only regular user comments (the task description is edited on the
+/// task itself, not through this command), so the content limit is 2000 — matching AddComment
+/// and the Comment.UpdateContent domain rule.
 /// </summary>
 public sealed class UpdateCommentCommandValidatorTests
 {
@@ -16,11 +15,11 @@ public sealed class UpdateCommentCommandValidatorTests
     [Fact]
     [Trait("TestType", "Unit")]
     [Trait("TestType", "Regression")]
-    public void Validate_ShouldAcceptGenesisLengthContentAbove2000()
+    public void Validate_ShouldAcceptContentAtTheLimit()
     {
         var validator = new UpdateCommentCommandValidator();
 
-        var result = validator.Validate(Command(new string('a', 3000)));
+        var result = validator.Validate(Command(new string('a', 2000)));
 
         Assert.True(result.IsValid);
     }
@@ -28,28 +27,16 @@ public sealed class UpdateCommentCommandValidatorTests
     [Fact]
     [Trait("TestType", "Unit")]
     [Trait("TestType", "Regression")]
-    public void Validate_ShouldAcceptContentAtTheCeiling()
-    {
-        var validator = new UpdateCommentCommandValidator();
-
-        var result = validator.Validate(Command(new string('a', 5000)));
-
-        Assert.True(result.IsValid);
-    }
-
-    [Fact]
-    [Trait("TestType", "Unit")]
-    [Trait("TestType", "Regression")]
-    public void Validate_ShouldRejectEmptyAndOverCeilingContent()
+    public void Validate_ShouldRejectEmptyOverLimitAndMissingIds()
     {
         var validator = new UpdateCommentCommandValidator();
 
         var empty = validator.Validate(Command(string.Empty));
-        var tooLong = validator.Validate(Command(new string('a', 5001)));
+        var tooLong = validator.Validate(Command(new string('a', 2001)));
         var missingIds = validator.Validate(new UpdateCommentCommand(Guid.Empty, Guid.Empty, "ok"));
 
         Assert.Contains(empty.Errors, e => e.PropertyName == nameof(UpdateCommentCommand.Content));
-        Assert.Contains(tooLong.Errors, e => e.ErrorMessage == "Content cannot exceed 5000 characters");
+        Assert.Contains(tooLong.Errors, e => e.ErrorMessage == "Content cannot exceed 2000 characters");
         Assert.Contains(missingIds.Errors, e => e.PropertyName == nameof(UpdateCommentCommand.TaskId));
         Assert.Contains(missingIds.Errors, e => e.PropertyName == nameof(UpdateCommentCommand.CommentId));
     }

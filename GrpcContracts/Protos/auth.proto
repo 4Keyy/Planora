@@ -11,6 +11,9 @@ service AuthService {
   rpc GetFriendIds (GetFriendIdsRequest) returns (GetFriendIdsResponse);
   rpc AreFriends (AreFriendsRequest) returns (AreFriendsResponse);
   rpc GetUserAvatarsBatch (GetUserAvatarsBatchRequest) returns (GetUserAvatarsBatchResponse);
+  // Batch profile lookup (display name + avatar) so consumers resolve author identity
+  // LIVE instead of storing a copy of the name that goes stale after a profile rename.
+  rpc GetUserProfilesBatch (GetUserProfilesBatchRequest) returns (GetUserProfilesBatchResponse);
 }
 
 message ValidateTokenRequest {
@@ -45,6 +48,20 @@ message GetUserAvatarsBatchRequest {
 
 message GetUserAvatarsBatchResponse {
   map<string, string> avatar_urls = 1;
+}
+
+message GetUserProfilesBatchRequest {
+  repeated string user_ids = 1;
+}
+
+message UserProfileSummary {
+  string display_name = 1;   // FullName ("First Last"); "" if the user is unknown
+  string avatar_url = 2;     // "" when the user has no avatar
+}
+
+message GetUserProfilesBatchResponse {
+  // Keyed by user id. Users that do not exist are omitted.
+  map<string, UserProfileSummary> profiles = 1;
 }
 
 message RevokeTokenRequest {

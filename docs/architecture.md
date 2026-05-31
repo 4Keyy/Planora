@@ -290,6 +290,5 @@ ADRs are stored in [`DECISIONS/`](DECISIONS/):
 |---|---|---|
 | Multiple response shapes | Frontend consumers must handle raw DTOs, `Result<T>`, and paged wrappers. | `parseApiResponse` handles common wrappers. |
 | Configuration drift between launch profiles and Compose | Port/connection examples can become stale. | Prefer Compose/appsettings/Ocelot as source of truth; see `configuration.md`. |
-| Todo description max length mismatch | Validator allows 5000; EF column config is 2000. | Documented as a code inconsistency requiring reconciliation. |
 | Realtime persistence absent | Notifications/connections are not durably stored in a Realtime database. | Treat Realtime as fan-out/connection service unless code adds persistence. |
 | Compose service ports are local-development bindings | Compose is a local topology, not a production edge design. | Keep databases, broker, cache, gRPC, and backend service ports private in production. |

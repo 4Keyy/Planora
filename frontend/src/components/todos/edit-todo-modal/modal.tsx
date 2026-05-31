@@ -52,6 +52,9 @@ export function EditTodoModal({
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [title,        setTitle]        = useState(todo.title)
+  // The description is the single source of truth on the task itself (not a stored
+  // comment). The branch's "Author's Note" edits it through onSaveDescription below.
+  const [description,  setDescription]  = useState(todo.description ?? "")
   const [priority,     setPriority]     = useState(getPriorityString(todo.priority))
   const [dueDate,      setDueDate]      = useState(
     todo.dueDate ? new Date(todo.dueDate).toISOString().split("T")[0] : ""
@@ -121,23 +124,26 @@ export function EditTodoModal({
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
+  // Full owner payload. `descOverride` lets the branch persist a description edit
+  // without disturbing the other fields (single source of truth = the task).
+  const buildOwnerPayload = (descOverride?: string | null): UpdateTodoPayload => ({
+    title: title.trim(),
+    description: descOverride !== undefined ? descOverride : (description.trim() || null),
+    priority: getPriorityNumber(priority),
+    dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+    categoryId: categoryId || null,
+    isPublic: false,
+    sharedWithUserIds: visMode === "private" ? [] : sharedIds,
+    requiredWorkers: visMode === "private" ? null : 1 + sharedIds.length,
+    clearRequiredWorkers: visMode === "private",
+  })
+
   const handleSave = async () => {
     if (isOwner && !title.trim()) return
     setSaving(true)
     try {
       if (isOwner) {
-        const payload: UpdateTodoPayload = {
-          title: title.trim(),
-          description: todo.description || null,
-          priority: getPriorityNumber(priority),
-          dueDate: dueDate ? new Date(dueDate).toISOString() : null,
-          categoryId: categoryId || null,
-          isPublic: false,
-          sharedWithUserIds: visMode === "private" ? [] : sharedIds,
-          requiredWorkers: visMode === "private" ? null : 1 + sharedIds.length,
-          clearRequiredWorkers: visMode === "private",
-        }
-        await onSave(payload)
+        await onSave(buildOwnerPayload())
       } else {
         await onSaveViewerPreference({ viewerCategoryId: categoryId || null })
       }
@@ -145,6 +151,15 @@ export function EditTodoModal({
     } finally {
       setSaving(false)
     }
+  }
+
+  // Persist a description edit from the branch's "Author's Note" immediately to the
+  // task (the single source of truth) — no modal close, other fields untouched.
+  const handleSaveDescription = async (newDescription: string) => {
+    const trimmed = newDescription.trim()
+    await onSave(buildOwnerPayload(trimmed || null))
+    setDescription(trimmed)
+    onDescriptionChange?.(trimmed)
   }
 
 
@@ -376,7 +391,7 @@ export function EditTodoModal({
               todoId={todo.id}
               isOwner={isOwner}
               refreshKey={commentsRefreshKey}
-              onDescriptionChange={onDescriptionChange}
+              onSaveDescription={isOwner ? handleSaveDescription : undefined}
             />
           </div>
 

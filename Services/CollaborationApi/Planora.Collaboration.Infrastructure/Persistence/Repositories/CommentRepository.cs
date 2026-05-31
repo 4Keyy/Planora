@@ -20,9 +20,12 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Repositories
         {
             var (safePageNumber, safePageSize) = PaginationParameters.Normalize(pageNumber, pageSize);
 
+            // Genesis (the task description) is no longer stored here — it is synthesised on
+            // read from the live task description (single source of truth in Todo). Any legacy
+            // genesis rows from the previous design are excluded so they never double up.
             var query = DbSet
                 .AsNoTracking()
-                .Where(c => c.TaskId == taskId && !c.IsDeleted);
+                .Where(c => c.TaskId == taskId && !c.IsDeleted && !c.IsGenesisComment);
 
             var totalCount = await query.CountAsync(ct);
 
@@ -33,13 +36,6 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Repositories
                 .ToListAsync(ct);
 
             return (items, totalCount);
-        }
-
-        public async Task<Comment?> GetGenesisCommentAsync(Guid taskId, CancellationToken ct = default)
-        {
-            return await DbSet
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.TaskId == taskId && c.IsGenesisComment && !c.IsDeleted, ct);
         }
 
         public async Task SoftDeleteByTaskIdAsync(Guid taskId, Guid deletedBy, CancellationToken ct = default)

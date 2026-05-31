@@ -8,6 +8,5 @@ namespace Planora.Collaboration.Domain.Repositories
         Task<(IReadOnlyList<Comment> Items, int TotalCount)> GetPagedByTaskIdAsync(
             Guid taskId, int pageNumber, int pageSize, CancellationToken ct = default);
         Task SoftDeleteByTaskIdAsync(Guid taskId, Guid deletedBy, CancellationToken ct = default);
-        Task<Comment?> GetGenesisCommentAsync(Guid taskId, CancellationToken ct = default);
     }
 }

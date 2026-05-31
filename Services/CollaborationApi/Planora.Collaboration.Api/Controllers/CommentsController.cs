@@ -1,7 +1,6 @@
 using Planora.BuildingBlocks.Application.Pagination;
 using Planora.Collaboration.Application.DTOs;
 using Planora.Collaboration.Application.Features.Comments.Commands.AddComment;
-using Planora.Collaboration.Application.Features.Comments.Commands.AddGenesisComment;
 using Planora.Collaboration.Application.Features.Comments.Commands.UpdateComment;
 using Planora.Collaboration.Application.Features.Comments.Commands.DeleteComment;
 using Planora.Collaboration.Application.Features.Comments.Queries.GetComments;
@@ -58,21 +57,6 @@ namespace Planora.Collaboration.Api.Controllers
             return StatusCode(StatusCodes.Status201Created, result.Value);
         }
 
-        [HttpPost("{taskId}/genesis")]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<CommentDto>> AddGenesisComment(
-            [FromRoute] Guid taskId,
-            [FromBody] AddGenesisCommentRequest request,
-            CancellationToken cancellationToken = default)
-        {
-            var result = await _mediator.Send(new AddGenesisCommentCommand(taskId, request.Content), cancellationToken);
-            if (result.IsFailure)
-                return BadRequest(result.Error);
-            return StatusCode(StatusCodes.Status201Created, result.Value);
-        }
-
         [HttpPut("{taskId}/{commentId}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -107,6 +91,5 @@ namespace Planora.Collaboration.Api.Controllers
     }
 
     public sealed record AddCommentRequest(string Content);
-    public sealed record AddGenesisCommentRequest(string Content);
     public sealed record UpdateCommentRequest(string Content);
 }

@@ -98,32 +98,9 @@ public class CommentTests
         Assert.Empty(comment.DomainEvents);
     }
 
-    [Fact]
-    public void CreateGenesis_ShouldMarkSystemAndGenesis()
-    {
-        var comment = Comment.CreateGenesis(_taskId, "The task description", "Alice");
-
-        Assert.True(comment.IsSystemComment);
-        Assert.True(comment.IsGenesisComment);
-        Assert.Equal("Alice", comment.AuthorName);
-        Assert.Equal("The task description", comment.Content);
-        Assert.Empty(comment.DomainEvents);
-    }
-
-    [Fact]
-    public void CreateGenesis_WithContentOver5000Chars_ShouldThrow()
-    {
-        var longContent = new string('x', 5001);
-        Assert.Throws<InvalidValueObjectException>(() =>
-            Comment.CreateGenesis(_taskId, longContent, "Alice"));
-    }
-
-    [Fact]
-    public void UpdateGenesisContent_OnRegularComment_ShouldThrow()
-    {
-        var comment = Comment.Create(_taskId, _authorId, "Alice", "Regular");
-        Assert.Throws<ForbiddenException>(() => comment.UpdateGenesisContent("x", _authorId));
-    }
+    // Note: the genesis comment (task description) is no longer a stored Comment — it is the
+    // single-source-of-truth TodoItem.Description, synthesised into the timeline on read. The
+    // former CreateGenesis / UpdateGenesisContent domain methods were removed with that change.
 
     // ─── UpdateContent ────────────────────────────────────────────────────────
 

@@ -6,13 +6,11 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
         {
             RuleFor(x => x.TaskId).NotEmpty().WithMessage("TaskId is required");
             RuleFor(x => x.CommentId).NotEmpty().WithMessage("CommentId is required");
-            // 5000 is the upper bound across both comment kinds (genesis allows 5000,
-            // a regular comment 2000). The validator cannot see the kind, so it enforces
-            // only the ceiling; the domain (Comment.UpdateContent / UpdateGenesisContent)
-            // applies the exact per-kind limit and surfaces a 400 if exceeded.
+            // This command edits only regular user comments now (the task description is edited on
+            // the task itself, not here), so the limit matches AddComment and the domain: 2000.
             RuleFor(x => x.Content)
                 .NotEmpty().WithMessage("Content cannot be empty")
-                .MaximumLength(5000).WithMessage("Content cannot exceed 5000 characters");
+                .MaximumLength(2000).WithMessage("Content cannot exceed 2000 characters");
         }
     }
 }

@@ -48,7 +48,17 @@ namespace Planora.Collaboration.Infrastructure.Grpc
 
                 Guid.TryParse(response.OwnerId, out var ownerId);
 
-                return new TaskAccessResult(response.Exists, response.HasAccess, ownerId, participants);
+                DateTime? taskCreatedAt = DateTime.TryParse(
+                    response.TaskCreatedAt,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind,
+                    out var parsedCreatedAt)
+                    ? parsedCreatedAt
+                    : null;
+
+                return new TaskAccessResult(
+                    response.Exists, response.HasAccess, ownerId, participants,
+                    response.Description ?? string.Empty, taskCreatedAt);
             }
             catch (OperationCanceledException)
             {

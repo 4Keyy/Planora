@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Pencil, Trash2, Send, Plus, FileText, X } from "lucide-react"
-import { fetchComments, addComment, addGenesisComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
+import { fetchComments, addComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
 import type { TodoComment } from "@/types/todo"
 import { FriendAvatar } from "./friend-avatar"
 import {
@@ -18,7 +18,10 @@ interface BranchFeedProps {
   todoId: string
   isOwner: boolean
   refreshKey?: number
-  onDescriptionChange?: (newDescription: string) => void
+  // Persists the task description (the single source of truth, owned by Todo). The pinned
+  // "Author's Note" is this description — editing/adding/clearing it goes through here, not a
+  // stored genesis comment. Undefined for non-owners (read-only note).
+  onSaveDescription?: (text: string) => Promise<void>
 }
 
 // Flat list item (day separator or comment)
@@ -40,7 +43,7 @@ function buildFeed(comments: TodoComment[]): FeedItem[] {
   return items
 }
 
-export function BranchFeed({ todoId, isOwner, refreshKey, onDescriptionChange }: BranchFeedProps) {
+export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: BranchFeedProps) {
   const [comments,   setComments]   = useState<TodoComment[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page,       setPage]       = useState(1)
@@ -103,22 +106,15 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onDescriptionChange }:
   }
 
   const handleGenesisSave = async () => {
-    if (!genesis || submitting) return
+    if (submitting || !onSaveDescription) return
     const content = genesisEditContent.trim()
     setSubmitting(true)
     setError(null)
     try {
-      if (!content) {
-        // Empty → delete the genesis comment entirely
-        await deleteComment(todoId, genesis.id)
-        setComments((prev) => prev.filter((c) => c.id !== genesis.id))
-        setTotalCount((n) => Math.max(0, n - 1))
-        onDescriptionChange?.("")
-      } else {
-        const updated = await updateComment(todoId, genesis.id, content)
-        setComments((prev) => prev.map((c) => (c.id === genesis.id ? updated : c)))
-        onDescriptionChange?.(content)
-      }
+      // Persist to the task itself (single source of truth). Empty clears the description.
+      // Reload so the pinned note reflects the live task value (synthesised server-side).
+      await onSaveDescription(content)
+      await load(1, true)
       setEditingGenesis(false)
     } catch (e) {
       setError(getApiErrorMessage(e))
@@ -180,11 +176,12 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onDescriptionChange }:
     setError(null)
     try {
       if (composeMode === "description") {
-        const c = await addGenesisComment(todoId, content)
-        setComments((prev) => [c, ...prev])
-        setTotalCount((n) => n + 1)
+        // The description lives on the task; persist it there and reload the synthesised note.
+        if (onSaveDescription) {
+          await onSaveDescription(content)
+          await load(1, true)
+        }
         setComposeMode("text")
-        onDescriptionChange?.(content)
       } else {
         const c = await addComment(todoId, content)
         setComments((prev) => [...prev, c])

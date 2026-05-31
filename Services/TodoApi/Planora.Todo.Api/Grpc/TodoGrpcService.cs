@@ -63,6 +63,10 @@ public class TodoGrpcService : TodoService.TodoServiceBase
             Exists = true,
             HasAccess = hasAccess,
             OwnerId = todoItem.UserId.ToString(),
+            // Single source of truth for the description — Collaboration synthesises the
+            // pinned "Author's Note" from this instead of storing a genesis comment copy.
+            Description = todoItem.Description ?? string.Empty,
+            TaskCreatedAt = todoItem.CreatedAt.ToString("o"),
         };
 
         // Notification recipients: owner + workers + shared-with audience.

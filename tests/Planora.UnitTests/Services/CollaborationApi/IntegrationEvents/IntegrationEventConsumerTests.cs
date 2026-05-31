@@ -16,81 +16,33 @@ public sealed class IntegrationEventConsumerTests
 {
     // ─── TaskCreated ────────────────────────────────────────────────────────────
 
-    [Fact]
+    [Theory]
     [Trait("TestType", "Integration")]
-    public async Task TaskCreated_WithDescription_WritesSystemAndGenesisComments()
+    [InlineData("My description")]
+    [InlineData(null)]
+    public async Task TaskCreated_WritesOnlyTheCreatedSystemComment(string? description)
     {
+        // The description ("Author's Note") is no longer copied into a genesis comment — it stays
+        // a single source of truth in Todo and is synthesised on read. So task creation only ever
+        // materialises the "created the task" system comment, regardless of the description.
         var taskId = Guid.NewGuid();
-        var owner = Guid.NewGuid();
         var comments = new Mock<ICommentRepository>();
         var uow = new Mock<IUnitOfWork>();
         var added = new List<Comment>();
         comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
             .Callback<Comment, CancellationToken>((c, _) => added.Add(c))
             .ReturnsAsync((Comment c, CancellationToken _) => c);
-        comments.Setup(x => x.GetGenesisCommentAsync(taskId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Comment?)null);
 
         var consumer = new TaskCreatedEventConsumer(comments.Object, uow.Object,
             Mock.Of<ILogger<TaskCreatedEventConsumer>>());
 
         await consumer.HandleAsync(
-            new TaskCreatedIntegrationEvent(taskId, owner, "Alice", "My description"), CancellationToken.None);
+            new TaskCreatedIntegrationEvent(taskId, Guid.NewGuid(), "Alice", description), CancellationToken.None);
 
-        // Exactly two comments, in order: the "created" system comment then the genesis comment.
-        Assert.Collection(
-            added,
-            c => Assert.True(c.IsSystemComment && !c.IsGenesisComment && c.Content.Contains("created the task")),
-            c => Assert.True(c.IsGenesisComment && c.Content == "My description"));
-        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    [Trait("TestType", "Functional")]
-    public async Task TaskCreated_WithoutDescription_WritesOnlySystemComment()
-    {
-        var taskId = Guid.NewGuid();
-        var comments = new Mock<ICommentRepository>();
-        var added = new List<Comment>();
-        comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
-            .Callback<Comment, CancellationToken>((c, _) => added.Add(c))
-            .ReturnsAsync((Comment c, CancellationToken _) => c);
-
-        var consumer = new TaskCreatedEventConsumer(comments.Object, Mock.Of<IUnitOfWork>(),
-            Mock.Of<ILogger<TaskCreatedEventConsumer>>());
-
-        await consumer.HandleAsync(
-            new TaskCreatedIntegrationEvent(taskId, Guid.NewGuid(), "Bob", null), CancellationToken.None);
-
-        Assert.Single(added);
-        Assert.True(added[0].IsSystemComment);
-        Assert.False(added[0].IsGenesisComment);
-        comments.Verify(x => x.GetGenesisCommentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    [Trait("TestType", "Regression")]
-    public async Task TaskCreated_Replay_DoesNotDuplicateGenesis()
-    {
-        var taskId = Guid.NewGuid();
-        var comments = new Mock<ICommentRepository>();
-        var added = new List<Comment>();
-        comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
-            .Callback<Comment, CancellationToken>((c, _) => added.Add(c))
-            .ReturnsAsync((Comment c, CancellationToken _) => c);
-        // Genesis already exists from a prior delivery.
-        comments.Setup(x => x.GetGenesisCommentAsync(taskId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Comment.CreateGenesis(taskId, "existing", "Alice"));
-
-        var consumer = new TaskCreatedEventConsumer(comments.Object, Mock.Of<IUnitOfWork>(),
-            Mock.Of<ILogger<TaskCreatedEventConsumer>>());
-
-        await consumer.HandleAsync(
-            new TaskCreatedIntegrationEvent(taskId, Guid.NewGuid(), "Alice", "desc"), CancellationToken.None);
-
-        // Only the system comment is added; genesis is NOT re-created.
         Assert.Single(added);
         Assert.True(added[0].IsSystemComment && !added[0].IsGenesisComment);
+        Assert.Contains("created the task", added[0].Content);
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     // ─── TaskActivity ───────────────────────────────────────────────────────────

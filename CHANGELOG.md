@@ -4,6 +4,33 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### refactor — task description is a single source of truth; live author identity (2026-06-01)
+
+Removed a cross-service data-duplication class of bug. The task description was stored twice — as
+`TodoItem.Description` (shown on the card) **and** as a "genesis" comment in the Collaboration DB
+(shown in the branch). They synced only at creation (via an async event), so: tasks created before
+the Collaboration service had an empty branch; new tasks' descriptions appeared only after the
+outbox cycle; and edits via the two paths could diverge.
+
+**P1 — description = single source of truth (Todo).** Collaboration no longer stores a genesis
+comment. `TodoService.CheckTaskCommentAccess` now also returns the live `description` +
+`taskCreatedAt`, and `GetCommentsQueryHandler` **synthesises** the pinned "Author's Note" from it on
+read (page 1 only; `id` = task id, author = task owner). Result: the description shows instantly,
+always matches the card, and is present for old tasks. The frontend edits it on the task
+(`PUT /todos`) via a new `onSaveDescription` path; the `POST .../genesis` endpoint, the
+`AddGenesisComment` command/handler/validator, and `Comment.CreateGenesis`/`UpdateGenesisContent`
+were removed. Legacy stored genesis rows are excluded by the read query.
+
+**P2 — author identity resolved live.** `Comment.AuthorName` was a stored copy of the Auth-owned
+name that went stale after a rename (while the avatar beside it was already live). Added
+`AuthService.GetUserProfilesBatch` (name + avatar); Collaboration now resolves comment + genesis
+author identity live (60 s cache), with the stored name kept only as an offline fallback.
+
+Verified end-to-end on a live local stack: a task created with a description returns the Author's
+Note on an immediate (0 s) fetch with the author name resolved live, and editing the description on
+the task is reflected in the branch. Backend builds under `-warnaserror`; all backend + frontend
+tests pass on net10.0.
+
 ### fix — task timeline appears promptly + navbar avatar alignment (2026-05-31)
 
 Two user-reported bugs.

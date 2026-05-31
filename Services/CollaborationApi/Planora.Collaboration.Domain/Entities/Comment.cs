@@ -73,42 +73,6 @@ namespace Planora.Collaboration.Domain.Entities
             };
         }
 
-        public static Comment CreateGenesis(
-            Guid taskId,
-            string content,
-            string authorName)
-        {
-            if (taskId == Guid.Empty)
-                throw new InvalidValueObjectException(nameof(Comment), "TaskId cannot be empty");
-            if (string.IsNullOrWhiteSpace(content))
-                throw new InvalidValueObjectException(nameof(Comment), "Content cannot be empty");
-            if (content.Length > 5000)
-                throw new InvalidValueObjectException(nameof(Comment), "Description cannot exceed 5000 characters");
-
-            return new Comment
-            {
-                TaskId = taskId,
-                AuthorId = Guid.Empty,
-                AuthorName = string.IsNullOrWhiteSpace(authorName) ? string.Empty : authorName.Trim(),
-                Content = content.Trim(),
-                IsSystemComment = true,
-                IsGenesisComment = true,
-            };
-        }
-
-        public void UpdateGenesisContent(string content, Guid ownerUserId)
-        {
-            if (!IsGenesisComment)
-                throw new ForbiddenException("Only the genesis comment can be updated via this method");
-            if (string.IsNullOrWhiteSpace(content))
-                throw new InvalidValueObjectException(nameof(Comment), "Content cannot be empty");
-            if (content.Length > 5000)
-                throw new InvalidValueObjectException(nameof(Comment), "Description cannot exceed 5000 characters");
-
-            Content = content.Trim();
-            MarkAsModified(ownerUserId);
-        }
-
         public void UpdateContent(string content, Guid editorUserId)
         {
             if (editorUserId != AuthorId)

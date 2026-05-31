@@ -7,7 +7,12 @@ namespace Planora.Collaboration.Application.Services
         bool Exists,
         bool HasAccess,
         Guid OwnerId,
-        IReadOnlyList<Guid> ParticipantIds);
+        IReadOnlyList<Guid> ParticipantIds,
+        // Single source of truth for the task description (owned by Todo). The pinned
+        // "Author's Note" is synthesised from this live value — Collaboration stores no
+        // genesis comment copy. Empty when the task has no description.
+        string Description,
+        DateTime? TaskCreatedAt);
 
     /// <summary>
     /// Delegates task-comment authorisation to TodoApi (which owns the task aggregate and the

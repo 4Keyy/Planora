@@ -239,26 +239,33 @@ Allow friends to claim participation slots on public or shared tasks. The task o
 ### Purpose
 
 Provide a persistent discussion timeline ("ветки") on public and shared tasks: user comments, the
-genesis comment (the task's description), and auto-generated system comments for lifecycle events.
-The timeline is owned by the dedicated **Collaboration** service, decoupled from the Todo aggregate.
+pinned "Author's Note" (the task's description), and auto-generated system comments for lifecycle
+events. The timeline is owned by the dedicated **Collaboration** service, decoupled from the Todo
+aggregate. The Author's Note is **not** stored as a comment — the description is a single source of
+truth on the task (Todo) and is synthesised into the timeline on read, so it shows instantly, always
+matches the task card, and exists for tasks created before this service.
 
 ### Architecture
 
 The Collaboration service owns the comment data (`planora_collaboration.collaboration.comments`) and
 never reads the Todo database. Two integration boundaries keep it consistent (INV-OWN-1):
 
-- **Authorisation (synchronous gRPC):** every read/write calls `TodoService.CheckTaskCommentAccess`,
-  which returns `exists`, `hasAccess` (owner / shared / public + friendship), `ownerId`, and
-  `participantIds`. Collaboration applies no sharing rules of its own.
-- **System/genesis comments (asynchronous, Outbox→Inbox):** Todo publishes task-lifecycle events; the
-  Collaboration Inbox consumers materialise the corresponding system/genesis comments. This replaces
-  the former in-transaction comment writes inside the Todo handlers.
+- **Authorisation + description (synchronous gRPC):** every read/write calls
+  `TodoService.CheckTaskCommentAccess`, which returns `exists`, `hasAccess` (owner / shared / public +
+  friendship), `ownerId`, `participantIds`, and the live task `description` + `taskCreatedAt` (used to
+  synthesise the Author's Note). Collaboration applies no sharing rules of its own and stores no copy
+  of the description.
+- **System comments (asynchronous, Outbox→Inbox):** Todo publishes task-lifecycle events; the
+  Collaboration consumers materialise the corresponding "created / started / left / completed" system
+  comments. This replaces the former in-transaction comment writes inside the Todo handlers.
+- **Author identity (synchronous gRPC):** comment author name + avatar are resolved live via
+  `AuthService.GetUserProfilesBatch` (60 s cache), never stored — a profile rename reflects everywhere.
 
 ### Implementation
 
 - `Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs`
 - `Services/CollaborationApi/Planora.Collaboration.Domain/Repositories/ICommentRepository.cs`
-- `Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/{AddComment,AddGenesisComment,UpdateComment,DeleteComment}/` (handler + FluentValidation validator)
+- `Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/{AddComment,UpdateComment,DeleteComment}/` (handler + FluentValidation validator)
 - `Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/`
 - `Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/` (Inbox consumers)
 - `Services/CollaborationApi/Planora.Collaboration.Infrastructure/Grpc/{TaskAccessGrpcClient,UserGrpcService,CachingUserService}.cs`
@@ -271,11 +278,11 @@ never reads the Todo database. Two integration boundaries keep it consistent (IN
 |---|---|
 | Read access | any user the Todo access check returns `hasAccess` for (owner, or friend with public/shared visibility) |
 | Write access | same `hasAccess` rule; the access decision is owned by Todo, not duplicated here |
-| Content limits | comment max 2000 chars; genesis max 5000 chars; cannot be empty (FluentValidation + domain) |
-| `AuthorName` | denormalized at write time from JWT `name`/`email`/userId |
-| Edit rules | comment author edits their own comment; only the task owner edits the genesis comment |
-| Delete rules | comment author OR task owner; soft delete; non-genesis system comments cannot be deleted |
-| `IsEdited` | true when `UpdatedAt > CreatedAt + 5 seconds`; genesis counts, other system comments never |
+| Content limits | comment max 2000 chars; cannot be empty (FluentValidation + domain). The description (Author's Note, max 2000) is validated by Todo, not here |
+| Author identity | resolved live via `GetUserProfilesBatch` (name + avatar); the stored `AuthorName` is only a fallback when Auth is unreachable |
+| Edit rules | comment author edits their own comment; the description is edited on the task (`PUT /todos/...`), owner only |
+| Delete rules | comment author OR task owner; soft delete; plain system comments cannot be deleted |
+| `IsEdited` | true when `UpdatedAt > CreatedAt + 5 seconds` for a user comment; system comments and the synthesised Author's Note never report edited |
 | Cascade delete | task delete emits `TaskDeletedIntegrationEvent`; the consumer soft-deletes the timeline |
 | User delete | `UserDeletedIntegrationEvent` soft-deletes all comments authored by that user |
 | Notifications | adding a comment enqueues a `NotificationEvent` per other participant (Outbox → Realtime/SignalR) |
@@ -283,14 +290,15 @@ never reads the Todo database. Two integration boundaries keep it consistent (IN
 
 ### System Comments
 
-System comments are materialised by the Collaboration Inbox consumers from Todo task-lifecycle
+System comments are materialised by the Collaboration consumers from Todo task-lifecycle
 integration events. They are never authored by a user — `AuthorId = Guid.Empty`, `AuthorName = ""`,
-`isOwn = false`, `isSystemComment = true`. The genesis comment is a system comment with
-`isGenesisComment = true` whose effective author is the task owner.
+`isOwn = false`, `isSystemComment = true`. The Author's Note is **not** a stored comment: it is
+synthesised on read (`isGenesisComment = true`, `id` = task id, author = task owner) from the live
+task description, so it is never materialised by these consumers.
 
 | Todo trigger | Integration event | System comment text | Collaboration consumer |
 |---|---|---|---|
-| Task created | `TaskCreatedIntegrationEvent` | `"{name} created the task"` (+ genesis from description) | `TaskCreatedEventConsumer` |
+| Task created | `TaskCreatedIntegrationEvent` | `"{name} created the task"` | `TaskCreatedEventConsumer` |
 | Owner → InProgress | `TaskActivityIntegrationEvent (StartedWorking)` | `"{name} started working on the task"` | `TaskActivityEventConsumer` |
 | Owner → Todo (from InProgress) | `TaskActivityIntegrationEvent (Left)` | `"{name} left the task"` | `TaskActivityEventConsumer` |
 | Worker joined | `TaskWorkerJoined`→`TaskActivity (StartedWorking)` | `"{name} started working on the task"` | `TaskActivityEventConsumer` |
@@ -299,7 +307,7 @@ integration events. They are never authored by a user — `AuthorId = Guid.Empty
 
 `{name}` is captured in the event by Todo (from `ICurrentUserContext.Name` → `Email` → `UserId`),
 so Collaboration needs no extra lookup to render the sentence. Consumers are idempotent under replay
-(INV-COMM-4) — e.g. genesis creation is guarded by a uniqueness check.
+(INV-COMM-4).
 
 ### Frontend Behavior
 
