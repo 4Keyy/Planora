@@ -84,7 +84,14 @@ Both launch scripts support `-Clean`:
 
 The scripts describe `-Clean` as a rebuild/cleanup of code artifacts or images. They explicitly do not wipe database volumes.
 
-On a first clean database start, Auth, Todo, Category, and Messaging initialize their schemas automatically. If local EF migrations exist, they are applied. If no migrations exist, startup creates the schema from the current EF model. This is intentional because generated `Migrations/` folders are not committed.
+### Stopping and help
+
+`Start-Planora-Local.ps1` also accepts `-Stop` (stop every process the launcher
+started and free their ports, leaving infrastructure containers and data volumes
+untouched) and `-Help` (print usage and exit). Run `.\Start-Planora-Local.ps1 -Help`
+for the full option list.
+
+On a first clean database start, Auth, Todo, Category, Messaging, and Collaboration initialize their schemas automatically. If local EF migrations exist, they are applied. If no migrations exist, startup creates the schema from the current EF model. This is intentional because generated `Migrations/` folders are not committed.
 
 ## 3. Verify The System
 

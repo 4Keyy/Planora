@@ -42,6 +42,29 @@ integration-event consumer (replay-safe materialisation, cascade/user-deletion) 
 **Docs.** Updated `architecture.md`, `database.md`, `API.md`, `codebase-map.md`, `features.md`,
 `testing.md`, `security-idor-coverage.md`, `overview.md`, `index.md`, `glossary.md`, and `INVARIANTS.md`.
 
+### fix — green CI/security after the Collaboration split, and a fuller local launcher (2026-05-31)
+
+Repaired every red gate left by the Collaboration extraction and brought the local launcher
+up to date with the new topology.
+
+* **CI build** — `TodoGrpcServiceTests` now constructs `TodoGrpcService` with its new
+  `ITodoRepository` + `IFriendshipService` dependencies (CS7036), and `WorkerLifecycleEventTests`
+  uses `Assert.Contains` instead of `Assert.True(.Any())` (xUnit2012 under `-warnaserror`).
+* **Docs lint** — fixed an MD004 false-positive in `database.md` where a wrapped bullet began with
+  a `+` that markdownlint read as a list marker.
+* **Security scan** — added `--no-install-recommends` to the Collaboration Dockerfile `apt-get
+  install`, clearing the Trivy IaC HIGH; the CodeQL C# job recovers automatically once the build
+  compiles.
+* **Launcher** — `Start-Planora-Local.ps1` now starts `collaboration-api` (port 5060, gRPC client of
+  Auth 5031 / Todo 5101), derives all stop/cleanup port lists and the shutdown order from a single
+  `$ServiceDefs` source of truth (no more hand-maintained duplicates), and gains `-Stop` (tear down
+  everything the launcher started, infra/data untouched) and `-Help` (print usage and exit).
+
+**Docs.** Rewrote `README.md` — corrected the license (it is the **Planora Source-Available
+License (Study-Only)**, not MIT), fixed the React version (18, not 19), added the per-service local
+port map, and slimmed the styling. Documented the launcher's `-Stop`/`-Help` flags and the
+Collaboration schema bootstrap in `getting-started.md`.
+
 ### perf — frontend render optimization: memoized cards, lighter motion, windowed feed (2026-05-29)
 
 The app felt slow and janky because every task list re-rendered all of its

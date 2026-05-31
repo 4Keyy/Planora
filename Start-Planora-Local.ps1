@@ -29,6 +29,14 @@
     Skip the dotnet build step and start services from existing output
     (--no-build). Fastest option when only restarting unchanged binaries.
 
+.PARAMETER Stop
+    Stop every Planora process this launcher started (backend services and the
+    frontend), free their ports, and clear stale PID files. Infrastructure
+    containers and all data volumes are left untouched.
+
+.PARAMETER Help
+    Print usage and exit without starting anything.
+
 .EXAMPLE
     .\Start-Planora-Local.ps1
 .EXAMPLE
@@ -37,6 +45,8 @@
     .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser
 .EXAMPLE
     .\Start-Planora-Local.ps1 -SkipBuild
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -Stop
 #>
 param(
     # Wipe bin/obj/.next, restore, and rebuild images with --no-cache. Data volumes preserved.
@@ -48,7 +58,11 @@ param(
     # Do not open the browser once the frontend is healthy.
     [switch]$NoBrowser,
     # Reuse existing build output - skip the dotnet build step (fastest iteration).
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    # Stop everything this launcher started, then exit (no startup).
+    [switch]$Stop,
+    # Print usage and exit.
+    [switch]$Help
 )
 
 Set-StrictMode -Version Latest
@@ -136,6 +150,32 @@ function Show-Header {
     Write-Host ""
 }
 
+function Show-Usage {
+    Write-Host ""
+    Write-Host "${BOLD}Planora Local Launcher${RESET}"
+    Write-Host "  Starts infrastructure in Docker and the .NET services + Next.js frontend on the host."
+    Write-Host ""
+    Write-Host "${BOLD}USAGE${RESET}"
+    Write-Host "  .\Start-Planora-Local.ps1 [-Clean] [-SkipBuild] [-SkipFrontend] [-NoBrowser]"
+    Write-Host "                            [-ExitAfterHealthCheck] [-Stop] [-Help]"
+    Write-Host ""
+    Write-Host "${BOLD}OPTIONS${RESET}"
+    Write-Host "  -Clean                 Wipe bin/obj/.next + rebuild (data volumes preserved)."
+    Write-Host "  -SkipBuild             Reuse existing build output (fastest restart)."
+    Write-Host "  -SkipFrontend          Start the backend stack only."
+    Write-Host "  -NoBrowser             Do not open the browser when the frontend is ready."
+    Write-Host "  -ExitAfterHealthCheck  Start, verify health, then shut down (CI / smoke test)."
+    Write-Host "  -Stop                  Stop everything this launcher started, then exit."
+    Write-Host "  -Help                  Show this help and exit."
+    Write-Host ""
+    Write-Host "${BOLD}EXAMPLES${RESET}"
+    Write-Host "  .\Start-Planora-Local.ps1"
+    Write-Host "  .\Start-Planora-Local.ps1 -Clean"
+    Write-Host "  .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser"
+    Write-Host "  .\Start-Planora-Local.ps1 -Stop"
+    Write-Host ""
+}
+
 # ---------------------------------------------------------------------------
 #  Global state
 # ---------------------------------------------------------------------------
@@ -146,34 +186,48 @@ $FrontendDir = Join-Path $RepoRoot "frontend"
 $Failures    = [System.Collections.Generic.List[string]]::new()
 $totalTimer  = [System.Diagnostics.Stopwatch]::StartNew()
 
-# Service definitions - name => project path (relative), port, health path
+# Service definitions in dependency/startup order - name => project path (relative),
+# REST Port, optional gRPC sidecar port (GrpcPort), and health path.
+#
+# Order matters: services that other services call over gRPC start first.
+# Collaboration is a gRPC *client* of Auth (5031) and Todo (5101), so it is listed
+# after both. The API gateway is last. Graceful shutdown reverses this order, and
+# every port list below is derived from these defs so they can never drift.
 $ServiceDefs = [ordered]@{
-    "auth-api"      = @{
+    "auth-api"          = @{
         Project    = "Services/AuthApi/Planora.Auth.Api/Planora.Auth.Api.csproj"
         Port       = 5030
+        GrpcPort   = 5031
         HealthPath = "/health"
     }
-    "category-api"  = @{
+    "category-api"      = @{
         Project    = "Services/CategoryApi/Planora.Category.Api/Planora.Category.Api.csproj"
         Port       = 5281
+        GrpcPort   = 5282
         HealthPath = "/health"
     }
-    "todo-api"      = @{
+    "todo-api"          = @{
         Project    = "Services/TodoApi/Planora.Todo.Api/Planora.Todo.Api.csproj"
         Port       = 5100
+        GrpcPort   = 5101
         HealthPath = "/health"
     }
-    "messaging-api" = @{
+    "collaboration-api" = @{
+        Project    = "Services/CollaborationApi/Planora.Collaboration.Api/Planora.Collaboration.Api.csproj"
+        Port       = 5060
+        HealthPath = "/health"
+    }
+    "messaging-api"     = @{
         Project    = "Services/MessagingApi/Planora.Messaging.Api/Planora.Messaging.Api.csproj"
         Port       = 5058
         HealthPath = "/health"
     }
-    "realtime-api"  = @{
+    "realtime-api"      = @{
         Project    = "Services/RealtimeApi/Planora.Realtime.Api/Planora.Realtime.Api.csproj"
         Port       = 5032
         HealthPath = "/health"
     }
-    "api-gateway"   = @{
+    "api-gateway"       = @{
         Project    = "Planora.ApiGateway/Planora.ApiGateway.csproj"
         Port       = 5132
         HealthPath = "/health"
@@ -181,6 +235,22 @@ $ServiceDefs = [ordered]@{
 }
 
 $FrontendPort = 3000
+
+# Derived, single-source-of-truth port lists (no hand-maintained duplicates).
+$ServiceRestPorts = @($ServiceDefs.Values | ForEach-Object { $_.Port })
+$ServiceGrpcPorts = @(foreach ($d in $ServiceDefs.Values) { if ($d.Contains('GrpcPort')) { $d.GrpcPort } })
+# Every port the launcher owns - used by stop/cleanup fallbacks to find orphans.
+$AllPlanoraPorts  = @($ServiceRestPorts + $ServiceGrpcPorts + $FrontendPort)
+# Service names in reverse startup order, for graceful shutdown.
+$ShutdownOrder    = @($ServiceDefs.Keys) ; [array]::Reverse($ShutdownOrder)
+
+# ---------------------------------------------------------------------------
+#  -Help: print usage and exit before any side effects (no log file created)
+# ---------------------------------------------------------------------------
+if ($Help) {
+    Show-Usage
+    exit 0
+}
 
 # ---------------------------------------------------------------------------
 #  Logging via transcript
@@ -339,8 +409,7 @@ function Stop-PlanoraProcesses {
     $null = Stop-AllServices -Force -GracePeriodSeconds 8 -Quiet
 
     # Phase 2: port-based fallback for anything not in PID files
-    $ports = @(5030, 5031, 5100, 5281, 5282, 5058, 5032, 5132, 3000)
-    foreach ($port in $ports) {
+    foreach ($port in $AllPlanoraPorts) {
         $owner = Get-PortOwner -Port $port
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
@@ -354,17 +423,11 @@ function Stop-PlanoraProcesses {
         & dotnet build-server shutdown 2>&1 | Out-Null
     }
 
-    # Wait for critical ports to be free before proceeding
-    $criticalPorts = @(
-        @{ Port = 5030; ServiceName = "auth-api" },
-        @{ Port = 5100; ServiceName = "todo-api" },
-        @{ Port = 5281; ServiceName = "category-api" },
-        @{ Port = 5132; ServiceName = "api-gateway" },
-        @{ Port = 3000; ServiceName = "frontend" }
-    )
-    foreach ($entry in $criticalPorts) {
-        $null = Wait-PortFree -Port $entry.Port -ServiceName $entry.ServiceName -TimeoutSeconds 15
+    # Wait for every REST port (plus frontend) to be free before proceeding.
+    foreach ($name in $ServiceDefs.Keys) {
+        $null = Wait-PortFree -Port $ServiceDefs[$name].Port -ServiceName $name -TimeoutSeconds 15
     }
+    $null = Wait-PortFree -Port $FrontendPort -ServiceName "frontend" -TimeoutSeconds 15
 
     # Clean up stale PID files now that everything is stopped
     Clear-PidDirectory
@@ -699,6 +762,7 @@ function Show-Summary {
         @{ Name = "Auth API";    Url = "http://localhost:5030";  Key = "auth-api" }
         @{ Name = "Category API";Url = "http://localhost:5281";  Key = "category-api" }
         @{ Name = "Todo API";    Url = "http://localhost:5100";  Key = "todo-api" }
+        @{ Name = "Collaboration API"; Url = "http://localhost:5060"; Key = "collaboration-api" }
         @{ Name = "Messaging API";Url = "http://localhost:5058"; Key = "messaging-api" }
         @{ Name = "Realtime API";Url = "http://localhost:5032";  Key = "realtime-api" }
         @{ Name = "RabbitMQ UI"; Url = "http://localhost:15672"; Key = $null }
@@ -719,7 +783,7 @@ function Show-Summary {
         } else {
             "$($RED)x${RESET}"
         }
-        $row = "  $statusIcon  $($s.Name.PadRight(16)) $($s.Url)"
+        $row = "  $statusIcon  $($s.Name.PadRight(18)) $($s.Url)"
         Write-Host "${CYAN}  |${RESET}$($row.PadRight(58))${CYAN}|${RESET}"
     }
 
@@ -752,8 +816,7 @@ function Invoke-GracefulShutdown {
 
     # dotnet run/npm are launched through wrapper PowerShell processes. Stop the
     # real service processes on their ports first so the wrappers can exit cleanly.
-    $servicePorts = @(3000, 5132, 5032, 5058, 5100, 5281, 5030)
-    foreach ($port in $servicePorts) {
+    foreach ($port in $AllPlanoraPorts) {
         $owner = Get-PortOwner -Port $port
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping service PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
@@ -765,14 +828,13 @@ function Invoke-GracefulShutdown {
     # Stop frontend wrapper first
     $null = Stop-ServiceByPid -ServiceName "frontend" -Force -GracePeriodSeconds 2 -Quiet
 
-    # Stop .NET services in reverse startup order
-    foreach ($name in @("api-gateway", "realtime-api", "messaging-api", "todo-api", "category-api", "auth-api")) {
+    # Stop .NET services in reverse startup order (derived from $ServiceDefs)
+    foreach ($name in $ShutdownOrder) {
         $null = Stop-ServiceByPid -ServiceName $name -Force -GracePeriodSeconds 2 -Quiet
     }
 
     # Final port-based fallback for anything that survived wrapper shutdown.
-    $ports = @(5030, 5031, 5100, 5281, 5282, 5058, 5032, 5132, 3000)
-    foreach ($port in $ports) {
+    foreach ($port in $AllPlanoraPorts) {
         $owner = Get-PortOwner -Port $port
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping leftover PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
@@ -792,14 +854,16 @@ $null = Register-EngineEvent PowerShell.Exiting -Action { Invoke-GracefulShutdow
 # ===========================================================================
 #  ENTRY POINT
 # ===========================================================================
-$modeLabel = if ($Clean) { "CLEAN REBUILD" } else { "Fresh Restart" }
+$modeLabel = if ($Stop) { "Stop" } elseif ($Clean) { "CLEAN REBUILD" } else { "Fresh Restart" }
 Show-Header "Planora - Local Launcher [$modeLabel]"
 
 Write-Info "Log file: $LogFile"
 Write-Host ""
 
 Set-Location -LiteralPath $RepoRoot
-Import-EnvFile
+
+# Stop mode never touches secrets - it only needs the helper modules.
+if (-not $Stop) { Import-EnvFile }
 
 try {
     Import-LauncherModules
@@ -807,6 +871,12 @@ try {
     Write-Fail $_
     try { Stop-Transcript | Out-Null } catch {}
     exit 1
+}
+
+# -- -Stop: tear down everything this launcher started, then exit ------------
+if ($Stop) {
+    Invoke-GracefulShutdown
+    exit 0
 }
 
 # -- Step 1: Preflight -------------------------------------------------------
