@@ -206,7 +206,11 @@ public class TodoGrpcServiceTests
     }
 
     private static TodoGrpcService CreateService(Mock<IMediator> mediator)
-        => new(mediator.Object, Mock.Of<ILogger<TodoGrpcService>>());
+        => new(
+            mediator.Object,
+            Mock.Of<Planora.Todo.Domain.Repositories.ITodoRepository>(),
+            Mock.Of<Planora.Todo.Application.Services.IFriendshipService>(),
+            Mock.Of<ILogger<TodoGrpcService>>());
 
     private static ServerCallContext CreateContext() => new FakeServerCallContext();
 

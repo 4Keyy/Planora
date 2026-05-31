@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
-import { Plus, Search, Sparkles, X, User, LogOut } from "lucide-react"
+import { Plus, Sparkles, X, User, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar } from "@/components/ui/avatar"
 import { useAuthStore } from "@/store/auth"
@@ -78,10 +78,6 @@ export function Navbar() {
   }, [createMode, dropOpen])
 
   // Derived user info
-  const initials = mounted && user?.firstName
-    ? `${user.firstName[0]}${user.lastName?.[0] ?? ""}`.toUpperCase()
-    : mounted && user?.email ? user.email.substring(0, 2).toUpperCase() : "U"
-
   const displayName = mounted && user?.firstName
     ? `${user.firstName}${user.lastName ? " " + user.lastName : ""}`
     : mounted && user?.email ? user.email.split("@")[0] : "User"

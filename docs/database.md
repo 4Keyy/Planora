@@ -257,8 +257,8 @@ through Auth's `GetUserAvatarsBatch` gRPC (60 s in-memory cache via `CachingUser
 - **Inbound (Inbox):** subscribes to `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`,
   `TaskDeletedIntegrationEvent` (from Todo) and `UserDeletedIntegrationEvent` (from Auth). Handlers
   are idempotent under replay (INV-COMM-4) — e.g. genesis is guarded by a uniqueness lookup.
-- **Outbound (Outbox):** `AddComment` writes a `NotificationEvent` per participant (owner + workers
-  + shared-with, minus the author) so RealtimeApi can push a SignalR notification.
+- **Outbound (Outbox):** `AddComment` writes a `NotificationEvent` per participant
+  (owner + workers + shared-with, minus the author) so RealtimeApi can push a SignalR notification.
 
 ### Collaboration Schema Bootstrap
 

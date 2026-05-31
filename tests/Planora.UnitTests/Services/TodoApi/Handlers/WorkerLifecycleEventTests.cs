@@ -42,7 +42,7 @@ public sealed class WorkerLifecycleEventTests
         var result = await fixture.JoinHandler().Handle(new JoinTodoCommand(todo.Id), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.True(todo.Workers.Any(w => w.UserId == joiner));
+        Assert.Contains(todo.Workers, w => w.UserId == joiner);
         fixture.AssertActivityPublished(TaskActivityType.StartedWorking);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
