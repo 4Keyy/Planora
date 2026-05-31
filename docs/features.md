@@ -168,7 +168,7 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 | Area | Behavior |
 |---|---|
 | Title | required on create, max 200 |
-| Description | validators allow max 5000, EF config stores max 2000; use 2000 as safe persisted limit until code is reconciled |
+| Description | optional, max 2000 — enforced consistently by the create/update validators and the EF `Description` column (`HasMaxLength(2000)`) |
 | Status | backend statuses are `Todo`, `InProgress`, `Done`; parser accepts legacy aliases such as `pending` and `completed` |
 | Priority | `VeryLow`, `Low`, `Medium`, `High`, `Urgent`; EF stores integer value |
 | Expected/due dates | expected date cannot be after due date when both are present |
