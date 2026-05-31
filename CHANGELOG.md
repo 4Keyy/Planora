@@ -27,8 +27,16 @@ rather than a tag-only change (a net9 app cannot run on the `aspnet:10.0` runtim
   existing stored hashes keep verifying.
 * **Images & CI** — all 7 service Dockerfiles and the Migrator runtime image bumped to
   the `10.0` tags; `actions/setup-dotnet` pinned to `10.0.x` across every workflow.
+* **SDK resolution** — added `global.json` (`sdk` 10.0.100, `rollForward: latestMajor`)
+  so a machine without the .NET 10 SDK gets a clear "install 10.x" error instead of a
+  cryptic `NU1202`. `Start-Planora-Local.ps1` now resolves a .NET 10 SDK automatically
+  (system → side-by-side `%USERPROFILE%\.dotnet` → one-time local auto-install) and puts
+  it on PATH for the build and the service processes, so the launcher works even when the
+  machine default `dotnet` is still .NET 9.
 
-Builds clean under `-warnaserror` and all 791 backend tests pass on net10.0.
+Builds clean under `-warnaserror` and all 791 backend tests pass on net10.0. A full local
+health-check (`Start-Planora-Local.ps1 -ExitAfterHealthCheck`) reports all services
+Healthy on .NET 10.
 
 Security: no change to the password hashing parameters or output; the migration only
 swaps the obsolete API for its supported static equivalent.

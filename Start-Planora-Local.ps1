@@ -293,15 +293,70 @@ function Get-NpmExecutable {
 }
 
 # ---------------------------------------------------------------------------
+#  .NET 10 SDK resolution
+#
+#  The backend targets net10.0. A machine whose default `dotnet` is still .NET 9
+#  cannot build it (NU1202). This resolves a .NET 10 SDK in priority order and
+#  puts it on PATH for this process (inherited by the `dotnet run` children):
+#    1. the system `dotnet` already exposes a 10.x SDK -> use it as-is;
+#    2. a side-by-side SDK under %USERPROFILE%\.dotnet -> prepend it to PATH;
+#    3. otherwise auto-install one there (one-time, ~250 MB) via the official script.
+# ---------------------------------------------------------------------------
+function Test-DotnetHasSdk10 {
+    param([string]$DotnetExe = "dotnet")
+    try { $sdks = & $DotnetExe --list-sdks 2>$null } catch { return $false }
+    return [bool]($sdks | Where-Object { $_ -match '^\s*10\.' })
+}
+
+function Resolve-DotnetSdk10 {
+    if (Test-DotnetHasSdk10 "dotnet") { return $true }
+
+    $localRoot = Join-Path $env:USERPROFILE ".dotnet"
+    $localExe  = Join-Path $localRoot "dotnet.exe"
+
+    if ((Test-Path $localExe) -and (Test-DotnetHasSdk10 $localExe)) {
+        $env:DOTNET_ROOT = $localRoot
+        $env:PATH = "$localRoot;$env:PATH"
+        Write-Info "Using .NET 10 SDK from $localRoot"
+        return $true
+    }
+
+    Write-Warn ".NET 10 SDK not found - installing a local copy to $localRoot (one-time, ~250 MB)..."
+    try {
+        $installer = Join-Path $env:TEMP "dotnet-install.ps1"
+        Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $installer -UseBasicParsing -TimeoutSec 60
+        & $installer -Channel 10.0 -InstallDir $localRoot -NoPath | Out-Null
+    } catch {
+        Write-Fail ".NET 10 SDK auto-install failed: $($_.Exception.Message)"
+        Write-Info "  Install it manually, then retry:  winget install Microsoft.DotNet.SDK.10"
+        return $false
+    }
+
+    if ((Test-Path $localExe) -and (Test-DotnetHasSdk10 $localExe)) {
+        $env:DOTNET_ROOT = $localRoot
+        $env:PATH = "$localRoot;$env:PATH"
+        Write-OK ".NET 10 SDK installed at $localRoot"
+        return $true
+    }
+
+    Write-Fail ".NET 10 SDK is still unavailable after the install attempt."
+    Write-Info "  Install it manually, then retry:  winget install Microsoft.DotNet.SDK.10"
+    return $false
+}
+
+# ---------------------------------------------------------------------------
 #  Preflight checks
 # ---------------------------------------------------------------------------
 function Invoke-PreflightChecks {
     Write-Step "Running preflight checks..."
     $ok = $true
 
-    # dotnet CLI
+    # dotnet CLI + .NET 10 SDK (the backend targets net10.0)
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
         Write-Fail "dotnet CLI not found - install from https://dot.net"
+        $ok = $false
+    } elseif (-not (Resolve-DotnetSdk10)) {
+        Write-Fail ".NET 10 SDK is required - the backend targets net10.0"
         $ok = $false
     } else {
         $ver = (& dotnet --version 2>&1)
