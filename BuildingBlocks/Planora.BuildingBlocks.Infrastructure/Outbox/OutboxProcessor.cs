@@ -7,7 +7,15 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<OutboxProcessor> _logger;
-        private readonly TimeSpan _interval = TimeSpan.FromSeconds(30);
+        // Poll cadence for dispatching pending outbox messages. Kept short because
+        // user-facing, event-driven features read the results almost immediately —
+        // e.g. opening a task shows its Collaboration "ветка" (the "created the task"
+        // system comment + the genesis/description), which is materialised from the
+        // TaskCreatedIntegrationEvent this processor publishes. A 30 s cadence made a
+        // freshly created task's timeline look empty ("No messages yet") for up to
+        // half a minute; 5 s keeps the indexed, Take(20) query cheap while making the
+        // timeline feel live.
+        private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
 
         public OutboxProcessor(
             IServiceProvider serviceProvider,

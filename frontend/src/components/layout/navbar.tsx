@@ -290,7 +290,7 @@ export function Navbar() {
             </AnimatePresence>
 
             {/* ── Avatar + dropdown (always visible) ────────────────── */}
-            <motion.div layout transition={CONTENT_SPRING} className="relative flex-shrink-0 px-1.5" ref={dropRef}>
+            <motion.div layout transition={CONTENT_SPRING} className="relative flex flex-shrink-0 items-center px-1.5" ref={dropRef}>
               <motion.button
                 whileHover={{ scale: 1.08 }}
                 whileTap={{ scale: 0.94 }}

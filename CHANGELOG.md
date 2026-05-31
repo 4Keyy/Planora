@@ -4,6 +4,25 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix — task timeline appears promptly + navbar avatar alignment (2026-05-31)
+
+Two user-reported bugs.
+
+* **"No messages yet" on a task that has a description.** A newly created task's
+  Collaboration timeline ("ветка") is materialised asynchronously: TodoApi publishes
+  `TaskCreatedIntegrationEvent` through its outbox, and Collaboration's consumer writes the
+  "created the task" system comment and the genesis (description) comment. The shared
+  `OutboxProcessor` (and Messaging's `OutboxProcessorJob`) polled every **30 s**, so opening
+  the task within that window showed an empty timeline even though the description existed.
+  Verified end-to-end: the comments are created correctly, just late. Cut the poll cadence to
+  **5 s** (the query is indexed and `Take(20)`-bounded), so the timeline — and message delivery —
+  becomes near-live. Reproduced and confirmed: ~11 s after creating a task the endpoint now
+  returns both the system and genesis comments (`totalCount: 2`).
+* **Navbar avatar sat slightly too high.** The avatar's wrapper was a block container whose
+  child `<button>` defaulted to `inline-block`, so it aligned to the text baseline (leaving
+  line-descender space below) and rode a few px above the flex-centred logo/tabs. Made the
+  wrapper `flex items-center` so the button is vertically centred like its siblings.
+
 ### build — migrate the backend from .NET 9 to .NET 10 (LTS) (2026-05-31)
 
 Moved the entire backend to **.NET 10** (10.0.8 runtime), applying the Dependabot
