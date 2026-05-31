@@ -86,10 +86,14 @@ The scripts describe `-Clean` as a rebuild/cleanup of code artifacts or images. 
 
 ### Stopping and help
 
-`Start-Planora-Local.ps1` also accepts `-Stop` (stop every process the launcher
-started and free their ports, leaving infrastructure containers and data volumes
-untouched) and `-Help` (print usage and exit). Run `.\Start-Planora-Local.ps1 -Help`
-for the full option list.
+Both launchers also accept `-Stop` and `-Help`:
+
+- `Start-Planora-Local.ps1 -Stop` stops every process the launcher started and
+  frees their ports, leaving infrastructure containers and data volumes untouched.
+- `Start-Planora-Docker.ps1 -Stop` stops the host frontend and runs
+  `docker compose down` (containers + network only); data volumes are preserved.
+- `-Help` on either prints the full option list and exits. Both also support
+  `-SkipFrontend`, `-NoBrowser`, and `-ExitAfterHealthCheck`.
 
 On a first clean database start, Auth, Todo, Category, Messaging, and Collaboration initialize their schemas automatically. If local EF migrations exist, they are applied. If no migrations exist, startup creates the schema from the current EF model. This is intentional because generated `Migrations/` folders are not committed.
 
