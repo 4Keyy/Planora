@@ -4,6 +4,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(a11y) — associate auth form labels + name the password-visibility toggles (2026-06-01)
+
+Audit follow-up. The auth forms (login, register, forgot-password, reset-password, verify-email)
+rendered each `<label>` as a sibling of its input with no `htmlFor`/wrapping, so screen readers did
+not announce the field name on focus. Each field is now programmatically labelled — the reusable
+register `InputField` wraps its control in the `<label>`, and the inline forms use `htmlFor` + matching
+`id`. The icon-only show/hide-password buttons gained an `aria-label` ("Show/Hide password") so they
+have an accessible name. Verified: frontend lint, type-check, 370 tests, and the production build pass.
+
 ### fix — idempotent event consumers + read-query tracking (audit follow-ups) (2026-06-01)
 
 Two findings from the repository-wide audit.

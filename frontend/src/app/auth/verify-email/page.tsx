@@ -85,8 +85,9 @@ function VerifyEmailContent() {
         ) : (
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Verification token</label>
+              <label htmlFor="ve-token" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Verification token</label>
               <input
+                id="ve-token"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="Paste token"

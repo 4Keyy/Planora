@@ -151,9 +151,10 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</label>
+              <label htmlFor="login-email" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</label>
               <input
                 {...register("email")}
+                id="login-email"
                 type="email"
                 placeholder="you@example.com"
                 autoComplete="email"
@@ -163,10 +164,11 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Password</label>
+              <label htmlFor="login-password" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Password</label>
               <div className="relative">
                 <input
                   {...register("password")}
+                  id="login-password"
                   type={showPass ? "text" : "password"}
                   placeholder="••••••••"
                   autoComplete="current-password"
@@ -176,6 +178,7 @@ export default function LoginPage() {
                   type="button"
                   onClick={() => setShowPass(!showPass)}
                   tabIndex={-1}
+                  aria-label={showPass ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -186,10 +189,11 @@ export default function LoginPage() {
 
             {requiresTwoFactor && (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">2FA Code</label>
+                <label htmlFor="login-2fa" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">2FA Code</label>
                 <input
                   value={twoFactorCode}
                   onChange={(e) => setTwoFactorCode(e.target.value)}
+                  id="login-2fa"
                   inputMode="numeric"
                   placeholder="123456"
                   className="w-full px-3.5 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-[border-color,box-shadow] placeholder:text-gray-400"

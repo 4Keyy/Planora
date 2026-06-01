@@ -291,4 +291,5 @@ ADRs are stored in [`DECISIONS/`](DECISIONS/):
 | Multiple response shapes | Frontend consumers must handle raw DTOs, `Result<T>`, and paged wrappers. | `parseApiResponse` handles common wrappers. |
 | Configuration drift between launch profiles and Compose | Port/connection examples can become stale. | Prefer Compose/appsettings/Ocelot as source of truth; see `configuration.md`. |
 | Realtime persistence absent | Notifications/connections are not durably stored in a Realtime database. | Treat Realtime as fan-out/connection service unless code adds persistence. |
+| Realtime notification consumer is not deduped | `NotificationEvent` delivery is at-least-once, so a redelivered event can re-push a SignalR notification (a duplicate transient toast). | Intentional: Realtime is a stateless SignalR fan-out with no DB write, so persistent inbox dedup (used by Collaboration) would be disproportionate. The event-bus dedup is graceful — it simply no-ops here. |
 | Compose service ports are local-development bindings | Compose is a local topology, not a production edge design. | Keep databases, broker, cache, gRPC, and backend service ports private in production. |
