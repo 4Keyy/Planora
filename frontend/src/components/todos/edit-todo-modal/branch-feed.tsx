@@ -159,7 +159,11 @@ export function BranchFeed({
   useEffect(() => {
     if (refreshKey === undefined) return
     retryTimers.current.forEach(clearTimeout)
-    retryTimers.current = [600, 1500, 3000].map((ms) => setTimeout(() => { void mergeLatest() }, ms))
+    // Dense early schedule: with signal-driven outbox dispatch the status comment is written within
+    // a fraction of a second, so the first probes catch it almost immediately; the later ones cover
+    // a slower poll-fallback dispatch. Cheap (id-keyed merge, no-op when nothing changed).
+    retryTimers.current = [250, 600, 1100, 1800, 2800, 4200, 5600]
+      .map((ms) => setTimeout(() => { void mergeLatest() }, ms))
     return () => { retryTimers.current.forEach(clearTimeout); retryTimers.current = [] }
   }, [refreshKey, mergeLatest])
 

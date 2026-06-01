@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend) — leaving work keeps the branch modal open + faster status-comment catch (2026-06-01)
+
+The header pill's "Leave" action called `onClose()`, so stopping work closed the whole branch modal.
+Removed it — leaving (by the pill or the "+" menu) now keeps the modal open, and the "left the task"
+system comment appears in-place. Also tightened the post-action catch-up merge schedule
+(250 ms → 5.6 s, denser early) so the status system-comment surfaces almost immediately once the
+signal-driven outbox dispatch has published it.
+
+> Note: the near-instant dispatch requires the **Todo service to be running the rebuilt binary**. A
+> still-running pre-change Todo API keeps the old 5 s poll cadence until restarted.
+
 ### perf/feat — instant outbox dispatch, unified Quick Filter bar, non-owner date popover (2026-06-01)
 
 **perf(outbox): task-lifecycle system comments now appear near-instantly instead of after ~20 s.**

@@ -282,9 +282,10 @@ export function EditTodoModal({
                       In Progress
                     </span>
 
-                    {/* "Leave" button — absolutely overlaid, fades in on hover */}
+                    {/* "Leave" button — absolutely overlaid, fades in on hover.
+                        Leaving keeps the modal open (the "left the task" event shows in the branch). */}
                     <button
-                      onClick={async (e) => { e.stopPropagation(); setWorkOverride(false); await onLeave(); onClose() }}
+                      onClick={async (e) => { e.stopPropagation(); setWorkOverride(false); await onLeave() }}
                       style={{
                         position: "absolute",
                         inset: "-3px -6px",
