@@ -314,12 +314,16 @@ so Collaboration needs no extra lookup to render the sentence. Consumers are ide
 
 ### Frontend Behavior
 
-- `TaskComments` renders inside the edit modal for tasks with a shared audience.
+- `BranchFeed` renders inside the fixed-size branch/edit modal (`edit-todo-modal/branch-feed.tsx`).
 - Comments are fetched oldest-first (chat style) on mount; "Load earlier" button appends the next page.
 - `isOwn` controls edit/delete button visibility; `isEdited` renders "(edited)" label.
-- Ctrl+Enter submits the draft; a 2000-character counter warns at the input edge.
+- Ctrl+Enter submits the draft; Escape cancels description mode.
 - Soft-deleted comments are removed from local state immediately without a full refetch.
-- System comments (`isSystemComment: true`) render as a centered horizontal-rule divider — event text flanked by `<hr>` lines, with a tiny timestamp below. No author label, no edit/delete buttons.
+- System comments (`isSystemComment: true`) render as timeline dot + sentence on the rail, no edit/delete.
+- **Sticky Author's Note:** the pinned card lives at the top of the scrollable rail and scrolls away with content. Once it passes out of view the feed shows a condensed frosted-glass bar (author avatar + truncated first line + animated chevron) at the top of the feed area. Clicking the condensed bar smoothly scrolls back to the full card and fires a violet attention pulse (`genesis_highlight` keyframe) so the note is easy to spot. The bar animates in/out with a spring (Framer Motion `AnimatePresence`).
+- **Compose "+" menu actions:** the menu is visible to all participants (owner and collaborators). The "Description" attachment item is shown only to the task owner and is muted once a description exists (already added). Two additional action items are shown to everyone:
+  - **Take into work / Leave task** — mirrors the existing join/leave flow exactly (owner: `status → inProgress` / `status → todo`; viewer: `joinTodo` / `leaveTodo`). The button label and icon flip between "Take into work" (Zap, indigo) and "Leave task" (LogOut, red) depending on the current in-progress state. An optimistic `workOverride` state in the modal flips the pill in the header bar instantly before the parent refetch arrives.
+  - **Complete task / Reopen task** — mirrors the existing complete flow (owner: `status → done`; viewer: `completedByViewer` toggle). Closes the modal on success.
 
 ## Shared Todos And Hidden Viewer Preferences
 

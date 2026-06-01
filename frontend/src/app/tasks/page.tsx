@@ -968,6 +968,33 @@ export default function TasksPage() {
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
             commentsRefreshKey={commentsRefreshKey}
+            onStartWork={async () => {
+              const todo = editingTodo
+              if (!todo) return
+              if (isTodoOwner(todo, user?.userId)) {
+                try {
+                  await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "inProgress" })
+                  setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "In Progress" } : t))
+                  setEditingTodo((prev) => prev ? { ...prev, status: "In Progress" } : prev)
+                  setCommentsRefreshKey((k) => k + 1)
+                } catch {
+                  addToast({ type: "error", title: "Could not update task" })
+                }
+              } else {
+                try {
+                  const updated = await joinTodo(todo.id)
+                  setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
+                  setEditingTodo((prev) => prev ? { ...prev, ...updated } : prev)
+                  setCommentsRefreshKey((k) => k + 1)
+                } catch (err: unknown) {
+                  const status = (err as { response?: { status: number } })?.response?.status
+                  addToast(status === 409
+                    ? { type: "warning", title: "Task is full or you have already joined" }
+                    : { type: "error", title: "Could not join task" })
+                }
+              }
+            }}
+            onCompleteTask={() => handleComplete(editingTodo.id)}
             onDescriptionChange={(desc) => {
               const update = (prev: Todo[]) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t)
               setTodos(update)

@@ -1,9 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { Pencil, Trash2, Send, Plus, FileText, X } from "lucide-react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2 } from "lucide-react"
 import { fetchComments, addComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
 import type { TodoComment } from "@/types/todo"
+import { SPRING_STANDARD } from "@/lib/animations"
 import { FriendAvatar } from "./friend-avatar"
 import {
   formatDayLabel,
@@ -22,6 +24,17 @@ interface BranchFeedProps {
   // "Author's Note" is this description — editing/adding/clearing it goes through here, not a
   // stored genesis comment. Undefined for non-owners (read-only note).
   onSaveDescription?: (text: string) => Promise<void>
+  // ── Compose-panel task actions (surfaced inside the "+" menu) ──
+  // Whether the viewer currently has this task in progress (owner) / is working on it (viewer).
+  inProgress?: boolean
+  // Whether the task is already completed (toggles the complete action into a "reopen").
+  isCompleted?: boolean
+  // Take the task into work (owner → In Progress, viewer → join). Hidden when undefined.
+  onStartWork?: () => Promise<void>
+  // Stop working / leave the task. Hidden when undefined.
+  onStopWork?: () => Promise<void>
+  // Complete (or reopen) the task. Hidden when undefined.
+  onCompleteTask?: () => Promise<void>
 }
 
 // Flat list item (day separator or comment)
@@ -43,7 +56,11 @@ function buildFeed(comments: TodoComment[]): FeedItem[] {
   return items
 }
 
-export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: BranchFeedProps) {
+export function BranchFeed({
+  todoId, isOwner, refreshKey, onSaveDescription,
+  inProgress = false, isCompleted = false,
+  onStartWork, onStopWork, onCompleteTask,
+}: BranchFeedProps) {
   const [comments,   setComments]   = useState<TodoComment[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page,       setPage]       = useState(1)
@@ -57,12 +74,19 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: B
   const [error, setError] = useState<string | null>(null)
   const [composeMode, setComposeMode] = useState<"text" | "description">("text")
   const [plusMenuOpen, setPlusMenuOpen] = useState(false)
+  // Pinned Author's Note: condensed sticky header is shown once the full card scrolls away.
+  const [genesisOutOfView, setGenesisOutOfView] = useState(false)
+  const [genesisHighlight,  setGenesisHighlight]  = useState(false)
+  // Which task action (if any) is currently awaiting its async handler.
+  const [actionPending, setActionPending] = useState<null | "work" | "complete">(null)
 
   const feedRef           = useRef<HTMLDivElement>(null)
   const composeRef        = useRef<HTMLTextAreaElement>(null)
   const genesisEditRef    = useRef<HTMLTextAreaElement>(null)
+  const genesisCardRef    = useRef<HTMLDivElement>(null)
   const plusBtnRef        = useRef<HTMLButtonElement>(null)
   const plusMenuRef       = useRef<HTMLDivElement>(null)
+  const highlightTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async (pageNum: number, replace: boolean) => {
     try {
@@ -88,6 +112,57 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: B
       feedRef.current.scrollTop = feedRef.current.scrollHeight
     }
   }
+
+  // ── Pinned Author's Note: show the condensed header once the full card scrolls past the top ──
+  const updateGenesisVisibility = useCallback(() => {
+    const scroller = feedRef.current
+    const card     = genesisCardRef.current
+    if (!scroller || !card) {
+      setGenesisOutOfView(false)
+      return
+    }
+    // Reveal the condensed bar when all but the last ~24px of the card has scrolled away.
+    const threshold = card.offsetTop + card.offsetHeight - 24
+    setGenesisOutOfView(scroller.scrollTop > threshold)
+  }, [])
+
+  // Re-evaluate visibility whenever the feed (re)loads or the note appears/disappears.
+  useEffect(() => {
+    const id = requestAnimationFrame(updateGenesisVisibility)
+    return () => cancelAnimationFrame(id)
+  }, [updateGenesisVisibility, loading, comments.length, editingGenesis])
+
+  // Smoothly travel back up the branch to the full note and give it a brief highlight.
+  const scrollToGenesis = useCallback(() => {
+    feedRef.current?.scrollTo({ top: 0, behavior: "smooth" })
+    setGenesisHighlight(false)
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    // Defer the pulse a touch so it lands as the card settles into view.
+    highlightTimer.current = setTimeout(() => {
+      setGenesisHighlight(true)
+      highlightTimer.current = setTimeout(() => setGenesisHighlight(false), 1100)
+    }, 220)
+  }, [])
+
+  useEffect(() => () => { if (highlightTimer.current) clearTimeout(highlightTimer.current) }, [])
+
+  // Run a compose-panel task action (take/leave/complete) with a pending indicator.
+  const runAction = async (kind: "work" | "complete", fn?: () => Promise<void>) => {
+    if (!fn || actionPending) return
+    setActionPending(kind)
+    try {
+      await fn()
+    } catch (e) {
+      setError(getApiErrorMessage(e))
+    } finally {
+      setActionPending(null)
+      setPlusMenuOpen(false)
+    }
+  }
+
+  const showWorkAction     = !!(inProgress ? onStopWork : onStartWork)
+  const showCompleteAction = !!onCompleteTask
+  const showDescription    = !!onSaveDescription
 
   const handleEditSave = async (id: string) => {
     const content = editContent.trim()
@@ -202,15 +277,124 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: B
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%", minHeight: 0 }}>
 
-      {/* ── Pinned author card ── */}
+      {/* ── Feed area (relative anchor for the condensed sticky note) ── */}
+      <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
+
+        {/* Condensed Author's Note — slides in once the full card scrolls away */}
+        <AnimatePresence>
+          {genesis && genesisOutOfView && !editingGenesis && (
+            <motion.button
+              type="button"
+              onClick={scrollToGenesis}
+              initial={{ opacity: 0, y: -14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -14 }}
+              transition={SPRING_STANDARD}
+              aria-label="Scroll up to the author's note"
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                width: "100%",
+                textAlign: "left",
+                cursor: "pointer",
+                padding: "10px 14px",
+                border: "none",
+                borderBottom: "1px solid #ececec",
+                borderRadius: "12px 12px 0 0",
+                background: "rgba(250,250,250,0.82)",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                boxShadow: "0 6px 16px -10px rgba(0,0,0,0.25)",
+                fontFamily: "inherit",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(245,243,255,0.9)" }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(250,250,250,0.82)" }}
+            >
+              <FriendAvatar
+                friend={{
+                  id: genesis.authorId,
+                  firstName: genesis.authorName?.split(" ")[0],
+                  lastName: genesis.authorName?.split(" ")[1],
+                  profilePictureUrl: genesis.authorAvatarUrl,
+                }}
+                size={22}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3", lineHeight: 1.2 }}>
+                  Author&apos;s Note
+                </div>
+                <div style={{
+                  fontSize: 12, fontWeight: 600, color: "#262626", lineHeight: 1.3,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1,
+                }}>
+                  {genesis.content}
+                </div>
+              </div>
+              <motion.div
+                animate={{ y: [0, -2, 0] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                style={{
+                  flexShrink: 0, width: 22, height: 22, borderRadius: 7,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "#f0f0f0", color: "#8b5cf6",
+                }}
+              >
+                <ChevronUp size={13} strokeWidth={2.4} />
+              </motion.div>
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        {/* ── Timeline rail (scrolls; the pinned note lives at its top and scrolls away) ── */}
+        <div
+          ref={feedRef}
+          className="branch-scroll"
+          onScroll={updateGenesisVisibility}
+          style={{
+            position: "relative",
+            paddingLeft: 42,
+            paddingRight: 4,
+            paddingTop: 4,
+            paddingBottom: 4,
+            height: "100%",
+            overflowY: "auto",
+          }}
+        >
+          {/* Continuous rail line */}
+          <div style={{
+            position: "absolute",
+            left: 17,
+            top: 16,
+            bottom: 16,
+            width: 2,
+            background: "#eaeaea",
+            borderRadius: 1,
+            pointerEvents: "none",
+          }} />
+
+      {/* ── Pinned author card (scrolls with the branch; covers the rail line behind it) ── */}
       {!loading && genesis && (
-        <div style={{
-          background: "#fafafa",
-          border: "1px solid #f0f0f0",
-          borderRadius: 18,
-          padding: "16px 18px 18px",
-          marginBottom: 14,
-        }}>
+        <div
+          ref={genesisCardRef}
+          style={{
+            position: "relative",
+            zIndex: 1,
+            background: "#fafafa",
+            border: "1px solid #f0f0f0",
+            borderRadius: 18,
+            padding: "16px 18px 18px",
+            marginLeft: -42,
+            marginRight: -4,
+            marginBottom: 14,
+            animation: genesisHighlight ? "genesis_highlight 1100ms ease-out" : undefined,
+          }}
+        >
           {/* Header row */}
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 10 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -316,35 +500,6 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: B
         </div>
       )}
 
-      {/* ── Timeline rail ── */}
-      <div
-        ref={feedRef}
-        className="branch-scroll"
-        style={{
-          position: "relative",
-          paddingLeft: 42,
-          paddingRight: 4,
-          paddingTop: 4,
-          paddingBottom: 4,
-          // Flex-fill the fixed-height modal so the timeline always occupies the same
-          // space (empty or full) and scrolls internally.
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-        }}
-      >
-        {/* Continuous rail line */}
-        <div style={{
-          position: "absolute",
-          left: 17,
-          top: 16,
-          bottom: 16,
-          width: 2,
-          background: "#eaeaea",
-          borderRadius: 1,
-          pointerEvents: "none",
-        }} />
-
         {/* Load earlier */}
         {hasMore && !loading && (
           <button
@@ -398,6 +553,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: B
             />
           )
         })}
+        </div>
       </div>
 
       {error && (
@@ -478,63 +634,107 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: B
                 animation: "pop_in_up 160ms cubic-bezier(0.16,1,0.3,1) both",
               }}
             >
-              <div style={{
-                fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
-                textTransform: "uppercase", color: "#a3a3a3",
-                padding: "4px 10px 8px",
-              }}>
-                Attach
-              </div>
+              {/* Author-only: add the task description (disabled once one exists) */}
+              {showDescription && (
+                <>
+                  <MenuSectionLabel>Attach</MenuSectionLabel>
+                  <button
+                    onClick={() => {
+                      if (genesis) return
+                      setComposeMode("description")
+                      setPlusMenuOpen(false)
+                      setTimeout(() => composeRef.current?.focus(), 50)
+                    }}
+                    disabled={!!genesis}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 10px", borderRadius: 10, border: "none",
+                      cursor: genesis ? "not-allowed" : "pointer",
+                      background: "transparent", textAlign: "left",
+                      opacity: genesis ? 0.45 : 1,
+                      transition: "background 100ms, opacity 100ms",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!genesis) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                    }}
+                  >
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                      background: genesis ? "#f5f5f5" : "#eef2ff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <FileText size={13} color={genesis ? "#a3a3a3" : "#4f46e5"} strokeWidth={1.8} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 800, color: genesis ? "#a3a3a3" : "#0a0a0a", letterSpacing: "-0.01em" }}>
+                        Description
+                      </div>
+                      <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
+                        {genesis ? "Already added" : "Task description"}
+                      </div>
+                    </div>
+                    {genesis && (
+                      <div style={{
+                        marginLeft: "auto", fontSize: 9, fontWeight: 900,
+                        letterSpacing: "0.1em", textTransform: "uppercase",
+                        color: "#c4b5fd", background: "#f5f3ff",
+                        padding: "2px 7px", borderRadius: 6,
+                      }}>
+                        Added
+                      </div>
+                    )}
+                  </button>
+                </>
+              )}
 
-              <button
-                onClick={() => {
-                  if (genesis) return
-                  setComposeMode("description")
-                  setPlusMenuOpen(false)
-                  setTimeout(() => composeRef.current?.focus(), 50)
-                }}
-                disabled={!!genesis}
-                style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: 10,
-                  padding: "8px 10px", borderRadius: 10, border: "none",
-                  cursor: genesis ? "not-allowed" : "pointer",
-                  background: "transparent", textAlign: "left",
-                  opacity: genesis ? 0.45 : 1,
-                  transition: "background 100ms, opacity 100ms",
-                }}
-                onMouseEnter={(e) => {
-                  if (!genesis) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "transparent"
-                }}
-              >
-                <div style={{
-                  width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                  background: genesis ? "#f5f5f5" : "#eef2ff",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <FileText size={13} color={genesis ? "#a3a3a3" : "#4f46e5"} strokeWidth={1.8} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 800, color: genesis ? "#a3a3a3" : "#0a0a0a", letterSpacing: "-0.01em" }}>
-                    Description
-                  </div>
-                  <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
-                    {genesis ? "Already added" : "Task description"}
-                  </div>
-                </div>
-                {genesis && (
-                  <div style={{
-                    marginLeft: "auto", fontSize: 9, fontWeight: 900,
-                    letterSpacing: "0.1em", textTransform: "uppercase",
-                    color: "#c4b5fd", background: "#f5f3ff",
-                    padding: "2px 7px", borderRadius: 6,
-                  }}>
-                    Added
-                  </div>
-                )}
-              </button>
+              {/* Task actions — available to everyone (owner & collaborators) */}
+              {(showWorkAction || showCompleteAction) && (
+                <>
+                  {showDescription && (
+                    <div style={{ height: 1, background: "#f3f3f3", margin: "6px 8px" }} />
+                  )}
+                  <MenuSectionLabel>Actions</MenuSectionLabel>
+
+                  {showWorkAction && (
+                    inProgress ? (
+                      <MenuActionItem
+                        icon={<LogOut size={13} color="#dc2626" strokeWidth={1.9} />}
+                        iconBg="#fef2f2"
+                        title="Leave task"
+                        subtitle="Stop working on this"
+                        pending={actionPending === "work"}
+                        disabled={actionPending !== null}
+                        onClick={() => runAction("work", onStopWork)}
+                      />
+                    ) : (
+                      <MenuActionItem
+                        icon={<Zap size={13} color="#4f46e5" strokeWidth={1.9} />}
+                        iconBg="#eef2ff"
+                        title="Take into work"
+                        subtitle="Start working on this"
+                        pending={actionPending === "work"}
+                        disabled={actionPending !== null}
+                        onClick={() => runAction("work", onStartWork)}
+                      />
+                    )
+                  )}
+
+                  {showCompleteAction && (
+                    <MenuActionItem
+                      icon={<CheckCircle2 size={13} color="#059669" strokeWidth={1.9} />}
+                      iconBg="#ecfdf5"
+                      title={isCompleted ? "Reopen task" : "Complete task"}
+                      subtitle={isCompleted ? "Move back to active" : "Mark this task done"}
+                      pending={actionPending === "complete"}
+                      disabled={actionPending !== null}
+                      onClick={() => runAction("complete", onCompleteTask)}
+                    />
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -618,6 +818,68 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: B
         </div>
       </div>
     </div>
+  )
+}
+
+/* ── Compose "+" menu helpers ── */
+function MenuSectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
+      textTransform: "uppercase", color: "#a3a3a3",
+      padding: "4px 10px 8px",
+    }}>
+      {children}
+    </div>
+  )
+}
+
+interface MenuActionItemProps {
+  icon: ReactNode
+  iconBg: string
+  title: string
+  subtitle: string
+  pending?: boolean
+  disabled?: boolean
+  onClick: () => void
+}
+
+function MenuActionItem({ icon, iconBg, title, subtitle, pending, disabled, onClick }: MenuActionItemProps) {
+  const muted = disabled && !pending
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        width: "100%", display: "flex", alignItems: "center", gap: 10,
+        padding: "8px 10px", borderRadius: 10, border: "none",
+        cursor: disabled ? "default" : "pointer",
+        background: "transparent", textAlign: "left",
+        opacity: muted ? 0.45 : 1,
+        transition: "background 100ms, opacity 100ms",
+      }}
+      onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+    >
+      <div style={{
+        width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+        background: iconBg,
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {icon}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0a0a0a", letterSpacing: "-0.01em" }}>
+          {title}
+        </div>
+        <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
+          {subtitle}
+        </div>
+      </div>
+      {pending && (
+        <Loader2 size={14} color="#a3a3a3" className="animate-spin" style={{ marginLeft: "auto", flexShrink: 0 }} />
+      )}
+    </button>
   )
 }
 

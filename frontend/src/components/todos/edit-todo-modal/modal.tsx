@@ -27,6 +27,10 @@ export interface EditTodoModalProps {
   onCreateCategory: () => Promise<void>
   onDeleteCategory?: (categoryId: string) => Promise<void>
   onLeave?: () => Promise<void>
+  /** Take the task into work (owner → In Progress, viewer → join). */
+  onStartWork?: () => Promise<void>
+  /** Complete (or, when already completed, reopen) the task. */
+  onCompleteTask?: () => Promise<void>
   onDescriptionChange?: (newDescription: string) => void
   commentsRefreshKey?: number
 }
@@ -39,6 +43,8 @@ export function EditTodoModal({
   onSaveViewerPreference,
   onCreateCategory,
   onLeave,
+  onStartWork,
+  onCompleteTask,
   onDescriptionChange,
   commentsRefreshKey,
 }: EditTodoModalProps) {
@@ -75,6 +81,17 @@ export function EditTodoModal({
   const inProgress = isOwner
     ? String(todo.status ?? "").toLowerCase().replace(/\s/g, "") === "inprogress"
     : (todo.isWorking ?? false)
+
+  const statusKey = String(todo.status ?? "").toLowerCase().replace(/\s/g, "")
+  const isCompleted = isOwner
+    ? (statusKey === "done" || statusKey === "completed")
+    : (todo.isCompletedByViewer ?? false)
+
+  // Optimistic working state so the compose-panel toggle and the pill flip instantly,
+  // before the parent's refetch propagates back through the `todo` prop. Reset per task.
+  const [workOverride, setWorkOverride] = useState<boolean | null>(null)
+  useEffect(() => { setWorkOverride(null) }, [todo.id])
+  const effectiveInProgress = workOverride ?? inProgress
 
   const [pillHovered, setPillHovered] = useState(false)
 
@@ -221,7 +238,7 @@ export function EditTodoModal({
 
             {/* Right: in-progress pill + close */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {inProgress && onLeave && (
+              {effectiveInProgress && onLeave && (
                 <div
                   onMouseEnter={() => setPillHovered(true)}
                   onMouseLeave={() => setPillHovered(false)}
@@ -267,7 +284,7 @@ export function EditTodoModal({
 
                     {/* "Leave" button — absolutely overlaid, fades in on hover */}
                     <button
-                      onClick={async (e) => { e.stopPropagation(); await onLeave(); onClose() }}
+                      onClick={async (e) => { e.stopPropagation(); setWorkOverride(false); await onLeave(); onClose() }}
                       style={{
                         position: "absolute",
                         inset: "-3px -6px",
@@ -395,6 +412,11 @@ export function EditTodoModal({
               isOwner={isOwner}
               refreshKey={commentsRefreshKey}
               onSaveDescription={isOwner ? handleSaveDescription : undefined}
+              inProgress={effectiveInProgress}
+              isCompleted={isCompleted}
+              onStartWork={onStartWork ? async () => { setWorkOverride(true); await onStartWork() } : undefined}
+              onStopWork={onLeave ? async () => { setWorkOverride(false); await onLeave() } : undefined}
+              onCompleteTask={onCompleteTask ? async () => { await onCompleteTask(); onClose() } : undefined}
             />
           </div>
 

@@ -935,6 +935,8 @@ export default function DashboardPage() {
               setEditingTodo(prev => prev ? { ...prev, description: desc } : null)
             }}
             onLeave={editingTodo ? async () => handleLeave(editingTodo.id) : undefined}
+            onStartWork={editingTodo ? async () => handleJoin(editingTodo.id) : undefined}
+            onCompleteTask={editingTodo ? async () => handleComplete(editingTodo.id) : undefined}
           />
         )}
       </AnimatePresence>

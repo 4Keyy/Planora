@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend) — sticky Author's Note + task actions in branch compose menu (2026-06-01)
+
+The Author's Note (task description) is now part of the scrollable branch rail instead of living
+outside it. It scrolls away naturally; once it leaves view a condensed frosted-glass bar appears at
+the top of the feed with the author's avatar, the truncated first line, and a gently-bouncing chevron.
+Clicking the bar smooth-scrolls back to the full card and fires a violet attention-pulse animation so
+the note is effortless to find. The bar enters/exits with a spring via Framer Motion `AnimatePresence`.
+
+The compose "+" menu now surfaces two task-action items (available to all participants, not just the
+owner): **Take into work** (→ Leave task when already in progress, toggle) and **Complete task** (→
+Reopen when already completed). Both mirror the existing join/leave/complete flow precisely — no new
+API or logic — and emit the same system comments and toasts the cards do. The "Description" attachment
+item is now hidden for non-owners (only the author can set a task description). An optimistic
+`workOverride` flag in the modal makes the in-progress pill in the header flip instantly on "Take into
+work" / "Leave" before the parent refetch propagates back.
+
 ### fix(frontend) — lock owner-only fields for viewers + fixed-size branch modal (2026-06-01)
 
 Two issues in the branch/edit modal. (1) When a non-owner opened a public task's branch modal, the
