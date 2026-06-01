@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat — one-command LAN sharing over Wi-Fi (VPN-safe) (2026-06-01)
+
+Added `-Lan` to `Start-Planora-Local.ps1` so a teammate on the same Wi-Fi can open the running app.
+The launcher resolves the host's physical LAN IPv4 via `Get-NetAdapter -Physical` (which excludes VPN
+virtual adapters, so a split-tunnel VPN's tunnel address is never handed out), opens a Windows Firewall
+inbound rule for ports 3000 + 5132 scoped to `Profile Any` + `RemoteAddress LocalSubnet` (self-elevating
+once if needed), and prints the shareable `http://<lan-ip>:3000` URL plus VPN guidance. The frontend
+already binds `0.0.0.0` and `getApiBaseUrl()` auto-targets the gateway on whatever host the page was
+opened from, so peers need zero configuration.
+
+To make this work end-to-end in development without per-IP wiring: the API gateway's dev CORS policy now
+accepts loopback **and** RFC1918 private-LAN origins (via a bounded `SetIsOriginAllowed` predicate — dev
+policy only, production stays an explicit allow-list), and the frontend's dev CSP `connect-src` now
+allows `http:/https:/ws:/wss:` (mirroring the existing dev `img-src`), so a browser served from a LAN IP
+can reach `http://<same-host>:5132`. Production CSP/CORS are unchanged.
+
 ### fix(frontend) — leaving work keeps the branch modal open + faster status-comment catch (2026-06-01)
 
 The header pill's "Leave" action called `onClose()`, so stopping work closed the whole branch modal.

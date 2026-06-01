@@ -34,6 +34,15 @@
     frontend), free their ports, and clear stale PID files. Infrastructure
     containers and all data volumes are left untouched.
 
+.PARAMETER Lan
+    Share the running app on the local Wi-Fi/LAN. Detects the host's physical LAN
+    IPv4 (ignoring any VPN virtual adapter, so a split-tunnel VPN does not interfere),
+    opens the Windows Firewall for the frontend (3000) and API gateway (5132) ports
+    (inbound, LocalSubnet only - one UAC prompt if not already elevated), and prints
+    the shareable http://<lan-ip>:3000 URL. The frontend already binds 0.0.0.0 and the
+    client auto-targets the gateway on the same host it was opened from, so a teammate
+    just opens that URL in their browser.
+
 .PARAMETER Help
     Print usage and exit without starting anything.
 
@@ -47,6 +56,8 @@
     .\Start-Planora-Local.ps1 -SkipBuild
 .EXAMPLE
     .\Start-Planora-Local.ps1 -Stop
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -Lan
 #>
 param(
     # Wipe bin/obj/.next, restore, and rebuild images with --no-cache. Data volumes preserved.
@@ -61,6 +72,9 @@ param(
     [switch]$SkipBuild,
     # Stop everything this launcher started, then exit (no startup).
     [switch]$Stop,
+    # Open the Windows Firewall for the frontend + gateway ports and print a shareable
+    # LAN URL, so another device on the same Wi-Fi can use the app while this runs.
+    [switch]$Lan,
     # Print usage and exit.
     [switch]$Help
 )
@@ -157,13 +171,14 @@ function Show-Usage {
     Write-Host ""
     Write-Host "${BOLD}USAGE${RESET}"
     Write-Host "  .\Start-Planora-Local.ps1 [-Clean] [-SkipBuild] [-SkipFrontend] [-NoBrowser]"
-    Write-Host "                            [-ExitAfterHealthCheck] [-Stop] [-Help]"
+    Write-Host "                            [-Lan] [-ExitAfterHealthCheck] [-Stop] [-Help]"
     Write-Host ""
     Write-Host "${BOLD}OPTIONS${RESET}"
     Write-Host "  -Clean                 Wipe bin/obj/.next + rebuild (data volumes preserved)."
     Write-Host "  -SkipBuild             Reuse existing build output (fastest restart)."
     Write-Host "  -SkipFrontend          Start the backend stack only."
     Write-Host "  -NoBrowser             Do not open the browser when the frontend is ready."
+    Write-Host "  -Lan                   Share on the Wi-Fi/LAN: open firewall + print share URL."
     Write-Host "  -ExitAfterHealthCheck  Start, verify health, then shut down (CI / smoke test)."
     Write-Host "  -Stop                  Stop everything this launcher started, then exit."
     Write-Host "  -Help                  Show this help and exit."
@@ -185,6 +200,8 @@ $ComposeFile = Join-Path $RepoRoot "docker-compose.yml"
 $FrontendDir = Join-Path $RepoRoot "frontend"
 $Failures    = [System.Collections.Generic.List[string]]::new()
 $totalTimer  = [System.Diagnostics.Stopwatch]::StartNew()
+# Host LAN IPv4 resolved when -Lan is used; shown in the summary as the shareable URL.
+$script:LanShareIp = $null
 
 # Service definitions in dependency/startup order - name => project path (relative),
 # REST Port, optional gRPC sidecar port (GrpcPort), and health path.
@@ -290,6 +307,94 @@ function Get-NpmExecutable {
     if ($npm) { return $npm.Source }
 
     return $null
+}
+
+# ---------------------------------------------------------------------------
+#  LAN sharing helpers (-Lan)
+# ---------------------------------------------------------------------------
+
+# Resolve the host's LAN IPv4. Get-NetAdapter -Physical lists only real NICs, so a VPN's
+# virtual adapter (split-tunnel or not) is ignored and we never hand out the tunnel address.
+# We then keep RFC1918 private addresses only, preferring Wi-Fi, then a 192.168.x address.
+function Get-LanIPv4 {
+    try {
+        $upPhysical = Get-NetAdapter -Physical -ErrorAction Stop | Where-Object { $_.Status -eq 'Up' }
+    } catch {
+        $upPhysical = $null
+    }
+
+    $candidates = @()
+    if ($upPhysical) {
+        $idx = @($upPhysical | Select-Object -ExpandProperty ifIndex)
+        $candidates = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $idx -contains $_.InterfaceIndex }
+    }
+    if (-not $candidates) {
+        # Fallback: any IPv4 that is not loopback or APIPA.
+        $candidates = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' }
+    }
+
+    $private = @($candidates | Where-Object {
+        $_.IPAddress -match '^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)'
+    })
+    if ($private.Count -eq 0) { return $null }
+
+    $best = $private |
+        Sort-Object `
+            @{ Expression = { [int]([bool]($_.InterfaceAlias -match 'Wi-?Fi|Wireless|WLAN')) }; Descending = $true }, `
+            @{ Expression = { [int]($_.IPAddress -like '192.168.*') }; Descending = $true } |
+        Select-Object -First 1
+    return $best.IPAddress
+}
+
+function Test-IsAdministrator {
+    return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+        ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# Open an inbound TCP allow rule for the given ports, scoped to the local subnet only
+# (so it is reachable by Wi-Fi peers but never from the wider internet) and on every
+# firewall profile (a VPN often flips the active adapter to the Public profile). Idempotent:
+# the rule is removed then recreated. Self-elevates a single time if not already admin.
+function Enable-LanFirewall {
+    param([int[]]$Ports)
+
+    $ruleName = "Planora LAN (local dev)"
+    $portCsv  = ($Ports -join ',')
+
+    if (Test-IsAdministrator) {
+        try {
+            Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
+            New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Action Allow `
+                -Protocol TCP -LocalPort $Ports -Profile Any -RemoteAddress LocalSubnet `
+                -ErrorAction Stop | Out-Null
+            Write-OK "Firewall opened (inbound TCP $portCsv, LocalSubnet only)"
+            return $true
+        } catch {
+            Write-Warn "Could not create the firewall rule: $($_.Exception.Message)"
+            return $false
+        }
+    }
+
+    Write-Info "Requesting administrator rights to open the firewall (one UAC prompt)..."
+    $inner = "Remove-NetFirewallRule -DisplayName '$ruleName' -ErrorAction SilentlyContinue; " +
+             "New-NetFirewallRule -DisplayName '$ruleName' -Direction Inbound -Action Allow " +
+             "-Protocol TCP -LocalPort $portCsv -Profile Any -RemoteAddress LocalSubnet | Out-Null"
+    try {
+        $p = Start-Process powershell -Verb RunAs -WindowStyle Hidden -PassThru -Wait `
+            -ArgumentList @("-NoProfile", "-NonInteractive", "-Command", $inner) -ErrorAction Stop
+        if ($p.ExitCode -eq 0) {
+            Write-OK "Firewall opened (inbound TCP $portCsv, LocalSubnet only)"
+            return $true
+        }
+        Write-Warn "Firewall rule command exited with code $($p.ExitCode)"
+    } catch {
+        Write-Warn "Firewall rule was not created (UAC declined or blocked)."
+        Write-Info "Run this once in an elevated PowerShell, then retry -Lan:"
+        Write-Info "  New-NetFirewallRule -DisplayName '$ruleName' -Direction Inbound -Action Allow -Protocol TCP -LocalPort $portCsv -Profile Any -RemoteAddress LocalSubnet"
+    }
+    return $false
 }
 
 # ---------------------------------------------------------------------------
@@ -946,6 +1051,21 @@ if (-not $preOk) {
     exit 1
 }
 
+# -- Step 1b: LAN sharing setup (-Lan) ---------------------------------------
+if ($Lan) {
+    Write-Host ""
+    Write-Step "Configuring LAN sharing..."
+    $GatewayPort = $ServiceDefs["api-gateway"].Port
+    $script:LanShareIp = Get-LanIPv4
+    if (-not $script:LanShareIp) {
+        Write-Warn "Could not detect a LAN IPv4 (are you connected to Wi-Fi/Ethernet?)."
+        Write-Info "Continuing without LAN sharing; the app will still work on localhost."
+    } else {
+        Write-OK "Host LAN address: $($script:LanShareIp)"
+        $null = Enable-LanFirewall -Ports @($FrontendPort, $GatewayPort)
+    }
+}
+
 # -- Step 2: Stop existing processes -----------------------------------------
 Write-Host ""
 $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
@@ -1037,6 +1157,26 @@ if ($frontendHealthy -and -not $ExitAfterHealthCheck -and -not $NoBrowser -and -
 # -- Step 10: Print summary ---------------------------------------------------
 $totalSecs = $totalTimer.Elapsed.TotalSeconds
 Show-Summary -HealthResults $healthResults -TotalSeconds $totalSecs
+
+# -- Step 10b: LAN share banner ----------------------------------------------
+if ($Lan -and $script:LanShareIp) {
+    $border = "=" * 58
+    Write-Host ""
+    Write-Host "${GREEN}  +${border}+${RESET}"
+    Write-Host "${GREEN}  |${BOLD}$(("  Share on your Wi-Fi / LAN").PadRight(58))${RESET}${GREEN}|${RESET}"
+    Write-Host "${GREEN}  +${border}+${RESET}"
+    $shareUrl = "http://$($script:LanShareIp):$FrontendPort"
+    Write-Host "${GREEN}  |${RESET}$(("  Anyone on the same network opens:").PadRight(58))${GREEN}|${RESET}"
+    Write-Host "${GREEN}  |${BOLD}$("    $shareUrl".PadRight(58))${RESET}${GREEN}|${RESET}"
+    Write-Host "${GREEN}  +${border}+${RESET}"
+    Write-Host ""
+    Write-Info "The browser auto-targets the API gateway on the same host - nothing to configure on their end."
+    Write-Info "If a teammate cannot connect while your VPN is on:"
+    Write-Info "  - keep the VPN in split-tunnel mode and allow local/LAN traffic, or"
+    Write-Info "  - briefly disable the VPN; inbound LAN reaches your physical Wi-Fi adapter directly."
+    Write-Info "Both devices must be on the same Wi-Fi (not a 'guest'/isolated network)."
+    Write-Host ""
+}
 
 if ($Failures.Count -gt 0) {
     Write-Warn "Completed with $($Failures.Count) issue(s):"

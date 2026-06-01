@@ -118,11 +118,15 @@ public class Program
                     : new[] { "http://localhost:3000", "http://127.0.0.1:3000" };
 
                 // SECURITY: Never use AllowAnyOrigin() with AllowCredentials() — browsers reject it.
-                // In development we use an explicit list of known local origins.
-                // Wildcard origin predicates are removed because they allow attacker-controlled
-                // origins, which defeats CORS protection entirely.
+                // The development policy accepts the configured localhost origins AND any
+                // same-LAN (RFC1918 private-IP) origin, so a teammate on the same Wi-Fi can open
+                // the app at http://<host-lan-ip>:3000 while the launcher is running. The predicate
+                // is strictly bounded to loopback + private ranges and is wired ONLY into the dev
+                // policy — it is never a true wildcard and never used in production.
                 options.AddPolicy("AllowAll", policy =>
-                    policy.WithOrigins(devOrigins)
+                    policy.SetIsOriginAllowed(origin =>
+                            devOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase) ||
+                            IsLoopbackOrPrivateLanOrigin(origin))
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials());
@@ -261,5 +265,29 @@ public class Program
         {
             Log.CloseAndFlush();
         }
+    }
+
+    /// <summary>
+    /// True when <paramref name="origin"/> is an http(s) origin whose host is loopback or an
+    /// RFC1918 private IPv4 address (10/8, 172.16/12, 192.168/16). Used only by the development
+    /// CORS policy so same-Wi-Fi peers can reach the gateway at the host's LAN IP; the port is
+    /// intentionally unconstrained (the frontend may be served on any dev port).
+    /// </summary>
+    private static bool IsLoopbackOrPrivateLanOrigin(string origin)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return false;
+
+        var host = uri.Host;
+        if (host is "localhost" or "127.0.0.1" or "::1") return true;
+
+        if (!IPAddress.TryParse(host, out var ip) ||
+            ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+            return false;
+
+        var b = ip.GetAddressBytes();
+        return b[0] == 10
+            || (b[0] == 172 && b[1] >= 16 && b[1] <= 31)
+            || (b[0] == 192 && b[1] == 168);
     }
 }

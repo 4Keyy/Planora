@@ -138,9 +138,22 @@ health gating and a clean shutdown path.
 
 ```powershell
 .\Start-Planora-Local.ps1            # start the whole stack
+.\Start-Planora-Local.ps1 -Lan       # also share on your Wi-Fi/LAN (prints a share URL)
 .\Start-Planora-Local.ps1 -Stop      # stop everything this script started
 .\Start-Planora-Local.ps1 -Help      # see all options
 ```
+
+#### Sharing on your Wi-Fi/LAN
+
+Run with `-Lan` and the launcher detects your host's physical LAN IPv4 (ignoring any VPN
+virtual adapter, so a split-tunnel VPN doesn't interfere), opens the Windows Firewall for the
+frontend (`3000`) and gateway (`5132`) ports — inbound, **LocalSubnet only**, one UAC prompt —
+and prints a `http://<your-lan-ip>:3000` URL. Anyone on the same Wi-Fi just opens that URL; the
+client auto-targets the API gateway on the same host it was opened from, so there's nothing to
+configure on their machine. In development the gateway's CORS and the app's CSP already accept
+same-LAN (private-IP) origins. If a teammate can't connect while your VPN is on, keep it in
+split-tunnel mode with local/LAN access allowed, and make sure both devices are on the same
+(non-guest/non-isolated) network.
 
 Prefer to do it by hand? Start infra with
 `docker compose up -d postgres redis rabbitmq`, apply schemas with
