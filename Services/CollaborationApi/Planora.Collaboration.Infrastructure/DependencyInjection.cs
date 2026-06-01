@@ -35,6 +35,8 @@ namespace Planora.Collaboration.Infrastructure
             services.AddScoped<ICommentRepository, CommentRepository>();
             services.AddScoped<IRepository<Comment>, CommentRepository>();
             services.AddScoped<IOutboxRepository, OutboxRepository>();
+            // Inbox for consumer idempotency (dedup of replayed integration events).
+            services.AddScoped<Planora.BuildingBlocks.Infrastructure.Inbox.IInboxRepository, InboxRepository>();
 
             // Outbox Processor — ships NotificationEvent to RabbitMQ (INV-COMM-3).
             services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();

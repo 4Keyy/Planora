@@ -209,12 +209,57 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable
 
                 var @event = JsonSerializer.Deserialize(message, eventType);
 
-                if (@event != null)
+                if (@event == null)
+                    continue;
+
+                // Consumer idempotency (INV-COMM-4). Delivery is at-least-once (we nack+requeue on
+                // failure), so a redelivered or restart-replayed event must not run the handler
+                // twice. We dedup on the stable event Id via the service's inbox. This is graceful
+                // and defensive: if the service registers no IInboxRepository (or it errors), we
+                // simply process without dedup — exactly the previous behaviour, never worse.
+                var inbox = scope.ServiceProvider.GetService<IInboxRepository>();
+                var eventId = (@event as IntegrationEvent)?.Id ?? Guid.Empty;
+
+                if (inbox != null && eventId != Guid.Empty)
                 {
-                    var handleMethod = handlerType.GetMethod("HandleAsync");
-                    var result = handleMethod?.Invoke(handler, new[] { @event, CancellationToken.None });
-                    if (result is Task t)
-                        await t;
+                    try
+                    {
+                        if (await inbox.ExistsAsync(eventId, CancellationToken.None))
+                        {
+                            _logger.LogInformation(
+                                "Skipping already-processed event {EventName} {EventId} for handler {Handler}",
+                                eventName, eventId, handlerType.Name);
+                            continue;
+                        }
+                    }
+                    catch (Exception dedupEx)
+                    {
+                        _logger.LogWarning(dedupEx,
+                            "Inbox dedup check failed for {EventName}; processing without dedup", eventName);
+                        inbox = null;
+                    }
+                }
+
+                var handleMethod = handlerType.GetMethod("HandleAsync");
+                var result = handleMethod?.Invoke(handler, new[] { @event, CancellationToken.None });
+                if (result is Task t)
+                    await t;
+
+                if (inbox != null && eventId != Guid.Empty)
+                {
+                    try
+                    {
+                        var record = new InboxMessage(eventId, eventName, message, DateTime.UtcNow);
+                        record.MarkAsProcessed();
+                        await inbox.AddAsync(record, CancellationToken.None);
+                    }
+                    catch (Exception recordEx)
+                    {
+                        // Recording is best-effort: a failure here only risks reprocessing on a
+                        // later redelivery, never data loss or a broken consume loop.
+                        _logger.LogWarning(recordEx,
+                            "Failed to record processed event {EventName} {EventId} in inbox", eventName, eventId);
+                    }
                 }
             }
 

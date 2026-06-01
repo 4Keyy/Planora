@@ -8,6 +8,8 @@ namespace Planora.Collaboration.Infrastructure.Persistence
 
         public DbSet<Comment> Comments => Set<Comment>();
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+        public DbSet<Planora.BuildingBlocks.Infrastructure.Inbox.InboxMessage> InboxMessages
+            => Set<Planora.BuildingBlocks.Infrastructure.Inbox.InboxMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

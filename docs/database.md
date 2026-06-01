@@ -247,6 +247,7 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 |---|---|
 | `comments` | timeline: user + system comments, soft-deletable (the Author's Note/description is synthesised on read, not stored; legacy genesis rows, if any, are excluded by the read query) |
 | `OutboxMessages` | `NotificationEvent` fan-out to RabbitMQ (consumed by Realtime → SignalR) |
+| `InboxMessages` | consumer idempotency: PK = integration event id. The event bus skips a handler when the event id already exists (dedup of redelivered/replayed events — INV-COMM-4) |
 
 ### Important Configuration
 
@@ -258,8 +259,9 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 ### Event Flow
 
 - **Inbound (Inbox):** subscribes to `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`,
-  `TaskDeletedIntegrationEvent` (from Todo) and `UserDeletedIntegrationEvent` (from Auth). Handlers
-  are idempotent under replay (INV-COMM-4).
+  `TaskDeletedIntegrationEvent` (from Todo) and `UserDeletedIntegrationEvent` (from Auth). Replay-safe
+  (INV-COMM-4): the event bus dedups on the integration event id via the `InboxMessages` table —
+  a redelivered event is skipped before its handler runs, so system comments are never duplicated.
 - **Outbound (Outbox):** `AddComment` writes a `NotificationEvent` per participant
   (owner + workers + shared-with, minus the author) so RealtimeApi can push a SignalR notification.
 

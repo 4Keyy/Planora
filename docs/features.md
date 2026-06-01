@@ -257,7 +257,10 @@ never reads the Todo database. Two integration boundaries keep it consistent (IN
   of the description.
 - **System comments (asynchronous, Outbox→Inbox):** Todo publishes task-lifecycle events; the
   Collaboration consumers materialise the corresponding "created / started / left / completed" system
-  comments. This replaces the former in-transaction comment writes inside the Todo handlers.
+  comments. This replaces the former in-transaction comment writes inside the Todo handlers. Delivery
+  is at-least-once, so consumption is **idempotent (INV-COMM-4)**: the event bus dedups on the
+  integration event id via the `InboxMessages` table and skips a redelivered/replayed event before
+  its handler runs — no duplicate system comments.
 - **Author identity (synchronous gRPC):** comment author name + avatar are resolved live via
   `AuthService.GetUserProfilesBatch` (60 s cache), never stored — a profile rename reflects everywhere.
 

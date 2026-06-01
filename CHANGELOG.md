@@ -4,6 +4,28 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix — idempotent event consumers + read-query tracking (audit follow-ups) (2026-06-01)
+
+Two findings from the repository-wide audit.
+
+* **Consumer idempotency (INV-COMM-4) was claimed but not implemented.** `RabbitMqEventBus`
+  delivers at-least-once (nack + requeue on failure), but no consumer deduped — the
+  `IdempotentMessageHandler`/Inbox machinery was dead code, so a redelivered or restart-replayed
+  event produced duplicate system comments (Collaboration) / notifications. The event bus now
+  dedups centrally on the stable `@event.Id` via an `IInboxRepository`: it skips a handler when the
+  event id is already recorded and records it after success. The check is **graceful and defensive**
+  — a service that registers no inbox (or an inbox error) falls back to processing exactly as before,
+  never worse. Added an `InboxMessages` table + repository to Collaboration (keyed on the event id);
+  Realtime is a follow-up. Verified live: the inbox records the processed `TaskCreatedIntegrationEvent`
+  and exactly one "created the task" system comment is produced.
+* **`AsNoTracking` on CategoryApi read queries.** The shared `BaseRepository` already applies
+  `AsNoTracking` to its reads, but the custom `CategoryRepository` did not. Added it to the
+  read-only methods (list/get/paged) while keeping change-tracking on `GetByIdAsync` (load-then-update
+  path) and `FindAsync` (also used for fetch-then-RemoveRange).
+
+Note: the Collaboration `InboxMessages` table is created by `EnsureCreated` on a fresh database
+(the Collaboration bootstrap convention); existing dev databases should be recreated to pick it up.
+
 ### fix(security) — stop CategoryApi leaking raw exception messages to clients (2026-06-01)
 
 The four CategoryApi handlers (Create/Update/Delete/GetUserCategories) caught all exceptions and
