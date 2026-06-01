@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### docs — accurate launcher help + documentation refresh (2026-06-01)
+
+Rewrote the `Start-Planora-Local.ps1` comment-based help (`.SYNOPSIS`/`.DESCRIPTION`/`.PARAMETER`/
+`.EXAMPLE`/`.NOTES`) and the `-Help` usage so they fully and accurately describe the current
+behaviour: the 10-step startup pipeline, every flag (including `-Lan`), the default ports/URLs, the
+per-service schema bootstrap (the launcher runs **no** separate migration step), secret handling, and
+logs/lifecycle. Corrected the README local-dev section (it previously claimed the launcher "applies
+schemas through the migrator", which it does not) and added a flag table + port list. Updated
+`docs/OPERATIONS.md`, `docs/codebase-map.md`, and the `docs/configuration.md` LAN section to reflect
+that LAN sharing is now automatic via `-Lan` + the dev CORS/CSP allowances + runtime `getApiBaseUrl()`
+(only email-link `Frontend__BaseUrl` still needs the LAN IP).
+
 ### feat — one-command LAN sharing over Wi-Fi (VPN-safe) (2026-06-01)
 
 Added `-Lan` to `Start-Planora-Local.ps1` so a teammate on the same Wi-Fi can open the running app.

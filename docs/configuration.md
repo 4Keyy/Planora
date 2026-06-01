@@ -227,25 +227,38 @@ Code:
 
 The value must be an `http` or `https` origin with no path/query/hash. Invalid values fall back to `http://localhost:5132`.
 
-For same-Wi-Fi device testing, `localhost` is wrong in email links and frontend API URLs because it points to the device opening the link. Use the laptop LAN IP for all browser-facing origins:
+### Same-Wi-Fi / LAN sharing
+
+For browsing from another device on the same Wi-Fi, run the launcher with `-Lan`
+(`.\Start-Planora-Local.ps1 -Lan`). It opens the Windows Firewall for ports `3000` and `5132`
+(inbound, LocalSubnet only) and prints the `http://<laptop-lan-ip>:3000` URL to share. Most of
+what used to be manual is now automatic:
+
+- **Frontend API URL** — no env needed. `frontend/src/lib/config.ts` (`getApiBaseUrl()`) makes the
+  browser target the gateway on the *same host the page was opened from*: opening
+  `http://<laptop-lan-ip>:3000` automatically calls `http://<laptop-lan-ip>:5132`, while
+  `http://localhost:3000` calls `http://localhost:5132`. This keeps CSRF/auth cookies scoped to one
+  browser host.
+- **CORS** — the gateway's development policy already accepts loopback **and** RFC1918 private-LAN
+  origins (`Program.cs::IsLoopbackOrPrivateLanOrigin`), so no `Cors__AllowedOrigins__*` entry is
+  required for a LAN IP. Production stays an explicit allow-list.
+- **CSP** — in development `connect-src` allows `http:/https:/ws:/wss:` (`src/middleware.ts`), so a
+  page served from a LAN IP can reach the same-host gateway. It also omits
+  `upgrade-insecure-requests` in dev so the browser does not rewrite the `http://…:5132` API calls
+  to HTTPS, which the local gateway does not serve.
+
+The one thing that is **not** auto-derived is **email links** (verification / password reset),
+which Auth generates server-side from `Frontend__BaseUrl` (default `http://localhost:3000`). If a
+LAN peer must click an emailed link, set the LAN base URL in `.env` and restart the launcher:
 
 ```env
 Frontend__BaseUrl=http://<laptop-lan-ip>:3000
-NEXT_PUBLIC_API_URL=http://<laptop-lan-ip>:5132
-NEXT_PUBLIC_API_GATEWAY_URL=http://<laptop-lan-ip>:5132
-HOST=0.0.0.0
-Cors__AllowedOrigins__0=http://localhost:3000
-Cors__AllowedOrigins__1=http://127.0.0.1:3000
-Cors__AllowedOrigins__2=http://<laptop-lan-ip>:3000
 ```
 
-Restart the launcher after changing these values because Auth API generates links from `Frontend__BaseUrl`, and Next.js inlines `NEXT_PUBLIC_API_URL` at dev-server startup.
-
-If another device still cannot open the LAN URL, check the Windows network profile on the laptop. A `Public` Wi-Fi profile can block inbound access; use a trusted `Private` profile or allow local ports `3000` and `5132` through Windows Firewall.
-
-The frontend CSP intentionally omits `upgrade-insecure-requests` in development. Keeping that directive in local HTTP mode causes browsers to rewrite `http://<laptop-lan-ip>:5132` API calls to HTTPS, which the local gateway does not serve.
-
-For local development, keep the frontend host and API host aligned in the browser. Opening `http://localhost:3000` uses `http://localhost:5132`; opening `http://<laptop-lan-ip>:3000` uses `http://<laptop-lan-ip>:5132`. This keeps CSRF and auth cookies scoped to the same browser host while still allowing email links from other Wi-Fi devices.
+If a teammate still cannot open the LAN URL: confirm both devices are on the same (non-guest /
+non-isolated) Wi-Fi, and that a VPN — if active — is in split-tunnel mode with local/LAN access
+allowed. `-Lan` already creates the firewall rule across all profiles, so a `Public` Wi-Fi profile
+no longer blocks it.
 
 Code:
 

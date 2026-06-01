@@ -15,7 +15,7 @@ This map is organized by ownership boundary. It intentionally avoids generated a
 | `Directory.Packages.props` | central NuGet versions | ASP.NET Core, EF Core, MediatR, Ocelot, Serilog, test packages |
 | `coverage.runsettings` | .NET coverage configuration | excludes generated/migration/program files |
 | `Start-Planora-Docker.ps1` | Docker backend launcher | preflight, Compose, frontend |
-| `Start-Planora-Local.ps1` | local backend launcher | infra containers, local `dotnet run`, frontend |
+| `Start-Planora-Local.ps1` | full local launcher (host processes) | infra in Docker, `dotnet run` services + gateway, `npm run dev` frontend, health gating, `-Lan` sharing |
 | `.editorconfig` | unified charset / EOL / indentation / C# analyzer severity hints | applies to every file in the repo |
 | `.gitleaks.toml` | gitleaks ruleset extension | Planora-specific secret detectors + env-var-interpolation allowlist |
 | `.github/workflows` | CI/security/e2e/SBOM/migrations/perf/CD/OpenAPI automation | `ci.yml`, `e2e.yml`, `security.yml`, `migrations.yml`, `perf-smoke.yml`, `cd.yml`, `openapi.yml` |

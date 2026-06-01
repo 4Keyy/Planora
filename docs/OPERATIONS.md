@@ -20,13 +20,19 @@ Start Docker backend containers plus local frontend:
 .\Start-Planora-Docker.ps1
 ```
 
-Start infrastructure containers plus local .NET backend services:
+Start infrastructure containers plus the .NET backend services, the API gateway and the
+Next.js frontend as host processes (health-gated; Ctrl+C for graceful shutdown):
 
 ```powershell
-.\Start-Planora-Local.ps1
+.\Start-Planora-Local.ps1                # full stack on the host
+.\Start-Planora-Local.ps1 -SkipBuild     # fastest restart (reuse existing build)
+.\Start-Planora-Local.ps1 -Lan           # also share on the Wi-Fi/LAN (prints the URL)
+.\Start-Planora-Local.ps1 -Stop          # stop everything it started
+.\Start-Planora-Local.ps1 -Help          # all flags (Get-Help … -Full for annotated docs)
 ```
 
-Both scripts preserve data volumes by default.
+Each service ensures its own schema on first start, so the local launcher needs no separate
+migration step. Both scripts preserve data volumes by default.
 
 ## Health Checks
 

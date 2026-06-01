@@ -131,17 +131,38 @@ npm run dev
 
 ### Local development without Docker (Windows)
 
-On Windows, `Start-Planora-Local.ps1` orchestrates a full local stack: it starts
-the infrastructure containers, applies database schemas through the migrator,
-launches every backend service and the gateway, and starts the frontend — with
-health gating and a clean shutdown path.
+On Windows, `Start-Planora-Local.ps1` orchestrates a full local stack: it runs a
+preflight (auto-resolving a .NET 10 SDK and starting Docker if needed), brings up the
+infrastructure containers, builds the solution, then launches every backend service +
+the API gateway and the Next.js frontend as host processes — with health gating and a
+graceful Ctrl+C shutdown. Each service creates/ensures its own schema on first startup,
+so there is no separate migration step, and the Docker data volumes are preserved across
+every run (including `-Clean`).
 
 ```powershell
-.\Start-Planora-Local.ps1            # start the whole stack
-.\Start-Planora-Local.ps1 -Lan       # also share on your Wi-Fi/LAN (prints a share URL)
-.\Start-Planora-Local.ps1 -Stop      # stop everything this script started
-.\Start-Planora-Local.ps1 -Help      # see all options
+.\Start-Planora-Local.ps1                 # fresh restart (rebuilds), data preserved
+.\Start-Planora-Local.ps1 -SkipBuild      # fastest restart — reuse existing build output
+.\Start-Planora-Local.ps1 -Clean          # full clean rebuild (wipe bin/obj/.next, data preserved)
+.\Start-Planora-Local.ps1 -Lan            # also share on your Wi-Fi/LAN (prints a share URL)
+.\Start-Planora-Local.ps1 -SkipFrontend   # backend + gateway only
+.\Start-Planora-Local.ps1 -Stop           # stop everything this script started
+.\Start-Planora-Local.ps1 -Help           # see all options (Get-Help … -Full for the annotated docs)
 ```
+
+| Flag | Effect |
+|---|---|
+| _(none)_ | Stop any prior run, rebuild the solution, start the whole stack. |
+| `-Clean` | Wipe `bin`/`obj`/`.next`, `dotnet restore`, rebuild infra images `--no-cache`. Data preserved. |
+| `-SkipBuild` | Skip `dotnet build`; start from existing output (`--no-build`). |
+| `-SkipFrontend` | Start the backend + gateway only. |
+| `-NoBrowser` | Do not open the browser when the frontend is ready. |
+| `-Lan` | Open the firewall for ports 3000 + 5132 and print the LAN share URL (see below). |
+| `-ExitAfterHealthCheck` | Start, verify every `/health`, then shut down (CI / smoke test). |
+| `-Stop` | Stop everything this launcher started and free the ports. Infra/volumes untouched. |
+
+Default ports — frontend `3000`, gateway `5132`; services `5030` (+gRPC `5031`), `5281`
+(+`5282`), `5100` (+`5101`), `5060`, `5058`, `5032`; infra PostgreSQL `5433`, Redis `6379`,
+RabbitMQ `5672` (UI `15672`). Logs land in `.\logs` (a transcript plus a file per service).
 
 #### Sharing on your Wi-Fi/LAN
 
@@ -156,9 +177,11 @@ split-tunnel mode with local/LAN access allowed, and make sure both devices are 
 (non-guest/non-isolated) network.
 
 Prefer to do it by hand? Start infra with
-`docker compose up -d postgres redis rabbitmq`, apply schemas with
-`dotnet run --project tools/Planora.Migrator -- --all`, then run each service
-with `dotnet run --project Services/<Service>/...Api`.
+`docker compose up -d postgres redis rabbitmq`, then run each service and the gateway
+with `dotnet run --project Services/<Service>/...Api` (each ensures its own schema on
+first start) and the UI with `npm run dev` in `frontend`. The standalone migrator
+(`dotnet run --project tools/Planora.Migrator -- --all`) can pre-apply every schema up
+front if you'd rather not rely on first-start bootstrap.
 
 ## Configuration
 

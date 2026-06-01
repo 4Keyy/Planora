@@ -1,19 +1,64 @@
 <#
 .SYNOPSIS
-    Planora Local Launcher - starts infrastructure in Docker, backend .NET services
-    and the Next.js frontend locally on the host machine.
+    Planora Local Launcher - runs the full stack on Windows: infrastructure in Docker,
+    every .NET backend service + the API gateway, and the Next.js frontend as host
+    processes, with health-gated startup and a clean shutdown path.
 
 .DESCRIPTION
-    Modes:
-      (default)  Kill all existing Planora processes, preserve all data volumes,
-                 restart everything fresh from compiled binaries.
-      -Clean     Kill processes, wipe all bin/obj/.next build artifacts, dotnet restore,
-                 rebuild images with --no-cache, then start everything.
-                 Does NOT wipe database volumes - data is preserved.
+    One command brings up the whole stack. Infrastructure (PostgreSQL, Redis, RabbitMQ)
+    runs in Docker; the .NET services, the Ocelot API gateway and the Next.js frontend run
+    directly on the host via `dotnet run` / `npm run dev`.
+
+    Startup pipeline:
+      1.  Preflight       - verifies the .NET 10 SDK (auto-resolves/installs a side-by-side
+                            copy under %USERPROFILE%\.dotnet if the system dotnet is older),
+                            Node, npm, the Docker engine (auto-starts Docker Desktop and waits
+                            up to 60s), and a valid .env with a >=32-char JWT_SECRET.
+      1b. LAN setup       - only with -Lan (see that parameter).
+      2.  Stop existing   - kills any prior Planora processes (PID files first, then a
+                            port-based sweep) and frees their ports.
+      3.  Clean           - only with -Clean (see that parameter).
+      4.  Infrastructure  - `docker compose up -d postgres redis rabbitmq`, then waits for
+                            each container's health check.
+      5.  Build           - builds Planora.sln once (skipped with -SkipBuild).
+      6.  Backend         - launches each service in dependency order as a hidden background
+                            process (--no-build --no-launch-profile); ports come from each
+                            service's appsettings Kestrel config (the gateway binds 0.0.0.0).
+      7.  Frontend        - `npm run dev -- -H 0.0.0.0` (skipped with -SkipFrontend), so it is
+                            reachable from other devices on the LAN.
+      8.  Health checks   - polls every /health endpoint (and the frontend) until healthy.
+      9.  Browser         - opens http://localhost:3000 (unless -NoBrowser / -SkipFrontend /
+                            -ExitAfterHealthCheck).
+      10. Summary         - prints a status table (and, with -Lan, the shareable URL).
+
+    Database schema: each service creates/ensures its own schema on first startup - this
+    launcher does NOT run a separate migration step. Application data in the Docker volumes
+    is preserved across every run (including -Clean); only `.\Start-Planora-Docker.ps1` /
+    `docker compose down -v` removes volumes.
+
+    Ports (REST, +gRPC sidecar where present): auth 5030 (+5031), category 5281 (+5282),
+    todo 5100 (+5101), collaboration 5060, messaging 5058, realtime 5032, gateway 5132,
+    frontend 3000. Infrastructure (host-mapped): PostgreSQL 5433, Redis 6379, RabbitMQ 5672
+    (management UI 15672).
+
+    Secrets: .env values are loaded into THIS process's environment block only and inherited
+    by the child service processes - they never appear on a child command line or in the
+    transcript. ASP.NET Core config keys are mirrored from the docker-compose mappings
+    (e.g. JWT_SECRET -> JwtSettings__Secret), and Redis/RabbitMQ/Database connection strings
+    are rewritten to the host-mapped localhost ports.
+
+    Logs & lifecycle: a transcript plus per-service logs are written under .\logs; process
+    IDs are tracked in PID files. The script stays in the foreground - press Ctrl+C for a
+    graceful shutdown that stops the frontend, then the services in reverse start order, and
+    clears the PID files (infrastructure containers and data volumes are left running/intact).
+
+    Requirements: Windows PowerShell 5.1+ or PowerShell 7+, Docker Desktop, Node.js + npm,
+    and a .NET 10 SDK (auto-installed locally if missing).
 
 .PARAMETER Clean
-    Wipes code build artifacts (bin/obj/.next) and forces a full rebuild.
-    Database volumes are NOT touched.
+    Kill processes, wipe all bin/obj/.next build artifacts, run `dotnet restore`, rebuild the
+    infrastructure Docker images with --no-cache, then start everything. Forces a fully clean
+    build. Database volumes are NOT touched - application data is preserved.
 
 .PARAMETER ExitAfterHealthCheck
     Start everything, verify health endpoints, then shut down. Intended for
@@ -44,20 +89,41 @@
     just opens that URL in their browser.
 
 .PARAMETER Help
-    Print usage and exit without starting anything.
+    Print usage and exit without starting anything. No log file is created.
 
 .EXAMPLE
     .\Start-Planora-Local.ps1
+    Fresh restart from the current compiled binaries (rebuilds the solution). Data preserved.
+
 .EXAMPLE
     .\Start-Planora-Local.ps1 -Clean
-.EXAMPLE
-    .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser
+    Full clean rebuild: wipe bin/obj/.next, restore, rebuild infra images. Data preserved.
+
 .EXAMPLE
     .\Start-Planora-Local.ps1 -SkipBuild
+    Fastest restart - reuse existing build output (services start with --no-build).
+
 .EXAMPLE
-    .\Start-Planora-Local.ps1 -Stop
+    .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser
+    Backend + gateway only, no frontend, no browser window (e.g. when running the UI separately).
+
 .EXAMPLE
     .\Start-Planora-Local.ps1 -Lan
+    Start the stack and share it on the Wi-Fi/LAN: opens the firewall and prints the URL teammates open.
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -ExitAfterHealthCheck
+    CI / smoke test: start, verify every health endpoint, then shut down. Non-zero exit on any failure.
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -Stop
+    Stop everything this launcher started and free the ports. Infra containers/volumes are left intact.
+
+.NOTES
+    - All shell behaviour is Windows PowerShell-compatible.
+    - Companion script: .\Start-Planora-Docker.ps1 runs the entire stack (services included)
+      inside Docker; this launcher instead runs the services on the host for fast iteration.
+    - Logs: .\logs\startup-<timestamp>.log (transcript) plus .\logs\<service>-<timestamp>.log.
 #>
 param(
     # Wipe bin/obj/.next, restore, and rebuild images with --no-cache. Data volumes preserved.
@@ -167,27 +233,38 @@ function Show-Header {
 function Show-Usage {
     Write-Host ""
     Write-Host "${BOLD}Planora Local Launcher${RESET}"
-    Write-Host "  Starts infrastructure in Docker and the .NET services + Next.js frontend on the host."
+    Write-Host "  Runs the full stack on Windows: PostgreSQL/Redis/RabbitMQ in Docker, and every"
+    Write-Host "  .NET service + the API gateway + the Next.js frontend as host processes."
+    Write-Host "  Health-gated startup; Ctrl+C performs a graceful shutdown. Data volumes are preserved."
     Write-Host ""
     Write-Host "${BOLD}USAGE${RESET}"
     Write-Host "  .\Start-Planora-Local.ps1 [-Clean] [-SkipBuild] [-SkipFrontend] [-NoBrowser]"
     Write-Host "                            [-Lan] [-ExitAfterHealthCheck] [-Stop] [-Help]"
     Write-Host ""
     Write-Host "${BOLD}OPTIONS${RESET}"
-    Write-Host "  -Clean                 Wipe bin/obj/.next + rebuild (data volumes preserved)."
-    Write-Host "  -SkipBuild             Reuse existing build output (fastest restart)."
-    Write-Host "  -SkipFrontend          Start the backend stack only."
+    Write-Host "  -Clean                 Wipe bin/obj/.next, restore, rebuild infra images (data preserved)."
+    Write-Host "  -SkipBuild             Reuse existing build output - skip 'dotnet build' (fastest restart)."
+    Write-Host "  -SkipFrontend          Start the backend + gateway only; do not start the frontend."
     Write-Host "  -NoBrowser             Do not open the browser when the frontend is ready."
-    Write-Host "  -Lan                   Share on the Wi-Fi/LAN: open firewall + print share URL."
-    Write-Host "  -ExitAfterHealthCheck  Start, verify health, then shut down (CI / smoke test)."
-    Write-Host "  -Stop                  Stop everything this launcher started, then exit."
-    Write-Host "  -Help                  Show this help and exit."
+    Write-Host "  -Lan                   Share on the Wi-Fi/LAN: open the firewall + print the share URL."
+    Write-Host "  -ExitAfterHealthCheck  Start, verify every health endpoint, then shut down (CI / smoke test)."
+    Write-Host "  -Stop                  Stop everything this launcher started and free the ports, then exit."
+    Write-Host "  -Help                  Show this help and exit (no log file created)."
+    Write-Host ""
+    Write-Host "${BOLD}URLS${RESET}  (default ports)"
+    Write-Host "  Frontend  http://localhost:3000        API gateway  http://localhost:5132"
+    Write-Host "  RabbitMQ UI http://localhost:15672     Per-service /health on 5030/5281/5100/5060/5058/5032"
     Write-Host ""
     Write-Host "${BOLD}EXAMPLES${RESET}"
-    Write-Host "  .\Start-Planora-Local.ps1"
-    Write-Host "  .\Start-Planora-Local.ps1 -Clean"
+    Write-Host "  .\Start-Planora-Local.ps1                 # fresh restart (rebuild), data preserved"
+    Write-Host "  .\Start-Planora-Local.ps1 -SkipBuild      # fastest restart, reuse existing build"
+    Write-Host "  .\Start-Planora-Local.ps1 -Clean          # full clean rebuild"
+    Write-Host "  .\Start-Planora-Local.ps1 -Lan            # also share on the Wi-Fi/LAN"
     Write-Host "  .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser"
-    Write-Host "  .\Start-Planora-Local.ps1 -Stop"
+    Write-Host "  .\Start-Planora-Local.ps1 -Stop           # stop everything this launcher started"
+    Write-Host "  Get-Help .\Start-Planora-Local.ps1 -Full  # full annotated help"
+    Write-Host ""
+    Write-Host "  Tip: .\Start-Planora-Docker.ps1 runs the entire stack inside Docker instead."
     Write-Host ""
 }
 
