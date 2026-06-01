@@ -87,13 +87,21 @@ export function BranchFeed({
   const plusBtnRef        = useRef<HTMLButtonElement>(null)
   const plusMenuRef       = useRef<HTMLDivElement>(null)
   const highlightTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // After a full (replace) load, pin the view to the newest message at the bottom.
+  const pinBottomRef      = useRef(false)
+  // Total comment count, mirrored in a ref so polling can target the last page without re-creating the timer.
+  const totalCountRef     = useRef(0)
+  // Pending post-action catch-up reloads (the status system-comment is produced asynchronously).
+  const retryTimers       = useRef<ReturnType<typeof setTimeout>[]>([])
 
-  const load = useCallback(async (pageNum: number, replace: boolean) => {
+  const load = useCallback(async (pageNum: number, replace: boolean, pin: boolean = replace) => {
     try {
       const res  = await fetchComments(todoId, pageNum, 50)
       const items = res.items ?? []
       setTotalCount(res.totalCount ?? 0)
+      totalCountRef.current = res.totalCount ?? 0
       setComments((prev) => (replace ? items : [...items, ...prev]))
+      if (pin) pinBottomRef.current = true
     } catch {
       /* silent */
     } finally {
@@ -101,7 +109,67 @@ export function BranchFeed({
     }
   }, [todoId])
 
+  const isAtBottom = () => {
+    const el = feedRef.current
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 48
+  }
+
+  // Live-merge the newest page into the feed without disrupting the reader's scroll position.
+  // Adds comments the client hasn't seen yet (new messages, the async status system-comment) and
+  // refreshes any whose content/edit-time changed — picked up by polling and post-action retries,
+  // so other users' activity appears without re-opening the modal.
+  const mergeLatest = useCallback(async () => {
+    try {
+      const size = 50
+      const lastPage = Math.max(1, Math.ceil((totalCountRef.current || 0) / size))
+      const res = await fetchComments(todoId, lastPage, size)
+      const items = res.items ?? []
+      setTotalCount(res.totalCount ?? 0)
+      totalCountRef.current = res.totalCount ?? 0
+
+      const stickToBottom = isAtBottom()
+      setComments((prev) => {
+        const byId = new Map(prev.map((c) => [c.id, c]))
+        let changed = false
+        for (const c of items) {
+          const existing = byId.get(c.id)
+          if (!existing) { byId.set(c.id, c); changed = true }
+          else if (existing.content !== c.content || existing.updatedAt !== c.updatedAt) {
+            byId.set(c.id, c); changed = true
+          }
+        }
+        if (!changed) return prev
+        // Only re-pin to the bottom when the reader was already there and new content arrived.
+        if (stickToBottom) pinBottomRef.current = true
+        return Array.from(byId.values()).sort((a, b) =>
+          a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0
+        )
+      })
+    } catch {
+      /* silent — polling is best-effort */
+    }
+  }, [todoId])
+
   useEffect(() => { load(1, true) }, [load, refreshKey])
+
+  // After an action bumps refreshKey, the resulting status system-comment is materialised
+  // asynchronously (Outbox → Inbox). Schedule a few short catch-up merges so it appears within
+  // ~1–2s without the user re-opening the modal.
+  useEffect(() => {
+    if (refreshKey === undefined) return
+    retryTimers.current.forEach(clearTimeout)
+    retryTimers.current = [600, 1500, 3000].map((ms) => setTimeout(() => { void mergeLatest() }, ms))
+    return () => { retryTimers.current.forEach(clearTimeout); retryTimers.current = [] }
+  }, [refreshKey, mergeLatest])
+
+  // Gentle live polling while the branch is open — picks up other participants' messages/edits.
+  // Paused while the viewer is editing so a refresh never clobbers an in-progress draft.
+  useEffect(() => {
+    if (editingId || editingGenesis) return
+    const id = setInterval(() => { void mergeLatest() }, 5000)
+    return () => clearInterval(id)
+  }, [mergeLatest, editingId, editingGenesis])
 
   const genesis = comments.find((c) => c.isGenesisComment) ?? null
   const stream  = comments.filter((c) => !c.isGenesisComment)
@@ -112,6 +180,16 @@ export function BranchFeed({
       feedRef.current.scrollTop = feedRef.current.scrollHeight
     }
   }
+
+  // Honour a pending pin-to-bottom request once the new content has laid out. The programmatic
+  // scrollTop change fires onScroll, which re-evaluates the condensed-note visibility.
+  useEffect(() => {
+    if (!pinBottomRef.current) return
+    pinBottomRef.current = false
+    const id = requestAnimationFrame(scrollToBottom)
+    return () => cancelAnimationFrame(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comments])
 
   // ── Pinned Author's Note: show the condensed header once the full card scrolls past the top ──
   const updateGenesisVisibility = useCallback(() => {
@@ -188,8 +266,9 @@ export function BranchFeed({
     try {
       // Persist to the task itself (single source of truth). Empty clears the description.
       // Reload so the pinned note reflects the live task value (synthesised server-side).
+      // Keep the view at the top (the note lives there) instead of pinning to the bottom.
       await onSaveDescription(content)
-      await load(1, true)
+      await load(1, true, false)
       setEditingGenesis(false)
     } catch (e) {
       setError(getApiErrorMessage(e))
@@ -252,9 +331,10 @@ export function BranchFeed({
     try {
       if (composeMode === "description") {
         // The description lives on the task; persist it there and reload the synthesised note.
+        // Keep the view at the top so the freshly-added Author's Note is in sight.
         if (onSaveDescription) {
           await onSaveDescription(content)
-          await load(1, true)
+          await load(1, true, false)
         }
         setComposeMode("text")
       } else {

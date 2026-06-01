@@ -8,12 +8,12 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Repositories
     {
         public CommentRepository(CollaborationDbContext context) : base(context) { }
 
-        public override async Task<Comment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            return await DbSet
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
-        }
+        // GetByIdAsync intentionally inherits the tracking base implementation. The Comment
+        // aggregate uses PostgreSQL's `xmin` as an optimistic-concurrency token, which is a
+        // shadow property captured only on a *tracked* read. An AsNoTracking load drops it,
+        // so the subsequent UPDATE issues `WHERE xmin = 0`, matches no rows, and every edit
+        // or delete fails with a spurious DbUpdateConcurrencyException. The base already
+        // applies the `!IsDeleted` predicate, so no override is needed here.
 
         public async Task<(IReadOnlyList<Comment> Items, int TotalCount)> GetPagedByTaskIdAsync(
             Guid taskId, int pageNumber, int pageSize, CancellationToken ct = default)

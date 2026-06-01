@@ -4,6 +4,32 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix — branch comment edit/delete 409, live branch updates, open-at-bottom, completed-page filter plate (2026-06-01)
+
+**fix(collaboration): comment edit/delete always failed with a spurious concurrency conflict.**
+`CommentRepository` overrode the base `GetByIdAsync` purely to add `AsNoTracking()`. The `Comment`
+aggregate uses PostgreSQL's `xmin` as an optimistic-concurrency token (a shadow property captured only
+on a *tracked* read), so the no-tracking load dropped it and the subsequent UPDATE/soft-delete issued
+`WHERE xmin = 0`, matched zero rows, and threw `DbUpdateConcurrencyException` → 409 "The record has been
+modified by another user." Removed the override so mutations inherit the tracking base. The author-only
+edit rule (`Comment.UpdateContent`) and the frontend gating the edit button on `isOwn` were already
+correct; this only fixes the false conflict.
+
+**feat(frontend): the task branch now updates live without re-opening the modal.** With no realtime
+socket in the app, `BranchFeed` polls the newest page every 5 s (paused while editing) and merges by
+comment id, so other participants' messages/edits and the asynchronously-materialised status
+system-comments appear on their own. Taking a task into work / leaving / completing additionally
+schedules short catch-up merges (≈0.6 / 1.5 / 3 s) so the status event shows within a second or two
+even though it is produced via Outbox→Inbox after the action returns.
+
+**feat(frontend): the branch opens at the newest message.** The rail pins to the bottom on first load
+and after take/leave/complete; "load earlier" and description edits preserve scroll position.
+
+**feat(frontend): /tasks/completed gets the same Quick Filter plate as /tasks.** The active-filter chip
+was rendered inside the completed-archive hero/stats card; it is now a standalone row and the page shows
+the identical "Quick Filter" plate (SlidersHorizontal + "F to filter" + Open Menu button) below the
+header, matching /tasks exactly.
+
 ### feat(frontend) — sticky Author's Note + task actions in branch compose menu (2026-06-01)
 
 The Author's Note (task description) is now part of the scrollable branch rail instead of living

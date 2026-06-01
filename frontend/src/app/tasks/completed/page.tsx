@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, CheckCircle2, History } from "lucide-react"
+import { ArrowLeft, CheckCircle2, History, SlidersHorizontal } from "lucide-react"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
@@ -106,11 +106,6 @@ export default function CompletedTasksPage() {
   const handleFilterChange = useCallback((ids: string[]) => {
     setFilterCategoryIds(ids)
     writeFilter(ids)
-  }, [])
-
-  const dismissHint = useCallback(() => {
-    setHintDismissed(true)
-    writeHintSeen()
   }, [])
 
   const fetchCategories = useCallback(async () => {
@@ -352,84 +347,6 @@ export default function CompletedTasksPage() {
             <p className="text-gray-500">
               Browse every finished task in one place, newest completions first.
             </p>
-
-            <AnimatePresence>
-              {filterCategoryIds.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-all"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="flex items-center gap-2">
-                      {filterCategoryIds.map(id => {
-                        const cat = categories.find(c => c.id === id)
-                        const CatIcon = cat?.icon ? (ICON_MAP[cat.icon] ?? null) : null
-                        return cat ? (
-                          <motion.div
-                            key={id}
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="h-7 w-7 rounded-lg flex items-center justify-center shadow-xs border border-gray-200"
-                            style={{ backgroundColor: `${cat.color ?? "#9ca3af"}15` }}
-                            title={cat.name}
-                          >
-                            {CatIcon ? (
-                              <CatIcon className="h-4 w-4" style={{ color: cat.color ?? "#9ca3af" }} />
-                            ) : (
-                              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color ?? "#9ca3af" }} />
-                            )}
-                          </motion.div>
-                        ) : null
-                      })}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">
-                        Filter Active
-                      </span>
-                      <span className="text-xs font-semibold text-gray-600">
-                        {filterCategoryIds.length === 1 ? "1 category" : `${filterCategoryIds.length} categories`}
-                      </span>
-                    </div>
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.2, rotate: 90 }}
-                    whileTap={{ scale: 0.85 }}
-                    onClick={() => handleFilterChange([])}
-                    className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-black hover:bg-gray-100 transition-all font-bold text-lg flex-shrink-0"
-                    aria-label="Clear category filter"
-                  >
-                    ✕
-                  </motion.button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {!hintDismissed && !loading && categories.length > 0 && filterCategoryIds.length === 0 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center gap-1.5 mt-2"
-                >
-                  <kbd className="font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[10px] border border-gray-200 leading-tight">
-                    F
-                  </kbd>
-                  <span className="text-[11px] text-gray-400">filter by category</span>
-                  <button
-                    onClick={dismissHint}
-                    className="text-[10px] text-gray-300 hover:text-gray-500 transition-colors ml-0.5"
-                    aria-label="Dismiss hint"
-                  >
-                    ✕
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
           <div className="inline-flex items-center gap-3 rounded-[1.5rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
@@ -444,6 +361,95 @@ export default function CompletedTasksPage() {
           </div>
         </div>
       </div>
+
+      {/* Active-filter chip — same component & placement as /tasks (a standalone row, not inside the stats card) */}
+      <AnimatePresence>
+        {filterCategoryIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-all"
+          >
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex items-center gap-2">
+                {filterCategoryIds.map(id => {
+                  const cat = categories.find(c => c.id === id)
+                  const CatIcon = cat?.icon ? (ICON_MAP[cat.icon] ?? null) : null
+                  return cat ? (
+                    <motion.div
+                      key={id}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="h-7 w-7 rounded-lg flex items-center justify-center shadow-xs border border-gray-200"
+                      style={{ backgroundColor: `${cat.color ?? "#9ca3af"}15` }}
+                      title={cat.name}
+                    >
+                      {CatIcon ? (
+                        <CatIcon className="h-4 w-4" style={{ color: cat.color ?? "#9ca3af" }} />
+                      ) : (
+                        <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color ?? "#9ca3af" }} />
+                      )}
+                    </motion.div>
+                  ) : null
+                })}
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">
+                  Filter Active
+                </span>
+                <span className="text-xs font-semibold text-gray-600">
+                  {filterCategoryIds.length === 1 ? "1 category" : `${filterCategoryIds.length} categories`}
+                </span>
+              </div>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.2, rotate: 90 }}
+              whileTap={{ scale: 0.85 }}
+              onClick={() => handleFilterChange([])}
+              className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-black hover:bg-gray-100 transition-all font-bold text-lg flex-shrink-0"
+              aria-label="Clear category filter"
+            >
+              ✕
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick Filter plate — identical to /tasks: info + "F to filter" + Open Menu button */}
+      {!loading && categories.length > 0 && (
+        <motion.div
+          initial={{ y: -10, scale: 0.98, opacity: 0 }}
+          animate={{ y: 0, scale: 1, opacity: 1 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+          className="bg-white/50 backdrop-blur-sm border border-gray-100 rounded-[2rem] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm w-full"
+        >
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-2xl bg-black text-white flex items-center justify-center shadow-lg shadow-black/10">
+              <SlidersHorizontal className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Quick Filter</h3>
+              <p className="text-xs text-gray-500 font-medium">Filter your archive by categories with ease.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-100/80 rounded-xl border border-gray-200/50">
+              <kbd className="font-mono bg-white px-2 py-0.5 rounded text-[10px] font-black border border-gray-200 shadow-sm text-gray-600">F</kbd>
+              <span className="text-[11px] font-bold text-gray-600 ml-1">to filter</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl font-bold text-xs h-10 border-gray-200 hover:bg-black hover:text-white hover:border-black transition-[background-color,border-color,color] px-6"
+              onClick={() => setIsCategoryModalOpen(true)}
+            >
+              Open Menu
+            </Button>
+          </div>
+        </motion.div>
+      )}
 
       {loading ? (
         <MasonryColumns
