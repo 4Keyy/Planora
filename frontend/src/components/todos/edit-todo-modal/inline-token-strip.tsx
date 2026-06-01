@@ -39,7 +39,6 @@ interface InlineTokenStripProps {
   friends: FriendDto[]
   openPopover: OpenPopover
   setOpenPopover: (v: OpenPopover) => void
-  disabled?: boolean
 }
 
 function Dot() {
@@ -59,9 +58,11 @@ interface InlineTokenProps {
   /** Popover rendered as a sibling of <button>, outside it */
   popover?: ReactNode
   containerRef: RefObject<HTMLDivElement | null>
+  /** Locked for this viewer: shown muted (still opens a read-only popover on click). */
+  muted?: boolean
 }
 
-function InlineToken({ onClick, isOpen, label, popover, containerRef }: InlineTokenProps) {
+function InlineToken({ onClick, isOpen, label, popover, containerRef, muted }: InlineTokenProps) {
   return (
     <div ref={containerRef as RefObject<HTMLDivElement>} style={{ position: "relative" }}>
       <button
@@ -69,16 +70,19 @@ function InlineToken({ onClick, isOpen, label, popover, containerRef }: InlineTo
         onClick={onClick}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
+        aria-disabled={muted || undefined}
         style={{
           display: "flex", alignItems: "center", gap: 5,
-          padding: "5px 10px", borderRadius: 9, border: "none", cursor: "pointer",
+          padding: "5px 10px", borderRadius: 9, border: "none",
+          cursor: muted ? "default" : "pointer",
           background: isOpen ? "#fafafa" : "transparent",
           color: isOpen ? "#0a0a0a" : "#525252",
+          opacity: muted ? 0.45 : 1,
           fontSize: 11.5, fontWeight: 800, letterSpacing: "-0.005em",
           whiteSpace: "nowrap",
-          transition: "background 120ms, color 120ms",
+          transition: "background 120ms, color 120ms, opacity 120ms",
         }}
-        onMouseEnter={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+        onMouseEnter={(e) => { if (!isOpen && !muted) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
         onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
       >
         {label}
@@ -97,7 +101,6 @@ export function InlineTokenStrip({
   isOwner,
   visMode, onVisModeChange, sharedIds, onSharedIdsChange, friends,
   openPopover, setOpenPopover,
-  disabled,
 }: InlineTokenStripProps) {
   const priorityRef   = useRef<HTMLDivElement>(null)
   const dateRef       = useRef<HTMLDivElement>(null)
@@ -107,6 +110,12 @@ export function InlineTokenStrip({
   const toggle = (key: OpenPopover) =>
     setOpenPopover(openPopover === key ? null : key)
   const close = () => setOpenPopover(null)
+
+  // Priority / due date / visibility are the OWNER's settings — a non-owner viewer sees them
+  // muted and can open a read-only preview but cannot change them. The category token is the
+  // one exception: a viewer may set their OWN category on a shared task (canEditCategory).
+  const ownerLocked    = !isOwner
+  const categoryLocked = !canEditCategory
 
   const priorityColor = getPriorityColor(priority)
   const priorityLabel = getPriorityLabel(priority)
@@ -125,7 +134,8 @@ export function InlineTokenStrip({
 
       {/* ── Priority token ── */}
       <InlineToken
-        onClick={() => !disabled && toggle("priority")}
+        onClick={() => toggle("priority")}
+        muted={ownerLocked}
         isOpen={openPopover === "priority"}
         containerRef={priorityRef}
         label={
@@ -141,6 +151,7 @@ export function InlineTokenStrip({
             value={priority}
             onChange={(v) => { onPriorityChange(v); close() }}
             containerRef={priorityRef as RefObject<HTMLElement | null>}
+            readOnly={ownerLocked}
           />
         }
       />
@@ -149,7 +160,8 @@ export function InlineTokenStrip({
 
       {/* ── Date token ── */}
       <InlineToken
-        onClick={() => !disabled && toggle("date")}
+        onClick={() => toggle("date")}
+        muted={ownerLocked}
         isOpen={openPopover === "date"}
         containerRef={dateRef}
         label={
@@ -174,6 +186,7 @@ export function InlineTokenStrip({
             value={dueDate}
             onChange={(v) => { onDueDateChange(v); close() }}
             containerRef={dateRef as RefObject<HTMLElement | null>}
+            readOnly={ownerLocked}
           />
         }
       />
@@ -182,7 +195,8 @@ export function InlineTokenStrip({
 
       {/* ── Category token ── */}
       <InlineToken
-        onClick={() => !disabled && toggle("category")}
+        onClick={() => toggle("category")}
+        muted={categoryLocked}
         isOpen={openPopover === "category"}
         containerRef={categoryRef}
         label={
@@ -236,7 +250,8 @@ export function InlineTokenStrip({
       {/* ── Visibility token (pushed right) ── */}
       <div style={{ marginLeft: "auto" }}>
         <InlineToken
-          onClick={() => !disabled && toggle("visibility")}
+          onClick={() => toggle("visibility")}
+          muted={ownerLocked}
           isOpen={openPopover === "visibility"}
           containerRef={visibilityRef}
           label={
@@ -258,6 +273,7 @@ export function InlineTokenStrip({
               onSharedIdsChange={onSharedIdsChange}
               friends={friends}
               containerRef={visibilityRef as RefObject<HTMLElement | null>}
+              readOnly={ownerLocked}
             />
           }
         />

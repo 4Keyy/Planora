@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend) — lock owner-only fields for viewers + fixed-size branch modal (2026-06-01)
+
+Two issues in the branch/edit modal. (1) When a non-owner opened a public task's branch modal, the
+priority, due-date and visibility tokens were fully editable — the gate keyed off
+`canManageViewerCategory`, which is `true` for shared tasks because a viewer may set their *own*
+category, so it leaked write access to fields that belong to the author. These three tokens are now
+rendered muted for non-owners and open a read-only (greyed, non-interactive) preview on click, while the
+category token stays editable for viewers as intended; the title was already owner-gated. (2) The modal
+resized to its content — short for an empty branch, tall for a full one. It is now a fixed size (90vh,
+capped at 880px) with the timeline flex-filling and scrolling internally, so it is always the same
+maximum size regardless of how much the branch contains.
+
 ### feat(frontend) — category filter on the Completed Tasks page (2026-06-01)
 
 The `/tasks/completed` page now has the same category filter as `/tasks`: the "F" hotkey toggles the

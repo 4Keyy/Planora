@@ -188,8 +188,12 @@ export function EditTodoModal({
           style={{
             position: "relative",
             width: 660,
-            maxHeight: "90vh",
-            overflowY: "auto",
+            // Fixed size regardless of content: the modal is always the same (max) height,
+            // whether the branch is empty or full. The branch feed in the middle flex-fills
+            // and scrolls internally, so title/meta/footer stay put.
+            height: "90vh",
+            maxHeight: 880,
+            overflow: "hidden",
             borderRadius: 28,
             background: "white",
             boxShadow: "0 30px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.05)",
@@ -378,15 +382,14 @@ export function EditTodoModal({
               friends={friends}
               openPopover={openPopover}
               setOpenPopover={setOpenPopover}
-              disabled={!isOwner && !canManageViewerCategory}
             />
           </div>
 
           {/* Divider */}
           <div style={{ height: 1, background: "#f5f5f5", margin: "0 26px" }} />
 
-          {/* ── (4) Branch panel ── */}
-          <div style={{ padding: "18px 26px 20px" }}>
+          {/* ── (4) Branch panel ── (flex-fills the fixed-height modal; scrolls internally) */}
+          <div style={{ padding: "18px 26px 20px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             <BranchFeed
               todoId={todo.id}
               isOwner={isOwner}

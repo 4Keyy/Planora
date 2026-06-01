@@ -11,6 +11,8 @@ interface DatePopoverProps {
   value: string          // YYYY-MM-DD or ""
   onChange: (isoDate: string | null) => void
   containerRef: RefObject<HTMLElement | null>
+  /** When true the date options are shown muted and non-interactive (non-owner viewer). */
+  readOnly?: boolean
 }
 
 function toISO(d: Date): string {
@@ -25,7 +27,7 @@ function addDays(base: string | null, n: number): string {
 
 function todayISO(): string { return toISO(new Date()) }
 
-export function DatePopover({ open, onClose, value, onChange, containerRef }: DatePopoverProps) {
+export function DatePopover({ open, onClose, value, onChange, containerRef, readOnly }: DatePopoverProps) {
   const nowDate   = new Date()
   const initYear  = value ? new Date(value).getFullYear() : nowDate.getFullYear()
   const initMonth = value ? new Date(value).getMonth()    : nowDate.getMonth()
@@ -45,7 +47,7 @@ export function DatePopover({ open, onClose, value, onChange, containerRef }: Da
     { label: "Next week",  iso: plusWeek  },
   ]
 
-  const selectDate = (iso: string) => { onChange(iso); onClose() }
+  const selectDate = (iso: string) => { if (readOnly) return; onChange(iso); onClose() }
 
   const prevMonth = () => {
     if (viewMonth === 0) { setViewYear(viewYear - 1); setViewMonth(11) }
@@ -68,7 +70,7 @@ export function DatePopover({ open, onClose, value, onChange, containerRef }: Da
   // Pad to multiple of 7
   while (cells.length % 7 !== 0) cells.push(null)
 
-  const clearAction = value ? (
+  const clearAction = value && !readOnly ? (
     <button
       onClick={() => { onChange(null); onClose() }}
       style={{
@@ -101,6 +103,8 @@ export function DatePopover({ open, onClose, value, onChange, containerRef }: Da
         display: "flex",
         gap: 4,
         flexWrap: "wrap",
+        opacity: readOnly ? 0.55 : 1,
+        pointerEvents: readOnly ? "none" : "auto",
       }}>
         {quickPicks.map((q) => {
           const isActive = value === q.iso
@@ -128,7 +132,7 @@ export function DatePopover({ open, onClose, value, onChange, containerRef }: Da
       </div>
 
       {/* Calendar */}
-      <div style={{ padding: 10 }}>
+      <div style={{ padding: 10, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
         <div style={{
           background: "white",
           border: "1px solid #f0f0f0",

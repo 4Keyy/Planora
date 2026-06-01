@@ -15,6 +15,8 @@ interface VisibilityPopoverProps {
   onSharedIdsChange: (ids: string[]) => void
   friends: FriendDto[]
   containerRef: RefObject<HTMLElement | null>
+  /** When true the access controls are shown muted and non-interactive (non-owner viewer). */
+  readOnly?: boolean
 }
 
 function friendName(f: FriendDto): string {
@@ -23,9 +25,10 @@ function friendName(f: FriendDto): string {
 }
 
 export function VisibilityPopover({
-  open, onClose, mode, onModeChange, sharedIds, onSharedIdsChange, friends, containerRef,
+  open, onClose, mode, onModeChange, sharedIds, onSharedIdsChange, friends, containerRef, readOnly,
 }: VisibilityPopoverProps) {
   const toggleFriend = (id: string) => {
+    if (readOnly) return
     onSharedIdsChange(
       sharedIds.includes(id) ? sharedIds.filter((x) => x !== id) : [...sharedIds, id]
     )
@@ -33,9 +36,11 @@ export function VisibilityPopover({
 
   const allSelected  = friends.length > 0 && friends.every((f) => sharedIds.includes(f.id))
   const toggleAll    = () => {
+    if (readOnly) return
     if (allSelected) onSharedIdsChange([])
     else onSharedIdsChange(friends.map((f) => f.id))
   }
+  const changeMode = (m: "private" | "friends") => { if (readOnly) return; onModeChange(m) }
 
   const sub: React.ReactNode = mode === "private"
     ? <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>only you</span>
@@ -44,6 +49,8 @@ export function VisibilityPopover({
   return (
     <Popover open={open} onClose={onClose} width={340} align="right" containerRef={containerRef}>
       <PopoverHeader label="Task access" sub={sub} />
+
+      <div style={{ opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
 
       {/* Mode picker */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: "10px 10px 6px" }}>
@@ -55,7 +62,7 @@ export function VisibilityPopover({
           return (
             <button
               key={key}
-              onClick={() => onModeChange(key)}
+              onClick={() => changeMode(key)}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 padding: "8px 4px", borderRadius: 11, border: "none", cursor: "pointer",
@@ -167,6 +174,7 @@ export function VisibilityPopover({
           )}
         </div>
       )}
+      </div>
     </Popover>
   )
 }

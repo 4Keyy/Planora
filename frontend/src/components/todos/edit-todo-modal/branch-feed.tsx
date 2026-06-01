@@ -200,7 +200,7 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: B
   const feed = buildFeed(stream)
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%", minHeight: 0 }}>
 
       {/* ── Pinned author card ── */}
       {!loading && genesis && (
@@ -326,7 +326,10 @@ export function BranchFeed({ todoId, isOwner, refreshKey, onSaveDescription }: B
           paddingRight: 4,
           paddingTop: 4,
           paddingBottom: 4,
-          maxHeight: 420,
+          // Flex-fill the fixed-height modal so the timeline always occupies the same
+          // space (empty or full) and scrolls internally.
+          flex: 1,
+          minHeight: 0,
           overflowY: "auto",
         }}
       >
