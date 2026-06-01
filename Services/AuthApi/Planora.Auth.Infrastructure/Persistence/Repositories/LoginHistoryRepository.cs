@@ -11,7 +11,10 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             int count = 50,
             CancellationToken cancellationToken = default)
         {
+            // Read-only: login history is append-only and these rows are only read (display /
+            // lockout checks), never mutated — so no change tracking is needed.
             return await _context.LoginHistory
+                .AsNoTracking()
                 .Where(lh => lh.UserId == userId)
                 .OrderByDescending(lh => lh.LoginAt)
                 .Take(count)
@@ -26,6 +29,7 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             var since = DateTime.UtcNow.Subtract(timeWindow);
 
             return await _context.LoginHistory
+                .AsNoTracking()
                 .Where(lh => lh.UserId == userId && !lh.IsSuccessful && lh.LoginAt >= since)
                 .OrderByDescending(lh => lh.LoginAt)
                 .ToListAsync(cancellationToken);

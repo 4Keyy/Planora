@@ -11,7 +11,10 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             int count,
             CancellationToken cancellationToken = default)
         {
+            // Read-only: password history is append-only and read only to compare against a new
+            // password (reuse prevention) — never mutated, so no change tracking is needed.
             return await _context.Set<PasswordHistory>()
+                .AsNoTracking()
                 .Where(ph => ph.UserId == userId)
                 .OrderByDescending(ph => ph.ChangedAt)
                 .Take(count)
