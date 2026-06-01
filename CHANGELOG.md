@@ -4,6 +4,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### docs — comprehensive, marketing-grade README overhaul (2026-06-01)
+
+Rewrote `README.md` into a richer, more polished landing page that reads for both engineers and a
+product audience: a centered hero, a "Why Planora" benefits section, a feature tour, and an explicit
+**tech-stack table that links every major dependency** (NuGet/npm) with its pinned version (sourced
+from `Directory.Packages.props` and `frontend/package.json`). Expanded the configuration reference
+into Required + Common-optional tables grounded in `.env.example`, corrected the Auth service port to
+`5030` (gRPC `5031`), and added the full documentation index. Allowed the centered HTML hero in the
+markdownlint config (`MD041: false`); the README passes markdownlint with zero errors.
+
 ### fix(frontend) — modal stays open on leave (dashboard), branch text wraps, greyscale event icons (2026-06-01)
 
 - **Leaving work no longer closes the branch modal from the dashboard.** `dashboard/page.tsx`
