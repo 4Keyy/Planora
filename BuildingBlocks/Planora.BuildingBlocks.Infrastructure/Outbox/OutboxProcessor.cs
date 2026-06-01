@@ -7,15 +7,17 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<OutboxProcessor> _logger;
-        // Poll cadence for dispatching pending outbox messages. Kept short because
-        // user-facing, event-driven features read the results almost immediately —
-        // e.g. opening a task shows its Collaboration "ветка" (the "created the task"
-        // system comment + the genesis/description), which is materialised from the
-        // TaskCreatedIntegrationEvent this processor publishes. A 30 s cadence made a
-        // freshly created task's timeline look empty ("No messages yet") for up to
-        // half a minute; 5 s keeps the indexed, Take(20) query cheap while making the
-        // timeline feel live.
+        // Idle poll cadence — the safety net. The fast path is event-driven: an OutboxSignal
+        // pulse (raised by OutboxNotifyInterceptor the instant an outbox row commits) wakes the
+        // loop in milliseconds, so a freshly produced task-lifecycle event reaches its
+        // Collaboration "ветка" system comment almost immediately rather than after a poll tick.
+        // When no signal is registered (services that opted out) the loop falls back to pure
+        // polling at this cadence. Kept short so the indexed Take(BatchSize) query stays cheap.
         private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
+        private const int BatchSize = 20;
+
+        // Optional: present in services that wired immediate dispatch. Null elsewhere → pure poll.
+        private readonly OutboxSignal? _signal;
 
         public OutboxProcessor(
             IServiceProvider serviceProvider,
@@ -23,30 +25,42 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _signal = serviceProvider.GetService<OutboxSignal>();
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Outbox Processor started");
+            _logger.LogInformation(
+                "Outbox Processor started ({Mode})",
+                _signal is null ? "poll" : "signal + poll fallback");
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                int processed = 0;
                 try
                 {
-                    await ProcessOutboxMessagesAsync(stoppingToken);
+                    processed = await ProcessOutboxMessagesAsync(stoppingToken);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error processing outbox messages");
                 }
 
-                await Task.Delay(_interval, stoppingToken);
+                // A full batch likely means more rows are waiting — drain immediately
+                // without idling so a burst clears in one tight loop.
+                if (processed >= BatchSize)
+                    continue;
+
+                if (_signal is not null)
+                    await _signal.WaitAsync(_interval, stoppingToken);
+                else
+                    await Task.Delay(_interval, stoppingToken);
             }
 
             _logger.LogInformation("Outbox Processor stopped");
         }
 
-        private async Task ProcessOutboxMessagesAsync(CancellationToken cancellationToken)
+        private async Task<int> ProcessOutboxMessagesAsync(CancellationToken cancellationToken)
         {
             using var scope = _serviceProvider.CreateScope();
 
@@ -54,7 +68,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
             if (dbContext == null)
             {
                 _logger.LogWarning("DbContext not found in DI container");
-                return;
+                return 0;
             }
 
             var eventBus = scope.ServiceProvider.GetRequiredService<IEventBus>();
@@ -67,7 +81,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
                 .Where(m => m.Status == OutboxMessageStatus.Pending ||
                            (m.Status == OutboxMessageStatus.Failed && m.NextRetryUtc <= DateTime.UtcNow))
                 .OrderBy(m => m.OccurredOnUtc)
-                .Take(20)
+                .Take(BatchSize)
                 .ToListAsync(cancellationToken);
 
             foreach (var message in messages)
@@ -149,6 +163,8 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
 
             batchStopwatch.Stop();
             PlanoraMetrics.OutboxBatchDuration.Record(batchStopwatch.Elapsed.TotalSeconds);
+
+            return messages.Count;
         }
     }
 }

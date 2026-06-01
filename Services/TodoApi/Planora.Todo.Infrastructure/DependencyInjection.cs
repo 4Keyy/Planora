@@ -22,7 +22,15 @@ namespace Planora.Todo.Infrastructure
             var connectionString = configuration.GetConnectionString("TodoDatabase")
                 ?? throw new InvalidOperationException("TodoDatabase connection string not found");
 
-            services.AddDbContext<TodoDbContext>(options =>
+            // Immediate outbox dispatch: an interceptor pulses OutboxSignal the moment a
+            // task-lifecycle event commits, so the OutboxProcessor publishes it in milliseconds
+            // (the Collaboration "ветка" system comment then appears near-instantly) instead of
+            // waiting out the poll interval. Singleton signal shared with the hosted processor;
+            // scoped interceptor so its "did this save add an outbox row?" flag is per-request.
+            services.AddSingleton<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxSignal>();
+            services.AddScoped<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxNotifyInterceptor>();
+
+            services.AddDbContext<TodoDbContext>((sp, options) =>
                 options.UseNpgsql(connectionString, npgsqlOptions =>
                 {
                     npgsqlOptions.EnableRetryOnFailure(
@@ -30,6 +38,7 @@ namespace Planora.Todo.Infrastructure
                         maxRetryDelay: TimeSpan.FromSeconds(5),
                         errorCodesToAdd: null);
                 })
+                    .AddInterceptors(sp.GetRequiredService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxNotifyInterceptor>())
                     .EnableSensitiveDataLogging(false));
 
             // Register TodoDbContext as DbContext for the OutboxProcessor.

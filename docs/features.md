@@ -261,6 +261,13 @@ never reads the Todo database. Two integration boundaries keep it consistent (IN
   is at-least-once, so consumption is **idempotent (INV-COMM-4)**: the event bus dedups on the
   integration event id via the `InboxMessages` table and skips a redelivered/replayed event before
   its handler runs — no duplicate system comments.
+- **Near-instant dispatch (latency):** the `OutboxProcessor` is signal-driven, not just polled.
+  `OutboxNotifyInterceptor` (an EF `SaveChangesInterceptor` on `TodoDbContext`) pulses an in-process
+  `OutboxSignal` the moment a transaction that inserted an outbox row commits, waking the processor in
+  milliseconds; the 5 s poll remains only as a safety net. Consumption is push-based (RabbitMQ), so a
+  "started working / left / completed" system comment now lands in the branch within a fraction of a
+  second of the action instead of waiting out a poll tick. A full batch (`BatchSize`) is drained in a
+  tight loop before the processor idles again.
 - **Author identity (synchronous gRPC):** comment author name + avatar are resolved live via
   `AuthService.GetUserProfilesBatch` (60 s cache), never stored — a profile rename reflects everywhere.
 
@@ -322,7 +329,8 @@ so Collaboration needs no extra lookup to render the sentence. Consumers are ide
 - Soft-deleted comments are removed from local state immediately without a full refetch.
 - System comments (`isSystemComment: true`) render as timeline dot + sentence on the rail, no edit/delete.
 - **Opens at the newest message:** on first load (and after a take/leave/complete action) the rail pins to the bottom so the latest activity is in view; "load earlier" and description edits preserve position instead of jumping.
-- **Live updates without re-opening:** there is no realtime socket, so the feed merges the newest page on a 5 s interval (paused while editing) and reconciles by comment id — new messages, edits, and the asynchronously-materialised status system-comments appear on their own. After a take/leave/complete action it additionally schedules short catch-up merges (≈0.6 / 1.5 / 3 s) because the status system-comment is produced asynchronously (Outbox→Inbox) and is not yet present on the immediate reload. The merge only re-pins to the bottom when the reader was already there.
+- **Live updates without re-opening:** there is no realtime socket, so the feed merges the newest page on a 5 s interval (paused while editing) and reconciles by comment id — new messages, edits, and the system status-comments appear on their own. After a take/leave/complete action it additionally schedules short catch-up merges (≈0.6 / 1.5 / 3 s); combined with the signal-driven outbox dispatch (see Architecture above), the status system-comment now shows in well under a second. The merge only re-pins to the bottom when the reader was already there.
+- **Non-owner date popover:** a viewer who is not the task owner sees the priority/date/visibility tokens read-only. The date popover omits the Today/Tomorrow/+3 days/Next week quick-pick row entirely (not merely disabled) — only the read-only calendar remains.
 - **Sticky Author's Note:** the pinned card lives at the top of the scrollable rail and scrolls away with content. Once it passes out of view the feed shows a condensed frosted-glass bar (author avatar + truncated first line + animated chevron) at the top of the feed area. Clicking the condensed bar smoothly scrolls back to the full card and fires a violet attention pulse (`genesis_highlight` keyframe) so the note is easy to spot. The bar animates in/out with a spring (Framer Motion `AnimatePresence`).
 - **Compose "+" menu actions:** the menu is visible to all participants (owner and collaborators). The "Description" attachment item is shown only to the task owner and is muted once a description exists (already added). Two additional action items are shown to everyone:
   - **Take into work / Leave task** — mirrors the existing join/leave flow exactly (owner: `status → inProgress` / `status → todo`; viewer: `joinTodo` / `leaveTodo`). The button label and icon flip between "Take into work" (Zap, indigo) and "Leave task" (LogOut, red) depending on the current in-progress state. An optimistic `workOverride` state in the modal flips the pill in the header bar instantly before the parent refetch arrives.

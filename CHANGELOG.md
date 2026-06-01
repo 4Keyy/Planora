@@ -4,6 +4,29 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### perf/feat — instant outbox dispatch, unified Quick Filter bar, non-owner date popover (2026-06-01)
+
+**perf(outbox): task-lifecycle system comments now appear near-instantly instead of after ~20 s.**
+The `OutboxProcessor` only polled every 5 s, so a "started working / left / completed" event could wait
+out a poll tick on the producer *and* be missed by the branch's early catch-up refetches — feeling like
+a 20 s delay. Added signal-driven dispatch: a new `OutboxSignal` (in-process singleton) plus
+`OutboxNotifyInterceptor` (an EF `SaveChangesInterceptor` on `TodoDbContext`) pulse the processor the
+moment a transaction that inserted an outbox row commits, so it publishes in milliseconds; the 5 s poll
+stays only as a safety net, and a full batch is drained in a tight loop. Consumption is already
+push-based (RabbitMQ), so the Collaboration system comment now lands in the branch in well under a
+second. The signal is optional — services that do not register it fall back to pure polling unchanged.
+
+**feat(frontend): the applied-filter summary now lives inside the Quick Filter bar (no layout shift).**
+On /tasks and /tasks/completed the active-filter info was a separate block that pushed the page around.
+Extracted a shared `QuickFilterBar` component: when a filter is applied, the category chips + count +
+clear button crossfade into a fixed-height subtitle row *inside* the same plate, so toggling a filter
+never grows or jolts the block. Removed the duplicated inline plates and the standalone "Filter Active"
+chip / "F" hint blocks from both pages.
+
+**feat(frontend): non-owner date popover hides the quick-pick row.** A viewer who is not the task owner
+opens the date token read-only; the Today/Tomorrow/+3 days/Next week shortcuts are now omitted entirely
+rather than shown disabled, leaving just the read-only calendar.
+
 ### fix — branch comment edit/delete 409, live branch updates, open-at-bottom, completed-page filter plate (2026-06-01)
 
 **fix(collaboration): comment edit/delete always failed with a spurious concurrency conflict.**
