@@ -96,40 +96,41 @@ export function DatePopover({ open, onClose, value, onChange, containerRef, read
       {/* Header with "Очистить" on same row */}
       <PopoverHeader label="Due date" action={clearAction} />
 
-      {/* Quick picks */}
-      <div style={{
-        padding: "10px 12px",
-        borderBottom: "1px solid #f5f5f5",
-        display: "flex",
-        gap: 4,
-        flexWrap: "wrap",
-        opacity: readOnly ? 0.55 : 1,
-        pointerEvents: readOnly ? "none" : "auto",
-      }}>
-        {quickPicks.map((q) => {
-          const isActive = value === q.iso
-          return (
-            <button
-              key={q.label}
-              onClick={() => selectDate(q.iso)}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 100,
-                border: "none",
-                cursor: "pointer",
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: "-0.01em",
-                background: isActive ? "#0a0a0a" : "#fafafa",
-                color: isActive ? "white" : "#0a0a0a",
-                transition: "background 120ms, color 120ms",
-              }}
-            >
-              {q.label}
-            </button>
-          )
-        })}
-      </div>
+      {/* Quick picks — owner only. A non-owner viewer reads the date but never sets it, so the
+          Today/Tomorrow/… shortcuts are omitted entirely (not just disabled). */}
+      {!readOnly && (
+        <div style={{
+          padding: "10px 12px",
+          borderBottom: "1px solid #f5f5f5",
+          display: "flex",
+          gap: 4,
+          flexWrap: "wrap",
+        }}>
+          {quickPicks.map((q) => {
+            const isActive = value === q.iso
+            return (
+              <button
+                key={q.label}
+                onClick={() => selectDate(q.iso)}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 100,
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: "-0.01em",
+                  background: isActive ? "#0a0a0a" : "#fafafa",
+                  color: isActive ? "white" : "#0a0a0a",
+                  transition: "background 120ms, color 120ms",
+                }}
+              >
+                {q.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Calendar */}
       <div style={{ padding: 10, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
