@@ -45,7 +45,8 @@ namespace Planora.Category.Application.Features.Categories.Commands.DeleteCatego
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to delete category {CategoryId}", request.CategoryId);
-                return Result.Failure("DELETE_FAILED", ex.Message);
+                // Do not surface ex.Message to the client (can leak internal/DB detail).
+                return Result.Failure("DELETE_FAILED", "Failed to delete the category.");
             }
         }
     }

@@ -4,6 +4,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(security) — stop CategoryApi leaking raw exception messages to clients (2026-06-01)
+
+The four CategoryApi handlers (Create/Update/Delete/GetUserCategories) caught all exceptions and
+returned `ex.Message` in the failure `Result`, surfacing internal/DB detail (e.g. "database
+unavailable") to API consumers. They now log the full exception and return a safe, generic message.
+Found during the repository-wide audit. (Other services already let domain exceptions bubble to the
+sanitising global exception middleware.)
+
+Security: removes an information-disclosure vector (internal error detail in API responses).
+
 ### refactor — task description is a single source of truth; live author identity (2026-06-01)
 
 Removed a cross-service data-duplication class of bug. The task description was stored twice — as
