@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend) — modal stays open on leave (dashboard), branch text wraps, greyscale event icons (2026-06-01)
+
+- **Leaving work no longer closes the branch modal from the dashboard.** `dashboard/page.tsx`
+  `handleLeave` called `setEditingTodo(null)`, which closed the modal whenever the user stopped the
+  in-progress status from there. It now updates the open todo in place (status/`isWorking`) without
+  closing — matching the header-pill and "+"-menu paths and the active-feed behaviour.
+- **Long unbreakable text wraps instead of scrolling sideways.** Added `overflow-wrap: anywhere` /
+  `word-break: break-word` to the message body, the Author's Note, and system-event text, so a giant
+  word or URL with no spaces wraps onto the next line rather than producing a horizontal scrollbar.
+- **System-event rail markers are now greyscale and simpler.** Replaced the coloured per-event icons
+  with a single calm grey marker and simpler glyphs (`getSystemEventIcon`): created = Plus, started =
+  Play, left = LogOut, completed = Check, other = Circle.
+
 ### feat(frontend) — redesigned, unbroken branch activity rail with event-typed markers (2026-06-01)
 
 The task-branch timeline rail is now a single continuous gradient line that lives in a content-height

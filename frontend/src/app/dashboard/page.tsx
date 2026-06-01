@@ -521,7 +521,11 @@ export default function DashboardPage() {
         setTodos(prev => prev.map(upd))
         setStatsTodos(prev => prev.map(upd))
       }
-      setEditingTodo(null)
+      // Reflect the change in the open branch modal (if any) WITHOUT closing it — leaving work
+      // keeps the modal open so the "left the task" event is read in place (BranchFeed polls it in).
+      setEditingTodo(prev => prev && prev.id === todoId
+        ? { ...prev, status: isOwnerTask ? "Todo" : prev.status, isWorking: isOwnerTask ? prev.isWorking : false }
+        : prev)
       addToast({ type: "success", title: "Left task" })
     } catch {
       addToast({ type: "error", title: "Could not leave task" })

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Sparkles, type LucideIcon } from "lucide-react"
+import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, type LucideIcon } from "lucide-react"
 import { fetchComments, addComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
 import type { TodoComment } from "@/types/todo"
 import { SPRING_STANDARD } from "@/lib/animations"
@@ -21,19 +21,16 @@ const GENESIS_MAX = 5000
 const RAIL_GUTTER = 40
 const RAIL_CENTER = 20
 
-// Maps a system-event comment to a colour + icon that conveys its meaning at a glance.
+// Maps a system-event comment to a simple, monochrome icon that hints at its meaning.
 // Matches the English event sentences Todo emits (and keeps the legacy Russian keywords).
-function getSystemEventMeta(content: string): { color: string; Icon: LucideIcon } {
+// Markers are intentionally greyscale (see SystemEvent) so the rail stays calm and uncluttered.
+function getSystemEventIcon(content: string): LucideIcon {
   const t = content.toLowerCase()
-  if (t.includes("complet") || t.includes("завершил") || t.includes("выполнил"))
-    return { color: "#10b981", Icon: CheckCircle2 }
-  if (t.includes("start") || t.includes("working") || t.includes("взял в работу") || t.includes("присоединил"))
-    return { color: "#4f46e5", Icon: Zap }
-  if (t.includes("left") || t.includes("leav") || t.includes("покинул") || t.includes("приостановил"))
-    return { color: "#ef4444", Icon: LogOut }
-  if (t.includes("creat") || t.includes("создал"))
-    return { color: "#8b5cf6", Icon: Sparkles }
-  return { color: "#a3a3a3", Icon: Sparkles }
+  if (t.includes("complet") || t.includes("завершил") || t.includes("выполнил")) return Check
+  if (t.includes("start") || t.includes("working") || t.includes("взял в работу") || t.includes("присоединил")) return Play
+  if (t.includes("left") || t.includes("leav") || t.includes("покинул") || t.includes("приостановил")) return LogOut
+  if (t.includes("creat") || t.includes("создал")) return Plus
+  return Circle
 }
 
 interface BranchFeedProps {
@@ -586,6 +583,7 @@ export function BranchFeed({
             <p style={{
               fontSize: 13.5, fontWeight: 500, lineHeight: 1.65, color: "#262626",
               whiteSpace: "pre-wrap", letterSpacing: "-0.005em", margin: 0,
+              overflowWrap: "anywhere", wordBreak: "break-word",
             }}>
               {genesis.content}
             </p>
@@ -1023,7 +1021,7 @@ function DaySeparator({ label }: { label: string }) {
 /* ── System event ── */
 const SYSTEM_MARKER = 22
 function SystemEvent({ comment }: { comment: TodoComment }) {
-  const { color, Icon } = getSystemEventMeta(comment.content)
+  const Icon = getSystemEventIcon(comment.content)
   // System comments carry no stored author name (the name is inline in the sentence), so render
   // the sentence as-is and bold the leading name when one is present.
   const author = comment.authorName?.trim()
@@ -1042,18 +1040,18 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
         height: SYSTEM_MARKER,
         borderRadius: "50%",
         background: "#ffffff",
-        boxShadow: `0 0 0 3px #ffffff, inset 0 0 0 1.5px ${color}66`,
+        boxShadow: "0 0 0 3px #ffffff, inset 0 0 0 1.5px #e5e5e5",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 2,
       }}>
-        <Icon size={12} color={color} strokeWidth={2.4} />
+        <Icon size={11} color="#737373" strokeWidth={2.2} />
       </div>
 
       {/* Text row */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: SYSTEM_MARKER }}>
-        <p style={{ flex: 1, margin: 0, fontSize: 12, fontWeight: 600, color: "#525252", lineHeight: 1.35 }}>
+        <p style={{ flex: 1, minWidth: 0, margin: 0, fontSize: 12, fontWeight: 600, color: "#525252", lineHeight: 1.35, overflowWrap: "anywhere", wordBreak: "break-word" }}>
           {author && (
             <strong style={{ fontWeight: 900, color: "#0a0a0a" }}>{author} </strong>
           )}
@@ -1209,6 +1207,7 @@ function MessageItem({
         <p style={{
           fontSize: 13, lineHeight: 1.55, fontWeight: 500, color: "#262626",
           whiteSpace: "pre-wrap", letterSpacing: "-0.005em", margin: 0,
+          overflowWrap: "anywhere", wordBreak: "break-word",
         }}>
           {c.content}
         </p>
