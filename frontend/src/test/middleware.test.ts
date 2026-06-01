@@ -40,11 +40,15 @@ describe("CSP middleware", () => {
     vi.stubEnv("NODE_ENV", "development")
     const devCsp = cspFor("/")
     expect(devCsp).toMatch(/script-src[^;]*'unsafe-eval'/)
-    expect(devCsp).toContain("http://127.0.0.1:5132")
+    // Dev connect-src is relaxed to any http/https/ws so a page served from a LAN IP can reach
+    // the gateway on the same host (the exact LAN IP is not known ahead of time).
+    expect(devCsp).toMatch(/connect-src[^;]*http:[^;]*ws:/)
 
     vi.stubEnv("NODE_ENV", "production")
     const prodCsp = cspFor("/")
     expect(prodCsp).not.toMatch(/script-src[^;]*'unsafe-eval'/)
+    // Production connect-src does not get the blanket `http:`/`ws:` dev allowance.
+    expect(prodCsp).not.toMatch(/connect-src[^;]*\bws:/)
   })
 
   it("adds upgrade-insecure-requests for an https API origin in production", () => {

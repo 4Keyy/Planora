@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend) — redesigned, unbroken branch activity rail with event-typed markers (2026-06-01)
+
+The task-branch timeline rail is now a single continuous gradient line that lives in a content-height
+wrapper, so it spans the whole feed and no longer breaks/stops once there are enough messages to
+scroll (the old line was anchored to the scroll viewport via `top/bottom`). Every marker is now
+mathematically centred on the rail (shared `RAIL_GUTTER`/`RAIL_CENTER` geometry) instead of sitting
+slightly off to the side. System-event markers are no longer a generic grey dot: `getSystemEventMeta`
+maps each event to a meaningful icon + colour — created (Sparkles/violet), started working
+(Zap/indigo), left (LogOut/red), completed (CheckCircle2/emerald) — rendered in a tinted ring centred
+on the line. The previous `getSystemEventColor` (which only matched Russian phrases and so always fell
+back to grey for the actual English event sentences) was removed.
+
+Docs: reviewed the last 20 commits and reconciled the documentation — updated the `docs/features.md`
+branch/Frontend-Behavior section to describe the new rail + typed markers; verified the Outbox/Inbox,
+signal-dispatch, LAN-sharing, and launcher docs already match the code.
+
 ### docs — accurate launcher help + documentation refresh (2026-06-01)
 
 Rewrote the `Start-Planora-Local.ps1` comment-based help (`.SYNOPSIS`/`.DESCRIPTION`/`.PARAMETER`/

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2 } from "lucide-react"
+import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Sparkles, type LucideIcon } from "lucide-react"
 import { fetchComments, addComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
 import type { TodoComment } from "@/types/todo"
 import { SPRING_STANDARD } from "@/lib/animations"
@@ -10,11 +10,31 @@ import { FriendAvatar } from "./friend-avatar"
 import {
   formatDayLabel,
   formatTimeHHMM,
-  getSystemEventColor,
 } from "./utils"
 
 const COMMENT_MAX = 2000
 const GENESIS_MAX = 5000
+
+// Activity-rail geometry. The rail line is centred at RAIL_CENTER within a wrapper that pads its
+// content by RAIL_GUTTER, and every marker is centred on that same x so avatars and system-event
+// badges sit exactly on the line. Markers are placed at: left = RAIL_CENTER - RAIL_GUTTER - size/2.
+const RAIL_GUTTER = 40
+const RAIL_CENTER = 20
+
+// Maps a system-event comment to a colour + icon that conveys its meaning at a glance.
+// Matches the English event sentences Todo emits (and keeps the legacy Russian keywords).
+function getSystemEventMeta(content: string): { color: string; Icon: LucideIcon } {
+  const t = content.toLowerCase()
+  if (t.includes("complet") || t.includes("завершил") || t.includes("выполнил"))
+    return { color: "#10b981", Icon: CheckCircle2 }
+  if (t.includes("start") || t.includes("working") || t.includes("взял в работу") || t.includes("присоединил"))
+    return { color: "#4f46e5", Icon: Zap }
+  if (t.includes("left") || t.includes("leav") || t.includes("покинул") || t.includes("приостановил"))
+    return { color: "#ef4444", Icon: LogOut }
+  if (t.includes("creat") || t.includes("создал"))
+    return { color: "#8b5cf6", Icon: Sparkles }
+  return { color: "#a3a3a3", Icon: Sparkles }
+}
 
 interface BranchFeedProps {
   todoId: string
@@ -442,7 +462,7 @@ export function BranchFeed({
           onScroll={updateGenesisVisibility}
           style={{
             position: "relative",
-            paddingLeft: 42,
+            paddingLeft: 6,
             paddingRight: 4,
             paddingTop: 4,
             paddingBottom: 4,
@@ -450,19 +470,8 @@ export function BranchFeed({
             overflowY: "auto",
           }}
         >
-          {/* Continuous rail line */}
-          <div style={{
-            position: "absolute",
-            left: 17,
-            top: 16,
-            bottom: 16,
-            width: 2,
-            background: "#eaeaea",
-            borderRadius: 1,
-            pointerEvents: "none",
-          }} />
 
-      {/* ── Pinned author card (scrolls with the branch; covers the rail line behind it) ── */}
+      {/* ── Pinned author card (a distinct header; the activity rail begins below it) ── */}
       {!loading && genesis && (
         <div
           ref={genesisCardRef}
@@ -473,7 +482,7 @@ export function BranchFeed({
             border: "1px solid #f0f0f0",
             borderRadius: 18,
             padding: "16px 18px 18px",
-            marginLeft: -42,
+            marginLeft: -6,
             marginRight: -4,
             marginBottom: 14,
             animation: genesisHighlight ? "genesis_highlight 1100ms ease-out" : undefined,
@@ -589,7 +598,7 @@ export function BranchFeed({
           <button
             onClick={handleLoadMore}
             style={{
-              display: "block", marginBottom: 8, marginLeft: -8,
+              display: "block", marginBottom: 10,
               background: "none", border: "none", cursor: "pointer",
               fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
               textTransform: "uppercase", color: "#0a0a0a",
@@ -602,41 +611,59 @@ export function BranchFeed({
         )}
 
         {loading && (
-          <p style={{ fontSize: 12, color: "#a3a3a3", marginLeft: -8 }}>Loading…</p>
+          <p style={{ fontSize: 12, color: "#a3a3a3" }}>Loading…</p>
         )}
 
         {!loading && stream.length === 0 && (
-          <p style={{ fontSize: 12, color: "#a3a3a3", marginLeft: -8, fontStyle: "italic" }}>
+          <p style={{ fontSize: 12, color: "#a3a3a3", fontStyle: "italic" }}>
             No messages yet
           </p>
         )}
 
-        {feed.map((item) => {
-          if (item.type === "separator") {
-            return (
-              <DaySeparator key={item.key} label={item.label} />
-            )
-          }
-          const c = item.comment
-          if (c.isSystemComment) {
-            return <SystemEvent key={c.id} comment={c} />
-          }
-          return (
-            <MessageItem
-              key={c.id}
-              comment={c}
-              isOwner={isOwner}
-              editingId={editingId}
-              editContent={editContent}
-              submitting={submitting}
-              onEditStart={(id, content) => { setEditingId(id); setEditContent(content) }}
-              onEditCancel={() => setEditingId(null)}
-              onEditSave={handleEditSave}
-              onEditContentChange={setEditContent}
-              onDelete={handleDelete}
-            />
-          )
-        })}
+        {/* ── Activity rail ── A single relative wrapper whose height equals its content, so the
+            timeline line spans every item without breaking when the feed grows and scrolls. */}
+        {feed.length > 0 && (
+          <div style={{ position: "relative", paddingLeft: RAIL_GUTTER }}>
+            {/* Continuous rail line — gradient fades softly at both ends. */}
+            <div style={{
+              position: "absolute",
+              left: RAIL_CENTER - 1,
+              top: 4,
+              bottom: 4,
+              width: 2,
+              borderRadius: 1,
+              background: "linear-gradient(to bottom, transparent 0, #e4e4e7 14px, #e4e4e7 calc(100% - 14px), transparent 100%)",
+              pointerEvents: "none",
+            }} />
+
+            {feed.map((item) => {
+              if (item.type === "separator") {
+                return (
+                  <DaySeparator key={item.key} label={item.label} />
+                )
+              }
+              const c = item.comment
+              if (c.isSystemComment) {
+                return <SystemEvent key={c.id} comment={c} />
+              }
+              return (
+                <MessageItem
+                  key={c.id}
+                  comment={c}
+                  isOwner={isOwner}
+                  editingId={editingId}
+                  editContent={editContent}
+                  submitting={submitting}
+                  onEditStart={(id, content) => { setEditingId(id); setEditContent(content) }}
+                  onEditCancel={() => setEditingId(null)}
+                  onEditSave={handleEditSave}
+                  onEditContentChange={setEditContent}
+                  onDelete={handleDelete}
+                />
+              )
+            })}
+          </div>
+        )}
         </div>
       </div>
 
@@ -970,7 +997,7 @@ function MenuActionItem({ icon, iconBg, title, subtitle, pending, disabled, onCl
 /* ── Day separator ── */
 function DaySeparator({ label }: { label: string }) {
   return (
-    <div style={{ position: "relative", display: "flex", alignItems: "center", padding: "10px 0 6px", marginLeft: -32 }}>
+    <div style={{ position: "relative", display: "flex", alignItems: "center", padding: "10px 0 6px", marginLeft: -RAIL_GUTTER, zIndex: 1 }}>
       <span style={{
         background: "white",
         border: "1px solid #eaeaea",
@@ -994,35 +1021,43 @@ function DaySeparator({ label }: { label: string }) {
 }
 
 /* ── System event ── */
+const SYSTEM_MARKER = 22
 function SystemEvent({ comment }: { comment: TodoComment }) {
-  const color = getSystemEventColor(comment.content)
+  const { color, Icon } = getSystemEventMeta(comment.content)
+  // System comments carry no stored author name (the name is inline in the sentence), so render
+  // the sentence as-is and bold the leading name when one is present.
+  const author = comment.authorName?.trim()
+  const body = author
+    ? comment.content.replace(new RegExp("^" + author + "\\s*"), "")
+    : comment.content
+
   return (
-    <div style={{ position: "relative", paddingTop: 2, paddingBottom: 8 }}>
-      {/* Marker */}
+    <div style={{ position: "relative", padding: "6px 0", minHeight: SYSTEM_MARKER + 8 }}>
+      {/* Marker — centred on the rail, tinted to the event type */}
       <div style={{
         position: "absolute",
-        left: -32,
-        top: 4,
-        width: 18,
-        height: 18,
+        left: RAIL_CENTER - RAIL_GUTTER - SYSTEM_MARKER / 2,
+        top: 2,
+        width: SYSTEM_MARKER,
+        height: SYSTEM_MARKER,
         borderRadius: "50%",
-        background: "white",
-        boxShadow: `0 0 0 2px white, 0 0 0 3px ${color}`,
+        background: "#ffffff",
+        boxShadow: `0 0 0 3px #ffffff, inset 0 0 0 1.5px ${color}66`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 1,
+        zIndex: 2,
       }}>
-        <div style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />
+        <Icon size={12} color={color} strokeWidth={2.4} />
       </div>
 
       {/* Text row */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, paddingTop: 2 }}>
-        <p style={{ flex: 1, margin: 0, fontSize: 12, fontWeight: 600, color: "#525252", lineHeight: 1.4 }}>
-          <strong style={{ fontWeight: 900, color: "#0a0a0a" }}>
-            {comment.authorName}
-          </strong>{" "}
-          {comment.content.replace(new RegExp("^" + comment.authorName + "\\s*"), "")}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: SYSTEM_MARKER }}>
+        <p style={{ flex: 1, margin: 0, fontSize: 12, fontWeight: 600, color: "#525252", lineHeight: 1.35 }}>
+          {author && (
+            <strong style={{ fontWeight: 900, color: "#0a0a0a" }}>{author} </strong>
+          )}
+          {body}
         </p>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#a3a3a3", flexShrink: 0 }}>
           {formatTimeHHMM(comment.createdAt)}
@@ -1060,26 +1095,26 @@ function MessageItem({
       onMouseLeave={() => setHovered(false)}
       style={{
         position: "relative",
-        padding: "9px 10px 9px 12px",
-        margin: "2px 0 2px -8px",
+        padding: "9px 10px 9px 10px",
+        margin: "2px 0",
         borderRadius: 12,
         background: hovered ? "#fafafa" : "transparent",
         transition: "background 140ms",
       }}
     >
-      {/* Avatar marker on rail */}
+      {/* Avatar marker — centred on the rail */}
       <div style={{
         position: "absolute",
-        left: -32,
-        top: 9,
-        zIndex: 1,
+        left: RAIL_CENTER - RAIL_GUTTER - 26 / 2,
+        top: 8,
+        zIndex: 2,
       }}>
         <FriendAvatar
-          friend={{ 
-            id: c.authorId, 
-            firstName: c.authorName?.split(" ")[0], 
+          friend={{
+            id: c.authorId,
+            firstName: c.authorName?.split(" ")[0],
             lastName: c.authorName?.split(" ")[1],
-            profilePictureUrl: c.authorAvatarUrl 
+            profilePictureUrl: c.authorAvatarUrl
           }}
           size={26}
           style={{ boxShadow: "0 0 0 3px white" }}
