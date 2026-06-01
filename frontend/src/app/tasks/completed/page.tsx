@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { ArrowLeft, CheckCircle2, History } from "lucide-react"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
@@ -26,6 +26,9 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 import { getTaskWeight } from "@/utils/sort-tasks"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
+import { readFilter, writeFilter, readHintSeen, writeHintSeen } from "@/utils/category-filter"
+import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
+import { ICON_MAP } from "@/lib/icon-map"
 
 const PAGE_SIZE = 20
 const COMPLETED_MASONRY_BREAKPOINTS = [
@@ -51,12 +54,64 @@ export default function CompletedTasksPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
   const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
+  // Category filter — same mechanism + shared persistence as the /tasks page.
+  const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([])
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  const [hintDismissed, setHintDismissed] = useState(false)
+  const hintDismissedRef = useRef<boolean>(false)
   const friendNameCache = useRef<Map<string, string>>(new Map())
 
   // PERF: live mirror for the memoized TodoCard's (possibly stale) handler
   // closures to read from. See the equivalent note on the dashboard.
   const todosRef = useRef(todos)
   todosRef.current = todos
+
+  // ── Category filter (mirrors /tasks: "F" hotkey + chip + shared persistence) ──
+  useEffect(() => {
+    setFilterCategoryIds(readFilter())
+    const seen = readHintSeen()
+    setHintDismissed(seen)
+    hintDismissedRef.current = seen
+  }, [])
+
+  useEffect(() => {
+    if (hintDismissed) return
+    const t = setTimeout(() => {
+      setHintDismissed(true)
+      hintDismissedRef.current = true
+      writeHintSeen()
+    }, 7000)
+    return () => clearTimeout(t)
+  }, [hintDismissed])
+
+  // Press "F" — toggle the category filter modal (ignored while typing).
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "f") return
+      if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
+      const target = e.target as HTMLElement
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
+      e.preventDefault()
+      setIsCategoryModalOpen(prev => !prev)
+      if (!hintDismissedRef.current) {
+        setHintDismissed(true)
+        hintDismissedRef.current = true
+        writeHintSeen()
+      }
+    }
+    window.addEventListener("keydown", handler, true)
+    return () => window.removeEventListener("keydown", handler, true)
+  }, [])
+
+  const handleFilterChange = useCallback((ids: string[]) => {
+    setFilterCategoryIds(ids)
+    writeFilter(ids)
+  }, [])
+
+  const dismissHint = useCallback(() => {
+    setHintDismissed(true)
+    writeHintSeen()
+  }, [])
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -269,6 +324,10 @@ export default function CompletedTasksPage() {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
+  const visibleTodos = filterCategoryIds.length === 0
+    ? todos
+    : todos.filter(t => filterCategoryIds.includes(t.categoryId ?? ""))
+
   return (
     <div className="space-y-8">
       <div className="rounded-[2rem] border border-gray-200 bg-gradient-to-br from-white via-gray-50 to-gray-100 p-6 md:p-8 shadow-xl">
@@ -293,6 +352,84 @@ export default function CompletedTasksPage() {
             <p className="text-gray-500">
               Browse every finished task in one place, newest completions first.
             </p>
+
+            <AnimatePresence>
+              {filterCategoryIds.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-all"
+                >
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="flex items-center gap-2">
+                      {filterCategoryIds.map(id => {
+                        const cat = categories.find(c => c.id === id)
+                        const CatIcon = cat?.icon ? (ICON_MAP[cat.icon] ?? null) : null
+                        return cat ? (
+                          <motion.div
+                            key={id}
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="h-7 w-7 rounded-lg flex items-center justify-center shadow-xs border border-gray-200"
+                            style={{ backgroundColor: `${cat.color ?? "#9ca3af"}15` }}
+                            title={cat.name}
+                          >
+                            {CatIcon ? (
+                              <CatIcon className="h-4 w-4" style={{ color: cat.color ?? "#9ca3af" }} />
+                            ) : (
+                              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color ?? "#9ca3af" }} />
+                            )}
+                          </motion.div>
+                        ) : null
+                      })}
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">
+                        Filter Active
+                      </span>
+                      <span className="text-xs font-semibold text-gray-600">
+                        {filterCategoryIds.length === 1 ? "1 category" : `${filterCategoryIds.length} categories`}
+                      </span>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.2, rotate: 90 }}
+                    whileTap={{ scale: 0.85 }}
+                    onClick={() => handleFilterChange([])}
+                    className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-black hover:bg-gray-100 transition-all font-bold text-lg flex-shrink-0"
+                    aria-label="Clear category filter"
+                  >
+                    ✕
+                  </motion.button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {!hintDismissed && !loading && categories.length > 0 && filterCategoryIds.length === 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-1.5 mt-2"
+                >
+                  <kbd className="font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[10px] border border-gray-200 leading-tight">
+                    F
+                  </kbd>
+                  <span className="text-[11px] text-gray-400">filter by category</span>
+                  <button
+                    onClick={dismissHint}
+                    className="text-[10px] text-gray-300 hover:text-gray-500 transition-colors ml-0.5"
+                    aria-label="Dismiss hint"
+                  >
+                    ✕
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="inline-flex items-center gap-3 rounded-[1.5rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
@@ -340,7 +477,7 @@ export default function CompletedTasksPage() {
       ) : (
         <>
           <MasonryColumns
-            items={todos}
+            items={visibleTodos}
             getKey={(todo) => todo.id}
             getItemWeight={getTaskWeight}
             columns={4}
@@ -446,6 +583,14 @@ export default function CompletedTasksPage() {
         title="Delete Task?"
         description={`Are you sure you want to delete "${deletingTodo?.title}"? This action cannot be undone.`}
         confirmText="Delete Task"
+      />
+
+      <CategoryFilterModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        categories={categories}
+        selected={filterCategoryIds}
+        onChange={handleFilterChange}
       />
     </div>
   )

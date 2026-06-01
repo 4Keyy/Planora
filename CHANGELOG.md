@@ -4,6 +4,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend) — category filter on the Completed Tasks page (2026-06-01)
+
+The `/tasks/completed` page now has the same category filter as `/tasks`: the "F" hotkey toggles the
+category filter modal, an active-filter chip shows the selected categories with a one-click clear, and
+the hint kbd appears until first use. The selection is persisted in the same shared store as the active
+page, so the filter is consistent across both. Filtering is applied client-side to the loaded archive
+page (matching how the active feed filters).
+
 ### fix(a11y) — associate auth form labels + name the password-visibility toggles (2026-06-01)
 
 Audit follow-up. The auth forms (login, register, forgot-password, reset-password, verify-email)
