@@ -336,10 +336,11 @@ function CategoryModal({
                 transition={{ duration: 0.3, delay: 0.05 }}
                 className="space-y-1.5"
               >
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 md:text-xs">
+                <label htmlFor="category-name" className="text-[10px] font-black uppercase tracking-widest text-gray-400 md:text-xs">
                   Name *
                 </label>
                 <Input
+                  id="category-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Work, Personal, Projects..."
@@ -355,10 +356,11 @@ function CategoryModal({
                 transition={{ duration: 0.3, delay: 0.1 }}
                 className="space-y-1.5"
               >
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 md:text-xs">
+                <label htmlFor="category-description" className="text-[10px] font-black uppercase tracking-widest text-gray-400 md:text-xs">
                   Description
                 </label>
                 <Input
+                  id="category-description"
                   value={desc}
                   onChange={(e) => setDesc(e.target.value)}
                   placeholder="Optional..."
