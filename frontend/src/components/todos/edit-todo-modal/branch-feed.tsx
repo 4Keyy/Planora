@@ -372,25 +372,25 @@ export function BranchFeed({
               transition={SPRING_STANDARD}
               aria-label="Scroll up to the author's note"
               style={{
+                // Floating rounded pill (all corners), inset slightly from the edges so it reads
+                // as a tidy chip rather than a flush header with sharp bottom corners.
                 position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
+                top: 6,
+                left: 6,
+                right: 6,
                 zIndex: 6,
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                width: "100%",
                 textAlign: "left",
                 cursor: "pointer",
                 padding: "10px 14px",
-                border: "none",
-                borderBottom: "1px solid #ececec",
-                borderRadius: "12px 12px 0 0",
-                background: "rgba(250,250,250,0.82)",
+                border: "1px solid #ececec",
+                borderRadius: 14,
+                background: "rgba(250,250,250,0.85)",
                 backdropFilter: "blur(10px)",
                 WebkitBackdropFilter: "blur(10px)",
-                boxShadow: "0 6px 16px -10px rgba(0,0,0,0.25)",
+                boxShadow: "0 10px 24px -12px rgba(0,0,0,0.30)",
                 fontFamily: "inherit",
               }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(245,243,255,0.9)" }}
