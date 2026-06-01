@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### build — drop redundant framework packages (NU1510), clean `-warnaserror` build (2026-06-01)
+
+Removed three `PackageReference`s that the .NET 10 SDK flags as redundant via **NU1510** (they are
+already provided by the shared framework / transitively): `Microsoft.Extensions.Caching.Abstractions`
+(BuildingBlocks.Infrastructure), `Microsoft.Extensions.Logging.Abstractions` (BuildingBlocks.Application,
+which already has a `Microsoft.AspNetCore.App` framework reference), and
+`Microsoft.Extensions.Diagnostics.HealthChecks` (Planora.ApiGateway). The solution now builds with
+**0 warnings / 0 errors** even under a strict restore + `dotnet build -warnaserror`, not only under the
+CI sequence (which restores separately). The CS0105 duplicate-using and the Collaboration
+`AddPlanoraSwaggerGen`/`UsePlanoraSwagger` errors from older build logs were already resolved in the
+current `net10.0` code.
+
 ### docs — comprehensive, marketing-grade README overhaul (2026-06-01)
 
 Rewrote `README.md` into a richer, more polished landing page that reads for both engineers and a

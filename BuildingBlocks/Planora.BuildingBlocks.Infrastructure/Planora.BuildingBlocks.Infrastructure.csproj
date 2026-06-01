@@ -15,7 +15,8 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
+    <!-- Microsoft.Extensions.Caching.Abstractions is provided by the shared framework / transitively
+         by Caching.StackExchangeRedis on net10.0 (NU1510); the explicit reference is redundant. -->
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
     <PackageReference Include="StackExchange.Redis" />
     <PackageReference Include="RedisRateLimiting.AspNetCore" />
