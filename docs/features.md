@@ -184,6 +184,30 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 | Non-owner updates | friend-visible viewer can only change status |
 | Visibility persistence | `UpdateTodoCommandHandler` loads the entity via `GetByIdWithIncludesTrackedAsync` (with EF Core change tracking) so that changes to `IsPublic` and `SharedWith` collection additions/removals are correctly persisted — tracked loading generates the right INSERT/DELETE DML for the `TodoItemShare` collection, whereas a detached `DbSet.Update()` call would silently emit UPDATE-only SQL against non-existent rows |
 
+### Subtasks
+
+A **subtask** is a child `TodoItem` (self-referencing `ParentTodoId`) — a part of its parent
+task, stored in the parent's tree. Subtasks exist **only inside a task's branch** (the edit modal):
+they never appear on the tasks page, the completed page, the dashboard grid, or any list.
+
+| Aspect | Rule |
+|---|---|
+| Storage | child `TodoItem` with `ParentTodoId`; one level deep (a subtask cannot have subtasks) |
+| Category | always inherited from the parent (never set independently) |
+| Visibility | public exactly when the parent is public; inherits the parent's shared audience. A parent's category/visibility/sharing change **propagates** to its subtasks |
+| Dates | none — a subtask never has a due or expected date |
+| Priority | its own (`VeryLow`…`Urgent`), chosen on creation |
+| Status | can be taken into work and completed; **stays in the branch after completion** (shown as done, not removed). Friends on a public parent complete per-viewer, like top-level shared tasks |
+| Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
+| Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
+| Lifecycle | deleting a task soft-deletes its whole subtree |
+
+Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/friend lists),
+`CreateSubtaskCommand`, `GetSubtasksQuery`; `TodoItem.CreateSubtask` / `SyncInheritedFromParent`;
+migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask"), rendered
+by `edit-todo-modal/subtasks-section.tsx` as an animated checklist with a progress bar, per-row
+complete / take-into-work / delete, and an inline title + priority composer.
+
 ### Frontend Behavior
 
 - Active todo page loads active tasks in pages of 200.

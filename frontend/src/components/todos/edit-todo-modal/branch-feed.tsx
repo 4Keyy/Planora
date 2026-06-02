@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, type LucideIcon } from "lucide-react"
+import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, type LucideIcon } from "lucide-react"
 import { fetchComments, addComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
 import type { TodoComment } from "@/types/todo"
 import { SPRING_STANDARD } from "@/lib/animations"
 import { FriendAvatar } from "./friend-avatar"
+import { SubtasksSection, type SubtasksSectionHandle } from "./subtasks-section"
 import {
   formatDayLabel,
   formatTimeHHMM,
@@ -103,6 +104,7 @@ export function BranchFeed({
   const genesisCardRef    = useRef<HTMLDivElement>(null)
   const plusBtnRef        = useRef<HTMLButtonElement>(null)
   const plusMenuRef       = useRef<HTMLDivElement>(null)
+  const subtasksRef       = useRef<SubtasksSectionHandle>(null)
   const highlightTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
   // After a full (replace) load, pin the view to the newest message at the bottom.
   const pinBottomRef      = useRef(false)
@@ -591,6 +593,16 @@ export function BranchFeed({
         </div>
       )}
 
+        {/* ── Subtasks ── child steps that live only in this branch (pinned above the timeline) ── */}
+        {!loading && (
+          <SubtasksSection
+            ref={subtasksRef}
+            todoId={todoId}
+            isOwner={isOwner}
+            refreshKey={refreshKey}
+          />
+        )}
+
         {/* Load earlier */}
         {hasMore && !loading && (
           <button
@@ -795,6 +807,41 @@ export function BranchFeed({
                         Added
                       </div>
                     )}
+                  </button>
+                </>
+              )}
+
+              {/* Author-only: break the task into subtasks (a step in its tree) */}
+              {isOwner && (
+                <>
+                  {!showDescription && <MenuSectionLabel>Attach</MenuSectionLabel>}
+                  <button
+                    onClick={() => {
+                      setPlusMenuOpen(false)
+                      subtasksRef.current?.openCreate()
+                    }}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
+                      background: "transparent", textAlign: "left", transition: "background 100ms",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+                  >
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                      background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <ListTree size={14} color="#4f46e5" strokeWidth={1.9} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0a0a0a", letterSpacing: "-0.01em" }}>
+                        Subtask
+                      </div>
+                      <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
+                        Break this into steps
+                      </div>
+                    </div>
                   </button>
                 </>
               )}

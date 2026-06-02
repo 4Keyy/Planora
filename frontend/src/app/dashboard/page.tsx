@@ -182,7 +182,10 @@ export default function DashboardPage() {
   const fetchStats = useCallback(async (signal?: AbortSignal) => {
     try {
       const res = await api.get<{ items: Todo[] }>("/todos/api/v1/todos", {
-        params: { pageNumber: 1, pageSize: 1000 },
+        // includeSubtasks: subtasks are hidden from every list, but completed subtasks must
+        // still count toward the weekly statistics below (they are filtered out of the active
+        // counter and never rendered as cards).
+        params: { pageNumber: 1, pageSize: 1000, includeSubtasks: true },
         signal,
       })
       if (signal?.aborted) return
@@ -298,17 +301,20 @@ export default function DashboardPage() {
   }, [isAuthenticated, hasHydrated, mounted, fetchTodos, fetchStats, fetchCategories, clearAuth, router])
 
   const activeStatsTodos = useMemo(() =>
-    statsTodos.filter(t => { 
-      const s = String(t.status).toLowerCase(); 
+    statsTodos.filter(t => {
+      if (t.parentTodoId) return false; // subtasks never inflate the active-task counter
+      const s = String(t.status).toLowerCase();
       const isDone = s === "done" || s === "completed";
       return !isDone && t.isCompletedByViewer !== true;
     }),
     [statsTodos]
   )
 
+  // Completed-this-week deliberately includes completed subtasks so finishing a step in a
+  // task's branch contributes to the weekly statistics.
   const allCompletedStatsTodos = useMemo(() =>
-    statsTodos.filter(t => { 
-      const s = String(t.status).toLowerCase(); 
+    statsTodos.filter(t => {
+      const s = String(t.status).toLowerCase();
       const isDone = s === "done" || s === "completed";
       return isDone || t.isCompletedByViewer === true;
     }),
