@@ -58,9 +58,21 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
 
             // The task's comment timeline ("ветка") lives in the Collaboration service. Publish a
             // deletion fact via the outbox; Collaboration cascade-soft-deletes the comments. INV-COMM-3.
-            await _outboxRepository.EnqueueIntegrationEventAsync(
-                new TaskDeletedIntegrationEvent(todoItem.Id, userId),
-                cancellationToken);
+            if (todoItem.IsSubtask)
+            {
+                // A subtask has no branch of its own — its only footprint is the announcement
+                // comments it left in the PARENT's branch. Remove exactly those, not a whole branch.
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new SubtaskDeletedIntegrationEvent(
+                        todoItem.ParentTodoId!.Value, todoItem.Id, userId, todoItem.Title),
+                    cancellationToken);
+            }
+            else
+            {
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new TaskDeletedIntegrationEvent(todoItem.Id, userId),
+                    cancellationToken);
+            }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

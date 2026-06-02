@@ -168,6 +168,9 @@ export function BranchFeed({
   const totalCountRef     = useRef(0)
   // Subtasks currently mid-write — polling must not revert their optimistic state.
   const subtaskPendingRef = useRef<Set<string>>(new Set())
+  // System-comment ids hidden client-side after a subtask delete, until the async cascade lands —
+  // keeps the deleted subtask's announcement(s) from flickering back via polling/reloads.
+  const suppressedCommentIds = useRef<Set<string>>(new Set())
   // Pending post-action catch-up reloads (the status system-comment is produced asynchronously).
   const retryTimers       = useRef<ReturnType<typeof setTimeout>[]>([])
 
@@ -183,7 +186,7 @@ export function BranchFeed({
   const load = useCallback(async (pageNum: number, replace: boolean, pin: boolean = replace) => {
     try {
       const res  = await fetchComments(todoId, pageNum, 50)
-      const items = res.items ?? []
+      const items = (res.items ?? []).filter((c) => !suppressedCommentIds.current.has(c.id))
       setTotalCount(res.totalCount ?? 0)
       totalCountRef.current = res.totalCount ?? 0
       setComments((prev) => (replace ? items : [...items, ...prev]))
@@ -249,6 +252,8 @@ export function BranchFeed({
         const byId = new Map(prev.map((c) => [c.id, c]))
         let changed = false
         for (const c of items) {
+          // A subtask just deleted client-side: keep its announcement hidden until the cascade lands.
+          if (suppressedCommentIds.current.has(c.id)) { if (byId.delete(c.id)) changed = true; continue }
           const existing = byId.get(c.id)
           if (!existing) { byId.set(c.id, c); changed = true }
           else if (existing.content !== c.content || existing.updatedAt !== c.updatedAt) {
@@ -415,12 +420,34 @@ export function BranchFeed({
   const removeSubtask = async (s: Todo) => {
     if (!isOwner || subtaskPendingRef.current.has(s.id)) return
     setSubtaskBusy(s.id, true)
-    const snapshot = subtasks
+    const subtasksSnapshot = subtasks
+
+    // Deleting a subtask also clears the system events it left in the branch ("added a subtask: …",
+    // "completed a subtask: …"). Remove them optimistically and suppress their ids so polling can't
+    // re-add them before the server-side cascade (SubtaskDeletedIntegrationEvent) completes.
+    const suffix = `: ${s.title}`
+    const related = comments.filter(
+      (c) => c.isSystemComment && /subtask/i.test(c.content) && c.content.trimEnd().endsWith(suffix),
+    )
+    const relatedIds = new Set(related.map((c) => c.id))
+
     setSubtasks((prev) => prev.filter((it) => it.id !== s.id)) // optimistic (animates out)
+    if (relatedIds.size) {
+      related.forEach((c) => suppressedCommentIds.current.add(c.id))
+      setComments((prev) => prev.filter((c) => !relatedIds.has(c.id)))
+      setTotalCount((n) => Math.max(0, n - relatedIds.size))
+    }
+
     try {
       await deleteSubtask(s.id)
     } catch (e) {
-      setSubtasks(snapshot)
+      setSubtasks(subtasksSnapshot)
+      if (relatedIds.size) {
+        related.forEach((c) => suppressedCommentIds.current.delete(c.id))
+        setComments((prev) => [...prev, ...related].sort((a, b) =>
+          a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0))
+        setTotalCount((n) => n + relatedIds.size)
+      }
       setError(getApiErrorMessage(e))
     } finally {
       setSubtaskBusy(s.id, false)
@@ -540,17 +567,18 @@ export function BranchFeed({
       } else if (composeMode === "subtask") {
         // Subtasks are authored exactly like the description: from the same field. No priority.
         const created = await createSubtask(todoId, { title: content })
-        setSubtaskBusy(created.id, false)
         setSubtasks((prev) => [...prev, created])
         setNewContent("")
+        // Creating a subtask closes the subtask composer and returns to plain-message mode.
+        setComposeMode("text")
         // The "added a subtask" announcement is emitted async — pull it in so the card anchors
-        // beneath it. Stay in subtask mode for fast, successive step entry.
+        // beneath it.
         retryTimers.current.push(
           setTimeout(() => { void mergeLatest() }, 350),
           setTimeout(() => { void mergeLatest() }, 1000),
           setTimeout(() => { void mergeLatest() }, 2000),
         )
-        setTimeout(() => { scrollToBottom(); composeRef.current?.focus() }, 60)
+        setTimeout(scrollToBottom, 60)
       } else {
         const c = await addComment(todoId, content)
         setComments((prev) => [...prev, c])
@@ -1318,8 +1346,10 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
 
 /* ── Subtask card ── a simplified task card that lives inline in the branch as its own event.
    The completion toggle doubles as the rail marker, sitting exactly on the timeline line. No
-   priority — a subtask is just a checkable step with a title. */
-const SUBTASK_TOGGLE = 24
+   priority — a subtask is just a checkable step with a title. Mirrors a regular task card: a
+   taller body and the same slide-from-right red delete panel. */
+const SUBTASK_TOGGLE = 26
+const SUBTASK_DELETE_ZONE = 50
 interface SubtaskCardProps {
   subtask: Todo
   isOwner: boolean
@@ -1337,6 +1367,7 @@ function SubtaskCard({
   onToggleComplete, onToggleWork, onDelete, onSaveTitle,
 }: SubtaskCardProps) {
   const [hovered, setHovered] = useState(false)
+  const [deleteHovered, setDeleteHovered] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(subtask.title)
   const editInputRef = useRef<HTMLInputElement>(null)
@@ -1353,6 +1384,9 @@ function SubtaskCard({
     setEditing(false)
   }
 
+  // Owner gets the slide-out delete affordance, so reserve the strip's width on the right.
+  const bodyPaddingRight = isOwner && !editing ? SUBTASK_DELETE_ZONE - 2 : 12
+
   return (
     <motion.div
       layout
@@ -1361,7 +1395,7 @@ function SubtaskCard({
       exit={{ opacity: 0, scale: 0.96, height: 0, marginTop: -2, marginBottom: 0 }}
       transition={SPRING_SNAP}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={() => { setHovered(false); setDeleteHovered(false) }}
       style={{ position: "relative", padding: "5px 0" }}
     >
       {/* Completion toggle — IS the rail marker, centred on the timeline line */}
@@ -1372,7 +1406,7 @@ function SubtaskCard({
         style={{
           position: "absolute",
           left: RAIL_CENTER - RAIL_GUTTER - SUBTASK_TOGGLE / 2,
-          top: 9,
+          top: 16,
           width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
           border: done ? "none" : `2px solid ${working ? "#f59e0b" : "#d4d4d4"}`,
           background: done ? "#10b981" : "#ffffff",
@@ -1380,7 +1414,7 @@ function SubtaskCard({
             ? "0 0 0 3px #ffffff, 0 2px 6px -1px rgba(16,185,129,0.5)"
             : "0 0 0 3px #ffffff",
           display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: pending ? "default" : "pointer", padding: 0, zIndex: 2,
+          cursor: pending ? "default" : "pointer", padding: 0, zIndex: 3,
           transition: "background 160ms, border-color 160ms, transform 120ms, box-shadow 160ms",
           transform: hovered && !done ? "scale(1.12)" : "scale(1)",
         }}
@@ -1388,7 +1422,7 @@ function SubtaskCard({
         <AnimatePresence mode="wait" initial={false}>
           {done ? (
             <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
-              <Check size={14} color="white" strokeWidth={3} />
+              <Check size={15} color="white" strokeWidth={3} />
             </motion.span>
           ) : working ? (
             <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
@@ -1396,32 +1430,33 @@ function SubtaskCard({
             </motion.span>
           ) : hovered ? (
             <motion.span key="hover" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-              <Check size={13} color="#10b981" strokeWidth={3} />
+              <Check size={14} color="#10b981" strokeWidth={3} />
             </motion.span>
           ) : null}
         </AnimatePresence>
       </button>
 
-      {/* Card body */}
+      {/* Card body — taller, more task-like; position:relative anchors the delete strip */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 9,
-        padding: editing ? "9px 11px" : "8px 11px",
+        position: "relative", overflow: "hidden",
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "11px 12px", paddingRight: bodyPaddingRight,
         borderRadius: 12,
         background: done ? "#f7fdfb" : working ? "#fffdf5" : "#fafafa",
         border: `1px solid ${done ? "#d7f5ea" : working && !done ? "#fde68a" : "#f0f0f0"}`,
-        transition: "background 200ms, border-color 200ms",
+        transition: "background 200ms, border-color 200ms, padding 160ms",
       }}>
         {/* Subtask glyph — quietly identifies the row as a branch step */}
         <div style={{
-          width: 22, height: 22, borderRadius: 7, flexShrink: 0,
-          background: done ? "#e7f8f1" : "#eef2ff",
+          width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+          background: done ? "#e7f8f1" : working ? "#fef3c7" : "#eef2ff",
           display: "flex", alignItems: "center", justifyContent: "center",
           transition: "background 200ms",
         }}>
-          <ListTree size={12} color={done ? "#10b981" : "#6366f1"} strokeWidth={2} />
+          <ListTree size={14} color={done ? "#10b981" : working ? "#b45309" : "#6366f1"} strokeWidth={2} />
         </div>
 
-        {/* Title (or inline editor) */}
+        {/* Title + meta */}
         {editing ? (
           <input
             ref={editInputRef}
@@ -1436,28 +1471,38 @@ function SubtaskCard({
             style={{
               flex: 1, minWidth: 0, background: "white",
               border: "1.5px solid #c7d2fe", borderRadius: 8, outline: "none",
-              padding: "5px 9px", fontSize: 13, fontWeight: 400,
+              padding: "7px 10px", fontSize: 13.5, fontWeight: 400,
               color: "#262626", fontFamily: "inherit",
             }}
           />
         ) : (
-          <span
-            onDoubleClick={beginEdit}
-            title={isOwner ? "Double-click to edit" : undefined}
-            style={{
-              flex: 1, minWidth: 0,
-              // A subtask carries only a title — render it in a regular, non-bold weight so it
-              // reads as a plain branch step, lighter than the Author's Note.
-              fontSize: 13, fontWeight: 400, lineHeight: 1.4,
-              color: done ? "#a3a3a3" : "#262626",
-              textDecoration: done ? "line-through" : "none",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              cursor: isOwner ? "text" : "default",
-              transition: "color 200ms",
-            }}
-          >
-            {subtask.title}
-          </span>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+            <span
+              onDoubleClick={beginEdit}
+              title={isOwner ? "Double-click to edit" : undefined}
+              style={{
+                // A subtask carries only a title — render it in a regular, non-bold weight so it
+                // reads as a plain branch step, lighter than the Author's Note.
+                fontSize: 13.5, fontWeight: 400, lineHeight: 1.4,
+                color: done ? "#a3a3a3" : "#262626",
+                textDecoration: done ? "line-through" : "none",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                cursor: isOwner ? "text" : "default",
+                transition: "color 200ms",
+              }}
+            >
+              {subtask.title}
+            </span>
+            <span style={{
+              display: "flex", alignItems: "center", gap: 6,
+              fontSize: 9.5, fontWeight: 800, letterSpacing: "0.08em",
+              textTransform: "uppercase", color: "#b8b8b8",
+            }}>
+              <span>Subtask</span>
+              <span style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: "#d4d4d4" }} />
+              <span style={{ letterSpacing: "0.04em" }}>{formatTimeHHMM(subtask.createdAt)}</span>
+            </span>
+          </div>
         )}
 
         {/* Working badge */}
@@ -1470,15 +1515,16 @@ function SubtaskCard({
           </span>
         )}
 
-        {/* Owner row actions (revealed on hover) */}
+        {/* Owner inline actions (edit + take-into-work) — revealed on hover, hidden while the
+            delete panel is sliding over. Delete itself lives in the slide strip below. */}
         {isOwner && !editing && (
           <div style={{
             display: "flex", alignItems: "center", gap: 2, flexShrink: 0,
-            opacity: hovered ? 1 : 0, transition: "opacity 140ms",
-            pointerEvents: hovered ? "auto" : "none",
+            opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
+            pointerEvents: hovered && !deleteHovered ? "auto" : "none",
           }}>
             <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
-              <Pencil size={12} strokeWidth={2} />
+              <Pencil size={13} strokeWidth={2} />
             </SubtaskIconButton>
             {!done && (
               <SubtaskIconButton
@@ -1487,12 +1533,60 @@ function SubtaskCard({
                 color={working ? "#b45309" : "#6366f1"} hoverBg="#f0f0f0"
                 onClick={onToggleWork} disabled={pending}
               >
-                {working ? <Pause size={13} strokeWidth={2} /> : <Zap size={13} strokeWidth={2} />}
+                {working ? <Pause size={14} strokeWidth={2} /> : <Zap size={14} strokeWidth={2} />}
               </SubtaskIconButton>
             )}
-            <SubtaskIconButton label="Delete subtask" title="Delete" color="#ef4444" hoverBg="#fef2f2" onClick={onDelete} disabled={pending}>
-              <Trash2 size={13} strokeWidth={2} />
-            </SubtaskIconButton>
+          </div>
+        )}
+
+        {/* Delete strip — slides in from the right, identical in feel to a task card's delete panel */}
+        {isOwner && !editing && (
+          <div
+            onMouseEnter={() => setDeleteHovered(true)}
+            onMouseLeave={() => setDeleteHovered(false)}
+            style={{
+              position: "absolute", top: 0, right: 0, bottom: 0,
+              width: SUBTASK_DELETE_ZONE, zIndex: 2,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              overflow: "hidden", cursor: pending ? "default" : "pointer",
+            }}
+          >
+            <AnimatePresence>
+              {deleteHovered && (
+                <motion.button
+                  key="sub-delete-panel"
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); if (!pending) onDelete() }}
+                  disabled={pending}
+                  aria-label="Delete subtask"
+                  variants={{
+                    hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } },
+                    visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
+                  }}
+                  initial="hidden"
+                  animate="visible"
+                  exit="hidden"
+                  whileHover={{ filter: "brightness(1.1)" }}
+                  style={{
+                    position: "absolute", inset: 0, border: "none", padding: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "white", cursor: pending ? "default" : "pointer",
+                    background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 38%, #dc2626 100%)",
+                    boxShadow: "-6px 0 18px rgba(239,68,68,0.18)",
+                  }}
+                >
+                  <motion.div
+                    variants={{
+                      hidden: { scale: 0.5, opacity: 0, y: 6 },
+                      visible: { scale: 1, opacity: 1, y: 0, transition: { delay: 0.06, type: "spring", stiffness: 420, damping: 22 } },
+                    }}
+                    style={{ display: "flex" }}
+                  >
+                    {pending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} strokeWidth={2.2} />}
+                  </motion.div>
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
         )}
       </div>

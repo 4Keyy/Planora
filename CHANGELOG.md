@@ -4,6 +4,31 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(subtasks): task-like cards, delete cascade, composer auto-close (2026-06-03)
+
+Follow-up polish on the inline subtask cards.
+
+- **Composer auto-closes** after a subtask is created — submitting returns the compose box to
+  plain-message mode instead of staying in subtask mode.
+- **Delete affordance now matches a regular task card** — the inline trash icon is replaced by the
+  same **slide-from-right red panel** (clip-path reveal + spring trash icon) used on task cards.
+- **Taller, more task-like card** — bigger glyph, roomier padding, and a `Subtask · HH:MM` meta line
+  under the title so a step reads like a compact task rather than a checklist row.
+- **Deleting a subtask now also removes its branch announcements.** A subtask owns no branch, so
+  TodoApi emits the new `SubtaskDeletedIntegrationEvent(parentTaskId, subtaskId, actor, title)`
+  (instead of `TaskDeletedIntegrationEvent`, which would wipe a whole branch). Collaboration's new
+  `SubtaskDeletedEventConsumer` → `ICommentRepository.SoftDeleteSubtaskActivityAsync` soft-deletes
+  the parent-branch system comments ending with `added a subtask: {title}` / `completed a subtask:
+  {title}`. The client removes them optimistically and suppresses their ids so polling can't
+  re-add them before the async cascade lands.
+- **Statistics (already in place, reconfirmed):** an incomplete subtask never counts in the active
+  task counter (`parentTodoId` filtered out), a completed subtask **does** count toward the weekly
+  completed stat (`includeSubtasks=true`), and subtasks never appear on `/tasks/completed` (the
+  list endpoints keep the default `ParentTodoId == null` filter).
+- Tests: +1 Collaboration consumer case (subtask-delete targets the parent branch + title, never a
+  whole-branch wipe) and +1 Todo handler case (subtask delete enqueues `SubtaskDeletedIntegrationEvent`
+  for the parent) → 42 in the touched suites green. `tsc`/`eslint` clean; changed .NET libraries build clean.
+
 ### refactor(subtasks): inline branch cards, no panel, no priority (2026-06-02)
 
 Reworked the subtask UX so a subtask is **a regular branch event**, authored just like the task

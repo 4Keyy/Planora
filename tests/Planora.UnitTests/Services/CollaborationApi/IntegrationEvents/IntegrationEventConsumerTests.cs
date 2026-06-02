@@ -134,6 +134,33 @@ public sealed class IntegrationEventConsumerTests
         uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    // ─── SubtaskDeleted ─────────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("TestType", "Integration")]
+    public async Task SubtaskDeleted_SoftDeletesOnlyTheSubtaskAnnouncementsInParentBranch()
+    {
+        var parentId = Guid.NewGuid();
+        var subtaskId = Guid.NewGuid();
+        var actor = Guid.NewGuid();
+        var comments = new Mock<ICommentRepository>();
+        var uow = new Mock<IUnitOfWork>();
+
+        var consumer = new SubtaskDeletedEventConsumer(comments.Object, uow.Object,
+            Mock.Of<ILogger<SubtaskDeletedEventConsumer>>());
+
+        await consumer.HandleAsync(
+            new SubtaskDeletedIntegrationEvent(parentId, subtaskId, actor, "Draft outline"),
+            CancellationToken.None);
+
+        // Targets the parent branch + title (not a whole-branch wipe).
+        comments.Verify(x => x.SoftDeleteSubtaskActivityAsync(
+            parentId, "Draft outline", actor, It.IsAny<CancellationToken>()), Times.Once);
+        comments.Verify(x => x.SoftDeleteByTaskIdAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     // ─── UserDeleted ────────────────────────────────────────────────────────────
 
     [Fact]

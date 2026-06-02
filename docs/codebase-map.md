@@ -98,7 +98,7 @@ Critical files:
 - `Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs` — publishes `TaskActivityIntegrationEvent`
 - `Features/Todos/Commands/JoinTodo/JoinTodoCommandHandler.cs`
 - `Features/Todos/Commands/LeaveTodo/LeaveTodoCommandHandler.cs`
-- `Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs` — publishes `TaskDeletedIntegrationEvent`
+- `Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs` — publishes `TaskDeletedIntegrationEvent` (task) or `SubtaskDeletedIntegrationEvent` (subtask)
 - `Features/Todos/Commands/SetTodoHidden/SetTodoHiddenCommandHandler.cs`
 - `Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs`
 - `Features/Todos/Common/OutboxExtensions.cs` — helper to enqueue integration events in the unit of work

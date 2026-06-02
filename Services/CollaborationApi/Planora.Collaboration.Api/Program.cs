@@ -159,6 +159,9 @@ namespace Planora.Collaboration.Api
                     await eventBus.SubscribeAsync<TaskDeletedIntegrationEvent, TaskDeletedEventConsumer>(app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to TaskDeletedIntegrationEvent");
 
+                    await eventBus.SubscribeAsync<SubtaskDeletedIntegrationEvent, SubtaskDeletedEventConsumer>(app.Lifetime.ApplicationStopping);
+                    logger.LogInformation("✅ Subscribed to SubtaskDeletedIntegrationEvent");
+
                     await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedEventConsumer>(app.Lifetime.ApplicationStopping);
                     logger.LogInformation("✅ Subscribed to UserDeletedIntegrationEvent");
                 }

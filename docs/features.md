@@ -192,10 +192,12 @@ they never appear on the tasks page, the completed page, the dashboard grid, or 
 
 A subtask is **a regular event in the branch timeline**, not a separate panel. It is authored
 exactly like the task description — through the compose box's **"+" menu → "Subtask"**, which
-switches the same input field into subtask mode (plain Enter adds the step; the field stays in
-subtask mode for quick successive entry). Each subtask renders as a simplified task card inline on
-the activity rail, anchored **directly after its "added a subtask" system event** (never pinned to
-the top). The completion toggle doubles as the rail marker, sitting exactly on the timeline line.
+switches the same input field into subtask mode (plain Enter adds the step; creating a subtask
+**closes the composer**, returning to plain-message mode). Each subtask renders as a simplified
+task card inline on the activity rail, anchored **directly after its "added a subtask" system
+event** (never pinned to the top). The card mirrors a regular task card — a taller body with a
+`Subtask · HH:MM` meta line and the same **slide-from-right red delete panel**. The completion
+toggle doubles as the rail marker, sitting exactly on the timeline line.
 
 | Aspect | Rule |
 |---|---|
@@ -210,7 +212,7 @@ the top). The completion toggle doubles as the rail marker, sitting exactly on t
 | Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
 | Branch messages | creating or completing a subtask posts a system message to the **parent's** branch timeline ("X added a subtask: …" / "X completed a subtask: …") via `TaskActivityIntegrationEvent` (`SubtaskCreated`/`SubtaskCompleted`, `Detail` = title) consumed by Collaboration. The inline subtask card is anchored beneath the `SubtaskCreated` event by matching its `: <title>` suffix. A subtask has no branch of its own |
 | Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note |
-| Lifecycle | deleting a task soft-deletes its whole subtree |
+| Lifecycle | deleting a task soft-deletes its whole subtree. Deleting a **single subtask** also removes the announcement comments it left in the parent's branch — TodoApi emits `SubtaskDeletedIntegrationEvent(parentTaskId, subtaskId, actor, title)` (instead of `TaskDeletedIntegrationEvent`, which would wipe a whole branch); Collaboration's `SubtaskDeletedEventConsumer` soft-deletes the parent-branch system comments whose content ends with `added a subtask: {title}` / `completed a subtask: {title}`. The client also removes them optimistically (suppressing their ids so polling can't re-add them before the cascade lands) |
 
 Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/friend lists),
 `CreateSubtaskCommand`, `GetSubtasksQuery`; `TodoItem.CreateSubtask` / `SyncInheritedFromParent`;

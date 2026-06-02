@@ -151,6 +151,36 @@ public class TodoCommandHandlerExpandedTests
     }
 
     [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task DeleteTodo_OnSubtask_EnqueuesSubtaskDeletedForParentBranch()
+    {
+        // Deleting a subtask must remove only its announcement comments from the PARENT's branch
+        // (SubtaskDeletedIntegrationEvent), never wipe a whole branch (TaskDeletedIntegrationEvent).
+        var userId = Guid.NewGuid();
+        var parent = TodoItem.Create(userId, "Parent");
+        var subtask = TodoItem.CreateSubtask(parent, userId, "Draft outline", null);
+        var fixture = new TodoCommandFixture(userId);
+
+        Planora.BuildingBlocks.Application.Outbox.OutboxMessage? captured = null;
+        fixture.OutboxRepository
+            .Setup(x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<Planora.BuildingBlocks.Application.Outbox.OutboxMessage, CancellationToken>((m, _) => captured = m);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+
+        var result = await fixture.CreateDeleteHandler().Handle(
+            new DeleteTodoCommand(subtask.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(subtask.IsDeleted);
+        Assert.NotNull(captured);
+        Assert.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.SubtaskDeletedIntegrationEvent), captured!.Type);
+        Assert.Contains("Draft outline", captured.Content);            // title for suffix matching
+        Assert.Contains(parent.Id.ToString(), captured.Content);       // targets the parent branch
+    }
+
+    [Fact]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
     public async Task DeleteTodo_ShouldRejectMissingAndForeignTodoBeforePersisting()
