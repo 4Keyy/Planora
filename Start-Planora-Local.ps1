@@ -1,28 +1,148 @@
 <#
 .SYNOPSIS
-    Planora Local Launcher - starts infrastructure in Docker, backend .NET services
-    and the Next.js frontend locally on the host machine.
+    Planora Local Launcher - runs the full stack on Windows: infrastructure in Docker,
+    every .NET backend service + the API gateway, and the Next.js frontend as host
+    processes, with health-gated startup and a clean shutdown path.
 
 .DESCRIPTION
-    Modes:
-      (default)  Kill all existing Planora processes, preserve all data volumes,
-                 restart everything fresh from compiled binaries.
-      -Clean     Kill processes, wipe all bin/obj/.next build artifacts, dotnet restore,
-                 rebuild images with --no-cache, then start everything.
-                 Does NOT wipe database volumes - data is preserved.
+    One command brings up the whole stack. Infrastructure (PostgreSQL, Redis, RabbitMQ)
+    runs in Docker; the .NET services, the Ocelot API gateway and the Next.js frontend run
+    directly on the host via `dotnet run` / `npm run dev`.
+
+    Startup pipeline:
+      1.  Preflight       - verifies the .NET 10 SDK (auto-resolves/installs a side-by-side
+                            copy under %USERPROFILE%\.dotnet if the system dotnet is older),
+                            Node, npm, the Docker engine (auto-starts Docker Desktop and waits
+                            up to 60s), and a valid .env with a >=32-char JWT_SECRET.
+      1b. LAN setup       - only with -Lan (see that parameter).
+      2.  Stop existing   - kills any prior Planora processes (PID files first, then a
+                            port-based sweep) and frees their ports.
+      3.  Clean           - only with -Clean (see that parameter).
+      4.  Infrastructure  - `docker compose up -d postgres redis rabbitmq`, then waits for
+                            each container's health check.
+      5.  Build           - builds Planora.sln once (skipped with -SkipBuild).
+      6.  Backend         - launches each service in dependency order as a hidden background
+                            process (--no-build --no-launch-profile); ports come from each
+                            service's appsettings Kestrel config (the gateway binds 0.0.0.0).
+      7.  Frontend        - `npm run dev -- -H 0.0.0.0` (skipped with -SkipFrontend), so it is
+                            reachable from other devices on the LAN.
+      8.  Health checks   - polls every /health endpoint (and the frontend) until healthy.
+      9.  Browser         - opens http://localhost:3000 (unless -NoBrowser / -SkipFrontend /
+                            -ExitAfterHealthCheck).
+      10. Summary         - prints a status table (and, with -Lan, the shareable URL).
+
+    Database schema: each service creates/ensures its own schema on first startup - this
+    launcher does NOT run a separate migration step. Application data in the Docker volumes
+    is preserved across every run (including -Clean); only `.\Start-Planora-Docker.ps1` /
+    `docker compose down -v` removes volumes.
+
+    Ports (REST, +gRPC sidecar where present): auth 5030 (+5031), category 5281 (+5282),
+    todo 5100 (+5101), collaboration 5060, messaging 5058, realtime 5032, gateway 5132,
+    frontend 3000. Infrastructure (host-mapped): PostgreSQL 5433, Redis 6379, RabbitMQ 5672
+    (management UI 15672).
+
+    Secrets: .env values are loaded into THIS process's environment block only and inherited
+    by the child service processes - they never appear on a child command line or in the
+    transcript. ASP.NET Core config keys are mirrored from the docker-compose mappings
+    (e.g. JWT_SECRET -> JwtSettings__Secret), and Redis/RabbitMQ/Database connection strings
+    are rewritten to the host-mapped localhost ports.
+
+    Logs & lifecycle: a transcript plus per-service logs are written under .\logs; process
+    IDs are tracked in PID files. The script stays in the foreground - press Ctrl+C for a
+    graceful shutdown that stops the frontend, then the services in reverse start order, and
+    clears the PID files (infrastructure containers and data volumes are left running/intact).
+
+    Requirements: Windows PowerShell 5.1+ or PowerShell 7+, Docker Desktop, Node.js + npm,
+    and a .NET 10 SDK (auto-installed locally if missing).
 
 .PARAMETER Clean
-    Wipes code build artifacts (bin/obj/.next) and forces a full rebuild.
-    Database volumes are NOT touched.
+    Kill processes, wipe all bin/obj/.next build artifacts, run `dotnet restore`, rebuild the
+    infrastructure Docker images with --no-cache, then start everything. Forces a fully clean
+    build. Database volumes are NOT touched - application data is preserved.
+
+.PARAMETER ExitAfterHealthCheck
+    Start everything, verify health endpoints, then shut down. Intended for
+    CI / smoke tests. Exit code is non-zero if any service failed its check.
+
+.PARAMETER SkipFrontend
+    Start the backend stack only; do not launch the Next.js frontend.
+
+.PARAMETER NoBrowser
+    Do not open the browser automatically once the frontend is healthy.
+
+.PARAMETER SkipBuild
+    Skip the dotnet build step and start services from existing output
+    (--no-build). Fastest option when only restarting unchanged binaries.
+
+.PARAMETER Stop
+    Stop every Planora process this launcher started (backend services and the
+    frontend), free their ports, and clear stale PID files. Infrastructure
+    containers and all data volumes are left untouched.
+
+.PARAMETER Lan
+    Share the running app on the local Wi-Fi/LAN. Detects the host's physical LAN
+    IPv4 (ignoring any VPN virtual adapter, so a split-tunnel VPN does not interfere),
+    opens the Windows Firewall for the frontend (3000) and API gateway (5132) ports
+    (inbound, LocalSubnet only - one UAC prompt if not already elevated), and prints
+    the shareable http://<lan-ip>:3000 URL. The frontend already binds 0.0.0.0 and the
+    client auto-targets the gateway on the same host it was opened from, so a teammate
+    just opens that URL in their browser.
+
+.PARAMETER Help
+    Print usage and exit without starting anything. No log file is created.
 
 .EXAMPLE
     .\Start-Planora-Local.ps1
+    Fresh restart from the current compiled binaries (rebuilds the solution). Data preserved.
+
 .EXAMPLE
     .\Start-Planora-Local.ps1 -Clean
+    Full clean rebuild: wipe bin/obj/.next, restore, rebuild infra images. Data preserved.
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -SkipBuild
+    Fastest restart - reuse existing build output (services start with --no-build).
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser
+    Backend + gateway only, no frontend, no browser window (e.g. when running the UI separately).
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -Lan
+    Start the stack and share it on the Wi-Fi/LAN: opens the firewall and prints the URL teammates open.
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -ExitAfterHealthCheck
+    CI / smoke test: start, verify every health endpoint, then shut down. Non-zero exit on any failure.
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -Stop
+    Stop everything this launcher started and free the ports. Infra containers/volumes are left intact.
+
+.NOTES
+    - All shell behaviour is Windows PowerShell-compatible.
+    - Companion script: .\Start-Planora-Docker.ps1 runs the entire stack (services included)
+      inside Docker; this launcher instead runs the services on the host for fast iteration.
+    - Logs: .\logs\startup-<timestamp>.log (transcript) plus .\logs\<service>-<timestamp>.log.
 #>
 param(
+    # Wipe bin/obj/.next, restore, and rebuild images with --no-cache. Data volumes preserved.
     [switch]$Clean,
-    [switch]$ExitAfterHealthCheck
+    # Start everything, verify health, then shut down (used by CI / smoke tests).
+    [switch]$ExitAfterHealthCheck,
+    # Do not start the Next.js frontend (backend-only run).
+    [switch]$SkipFrontend,
+    # Do not open the browser once the frontend is healthy.
+    [switch]$NoBrowser,
+    # Reuse existing build output - skip the dotnet build step (fastest iteration).
+    [switch]$SkipBuild,
+    # Stop everything this launcher started, then exit (no startup).
+    [switch]$Stop,
+    # Open the Windows Firewall for the frontend + gateway ports and print a shareable
+    # LAN URL, so another device on the same Wi-Fi can use the app while this runs.
+    [switch]$Lan,
+    # Print usage and exit.
+    [switch]$Help
 )
 
 Set-StrictMode -Version Latest
@@ -110,6 +230,44 @@ function Show-Header {
     Write-Host ""
 }
 
+function Show-Usage {
+    Write-Host ""
+    Write-Host "${BOLD}Planora Local Launcher${RESET}"
+    Write-Host "  Runs the full stack on Windows: PostgreSQL/Redis/RabbitMQ in Docker, and every"
+    Write-Host "  .NET service + the API gateway + the Next.js frontend as host processes."
+    Write-Host "  Health-gated startup; Ctrl+C performs a graceful shutdown. Data volumes are preserved."
+    Write-Host ""
+    Write-Host "${BOLD}USAGE${RESET}"
+    Write-Host "  .\Start-Planora-Local.ps1 [-Clean] [-SkipBuild] [-SkipFrontend] [-NoBrowser]"
+    Write-Host "                            [-Lan] [-ExitAfterHealthCheck] [-Stop] [-Help]"
+    Write-Host ""
+    Write-Host "${BOLD}OPTIONS${RESET}"
+    Write-Host "  -Clean                 Wipe bin/obj/.next, restore, rebuild infra images (data preserved)."
+    Write-Host "  -SkipBuild             Reuse existing build output - skip 'dotnet build' (fastest restart)."
+    Write-Host "  -SkipFrontend          Start the backend + gateway only; do not start the frontend."
+    Write-Host "  -NoBrowser             Do not open the browser when the frontend is ready."
+    Write-Host "  -Lan                   Share on the Wi-Fi/LAN: open the firewall + print the share URL."
+    Write-Host "  -ExitAfterHealthCheck  Start, verify every health endpoint, then shut down (CI / smoke test)."
+    Write-Host "  -Stop                  Stop everything this launcher started and free the ports, then exit."
+    Write-Host "  -Help                  Show this help and exit (no log file created)."
+    Write-Host ""
+    Write-Host "${BOLD}URLS${RESET}  (default ports)"
+    Write-Host "  Frontend  http://localhost:3000        API gateway  http://localhost:5132"
+    Write-Host "  RabbitMQ UI http://localhost:15672     Per-service /health on 5030/5281/5100/5060/5058/5032"
+    Write-Host ""
+    Write-Host "${BOLD}EXAMPLES${RESET}"
+    Write-Host "  .\Start-Planora-Local.ps1                 # fresh restart (rebuild), data preserved"
+    Write-Host "  .\Start-Planora-Local.ps1 -SkipBuild      # fastest restart, reuse existing build"
+    Write-Host "  .\Start-Planora-Local.ps1 -Clean          # full clean rebuild"
+    Write-Host "  .\Start-Planora-Local.ps1 -Lan            # also share on the Wi-Fi/LAN"
+    Write-Host "  .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser"
+    Write-Host "  .\Start-Planora-Local.ps1 -Stop           # stop everything this launcher started"
+    Write-Host "  Get-Help .\Start-Planora-Local.ps1 -Full  # full annotated help"
+    Write-Host ""
+    Write-Host "  Tip: .\Start-Planora-Docker.ps1 runs the entire stack inside Docker instead."
+    Write-Host ""
+}
+
 # ---------------------------------------------------------------------------
 #  Global state
 # ---------------------------------------------------------------------------
@@ -119,35 +277,51 @@ $ComposeFile = Join-Path $RepoRoot "docker-compose.yml"
 $FrontendDir = Join-Path $RepoRoot "frontend"
 $Failures    = [System.Collections.Generic.List[string]]::new()
 $totalTimer  = [System.Diagnostics.Stopwatch]::StartNew()
+# Host LAN IPv4 resolved when -Lan is used; shown in the summary as the shareable URL.
+$script:LanShareIp = $null
 
-# Service definitions - name => project path (relative), port, health path
+# Service definitions in dependency/startup order - name => project path (relative),
+# REST Port, optional gRPC sidecar port (GrpcPort), and health path.
+#
+# Order matters: services that other services call over gRPC start first.
+# Collaboration is a gRPC *client* of Auth (5031) and Todo (5101), so it is listed
+# after both. The API gateway is last. Graceful shutdown reverses this order, and
+# every port list below is derived from these defs so they can never drift.
 $ServiceDefs = [ordered]@{
-    "auth-api"      = @{
+    "auth-api"          = @{
         Project    = "Services/AuthApi/Planora.Auth.Api/Planora.Auth.Api.csproj"
         Port       = 5030
+        GrpcPort   = 5031
         HealthPath = "/health"
     }
-    "category-api"  = @{
+    "category-api"      = @{
         Project    = "Services/CategoryApi/Planora.Category.Api/Planora.Category.Api.csproj"
         Port       = 5281
+        GrpcPort   = 5282
         HealthPath = "/health"
     }
-    "todo-api"      = @{
+    "todo-api"          = @{
         Project    = "Services/TodoApi/Planora.Todo.Api/Planora.Todo.Api.csproj"
         Port       = 5100
+        GrpcPort   = 5101
         HealthPath = "/health"
     }
-    "messaging-api" = @{
+    "collaboration-api" = @{
+        Project    = "Services/CollaborationApi/Planora.Collaboration.Api/Planora.Collaboration.Api.csproj"
+        Port       = 5060
+        HealthPath = "/health"
+    }
+    "messaging-api"     = @{
         Project    = "Services/MessagingApi/Planora.Messaging.Api/Planora.Messaging.Api.csproj"
         Port       = 5058
         HealthPath = "/health"
     }
-    "realtime-api"  = @{
+    "realtime-api"      = @{
         Project    = "Services/RealtimeApi/Planora.Realtime.Api/Planora.Realtime.Api.csproj"
         Port       = 5032
         HealthPath = "/health"
     }
-    "api-gateway"   = @{
+    "api-gateway"       = @{
         Project    = "Planora.ApiGateway/Planora.ApiGateway.csproj"
         Port       = 5132
         HealthPath = "/health"
@@ -155,6 +329,22 @@ $ServiceDefs = [ordered]@{
 }
 
 $FrontendPort = 3000
+
+# Derived, single-source-of-truth port lists (no hand-maintained duplicates).
+$ServiceRestPorts = @($ServiceDefs.Values | ForEach-Object { $_.Port })
+$ServiceGrpcPorts = @(foreach ($d in $ServiceDefs.Values) { if ($d.Contains('GrpcPort')) { $d.GrpcPort } })
+# Every port the launcher owns - used by stop/cleanup fallbacks to find orphans.
+$AllPlanoraPorts  = @($ServiceRestPorts + $ServiceGrpcPorts + $FrontendPort)
+# Service names in reverse startup order, for graceful shutdown.
+$ShutdownOrder    = @($ServiceDefs.Keys) ; [array]::Reverse($ShutdownOrder)
+
+# ---------------------------------------------------------------------------
+#  -Help: print usage and exit before any side effects (no log file created)
+# ---------------------------------------------------------------------------
+if ($Help) {
+    Show-Usage
+    exit 0
+}
 
 # ---------------------------------------------------------------------------
 #  Logging via transcript
@@ -197,15 +387,158 @@ function Get-NpmExecutable {
 }
 
 # ---------------------------------------------------------------------------
+#  LAN sharing helpers (-Lan)
+# ---------------------------------------------------------------------------
+
+# Resolve the host's LAN IPv4. Get-NetAdapter -Physical lists only real NICs, so a VPN's
+# virtual adapter (split-tunnel or not) is ignored and we never hand out the tunnel address.
+# We then keep RFC1918 private addresses only, preferring Wi-Fi, then a 192.168.x address.
+function Get-LanIPv4 {
+    try {
+        $upPhysical = Get-NetAdapter -Physical -ErrorAction Stop | Where-Object { $_.Status -eq 'Up' }
+    } catch {
+        $upPhysical = $null
+    }
+
+    $candidates = @()
+    if ($upPhysical) {
+        $idx = @($upPhysical | Select-Object -ExpandProperty ifIndex)
+        $candidates = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $idx -contains $_.InterfaceIndex }
+    }
+    if (-not $candidates) {
+        # Fallback: any IPv4 that is not loopback or APIPA.
+        $candidates = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' }
+    }
+
+    $private = @($candidates | Where-Object {
+        $_.IPAddress -match '^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)'
+    })
+    if ($private.Count -eq 0) { return $null }
+
+    $best = $private |
+        Sort-Object `
+            @{ Expression = { [int]([bool]($_.InterfaceAlias -match 'Wi-?Fi|Wireless|WLAN')) }; Descending = $true }, `
+            @{ Expression = { [int]($_.IPAddress -like '192.168.*') }; Descending = $true } |
+        Select-Object -First 1
+    return $best.IPAddress
+}
+
+function Test-IsAdministrator {
+    return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+        ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# Open an inbound TCP allow rule for the given ports, scoped to the local subnet only
+# (so it is reachable by Wi-Fi peers but never from the wider internet) and on every
+# firewall profile (a VPN often flips the active adapter to the Public profile). Idempotent:
+# the rule is removed then recreated. Self-elevates a single time if not already admin.
+function Enable-LanFirewall {
+    param([int[]]$Ports)
+
+    $ruleName = "Planora LAN (local dev)"
+    $portCsv  = ($Ports -join ',')
+
+    if (Test-IsAdministrator) {
+        try {
+            Remove-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue
+            New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Action Allow `
+                -Protocol TCP -LocalPort $Ports -Profile Any -RemoteAddress LocalSubnet `
+                -ErrorAction Stop | Out-Null
+            Write-OK "Firewall opened (inbound TCP $portCsv, LocalSubnet only)"
+            return $true
+        } catch {
+            Write-Warn "Could not create the firewall rule: $($_.Exception.Message)"
+            return $false
+        }
+    }
+
+    Write-Info "Requesting administrator rights to open the firewall (one UAC prompt)..."
+    $inner = "Remove-NetFirewallRule -DisplayName '$ruleName' -ErrorAction SilentlyContinue; " +
+             "New-NetFirewallRule -DisplayName '$ruleName' -Direction Inbound -Action Allow " +
+             "-Protocol TCP -LocalPort $portCsv -Profile Any -RemoteAddress LocalSubnet | Out-Null"
+    try {
+        $p = Start-Process powershell -Verb RunAs -WindowStyle Hidden -PassThru -Wait `
+            -ArgumentList @("-NoProfile", "-NonInteractive", "-Command", $inner) -ErrorAction Stop
+        if ($p.ExitCode -eq 0) {
+            Write-OK "Firewall opened (inbound TCP $portCsv, LocalSubnet only)"
+            return $true
+        }
+        Write-Warn "Firewall rule command exited with code $($p.ExitCode)"
+    } catch {
+        Write-Warn "Firewall rule was not created (UAC declined or blocked)."
+        Write-Info "Run this once in an elevated PowerShell, then retry -Lan:"
+        Write-Info "  New-NetFirewallRule -DisplayName '$ruleName' -Direction Inbound -Action Allow -Protocol TCP -LocalPort $portCsv -Profile Any -RemoteAddress LocalSubnet"
+    }
+    return $false
+}
+
+# ---------------------------------------------------------------------------
+#  .NET 10 SDK resolution
+#
+#  The backend targets net10.0. A machine whose default `dotnet` is still .NET 9
+#  cannot build it (NU1202). This resolves a .NET 10 SDK in priority order and
+#  puts it on PATH for this process (inherited by the `dotnet run` children):
+#    1. the system `dotnet` already exposes a 10.x SDK -> use it as-is;
+#    2. a side-by-side SDK under %USERPROFILE%\.dotnet -> prepend it to PATH;
+#    3. otherwise auto-install one there (one-time, ~250 MB) via the official script.
+# ---------------------------------------------------------------------------
+function Test-DotnetHasSdk10 {
+    param([string]$DotnetExe = "dotnet")
+    try { $sdks = & $DotnetExe --list-sdks 2>$null } catch { return $false }
+    return [bool]($sdks | Where-Object { $_ -match '^\s*10\.' })
+}
+
+function Resolve-DotnetSdk10 {
+    if (Test-DotnetHasSdk10 "dotnet") { return $true }
+
+    $localRoot = Join-Path $env:USERPROFILE ".dotnet"
+    $localExe  = Join-Path $localRoot "dotnet.exe"
+
+    if ((Test-Path $localExe) -and (Test-DotnetHasSdk10 $localExe)) {
+        $env:DOTNET_ROOT = $localRoot
+        $env:PATH = "$localRoot;$env:PATH"
+        Write-Info "Using .NET 10 SDK from $localRoot"
+        return $true
+    }
+
+    Write-Warn ".NET 10 SDK not found - installing a local copy to $localRoot (one-time, ~250 MB)..."
+    try {
+        $installer = Join-Path $env:TEMP "dotnet-install.ps1"
+        Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile $installer -UseBasicParsing -TimeoutSec 60
+        & $installer -Channel 10.0 -InstallDir $localRoot -NoPath | Out-Null
+    } catch {
+        Write-Fail ".NET 10 SDK auto-install failed: $($_.Exception.Message)"
+        Write-Info "  Install it manually, then retry:  winget install Microsoft.DotNet.SDK.10"
+        return $false
+    }
+
+    if ((Test-Path $localExe) -and (Test-DotnetHasSdk10 $localExe)) {
+        $env:DOTNET_ROOT = $localRoot
+        $env:PATH = "$localRoot;$env:PATH"
+        Write-OK ".NET 10 SDK installed at $localRoot"
+        return $true
+    }
+
+    Write-Fail ".NET 10 SDK is still unavailable after the install attempt."
+    Write-Info "  Install it manually, then retry:  winget install Microsoft.DotNet.SDK.10"
+    return $false
+}
+
+# ---------------------------------------------------------------------------
 #  Preflight checks
 # ---------------------------------------------------------------------------
 function Invoke-PreflightChecks {
     Write-Step "Running preflight checks..."
     $ok = $true
 
-    # dotnet CLI
+    # dotnet CLI + .NET 10 SDK (the backend targets net10.0)
     if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
         Write-Fail "dotnet CLI not found - install from https://dot.net"
+        $ok = $false
+    } elseif (-not (Resolve-DotnetSdk10)) {
+        Write-Fail ".NET 10 SDK is required - the backend targets net10.0"
         $ok = $false
     } else {
         $ver = (& dotnet --version 2>&1)
@@ -313,8 +646,7 @@ function Stop-PlanoraProcesses {
     $null = Stop-AllServices -Force -GracePeriodSeconds 8 -Quiet
 
     # Phase 2: port-based fallback for anything not in PID files
-    $ports = @(5030, 5031, 5100, 5281, 5282, 5058, 5032, 5132, 3000)
-    foreach ($port in $ports) {
+    foreach ($port in $AllPlanoraPorts) {
         $owner = Get-PortOwner -Port $port
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
@@ -328,17 +660,11 @@ function Stop-PlanoraProcesses {
         & dotnet build-server shutdown 2>&1 | Out-Null
     }
 
-    # Wait for critical ports to be free before proceeding
-    $criticalPorts = @(
-        @{ Port = 5030; ServiceName = "auth-api" },
-        @{ Port = 5100; ServiceName = "todo-api" },
-        @{ Port = 5281; ServiceName = "category-api" },
-        @{ Port = 5132; ServiceName = "api-gateway" },
-        @{ Port = 3000; ServiceName = "frontend" }
-    )
-    foreach ($entry in $criticalPorts) {
-        $null = Wait-PortFree -Port $entry.Port -ServiceName $entry.ServiceName -TimeoutSeconds 15
+    # Wait for every REST port (plus frontend) to be free before proceeding.
+    foreach ($name in $ServiceDefs.Keys) {
+        $null = Wait-PortFree -Port $ServiceDefs[$name].Port -ServiceName $name -TimeoutSeconds 15
     }
+    $null = Wait-PortFree -Port $FrontendPort -ServiceName "frontend" -TimeoutSeconds 15
 
     # Clean up stale PID files now that everything is stopped
     Clear-PidDirectory
@@ -417,6 +743,23 @@ function Invoke-DotnetBackendBuild {
     Write-Step "Building .NET backend services..."
     $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
+    # PERF: build the whole solution in a single dotnet invocation. MSBuild resolves
+    # the project dependency graph and compiles shared projects (BuildingBlocks) once,
+    # in parallel where possible - far faster than 6 sequential per-project builds that
+    # each re-evaluate the same shared references.
+    $sln = Join-Path $RepoRoot "Planora.sln"
+    if (Test-Path $sln) {
+        & dotnet build $sln --configuration Debug --verbosity minimal 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Fail "Solution build failed - inspect the errors above"
+            return $false
+        }
+        $elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
+        Write-OK ".NET backend build complete ($($elapsed)s)"
+        return $true
+    }
+
+    # Fallback: no solution file - build each service project individually.
     foreach ($name in $ServiceDefs.Keys) {
         $def = $ServiceDefs[$name]
         $projectPath = Join-Path $RepoRoot $def.Project
@@ -445,14 +788,30 @@ function Invoke-DotnetBackendBuild {
 function Import-EnvFile {
     $envFile = Join-Path $RepoRoot ".env"
     if (-not (Test-Path $envFile)) { return }
+
+    # SECURITY: load every secret into the *parent* process environment block only.
+    # Child service processes (dotnet run, npm) are launched with Start-Process and
+    # inherit this block automatically — so secrets never appear on a child process
+    # command line (visible via Get-CimInstance Win32_Process) nor in the transcript.
     Get-Content $envFile | ForEach-Object {
         if ($_ -match '^\s*([^#=]+?)\s*=\s*(.*)\s*$') {
             $k = $Matches[1].Trim()
-            $v = $Matches[2].Trim()
-            $v = Convert-EnvValueForLocal -Key $k -Value $v
+            $v = Convert-EnvValueForLocal -Key $k -Value $Matches[2].Trim()
             [System.Environment]::SetEnvironmentVariable($k, $v, "Process")
+
+            # Mirror docker-compose.yml env var mappings so `dotnet run` on the host
+            # receives the same ASP.NET Core config key names the containers get.
+            switch ($k) {
+                "JWT_SECRET"        { [System.Environment]::SetEnvironmentVariable("JwtSettings__Secret",    $v, "Process") }
+                "GRPC_SERVICE_KEY"  { [System.Environment]::SetEnvironmentVariable("GrpcSettings__ServiceKey", $v, "Process") }
+                "RABBITMQ_USER"     { [System.Environment]::SetEnvironmentVariable("RabbitMq__UserName",      $v, "Process") }
+                "RABBITMQ_PASSWORD" { [System.Environment]::SetEnvironmentVariable("RabbitMq__Password",      $v, "Process") }
+            }
         }
     }
+
+    # ASP.NET Core environment + local Redis connection (host-mapped ports).
+    [System.Environment]::SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development", "Process")
     Set-LocalRedisConnectionEnvironment
 }
 
@@ -520,35 +879,11 @@ function Start-DotnetService {
     $ts      = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
     $svcLog  = Join-Path $LogDir "$Name-$ts.log"
 
-    # Build the inline command: set env vars, then start without rebuilding
-    $envSetup  = '$env:ASPNETCORE_ENVIRONMENT=''Development''; '
-
-    $envFile = Join-Path $RepoRoot ".env"
-    if (Test-Path $envFile) {
-        Get-Content $envFile | ForEach-Object {
-            if ($_ -match '^\s*([^#=]+?)\s*=\s*(.*)\s*$') {
-                $k = $Matches[1].Trim()
-                $v = Convert-EnvValueForLocal -Key $k -Value $Matches[2].Trim()
-                $v = $v.Replace("'", "''")
-                $envSetup += "`$env:$k='$v'; "
-                # Mirror docker-compose.yml env var mappings so dotnet run gets the same
-                # ASP.NET Core config key names that containers receive.
-                switch ($k) {
-                    "JWT_SECRET"        { $envSetup += "`$env:JwtSettings__Secret='$v'; " }
-                    "GRPC_SERVICE_KEY"  { $envSetup += "`$env:GrpcSettings__ServiceKey='$v'; " }
-                    "RABBITMQ_USER"     { $envSetup += "`$env:RabbitMq__UserName='$v'; " }
-                    "RABBITMQ_PASSWORD" { $envSetup += "`$env:RabbitMq__Password='$v'; " }
-                }
-            }
-        }
-    }
-
-    $redisConnection = (Get-LocalRedisConnectionString).Replace("'", "''")
-    $envSetup += "`$env:ConnectionStrings__Redis='$redisConnection'; "
-    $envSetup += "`$env:Redis__Configuration='$redisConnection'; "
-    $envSetup += "`$env:REDIS_CONNECTION='$redisConnection'; "
-
-    $cmd = $envSetup + 'dotnet run --project "' + $projectPath + '" --no-launch-profile --no-build 2>&1 | Tee-Object -FilePath "' + $svcLog + '"'
+    # SECURITY: no secrets are embedded in this command line. All env vars
+    # (JWT secret, gRPC key, RabbitMQ creds, Redis connection, ASP.NET env)
+    # were loaded into this process's environment block by Import-EnvFile and
+    # are inherited automatically by the child process below.
+    $cmd = 'dotnet run --project "' + $projectPath + '" --no-launch-profile --no-build 2>&1 | Tee-Object -FilePath "' + $svcLog + '"'
 
     $proc = Start-Process powershell `
         -ArgumentList @("-NoProfile", "-NonInteractive", "-Command", $cmd) `
@@ -631,10 +966,12 @@ function Invoke-AllHealthChecks {
             Timeout   = 120
         }
     }
-    $services += @{
-        Name      = "frontend"
-        HealthUrl = "http://127.0.0.1:$FrontendPort"
-        Timeout   = 180
+    if (-not $SkipFrontend) {
+        $services += @{
+            Name      = "frontend"
+            HealthUrl = "http://127.0.0.1:$FrontendPort"
+            Timeout   = 180
+        }
     }
 
     $results = Test-AllServicesHealthy -Services $services -OverallTimeoutSeconds 240
@@ -662,6 +999,7 @@ function Show-Summary {
         @{ Name = "Auth API";    Url = "http://localhost:5030";  Key = "auth-api" }
         @{ Name = "Category API";Url = "http://localhost:5281";  Key = "category-api" }
         @{ Name = "Todo API";    Url = "http://localhost:5100";  Key = "todo-api" }
+        @{ Name = "Collaboration API"; Url = "http://localhost:5060"; Key = "collaboration-api" }
         @{ Name = "Messaging API";Url = "http://localhost:5058"; Key = "messaging-api" }
         @{ Name = "Realtime API";Url = "http://localhost:5032";  Key = "realtime-api" }
         @{ Name = "RabbitMQ UI"; Url = "http://localhost:15672"; Key = $null }
@@ -682,7 +1020,7 @@ function Show-Summary {
         } else {
             "$($RED)x${RESET}"
         }
-        $row = "  $statusIcon  $($s.Name.PadRight(16)) $($s.Url)"
+        $row = "  $statusIcon  $($s.Name.PadRight(18)) $($s.Url)"
         Write-Host "${CYAN}  |${RESET}$($row.PadRight(58))${CYAN}|${RESET}"
     }
 
@@ -715,8 +1053,7 @@ function Invoke-GracefulShutdown {
 
     # dotnet run/npm are launched through wrapper PowerShell processes. Stop the
     # real service processes on their ports first so the wrappers can exit cleanly.
-    $servicePorts = @(3000, 5132, 5032, 5058, 5100, 5281, 5030)
-    foreach ($port in $servicePorts) {
+    foreach ($port in $AllPlanoraPorts) {
         $owner = Get-PortOwner -Port $port
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping service PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
@@ -728,14 +1065,13 @@ function Invoke-GracefulShutdown {
     # Stop frontend wrapper first
     $null = Stop-ServiceByPid -ServiceName "frontend" -Force -GracePeriodSeconds 2 -Quiet
 
-    # Stop .NET services in reverse startup order
-    foreach ($name in @("api-gateway", "realtime-api", "messaging-api", "todo-api", "category-api", "auth-api")) {
+    # Stop .NET services in reverse startup order (derived from $ServiceDefs)
+    foreach ($name in $ShutdownOrder) {
         $null = Stop-ServiceByPid -ServiceName $name -Force -GracePeriodSeconds 2 -Quiet
     }
 
     # Final port-based fallback for anything that survived wrapper shutdown.
-    $ports = @(5030, 5031, 5100, 5281, 5282, 5058, 5032, 5132, 3000)
-    foreach ($port in $ports) {
+    foreach ($port in $AllPlanoraPorts) {
         $owner = Get-PortOwner -Port $port
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping leftover PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
@@ -755,14 +1091,16 @@ $null = Register-EngineEvent PowerShell.Exiting -Action { Invoke-GracefulShutdow
 # ===========================================================================
 #  ENTRY POINT
 # ===========================================================================
-$modeLabel = if ($Clean) { "CLEAN REBUILD" } else { "Fresh Restart" }
+$modeLabel = if ($Stop) { "Stop" } elseif ($Clean) { "CLEAN REBUILD" } else { "Fresh Restart" }
 Show-Header "Planora - Local Launcher [$modeLabel]"
 
 Write-Info "Log file: $LogFile"
 Write-Host ""
 
 Set-Location -LiteralPath $RepoRoot
-Import-EnvFile
+
+# Stop mode never touches secrets - it only needs the helper modules.
+if (-not $Stop) { Import-EnvFile }
 
 try {
     Import-LauncherModules
@@ -770,6 +1108,12 @@ try {
     Write-Fail $_
     try { Stop-Transcript | Out-Null } catch {}
     exit 1
+}
+
+# -- -Stop: tear down everything this launcher started, then exit ------------
+if ($Stop) {
+    Invoke-GracefulShutdown
+    exit 0
 }
 
 # -- Step 1: Preflight -------------------------------------------------------
@@ -782,6 +1126,21 @@ if (-not $preOk) {
     Write-Fail "Preflight checks failed - resolve the issues above and retry."
     try { Stop-Transcript | Out-Null } catch {}
     exit 1
+}
+
+# -- Step 1b: LAN sharing setup (-Lan) ---------------------------------------
+if ($Lan) {
+    Write-Host ""
+    Write-Step "Configuring LAN sharing..."
+    $GatewayPort = $ServiceDefs["api-gateway"].Port
+    $script:LanShareIp = Get-LanIPv4
+    if (-not $script:LanShareIp) {
+        Write-Warn "Could not detect a LAN IPv4 (are you connected to Wi-Fi/Ethernet?)."
+        Write-Info "Continuing without LAN sharing; the app will still work on localhost."
+    } else {
+        Write-OK "Host LAN address: $($script:LanShareIp)"
+        $null = Enable-LanFirewall -Ports @($FrontendPort, $GatewayPort)
+    }
 }
 
 # -- Step 2: Stop existing processes -----------------------------------------
@@ -824,12 +1183,16 @@ if (-not $infraOk) {
 
 # -- Step 5: Build .NET backend services -------------------------------------
 Write-Host ""
-$backendBuildOk = Invoke-DotnetBackendBuild
-if (-not $backendBuildOk) {
-    Write-Fail "Backend build failed. Fix the compilation errors above and retry."
-    $Failures.Add("Backend build failed")
-    try { Stop-Transcript | Out-Null } catch {}
-    exit 1
+if ($SkipBuild) {
+    Write-Warn "SkipBuild specified - reusing existing build output (services start with --no-build)"
+} else {
+    $backendBuildOk = Invoke-DotnetBackendBuild
+    if (-not $backendBuildOk) {
+        Write-Fail "Backend build failed. Fix the compilation errors above and retry."
+        $Failures.Add("Backend build failed")
+        try { Stop-Transcript | Out-Null } catch {}
+        exit 1
+    }
 }
 
 # -- Step 6: Start .NET backend services -------------------------------------
@@ -846,12 +1209,17 @@ $elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
 Write-OK "All .NET service processes launched ($($elapsed)s)"
 
 # -- Step 7: Start frontend --------------------------------------------------
-Write-Host ""
-Write-Step "Starting Next.js frontend..."
-$stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
-Start-Frontend
-$elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
-Write-OK "Frontend launch triggered ($($elapsed)s)"
+if ($SkipFrontend) {
+    Write-Host ""
+    Write-Warn "SkipFrontend specified - frontend will not be started"
+} else {
+    Write-Host ""
+    Write-Step "Starting Next.js frontend..."
+    $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
+    Start-Frontend
+    $elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
+    Write-OK "Frontend launch triggered ($($elapsed)s)"
+}
 
 # -- Step 8: Wait for health endpoints ---------------------------------------
 Write-Host ""
@@ -859,13 +1227,33 @@ $healthResults = Invoke-AllHealthChecks
 
 # -- Step 9: Open browser (if frontend is healthy) ---------------------------
 $frontendHealthy = $healthResults | Where-Object { $_.ServiceName -eq "frontend" -and $_.Status -eq "Healthy" }
-if ($frontendHealthy -and -not $ExitAfterHealthCheck) {
+if ($frontendHealthy -and -not $ExitAfterHealthCheck -and -not $NoBrowser -and -not $SkipFrontend) {
     try { Start-Process "http://localhost:3000" | Out-Null } catch {}
 }
 
 # -- Step 10: Print summary ---------------------------------------------------
 $totalSecs = $totalTimer.Elapsed.TotalSeconds
 Show-Summary -HealthResults $healthResults -TotalSeconds $totalSecs
+
+# -- Step 10b: LAN share banner ----------------------------------------------
+if ($Lan -and $script:LanShareIp) {
+    $border = "=" * 58
+    Write-Host ""
+    Write-Host "${GREEN}  +${border}+${RESET}"
+    Write-Host "${GREEN}  |${BOLD}$(("  Share on your Wi-Fi / LAN").PadRight(58))${RESET}${GREEN}|${RESET}"
+    Write-Host "${GREEN}  +${border}+${RESET}"
+    $shareUrl = "http://$($script:LanShareIp):$FrontendPort"
+    Write-Host "${GREEN}  |${RESET}$(("  Anyone on the same network opens:").PadRight(58))${GREEN}|${RESET}"
+    Write-Host "${GREEN}  |${BOLD}$("    $shareUrl".PadRight(58))${RESET}${GREEN}|${RESET}"
+    Write-Host "${GREEN}  +${border}+${RESET}"
+    Write-Host ""
+    Write-Info "The browser auto-targets the API gateway on the same host - nothing to configure on their end."
+    Write-Info "If a teammate cannot connect while your VPN is on:"
+    Write-Info "  - keep the VPN in split-tunnel mode and allow local/LAN traffic, or"
+    Write-Info "  - briefly disable the VPN; inbound LAN reaches your physical Wi-Fi adapter directly."
+    Write-Info "Both devices must be on the same Wi-Fi (not a 'guest'/isolated network)."
+    Write-Host ""
+}
 
 if ($Failures.Count -gt 0) {
     Write-Warn "Completed with $($Failures.Count) issue(s):"

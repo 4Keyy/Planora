@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 
 namespace Planora.Auth.Api.Configuration
 {
@@ -43,7 +44,7 @@ namespace Planora.Auth.Api.Configuration
                     ValidAudience = jwtSettings.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(jwtSettings.Secret)),
-                    ClockSkew = TimeSpan.Zero,
+                    ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds),
                     RequireExpirationTime = true
                 };
 

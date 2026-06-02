@@ -5,7 +5,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Plus, CheckCircle2, ChevronRight, History, SlidersHorizontal, X } from "lucide-react"
+import { Plus, CheckCircle2, ChevronRight, History, X } from "lucide-react"
+import axios from "axios"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
@@ -15,20 +16,39 @@ import { TodoCard } from "@/components/todos/todo-card"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
-import { EditTodoModal } from "@/components/todos/edit-todo-modal"
-import { CreateTodoPanel } from "@/components/todos/create-todo-panel"
+import dynamic from "next/dynamic"
+// Heavy task-editing components are lazy-loaded: they only mount when the user
+// opens the create panel or clicks edit on a card, so deferring their JS
+// shrinks the tasks page's First Load by ~30 kB without changing the visible
+// flow (the framer-motion enter animation absorbs the ~50 ms chunk fetch).
+const EditTodoModal = dynamic(
+  () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
+  { ssr: false },
+)
+const CreateTodoPanel = dynamic(
+  () => import("@/components/todos/create-todo-panel").then((m) => ({ default: m.CreateTodoPanel })),
+  { ssr: false },
+)
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
 import { TASK_CREATED_EVENT } from "@/lib/events"
 import { EASE_OUT_EXPO, SPRING_GENTLE } from "@/lib/animations"
-import { readFilter, writeFilter, readHintSeen, writeHintSeen } from "@/utils/category-filter"
+import { readFilter, writeFilter } from "@/utils/category-filter"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
+import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
-import { ICON_MAP } from "@/lib/icon-map"
 
 const ACTIVE_PAGE_SIZE = 200
 const COMPLETED_PREVIEW_SIZE = 20
+// PERF: the active feed keeps the "all tasks in one scroll" UX, but only mounts
+// a window of cards into the DOM. TodoCard is expensive, so mounting hundreds at
+// once is what made this page lag. We render an initial batch and grow it as the
+// user scrolls (IntersectionObserver sentinel), capping mounted cards regardless
+// of how many tasks exist. Data is still fetched in full so client-side category
+// filtering stays instant.
+const INITIAL_VISIBLE_TASKS = 24
+const VISIBLE_TASKS_CHUNK = 24
 const TODO_MASONRY_BREAKPOINTS = [
   { maxWidth: 1400, columns: 3 },
   { maxWidth: 900, columns: 2 },
@@ -72,6 +92,13 @@ export default function TasksPage() {
 
   const friendNameCache = useRef<Map<string, string>>(new Map())
 
+  // PERF: live mirrors of the lists for the memoized TodoCard's (possibly stale)
+  // handler closures to read from. See the equivalent note on the dashboard.
+  const todosRef = useRef(todos)
+  const completedPreviewRef = useRef(completedPreview)
+  todosRef.current = todos
+  completedPreviewRef.current = completedPreview
+
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
   const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
   const [commentsRefreshKey, setCommentsRefreshKey] = useState(0)
@@ -79,31 +106,15 @@ export default function TasksPage() {
   const [showCompleted, setShowCompleted] = useState(false)
   const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([])
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
-  const [hintDismissed, setHintDismissed] = useState(false)
-  const hintDismissedRef = useRef<boolean>(false)
 
   // Smooth scroll to top when large panels collapse
   useCollapseScroll(isCreateOpen)
   useCollapseScroll(showCompleted)
 
-  // Hydrate filter + hint state from localStorage after mount
+  // Hydrate the persisted category filter after mount
   useEffect(() => {
     setFilterCategoryIds(readFilter())
-    const seen = readHintSeen()
-    setHintDismissed(seen)
-    hintDismissedRef.current = seen
   }, [])
-
-  // Auto-dismiss hint after 7 seconds
-  useEffect(() => {
-    if (hintDismissed) return
-    const t = setTimeout(() => {
-      setHintDismissed(true)
-      hintDismissedRef.current = true
-      writeHintSeen()
-    }, 7000)
-    return () => clearTimeout(t)
-  }, [hintDismissed])
 
   // Press "F" — toggle category filter modal (skip when typing in inputs or create panel open)
   useEffect(() => {
@@ -115,11 +126,6 @@ export default function TasksPage() {
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
       e.preventDefault()
       setIsCategoryModalOpen(prev => !prev)
-      if (!hintDismissedRef.current) {
-        setHintDismissed(true)
-        hintDismissedRef.current = true
-        writeHintSeen()
-      }
     }
     window.addEventListener("keydown", handler, true)
     return () => window.removeEventListener("keydown", handler, true)
@@ -145,16 +151,12 @@ export default function TasksPage() {
     writeFilter(ids)
   }, [])
 
-  const dismissHint = useCallback(() => {
-    setHintDismissed(true)
-    writeHintSeen()
-  }, [])
-
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories")
+      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories", { signal })
       setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
     } catch (error) {
+      if (axios.isCancel(error) || signal?.aborted) return
       console.error("Failed to fetch categories:", error)
     }
   }, [])
@@ -188,7 +190,7 @@ export default function TasksPage() {
     })
   }, [user?.userId])
 
-  const fetchActiveTodos = useCallback(async () => {
+  const fetchActiveTodos = useCallback(async (signal?: AbortSignal) => {
     setLoading(true)
     try {
       const all: Todo[] = []
@@ -196,8 +198,10 @@ export default function TasksPage() {
       let totalCount: number | null = null
 
       while (true) {
+        if (signal?.aborted) return
         const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", {
           params: { pageNumber: page, pageSize: ACTIVE_PAGE_SIZE, isCompleted: false },
+          signal,
         })
         const items = res.data.items ?? []
         const nextTotal = res.data.totalCount
@@ -215,32 +219,39 @@ export default function TasksPage() {
         if (page > 100) break
       }
 
+      if (signal?.aborted) return
       const enriched = await enrichTodosWithAuthorNames(all)
+      if (signal?.aborted) return
       setTodos(enriched)
     } catch (error) {
+      if (axios.isCancel(error) || signal?.aborted) return
       console.error("Failed to fetch active todos:", error)
       addToast({ type: "error", title: "Failed to load tasks" })
     } finally {
-      setLoading(false)
+      if (!signal?.aborted) setLoading(false)
     }
   }, [addToast, enrichTodosWithAuthorNames])
 
-  const fetchCompletedPreview = useCallback(async () => {
+  const fetchCompletedPreview = useCallback(async (signal?: AbortSignal) => {
     setCompletedLoading(true)
     try {
       const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", {
         params: { pageNumber: 1, pageSize: COMPLETED_PREVIEW_SIZE, isCompleted: true },
+        signal,
       })
+      if (signal?.aborted) return
       const items = res.data.items ?? []
       const enriched = await enrichTodosWithAuthorNames(items)
+      if (signal?.aborted) return
       setCompletedPreview(enriched)
       setCompletedTotalCount(res.data.totalCount ?? enriched.length)
     } catch (error) {
+      if (axios.isCancel(error) || signal?.aborted) return
       console.error("Failed to fetch completed preview:", error)
       setCompletedPreview([])
       setCompletedTotalCount(0)
     } finally {
-      setCompletedLoading(false)
+      if (!signal?.aborted) setCompletedLoading(false)
     }
   }, [enrichTodosWithAuthorNames])
 
@@ -253,9 +264,16 @@ export default function TasksPage() {
       return
     }
 
-    fetchActiveTodos()
-    fetchCompletedPreview()
-    fetchCategories()
+    // Cancel all in-flight mount-time fetches on unmount or auth change so a
+    // rapid route switch does not leave stale fetches racing to setState on an
+    // unmounted component.
+    const controller = new AbortController()
+    void Promise.all([
+      fetchActiveTodos(controller.signal),
+      fetchCompletedPreview(controller.signal),
+      fetchCategories(controller.signal),
+    ])
+    return () => controller.abort()
   }, [isAuthenticated, hasHydrated, router, fetchActiveTodos, fetchCompletedPreview, fetchCategories, clearAuth])
 
   useEffect(() => {
@@ -265,7 +283,7 @@ export default function TasksPage() {
   }, [fetchActiveTodos])
 
   const handleComplete = async (id: string) => {
-    const existingTodo = todos.find((t) => t.id === id) ?? completedPreview.find((t) => t.id === id)
+    const existingTodo = todosRef.current.find((t) => t.id === id) ?? completedPreviewRef.current.find((t) => t.id === id)
     if (!existingTodo) return
 
     const currentUserId = user?.userId
@@ -412,7 +430,7 @@ export default function TasksPage() {
   }
 
   const handleToggleHidden = useCallback(async (todoId: string) => {
-    const existing = todos.find(t => t.id === todoId) ?? completedPreview.find(t => t.id === todoId)
+    const existing = todosRef.current.find(t => t.id === todoId) ?? completedPreviewRef.current.find(t => t.id === todoId)
     if (!existing) return
     const newHidden = !(existing.hidden ?? false)
     const isOwner = isTodoOwner(existing, user?.userId)
@@ -473,7 +491,7 @@ export default function TasksPage() {
       }
       addToast({ type: "error", title: "Failed to update task visibility" })
     }
-  }, [todos, completedPreview, user?.userId, addToast])
+  }, [user?.userId, addToast])
 
   const activeCount = todos.filter(t => t.isCompletedByViewer !== true).length
   const doneCount = completedTotalCount
@@ -490,6 +508,41 @@ export default function TasksPage() {
     return sortedTodos.filter(t => filterCategoryIds.includes(t.categoryId ?? ""))
   }, [sortedTodos, filterCategoryIds])
 
+  // PERF: progressive mounting window over the active feed (see constants above).
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_TASKS)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
+
+  // Reset the window only on an intentional context switch (filter change). We
+  // deliberately do NOT reset on data mutations, so an optimistic update (e.g.
+  // completing one task) never collapses the user's scroll position.
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_TASKS)
+  }, [filterCategoryIds])
+
+  const renderedTodos = useMemo(
+    () => visibleTodos.slice(0, visibleCount),
+    [visibleTodos, visibleCount],
+  )
+  const hasMoreTodos = visibleCount < visibleTodos.length
+
+  useEffect(() => {
+    if (!hasMoreTodos) return
+    const el = loadMoreRef.current
+    if (!el) return
+    // Pre-load the next batch ~600px before the sentinel reaches the viewport so
+    // new cards are mounted by the time the user scrolls to them (no blank gap).
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleCount((count) => count + VISIBLE_TASKS_CHUNK)
+        }
+      },
+      { rootMargin: "600px 0px" },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMoreTodos])
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -501,84 +554,6 @@ export default function TasksPage() {
           <p className="text-gray-500 mt-1">
             {activeCount} active · {doneCount} done · {totalCount} total
           </p>
-
-          <AnimatePresence>
-            {filterCategoryIds.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-3 px-4 py-3 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-all"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="flex items-center gap-2">
-                    {filterCategoryIds.map(id => {
-                      const cat = categories.find(c => c.id === id)
-                      const CatIcon = cat?.icon ? (ICON_MAP[cat.icon] ?? null) : null
-                      return cat ? (
-                        <motion.div
-                          key={id}
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="h-7 w-7 rounded-lg flex items-center justify-center shadow-xs border border-gray-200"
-                          style={{ backgroundColor: `${cat.color ?? "#9ca3af"}15` }}
-                          title={cat.name}
-                        >
-                          {CatIcon ? (
-                            <CatIcon className="h-4 w-4" style={{ color: cat.color ?? "#9ca3af" }} />
-                          ) : (
-                            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color ?? "#9ca3af" }} />
-                          )}
-                        </motion.div>
-                      ) : null
-                    })}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">
-                      Filter Active
-                    </span>
-                    <span className="text-xs font-semibold text-gray-600">
-                      {filterCategoryIds.length === 1 ? "1 category" : `${filterCategoryIds.length} categories`}
-                    </span>
-                  </div>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.2, rotate: 90 }}
-                  whileTap={{ scale: 0.85 }}
-                  onClick={() => handleFilterChange([])}
-                  className="h-8 w-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-black hover:bg-gray-100 transition-all font-bold text-lg flex-shrink-0"
-                  aria-label="Clear category filter"
-                >
-                  ✕
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {!hintDismissed && !loading && categories.length > 0 && filterCategoryIds.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="flex items-center gap-1.5 mt-2"
-              >
-                <kbd className="font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[10px] border border-gray-200 leading-tight">
-                  F
-                </kbd>
-                <span className="text-[11px] text-gray-400">filter by category</span>
-                <button
-                  onClick={dismissHint}
-                  className="text-[10px] text-gray-300 hover:text-gray-500 transition-colors ml-0.5"
-                  aria-label="Dismiss hint"
-                >
-                  ✕
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <Button
@@ -628,37 +603,12 @@ export default function TasksPage() {
             transition={{ duration: 0.2, ease: [0.4, 0, 1, 1] }}
             className="overflow-hidden"
           >
-            <motion.div
-              initial={{ y: -10, scale: 0.98, opacity: 0 }}
-              animate={{ y: 0, scale: 1, opacity: 1 }}
-              exit={{ y: -6, scale: 0.98, opacity: 0 }}
-              transition={{ duration: 0.18, ease: [0.4, 0, 1, 1] }}
-              className="bg-white/50 backdrop-blur-sm border border-gray-100 rounded-[2rem] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm w-full"
-            >
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-2xl bg-black text-white flex items-center justify-center shadow-lg shadow-black/10">
-                  <SlidersHorizontal className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Quick Filter</h3>
-                  <p className="text-xs text-gray-500 font-medium">Manage your view by categories with ease.</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-100/80 rounded-xl border border-gray-200/50">
-                  <kbd className="font-mono bg-white px-2 py-0.5 rounded text-[10px] font-black border border-gray-200 shadow-sm text-gray-600">F</kbd>
-                  <span className="text-[11px] font-bold text-gray-600 ml-1">to filter</span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-xl font-bold text-xs h-10 border-gray-200 hover:bg-black hover:text-white hover:border-black transition-[background-color,border-color,color] px-6"
-                  onClick={() => setIsCategoryModalOpen(true)}
-                >
-                  Open Menu
-                </Button>
-              </div>
-            </motion.div>
+            <QuickFilterBar
+              categories={categories}
+              selectedIds={filterCategoryIds}
+              onOpen={() => setIsCategoryModalOpen(true)}
+              onClear={() => handleFilterChange([])}
+            />
           </motion.div>
         ) : (
           <motion.div
@@ -737,8 +687,9 @@ export default function TasksPage() {
                 )}
               </div>
             ) : (
+              <>
               <MasonryColumns
-                items={visibleTodos}
+                items={renderedTodos}
                 getKey={(todo) => todo.id}
                 getItemWeight={getTaskWeight}
                 columns={4}
@@ -782,6 +733,14 @@ export default function TasksPage() {
                   />
                 )}
               />
+              {hasMoreTodos && (
+                <div
+                  ref={loadMoreRef}
+                  aria-hidden="true"
+                  className="h-6 w-full"
+                />
+              )}
+              </>
             )}
           </div>
 
@@ -880,6 +839,33 @@ export default function TasksPage() {
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
             onCreateCategory={fetchCategories}
             commentsRefreshKey={commentsRefreshKey}
+            onStartWork={async () => {
+              const todo = editingTodo
+              if (!todo) return
+              if (isTodoOwner(todo, user?.userId)) {
+                try {
+                  await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "inProgress" })
+                  setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "In Progress" } : t))
+                  setEditingTodo((prev) => prev ? { ...prev, status: "In Progress" } : prev)
+                  setCommentsRefreshKey((k) => k + 1)
+                } catch {
+                  addToast({ type: "error", title: "Could not update task" })
+                }
+              } else {
+                try {
+                  const updated = await joinTodo(todo.id)
+                  setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
+                  setEditingTodo((prev) => prev ? { ...prev, ...updated } : prev)
+                  setCommentsRefreshKey((k) => k + 1)
+                } catch (err: unknown) {
+                  const status = (err as { response?: { status: number } })?.response?.status
+                  addToast(status === 409
+                    ? { type: "warning", title: "Task is full or you have already joined" }
+                    : { type: "error", title: "Could not join task" })
+                }
+              }
+            }}
+            onCompleteTask={() => handleComplete(editingTodo.id)}
             onDescriptionChange={(desc) => {
               const update = (prev: Todo[]) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t)
               setTodos(update)

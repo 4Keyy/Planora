@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "Development": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://0.0.0.0:5060",
+      "hotReloadProfile": "aspnetcore",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ConnectionStrings__CollaborationDatabase": "Host=localhost;Port=5433;Database=planora_collaboration;Username=postgres;Password=postgres",
+        "REDIS_CONNECTION": "localhost:6379,abortConnect=false",
+        "RABBITMQ_HOST": "localhost",
+        "RABBITMQ_PORT": "5672",
+        "RABBITMQ_USER": "guest",
+        "RABBITMQ_PASSWORD": "guest",
+        "JWT_SECRET": "DevSecretKeyThatIsAtLeast32CharactersLongForHS256Algorithm!!",
+        "JWT_ISSUER": "Planora.Auth",
+        "JWT_AUDIENCE": "Planora.Clients"
+      }
+    }
+  }
+}

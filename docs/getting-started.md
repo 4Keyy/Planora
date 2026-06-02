@@ -6,7 +6,7 @@ This guide takes a clean local checkout to a running Planora app.
 
 | Requirement | Recommended version | Used by |
 |---|---:|---|
-| .NET SDK | 9.x | backend services and xUnit tests |
+| .NET SDK | 10.x | backend services and xUnit tests |
 | Node.js | current LTS compatible with Next.js 15 | frontend |
 | npm | bundled with Node | frontend dependencies/scripts |
 | Docker Desktop | recent stable | PostgreSQL, Redis, RabbitMQ, optional backend containers |
@@ -14,7 +14,7 @@ This guide takes a clean local checkout to a running Planora app.
 
 Evidence:
 
-- `Directory.Build.props` sets `TargetFramework` to `net9.0`.
+- `Directory.Build.props` sets `TargetFramework` to `net10.0`.
 - `frontend/package.json` uses `next` `^15.5.15`, React `18.3.1`, TypeScript `^5.7.2`.
 - `docker-compose.yml` defines PostgreSQL 16, Redis 7, RabbitMQ 3.13, and backend containers.
 - `Start-Planora-*.ps1` imports helper modules from `scripts/*.psm1`; those files avoid non-ASCII punctuation so Windows PowerShell can parse them reliably.
@@ -84,7 +84,18 @@ Both launch scripts support `-Clean`:
 
 The scripts describe `-Clean` as a rebuild/cleanup of code artifacts or images. They explicitly do not wipe database volumes.
 
-On a first clean database start, Auth, Todo, Category, and Messaging initialize their schemas automatically. If local EF migrations exist, they are applied. If no migrations exist, startup creates the schema from the current EF model. This is intentional because generated `Migrations/` folders are not committed.
+### Stopping and help
+
+Both launchers also accept `-Stop` and `-Help`:
+
+- `Start-Planora-Local.ps1 -Stop` stops every process the launcher started and
+  frees their ports, leaving infrastructure containers and data volumes untouched.
+- `Start-Planora-Docker.ps1 -Stop` stops the host frontend and runs
+  `docker compose down` (containers + network only); data volumes are preserved.
+- `-Help` on either prints the full option list and exits. Both also support
+  `-SkipFrontend`, `-NoBrowser`, and `-ExitAfterHealthCheck`.
+
+On a first clean database start, Auth, Todo, Category, Messaging, and Collaboration initialize their schemas automatically. If local EF migrations exist, they are applied. If no migrations exist, startup creates the schema from the current EF model. This is intentional because generated `Migrations/` folders are not committed.
 
 ## 3. Verify The System
 

@@ -12,6 +12,13 @@ interface AvatarProps {
   email?: string | null
   size?: number
   className?: string
+  /**
+   * Eager-load this avatar instead of letting `next/image` lazy-load it.
+   * Set to `true` only for above-the-fold avatars on critical pages — the
+   * navbar's current-user avatar is the canonical case. Defaults to `false`
+   * so list / picker / card avatars stay lazy and out of the LCP budget.
+   */
+  priority?: boolean
 }
 
 function resolveAvatarSrc(src: string): string {
@@ -27,6 +34,7 @@ export function Avatar({
   email,
   size = 40,
   className,
+  priority = false,
 }: AvatarProps) {
   const [error, setError] = useState(false)
 
@@ -63,13 +71,23 @@ export function Avatar({
       style={{ width: size, height: size }}
     >
       {fullSrc && !error ? (
+        // T4.11: Let Next.js's image optimizer resize + reformat for the actual
+        // display size (sizes prop) instead of shipping the full 64/128/512 WebP
+        // variant for a 40 px display. remotePatterns in next.config.js already
+        // whitelists the API origin in production and all HTTP/HTTPS hosts in
+        // dev, so the /_next/image proxy can reach the avatar URL. onError
+        // falls back to the initials block if the optimizer pipeline ever fails.
         <Image
           src={fullSrc}
           alt={firstName || "User"}
           fill
+          sizes={`${size}px`}
           className="aspect-square h-full w-full object-cover"
           onError={() => setError(true)}
-          unoptimized
+          // `priority` opts the navbar avatar out of lazy-loading so it counts
+          // as an LCP candidate; everywhere else, the default lazy-load keeps
+          // avatars off the critical render path.
+          priority={priority}
         />
       ) : (
         <span

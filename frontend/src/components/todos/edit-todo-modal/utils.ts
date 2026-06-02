@@ -92,16 +92,6 @@ export function getHueFromId(id: string): number {
   return Math.abs(hash) % 360
 }
 
-// System event verb → marker color
-export function getSystemEventColor(content: string): string {
-  const lower = content.toLowerCase()
-  if (lower.includes("взял в работу") || lower.includes("завершил")) return "#10b981"
-  if (lower.includes("присоединился"))  return "#0ea5e9"
-  if (lower.includes("приостановил"))   return "#f59e0b"
-  if (lower.includes("покинул"))        return "#ef4444"
-  return "#a3a3a3"
-}
-
 export const CATEGORY_COLOR_SWATCHES = [
   "#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6",
   "#ec4899","#06b6d4","#84cc16","#f97316","#6366f1",

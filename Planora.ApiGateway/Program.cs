@@ -1,8 +1,11 @@
 using Planora.ApiGateway.Configuration;
 using Planora.ApiGateway.Extensions;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Logging;
 using Planora.BuildingBlocks.Infrastructure.Middleware;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 using System.Threading.RateLimiting;
 
 namespace Planora.ApiGateway;
@@ -36,6 +39,44 @@ public class Program
             builder.Services.AddOcelotConfiguration(builder.Configuration);
             builder.Services.AddControllers();
             builder.Services.AddHealthChecks();
+
+            // SECURITY: forwarded-header processing is OPT-IN per environment.
+            // The gateway sits behind Fly's edge proxy in production; without trusting
+            // X-Forwarded-For the rate-limit partition key collapses to the Fly edge
+            // IP (one bucket for every user). With unconditional trust, ANY client can
+            // spoof X-Forwarded-For: <victim-ip> and bypass the rate limit by
+            // poisoning the bucket.
+            //
+            // Resolution: enable ForwardedHeaders only when at least one KnownProxy is
+            // configured. The proxy list is supplied via appsettings or the
+            // ForwardedHeaders__KnownProxies environment variable (CIDR-aware
+            // entries are still treated as individual IPs here — KnownNetworks is the
+            // CIDR-aware alternative when needed). Production deployments must set
+            // the Fly edge range; development leaves the section empty and the
+            // middleware is not registered.
+            var knownProxies = builder.Configuration
+                .GetSection("ForwardedHeaders:KnownProxies")
+                .Get<string[]>() ?? Array.Empty<string>();
+            if (knownProxies.Length > 0)
+            {
+                builder.Services.Configure<ForwardedHeadersOptions>(options =>
+                {
+                    options.ForwardedHeaders =
+                        ForwardedHeaders.XForwardedFor
+                        | ForwardedHeaders.XForwardedProto
+                        | ForwardedHeaders.XForwardedHost;
+                    options.ForwardLimit = 1;
+                    options.KnownProxies.Clear();
+                    options.KnownIPNetworks.Clear();
+                    foreach (var proxy in knownProxies)
+                    {
+                        if (IPAddress.TryParse(proxy, out var parsed))
+                        {
+                            options.KnownProxies.Add(parsed);
+                        }
+                    }
+                });
+            }
 
             // OpenTelemetry — traces + metrics. No-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset.
             // The gateway is the canonical entrypoint for traceparent propagation — every
@@ -77,11 +118,15 @@ public class Program
                     : new[] { "http://localhost:3000", "http://127.0.0.1:3000" };
 
                 // SECURITY: Never use AllowAnyOrigin() with AllowCredentials() — browsers reject it.
-                // In development we use an explicit list of known local origins.
-                // Wildcard origin predicates are removed because they allow attacker-controlled
-                // origins, which defeats CORS protection entirely.
+                // The development policy accepts the configured localhost origins AND any
+                // same-LAN (RFC1918 private-IP) origin, so a teammate on the same Wi-Fi can open
+                // the app at http://<host-lan-ip>:3000 while the launcher is running. The predicate
+                // is strictly bounded to loopback + private ranges and is wired ONLY into the dev
+                // policy — it is never a true wildcard and never used in production.
                 options.AddPolicy("AllowAll", policy =>
-                    policy.WithOrigins(devOrigins)
+                    policy.SetIsOriginAllowed(origin =>
+                            devOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase) ||
+                            IsLoopbackOrPrivateLanOrigin(origin))
                         .AllowAnyMethod()
                         .AllowAnyHeader()
                         .AllowCredentials());
@@ -118,7 +163,7 @@ public class Program
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
                         IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secret)),
-                        ClockSkew = TimeSpan.FromSeconds(5)
+                        ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds)
                     };
                     
                     // Add event handlers for debugging
@@ -149,6 +194,16 @@ public class Program
             builder.Services.AddHealthChecks();
 
             var app = builder.Build();
+
+            // SECURITY: process X-Forwarded-* BEFORE HTTPS redirection. With this in
+            // place HttpsRedirection sees the true client protocol and does not
+            // double-redirect HTTPS-terminated edge traffic. UseForwardedHeaders
+            // only runs when KnownProxies is non-empty (see Configure above);
+            // otherwise it is a no-op safe against header spoofing.
+            if (knownProxies.Length > 0)
+            {
+                app.UseForwardedHeaders();
+            }
 
             // SECURITY: Redirect HTTP to HTTPS in non-development environments.
             if (!builder.Environment.IsDevelopment())
@@ -210,5 +265,29 @@ public class Program
         {
             Log.CloseAndFlush();
         }
+    }
+
+    /// <summary>
+    /// True when <paramref name="origin"/> is an http(s) origin whose host is loopback or an
+    /// RFC1918 private IPv4 address (10/8, 172.16/12, 192.168/16). Used only by the development
+    /// CORS policy so same-Wi-Fi peers can reach the gateway at the host's LAN IP; the port is
+    /// intentionally unconstrained (the frontend may be served on any dev port).
+    /// </summary>
+    private static bool IsLoopbackOrPrivateLanOrigin(string origin)
+    {
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return false;
+
+        var host = uri.Host;
+        if (host is "localhost" or "127.0.0.1" or "::1") return true;
+
+        if (!IPAddress.TryParse(host, out var ip) ||
+            ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+            return false;
+
+        var b = ip.GetAddressBytes();
+        return b[0] == 10
+            || (b[0] == 172 && b[1] >= 16 && b[1] <= 31)
+            || (b[0] == 192 && b[1] == 168);
     }
 }

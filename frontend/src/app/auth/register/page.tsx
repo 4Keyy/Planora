@@ -31,12 +31,14 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 function InputField({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  // The wrapping <label> implicitly associates the text with the nested control, so screen
+  // readers announce the field name on focus (a bare sibling <label> is not associated).
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">{label}</label>
+    <label className="block space-y-1.5">
+      <span className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">{label}</span>
       {children}
       {error && <p className="text-xs text-red-500">{error}</p>}
-    </div>
+    </label>
   )
 }
 
@@ -182,6 +184,7 @@ export default function RegisterPage() {
                   className={inputClass + " pr-10"}
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} tabIndex={-1}
+                  aria-label={showPass ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -210,6 +213,7 @@ export default function RegisterPage() {
                   className={inputClass + " pr-10"}
                 />
                 <button type="button" onClick={() => setShowConfirm(!showConfirm)} tabIndex={-1}
+                  aria-label={showConfirm ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>

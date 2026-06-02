@@ -9,7 +9,7 @@ name: Migration Scripts
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'Services/**/Migrations/**'
       - 'Services/**/Persistence/**'
@@ -52,11 +52,16 @@ jobs:
             startup: Services/MessagingApi/Planora.Messaging.Api
             context: MessagingDbContext
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Packages.props
+            Directory.Build.props
 
       - name: Install dotnet-ef
         run: dotnet tool install --global dotnet-ef --version 9.0.15
@@ -88,7 +93,28 @@ jobs:
           head -50 migration-scripts/${{ matrix.name }}.sql
           echo "::endgroup::"
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - name: Validate idempotence markers are present
+        # `dotnet ef migrations script --idempotent` wraps every statement in an
+        # IF NOT EXISTS / IF EXISTS guard. If the generated SQL is non-empty but
+        # carries zero guards, the --idempotent flag silently failed (EF tooling
+        # regression) and re-running the migrator would corrupt the history. We
+        # only enforce this when the file actually contains migration content.
+        run: |
+          set -e
+          script="migration-scripts/${{ matrix.name }}.sql"
+          # An "empty" generated script still emits the COMMIT scaffolding; treat
+          # < 30 lines as no-content and skip the guard check.
+          lines=$(wc -l < "${script}")
+          if [ "${lines}" -lt 30 ]; then
+            echo "::notice::${{ matrix.name }}.sql appears empty (${lines} lines); skipping idempotence-marker check."
+            exit 0
+          fi
+          if ! grep -q -E "IF (NOT )?EXISTS" "${script}"; then
+            echo "::error::${{ matrix.name }}.sql has migration content but no IF [NOT] EXISTS guards. --idempotent flag did not produce idempotent SQL."
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: migration-script-${{ matrix.name }}
           path: migration-scripts/${{ matrix.name }}.sql

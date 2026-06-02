@@ -1,6 +1,9 @@
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
+using Planora.Todo.Application.Common;
 using Planora.Todo.Domain.Repositories;
 using MediatR;
 
@@ -9,20 +12,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
     public sealed class DeleteTodoCommandHandler : IRequestHandler<DeleteTodoCommand, Result>
     {
         private readonly IRepository<TodoItem> _repository;
-        private readonly ITodoCommentRepository _commentRepository;
+        private readonly IOutboxRepository _outboxRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<DeleteTodoCommandHandler> _logger;
         private readonly ICurrentUserContext _currentUserContext;
 
         public DeleteTodoCommandHandler(
             IRepository<TodoItem> repository,
-            ITodoCommentRepository commentRepository,
+            IOutboxRepository outboxRepository,
             IUnitOfWork unitOfWork,
             ILogger<DeleteTodoCommandHandler> logger,
             ICurrentUserContext currentUserContext)
         {
             _repository = repository;
-            _commentRepository = commentRepository;
+            _outboxRepository = outboxRepository;
             _unitOfWork = unitOfWork;
             _logger = logger;
             _currentUserContext = currentUserContext;
@@ -40,7 +43,13 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
 
             todoItem.MarkAsDeleted(userId);
             _repository.Update(todoItem);
-            await _commentRepository.SoftDeleteByTodoIdAsync(todoItem.Id, userId, cancellationToken);
+
+            // The task's comment timeline ("ветка") lives in the Collaboration service. Publish a
+            // deletion fact via the outbox; Collaboration cascade-soft-deletes the comments. INV-COMM-3.
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new TaskDeletedIntegrationEvent(todoItem.Id, userId),
+                cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Todo item deleted: {TodoId} by user {UserId}", request.TodoId, userId);

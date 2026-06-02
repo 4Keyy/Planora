@@ -11,6 +11,8 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
             _context = context;
         }
 
+        // No AsNoTracking: the Update/Delete command handlers load via GetByIdAsync then mutate,
+        // so the returned entity must be change-tracked (INV-DATA-3).
         public async Task<Domain.Entities.Category?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return await _context.Categories.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
@@ -18,9 +20,11 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
 
         public async Task<IReadOnlyList<Domain.Entities.Category>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            return await _context.Categories.Where(c => !c.IsDeleted).ToListAsync(cancellationToken);
+            return await _context.Categories.AsNoTracking().Where(c => !c.IsDeleted).ToListAsync(cancellationToken);
         }
 
+        // No AsNoTracking: FindAsync is also used to fetch entities for RemoveRange/UpdateRange,
+        // so the results must remain change-tracked.
         public async Task<IReadOnlyList<Domain.Entities.Category>> FindAsync(
             Expression<Func<Domain.Entities.Category, bool>> predicate,
             CancellationToken cancellationToken = default)
@@ -32,7 +36,7 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
             Expression<Func<Domain.Entities.Category, bool>> predicate,
             CancellationToken cancellationToken = default)
         {
-            return await _context.Categories.FirstOrDefaultAsync(predicate, cancellationToken);
+            return await _context.Categories.AsNoTracking().FirstOrDefaultAsync(predicate, cancellationToken);
         }
 
         public async Task<bool> ExistsAsync(
@@ -92,6 +96,7 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
         public async Task<IReadOnlyList<Domain.Entities.Category>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             return await _context.Categories
+                .AsNoTracking()
                 .Where(c => c.UserId == userId && !c.IsDeleted)
                 .OrderBy(c => c.Order)
                 .ToListAsync(cancellationToken);
@@ -100,14 +105,17 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
         public async Task<IReadOnlyList<Domain.Entities.Category>> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             return await _context.Categories
+                .AsNoTracking()
                 .Where(c => c.UserId == userId && !c.IsDeleted && !c.IsArchived)
                 .OrderBy(c => c.Order)
                 .ToListAsync(cancellationToken);
         }
 
+        // Read-only (used by the GetCategoryById query, never for mutation).
         public async Task<Domain.Entities.Category?> GetByIdAndUserIdAsync(Guid id, Guid userId, CancellationToken cancellationToken = default)
         {
             return await _context.Categories
+                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId && !c.IsDeleted, cancellationToken);
         }
 
@@ -126,7 +134,7 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
             CancellationToken cancellationToken = default)
         {
             var (safePageNumber, safePageSize) = PaginationParameters.Normalize(pageNumber, pageSize);
-            var query = _context.Categories.AsQueryable();
+            var query = _context.Categories.AsNoTracking().AsQueryable();
 
             if (predicate != null)
                 query = query.Where(predicate);

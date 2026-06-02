@@ -19,8 +19,13 @@ export function middleware(request: NextRequest) {
     ? `'self' 'nonce-${nonce}' 'unsafe-eval'`
     : `'self' 'nonce-${nonce}'`
 
+  // In dev the page can be opened from a LAN IP (a peer on the same Wi-Fi), and the
+  // client derives the API gateway as `http://<sameHost>:5132` at runtime — which varies
+  // by viewer. Allowing http/https/ws in dev lets any same-LAN host reach the gateway,
+  // mirroring the equally-permissive dev `img-src` below. Production stays locked to the
+  // single explicit API origin.
   const connectSrc = isDev
-    ? `'self' ${apiOrigin} http://localhost:5132 http://127.0.0.1:5132`
+    ? `'self' ${apiOrigin} http: https: ws: wss:`
     : `'self' ${apiOrigin}`
 
   // In dev the avatar server may be on any HTTP origin (localhost, LAN IP, etc.),
@@ -40,6 +45,12 @@ export function middleware(request: NextRequest) {
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
+    // Defence-in-depth: deny plugin objects, embedded browsing contexts, and
+    // dedicated workers spawned from foreign origins. None of these are used by
+    // the app today; locking them down narrows the reflected-XSS payload surface.
+    "object-src 'none'",
+    "child-src 'none'",
+    "worker-src 'self'",
   ]
 
   if (!isDev && apiOrigin.startsWith('https://')) {

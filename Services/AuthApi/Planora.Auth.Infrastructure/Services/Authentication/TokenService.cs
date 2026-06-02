@@ -1,4 +1,5 @@
 using Planora.Auth.Infrastructure.Security;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 
 namespace Planora.Auth.Infrastructure.Services.Authentication;
 
@@ -71,7 +72,7 @@ public sealed class TokenService : ITokenService
                 ValidIssuer = _jwtSettings.Issuer,
                 ValidAudience = _jwtSettings.Audience,
                 IssuerSigningKey = key,
-                ClockSkew = TimeSpan.Zero
+                ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds)
             };
 
             var principal = _tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
@@ -103,7 +104,7 @@ public sealed class TokenService : ITokenService
                 ValidIssuer = _jwtSettings.Issuer,
                 ValidAudience = _jwtSettings.Audience,
                 IssuerSigningKey = key,
-                ClockSkew = TimeSpan.Zero
+                ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds)
             };
 
             var principal = _tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);

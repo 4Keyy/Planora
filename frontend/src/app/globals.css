@@ -374,6 +374,13 @@
   to   { opacity: 1; transform: translateX(0)    scale(1);    }
 }
 
+/* Author's Note attention pulse — fired when scrolling back up to the pinned note */
+@keyframes genesis_highlight {
+  0%   { box-shadow: 0 0 0 0   rgba(139,92,246,0);    border-color: #f0f0f0; }
+  25%  { box-shadow: 0 0 0 4px rgba(139,92,246,0.30); border-color: #ddd6fe; }
+  100% { box-shadow: 0 0 0 0   rgba(139,92,246,0);    border-color: #f0f0f0; }
+}
+
 /* Spellcheck/grammar underline color */
 ::spelling-error {
   text-decoration: underline wavy #000;

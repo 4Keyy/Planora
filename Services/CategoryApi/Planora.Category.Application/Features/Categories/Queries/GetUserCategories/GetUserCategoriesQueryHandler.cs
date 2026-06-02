@@ -44,7 +44,8 @@ namespace Planora.Category.Application.Features.Categories.Queries.GetUserCatego
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get user categories");
-                return Result.Failure<IReadOnlyList<CategoryDto>>("QUERY_FAILED", ex.Message);
+                // Do not surface ex.Message to the client (can leak internal/DB detail).
+                return Result.Failure<IReadOnlyList<CategoryDto>>("QUERY_FAILED", "Failed to load categories.");
             }
         }
     }

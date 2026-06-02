@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Security;
 using StackExchange.Redis;
 
@@ -47,9 +48,9 @@ public static class JwtAuthenticationExtensions
                 ValidIssuer = jwtIssuer,
                 ValidAudience = jwtAudience,
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-                // SECURITY: Reduce clock skew to 30 seconds. A 5-minute window allows an attacker
-                // to replay a just-expired token for up to 5 minutes after it should be invalid.
-                ClockSkew = TimeSpan.FromSeconds(30)
+                // SECURITY: single source of truth at SecurityConstants.SecurityPolicies.TokenClockSkewSeconds.
+                // Tight enough to bound post-expiry replay; loose enough to tolerate NTP drift on Fly machines.
+                ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds)
             };
 
             options.Events = new JwtBearerEvents

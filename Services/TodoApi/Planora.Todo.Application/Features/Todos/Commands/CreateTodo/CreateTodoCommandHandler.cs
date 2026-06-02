@@ -1,7 +1,10 @@
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Services;
+using Planora.Todo.Application.Common;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;
@@ -20,7 +23,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ICategoryGrpcClient _categoryGrpcClient;
         private readonly IFriendshipService _friendshipService;
-        private readonly ITodoCommentRepository _commentRepository;
+        private readonly IOutboxRepository _outboxRepository;
         private readonly IBusinessEventLogger? _businessLogger;
 
         public CreateTodoCommandHandler(
@@ -31,7 +34,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
             ICurrentUserContext currentUserContext,
             ICategoryGrpcClient categoryGrpcClient,
             IFriendshipService friendshipService,
-            ITodoCommentRepository commentRepository,
+            IOutboxRepository outboxRepository,
             IBusinessEventLogger? businessLogger = null)
         {
             _repository = repository;
@@ -41,7 +44,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
             _currentUserContext = currentUserContext;
             _categoryGrpcClient = categoryGrpcClient;
             _friendshipService = friendshipService;
-            _commentRepository = commentRepository;
+            _outboxRepository = outboxRepository;
             _businessLogger = businessLogger;
         }
 
@@ -95,14 +98,12 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
 
             var authorName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
 
-            var systemComment = TodoItemComment.CreateSystem(todoItem.Id, $"{authorName} created the task");
-            await _commentRepository.AddAsync(systemComment, cancellationToken);
-
-            if (!string.IsNullOrWhiteSpace(request.Description))
-            {
-                var genesisComment = TodoItemComment.CreateGenesis(todoItem.Id, request.Description, authorName);
-                await _commentRepository.AddAsync(genesisComment, cancellationToken);
-            }
+            // The task's activity timeline ("ветка") lives in the Collaboration service. Publish a
+            // creation fact via the outbox; Collaboration materialises the "created the task" system
+            // comment and the genesis comment (the description) from it. INV-COMM-3.
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new TaskCreatedIntegrationEvent(todoItem.Id, userId, authorName, request.Description),
+                cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

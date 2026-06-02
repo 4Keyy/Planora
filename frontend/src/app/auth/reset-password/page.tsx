@@ -76,8 +76,9 @@ function ResetPasswordContent() {
         ) : (
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Reset token</label>
+              <label htmlFor="rp-token" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Reset token</label>
               <input
+                id="rp-token"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="Paste token"
@@ -86,8 +87,9 @@ function ResetPasswordContent() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">New password</label>
+              <label htmlFor="rp-password" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">New password</label>
               <input
+                id="rp-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -96,8 +98,9 @@ function ResetPasswordContent() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Confirm password</label>
+              <label htmlFor="rp-confirm" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Confirm password</label>
               <input
+                id="rp-confirm"
                 type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}

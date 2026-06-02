@@ -16,6 +16,7 @@ Infrastructure:
 | Todo | `TodoDbContext` | `TodoDatabase` | `planora_todo` |
 | Category | `CategoryDbContext` | `CategoryDatabase` | `planora_category` |
 | Messaging | `MessagingDbContext` | `MessagingDatabase` | `planora_messaging` |
+| Collaboration | `CollaborationDbContext` | `CollaborationDatabase` | `planora_collaboration` |
 | Realtime | none found | none found | not applicable |
 
 Code:
@@ -119,8 +120,14 @@ Default schema: `todo`
 | `todo_tags` | owned collection for todo tags |
 | `todo_item_shares` | explicit shared-with users |
 | `todo_item_workers` | non-owner participants (workers) on public/shared tasks |
-| `todo_item_comments` | comment thread on public/shared tasks; soft-deletable |
 | `user_todo_view_preferences` | viewer-specific hidden/category preferences |
+| `OutboxMessages` | task-lifecycle integration events shipped to RabbitMQ (drives the Collaboration timeline) |
+
+> The comment thread ("ветки") no longer lives in the Todo database. It moved to the
+> **Collaboration** service (`planora_collaboration.collaboration.comments`). Todo only
+> publishes task-lifecycle facts (`TaskCreated` / `TaskActivity` / `TaskDeleted`) via its
+> outbox; Collaboration consumes them and materialises system/genesis comments. See the
+> **Collaboration Database** section below.
 
 ### Important Configuration
 
@@ -130,8 +137,8 @@ Default schema: `todo`
 | `TodoTag` | owned table `todo_tags`, tag name max 50 | `TodoItemConfiguration.cs` |
 | `TodoItemShare` | table `todo_item_shares`, composite key `(TodoItemId, SharedWithUserId)`, index by shared user | `Persistence/Configurations/TodoItemShareConfiguration.cs` |
 | `TodoItemWorker` | table `todo_item_workers`, composite PK `(TodoItemId, UserId)`, `JoinedAt` default `now()`, cascade FK to `TodoItems`; indexes on `UserId` and `TodoItemId` | `Persistence/Configurations/TodoItemWorkerConfiguration.cs` |
-| `TodoItemComment` | table `todo_item_comments`, PK `Id`, `AuthorId`, `AuthorName` max 200, `Content` max 5000, `IsSystemComment` bool (default false), `IsGenesisComment` bool (default false), soft delete, cascade FK to `TodoItems`; composite index `(TodoItemId, CreatedAt)`. Avatar URL is **not** stored — Todo always batch-fetches the current avatar from Auth via `GetUserAvatarsBatch` gRPC (60 s in-memory cache via `CachingUserService`). | `Persistence/Configurations/TodoItemCommentConfiguration.cs` |
 | `UserTodoViewPreference` | table `todo.user_todo_view_preferences`, composite key `(ViewerId, TodoItemId)`, `HiddenByViewer`, `CompletedByViewer` bool, `CompletedByViewerAt` nullable datetime, optional `ViewerCategoryId`, index `(TodoItemId, ViewerId)` | `Persistence/Configurations/UserTodoViewPreferenceConfiguration.cs` |
+| `OutboxMessage` | table `todo.OutboxMessages`, status stored as string, indexes `(Status, OccurredOnUtc)` and `ProcessedOnUtc`; shipped by the shared `OutboxProcessor` | `Persistence/Configurations/OutboxMessageConfiguration.cs` |
 
 ### Worker Capacity Semantics
 
@@ -141,7 +148,9 @@ When access changes (task made private, `SharedWith` list shrunk, or capacity re
 
 ### Todo Schema Bootstrap
 
-Committed EF migrations are stored locally but not in the repository (the `**/Migrations/**` glob is `.gitignore`-listed). Runtime startup applies pending migrations automatically via `DatabaseStartup.EnsureReadyAsync`. Current local migrations:
+The repository `.gitignore` lists `**/Migrations/**`, so migrations are **force-added**
+(`git add -f`) when they must ship a schema change for review and CD. Runtime startup applies
+pending migrations automatically via `DatabaseStartup.EnsureReadyAsync`. Current committed migrations:
 
 | Migration name | Date | Change |
 |---|---|---|
@@ -150,6 +159,7 @@ Committed EF migrations are stored locally but not in the repository (the `**/Mi
 | `AddGenesisComment` | 2026-05-18 | Adds `is_genesis_comment bool NOT NULL DEFAULT false` to `todo_item_comments` |
 | `AddCommentAvatarUrl` | 2026-05-25 | Adds `AuthorAvatarUrl varchar(2048) NULL` to `todo_item_comments`; adds `xmin` row-version column to `TodoItems` for EF Core optimistic concurrency |
 | `RemoveCommentAvatarSnapshot` | 2026-05-26 | Drops `AuthorAvatarUrl` from `todo_item_comments`. Comment listing now always batch-fetches the live avatar from Auth via gRPC, cached in-memory 60 s. Single source of truth eliminates stale-avatar drift after the user changes their picture. |
+| `RemoveCommentsAddOutbox` | 2026-05-29 | **Drops `todo_item_comments`** (the timeline moved to the Collaboration service) and creates `todo.OutboxMessages` so Todo can publish task-lifecycle integration events. Run the Collaboration backfill (`Planora.Migrator --backfill-collaboration`) **before** this migration is applied in production so no comment is lost. |
 
 To apply manually:
 
@@ -159,9 +169,10 @@ dotnet ef database update `
   --startup-project Services/TodoApi/Planora.Todo.Api
 ```
 
-### Important Caveat
+### Description length
 
-`CreateTodoCommandValidator` and `UpdateTodoCommandValidator` allow description max length 5000, but `TodoItemConfiguration` configures the persisted column max length as 2000. Treat 2000 as the safe limit until the code is reconciled.
+`CreateTodoCommandValidator`, `UpdateTodoCommandValidator`, and the `TodoItemConfiguration`
+`Description` column all agree on a 2000-character maximum.
 
 ## Category Database
 
@@ -216,6 +227,63 @@ Committed migrations are not stored in the repository. Messaging schema is deriv
 
 Runtime startup applies user-created migrations if they exist; otherwise it creates the schema from the current model.
 
+## Collaboration Database
+
+DbContext: `Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persistence/CollaborationDbContext.cs`
+
+Default schema: `collaboration`
+
+Owns the task **comment timeline** ("ветки") — regular user comments and auto-generated system
+comments (created / completed / started / left). The pinned "Author's Note" (the task description)
+is **not** stored here: it is the single source of truth on the task (Todo) and is synthesised on
+read from `TodoService.CheckTaskCommentAccess` (which now also returns the live `description` +
+`taskCreatedAt`). The service never reads the Todo database (INV-OWN-1) and resolves author identity
+(name + avatar) live through Auth's `GetUserProfilesBatch` gRPC (60 s in-memory cache via
+`CachingUserService`) — no stored copy of the name.
+
+### Tables / DbSets
+
+| DbSet/table | Purpose |
+|---|---|
+| `comments` | timeline: user + system comments, soft-deletable (the Author's Note/description is synthesised on read, not stored; legacy genesis rows, if any, are excluded by the read query) |
+| `OutboxMessages` | `NotificationEvent` fan-out to RabbitMQ (consumed by Realtime → SignalR) |
+| `InboxMessages` | consumer idempotency: PK = integration event id. The event bus skips a handler when the event id already exists (dedup of redelivered/replayed events — INV-COMM-4) |
+
+### Important Configuration
+
+| Entity | Important fields/indexes | Code |
+|---|---|---|
+| `Comment` | PK `Id`, `TaskId` (value link to the Todo task — no FK, INV-OWN-1), `AuthorId`, `AuthorName` max 200 (fallback only — identity resolved live), `Content` max 5000, `IsSystemComment`/`IsGenesisComment` bool (default false; new rows never set genesis — kept only so legacy genesis rows are filtered out on read), soft delete, `xmin` optimistic concurrency; indexes `(TaskId, CreatedAt)` for timeline reads and `AuthorId` for the user-deletion cascade / moderation scans | `Persistence/Configurations/CommentConfiguration.cs` |
+| `OutboxMessage` | table `collaboration.OutboxMessages`, status stored as string, indexes `(Status, OccurredOnUtc)` and `ProcessedOnUtc` | `Persistence/Configurations/OutboxMessageConfiguration.cs` |
+
+### Event Flow
+
+- **Inbound (Inbox):** subscribes to `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`,
+  `TaskDeletedIntegrationEvent` (from Todo) and `UserDeletedIntegrationEvent` (from Auth). Replay-safe
+  (INV-COMM-4): the event bus dedups on the integration event id via the `InboxMessages` table —
+  a redelivered event is skipped before its handler runs, so system comments are never duplicated.
+- **Outbound (Outbox):** `AddComment` writes a `NotificationEvent` per participant
+  (owner + workers + shared-with, minus the author) so RealtimeApi can push a SignalR notification.
+
+### Collaboration Schema Bootstrap
+
+No committed EF migration: like Category, the schema is created on first run via
+`DatabaseStartup.EnsureReadyAsync` → `EnsureCreatedAsync`. The database `planora_collaboration`
+is auto-created at startup by `DependencyWaiter.WaitForPostgresWithDatabaseCreationAsync`.
+
+### Data Migration From Todo
+
+When extracting from an existing deployment, run the idempotent backfill **before** dropping the
+old table:
+
+```bash
+dotnet run --project tools/Planora.Migrator -- --backfill-collaboration
+```
+
+It copies `planora_todo.todo.todo_item_comments` → `planora_collaboration.collaboration.comments`
+with `INSERT ... ON CONFLICT (Id) DO NOTHING`, so it is safe to run twice (once ahead of time, once
+at cutover to capture the window).
+
 ## Realtime Persistence
 
 No EF Core `DbContext`, migration folder, or database connection string was found for Realtime. Realtime connection state and notification delivery are implemented through service abstractions, SignalR, Redis backplane, and RabbitMQ subscriptions.
@@ -232,7 +300,7 @@ Outbox and inbox primitives exist in shared infrastructure:
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox`
 
-Auth, Category, and Messaging explicitly expose outbox/inbox DbSets where needed. Todo consumes integration events for category and user deletion.
+Auth, Category, Messaging, Todo, and Collaboration explicitly expose outbox/inbox DbSets where needed. Todo consumes integration events for category and user deletion, and publishes task-lifecycle events via its outbox. Collaboration consumes those task-lifecycle events plus user deletion, and publishes comment `NotificationEvent`s via its outbox.
 
 ## Safe Database Operations
 

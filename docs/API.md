@@ -82,6 +82,7 @@ Ocelot route files leave most routes unthrottled, but the realtime route enables
 | `GET /todos/health` | Todo API | public |
 | `GET /categories/health` | Category API | public |
 | `GET /messaging/health` | Messaging API | public |
+| `GET /collaboration/health` | Collaboration API | public |
 | `GET /realtime/health` | Realtime API | public |
 | `/auth/api/v1/auth/{everything}` | Auth `AuthenticationController` | mixed |
 | `/auth/api/v1/users/{everything}` | Auth `UsersController` | bearer at gateway; `VerifyEmailByToken` is `[AllowAnonymous]` in the service controller |
@@ -91,6 +92,7 @@ Ocelot route files leave most routes unthrottled, but the realtime route enables
 | `/todos/api/v1/{everything}` | Todo API | bearer |
 | `/categories/api/v1/{everything}` | Category API | bearer |
 | `/messaging/api/v1/{everything}` | Messaging API | bearer |
+| `/collaboration/api/v1/{everything}` | Collaboration API (task comment timeline) | bearer |
 | `/realtime/{everything}` | Realtime API, websocket route | route-dependent |
 
 ## Authentication
@@ -461,10 +463,10 @@ All routes require bearer auth.
 | `PATCH` | `/{id}/viewer-preferences` | non-owner viewer hidden/category preference |
 | `POST` | `/{id}/join` | join task as a worker |
 | `POST` | `/{id}/leave` | leave task (stop being a worker) |
-| `GET` | `/{id}/comments?pageNumber=1&pageSize=50` | get paginated comments (oldest-first) |
-| `POST` | `/{id}/comments` | add a comment |
-| `PUT` | `/{id}/comments/{commentId}` | edit own comment |
-| `DELETE` | `/{id}/comments/{commentId}` | soft-delete comment (author or task owner) |
+
+> **Comments (the task timeline / "ветки") moved to the Collaboration service** — see the
+> [Collaboration](#collaboration) section. The old `/{id}/comments*` and `/{id}/genesis`
+> routes under `/todos/api/v1/todos` no longer exist.
 
 Create body:
 
@@ -505,7 +507,7 @@ Update body fields are optional:
 Rules:
 
 - title required on create, max 200;
-- validators allow description max 5000, EF config stores max 2000;
+- description optional, max 2000 (validators and the EF column agree);
 - expected date cannot be after due date;
 - category must belong to current user;
 - shared users must be accepted friends;
@@ -558,13 +560,38 @@ Success `204 No Content`.
 
 Errors: `400` for owner or non-worker; `404` if task not found.
 
-### `GET /{id}/comments`
+Hidden shared/public todos may return a redacted `TodoItemDto`; see [`features.md`](features.md#shared-todos-and-hidden-viewer-preferences).
 
-Get paginated comments for a task. Access requires task visibility (public/shared) and friendship with the owner. Default page size is 50. Comments are ordered oldest-first.
+## Collaboration
 
-Success `200`: `PagedResult<TodoCommentDto>`.
+Gateway prefix: `/collaboration/api/v1/comments`. All routes require bearer auth.
 
-`TodoCommentDto` shape:
+The Collaboration service owns the task **comment timeline** ("ветки"). It does not own tasks:
+every route authorises against the task via the `TodoService.CheckTaskCommentAccess` gRPC call,
+which applies the same owner / shared / public + friendship rule the Todo handlers used to.
+
+The pinned **"Author's Note"** (the task description) is **not** stored here. It is the single
+source of truth on the task (`TodoItem.Description`, owned by Todo) and is synthesised into the
+timeline on read from the same `CheckTaskCommentAccess` call (so it appears instantly, always
+matches the task card, and is present for tasks created before this service existed). Edit the
+description via the task itself (`PUT /todos/api/v1/todos/{id}`), not through a comment endpoint.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/{taskId}?pageNumber=1&pageSize=50` | get paginated comments (oldest-first); page 1 also includes the synthesised Author's Note |
+| `POST` | `/{taskId}` | add a comment |
+| `PUT` | `/{taskId}/{commentId}` | edit a regular comment (author only) |
+| `DELETE` | `/{taskId}/{commentId}` | soft-delete a comment (author or task owner) |
+
+### `GET /collaboration/api/v1/comments/{taskId}`
+
+Get paginated comments for a task. Access requires task visibility (public/shared) and friendship
+with the owner — enforced by the Todo gRPC access check. Default page size is 50, oldest-first.
+
+Success `200`: `PagedResult<CommentDto>`.
+
+`CommentDto` shape (wire-compatible with the former `TodoCommentDto` — the `todoItemId` field name
+is kept so frontend timeline components are unchanged):
 
 ```json
 {
@@ -572,62 +599,55 @@ Success `200`: `PagedResult<TodoCommentDto>`.
   "todoItemId": "00000000-0000-0000-0000-000000000000",
   "authorId": "00000000-0000-0000-0000-000000000000",
   "authorName": "Alice",
+  "authorAvatarUrl": null,
   "content": "Looks good!",
   "createdAt": "2026-05-10T14:00:00Z",
   "updatedAt": null,
   "isOwn": true,
   "isEdited": false,
-  "isSystemComment": false
+  "isSystemComment": false,
+  "isGenesisComment": false
 }
 ```
 
-`isOwn` is `true` when `authorId == currentUserId` AND `isSystemComment` is `false`. `isEdited` is `true` when `updatedAt > createdAt + 5 seconds` and `isSystemComment` is `false`.
+`isOwn` is `true` when `authorId == currentUserId` AND `isSystemComment` is `false`. `isEdited` is
+`true` when `updatedAt > createdAt + 5 seconds` for a regular user comment; system comments
+(including the synthesised genesis) never report `isEdited`.
 
-System comments (`isSystemComment: true`) are generated automatically by the backend for task lifecycle events. They have `authorId = Guid.Empty`, `authorName = ""`, `isOwn = false`, and `isEdited = false` always. The frontend renders them as a centered horizontal-rule divider with the event text, not as a standard chat bubble. System comments are never editable or deletable by users.
+System comments (`isSystemComment: true`) are materialised automatically from Todo task-lifecycle
+integration events (created / completed / started / left). They have `authorId = Guid.Empty`,
+`authorName = ""`, `isOwn = false`. The **genesis** entry (`isGenesisComment: true`, only on page 1)
+is the synthesised Author's Note: it is **not stored** — its `content` is the live task description,
+its author is the task owner, and its `id` equals the task id. Author identity (name + avatar) for
+both regular comments and the genesis is resolved **live** from Auth (`GetUserProfilesBatch`, 60 s
+cache) — never a stored copy, so a profile rename is reflected everywhere.
 
-Errors: `400` for unauthenticated; `403` for no access or non-friend; `404` if task not found.
+Errors: `400` unauthenticated; `403` no access / non-friend; `404` task not found; `503` if the Todo
+access check is unavailable.
 
-### `POST /{id}/comments`
+### `POST /collaboration/api/v1/comments/{taskId}`
 
-Add a comment. Only the task owner or an active worker can post.
+Add a comment. Caller must have task access. Body: `{ "content": "Great progress!" }` — required, max
+2000 characters. Success `201 Created`: `CommentDto`. On success a `NotificationEvent` is fanned out
+(via outbox → RabbitMQ → Realtime/SignalR) to every other participant. Errors: `400` validation;
+`403` no access; `404` task not found.
 
-Body:
+> **The task description (Author's Note) is edited on the task, not here.** Use
+> `PUT /todos/api/v1/todos/{id}` with the new `description` (owner only). There is no genesis
+> comment endpoint — the description is a single source of truth in Todo, synthesised into the
+> timeline on read.
 
-```json
-{ "content": "Great progress!" }
-```
+### `PUT /collaboration/api/v1/comments/{taskId}/{commentId}`
 
-`content` required, max 2000 characters.
+Edit a regular user comment. Only the author may edit it. Body: `{ "content": "Updated text" }` —
+required, max 2000 characters. Success `200`: updated `CommentDto` (author name/avatar resolved
+live). Errors: `400` wrong task scope / validation; `403` not author; `404` not found.
 
-Success `201 Created`: `TodoCommentDto`.
+### `DELETE /collaboration/api/v1/comments/{taskId}/{commentId}`
 
-Errors: `400` validation failure; `403` if not owner or active worker, or non-friend.
-
-### `PUT /{id}/comments/{commentId}`
-
-Edit a comment. Only the comment author can edit.
-
-Body:
-
-```json
-{ "content": "Updated text" }
-```
-
-`content` required, max 2000 characters.
-
-Success `200`: updated `TodoCommentDto`.
-
-Errors: `400` if comment not found or wrong todo scope; `403` if not the author.
-
-### `DELETE /{id}/comments/{commentId}`
-
-Soft-delete a comment. Allowed for the comment author or the task owner.
-
-Success `204 No Content`.
-
-Errors: `400` if comment not found or wrong todo scope; `403` if not author or task owner.
-
-Hidden shared/public todos may return a redacted `TodoItemDto`; see [`features.md`](features.md#shared-todos-and-hidden-viewer-preferences).
+Soft-delete a comment. Allowed for the comment author or the task owner. Plain system comments
+cannot be deleted (the Author's Note is cleared by editing the task description to empty). Success
+`204 No Content`. Errors: `403` not allowed; `404` not found.
 
 ## Messaging
 

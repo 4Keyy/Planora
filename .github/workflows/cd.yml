@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ inputs.ref || github.ref }}
 
@@ -83,11 +83,7 @@ jobs:
           fi
 
       - name: Install flyctl
-        # TODO(security): pin this action to a SHA before relying on this
-        # workflow in production. Run:
-        #   gh api /repos/superfly/flyctl-actions/git/refs/heads/master --jq .object.sha
-        # and replace `@master` with `@<sha>  # master at <date>`.
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Validate every fly.toml parses
         shell: bash
@@ -106,12 +102,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Run Planora.Migrator one-shot
         shell: bash
@@ -159,12 +155,12 @@ jobs:
             config: deploy/fly/realtime.fly.toml
             dockerfile: Services/RealtimeApi/Planora.Realtime.Api/Dockerfile
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Deploy ${{ matrix.app }}
         shell: bash
@@ -184,12 +180,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Install flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@master
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Deploy planora-gateway
         shell: bash
@@ -216,6 +212,27 @@ jobs:
         # We poll readiness for up to two minutes.
         run: |
           echo "url=https://planora-gateway.fly.dev" >> "$GITHUB_OUTPUT"
+
+      - name: Probe /health/live (liveness)
+        shell: bash
+        # Liveness must succeed within a tight window. If the gateway process is
+        # alive but readiness is delayed (e.g. a slow Postgres warm-up), readiness
+        # polling below handles that — but if /health/live itself does not respond,
+        # the deploy is unhealthy and we surface immediately rather than burning
+        # two minutes on readiness retries.
+        run: |
+          set -e
+          live="${{ steps.gateway.outputs.url }}/health/live"
+          for attempt in {1..15}; do
+            if curl --fail --silent --show-error --max-time 3 "${live}" > /dev/null; then
+              echo "::notice::Gateway /health/live is OK"
+              exit 0
+            fi
+            echo "Liveness attempt ${attempt}/15 — gateway process not responding"
+            sleep 2
+          done
+          echo "::error::Gateway /health/live did not return 200 within 30 s — deploy is broken"
+          exit 1
 
       - name: Wait for /health/ready
         shell: bash

@@ -123,14 +123,14 @@ CI is validation-only. It does not deploy.
 - CodeQL SAST (C# and JavaScript/TypeScript, `security-extended` query suite);
 - Trivy IaC/Dockerfile misconfiguration scan (SARIF upload);
 - NuGet vulnerability check;
-- npm audit (`--audit-level=moderate`);
+- npm audit (`--audit-level=high`, blocks merge on HIGH or CRITICAL vulnerabilities);
 - CycloneDX SBOM artifact (`dotnet CycloneDX` + `@cyclonedx/cyclonedx-npm`), uploaded with 90-day retention;
 - weekly schedule.
 
 `.github/workflows/migrations.yml`:
 
 - Matrix-fans across the four DB-owning services (auth, category, todo, messaging);
-- Installs `dotnet-ef` 9.0.15;
+- Installs `dotnet-ef` 10.0.8;
 - Runs `dotnet ef migrations script --idempotent` against each service's Infrastructure project, using safe placeholder connection strings purely so the design-time host can boot;
 - Uploads one `.sql` artifact per service with 30-day retention so reviewers see exactly what `Planora.Migrator --all` will execute against production;
 - Triggers on PRs touching `Services/**/Migrations/**`, `Services/**/Persistence/**`, `Services/**/Domain/Entities/**`, `BuildingBlocks/.../Persistence/**`, `tools/Planora.Migrator/**`, `Directory.Packages.props`, or this workflow itself.
@@ -266,7 +266,7 @@ dotnet run --project tools/Planora.Migrator -- --all
 dotnet run --project tools/Planora.Migrator -- --service auth --connection-string "Host=..."
 ```
 
-Exit codes: `0` success, `64` bad arguments, `70` one or more services failed. The Dockerfile builds on `mcr.microsoft.com/dotnet/runtime:9.0` — no ASP.NET surface, non-root `appuser`. On Fly.io the intended invocation is `flyctl machine run --rm planora-migrator -- --all` as the pre-deploy step in the eventual CD pipeline.
+Exit codes: `0` success, `64` bad arguments, `70` one or more services failed. The Dockerfile builds on `mcr.microsoft.com/dotnet/runtime:10.0` — no ASP.NET surface, non-root `appuser`. On Fly.io the intended invocation is `flyctl machine run --rm planora-migrator -- --all` as the pre-deploy step in the eventual CD pipeline.
 
 For PR review, [`.github/workflows/migrations.yml`](../.github/workflows/migrations.yml) attaches a per-service idempotent SQL artifact so reviewers see exactly what the migrator will execute.
 

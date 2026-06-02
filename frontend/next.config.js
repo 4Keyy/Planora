@@ -20,8 +20,51 @@ const safeApiUrl = (() => {
 const securityHeaders = [
   { key: 'X-Frame-Options',           value: 'DENY' },
   { key: 'X-Content-Type-Options',    value: 'nosniff' },
-  { key: 'Referrer-Policy',           value: 'strict-origin-when-cross-origin' },
-  { key: 'Permissions-Policy',        value: 'camera=(), microphone=(), geolocation=()' },
+  // SECURITY: strict-origin sends ONLY the origin (no path, no query) on
+  // cross-origin navigations and full URL only on same-origin. Previous
+  // strict-origin-when-cross-origin leaked the full pathname + query (e.g.
+  // a todo description with a URL token) to external sites the user clicked
+  // through to. Same-origin links still get the full URL so internal
+  // analytics keep working.
+  { key: 'Referrer-Policy',           value: 'strict-origin' },
+  // SECURITY: deny every sensitive browser API. None of these are used by
+  // Planora today; the explicit deny narrows the attack surface for a
+  // compromised third-party script or a future XSS escape.
+  {
+    key: 'Permissions-Policy',
+    value: [
+      'accelerometer=()',
+      'autoplay=()',
+      'browsing-topics=()',
+      'camera=()',
+      'display-capture=()',
+      'encrypted-media=()',
+      'fullscreen=(self)',
+      'geolocation=()',
+      'gyroscope=()',
+      'hid=()',
+      'idle-detection=()',
+      'magnetometer=()',
+      'microphone=()',
+      'midi=()',
+      'payment=()',
+      'picture-in-picture=()',
+      'publickey-credentials-get=()',
+      'screen-wake-lock=()',
+      'serial=()',
+      'usb=()',
+      'web-share=()',
+      'xr-spatial-tracking=()',
+    ].join(', '),
+  },
+  // Cross-Origin-Opener-Policy isolates this top-level window from any
+  // unrelated cross-origin window, blocking Spectre-class cross-origin
+  // leaks and improving the security of postMessage flows.
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+  // Cross-Origin-Resource-Policy declares that this resource is only
+  // intended to be loaded from same-origin documents. Defence-in-depth
+  // against the same Spectre family.
+  { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
   // SECURITY: HSTS — tells browsers to only connect via HTTPS for the next year.
   // Only enable in production; development uses HTTP.
   ...(isDev ? [] : [{

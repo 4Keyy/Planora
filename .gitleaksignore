@@ -1,0 +1,14 @@
+# gitleaks ignore list — only for fingerprints corresponding to leaks that
+# were historically introduced and have since been remediated in a follow-up
+# commit. Each line is a `commit:file:rule:start_line` fingerprint.
+#
+# Add a line here ONLY when the underlying secret has been removed at HEAD
+# (so the *current* tree is clean) but the historical commit can no longer
+# be rewritten safely (e.g. it has been pushed to a shared branch).
+
+# T2.5 — RealtimeDbContextFactory.cs originally shipped a `Password=postgres`
+# design-time fallback (mirroring the grandfathered pattern in sister
+# DbContextFactories). Remediated in commit a213313 by removing the literal
+# fallback and throwing `InvalidOperationException` when the connection
+# string is not configured. See `docs/secrets-management.md`.
+6aa35a47d15c156af4d073ecc9bb5bf0e08d2960:Services/RealtimeApi/Planora.Realtime.Infrastructure/DesignTime/RealtimeDbContextFactory.cs:planora-postgres-connection-string-literal:28

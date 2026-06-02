@@ -22,7 +22,15 @@ namespace Planora.Todo.Infrastructure
             var connectionString = configuration.GetConnectionString("TodoDatabase")
                 ?? throw new InvalidOperationException("TodoDatabase connection string not found");
 
-            services.AddDbContext<TodoDbContext>(options =>
+            // Immediate outbox dispatch: an interceptor pulses OutboxSignal the moment a
+            // task-lifecycle event commits, so the OutboxProcessor publishes it in milliseconds
+            // (the Collaboration "ветка" system comment then appears near-instantly) instead of
+            // waiting out the poll interval. Singleton signal shared with the hosted processor;
+            // scoped interceptor so its "did this save add an outbox row?" flag is per-request.
+            services.AddSingleton<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxSignal>();
+            services.AddScoped<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxNotifyInterceptor>();
+
+            services.AddDbContext<TodoDbContext>((sp, options) =>
                 options.UseNpgsql(connectionString, npgsqlOptions =>
                 {
                     npgsqlOptions.EnableRetryOnFailure(
@@ -30,19 +38,28 @@ namespace Planora.Todo.Infrastructure
                         maxRetryDelay: TimeSpan.FromSeconds(5),
                         errorCodesToAdd: null);
                 })
+                    .AddInterceptors(sp.GetRequiredService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxNotifyInterceptor>())
                     .EnableSensitiveDataLogging(false));
+
+            // Register TodoDbContext as DbContext for the OutboxProcessor.
+            services.AddScoped<DbContext>(sp => sp.GetRequiredService<TodoDbContext>());
 
             // Repositories & Unit of Work
             services.AddScoped<IUnitOfWork, TodoUnitOfWork>();
             services.AddScoped<ITodoRepository, TodoRepository>();
             services.AddScoped<IRepository<TodoItem>, TodoRepository>();
             services.AddScoped<IUserTodoViewPreferenceRepository, UserTodoViewPreferenceRepository>();
-            services.AddScoped<ITodoCommentRepository, TodoCommentRepository>();
-            
+
+            // Outbox — publishes task lifecycle integration events that drive the Collaboration
+            // service's comment timeline ("ветки"). INV-COMM-3.
+            services.AddScoped<Planora.BuildingBlocks.Application.Outbox.IOutboxRepository,
+                Persistence.Repositories.OutboxRepository>();
+            services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();
+
             // Services
             services.AddHttpContextAccessor();
             services.AddScoped<ICurrentUserContext, Planora.BuildingBlocks.Infrastructure.Context.CurrentUserContext>();
-            
+
             // gRPC client for Auth API friendship checks
             services.AddSingleton<ServiceKeyClientInterceptor>();
             var authGrpcUrl = configuration["GrpcServices:AuthApi"]
@@ -52,16 +69,6 @@ namespace Planora.Todo.Infrastructure
                     o.Address = new Uri(authGrpcUrl))
                 .AddInterceptor<ServiceKeyClientInterceptor>();
             services.AddScoped<IFriendshipService, Services.FriendshipGrpcService>();
-
-            // Avatar enrichment: gRPC call is wrapped by an in-memory cache so paged
-            // comment reads do not hammer Auth for the same authors over and over.
-            // CachingUserService → UserGrpcService → AuthService.gRPC.
-            services.AddMemoryCache(options => { options.SizeLimit = 10_000; });
-            services.AddScoped<Services.UserGrpcService>();
-            services.AddScoped<IUserService>(sp => new Services.CachingUserService(
-                sp.GetRequiredService<Services.UserGrpcService>(),
-                sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
-                sp.GetRequiredService<ILogger<Services.CachingUserService>>()));
 
             // gRPC client for Category API (port 5282 local / env-configurable)
             var categoryGrpcUrl = configuration["GrpcServices:CategoryApi"] ?? "http://localhost:5282";

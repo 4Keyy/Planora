@@ -4,13 +4,16 @@ import { getCsrfToken, shouldIncludeCsrfToken, clearCsrfToken, CSRF_HEADER_NAME 
 import { refreshAccessToken } from "@/lib/auth-public"
 import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
 import { getApiBaseUrl } from "@/lib/config"
-import { newTraceparent } from "@/lib/trace"
+import { newTraceparent, extractTraceId, traceparentForExistingTrace } from "@/lib/trace"
 import type { Todo, TodoComment } from "@/types/todo"
 import type { AuthTokenDto } from "@/types/auth"
 
 const BASE_URL = getApiBaseUrl()
 let refreshPromise: Promise<AuthTokenDto> | null = null
-type RetriableRequestConfig = NonNullable<AxiosError["config"]> & { _retry?: boolean }
+type RetriableRequestConfig = NonNullable<AxiosError["config"]> & {
+  _retry?: boolean
+  _csrfRetry?: boolean
+}
 type HiddenStateResponse = {
   hidden: boolean
   categoryName?: string | null
@@ -171,6 +174,15 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
+    // Request cancellation is normal control flow, not an error: React effects
+    // abort in-flight requests on unmount/dependency change, and a newer fetch
+    // supersedes an older one. axios rejects these with ERR_CANCELED. Swallow
+    // them silently so they never reach console.error (which raises the Next.js
+    // dev error overlay) — the awaiting component already ignores cancellations.
+    if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
+      return Promise.reject(error)
+    }
+
     if (error.response) {
       logApiHttpError(error)
       
@@ -208,6 +220,14 @@ api.interceptors.response.use(
             useAuthStore.getState().applyRefresh(refreshed)
             originalRequest.headers = originalRequest.headers ?? {}
             originalRequest.headers.Authorization = `Bearer ${refreshed.accessToken}`
+            // OBSERVABILITY: keep the original trace-id but issue a fresh span-id so
+            // the backend collector groups the retry under the same trace. The span-id
+            // must change because span-ids are unique-per-span by W3C spec.
+            const originalTraceparent = originalRequest.headers.traceparent as string | undefined
+            const traceId = extractTraceId(originalTraceparent ?? null)
+            originalRequest.headers.traceparent = traceId
+              ? traceparentForExistingTrace(traceId)
+              : newTraceparent()
             return api(originalRequest)
           } catch {
             console.warn("[API] Token refresh failed, clearing auth")
@@ -232,14 +252,34 @@ api.interceptors.response.use(
         }
       }
 
-      // Handle 403 Forbidden (CSRF token failure or permission denied)
+      // Handle 403 Forbidden — could be CSRF expiry (recoverable) or genuine
+      // permission denial. Retry ONCE on state-mutating requests with a fresh
+      // CSRF token; the request interceptor will fetch a new token because the
+      // previous one was cleared. Genuine permission errors fail the second
+      // attempt with a 403 again, at which point we surface the error.
       if (error.response.status === 403) {
-        console.warn('[API] Forbidden - possible CSRF token failure')
-        // Clear CSRF token to force refresh on next request
         clearCsrfToken()
+        const originalRequest = error.config as RetriableRequestConfig | undefined
+        if (
+          originalRequest &&
+          !originalRequest._csrfRetry &&
+          shouldIncludeCsrfToken(originalRequest.method || "GET")
+        ) {
+          originalRequest._csrfRetry = true
+          console.warn("[API] 403 — retrying with fresh CSRF token")
+          return api(originalRequest)
+        }
+        console.warn("[API] 403 — not retried (non-mutating, retry already attempted, or no config)")
       }
     } else if (error.request) {
-      console.error("[Network Error]", error.message)
+      // No response received (backend unreachable, DNS failure, timeout). In dev
+      // this is common during hot-reload/backend restarts and would otherwise
+      // spam the error overlay, so downgrade to a warning outside production.
+      if (process.env.NODE_ENV === "production") {
+        console.error("[Network Error]", error.message)
+      } else {
+        console.warn("[Network Error]", error.message)
+      }
     } else {
       console.error("[Request Error]", error.message)
     }
@@ -312,7 +352,7 @@ export const fetchComments = async (
   pageSize = 50,
 ): Promise<PagedCommentsResponse> => {
   const { data } = await api.get<ApiResponse<PagedCommentsResponse>>(
-    `/todos/api/v1/todos/${todoId}/comments`,
+    `/collaboration/api/v1/comments/${todoId}`,
     { params: { pageNumber, pageSize } },
   )
   return parseApiResponse(data)
@@ -320,7 +360,7 @@ export const fetchComments = async (
 
 export const addComment = async (todoId: string, content: string): Promise<TodoComment> => {
   const { data } = await api.post<ApiResponse<TodoComment>>(
-    `/todos/api/v1/todos/${todoId}/comments`,
+    `/collaboration/api/v1/comments/${todoId}`,
     { content },
   )
   return parseApiResponse(data)
@@ -332,20 +372,12 @@ export const updateComment = async (
   content: string,
 ): Promise<TodoComment> => {
   const { data } = await api.put<ApiResponse<TodoComment>>(
-    `/todos/api/v1/todos/${todoId}/comments/${commentId}`,
+    `/collaboration/api/v1/comments/${todoId}/${commentId}`,
     { content },
   )
   return parseApiResponse(data)
 }
 
 export const deleteComment = async (todoId: string, commentId: string): Promise<void> => {
-  await api.delete(`/todos/api/v1/todos/${todoId}/comments/${commentId}`)
-}
-
-export const addGenesisComment = async (todoId: string, content: string): Promise<TodoComment> => {
-  const { data } = await api.post<ApiResponse<TodoComment>>(
-    `/todos/api/v1/todos/${todoId}/genesis`,
-    { content },
-  )
-  return parseApiResponse(data)
+  await api.delete(`/collaboration/api/v1/comments/${todoId}/${commentId}`)
 }

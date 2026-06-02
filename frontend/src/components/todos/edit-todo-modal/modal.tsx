@@ -27,6 +27,10 @@ export interface EditTodoModalProps {
   onCreateCategory: () => Promise<void>
   onDeleteCategory?: (categoryId: string) => Promise<void>
   onLeave?: () => Promise<void>
+  /** Take the task into work (owner → In Progress, viewer → join). */
+  onStartWork?: () => Promise<void>
+  /** Complete (or, when already completed, reopen) the task. */
+  onCompleteTask?: () => Promise<void>
   onDescriptionChange?: (newDescription: string) => void
   commentsRefreshKey?: number
 }
@@ -39,6 +43,8 @@ export function EditTodoModal({
   onSaveViewerPreference,
   onCreateCategory,
   onLeave,
+  onStartWork,
+  onCompleteTask,
   onDescriptionChange,
   commentsRefreshKey,
 }: EditTodoModalProps) {
@@ -52,6 +58,9 @@ export function EditTodoModal({
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [title,        setTitle]        = useState(todo.title)
+  // The description is the single source of truth on the task itself (not a stored
+  // comment). The branch's "Author's Note" edits it through onSaveDescription below.
+  const [description,  setDescription]  = useState(todo.description ?? "")
   const [priority,     setPriority]     = useState(getPriorityString(todo.priority))
   const [dueDate,      setDueDate]      = useState(
     todo.dueDate ? new Date(todo.dueDate).toISOString().split("T")[0] : ""
@@ -72,6 +81,17 @@ export function EditTodoModal({
   const inProgress = isOwner
     ? String(todo.status ?? "").toLowerCase().replace(/\s/g, "") === "inprogress"
     : (todo.isWorking ?? false)
+
+  const statusKey = String(todo.status ?? "").toLowerCase().replace(/\s/g, "")
+  const isCompleted = isOwner
+    ? (statusKey === "done" || statusKey === "completed")
+    : (todo.isCompletedByViewer ?? false)
+
+  // Optimistic working state so the compose-panel toggle and the pill flip instantly,
+  // before the parent's refetch propagates back through the `todo` prop. Reset per task.
+  const [workOverride, setWorkOverride] = useState<boolean | null>(null)
+  useEffect(() => { setWorkOverride(null) }, [todo.id])
+  const effectiveInProgress = workOverride ?? inProgress
 
   const [pillHovered, setPillHovered] = useState(false)
 
@@ -121,23 +141,26 @@ export function EditTodoModal({
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
+  // Full owner payload. `descOverride` lets the branch persist a description edit
+  // without disturbing the other fields (single source of truth = the task).
+  const buildOwnerPayload = (descOverride?: string | null): UpdateTodoPayload => ({
+    title: title.trim(),
+    description: descOverride !== undefined ? descOverride : (description.trim() || null),
+    priority: getPriorityNumber(priority),
+    dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+    categoryId: categoryId || null,
+    isPublic: false,
+    sharedWithUserIds: visMode === "private" ? [] : sharedIds,
+    requiredWorkers: visMode === "private" ? null : 1 + sharedIds.length,
+    clearRequiredWorkers: visMode === "private",
+  })
+
   const handleSave = async () => {
     if (isOwner && !title.trim()) return
     setSaving(true)
     try {
       if (isOwner) {
-        const payload: UpdateTodoPayload = {
-          title: title.trim(),
-          description: todo.description || null,
-          priority: getPriorityNumber(priority),
-          dueDate: dueDate ? new Date(dueDate).toISOString() : null,
-          categoryId: categoryId || null,
-          isPublic: false,
-          sharedWithUserIds: visMode === "private" ? [] : sharedIds,
-          requiredWorkers: visMode === "private" ? null : 1 + sharedIds.length,
-          clearRequiredWorkers: visMode === "private",
-        }
-        await onSave(payload)
+        await onSave(buildOwnerPayload())
       } else {
         await onSaveViewerPreference({ viewerCategoryId: categoryId || null })
       }
@@ -145,6 +168,15 @@ export function EditTodoModal({
     } finally {
       setSaving(false)
     }
+  }
+
+  // Persist a description edit from the branch's "Author's Note" immediately to the
+  // task (the single source of truth) — no modal close, other fields untouched.
+  const handleSaveDescription = async (newDescription: string) => {
+    const trimmed = newDescription.trim()
+    await onSave(buildOwnerPayload(trimmed || null))
+    setDescription(trimmed)
+    onDescriptionChange?.(trimmed)
   }
 
 
@@ -173,8 +205,12 @@ export function EditTodoModal({
           style={{
             position: "relative",
             width: 660,
-            maxHeight: "90vh",
-            overflowY: "auto",
+            // Fixed size regardless of content: the modal is always the same (max) height,
+            // whether the branch is empty or full. The branch feed in the middle flex-fills
+            // and scrolls internally, so title/meta/footer stay put.
+            height: "90vh",
+            maxHeight: 880,
+            overflow: "hidden",
             borderRadius: 28,
             background: "white",
             boxShadow: "0 30px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.05)",
@@ -202,7 +238,7 @@ export function EditTodoModal({
 
             {/* Right: in-progress pill + close */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {inProgress && onLeave && (
+              {effectiveInProgress && onLeave && (
                 <div
                   onMouseEnter={() => setPillHovered(true)}
                   onMouseLeave={() => setPillHovered(false)}
@@ -246,9 +282,10 @@ export function EditTodoModal({
                       In Progress
                     </span>
 
-                    {/* "Leave" button — absolutely overlaid, fades in on hover */}
+                    {/* "Leave" button — absolutely overlaid, fades in on hover.
+                        Leaving keeps the modal open (the "left the task" event shows in the branch). */}
                     <button
-                      onClick={async (e) => { e.stopPropagation(); await onLeave(); onClose() }}
+                      onClick={async (e) => { e.stopPropagation(); setWorkOverride(false); await onLeave() }}
                       style={{
                         position: "absolute",
                         inset: "-3px -6px",
@@ -363,20 +400,24 @@ export function EditTodoModal({
               friends={friends}
               openPopover={openPopover}
               setOpenPopover={setOpenPopover}
-              disabled={!isOwner && !canManageViewerCategory}
             />
           </div>
 
           {/* Divider */}
           <div style={{ height: 1, background: "#f5f5f5", margin: "0 26px" }} />
 
-          {/* ── (4) Branch panel ── */}
-          <div style={{ padding: "18px 26px 20px" }}>
+          {/* ── (4) Branch panel ── (flex-fills the fixed-height modal; scrolls internally) */}
+          <div style={{ padding: "18px 26px 20px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             <BranchFeed
               todoId={todo.id}
               isOwner={isOwner}
               refreshKey={commentsRefreshKey}
-              onDescriptionChange={onDescriptionChange}
+              onSaveDescription={isOwner ? handleSaveDescription : undefined}
+              inProgress={effectiveInProgress}
+              isCompleted={isCompleted}
+              onStartWork={onStartWork ? async () => { setWorkOverride(true); await onStartWork() } : undefined}
+              onStopWork={onLeave ? async () => { setWorkOverride(false); await onLeave() } : undefined}
+              onCompleteTask={onCompleteTask ? async () => { await onCompleteTask(); onClose() } : undefined}
             />
           </div>
 

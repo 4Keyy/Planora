@@ -180,22 +180,38 @@ describe("api interceptors", () => {
     expect(clearCsrfToken).toHaveBeenCalledOnce()
   })
 
-  it("clears CSRF token on 403 and logs network/request failures", async () => {
+  it("clears CSRF token on a state-changing 403 and marks the request for one retry", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
-    const forbidden = {
-      response: { status: 403 },
-      config: { method: "post" },
-    }
 
-    await expect(responseRejected()(forbidden)).rejects.toBe(forbidden)
+    // First 403 on a POST: interceptor must call clearCsrfToken, mark
+    // _csrfRetry on the config, and re-issue the request via api(originalRequest).
+    // We do not assert on the inner api() resolution here (that requires a full
+    // axios adapter stub); the interceptor contract under test is "side-effects
+    // happen and a non-rejected promise is returned".
+    const config: any = { method: "post", headers: {} }
+    const forbiddenFirst = { response: { status: 403 }, config } as any
 
-    expect(clearCsrfToken).toHaveBeenCalledOnce()
-    expect(warnSpy).toHaveBeenCalledWith("[API] Forbidden - possible CSRF token failure")
+    const result = responseRejected()(forbiddenFirst)
+    expect(clearCsrfToken).toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith("[API] 403 — retrying with fresh CSRF token")
+    expect(config._csrfRetry).toBe(true)
+    // The retried request is fire-and-forget for the purposes of this test —
+    // detach it so it does not surface as an unhandled rejection in jsdom.
+    void result.catch(() => {})
 
+    // Second 403 on the same request (now flagged _csrfRetry=true): interceptor
+    // must NOT retry again — the rejection propagates to the caller.
+    const forbiddenSecond = { response: { status: 403 }, config: { method: "post", headers: {}, _csrfRetry: true } } as any
+    await expect(responseRejected()(forbiddenSecond)).rejects.toBe(forbiddenSecond)
+    expect(warnSpy).toHaveBeenCalledWith("[API] 403 — not retried (non-mutating, retry already attempted, or no config)")
+
+    // Outside production a no-response network error is logged via console.warn
+    // (not console.error) so backend hot-reload restarts don't raise the Next.js
+    // dev error overlay. The test environment is non-production.
     const network = { request: {}, message: "offline" }
     await expect(responseRejected()(network)).rejects.toBe(network)
-    expect(errorSpy).toHaveBeenCalledWith("[Network Error]", "offline")
+    expect(warnSpy).toHaveBeenCalledWith("[Network Error]", "offline")
 
     const setupError = { message: "bad config" }
     await expect(responseRejected()(setupError)).rejects.toBe(setupError)

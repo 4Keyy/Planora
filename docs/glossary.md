@@ -8,6 +8,11 @@
 | CSRF | Cross-site request forgery protection using double-submit cookie/header | `CsrfProtectionMiddleware.cs`, `frontend/src/lib/csrf.ts` |
 | Category | User-owned label for todos with color/icon/order | `Services/CategoryApi` |
 | Category gRPC | Internal service contract used to validate/enrich todo categories | `GrpcContracts/Protos/category.proto` |
+| Collaboration API | Service that owns the task comment timeline ("ветки") and comment notifications; authorises every operation against Todo via gRPC | `Services/CollaborationApi` |
+| Comment timeline ("ветки") | Per-task chronological thread of user, genesis, and system comments | `Services/CollaborationApi/.../Comment.cs` |
+| Genesis comment | The task's initial description rendered as the first timeline entry; system comment owned by the task owner, one per task | `Comment.CreateGenesis` |
+| System comment | Auto-generated timeline entry for task lifecycle (created/completed/started/left); no user author | `Comment.CreateSystem`, Collaboration Inbox consumers |
+| CheckTaskCommentAccess | Todo gRPC call returning task existence, comment access, owner, and participants for Collaboration | `GrpcContracts/Protos/todo.proto`, `TodoGrpcService.cs` |
 | CQRS | Command/query separation through MediatR handlers | `*.Application/Features` |
 | Friend request | Pending friendship relation between requester and addressee | `FriendshipsController.cs` |
 | Friendship | Accepted social relation used for todo sharing | `Friendship.cs`, `auth.proto` |
@@ -33,7 +38,7 @@
 | BuildingBlocks | Shared kernel — domain primitives, CQRS abstractions, Result type, middleware, observability pipeline, outbox/inbox, gRPC interceptors | `BuildingBlocks/Planora.BuildingBlocks.*` |
 | CD pipeline | Tag-driven Fly.io blue/green deployment workflow | `.github/workflows/cd.yml` |
 | ConfigurationValidator | Startup-time check that rejects weak JWT secrets and missing gRPC keys before the host binds a port | `BuildingBlocks/.../Configuration/ConfigurationValidator.cs` |
-| Cosign | Sigstore tool for signing container images; planned for Phase 3 hardening | `docs/ROADMAP.md` |
+| Cosign | Sigstore tool for keyless artifact signing; used by the SBOM attestation step in CI | `.github/workflows/security.yml` |
 | CycloneDX SBOM | Software Bill of Materials artifact emitted per build, listing every NuGet and npm dependency | `.github/workflows/security.yml` `sbom` job |
 | Dependabot | Automated dependency-update PRs for npm, nuget, github-actions, docker ecosystems | `.github/dependabot.yml` |
 | Error budget | Allowed shortfall implied by an SLO; burning it pauses feature work in favour of reliability | [`docs/slo.md`](slo.md) |

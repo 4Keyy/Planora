@@ -1,6 +1,6 @@
 # Overview
 
-Planora is a personal productivity and sharing system. The visible product is a Next.js web app; the backend is split into .NET 9 services behind an Ocelot API Gateway.
+Planora is a personal productivity and sharing system. The visible product is a Next.js web app; the backend is split into .NET 10 services behind an Ocelot API Gateway.
 
 The core workflow is:
 
@@ -24,6 +24,7 @@ The core workflow is:
 | Category CRUD | implemented | `Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs` |
 | Todo CRUD and filtering | implemented | `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs` |
 | Shared todo hidden/viewer preferences | implemented | `Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs`, `TodoViewerStateResolver.cs` |
+| Task comment timeline ("ветки") | implemented | `Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs` |
 | Direct messages | implemented | `Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs` |
 | Realtime notification primitives | implemented | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Api/Hubs` |
 | Product analytics event intake | implemented as structured business logging, not third-party analytics | `Services/AuthApi/Planora.Auth.Api/Controllers/AnalyticsController.cs`, `BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs` |
@@ -96,9 +97,10 @@ Implementation:
 Confirmed service ownership:
 
 - Auth owns users, roles, sessions, refresh tokens, login history, password history, friendships, audit logs, and auth-side outbox/inbox tables.
-- Todo owns todo items, tags, shares, and viewer preferences.
+- Todo owns todo items, tags, shares, and viewer preferences, and publishes task-lifecycle events via its outbox.
 - Category owns categories.
 - Messaging owns messages and messaging-side outbox/inbox tables.
+- Collaboration owns the task comment timeline (user/genesis/system comments) and authorises every operation against Todo over gRPC; it never reads Todo's database.
 - Realtime owns in-memory/Redis-backed connection state and SignalR fan-out; no Realtime database was found.
 - Gateway owns public routing and ingress-level JWT/rate/CORS behavior.
 

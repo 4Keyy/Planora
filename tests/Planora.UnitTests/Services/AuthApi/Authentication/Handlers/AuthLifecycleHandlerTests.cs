@@ -437,6 +437,48 @@ public class AuthLifecycleHandlerTests
     }
 
     [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task RefreshToken_WhenReplayed_InvalidatesChainAndRotatesStamp()
+    {
+        // Given: a refresh token that has already been rotated by the legitimate
+        // client (revoked with reason "Replaced by new token"), plus two siblings
+        // still active on the same user account.
+        var fixture = new AuthFixture();
+        var user = CreateUser();
+        var rotated = new RefreshTokenEntity(user.Id, "rotated-value", "1.2.3.4", DateTime.UtcNow.AddDays(7));
+        rotated.Revoke("1.2.3.4", "Replaced by new token");
+        var live1 = new RefreshTokenEntity(user.Id, "live-1", "1.2.3.4", DateTime.UtcNow.AddDays(7));
+        var live2 = new RefreshTokenEntity(user.Id, "live-2", "1.2.3.4", DateTime.UtcNow.AddDays(7));
+        AddRefreshTokenToUser(user, rotated);
+        AddRefreshTokenToUser(user, live1);
+        AddRefreshTokenToUser(user, live2);
+
+        fixture.Users.Setup(x => x.GetByRefreshTokenAsync("rotated-value", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+        fixture.CurrentUser.SetupGet(x => x.IpAddress).Returns("9.9.9.9");
+
+        // When: the attacker replays the already-rotated token.
+        var result = await fixture.CreateRefreshTokenHandler().Handle(
+            new RefreshTokenCommand { RefreshToken = "rotated-value" },
+            CancellationToken.None);
+
+        // Then: result is Unauthorized, both live siblings become revoked,
+        // SaveChangesAsync persists the chain revocation, and the security stamp
+        // is rotated so any minted access tokens are rejected on next use.
+        Assert.True(result.IsFailure);
+        Assert.Equal("INVALID_REFRESH_TOKEN", result.Error!.Code);
+        Assert.False(live1.IsActive);
+        Assert.False(live2.IsActive);
+        Assert.Equal("Reuse detected — chain invalidated", live1.RevokedReason);
+        Assert.Equal("Reuse detected — chain invalidated", live2.RevokedReason);
+        fixture.RefreshTokens.Verify(x => x.Update(live1), Times.Once);
+        fixture.RefreshTokens.Verify(x => x.Update(live2), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.SecurityStamp.Verify(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ValidateToken_ShouldReturnInvalidForBadTokenMissingUserAndLockedUser()
     {
         var fixture = new AuthFixture();
@@ -512,6 +554,7 @@ public class AuthLifecycleHandlerTests
         public Mock<ICurrentUserService> CurrentUser { get; } = new();
         public Mock<IEmailService> EmailService { get; } = new();
         public Mock<IBusinessEventLogger> BusinessLogger { get; } = new();
+        public Mock<ISecurityStampService> SecurityStamp { get; } = new();
 
         public AuthFixture()
         {
@@ -558,6 +601,7 @@ public class AuthLifecycleHandlerTests
                 UnitOfWork.Object,
                 TokenService.Object,
                 CurrentUser.Object,
+                SecurityStamp.Object,
                 Mock.Of<ILogger<RefreshTokenCommandHandler>>());
 
         public ValidateTokenQueryHandler CreateValidateTokenHandler()

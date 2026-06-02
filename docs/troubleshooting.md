@@ -74,7 +74,7 @@ Use this guide from the symptom outward. Prefer gateway URLs for browser/API che
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Backend build fails on warnings | repo treats warnings as errors | fix warning or update project-wide rules intentionally |
-| npm audit fails | moderate+ vulnerability | update dependency or document accepted risk |
+| npm audit fails | HIGH or CRITICAL vulnerability | update dependency or document accepted risk |
 | Gitleaks fails | secret-like value committed | rotate secret if real; replace committed value with placeholder |
 
 ## Diagnostic Commands

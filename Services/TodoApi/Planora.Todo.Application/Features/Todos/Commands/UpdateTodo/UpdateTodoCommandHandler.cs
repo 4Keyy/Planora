@@ -1,7 +1,10 @@
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Services;
+using Planora.Todo.Application.Common;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;
@@ -24,7 +27,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
         private readonly ICategoryGrpcClient _categoryGrpcClient;
         private readonly IFriendshipService _friendshipService;
         private readonly IUserTodoViewPreferenceRepository _viewerPreferenceRepository;
-        private readonly ITodoCommentRepository _commentRepository;
+        private readonly IOutboxRepository _outboxRepository;
         private readonly IBusinessEventLogger? _businessLogger;
 
         public UpdateTodoCommandHandler(
@@ -36,7 +39,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             ICategoryGrpcClient categoryGrpcClient,
             IFriendshipService friendshipService,
             IUserTodoViewPreferenceRepository viewerPreferenceRepository,
-            ITodoCommentRepository commentRepository,
+            IOutboxRepository outboxRepository,
             IBusinessEventLogger? businessLogger = null)
         {
             _repository = repository;
@@ -47,7 +50,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             _categoryGrpcClient = categoryGrpcClient;
             _friendshipService = friendshipService;
             _viewerPreferenceRepository = viewerPreferenceRepository;
-            _commentRepository = commentRepository;
+            _outboxRepository = outboxRepository;
             _businessLogger = businessLogger;
         }
 
@@ -106,8 +109,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                 todoItem.RemoveWorker(userId);
 
                             var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-                            var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{userName} completed the task");
-                            await _commentRepository.AddAsync(sysComment, cancellationToken);
+                            await _outboxRepository.EnqueueIntegrationEventAsync(
+                                new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.Completed),
+                                cancellationToken);
                         }
 
                         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -236,18 +240,21 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             var ownerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
             if (ownerJustCompleted)
             {
-                var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{ownerName} completed the task");
-                await _commentRepository.AddAsync(sysComment, cancellationToken);
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.Completed),
+                    cancellationToken);
             }
             else if (ownerStartedWorking)
             {
-                var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{ownerName} started working on the task");
-                await _commentRepository.AddAsync(sysComment, cancellationToken);
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.StartedWorking),
+                    cancellationToken);
             }
             else if (ownerStoppedWorking)
             {
-                var sysComment = TodoItemComment.CreateSystem(todoItem.Id, $"{ownerName} left the task");
-                await _commentRepository.AddAsync(sysComment, cancellationToken);
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.Left),
+                    cancellationToken);
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);

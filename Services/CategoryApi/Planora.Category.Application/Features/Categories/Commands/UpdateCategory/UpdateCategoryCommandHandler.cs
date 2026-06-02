@@ -69,7 +69,8 @@ namespace Planora.Category.Application.Features.Categories.Commands.UpdateCatego
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to update category {CategoryId}", request.CategoryId);
-                return Result.Failure<CategoryDto>("UPDATE_FAILED", ex.Message);
+                // Do not surface ex.Message to the client (can leak internal/DB detail).
+                return Result.Failure<CategoryDto>("UPDATE_FAILED", "Failed to update the category.");
             }
         }
     }

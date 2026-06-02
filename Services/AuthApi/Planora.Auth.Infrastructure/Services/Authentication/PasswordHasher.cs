@@ -8,14 +8,17 @@ namespace Planora.Auth.Infrastructure.Services.Authentication
 
         public string HashPassword(string password)
         {
-            using var algorithm = new Rfc2898DeriveBytes(
+            // Rfc2898DeriveBytes.Pbkdf2 (static) replaces the obsolete instance API
+            // (SYSLIB0060) and produces byte-identical output for the same salt,
+            // iteration count, SHA-512 and UTF-8 password encoding — so hashes stay
+            // compatible across the .NET 9 -> 10 migration.
+            var salt = RandomNumberGenerator.GetBytes(SaltSize);
+            var hash = Rfc2898DeriveBytes.Pbkdf2(
                 password,
-                SaltSize,
+                salt,
                 Iterations,
-                HashAlgorithmName.SHA512);
-
-            var salt = algorithm.Salt;
-            var hash = algorithm.GetBytes(HashSize);
+                HashAlgorithmName.SHA512,
+                HashSize);
 
             var hashBytes = new byte[SaltSize + HashSize];
             Array.Copy(salt, 0, hashBytes, 0, SaltSize);
@@ -31,13 +34,12 @@ namespace Planora.Auth.Infrastructure.Services.Authentication
             var salt = new byte[SaltSize];
             Array.Copy(hashBytes, 0, salt, 0, SaltSize);
 
-            using var algorithm = new Rfc2898DeriveBytes(
+            var hash = Rfc2898DeriveBytes.Pbkdf2(
                 password,
                 salt,
                 Iterations,
-                HashAlgorithmName.SHA512);
-
-            var hash = algorithm.GetBytes(HashSize);
+                HashAlgorithmName.SHA512,
+                HashSize);
 
             // Constant-time comparison prevents timing-based side-channel attacks.
             return CryptographicOperations.FixedTimeEquals(

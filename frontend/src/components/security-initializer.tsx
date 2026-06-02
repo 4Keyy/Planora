@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { getCsrfToken } from "@/lib/csrf"
 import { useAuthStore } from "@/store/auth"
 import { api, parseApiResponse } from "@/lib/api"
+import { AUTH_BROADCAST_CHANNEL, AUTH_BROADCAST_LOGOUT } from "@/lib/auth-broadcast"
 import type { UserDto } from "@/types/auth"
 
 export function SecurityInitializer() {
@@ -15,6 +16,26 @@ export function SecurityInitializer() {
     getCsrfToken().catch((err) => {
       console.warn("[Security] CSRF token initialization failed:", err)
     })
+  }, [])
+
+  // Cross-tab logout broadcast. The store persists to sessionStorage (per-tab),
+  // so the native `storage` event will not fire across tabs. BroadcastChannel
+  // is the right primitive: when one tab calls clearAuth() (manual logout, 401
+  // chain expired, scheduled-refresh failure), it posts a logout message; every
+  // other tab drops its in-memory access token without a network round-trip.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") {
+      return
+    }
+    const channel = new BroadcastChannel(AUTH_BROADCAST_CHANNEL)
+    channel.onmessage = (event: MessageEvent) => {
+      if (event.data?.type === AUTH_BROADCAST_LOGOUT) {
+        // _silent=true prevents a rebroadcast loop: the receiving tab clears
+        // local state but does not re-publish the same logout message.
+        useAuthStore.getState().clearAuth(true)
+      }
+    }
+    return () => channel.close()
   }, [])
 
   // Phase 2: Restore session ONLY after Zustand has rehydrated from sessionStorage.

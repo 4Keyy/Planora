@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware"
 import { decodeJwt, getJwtEmailVerified, getJwtRoles } from "@/lib/jwt"
 import { refreshAccessToken, validateAccessToken } from "@/lib/auth-public"
 import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
+import { broadcastLogout } from "@/lib/auth-broadcast"
 import type { AuthTokenDto } from "@/types/auth"
 
 /**
@@ -50,7 +51,10 @@ type AuthState = {
   setAuth: (payload: AuthPayload) => void
   applyRefresh: (payload: AuthTokenDto) => void
   updateUser: (patch: Partial<AuthUser>) => void
-  clearAuth: () => void
+  /** Clear auth. Pass `silent=true` to skip the cross-tab broadcast (used by the
+   *  initializer when *receiving* a logout from another tab — otherwise the tabs
+   *  would echo the message back and forth indefinitely). */
+  clearAuth: (silent?: boolean) => void
   isTokenValid: () => boolean
   isRefreshTokenValid: () => boolean
   restoreSession: () => Promise<void>
@@ -199,8 +203,10 @@ export const useAuthStore = create(
        * Clear all authentication state.
        * SECURITY: Also clears the httpOnly refresh-token cookie via the logout proxy route.
        * The cookie itself cannot be cleared from JS — the backend must expire it (Set-Cookie: Max-Age=0).
+       * When `silent` is omitted (or false) this also broadcasts a logout message
+       * across tabs so other open tabs drop their in-memory access token immediately.
        */
-      clearAuth: () =>
+      clearAuth: (silent?: boolean) => {
         set({
           user: undefined,
           accessToken: undefined,
@@ -209,7 +215,11 @@ export const useAuthStore = create(
           roles: [],
           emailVerified: undefined,
           isAuthenticated: false,
-        }),
+        })
+        if (!silent) {
+          broadcastLogout()
+        }
+      },
 
       /**
        * Check if current access token is still valid
@@ -336,6 +346,14 @@ export const useAuthStore = create(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.hasHydrated = true
+          // SECURITY: on rehydrate the access token is gone from memory (it was never
+          // persisted). Explicitly pin isAuthenticated=false until restoreSession()
+          // either re-issues a token from the httpOnly refresh cookie or fails and
+          // calls clearAuth(). This prevents a brief render window where guarded
+          // pages see isAuthenticated=true but state.accessToken is undefined.
+          if (!state.accessToken) {
+            state.isAuthenticated = false
+          }
         }
       },
     }

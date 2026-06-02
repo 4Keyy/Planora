@@ -47,7 +47,27 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable
     {
         var eventName = @event.GetType().Name;
         var connection = await _connectionManager.GetConnectionAsync(cancellationToken);
-        var channel = await connection.CreateChannelAsync();
+
+        // SECURITY / RELIABILITY (T4.7): publisher confirms + mandatory flag.
+        //
+        //   publisherConfirmationsEnabled:        broker MUST ack every publish.
+        //   publisherConfirmationTrackingEnabled: BasicPublishAsync awaits the ack
+        //                                          and throws PublishException on nack.
+        //   mandatory: true on BasicPublishAsync: an unroutable message (no queue
+        //                                          bound to the matching routing key)
+        //                                          returns and surfaces as a publish
+        //                                          failure instead of silently
+        //                                          disappearing.
+        //
+        // The combination guarantees that PublishAsync's task completion ==
+        // broker durability commitment for the message. The outer Outbox processor
+        // depends on this guarantee: if PublishAsync returns success, the outbox
+        // row is safe to mark Processed; if it throws, the row stays Pending and
+        // the message is retried per the OutboxMessage state machine (INV-COMM-3a).
+        var channelOpts = new CreateChannelOptions(
+            publisherConfirmationsEnabled: true,
+            publisherConfirmationTrackingEnabled: true);
+        var channel = await connection.CreateChannelAsync(channelOpts, cancellationToken);
 
         try
         {
@@ -65,9 +85,15 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable
                 Type = eventName
             };
 
-            await channel.BasicPublishAsync(ExchangeName, eventName, false, properties, body, cancellationToken);
+            await channel.BasicPublishAsync(
+                exchange: ExchangeName,
+                routingKey: eventName,
+                mandatory: true,
+                basicProperties: properties,
+                body: body,
+                cancellationToken: cancellationToken);
 
-            _logger.LogInformation("Published event {EventName} with ID {EventId}", eventName, @event.Id);
+            _logger.LogInformation("Published event {EventName} with ID {EventId} (broker confirmed)", eventName, @event.Id);
         }
         catch (Exception ex)
         {
@@ -183,12 +209,57 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable
 
                 var @event = JsonSerializer.Deserialize(message, eventType);
 
-                if (@event != null)
+                if (@event == null)
+                    continue;
+
+                // Consumer idempotency (INV-COMM-4). Delivery is at-least-once (we nack+requeue on
+                // failure), so a redelivered or restart-replayed event must not run the handler
+                // twice. We dedup on the stable event Id via the service's inbox. This is graceful
+                // and defensive: if the service registers no IInboxRepository (or it errors), we
+                // simply process without dedup — exactly the previous behaviour, never worse.
+                var inbox = scope.ServiceProvider.GetService<IInboxRepository>();
+                var eventId = (@event as IntegrationEvent)?.Id ?? Guid.Empty;
+
+                if (inbox != null && eventId != Guid.Empty)
                 {
-                    var handleMethod = handlerType.GetMethod("HandleAsync");
-                    var result = handleMethod?.Invoke(handler, new[] { @event, CancellationToken.None });
-                    if (result is Task t)
-                        await t;
+                    try
+                    {
+                        if (await inbox.ExistsAsync(eventId, CancellationToken.None))
+                        {
+                            _logger.LogInformation(
+                                "Skipping already-processed event {EventName} {EventId} for handler {Handler}",
+                                eventName, eventId, handlerType.Name);
+                            continue;
+                        }
+                    }
+                    catch (Exception dedupEx)
+                    {
+                        _logger.LogWarning(dedupEx,
+                            "Inbox dedup check failed for {EventName}; processing without dedup", eventName);
+                        inbox = null;
+                    }
+                }
+
+                var handleMethod = handlerType.GetMethod("HandleAsync");
+                var result = handleMethod?.Invoke(handler, new[] { @event, CancellationToken.None });
+                if (result is Task t)
+                    await t;
+
+                if (inbox != null && eventId != Guid.Empty)
+                {
+                    try
+                    {
+                        var record = new InboxMessage(eventId, eventName, message, DateTime.UtcNow);
+                        record.MarkAsProcessed();
+                        await inbox.AddAsync(record, CancellationToken.None);
+                    }
+                    catch (Exception recordEx)
+                    {
+                        // Recording is best-effort: a failure here only risks reprocessing on a
+                        // later redelivery, never data loss or a broken consume loop.
+                        _logger.LogWarning(recordEx,
+                            "Failed to record processed event {EventName} {EventId} in inbox", eventName, eventId);
+                    }
                 }
             }
 

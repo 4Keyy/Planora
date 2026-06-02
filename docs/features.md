@@ -168,7 +168,7 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 | Area | Behavior |
 |---|---|
 | Title | required on create, max 200 |
-| Description | validators allow max 5000, EF config stores max 2000; use 2000 as safe persisted limit until code is reconciled |
+| Description | optional, max 2000 — enforced consistently by the create/update validators and the EF `Description` column (`HasMaxLength(2000)`) |
 | Status | backend statuses are `Todo`, `InProgress`, `Done`; parser accepts legacy aliases such as `pending` and `completed` |
 | Priority | `VeryLow`, `Low`, `Medium`, `High`, `Urgent`; EF stores integer value |
 | Expected/due dates | expected date cannot be after due date when both are present |
@@ -234,62 +234,109 @@ Allow friends to claim participation slots on public or shared tasks. The task o
 - `WorkerJoinButton` renders nothing for the owner; shows "Join" (indigo) for eligible friends; shows disabled "Full" with a lock icon when at capacity; shows "Leave" (outlined) when already working.
 - `onJoin` / `onLeave` callbacks on `TodoCard` optimistically update `isWorking` and `workerCount` in local state.
 
-## Task Comments
+## Task Comments (Collaboration Service)
 
 ### Purpose
 
-Provide a persistent discussion thread on public and shared tasks. Only the owner and active workers can post; anyone with task access can read.
+Provide a persistent discussion timeline ("ветки") on public and shared tasks: user comments, the
+pinned "Author's Note" (the task's description), and auto-generated system comments for lifecycle
+events. The timeline is owned by the dedicated **Collaboration** service, decoupled from the Todo
+aggregate. The Author's Note is **not** stored as a comment — the description is a single source of
+truth on the task (Todo) and is synthesised into the timeline on read, so it shows instantly, always
+matches the task card, and exists for tasks created before this service.
+
+### Architecture
+
+The Collaboration service owns the comment data (`planora_collaboration.collaboration.comments`) and
+never reads the Todo database. Two integration boundaries keep it consistent (INV-OWN-1):
+
+- **Authorisation + description (synchronous gRPC):** every read/write calls
+  `TodoService.CheckTaskCommentAccess`, which returns `exists`, `hasAccess` (owner / shared / public +
+  friendship), `ownerId`, `participantIds`, and the live task `description` + `taskCreatedAt` (used to
+  synthesise the Author's Note). Collaboration applies no sharing rules of its own and stores no copy
+  of the description.
+- **System comments (asynchronous, Outbox→Inbox):** Todo publishes task-lifecycle events; the
+  Collaboration consumers materialise the corresponding "created / started / left / completed" system
+  comments. This replaces the former in-transaction comment writes inside the Todo handlers. Delivery
+  is at-least-once, so consumption is **idempotent (INV-COMM-4)**: the event bus dedups on the
+  integration event id via the `InboxMessages` table and skips a redelivered/replayed event before
+  its handler runs — no duplicate system comments.
+- **Near-instant dispatch (latency):** the `OutboxProcessor` is signal-driven, not just polled.
+  `OutboxNotifyInterceptor` (an EF `SaveChangesInterceptor` on `TodoDbContext`) pulses an in-process
+  `OutboxSignal` the moment a transaction that inserted an outbox row commits, waking the processor in
+  milliseconds; the 5 s poll remains only as a safety net. Consumption is push-based (RabbitMQ), so a
+  "started working / left / completed" system comment now lands in the branch within a fraction of a
+  second of the action instead of waiting out a poll tick. A full batch (`BatchSize`) is drained in a
+  tight loop before the processor idles again.
+- **Author identity (synchronous gRPC):** comment author name + avatar are resolved live via
+  `AuthService.GetUserProfilesBatch` (60 s cache), never stored — a profile rename reflects everywhere.
 
 ### Implementation
 
-- `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItemComment.cs`
-- `Services/TodoApi/Planora.Todo.Domain/Events/TodoCommentAddedDomainEvent.cs`
-- `Services/TodoApi/Planora.Todo.Domain/Repositories/ITodoCommentRepository.cs`
-- `Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/TodoCommentRepository.cs`
-- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/AddComment/`
-- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateComment/`
-- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/DeleteComment/`
-- `Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetComments/`
-- `frontend/src/components/todos/task-comments.tsx`
+- `Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs`
+- `Services/CollaborationApi/Planora.Collaboration.Domain/Repositories/ICommentRepository.cs`
+- `Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Commands/{AddComment,UpdateComment,DeleteComment}/` (handler + FluentValidation validator)
+- `Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/Queries/GetComments/`
+- `Services/CollaborationApi/Planora.Collaboration.Application/Features/IntegrationEvents/` (Inbox consumers)
+- `Services/CollaborationApi/Planora.Collaboration.Infrastructure/Grpc/{TaskAccessGrpcClient,UserGrpcService,CachingUserService}.cs`
+- `Services/TodoApi/Planora.Todo.Api/Grpc/TodoGrpcService.cs` — `CheckTaskCommentAccess`
+- `frontend/src/components/todos/task-comments.tsx` (calls `/collaboration/api/v1/comments/*`)
 
 ### Key Rules
 
 | Rule | Detail |
 |---|---|
-| Read access | owner, any user with task access (public/shared) who is also friends with the owner |
-| Write access | owner or active worker (in `todo_item_workers`) |
-| Content limits | max 2000 characters; cannot be empty |
-| `AuthorName` | denormalized at write time from JWT `name` or `given_name` claim, falling back to email then userId |
-| Edit rules | only the comment author can edit their own comment |
-| Delete rules | comment author OR task owner can delete; results in soft delete |
-| `IsEdited` | true when `UpdatedAt > CreatedAt + 5 seconds`; always false for system comments |
-| `UpdatedAt` on create | not set on creation; only set when content is actually updated via `UpdateContent` |
-| Cascade delete | todo soft-delete also soft-deletes all comments via `SoftDeleteByTodoIdAsync` |
-| Pagination | `GET {id}/comments` accepts `pageNumber` (default 1) and `pageSize` (default 50); sorted oldest-first |
+| Read access | any user the Todo access check returns `hasAccess` for (owner, or friend with public/shared visibility) |
+| Write access | same `hasAccess` rule; the access decision is owned by Todo, not duplicated here |
+| Content limits | comment max 2000 chars; cannot be empty (FluentValidation + domain). The description (Author's Note, max 2000) is validated by Todo, not here |
+| Author identity | resolved live via `GetUserProfilesBatch` (name + avatar); the stored `AuthorName` is only a fallback when Auth is unreachable |
+| Edit rules | comment author edits their own comment (enforced in `Comment.UpdateContent`); the description is edited on the task (`PUT /todos/...`), owner only |
+| Optimistic concurrency | the `Comment` aggregate uses PostgreSQL `xmin` as a concurrency token. Mutation handlers MUST load the comment **tracked** (`CommentRepository.GetByIdAsync` inherits the tracking base) — an `AsNoTracking` load drops the shadow `xmin`, making every edit/delete fail with a spurious 409 `CONCURRENCY_CONFLICT` |
+| Delete rules | comment author OR task owner; soft delete; plain system comments cannot be deleted |
+| `IsEdited` | true when `UpdatedAt > CreatedAt + 5 seconds` for a user comment; system comments and the synthesised Author's Note never report edited |
+| Cascade delete | task delete emits `TaskDeletedIntegrationEvent`; the consumer soft-deletes the timeline |
+| User delete | `UserDeletedIntegrationEvent` soft-deletes all comments authored by that user |
+| Notifications | adding a comment enqueues a `NotificationEvent` per other participant (Outbox → Realtime/SignalR) |
+| Pagination | `GET /comments/{taskId}` accepts `pageNumber` (default 1) and `pageSize` (default 50); oldest-first |
 
 ### System Comments
 
-System comments are auto-generated by the backend on task lifecycle events. They are never authored by a user — `AuthorId = Guid.Empty`, `AuthorName = ""`, `isOwn = false`, `isEdited = false`, and `isSystemComment = true` in every response. Users cannot create, edit, or delete system comments.
+System comments are materialised by the Collaboration consumers from Todo task-lifecycle
+integration events. They are never authored by a user — `AuthorId = Guid.Empty`, `AuthorName = ""`,
+`isOwn = false`, `isSystemComment = true`. The Author's Note is **not** a stored comment: it is
+synthesised on read (`isGenesisComment = true`, `id` = task id, author = task owner) from the live
+task description, so it is never materialised by these consumers.
 
-| Event | System comment text | Handler |
-|---|---|---|
-| Task created | `"{name} created the task"` | `CreateTodoCommandHandler` |
-| Owner sets status → InProgress | `"{name} started working on the task"` | `UpdateTodoCommandHandler` |
-| Owner sets status → Todo (from InProgress) | `"{name} left the task"` | `UpdateTodoCommandHandler` |
-| Non-owner worker joined | `"{name} started working on the task"` | `JoinTodoCommandHandler` |
-| Non-owner worker left | `"{name} left the task"` | `LeaveTodoCommandHandler` |
-| Task completed (owner or viewer) | `"{name} completed the task"` | `UpdateTodoCommandHandler` |
+| Todo trigger | Integration event | System comment text | Collaboration consumer |
+|---|---|---|---|
+| Task created | `TaskCreatedIntegrationEvent` | `"{name} created the task"` | `TaskCreatedEventConsumer` |
+| Owner → InProgress | `TaskActivityIntegrationEvent (StartedWorking)` | `"{name} started working on the task"` | `TaskActivityEventConsumer` |
+| Owner → Todo (from InProgress) | `TaskActivityIntegrationEvent (Left)` | `"{name} left the task"` | `TaskActivityEventConsumer` |
+| Worker joined | `TaskWorkerJoined`→`TaskActivity (StartedWorking)` | `"{name} started working on the task"` | `TaskActivityEventConsumer` |
+| Worker left | `TaskActivityIntegrationEvent (Left)` | `"{name} left the task"` | `TaskActivityEventConsumer` |
+| Task completed | `TaskActivityIntegrationEvent (Completed)` | `"{name} completed the task"` | `TaskActivityEventConsumer` |
 
-`{name}` is resolved from `ICurrentUserContext.Name`, then `Email`, then `UserId.ToString()` as a fallback.
+`{name}` is captured in the event by Todo (from `ICurrentUserContext.Name` → `Email` → `UserId`),
+so Collaboration needs no extra lookup to render the sentence. Consumers are idempotent under replay
+(INV-COMM-4).
 
 ### Frontend Behavior
 
-- `TaskComments` renders inside the edit modal for tasks with a shared audience.
+- `BranchFeed` renders inside the fixed-size branch/edit modal (`edit-todo-modal/branch-feed.tsx`).
 - Comments are fetched oldest-first (chat style) on mount; "Load earlier" button appends the next page.
 - `isOwn` controls edit/delete button visibility; `isEdited` renders "(edited)" label.
-- Ctrl+Enter submits the draft; a 2000-character counter warns at the input edge.
+- Ctrl+Enter submits the draft; Escape cancels description mode.
 - Soft-deleted comments are removed from local state immediately without a full refetch.
-- System comments (`isSystemComment: true`) render as a centered horizontal-rule divider — event text flanked by `<hr>` lines, with a tiny timestamp below. No author label, no edit/delete buttons.
+- System comments (`isSystemComment: true`) render on the activity rail with a calm, monochrome badge — a circular grey marker centred on the rail line carrying a simple icon that hints at the event (created = Plus, started working = Play, left = LogOut, completed = Check, other = Circle) — followed by the sentence; no edit/delete. The rail itself is a single continuous gradient line that spans the whole timeline (it lives in a content-height wrapper, so it never breaks when the feed grows and scrolls); user-message avatars are centred on the same line.
+- Long unbroken text wraps: message, Author's Note, and system-event text use `overflow-wrap: anywhere` / `word-break: break-word`, so a very long word or URL with no spaces wraps onto the next line instead of forcing a horizontal scrollbar.
+- Leaving work never closes the modal: stopping the in-progress status — via the header pill, the compose "+" menu, on either the active feed or the dashboard — keeps the branch modal open so the "left the task" event is read in place.
+- **Opens at the newest message:** on first load (and after a take/leave/complete action) the rail pins to the bottom so the latest activity is in view; "load earlier" and description edits preserve position instead of jumping.
+- **Live updates without re-opening:** there is no realtime socket, so the feed merges the newest page on a 5 s interval (paused while editing) and reconciles by comment id — new messages, edits, and the system status-comments appear on their own. After a take/leave/complete action it additionally schedules short catch-up merges (≈0.6 / 1.5 / 3 s); combined with the signal-driven outbox dispatch (see Architecture above), the status system-comment now shows in well under a second. The merge only re-pins to the bottom when the reader was already there.
+- **Non-owner date popover:** a viewer who is not the task owner sees the priority/date/visibility tokens read-only. The date popover omits the Today/Tomorrow/+3 days/Next week quick-pick row entirely (not merely disabled) — only the read-only calendar remains.
+- **Sticky Author's Note:** the pinned card lives at the top of the scrollable rail and scrolls away with content. Once it passes out of view the feed shows a condensed frosted-glass bar (author avatar + truncated first line + animated chevron) at the top of the feed area. Clicking the condensed bar smoothly scrolls back to the full card and fires a violet attention pulse (`genesis_highlight` keyframe) so the note is easy to spot. The bar animates in/out with a spring (Framer Motion `AnimatePresence`).
+- **Compose "+" menu actions:** the menu is visible to all participants (owner and collaborators). The "Description" attachment item is shown only to the task owner and is muted once a description exists (already added). Two additional action items are shown to everyone:
+  - **Take into work / Leave task** — mirrors the existing join/leave flow exactly (owner: `status → inProgress` / `status → todo`; viewer: `joinTodo` / `leaveTodo`). The button label and icon flip between "Take into work" (Zap, indigo) and "Leave task" (LogOut, red) depending on the current in-progress state. An optimistic `workOverride` state in the modal flips the pill in the header bar instantly before the parent refetch arrives. Leaving — via this menu **or** the header pill — keeps the modal open so the "left the task" event is read in place.
+  - **Complete task / Reopen task** — mirrors the existing complete flow (owner: `status → done`; viewer: `completedByViewer` toggle). Closes the modal on success.
 
 ## Shared Todos And Hidden Viewer Preferences
 
@@ -419,3 +466,37 @@ Allowlisted product event names:
 - `HIDDEN_TODO_REVEALED`
 - `SESSION_RESTORED`
 - `TOKEN_REFRESH_FAILED`
+
+## Animated Background
+
+The app ships a fragment-shader background (`ColorBends`) rendered via
+Three.js, wrapped in a lazy + Suspense layer (`ColorBendsLayer`) that is
+dropped once into the root layout and sits behind all content.
+
+### Defaults
+
+| Setting | Value |
+|---|---|
+| Colors | `["#d4d4d4", "#9e9e9e", "#616161"]` (light → mid → dark grey) |
+| Rotation | `-65°` |
+| Speed | `0.36` |
+| Scale | `1.4` |
+| Frequency | `1` |
+| WarpStrength | `1` |
+| MouseInfluence | `0.8` |
+| Noise | `0` (disabled) |
+| Parallax | `0.65` |
+| Iterations | adaptive (1 / 2 / 3 by `navigator.hardwareConcurrency`) |
+| Intensity | `1.2` |
+| BandWidth | `6` |
+| Transparent | `true` |
+
+### Implementation
+
+- `frontend/src/components/backgrounds/color-bends.tsx` — Three.js component; exports `ColorBends` and `hexToVec3`.
+- `frontend/src/components/backgrounds/color-bends-layer.tsx` — lazy + Suspense wrapper; chooses fragment-shader iterations per device, applies `fixed inset-0 -z-10 pointer-events-none`.
+- Iteration heuristic (`useState(detectIterations)` so first paint is final): ≤ 2 cores → 1, 4–7 cores → 2, ≥ 8 cores → 3.
+- Honours `prefers-reduced-motion: reduce` directly (single static frame, no RAF loop). Framer-motion components honour the same preference via the global `MotionConfig reducedMotion="user"` in `frontend/src/app/layout.tsx`.
+- Pauses on `visibilitychange` (tab hidden) and resumes on tab visible.
+- Pointer tracking via `window` (not container) so mouse influence still applies through `pointer-events-none`.
+- Full cleanup on unmount: `cancelAnimationFrame`, `ResizeObserver.disconnect`, `renderer.dispose()`, `renderer.forceContextLoss()`, canvas `removeChild`.

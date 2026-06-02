@@ -3,7 +3,7 @@ name: E2E
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - '.github/workflows/e2e.yml'
       - 'BuildingBlocks/**'
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
@@ -83,16 +83,61 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Run Playwright e2e
+      # T2.6 — install Chromium for browser-rendered UI specs. The chromium
+      # binary is cached by setup-node along with the npm cache; first run
+      # downloads it (~150 MB), subsequent runs hit the cache.
+      - name: Install Playwright browsers (chromium)
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      # T2.6 — build + start the Next.js frontend so the `ui` project can
+      # drive a real browser against it. The dev server is intentionally not
+      # used: dev mode has different hydration timing and Webpack overlays
+      # that interfere with Playwright.
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:5132
+
+      - name: Start frontend (background) and wait for readiness
+        shell: bash
+        working-directory: frontend
+        run: |
+          NEXT_PUBLIC_API_URL=http://127.0.0.1:5132 \
+            nohup npm run start -- -p 3000 > ../frontend-server.log 2>&1 &
+          echo $! > ../frontend.pid
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error "http://127.0.0.1:3000" > /dev/null; then
+              echo "Frontend ready after ${attempt} attempts"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Frontend failed to start; tailing log:"
+          tail -200 ../frontend-server.log
+          exit 1
+
+      - name: Run Playwright e2e (api + ui projects)
         run: npm run e2e
         working-directory: frontend
         env:
           E2E_API_URL: http://127.0.0.1:5132
+          E2E_FRONTEND_URL: http://127.0.0.1:3000
           E2E_AUTH_LOG_CONTAINER: planora-auth-api
+
+      - name: Stop frontend
+        if: always()
+        shell: bash
+        run: |
+          if [ -f frontend.pid ]; then
+            pid=$(cat frontend.pid)
+            kill "$pid" 2>/dev/null || true
+          fi
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-report
           path: |

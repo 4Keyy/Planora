@@ -1,0 +1,75 @@
+using MediatR;
+using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Domain;
+using Planora.BuildingBlocks.Domain.Exceptions;
+using Planora.Collaboration.Application.DTOs;
+using Planora.Collaboration.Application.Services;
+using Planora.Collaboration.Domain.Repositories;
+
+namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateComment
+{
+    public sealed class UpdateCommentCommandHandler : IRequestHandler<UpdateCommentCommand, Result<CommentDto>>
+    {
+        private readonly ICommentRepository _commentRepository;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserContext _currentUserContext;
+        private readonly IUserService _userService;
+
+        public UpdateCommentCommandHandler(
+            ICommentRepository commentRepository,
+            IUnitOfWork unitOfWork,
+            ICurrentUserContext currentUserContext,
+            IUserService userService)
+        {
+            _commentRepository = commentRepository;
+            _unitOfWork = unitOfWork;
+            _currentUserContext = currentUserContext;
+            _userService = userService;
+        }
+
+        public async Task<Result<CommentDto>> Handle(UpdateCommentCommand request, CancellationToken cancellationToken)
+        {
+            var userId = _currentUserContext.UserId;
+
+            var comment = await _commentRepository.GetByIdAsync(request.CommentId, cancellationToken)
+                ?? throw new EntityNotFoundException("Comment", request.CommentId);
+
+            if (comment.TaskId != request.TaskId)
+                throw new EntityNotFoundException("Comment", request.CommentId);
+
+            // The task description ("Author's Note") is no longer a stored comment — it is edited
+            // on the task itself (PUT /todos), so this handler only edits real user comments.
+            comment.UpdateContent(request.Content, userId);
+
+            _commentRepository.Update(comment);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Resolve the author's current name + avatar live (never a stored copy).
+            string authorName = comment.AuthorName;
+            string? authorAvatarUrl = null;
+            if (comment.AuthorId != Guid.Empty)
+            {
+                var profiles = await _userService.GetUserProfilesAsync(new[] { comment.AuthorId }, cancellationToken);
+                if (profiles.TryGetValue(comment.AuthorId, out var profile))
+                {
+                    if (!string.IsNullOrWhiteSpace(profile.DisplayName)) authorName = profile.DisplayName;
+                    authorAvatarUrl = profile.AvatarUrl;
+                }
+            }
+
+            return Result<CommentDto>.Success(new CommentDto(
+                comment.Id,
+                comment.TaskId,
+                comment.AuthorId,
+                authorName,
+                authorAvatarUrl,
+                comment.Content,
+                comment.CreatedAt,
+                comment.UpdatedAt,
+                IsOwn: comment.AuthorId == userId,
+                IsEdited: comment.IsEdited,
+                IsSystemComment: comment.IsSystemComment,
+                IsGenesisComment: false));
+        }
+    }
+}

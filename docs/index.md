@@ -1,81 +1,111 @@
 # Planora Documentation
 
-This directory is the project knowledge base for users, developers, operators, and contributors. It documents behavior that is visible in code, configuration, tests, scripts, CI, or existing project files.
+The project knowledge base for users, developers, operators, and
+contributors. Every page documents behaviour that is observable in code,
+configuration, tests, scripts, CI, or shipped artefacts.
 
-> If a behavior is not confirmed by project files, the docs mark it as "not confirmed by code" or "requires owner clarification" instead of inventing a contract.
+> If a behaviour is not confirmed by project files, the docs mark it as
+> "not confirmed by code" or "requires owner clarification" instead of
+> inventing a contract.
 
-## Reading Paths
+## Pick your reading path
 
 | Reader | Start here | Then read |
 |---|---|---|
-| First-time user | [`getting-started.md`](getting-started.md) | [`features.md`](features.md), [`troubleshooting.md`](troubleshooting.md) |
-| Frontend developer | [`overview.md`](overview.md) | [`features.md`](features.md), [`API.md`](API.md), [`development.md`](development.md) |
-| Backend developer | [`architecture.md`](architecture.md) | [`API.md`](API.md), [`database.md`](database.md), [`auth-security.md`](auth-security.md) |
-| Operator | [`configuration.md`](configuration.md) | [`deployment.md`](deployment.md), [`production.md`](production.md), [`secrets-management.md`](secrets-management.md), [`troubleshooting.md`](troubleshooting.md) |
-| Contributor | [`codebase-map.md`](codebase-map.md) | [`development.md`](development.md), [`testing.md`](testing.md), [`../CONTRIBUTING.md`](../CONTRIBUTING.md) |
+| First-time user | [`getting-started.md`](getting-started.md) | [`features.md`](features.md), [`troubleshooting.md`](troubleshooting.md), [`faq.md`](faq.md) |
+| Frontend developer | [`overview.md`](overview.md) | [`features.md`](features.md), [`API.md`](API.md), [`development.md`](development.md), [`testing.md`](testing.md) |
+| Backend developer | [`architecture.md`](architecture.md) | [`API.md`](API.md), [`database.md`](database.md), [`auth-security.md`](auth-security.md), [`INVARIANTS.md`](INVARIANTS.md) |
+| Operator / on-call | [`OPERATIONS.md`](OPERATIONS.md) | [`configuration.md`](configuration.md), [`deployment.md`](deployment.md), [`production.md`](production.md), [`secrets-management.md`](secrets-management.md), [`observability.md`](observability.md), [`slo.md`](slo.md) |
+| Security reviewer | [`auth-security.md`](auth-security.md) | [`security-idor-coverage.md`](security-idor-coverage.md), [`secrets-management.md`](secrets-management.md), [`INVARIANTS.md`](INVARIANTS.md) |
+| Contributor | [`codebase-map.md`](codebase-map.md) | [`development.md`](development.md), [`testing.md`](testing.md), [`../CONTRIBUTING.md`](../CONTRIBUTING.md), [`INVARIANTS.md`](INVARIANTS.md) |
+| Architect | [`architecture.md`](architecture.md) | [`INVARIANTS.md`](INVARIANTS.md), [`DECISIONS/`](DECISIONS/), [`caching.md`](caching.md) |
 
-## Documentation Map
+## Documentation map
 
-| File | Purpose | Audience |
-|---|---|---|
-| [`overview.md`](overview.md) | Product, domain model, scenarios, boundaries | users, developers |
-| [`getting-started.md`](getting-started.md) | Requirements, setup, local launch, first successful path | users, developers |
-| [`configuration.md`](configuration.md) | Environment variables, appsettings, gateway, frontend config, known caveats | developers, operators |
-| [`architecture.md`](architecture.md) | Service boundaries, data flow, patterns, diagrams | developers, architects |
-| [`codebase-map.md`](codebase-map.md) | Directory and critical file map | developers, contributors |
-| [`features.md`](features.md) | Feature behavior with implementation references | users, developers, QA |
-| [`API.md`](API.md) | Gateway route map and endpoint reference | frontend/backend developers |
-| [`database.md`](database.md) | PostgreSQL ownership, EF Core contexts, tables, schema bootstrap | backend developers, operators |
-| [`auth-security.md`](auth-security.md) | Auth model, CSRF, JWT, sessions, roles, risks | developers, reviewers |
-| [`testing.md`](testing.md) | Test suites, commands, coverage setup, manual checks | developers, QA |
-| [`deployment.md`](deployment.md) | Docker Compose, CI/CD, production notes | operators, maintainers |
-| [`production.md`](production.md) | Production deployment baseline, runtime topology, readiness checklist | operators, maintainers |
-| [`secrets-management.md`](secrets-management.md) | Secret inventory, storage rules, rotation guidance | operators, security reviewers |
-| [`INVARIANTS.md`](INVARIANTS.md) | Closed-form architectural invariants enforced across the codebase | reviewers, contributors |
-| [`observability.md`](observability.md) | OpenTelemetry / Loki / Grafana Cloud setup, custom metrics, alert recipes | operators, on-call |
-| [`slo.md`](slo.md) | Baseline service-level objectives + error-budget policy | operators, on-call, product |
-| [`caching.md`](caching.md) | Cache layers, naming, TTL convention, invalidation rules | backend developers, operators |
-| [`development.md`](development.md) | Local workflows, adding features/endpoints/components | contributors |
-| [`troubleshooting.md`](troubleshooting.md) | Known startup/runtime failures and fixes | everyone |
-| [`faq.md`](faq.md) | Common user/developer questions | everyone |
-| [`glossary.md`](glossary.md) | Project terms and where they appear in code | everyone |
-| [`PRODUCT.md`](PRODUCT.md) | Product-facing summary and user scenarios | users, product owners |
-| [`OPERATIONS.md`](OPERATIONS.md) | Operational runbook supplement | operators |
-| [`ROADMAP.md`](ROADMAP.md) | Confirmed gaps and recommended next work | maintainers |
-| [`DECISIONS/`](DECISIONS/) | Architecture decision records | architects, contributors |
+### Product
 
-## Main Code References
+| File | Purpose |
+|---|---|
+| [`overview.md`](overview.md) | Product, domain model, scenarios, boundaries |
+| [`features.md`](features.md) | Feature behaviour with code references |
+| [`getting-started.md`](getting-started.md) | Local setup, first successful path |
+| [`faq.md`](faq.md) | Common user / developer questions |
+| [`troubleshooting.md`](troubleshooting.md) | Known startup and runtime failures, fixes |
+| [`glossary.md`](glossary.md) | Project terms with file references |
+
+### Architecture & code
+
+| File | Purpose |
+|---|---|
+| [`architecture.md`](architecture.md) | Service boundaries, data flow, patterns, diagrams |
+| [`codebase-map.md`](codebase-map.md) | Directory and critical-file map |
+| [`INVARIANTS.md`](INVARIANTS.md) | Closed-form rules enforced across the codebase |
+| [`API.md`](API.md) | Gateway route map and endpoint reference |
+| [`database.md`](database.md) | EF Core contexts, tables, schema bootstrap |
+| [`caching.md`](caching.md) | Cache layers, naming, TTL, invalidation |
+| [`DECISIONS/`](DECISIONS/) | Architecture Decision Records (ADRs) |
+
+### Security
+
+| File | Purpose |
+|---|---|
+| [`auth-security.md`](auth-security.md) | Auth model, CSRF, JWT, sessions, security stamp |
+| [`security-idor-coverage.md`](security-idor-coverage.md) | IDOR-resistant endpoints and the tests that pin them |
+| [`secrets-management.md`](secrets-management.md) | Secret inventory, storage, rotation |
+| [`../SECURITY.md`](../SECURITY.md) | Vulnerability disclosure policy |
+
+### Operations
+
+| File | Purpose |
+|---|---|
+| [`OPERATIONS.md`](OPERATIONS.md) | Runbook entry point |
+| [`configuration.md`](configuration.md) | Environment variables, appsettings, ports |
+| [`deployment.md`](deployment.md) | Docker Compose, CI/CD, Fly deployment |
+| [`production.md`](production.md) | Production baseline, readiness checklist |
+| [`observability.md`](observability.md) | OpenTelemetry, Loki, Grafana, custom metrics |
+| [`slo.md`](slo.md) | Service-level objectives and error budgets |
+
+### Engineering workflow
+
+| File | Purpose |
+|---|---|
+| [`development.md`](development.md) | Local workflows for adding features, endpoints, components |
+| [`testing.md`](testing.md) | Suites, commands, coverage, OpenAPI lint |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | PR checklist, branch hygiene, CODEOWNERS |
+| [`../CHANGELOG.md`](../CHANGELOG.md) | Released changes, conventional-commit log |
+
+## Key code references
 
 | Topic | Files |
 |---|---|
 | Gateway routes | `Planora.ApiGateway/ocelot.json`, `Planora.ApiGateway/ocelot.Docker.json` |
 | Frontend API client | `frontend/src/lib/api.ts`, `frontend/src/lib/auth-public.ts`, `frontend/src/lib/csrf.ts`, `frontend/src/store/auth.ts` |
 | Auth endpoints | `Services/AuthApi/Planora.Auth.Api/Controllers` |
-| Todo endpoints and sharing | `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`, `Services/TodoApi/Planora.Todo.Application/Features/Todos` |
+| Todo endpoints & sharing | `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`, `Services/TodoApi/Planora.Todo.Application/Features/Todos` |
 | Category endpoints | `Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs` |
 | Messaging endpoints | `Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs` |
-| Realtime endpoints/hubs | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Api/Hubs` |
+| Collaboration (comment timeline) endpoints | `Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs` |
+| Realtime endpoints & hubs | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Api/Hubs` |
 | Database models | `*/Infrastructure/Persistence/*DbContext.cs`, `*/Infrastructure/Persistence/Configurations` |
-| Tests | `tests/Planora.UnitTests`, `tests/Planora.ErrorHandlingTests`, `frontend/src/test` |
-| E2E tests | `frontend/e2e`, `frontend/playwright.config.ts`, `.github/workflows/e2e.yml` |
+| Backend tests | `tests/Planora.UnitTests`, `tests/Planora.ErrorHandlingTests` |
+| Frontend tests | `frontend/src/test`, `frontend/playwright.config.ts`, `frontend/e2e` |
 | Observability wiring | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs` |
 | Health probes | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs` |
 | Migration runner | `tools/Planora.Migrator/`, `.github/workflows/migrations.yml` |
-| Fly.io deployment | `deploy/fly/`, `deploy/fly/README.md`, `deploy/fly/setup.ps1`, `deploy/fly/set-secrets.ps1` |
+| Fly.io deployment | `deploy/fly/`, `deploy/fly/README.md` |
 | Continuous delivery | `.github/workflows/cd.yml` |
-| Phase-1 verification | `scripts/Verify-Phase1-Prereqs.ps1` |
 | Loki Serilog sink | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/SerilogConfiguration.cs` (`TryAddLokiSink`) |
 | Frontend trace propagation | `frontend/src/lib/trace.ts`, axios interceptor in `frontend/src/lib/api.ts` |
 | Performance baseline | `perf/k6/`, `perf/README.md`, `.github/workflows/perf-smoke.yml` |
 
-## Documentation Maintenance Checklist
+## Maintenance checklist
 
 Update docs when changing:
 
 - gateway routes or controller actions;
-- DTOs, validators, response wrappers, or error behavior;
+- DTOs, validators, response wrappers, or error behaviour;
 - environment variables, ports, scripts, Docker Compose, or appsettings;
-- database entities, EF configurations, schema bootstrap, indexes, or seed data;
-- frontend routes, auth token handling, API client behavior, hidden task behavior;
-- tests, CI jobs, security checks, or launch scripts.
+- database entities, EF configurations, schema bootstrap, indices, or seed data;
+- frontend routes, auth-token handling, API-client behaviour, hidden-task behaviour;
+- tests, CI jobs, security checks, or launch scripts;
 - production deployment assumptions, secret names, license terms, or vulnerability disclosure policy.

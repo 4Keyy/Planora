@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
 	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<LangVersion>latest</LangVersion>
@@ -23,7 +23,8 @@
 		<PackageReference Include="Polly" />
 		<PackageReference Include="Polly.Extensions.Http" />
 		<PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
-		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+		<!-- Microsoft.Extensions.Diagnostics.HealthChecks is part of the Microsoft.AspNetCore.App
+		     shared framework on net10.0 (NU1510); the explicit reference is redundant. -->
 		<PackageReference Include="AspNetCore.HealthChecks.Redis" />
 		<PackageReference Include="AspNetCore.HealthChecks.RabbitMQ" />
 		<PackageReference Include="OpenTelemetry.Extensions.Hosting" />

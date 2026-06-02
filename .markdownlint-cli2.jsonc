@@ -7,6 +7,9 @@
       "siblings_only": true
     },
     "MD033": false,
+    // README opens with a centered HTML hero header (a common, attractive pattern),
+    // so the first line is a <div> rather than a top-level heading.
+    "MD041": false,
     "MD060": false
   },
   "globs": [

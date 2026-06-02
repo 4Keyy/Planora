@@ -120,7 +120,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="py-6 text-center text-xs text-gray-400 border-t border-white/60">
-        © {new Date().getFullYear()} Planora. Private coordination for people you trust.
+        © {mounted ? new Date().getFullYear() : "2026"} Planora. Private coordination for people you trust.
       </footer>
     </div>
   )

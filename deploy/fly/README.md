@@ -92,6 +92,34 @@ so Kestrel writes static assets to the volume rather than the container layer.
 When PR-4 (Cloudflare R2) lands, this volume becomes a development/fallback
 target only — production uploads go directly to R2.
 
+## Postgres tuning
+
+A leaked `DbContext` or a client that crashes mid-transaction can hold a
+Postgres connection open indefinitely. Combined with the per-service pool
+sizing (`Maximum Pool Size=10`, see T4.4), that quickly starves the pool
+and surfaces as cascading `npgsql` timeouts on unrelated requests.
+
+T4.5 applies `idle_in_transaction_session_timeout = 30 s` at the Postgres
+side as the backstop:
+
+- **Local (docker-compose)** — wired into the `postgres` service `command`
+  in `docker-compose.yml`: `-c idle_in_transaction_session_timeout=30000`.
+- **Fly Postgres** — apply once per cluster:
+
+  ```bash
+  flyctl postgres config update \
+    --app planora-postgres \
+    --idle-in-transaction-session-timeout 30000
+  ```
+
+  Confirm with `flyctl postgres config show --app planora-postgres`. The
+  setting persists across machine restarts and rolls automatically across
+  replicas.
+
+30 s leaves plenty of headroom for legitimate long-running batches (the
+nightly outbox cleanup, the avatar re-encode worker) while bounding the
+worst-case starvation window for the synchronous request pool.
+
 ## Notes
 
 - **Internal traffic** uses Fly's `<app>.internal:443` `.flycast` hostnames

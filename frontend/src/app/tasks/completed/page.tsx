@@ -14,11 +14,21 @@ import { TodoCard } from "@/components/todos/todo-card"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
-import { EditTodoModal } from "@/components/todos/edit-todo-modal"
+import dynamic from "next/dynamic"
+// Edit modal mounts only when the user clicks a completed task. Lazy-load
+// keeps it out of the initial completed-page bundle; the framer-motion
+// enter animation absorbs the chunk fetch on first open.
+const EditTodoModal = dynamic(
+  () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
+  { ssr: false },
+)
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { cn } from "@/lib/utils"
 import { getTaskWeight } from "@/utils/sort-tasks"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
+import { readFilter, writeFilter, readHintSeen, writeHintSeen } from "@/utils/category-filter"
+import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
+import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
 
 const PAGE_SIZE = 20
 const COMPLETED_MASONRY_BREAKPOINTS = [
@@ -44,7 +54,59 @@ export default function CompletedTasksPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
   const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
+  // Category filter — same mechanism + shared persistence as the /tasks page.
+  const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([])
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  const [hintDismissed, setHintDismissed] = useState(false)
+  const hintDismissedRef = useRef<boolean>(false)
   const friendNameCache = useRef<Map<string, string>>(new Map())
+
+  // PERF: live mirror for the memoized TodoCard's (possibly stale) handler
+  // closures to read from. See the equivalent note on the dashboard.
+  const todosRef = useRef(todos)
+  todosRef.current = todos
+
+  // ── Category filter (mirrors /tasks: "F" hotkey + chip + shared persistence) ──
+  useEffect(() => {
+    setFilterCategoryIds(readFilter())
+    const seen = readHintSeen()
+    setHintDismissed(seen)
+    hintDismissedRef.current = seen
+  }, [])
+
+  useEffect(() => {
+    if (hintDismissed) return
+    const t = setTimeout(() => {
+      setHintDismissed(true)
+      hintDismissedRef.current = true
+      writeHintSeen()
+    }, 7000)
+    return () => clearTimeout(t)
+  }, [hintDismissed])
+
+  // Press "F" — toggle the category filter modal (ignored while typing).
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== "f") return
+      if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
+      const target = e.target as HTMLElement
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
+      e.preventDefault()
+      setIsCategoryModalOpen(prev => !prev)
+      if (!hintDismissedRef.current) {
+        setHintDismissed(true)
+        hintDismissedRef.current = true
+        writeHintSeen()
+      }
+    }
+    window.addEventListener("keydown", handler, true)
+    return () => window.removeEventListener("keydown", handler, true)
+  }, [])
+
+  const handleFilterChange = useCallback((ids: string[]) => {
+    setFilterCategoryIds(ids)
+    writeFilter(ids)
+  }, [])
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -144,7 +206,7 @@ export default function CompletedTasksPage() {
   }, [loading, totalCount, currentPage, todos.length, lastFetchedPage])
 
   const handleComplete = async (todoId: string) => {
-    const existing = todos.find((t) => t.id === todoId)
+    const existing = todosRef.current.find((t) => t.id === todoId)
     if (!existing) return
 
     try {
@@ -217,7 +279,7 @@ export default function CompletedTasksPage() {
   }, [todos, addToast])
 
   const handleToggleHidden = useCallback(async (todoId: string) => {
-    const existing = todos.find(t => t.id === todoId)
+    const existing = todosRef.current.find(t => t.id === todoId)
     if (!existing) return
     const newHidden = !(existing.hidden ?? false)
     const isOwner = isTodoOwner(existing, user?.userId)
@@ -253,9 +315,13 @@ export default function CompletedTasksPage() {
       }
       addToast({ type: "error", title: "Failed to update task visibility" })
     }
-  }, [todos, addToast, user?.userId])
+  }, [addToast, user?.userId])
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+
+  const visibleTodos = filterCategoryIds.length === 0
+    ? todos
+    : todos.filter(t => filterCategoryIds.includes(t.categoryId ?? ""))
 
   return (
     <div className="space-y-8">
@@ -296,6 +362,16 @@ export default function CompletedTasksPage() {
         </div>
       </div>
 
+      {/* Quick Filter plate — the applied-filter summary lives inside it (shared with /tasks) */}
+      {!loading && categories.length > 0 && (
+        <QuickFilterBar
+          categories={categories}
+          selectedIds={filterCategoryIds}
+          onOpen={() => setIsCategoryModalOpen(true)}
+          onClear={() => handleFilterChange([])}
+        />
+      )}
+
       {loading ? (
         <MasonryColumns
           items={[...Array(PAGE_SIZE)].map((_, i) => ({ id: `completed-skeleton-${i}` }))}
@@ -328,7 +404,7 @@ export default function CompletedTasksPage() {
       ) : (
         <>
           <MasonryColumns
-            items={todos}
+            items={visibleTodos}
             getKey={(todo) => todo.id}
             getItemWeight={getTaskWeight}
             columns={4}
@@ -434,6 +510,14 @@ export default function CompletedTasksPage() {
         title="Delete Task?"
         description={`Are you sure you want to delete "${deletingTodo?.title}"? This action cannot be undone.`}
         confirmText="Delete Task"
+      />
+
+      <CategoryFilterModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        categories={categories}
+        selected={filterCategoryIds}
+        onChange={handleFilterChange}
       />
     </div>
   )

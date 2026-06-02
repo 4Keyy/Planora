@@ -156,7 +156,13 @@ describe("small todo components", () => {
     )
 
     const avatarImage = screen.getByAltText("Ada")
-    expect(avatarImage).toHaveAttribute("src", "http://localhost:5000/avatars/ada.png")
+    // T4.11 — next/image now routes through the /_next/image optimizer, so the
+    // rendered <img src> is URL-encoded inside the optimizer query string
+    // instead of the bare avatar URL. Assert against a substring of the encoded
+    // form (the API origin's host + path) so the test stays robust if Next.js
+    // tweaks the optimizer URL shape between minor versions.
+    const src = avatarImage.getAttribute("src") ?? ""
+    expect(decodeURIComponent(src)).toContain("http://localhost:5000/avatars/ada.png")
     expect(screen.queryByText("AL")).not.toBeInTheDocument()
   })
 

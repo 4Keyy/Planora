@@ -89,7 +89,9 @@ public sealed class GetUserCategoriesQueryHandlerTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("QUERY_FAILED", result.Error!.Code);
-        Assert.Equal("database unavailable", result.Error.Message);
+        // The internal exception message must NOT leak to the client; a safe generic message is returned.
+        Assert.Equal("Failed to load categories.", result.Error.Message);
+        Assert.DoesNotContain("database unavailable", result.Error.Message);
     }
 
     private sealed class Fixture

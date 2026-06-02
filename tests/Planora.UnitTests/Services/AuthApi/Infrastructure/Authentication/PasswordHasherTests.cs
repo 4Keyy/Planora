@@ -38,4 +38,21 @@ public class PasswordHasherTests
 
         Assert.ThrowsAny<Exception>(() => hasher.VerifyPassword("password", hash));
     }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public void VerifyPassword_AcceptsGoldenVector_LockingTheOnDiskFormat()
+    {
+        // PBKDF2-SHA512, 100_000 iterations, 16-byte salt + 32-byte hash, UTF-8 password,
+        // base64(salt || hash). This vector was produced independently of HashPassword and
+        // pins the exact stored format. It guards the .NET 9 -> 10 migration (Rfc2898DeriveBytes
+        // ctor -> static Pbkdf2 is byte-identical) and any future drift in salt/hash size,
+        // iteration count, or algorithm — a hash stored by an older build must still verify.
+        var hasher = new PasswordHasher();
+        const string goldenHash = "AQIDBAUGBwgJCgsMDQ4PEPXqZCX5InQz+aA/vDveKqFCThkoJGchmrM/xe9GgqqF";
+
+        Assert.True(hasher.VerifyPassword("GoldenVector!23", goldenHash));
+        Assert.False(hasher.VerifyPassword("wrong", goldenHash));
+    }
 }

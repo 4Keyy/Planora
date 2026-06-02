@@ -39,7 +39,9 @@ public class RepositoryBehaviorTests
         Assert.Equal(4, (await repository.GetAllAsync()).Count);
         Assert.Equal(new[] { work.Id, inbox.Id, archived.Id }, (await repository.GetByUserIdAsync(userId)).Select(x => x.Id));
         Assert.Equal(new[] { work.Id, inbox.Id }, (await repository.GetActiveByUserIdAsync(userId)).Select(x => x.Id));
-        Assert.Same(work, await repository.GetByIdAndUserIdAsync(work.Id, userId));
+        // Read-only lookup (AsNoTracking) — assert by identity value, not reference, since a
+        // no-tracking read returns a fresh instance rather than the tracked one.
+        Assert.Equal(work.Id, (await repository.GetByIdAndUserIdAsync(work.Id, userId))!.Id);
         Assert.Null(await repository.GetByIdAndUserIdAsync(deleted.Id, userId));
         Assert.True(await repository.ExistsByNameAndUserIdAsync("Inbox", userId));
         Assert.False(await repository.ExistsByNameAndUserIdAsync("Deleted", userId));

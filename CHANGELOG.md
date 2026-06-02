@@ -4,6 +4,731 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ci) — green markdownlint + restore branch-coverage threshold (2026-06-02)
+
+- Converted every remaining `*`-style list bullet in `CHANGELOG.md` to `-` (272 MD004 violations).
+  The markdownlint CI job lints all root `*.md`, so the historical asterisk bullets were failing it;
+  the whole tree now lints with **0 errors**.
+- Added `frontend/src/test/components/quick-filter-bar.test.tsx` covering the new `QuickFilterBar`
+  (idle vs active states, single/plural summary, the +N chip overflow, the icon/colour-fallback chip
+  branches, and the open/clear callbacks). The component had shipped without tests and dragged global
+  **branch coverage to 84.75%**, below the 85% gate; it is now **85.64%** and the suite is 374 green.
+
+### build — drop redundant framework packages (NU1510), clean `-warnaserror` build (2026-06-01)
+
+Removed three `PackageReference`s that the .NET 10 SDK flags as redundant via **NU1510** (they are
+already provided by the shared framework / transitively): `Microsoft.Extensions.Caching.Abstractions`
+(BuildingBlocks.Infrastructure), `Microsoft.Extensions.Logging.Abstractions` (BuildingBlocks.Application,
+which already has a `Microsoft.AspNetCore.App` framework reference), and
+`Microsoft.Extensions.Diagnostics.HealthChecks` (Planora.ApiGateway). The solution now builds with
+**0 warnings / 0 errors** even under a strict restore + `dotnet build -warnaserror`, not only under the
+CI sequence (which restores separately). The CS0105 duplicate-using and the Collaboration
+`AddPlanoraSwaggerGen`/`UsePlanoraSwagger` errors from older build logs were already resolved in the
+current `net10.0` code.
+
+### docs — comprehensive, marketing-grade README overhaul (2026-06-01)
+
+Rewrote `README.md` into a richer, more polished landing page that reads for both engineers and a
+product audience: a centered hero, a "Why Planora" benefits section, a feature tour, and an explicit
+**tech-stack table that links every major dependency** (NuGet/npm) with its pinned version (sourced
+from `Directory.Packages.props` and `frontend/package.json`). Expanded the configuration reference
+into Required + Common-optional tables grounded in `.env.example`, corrected the Auth service port to
+`5030` (gRPC `5031`), and added the full documentation index. Allowed the centered HTML hero in the
+markdownlint config (`MD041: false`); the README passes markdownlint with zero errors.
+
+### fix(frontend) — modal stays open on leave (dashboard), branch text wraps, greyscale event icons (2026-06-01)
+
+- **Leaving work no longer closes the branch modal from the dashboard.** `dashboard/page.tsx`
+  `handleLeave` called `setEditingTodo(null)`, which closed the modal whenever the user stopped the
+  in-progress status from there. It now updates the open todo in place (status/`isWorking`) without
+  closing — matching the header-pill and "+"-menu paths and the active-feed behaviour.
+- **Long unbreakable text wraps instead of scrolling sideways.** Added `overflow-wrap: anywhere` /
+  `word-break: break-word` to the message body, the Author's Note, and system-event text, so a giant
+  word or URL with no spaces wraps onto the next line rather than producing a horizontal scrollbar.
+- **System-event rail markers are now greyscale and simpler.** Replaced the coloured per-event icons
+  with a single calm grey marker and simpler glyphs (`getSystemEventIcon`): created = Plus, started =
+  Play, left = LogOut, completed = Check, other = Circle.
+
+### feat(frontend) — redesigned, unbroken branch activity rail with event-typed markers (2026-06-01)
+
+The task-branch timeline rail is now a single continuous gradient line that lives in a content-height
+wrapper, so it spans the whole feed and no longer breaks/stops once there are enough messages to
+scroll (the old line was anchored to the scroll viewport via `top/bottom`). Every marker is now
+mathematically centred on the rail (shared `RAIL_GUTTER`/`RAIL_CENTER` geometry) instead of sitting
+slightly off to the side. System-event markers are no longer a generic grey dot: `getSystemEventMeta`
+maps each event to a meaningful icon + colour — created (Sparkles/violet), started working
+(Zap/indigo), left (LogOut/red), completed (CheckCircle2/emerald) — rendered in a tinted ring centred
+on the line. The previous `getSystemEventColor` (which only matched Russian phrases and so always fell
+back to grey for the actual English event sentences) was removed.
+
+Docs: reviewed the last 20 commits and reconciled the documentation — updated the `docs/features.md`
+branch/Frontend-Behavior section to describe the new rail + typed markers; verified the Outbox/Inbox,
+signal-dispatch, LAN-sharing, and launcher docs already match the code.
+
+### docs — accurate launcher help + documentation refresh (2026-06-01)
+
+Rewrote the `Start-Planora-Local.ps1` comment-based help (`.SYNOPSIS`/`.DESCRIPTION`/`.PARAMETER`/
+`.EXAMPLE`/`.NOTES`) and the `-Help` usage so they fully and accurately describe the current
+behaviour: the 10-step startup pipeline, every flag (including `-Lan`), the default ports/URLs, the
+per-service schema bootstrap (the launcher runs **no** separate migration step), secret handling, and
+logs/lifecycle. Corrected the README local-dev section (it previously claimed the launcher "applies
+schemas through the migrator", which it does not) and added a flag table + port list. Updated
+`docs/OPERATIONS.md`, `docs/codebase-map.md`, and the `docs/configuration.md` LAN section to reflect
+that LAN sharing is now automatic via `-Lan` + the dev CORS/CSP allowances + runtime `getApiBaseUrl()`
+(only email-link `Frontend__BaseUrl` still needs the LAN IP).
+
+### feat — one-command LAN sharing over Wi-Fi (VPN-safe) (2026-06-01)
+
+Added `-Lan` to `Start-Planora-Local.ps1` so a teammate on the same Wi-Fi can open the running app.
+The launcher resolves the host's physical LAN IPv4 via `Get-NetAdapter -Physical` (which excludes VPN
+virtual adapters, so a split-tunnel VPN's tunnel address is never handed out), opens a Windows Firewall
+inbound rule for ports 3000 + 5132 scoped to `Profile Any` + `RemoteAddress LocalSubnet` (self-elevating
+once if needed), and prints the shareable `http://<lan-ip>:3000` URL plus VPN guidance. The frontend
+already binds `0.0.0.0` and `getApiBaseUrl()` auto-targets the gateway on whatever host the page was
+opened from, so peers need zero configuration.
+
+To make this work end-to-end in development without per-IP wiring: the API gateway's dev CORS policy now
+accepts loopback **and** RFC1918 private-LAN origins (via a bounded `SetIsOriginAllowed` predicate — dev
+policy only, production stays an explicit allow-list), and the frontend's dev CSP `connect-src` now
+allows `http:/https:/ws:/wss:` (mirroring the existing dev `img-src`), so a browser served from a LAN IP
+can reach `http://<same-host>:5132`. Production CSP/CORS are unchanged.
+
+### fix(frontend) — leaving work keeps the branch modal open + faster status-comment catch (2026-06-01)
+
+The header pill's "Leave" action called `onClose()`, so stopping work closed the whole branch modal.
+Removed it — leaving (by the pill or the "+" menu) now keeps the modal open, and the "left the task"
+system comment appears in-place. Also tightened the post-action catch-up merge schedule
+(250 ms → 5.6 s, denser early) so the status system-comment surfaces almost immediately once the
+signal-driven outbox dispatch has published it.
+
+> Note: the near-instant dispatch requires the **Todo service to be running the rebuilt binary**. A
+> still-running pre-change Todo API keeps the old 5 s poll cadence until restarted.
+
+### perf/feat — instant outbox dispatch, unified Quick Filter bar, non-owner date popover (2026-06-01)
+
+**perf(outbox): task-lifecycle system comments now appear near-instantly instead of after ~20 s.**
+The `OutboxProcessor` only polled every 5 s, so a "started working / left / completed" event could wait
+out a poll tick on the producer *and* be missed by the branch's early catch-up refetches — feeling like
+a 20 s delay. Added signal-driven dispatch: a new `OutboxSignal` (in-process singleton) plus
+`OutboxNotifyInterceptor` (an EF `SaveChangesInterceptor` on `TodoDbContext`) pulse the processor the
+moment a transaction that inserted an outbox row commits, so it publishes in milliseconds; the 5 s poll
+stays only as a safety net, and a full batch is drained in a tight loop. Consumption is already
+push-based (RabbitMQ), so the Collaboration system comment now lands in the branch in well under a
+second. The signal is optional — services that do not register it fall back to pure polling unchanged.
+
+**feat(frontend): the applied-filter summary now lives inside the Quick Filter bar (no layout shift).**
+On /tasks and /tasks/completed the active-filter info was a separate block that pushed the page around.
+Extracted a shared `QuickFilterBar` component: when a filter is applied, the category chips + count +
+clear button crossfade into a fixed-height subtitle row *inside* the same plate, so toggling a filter
+never grows or jolts the block. Removed the duplicated inline plates and the standalone "Filter Active"
+chip / "F" hint blocks from both pages.
+
+**feat(frontend): non-owner date popover hides the quick-pick row.** A viewer who is not the task owner
+opens the date token read-only; the Today/Tomorrow/+3 days/Next week shortcuts are now omitted entirely
+rather than shown disabled, leaving just the read-only calendar.
+
+### fix — branch comment edit/delete 409, live branch updates, open-at-bottom, completed-page filter plate (2026-06-01)
+
+**fix(collaboration): comment edit/delete always failed with a spurious concurrency conflict.**
+`CommentRepository` overrode the base `GetByIdAsync` purely to add `AsNoTracking()`. The `Comment`
+aggregate uses PostgreSQL's `xmin` as an optimistic-concurrency token (a shadow property captured only
+on a *tracked* read), so the no-tracking load dropped it and the subsequent UPDATE/soft-delete issued
+`WHERE xmin = 0`, matched zero rows, and threw `DbUpdateConcurrencyException` → 409 "The record has been
+modified by another user." Removed the override so mutations inherit the tracking base. The author-only
+edit rule (`Comment.UpdateContent`) and the frontend gating the edit button on `isOwn` were already
+correct; this only fixes the false conflict.
+
+**feat(frontend): the task branch now updates live without re-opening the modal.** With no realtime
+socket in the app, `BranchFeed` polls the newest page every 5 s (paused while editing) and merges by
+comment id, so other participants' messages/edits and the asynchronously-materialised status
+system-comments appear on their own. Taking a task into work / leaving / completing additionally
+schedules short catch-up merges (≈0.6 / 1.5 / 3 s) so the status event shows within a second or two
+even though it is produced via Outbox→Inbox after the action returns.
+
+**feat(frontend): the branch opens at the newest message.** The rail pins to the bottom on first load
+and after take/leave/complete; "load earlier" and description edits preserve scroll position.
+
+**feat(frontend): /tasks/completed gets the same Quick Filter plate as /tasks.** The active-filter chip
+was rendered inside the completed-archive hero/stats card; it is now a standalone row and the page shows
+the identical "Quick Filter" plate (SlidersHorizontal + "F to filter" + Open Menu button) below the
+header, matching /tasks exactly.
+
+### feat(frontend) — sticky Author's Note + task actions in branch compose menu (2026-06-01)
+
+The Author's Note (task description) is now part of the scrollable branch rail instead of living
+outside it. It scrolls away naturally; once it leaves view a condensed frosted-glass bar appears at
+the top of the feed with the author's avatar, the truncated first line, and a gently-bouncing chevron.
+Clicking the bar smooth-scrolls back to the full card and fires a violet attention-pulse animation so
+the note is effortless to find. The bar enters/exits with a spring via Framer Motion `AnimatePresence`.
+
+The compose "+" menu now surfaces two task-action items (available to all participants, not just the
+owner): **Take into work** (→ Leave task when already in progress, toggle) and **Complete task** (→
+Reopen when already completed). Both mirror the existing join/leave/complete flow precisely — no new
+API or logic — and emit the same system comments and toasts the cards do. The "Description" attachment
+item is now hidden for non-owners (only the author can set a task description). An optimistic
+`workOverride` flag in the modal makes the in-progress pill in the header flip instantly on "Take into
+work" / "Leave" before the parent refetch propagates back.
+
+### fix(frontend) — lock owner-only fields for viewers + fixed-size branch modal (2026-06-01)
+
+Two issues in the branch/edit modal. (1) When a non-owner opened a public task's branch modal, the
+priority, due-date and visibility tokens were fully editable — the gate keyed off
+`canManageViewerCategory`, which is `true` for shared tasks because a viewer may set their *own*
+category, so it leaked write access to fields that belong to the author. These three tokens are now
+rendered muted for non-owners and open a read-only (greyed, non-interactive) preview on click, while the
+category token stays editable for viewers as intended; the title was already owner-gated. (2) The modal
+resized to its content — short for an empty branch, tall for a full one. It is now a fixed size (90vh,
+capped at 880px) with the timeline flex-filling and scrolling internally, so it is always the same
+maximum size regardless of how much the branch contains.
+
+### feat(frontend) — category filter on the Completed Tasks page (2026-06-01)
+
+The `/tasks/completed` page now has the same category filter as `/tasks`: the "F" hotkey toggles the
+category filter modal, an active-filter chip shows the selected categories with a one-click clear, and
+the hint kbd appears until first use. The selection is persisted in the same shared store as the active
+page, so the filter is consistent across both. Filtering is applied client-side to the loaded archive
+page (matching how the active feed filters).
+
+### fix(a11y) — associate auth form labels + name the password-visibility toggles (2026-06-01)
+
+Audit follow-up. The auth forms (login, register, forgot-password, reset-password, verify-email)
+rendered each `<label>` as a sibling of its input with no `htmlFor`/wrapping, so screen readers did
+not announce the field name on focus. Each field is now programmatically labelled — the reusable
+register `InputField` wraps its control in the `<label>`, and the inline forms use `htmlFor` + matching
+`id`. The icon-only show/hide-password buttons gained an `aria-label` ("Show/Hide password") so they
+have an accessible name. Verified: frontend lint, type-check, 370 tests, and the production build pass.
+
+### fix — idempotent event consumers + read-query tracking (audit follow-ups) (2026-06-01)
+
+Two findings from the repository-wide audit.
+
+- **Consumer idempotency (INV-COMM-4) was claimed but not implemented.** `RabbitMqEventBus`
+  delivers at-least-once (nack + requeue on failure), but no consumer deduped — the
+  `IdempotentMessageHandler`/Inbox machinery was dead code, so a redelivered or restart-replayed
+  event produced duplicate system comments (Collaboration) / notifications. The event bus now
+  dedups centrally on the stable `@event.Id` via an `IInboxRepository`: it skips a handler when the
+  event id is already recorded and records it after success. The check is **graceful and defensive**
+  — a service that registers no inbox (or an inbox error) falls back to processing exactly as before,
+  never worse. Added an `InboxMessages` table + repository to Collaboration (keyed on the event id);
+  Realtime is a follow-up. Verified live: the inbox records the processed `TaskCreatedIntegrationEvent`
+  and exactly one "created the task" system comment is produced.
+- **`AsNoTracking` on CategoryApi read queries.** The shared `BaseRepository` already applies
+  `AsNoTracking` to its reads, but the custom `CategoryRepository` did not. Added it to the
+  read-only methods (list/get/paged) while keeping change-tracking on `GetByIdAsync` (load-then-update
+  path) and `FindAsync` (also used for fetch-then-RemoveRange).
+
+Note: the Collaboration `InboxMessages` table is created by `EnsureCreated` on a fresh database
+(the Collaboration bootstrap convention); existing dev databases should be recreated to pick it up.
+
+### fix(security) — stop CategoryApi leaking raw exception messages to clients (2026-06-01)
+
+The four CategoryApi handlers (Create/Update/Delete/GetUserCategories) caught all exceptions and
+returned `ex.Message` in the failure `Result`, surfacing internal/DB detail (e.g. "database
+unavailable") to API consumers. They now log the full exception and return a safe, generic message.
+Found during the repository-wide audit. (Other services already let domain exceptions bubble to the
+sanitising global exception middleware.)
+
+Security: removes an information-disclosure vector (internal error detail in API responses).
+
+### refactor — task description is a single source of truth; live author identity (2026-06-01)
+
+Removed a cross-service data-duplication class of bug. The task description was stored twice — as
+`TodoItem.Description` (shown on the card) **and** as a "genesis" comment in the Collaboration DB
+(shown in the branch). They synced only at creation (via an async event), so: tasks created before
+the Collaboration service had an empty branch; new tasks' descriptions appeared only after the
+outbox cycle; and edits via the two paths could diverge.
+
+**P1 — description = single source of truth (Todo).** Collaboration no longer stores a genesis
+comment. `TodoService.CheckTaskCommentAccess` now also returns the live `description` +
+`taskCreatedAt`, and `GetCommentsQueryHandler` **synthesises** the pinned "Author's Note" from it on
+read (page 1 only; `id` = task id, author = task owner). Result: the description shows instantly,
+always matches the card, and is present for old tasks. The frontend edits it on the task
+(`PUT /todos`) via a new `onSaveDescription` path; the `POST .../genesis` endpoint, the
+`AddGenesisComment` command/handler/validator, and `Comment.CreateGenesis`/`UpdateGenesisContent`
+were removed. Legacy stored genesis rows are excluded by the read query.
+
+**P2 — author identity resolved live.** `Comment.AuthorName` was a stored copy of the Auth-owned
+name that went stale after a rename (while the avatar beside it was already live). Added
+`AuthService.GetUserProfilesBatch` (name + avatar); Collaboration now resolves comment + genesis
+author identity live (60 s cache), with the stored name kept only as an offline fallback.
+
+Verified end-to-end on a live local stack: a task created with a description returns the Author's
+Note on an immediate (0 s) fetch with the author name resolved live, and editing the description on
+the task is reflected in the branch. Backend builds under `-warnaserror`; all backend + frontend
+tests pass on net10.0.
+
+### fix — task timeline appears promptly + navbar avatar alignment (2026-05-31)
+
+Two user-reported bugs.
+
+- **"No messages yet" on a task that has a description.** A newly created task's
+  Collaboration timeline ("ветка") is materialised asynchronously: TodoApi publishes
+  `TaskCreatedIntegrationEvent` through its outbox, and Collaboration's consumer writes the
+  "created the task" system comment and the genesis (description) comment. The shared
+  `OutboxProcessor` (and Messaging's `OutboxProcessorJob`) polled every **30 s**, so opening
+  the task within that window showed an empty timeline even though the description existed.
+  Verified end-to-end: the comments are created correctly, just late. Cut the poll cadence to
+  **5 s** (the query is indexed and `Take(20)`-bounded), so the timeline — and message delivery —
+  becomes near-live. Reproduced and confirmed: ~11 s after creating a task the endpoint now
+  returns both the system and genesis comments (`totalCount: 2`).
+- **Navbar avatar sat slightly too high.** The avatar's wrapper was a block container whose
+  child `<button>` defaulted to `inline-block`, so it aligned to the text baseline (leaving
+  line-descender space below) and rode a few px above the flex-centred logo/tabs. Made the
+  wrapper `flex items-center` so the button is vertically centred like its siblings.
+
+### build — migrate the backend from .NET 9 to .NET 10 (LTS) (2026-05-31)
+
+Moved the entire backend to **.NET 10** (10.0.8 runtime), applying the Dependabot
+`dotnet/sdk` and `dotnet/aspnet` 9→10 image bumps as a coherent framework migration
+rather than a tag-only change (a net9 app cannot run on the `aspnet:10.0` runtime).
+
+- **Target framework** — `Directory.Build.props` and all 32 `.csproj` now target `net10.0`.
+- **Packages** — every runtime-aligned `Microsoft.*` package (EF Core, ASP.NET Core,
+  Extensions.*, Diagnostics.HealthChecks.*, Mvc.Testing) moved 9.0.15 → 10.0.8, and
+  `Npgsql.EntityFrameworkCore.PostgreSQL` 9.0.4 → 10.0.2.
+- **Framework-provided packages** — dropped the explicit `System.Text.Json` /
+  `System.Text.Encodings.Web` references (now supplied by the shared framework; the old
+  10.0.7 pin was also a downgrade from the framework's 10.0.8). Removed the unused
+  `Microsoft.AspNetCore.OpenApi` reference from all six service APIs — the project uses
+  Swashbuckle, and that package pulled Microsoft.OpenApi v2, which broke Swashbuckle 6.9.0
+  (CS7069). `NU1510` (package pruning advisory) is kept as a non-blocking warning.
+- **API deprecations fixed** — `ForwardedHeadersOptions.KnownNetworks` →
+  `KnownIPNetworks` (gateway, ASPDEPR005); `Rfc2898DeriveBytes` constructors →
+  the static `Rfc2898DeriveBytes.Pbkdf2` (Auth `PasswordHasher`, SYSLIB0060). The
+  password hash is **byte-identical** (same salt, 100k iterations, SHA-512, UTF-8), so
+  existing stored hashes keep verifying.
+- **Images & CI** — all 7 service Dockerfiles and the Migrator runtime image bumped to
+  the `10.0` tags; `actions/setup-dotnet` pinned to `10.0.x` across every workflow.
+- **SDK resolution** — added `global.json` (`sdk` 10.0.100, `rollForward: latestMajor`)
+  so a machine without the .NET 10 SDK gets a clear "install 10.x" error instead of a
+  cryptic `NU1202`. `Start-Planora-Local.ps1` now resolves a .NET 10 SDK automatically
+  (system → side-by-side `%USERPROFILE%\.dotnet` → one-time local auto-install) and puts
+  it on PATH for the build and the service processes, so the launcher works even when the
+  machine default `dotnet` is still .NET 9.
+
+Builds clean under `-warnaserror` and all 791 backend tests pass on net10.0. A full local
+health-check (`Start-Planora-Local.ps1 -ExitAfterHealthCheck`) reports all services
+Healthy on .NET 10.
+
+Security: no change to the password hashing parameters or output; the migration only
+swaps the obsolete API for its supported static equivalent.
+
+### feat — extract task comment timeline into the Collaboration microservice (2026-05-29)
+
+The task comment timeline ("ветки") — user, genesis, and system comments — moved out of TodoApi
+into a new **Collaboration** service (`Services/CollaborationApi`, database `planora_collaboration`,
+gateway prefix `/collaboration/api/v1/comments`). The new service follows the exact platform
+template: clean architecture, BuildingBlocks wiring, Serilog + OpenTelemetry, the shared global
+exception middleware, JWT + security-stamp validation, rate limiting, response compression, health
+endpoints, the Outbox pattern, and a non-root Dockerfile.
+
+**Responsibility split.**
+
+- TodoApi no longer contains any comment code. It now publishes task-lifecycle integration events
+  through its own outbox — `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`
+  (completed/started/left), `TaskDeletedIntegrationEvent` — and exposes `TodoService.CheckTaskCommentAccess`
+  over gRPC. The EF migration `RemoveCommentsAddOutbox` drops `todo_item_comments` and adds `todo.OutboxMessages`.
+- Collaboration owns `collaboration.comments`. It authorises every read/write via the Todo gRPC
+  access check (owner / shared / public + friendship — never reading Todo's DB, INV-OWN-1),
+  materialises system/genesis comments from the Todo events through idempotent Inbox consumers,
+  and fans out a `NotificationEvent` per participant on each new comment (Outbox → RabbitMQ →
+  Realtime/SignalR).
+
+**Errors & validation.** gRPC faults from the Todo access check surface as HTTP 503 via a
+`DomainException` (`ExternalServiceUnavailableException`); FluentValidation validators reject
+malformed input as 400 through the shared `ValidationBehavior`.
+
+**Data migration.** `Planora.Migrator --backfill-collaboration` idempotently copies
+`todo.todo_item_comments` → `collaboration.comments`; run it before applying `RemoveCommentsAddOutbox`.
+
+**Frontend.** Comment API calls repoint to `/collaboration/api/v1/comments/*`; the `CommentDto` JSON
+shape is unchanged so the timeline UI is untouched.
+
+**Tests.** Added Collaboration domain, handler (access matrix + notification fan-out), and
+integration-event consumer (replay-safe materialisation, cascade/user-deletion) suites, plus
+`WorkerLifecycleEventTests` pinning the new event-based worker lifecycle in TodoApi.
+
+**Docs.** Updated `architecture.md`, `database.md`, `API.md`, `codebase-map.md`, `features.md`,
+`testing.md`, `security-idor-coverage.md`, `overview.md`, `index.md`, `glossary.md`, and `INVARIANTS.md`.
+
+### fix — genesis comment edits up to 5000 chars (Collaboration) (2026-05-31)
+
+`UpdateCommentCommandValidator` capped every comment edit at 2000 characters, but a
+genesis comment (the task description) is allowed up to 5000 — both on create
+(`AddGenesisCommentCommandValidator`) and in the domain (`Comment.UpdateGenesisContent`).
+The blanket validator ceiling ran in the `ValidationBehavior` pipeline before the handler,
+so editing a description to 2001-5000 characters was wrongly rejected with a 400, contradicting
+the domain, `features.md`, and the documented PUT behavior in `API.md`.
+
+The validator cannot distinguish a genesis comment from a regular one (it sees only the ids and
+content), so it now enforces just the upper bound (5000); the domain applies the exact per-kind
+limit — 2000 for a regular comment via `Comment.UpdateContent`, 5000 for genesis via
+`UpdateGenesisContent` — and a violation surfaces as a 400 (`ErrorCategory.Validation`). Added
+`UpdateCommentCommandValidatorTests` pinning the boundaries (accepts 3000 and 5000, rejects empty
+and 5001, requires both ids).
+
+### fix — green CI/security after the Collaboration split, and a fuller local launcher (2026-05-31)
+
+Repaired every red gate left by the Collaboration extraction and brought the local launcher
+up to date with the new topology.
+
+- **CI build** — `TodoGrpcServiceTests` now constructs `TodoGrpcService` with its new
+  `ITodoRepository` + `IFriendshipService` dependencies (CS7036), and `WorkerLifecycleEventTests`
+  uses `Assert.Contains` instead of `Assert.True(.Any())` (xUnit2012 under `-warnaserror`).
+- **Docs lint** — fixed an MD004 false-positive in `database.md` where a wrapped bullet began with
+  a `+` that markdownlint read as a list marker.
+- **Security scan** — added `--no-install-recommends` to the Collaboration Dockerfile `apt-get
+  install`, clearing the Trivy IaC HIGH; the CodeQL C# job recovers automatically once the build
+  compiles.
+- **Launcher** — `Start-Planora-Local.ps1` now starts `collaboration-api` (port 5060, gRPC client of
+  Auth 5031 / Todo 5101), derives all stop/cleanup port lists and the shutdown order from a single
+  `$ServiceDefs` source of truth (no more hand-maintained duplicates), and gains `-Stop` (tear down
+  everything the launcher started, infra/data untouched) and `-Help` (print usage and exit).
+
+**Docs.** Rewrote `README.md` — corrected the license (it is the **Planora Source-Available
+License (Study-Only)**, not MIT), fixed the React version (18, not 19), added the per-service local
+port map, and slimmed the styling. Documented the launcher's `-Stop`/`-Help` flags and the
+Collaboration schema bootstrap in `getting-started.md`.
+
+### perf — frontend render optimization: memoized cards, lighter motion, windowed feed (2026-05-29)
+
+The app felt slow and janky because every task list re-rendered all of its
+(very heavy) cards on any state change, several decorative animations ran on an
+infinite loop, and `/tasks` mounted the entire task list at once.
+
+- **Memoized `TodoCard`** — `frontend/src/components/todos/todo-card.tsx` now
+  exports a `React.memo` wrapper comparing on `todo` identity + `variant`. A card
+  only re-renders when its own todo object changes, so completing one task no
+  longer re-renders the whole grid. Function props are excluded from the compare
+  intentionally (see below).
+- **Stable, ref-backed handlers** — dashboard, `/tasks`, and `/tasks/completed`
+  read their live lists through refs (`todosRef`, `statsTodosRef`,
+  `completedPreviewRef`) inside the card handlers, so a memoized card holding an
+  older callback closure still acts on current data. This is what makes ignoring
+  callback identity in the memo safe.
+- **Trimmed always-on animations** — removed `repeat: Infinity` loops that ran
+  regardless of interaction: the collapsed-card category icon now only spins on
+  hover, the "delay" badge is static, and the dashboard header's large
+  `blur-3xl` decorative blob no longer animates its opacity every frame (a
+  full-surface repaint that ran for the page's whole lifetime).
+- **Windowed `/tasks` feed** — `frontend/src/app/tasks/page.tsx` keeps the single
+  infinite-scroll feed and full client-side filtering, but mounts cards in a
+  growing window (initial 24, +24 per `IntersectionObserver` step, 600px
+  pre-load) instead of rendering hundreds at once. Data is still fetched in full.
+
+Performance: list interactions no longer re-render every card; `/tasks` initial
+mount is bounded to a small window regardless of task count.
+
+### fix — suppress canceled-request noise in the API client (2026-05-29)
+
+Aborted requests are normal control flow (React effects abort in-flight
+requests on unmount/dependency change; a newer fetch supersedes an older
+one), but the axios response interceptor was logging them via
+`console.error`, which raises the Next.js dev error overlay. Pages already
+ignored cancellations in their own `catch`, yet the interceptor fired first.
+
+- `frontend/src/lib/api.ts` — the response error handler now short-circuits
+  on `axios.isCancel(error)` / `ERR_CANCELED` and rejects silently.
+- Genuine no-response network errors are downgraded from `console.error` to
+  `console.warn` outside production so backend hot-reload restarts no longer
+  trigger the dev overlay; production logging is unchanged.
+
+### perf/security — Start-Planora-Local.ps1 hardening (2026-05-29)
+
+The local launcher no longer embeds secrets in child-process command lines,
+builds faster, and gained run-mode flags.
+
+- **Security** — `JWT_SECRET`, `GRPC_SERVICE_KEY`, RabbitMQ credentials and
+  the Redis connection string are now loaded only into the launcher's own
+  process environment (`Import-EnvFile`) and inherited by `dotnet run` / `npm`
+  children. They are no longer interpolated into the `-Command` string, so
+  they no longer appear in `Win32_Process` command lines or the transcript.
+- **Performance** — backend build is a single `dotnet build Planora.sln`
+  invocation (MSBuild compiles shared `BuildingBlocks` once) instead of six
+  sequential per-project builds; falls back to per-project if no `.sln`.
+- **Flexibility** — new switches `-SkipFrontend`, `-NoBrowser`, `-SkipBuild`
+  for backend-only runs, headless runs, and fast no-rebuild restarts.
+
+### T3.6 — IDOR coverage baseline (2026-05-28)
+
+Hand-curated coverage map for every `[Authorize]` endpoint that takes a
+resource-identifier path parameter. Pairs each endpoint with the IDOR
+protection mechanism (owner check, viewer filter, friend gate, role gate)
+and pins which test or invariant verifies it.
+
+- `docs/security-idor-coverage.md` (new) — tables for Auth, Todo,
+  Category, Messaging, Realtime services + cross-service gRPC. Each row
+  carries one of `pinned by <test>`, `relies on filter`, or `gap`. The
+  current pass shows zero `gap` rows; the forward step is auto-generation
+  once T2.1's OpenAPI source-of-truth lands.
+- `docs/INVARIANTS.md` — new **INV-AZ-8** codifies the contract: any PR
+  adding an authorized resource-identifier endpoint must update the
+  coverage table and ship an explicit cross-user test, or reviewers
+  reject.
+
+### T2.6 cont. — reset-password + profile-update UI specs (2026-05-28)
+
+Two more UI flows on the T2.6 scaffold.
+
+- `e2e/ui/auth-reset-password.ui.spec.ts` — end-to-end forgot → reset →
+  login loop. Triggers the reset email via the API path, scrapes the
+  Auth-API container logs for the reset token (subject-disambiguated
+  from the verification email by matching `Reset` in the log line),
+  opens `/auth/reset-password?token=...`, sets a new password, signs in
+  with the new password to prove the rotation took effect.
+- `e2e/ui/profile-update.ui.spec.ts` — log in, navigate to `/profile`,
+  rename via the first-name field, reload to confirm persistence.
+- `e2e/ui/_helpers.ts` — adds `requestPasswordResetAndCaptureToken`
+  helper (triggers the reset, polls auth logs, returns the token).
+
+### T2.7 — ADR-0006: `force-dynamic` + CSP nonce trade-off documented (2026-05-28)
+
+Closes the open question called out in the master plan ("T2.7: Needs ADR on
+CSP nonce trade-off") and the audit finding **P0-FORCE-DYNAMIC**.
+
+- `docs/DECISIONS/0006-force-dynamic-and-csp-nonce.md` — new ADR examining
+  the fork in the road (static prerender + nonce is impossible; hash-based
+  CSP is the unblock), documenting the **decision to keep** `force-dynamic`
+  with the per-request nonce until one of three sunset conditions ships
+  (hash-based CSP wiring, a Next.js minor publishing a stable hash manifest
+  API, or a vetted community plugin), and rejecting the alternatives
+  (`'unsafe-inline'`, per-route opt-in, hand-rolled hashing) with reasons.
+- `frontend/src/app/layout.tsx` — comment on the `force-dynamic` line now
+  references the ADR so a future contributor sees the rationale at the
+  call site, not just in the audit notes.
+- P0-FORCE-DYNAMIC is reclassified from "fix immediately" to "open
+  contingent on hash-CSP work" in the master plan tracking.
+
+### T4.2 — DB index audit, first pass (2026-05-28)
+
+Targeted index improvements landing as EF entity configurations. Migration
+files generate when the next `dotnet ef migrations add` runs against a
+development environment with `dotnet ef` available.
+
+- **Outbox partial composite index** — Auth, Category, Messaging, and
+  Realtime each gain
+  `HasIndex(Status, NextRetryUtc, OccurredOnUtc).HasFilter("Status IN ('Pending', 'Failed')")`
+  named `ix_outbox_messages_active`. Directly covers the canonical polling
+  predicate in `OutboxRepository<TContext>.GetPendingMessagesAsync`. Excluding
+  `Processed`/`DeadLettered` rows keeps the index small even when the table
+  accumulates ahead of the cleanup sweep. New INV-COMM-5 pins the convention.
+- **Messaging `OutboxMessageConfiguration`** added (was missing — Messaging
+  declared the DbSet but never applied an explicit configuration, so EF
+  used defaults, leaving the outbox table without any non-PK index). The
+  new config matches Auth/Category/Realtime exactly.
+- **`MessagingDbContext.OnModelCreating`** now calls
+  `ApplyConfigurationsFromAssembly` so future entity configs are picked up
+  automatically, matching sister services.
+- **`TodoItemComment.AuthorId`** gains a non-unique index. Audit and
+  account-deletion cascade scans previously seq-scanned the table once a
+  thread accumulated comments.
+
+Deferred to a `dotnet ef`-equipped follow-up: the actual EF migration
+files + `ModelSnapshot` updates. Schema-drift guard (INV-FLOW-5) will
+prevent silent partial application — operators see the drift and run the
+migrator explicitly.
+
+### T2.6 cont. — forgot-password + tasks-page UI specs (2026-05-28)
+
+Two more UI flows on the T2.6 scaffold.
+
+- `e2e/ui/auth-forgot-password.ui.spec.ts` — happy path types a registered
+  email, asserts the success banner replaces the form; anti-enumeration
+  scenario submits an unknown email and pins that the *same* success
+  banner appears (so the UI cannot leak account existence).
+- `e2e/ui/tasks-page.ui.spec.ts` — post-login arrival on `/tasks`,
+  opens the create-task panel via its aria-labelled toggle, fills the
+  title input, then closes the panel. The full create-flow validation
+  (category selection) lands in a dedicated follow-up spec so this one
+  stays robust against category-UI churn.
+
+### T2.6 start — Playwright browser-rendered E2E scaffold + login flow (2026-05-28)
+
+First slice of master-plan T2.6 (Phase 2): real-browser UI coverage on the
+critical user flows. This commit lands the scaffolding plus the **login**
+flow; remaining flows (register UI, forgot-password, reset-password,
+verify-email-link, todo CRUD, sharing/hidden, profile update, 2FA setup)
+land incrementally as separate specs that the same scaffold already
+supports.
+
+- `frontend/playwright.config.ts` — splits the suite into two projects.
+  `api` keeps the existing request-context tests; `ui` (new) uses Chromium
+  with `Desktop Chrome` device emulation. Both projects coexist; selectors
+  are file-name based (`*.api.spec.ts` vs `e2e/ui/*.ui.spec.ts`).
+- `frontend/e2e/ui/_helpers.ts` — shared setup: `requireFrontendReachable`
+  (skips the whole suite if the Next.js URL doesn't respond inside 5 s),
+  `registerVerifiedUser` (reuses the API path so UI specs aren't gated on
+  re-driving the registration form), `submitLoginForm` (locator helpers
+  by visible label).
+- `frontend/e2e/ui/auth-login.ui.spec.ts` — two scenarios: happy-path
+  login routes to `/tasks` with the user's name visible in the navbar;
+  wrong-password leaves the user on `/auth/login` with the error banner
+  visible.
+- `.github/workflows/e2e.yml` — installs Chromium, builds the frontend
+  (production, not dev), starts `next start` on port 3000, waits for
+  readiness, runs the whole Playwright suite (both projects), and cleans
+  up the frontend PID at the end. Existing API job semantics preserved —
+  `E2E_FRONTEND_URL` newly exported.
+- `frontend/e2e/README.md` (new) — operator-facing doc on the two-project
+  setup, local UI runs, and the skip-friendly design.
+
+The scaffold is intentionally additive: existing CI matrix entries that
+do not export `E2E_FRONTEND_URL` continue to run only the `api` project
+(UI specs gracefully skip).
+
+### T4.5 — Postgres `idle_in_transaction_session_timeout = 30s` (2026-05-28)
+
+Postgres-side backstop for the per-service Npgsql pool (`Maximum Pool Size=10`,
+T4.4). A leaked `DbContext` or a client crash mid-transaction would otherwise
+hold a connection open indefinitely, starving the pool and surfacing as
+cascading timeouts on unrelated endpoints. 30 s leaves headroom for
+legitimate long batches (outbox cleanup, avatar re-encode) while bounding
+the worst-case starvation window.
+
+- `docker-compose.yml` — `postgres` service `command` adds
+  `-c idle_in_transaction_session_timeout=30000`.
+- `deploy/fly/README.md` — new "Postgres tuning" section documents the
+  `flyctl postgres config update --idle-in-transaction-session-timeout 30000`
+  command for Fly Postgres clusters.
+
+### T4.10 — Motion preferences + hardware-adaptive WebGL background (2026-05-28)
+
+Closes the two scoped halves of master-plan T4.10 that don't require a wider
+bundle refactor.
+
+- `frontend/src/components/motion-preferences-provider.tsx` (new) — single
+  `MotionConfig reducedMotion="user"` boundary wired into the root layout.
+  Every nested `framer-motion` component now respects the OS-level
+  `prefers-reduced-motion: reduce` setting automatically: transforms and
+  physics collapse, opacity and colour transitions remain, no per-component
+  `useReducedMotion()` boilerplate required. The framer-motion `loading.tsx`
+  and `celebration.tsx` paths that previously animated transforms on every
+  visit now stay still for motion-sensitive users.
+- `frontend/src/components/backgrounds/color-bends-layer.tsx` — heuristic
+  `useAdaptiveIterations` picks 1 / 2 / 3 fragment-shader iterations based
+  on `navigator.hardwareConcurrency` (≤2 / 4–7 / ≥8 cores). Cuts the GPU
+  load on low-end mobile in half versus the previous hard-coded `2`, while
+  giving desktops a richer effect. Returns 1 during SSR so hydration is
+  deterministic; the runtime upgrade happens silently on mount.
+- `frontend/src/test/components/color-bends.test.tsx` — parameterised
+  smoke test pins that the layer keeps rendering across all three buckets.
+
+Deferred (out of scope for this commit): full dynamic-import of
+`framer-motion` per route. Currently every page that imports `motion.*`
+ships the framer-motion bundle eagerly. Moving auth pages to a lazy
+`<m.div>` + `LazyMotion` setup is a larger refactor tracked in the master
+plan.
+
+### T3.5 — Security-stamp expansion + contract test (2026-05-28)
+
+Extends INV-AUTH-4 with a forward-looking rotation policy and pins it with a
+source-file contract test (master plan T3.5, Phase 3).
+
+**Why.** Today's INV-AUTH-4 lists the seven shipped rotation points (password
+change, password reset, email change confirmation, 2FA disable, revoke-all,
+delete, refresh-token reuse detection). Future handlers — role assignment,
+admin force-logout, admin lock, admin email override — must also rotate the
+stamp, but nothing in CI catches a missing call until a security review picks
+it up. The contract test closes that loop.
+
+**What landed.**
+
+- `SecurityStampUsageContractTests` (`tests/Planora.UnitTests/Services/AuthApi/Infrastructure/`):
+  source-file scan over every `*CommandHandler.cs` under
+  `Services/AuthApi/Planora.Auth.Application/Features/**/Handlers/`. A handler
+  whose constructor takes `ISecurityStampService` must also call
+  `SetStampAsync` somewhere in its body, or the test fails. Two safety nets:
+  a sanity check that at least one injector was scanned (catches regex drift)
+  and an explicit anchor type to force the application assembly to load.
+- `docs/INVARIANTS.md` — INV-AUTH-4 rewritten to (a) list shipped rotation
+  points including INV-AUTH-6's refresh-reuse path, (b) document the
+  forward-looking policy with the four expected future rotation commands,
+  (c) document the *opt-outs* (profile updates, single-session revocation),
+  and (d) reference the new contract test.
+- `docs/auth-security.md` — stamp table mirrors the invariant; new
+  "Forward-looking rotation policy (T3.5)" subsection enumerates expected
+  future rotation points and cites the contract test as the enforcement
+  mechanism.
+
+**Scope notes.** No production code changed — the three obvious gap candidates
+(`UpdateUserCommandHandler`, `RevokeSessionCommandHandler`) are deliberate
+opt-outs and the rationale is now documented. The remaining forward-looking
+items (role-change, admin force-logout) ship when their handlers ship.
+
+### T2.5 — Realtime persistence scaffold (2026-05-28)
+
+Adds the durable persistence layer for the Realtime service so notifications
+survive pod restarts (master plan T2.5, Phase 2). This commit ships the
+**additive scaffold half**:
+
+- `Planora.Realtime.Domain.Entities.Notification` — durable record of every
+  consumed `NotificationEvent`, deduplicated by `SourceEventId`.
+- `Planora.Realtime.Domain.Entities.NotificationDelivery` — per-recipient
+  delivery state (`Pending → Delivered | NotConnected | Failed`) decoupled
+  from the parent so reconnect-replay is cheap.
+- `Planora.Realtime.Infrastructure.Persistence.RealtimeDbContext` with the two
+  entities + `OutboxMessages` table for fan-out integration events.
+- EF entity configurations including the `SourceEventId` unique index, the
+  per-user index, soft-delete filter, and the canonical
+  `OutboxMessage` table shape consistent with sister services.
+- `RealtimeDbContextFactory` (design-time) so `dotnet ef` commands resolve
+  the context without booting ASP.NET.
+- `tools/Planora.Migrator/Program.cs` registers the `realtime` service in the
+  one-shot migration runner.
+- DI registration is **conditional on `ConnectionStrings:RealtimeDatabase`**
+  being present so test and dev hosts without the DB still start clean.
+- New INV-DATA-5 in `docs/INVARIANTS.md` codifies the durability contract.
+
+**Deferred (next commit, requires `dotnet ef`).** The initial EF migration
+itself (`InitialRealtimeSchema`) and the `NotificationService` rewire that
+persists-before-pushing. The connection string in `docker-compose.yml` is
+left commented for the same reason — flipping it on without the schema
+applied would crash startup.
+
+### Phase 1.5 audit-hotfix wave (2026-05-27)
+
+A four-commit hotfix wave executed against the master plan
+(`/root/.claude/plans/staff-melodic-oasis.md`). Closes every P0 and
+P1 finding from the audit that did not require architectural refactoring.
+Five new invariants added (INV-AUTH-6, INV-AUTH-7, INV-FLOW-5, INV-OBS-5
+strengthened, INV-OBS-10 implicit in INV-OBS-5).
+
+**Backend hygiene (wave A — H1, H8, H17, H18).**
+
+- **H1 — JWT `ClockSkew` unified.** Six wiring points (Auth JwtConfiguration, Auth DependencyInjection, Auth TokenService ×2, Messaging Program, Realtime Program) used `TimeSpan.Zero`; the BuildingBlocks consumer extension used `30 s`; Gateway used `5 s`; `SecurityConstants.TokenClockSkewSeconds` was 5 and unused. Every wiring now reads `SecurityConstants.SecurityPolicies.TokenClockSkewSeconds` (set to 30 s, tolerates Fly NTP drift). Pinned tests updated. New INV-AUTH-7.
+- **H8 — EF SQL text capture default-off.** `SetDbStatementForText` defaults to `false` to remove PII risk from trace exports; opt in per environment via `OpenTelemetry:Tracing:CaptureDbStatementText=true`. INV-OBS-5 strengthened.
+- **H17 — `CacheService.RemoveByPatternAsync` implemented.** Redis `SCAN` + `KeyDeleteAsync` (UNLINK) in 500-key batches with the StackExchangeRedisCache instance-name prefix. Skips replicas, cancellation-aware, no-ops cleanly when no multiplexer is registered.
+- **H18 — Idempotent fallback hash MD5 → SHA256.** Truncated to 16 bytes; removes the CA5351 static-analyzer flag with identical determinism.
+
+**CI/CD/infra hygiene (wave B — H5, H7, H16, H21, H22, H23, P2-MIG-002).**
+
+- **H5 — `superfly/flyctl-actions/setup-flyctl@master` SHA-pinned** to `ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1` (v1.6) across all four CD workflow occurrences.
+- **H7 — docker-compose healthchecks** switched from aggregate `/health` to `/health/ready`, matching INV-OBS-4 semantics and the Fly manifest probes.
+- **H16 — `npm audit --audit-level=high`** (was `moderate`). High-severity transitive CVEs now block CI.
+- **H21 — Trivy IaC fail-on-high.** Two-pass scan: first uploads SARIF for the Security tab, second fails the job on HIGH/CRITICAL.
+- **H22 — NuGet cache enabled.** `actions/setup-dotnet@v5 cache: true` across `ci.yml`, `security.yml`, `openapi.yml`, `migrations.yml`. `cache-dependency-path` hashes every csproj plus `Directory.Packages.props` + `Directory.Build.props` so the key changes only when the restore graph changes.
+- **H23 — CD `/health/live` smoke** added before `/health/ready` poll. 30 s liveness probe distinguishes "gateway crashed" from "backends slow to warm up".
+- **P2-MIG-002 — Idempotence marker check.** `migrations.yml` greps for `IF [NOT] EXISTS` in every non-empty generated script; fails if `--idempotent` ever silently produces non-idempotent SQL.
+
+**Frontend P0/P1 (wave C — H9, H10, H11, H13, H14, H15).**
+
+- **H9 — Hydration year mismatch fixed** on the landing page footer (`app/page.tsx`). Already-mounted `mounted` flag reused; matches the existing pattern on auth/login and auth/register.
+- **H10 — Rehydrate race closed.** Zustand `onRehydrateStorage` explicitly pins `isAuthenticated=false` when `accessToken` is absent on rehydrate. Prevents a brief render window where guards saw `isAuthenticated=true` before `restoreSession()` resolved.
+- **H11 — CSRF 403 retry on the main axios client.** Matches the existing `auth-public.ts` retry semantics. The `_csrfRetry` flag bounds the retry to one round-trip; a second 403 propagates to the caller.
+- **H13 — Cross-tab logout via BroadcastChannel.** `clearAuth()` publishes a logout message on the `planora-auth` channel; `SecurityInitializer` subscribes and calls `clearAuth(true)` on receipt (silent flag prevents echo). New `@/lib/auth-broadcast` module owns the channel name.
+- **H14 — Traceparent reuse on 401 retry.** `extractTraceId` + `traceparentForExistingTrace` keep the original trace-id intact while a fresh span-id is generated; backend collector groups the retry under the same trace.
+- **H15 — CSP additions.** `object-src 'none'; child-src 'none'; worker-src 'self'`. Defence-in-depth against reflected XSS payloads via `<object>`, `<embed>`, or worker spawn.
+
+**Security/integrity (wave D — H2, H3, H4, H6, H19).**
+
+- **H2 — Refresh-token reuse detection.** `RefreshTokenCommandHandler` now treats presentation of a previously-rotated token as a replay attack: every active refresh token on the user is revoked with reason `"Reuse detected — chain invalidated"`, the security stamp is rotated, and Unauthorized is returned. New INV-AUTH-6. Pinned by `RefreshToken_WhenReplayed_InvalidatesChainAndRotatesStamp`.
+- **H3 — Todo description max length reconciled** at 2000 chars in both `CreateTodoCommandValidator` and `UpdateTodoCommandValidator`. Matches the existing `varchar(2000)` column; eliminates silent server-side truncation.
+- **H4 — Auth API telemetry wrapper removed.** `Services/AuthApi/.../Configuration/OpenTelemetryExtensions.cs` deleted; `Program.cs` calls `AddPlanoraTelemetry(builder.Configuration, "AuthService")` directly, matching every other service. INV-OBS-5 strengthened to explicitly forbid wrappers around the canonical call.
+- **H6 — Migrator schema-drift guard.** Refuses to start a migration run when the database has applied migrations absent from the compiled code base. New INV-FLOW-5.
+- **H19 — `CODEOWNERS` file** codifies security primitives, observability pipeline, outbox state machine, migrator, CI/CD, deployment manifests, and INVARIANTS as protected paths.
+
+**Deferred (planned for follow-up commits).** H12 (AbortController on data fetches) and H20 (Husky pre-commit hooks) — both wider-scope than the rest of Phase 1.5 and tracked in the master plan.
+
 ### PR-9 observability: avatar upload metrics + dead-letter alert (2026-05-26)
 
 Adds two metrics to the shared `PlanoraMetrics` meter and one new alert rule for production monitoring.

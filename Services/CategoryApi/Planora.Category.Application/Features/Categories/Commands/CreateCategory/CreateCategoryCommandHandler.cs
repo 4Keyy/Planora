@@ -66,7 +66,8 @@ namespace Planora.Category.Application.Features.Categories.Commands.CreateCatego
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to create category");
-                return Result.Failure<CategoryDto>("CREATE_FAILED", ex.Message);
+                // Do not surface ex.Message to the client (can leak internal/DB detail) — log it, return a safe message.
+                return Result.Failure<CategoryDto>("CREATE_FAILED", "Failed to create the category.");
             }
         }
 

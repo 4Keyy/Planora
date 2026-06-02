@@ -19,6 +19,8 @@ public sealed class ArchitectureTests
         ("Planora.Todo.Domain", typeof(global::Planora.Todo.Domain.Entities.TodoItem).Assembly),
         ("Planora.Category.Domain", typeof(global::Planora.Category.Domain.Entities.Category).Assembly),
         ("Planora.Messaging.Domain", typeof(global::Planora.Messaging.Domain.Entities.Message).Assembly),
+        ("Planora.Realtime.Domain", typeof(global::Planora.Realtime.Domain.Entities.Notification).Assembly),
+        ("Planora.Collaboration.Domain", typeof(global::Planora.Collaboration.Domain.Entities.Comment).Assembly),
     };
 
     private static readonly (string Name, Assembly Assembly)[] ApplicationAssemblies =
@@ -29,6 +31,7 @@ public sealed class ArchitectureTests
         ("Planora.Category.Application", typeof(global::Planora.Category.Application.Features.IntegrationEvents.UserDeletedEventConsumer).Assembly),
         ("Planora.Messaging.Application", typeof(global::Planora.Messaging.Application.Features.Messages.Mappings.MessageMappingProfile).Assembly),
         ("Planora.Realtime.Application", typeof(global::Planora.Realtime.Application.Handlers.NotificationEventHandler).Assembly),
+        ("Planora.Collaboration.Application", typeof(global::Planora.Collaboration.Application.DTOs.CommentDto).Assembly),
     };
 
     // Namespaces that belong to the infrastructure layer or to infrastructure
@@ -57,11 +60,13 @@ public sealed class ArchitectureTests
         "Planora.Category.Infrastructure",
         "Planora.Messaging.Infrastructure",
         "Planora.Realtime.Infrastructure",
+        "Planora.Collaboration.Infrastructure",
         "Planora.Auth.Api",
         "Planora.Todo.Api",
         "Planora.Category.Api",
         "Planora.Messaging.Api",
         "Planora.Realtime.Api",
+        "Planora.Collaboration.Api",
     };
 
     [Fact]

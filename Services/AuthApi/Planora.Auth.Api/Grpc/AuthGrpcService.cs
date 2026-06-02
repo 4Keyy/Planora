@@ -5,6 +5,7 @@ using Planora.Auth.Application.Features.Friendships.Queries.AreFriends;
 using Planora.Auth.Application.Features.Friendships.Queries.GetFriendIds;
 using Planora.Auth.Application.Features.Users.Queries.GetUser;
 using Planora.Auth.Application.Features.Users.Queries.GetUserAvatarsByIds;
+using Planora.Auth.Application.Features.Users.Queries.GetUserProfilesByIds;
 using Planora.GrpcContracts;
 using MediatR;
 
@@ -95,6 +96,34 @@ namespace Planora.Auth.Api.Grpc
                 foreach (var kvp in result.Value)
                 {
                     response.AvatarUrls[kvp.Key.ToString()] = kvp.Value;
+                }
+            }
+
+            return response;
+        }
+
+        public override async Task<GetUserProfilesBatchResponse> GetUserProfilesBatch(
+            GetUserProfilesBatchRequest request, ServerCallContext context)
+        {
+            var userIds = request.UserIds
+                .Select(id => Guid.TryParse(id, out var parsed) ? parsed : Guid.Empty)
+                .Where(id => id != Guid.Empty)
+                .ToList();
+
+            var response = new GetUserProfilesBatchResponse();
+            if (userIds.Count == 0)
+                return response;
+
+            var result = await _mediator.Send(new GetUserProfilesByIdsQuery(userIds));
+            if (result.IsSuccess)
+            {
+                foreach (var kvp in result.Value)
+                {
+                    response.Profiles[kvp.Key.ToString()] = new UserProfileSummary
+                    {
+                        DisplayName = kvp.Value.DisplayName ?? string.Empty,
+                        AvatarUrl = kvp.Value.AvatarUrl ?? string.Empty,
+                    };
                 }
             }
 

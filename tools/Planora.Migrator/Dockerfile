@@ -1,7 +1,7 @@
 # Planora.Migrator — one-shot EF Core migration runner.
 # Built as a minimal .NET runtime image; no ASP.NET, no curl, no shell.
 
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 COPY ["Directory.Packages.props", "."]
@@ -39,7 +39,7 @@ WORKDIR /src/tools/Planora.Migrator
 RUN dotnet publish "Planora.Migrator.csproj" -c Release -o /app/publish --no-restore
 
 # Minimal runtime — pure .NET runtime, no ASP.NET; this CLI never serves HTTP.
-FROM mcr.microsoft.com/dotnet/runtime:9.0 AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 

@@ -6,7 +6,9 @@ namespace Planora.Messaging.Infrastructure.BackgroundJobs
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<OutboxProcessorJob> _logger;
-        private readonly TimeSpan _interval = TimeSpan.FromSeconds(30);
+        // 5 s (was 30 s) to keep message delivery near-live, matching the shared
+        // BuildingBlocks OutboxProcessor cadence. The query is indexed and bounded.
+        private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
 
         public OutboxProcessorJob(
             IServiceProvider serviceProvider,

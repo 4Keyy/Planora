@@ -1,38 +1,67 @@
 <#
 .SYNOPSIS
-    Planora Docker Launcher - starts all backend services via Docker Compose,
+    Planora Docker Launcher - starts every backend service via Docker Compose and
     runs the Next.js frontend locally on the host.
 
 .DESCRIPTION
+    Infrastructure (PostgreSQL, Redis, RabbitMQ) and all .NET services run as
+    Docker containers; the frontend runs on the host for fast iteration.
+
     Modes:
-      (default)  Kill existing Planora processes, preserve all data volumes,
-                 restart all Docker services fresh. Fast, incremental restart.
-      -Clean     Kill processes, docker compose down (no --volumes - data preserved),
-                 rebuild all images with --no-cache, then start everything fresh.
+      (default)  Stop existing host processes, preserve all data volumes, and
+                 (re)start every container fresh. Fast, incremental restart.
+      -Clean     `docker compose down` (no --volumes, so data is preserved),
+                 rebuild all images with --no-cache, then start everything.
 
 .PARAMETER Clean
     Tears down containers and rebuilds all Docker images from scratch.
-    Does NOT wipe database volumes - data is preserved.
+    Database volumes are NOT touched.
+
+.PARAMETER ExitAfterHealthCheck
+    Start everything, verify health endpoints, then shut down. Intended for
+    CI / smoke tests. Exit code is non-zero if any service failed its check.
+
+.PARAMETER SkipFrontend
+    Start the Docker stack only; do not launch the host Next.js frontend.
+
+.PARAMETER NoBrowser
+    Do not open the browser automatically once the frontend is healthy.
+
+.PARAMETER Stop
+    Stop the host frontend this launcher started and run `docker compose down`
+    (containers + network only). Data volumes are preserved. Then exit.
+
+.PARAMETER Help
+    Print usage and exit without starting anything.
 
 .EXAMPLE
     .\Start-Planora-Docker.ps1
 .EXAMPLE
     .\Start-Planora-Docker.ps1 -Clean
+.EXAMPLE
+    .\Start-Planora-Docker.ps1 -SkipFrontend -NoBrowser
+.EXAMPLE
+    .\Start-Planora-Docker.ps1 -Stop
 #>
 param(
-    [switch]$Clean
+    # docker compose down + rebuild all images with --no-cache. Data volumes preserved.
+    [switch]$Clean,
+    # Start everything, verify health, then shut down (used by CI / smoke tests).
+    [switch]$ExitAfterHealthCheck,
+    # Do not start the host Next.js frontend (containers only).
+    [switch]$SkipFrontend,
+    # Do not open the browser once the frontend is healthy.
+    [switch]$NoBrowser,
+    # Stop the host frontend and `docker compose down`, then exit (no startup).
+    [switch]$Stop,
+    # Print usage and exit.
+    [switch]$Help
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Continue"
 
-# ---------------------------------------------------------------------------
-#  Module imports
-# ---------------------------------------------------------------------------
 $ScriptRoot = $PSScriptRoot
-Import-Module "$ScriptRoot/scripts/PidManager.psm1"    -Force
-Import-Module "$ScriptRoot/scripts/PortChecker.psm1"   -Force
-Import-Module "$ScriptRoot/scripts/HealthChecker.psm1"  -Force
 
 # ---------------------------------------------------------------------------
 #  ANSI color definitions
@@ -62,33 +91,71 @@ function Show-Header {
     Write-Host ""
 }
 
+function Show-Usage {
+    Write-Host ""
+    Write-Host "${BOLD}Planora Docker Launcher${RESET}"
+    Write-Host "  Starts every backend service in Docker and the Next.js frontend on the host."
+    Write-Host ""
+    Write-Host "${BOLD}USAGE${RESET}"
+    Write-Host "  .\Start-Planora-Docker.ps1 [-Clean] [-SkipFrontend] [-NoBrowser]"
+    Write-Host "                             [-ExitAfterHealthCheck] [-Stop] [-Help]"
+    Write-Host ""
+    Write-Host "${BOLD}OPTIONS${RESET}"
+    Write-Host "  -Clean                 docker compose down + rebuild all images (data preserved)."
+    Write-Host "  -SkipFrontend          Start the Docker stack only."
+    Write-Host "  -NoBrowser             Do not open the browser when the frontend is ready."
+    Write-Host "  -ExitAfterHealthCheck  Start, verify health, then shut down (CI / smoke test)."
+    Write-Host "  -Stop                  Stop the host frontend + 'docker compose down', then exit."
+    Write-Host "  -Help                  Show this help and exit."
+    Write-Host ""
+    Write-Host "${BOLD}EXAMPLES${RESET}"
+    Write-Host "  .\Start-Planora-Docker.ps1"
+    Write-Host "  .\Start-Planora-Docker.ps1 -Clean"
+    Write-Host "  .\Start-Planora-Docker.ps1 -SkipFrontend -NoBrowser"
+    Write-Host "  .\Start-Planora-Docker.ps1 -Stop"
+    Write-Host ""
+}
+
 # ---------------------------------------------------------------------------
 #  Global state
 # ---------------------------------------------------------------------------
-$RepoRoot    = $ScriptRoot
-$LogDir      = Join-Path $RepoRoot "logs"
-$ComposeFile = Join-Path $RepoRoot "docker-compose.yml"
-$FrontendDir = Join-Path $RepoRoot "frontend"
+$RepoRoot     = $ScriptRoot
+$LogDir       = Join-Path $RepoRoot "logs"
+$ComposeFile  = Join-Path $RepoRoot "docker-compose.yml"
+$FrontendDir  = Join-Path $RepoRoot "frontend"
 $FrontendPort = 3000
-$Failures    = [System.Collections.Generic.List[string]]::new()
-$totalTimer  = [System.Diagnostics.Stopwatch]::StartNew()
+$Failures     = [System.Collections.Generic.List[string]]::new()
+$totalTimer   = [System.Diagnostics.Stopwatch]::StartNew()
 
-# Docker application service names (not infra)
-$AppServices = @("auth-api", "category-api", "todo-api", "messaging-api", "realtime-api", "api-gateway")
+# Single source of truth: compose service name => host port + health path, in
+# dependency/startup order. Host ports are the 127.0.0.1 mappings published by
+# docker-compose.yml. Collaboration is a gRPC client of Auth and Todo, so it is
+# listed after both. Every list below is derived from this map (no duplicates).
+$ServiceDefs = [ordered]@{
+    "auth-api"          = @{ HostPort = 5031; HealthPath = "/health" }
+    "category-api"      = @{ HostPort = 5281; HealthPath = "/health" }
+    "todo-api"          = @{ HostPort = 5100; HealthPath = "/health" }
+    "collaboration-api" = @{ HostPort = 5060; HealthPath = "/health" }
+    "messaging-api"     = @{ HostPort = 5058; HealthPath = "/health" }
+    "realtime-api"      = @{ HostPort = 5032; HealthPath = "/health" }
+    "api-gateway"       = @{ HostPort = 5132; HealthPath = "/health" }
+}
 
-# All services including infra
+# Compose service names: application tier, and the full set including infra.
+$AppServices = @($ServiceDefs.Keys)
 $AllServices = @("postgres", "redis", "rabbitmq") + $AppServices
 
-# Health endpoints for Docker-deployed services (host ports from docker-compose.yml)
-$HealthChecks = @(
-    @{ Name = "auth-api";      HealthUrl = "http://localhost:5031/health" }
-    @{ Name = "category-api";  HealthUrl = "http://localhost:5281/health" }
-    @{ Name = "todo-api";      HealthUrl = "http://localhost:5100/health" }
-    @{ Name = "messaging-api"; HealthUrl = "http://localhost:5058/health" }
-    @{ Name = "realtime-api";  HealthUrl = "http://localhost:5032/health" }
-    @{ Name = "api-gateway";   HealthUrl = "http://localhost:5132/health" }
-    @{ Name = "frontend";      HealthUrl = "http://localhost:$FrontendPort" }
-)
+# Host ports a previous *local* launcher run may have left bound, cleaned up so a
+# Docker run after a local run does not collide. Includes the frontend port.
+$HostCleanupPorts = @(5030, 5031, 5060, 5100, 5101, 5281, 5282, 5058, 5032, 5132, $FrontendPort)
+
+# ---------------------------------------------------------------------------
+#  -Help: print usage and exit before any side effects (no log file created)
+# ---------------------------------------------------------------------------
+if ($Help) {
+    Show-Usage
+    exit 0
+}
 
 # ---------------------------------------------------------------------------
 #  Logging via transcript
@@ -98,11 +165,48 @@ $LogFile = Join-Path $LogDir "startup-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').
 Start-Transcript -Path $LogFile -Append | Out-Null
 
 # ---------------------------------------------------------------------------
+#  Helper module imports (validated, with actionable errors)
+# ---------------------------------------------------------------------------
+function Import-LauncherModules {
+    $requiredModules = @(
+        @{ Name = "PidManager";    Path = (Join-Path $RepoRoot "scripts/PidManager.psm1") }
+        @{ Name = "PortChecker";   Path = (Join-Path $RepoRoot "scripts/PortChecker.psm1") }
+        @{ Name = "HealthChecker"; Path = (Join-Path $RepoRoot "scripts/HealthChecker.psm1") }
+    )
+
+    foreach ($module in $requiredModules) {
+        if (-not (Test-Path $module.Path)) {
+            throw "Required helper module '$($module.Name)' was not found at '$($module.Path)'."
+        }
+        try {
+            Import-Module $module.Path -Force -DisableNameChecking -ErrorAction Stop | Out-Null
+        } catch {
+            throw "Failed to import helper module '$($module.Name)' from '$($module.Path)': $($_.Exception.Message)"
+        }
+    }
+}
+
+function Get-NpmExecutable {
+    $npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
+    if ($npmCmd) { return $npmCmd.Source }
+
+    $npm = Get-Command npm -ErrorAction SilentlyContinue
+    if ($npm) { return $npm.Source }
+
+    return $null
+}
+
+# ---------------------------------------------------------------------------
 #  Load .env into process environment
 # ---------------------------------------------------------------------------
 function Import-EnvFile {
     $envFile = Join-Path $RepoRoot ".env"
     if (-not (Test-Path $envFile)) { return }
+
+    # SECURITY: secrets are loaded into THIS process's environment block only.
+    # docker compose reads them from the same .env file for the containers, and
+    # the host frontend (started with Start-Process) inherits this block - so no
+    # secret is ever placed on a child process command line or in the transcript.
     Get-Content $envFile | ForEach-Object {
         if ($_ -match '^\s*([^#=]+?)\s*=\s*(.*)\s*$') {
             $k = $Matches[1].Trim()
@@ -119,13 +223,6 @@ function Import-EnvFile {
 function Invoke-PreflightChecks {
     Write-Step "Running preflight checks..."
     $ok = $true
-
-    # dotnet (needed for -Clean restore, good to verify)
-    if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
-        Write-Warn "dotnet CLI not found - install from https://dot.net (needed for -Clean restore)"
-    } else {
-        Write-OK "dotnet $(& dotnet --version 2>&1)"
-    }
 
     # Docker CLI - auto-start engine if stopped, wait up to 60s
     if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
@@ -161,7 +258,15 @@ function Invoke-PreflightChecks {
         }
     }
 
-    # .env file
+    # docker-compose.yml
+    if (-not (Test-Path $ComposeFile)) {
+        Write-Fail "docker-compose.yml not found at $ComposeFile"
+        $ok = $false
+    } else {
+        Write-OK "docker-compose.yml found"
+    }
+
+    # .env file + JWT_SECRET sanity
     $envFile = Join-Path $RepoRoot ".env"
     if (-not (Test-Path $envFile)) {
         Write-Fail ".env file not found - copy .env.example to .env and fill in values"
@@ -183,24 +288,17 @@ function Invoke-PreflightChecks {
         }
     }
 
-    # docker-compose.yml
-    if (-not (Test-Path $ComposeFile)) {
-        Write-Fail "docker-compose.yml not found at $ComposeFile"
-        $ok = $false
-    } else {
-        Write-OK "docker-compose.yml found"
-    }
-
-    # node/npm (for frontend)
+    # node/npm (for the host frontend) - warn only
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
         Write-Warn "node not found - frontend will not start (install from https://nodejs.org)"
     } else {
         Write-OK "node $(& node --version 2>&1)"
     }
-    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    $npmExe = Get-NpmExecutable
+    if (-not $npmExe) {
         Write-Warn "npm not found - frontend will not start"
     } else {
-        $npmVer = (& npm -v 2>$null) | Where-Object { $_ -match '^\d+\.\d+\.\d+' } | Select-Object -First 1
+        $npmVer = (& $npmExe -v 2>$null) | Where-Object { $_ -match '^\d+\.\d+\.\d+' } | Select-Object -First 1
         if (-not $npmVer) { $npmVer = "(unknown)" }
         Write-OK "npm $npmVer"
     }
@@ -209,18 +307,19 @@ function Invoke-PreflightChecks {
 }
 
 # ---------------------------------------------------------------------------
-#  Stop existing local Planora processes (frontend + any local .NET)
+#  Stop host Planora processes (frontend + any stray local .NET services)
 # ---------------------------------------------------------------------------
 function Stop-PlanoraProcesses {
-    Write-Step "Stopping existing Planora processes..."
+    Write-Step "Stopping existing host Planora processes..."
     $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
-    # Phase 1: stop via PID files
-    $null = Stop-AllServices -Force -GracePeriodSeconds 8
+    # Phase 1: stop via PID files (targeted, safe)
+    $null = Stop-AllServices -Force -GracePeriodSeconds 8 -Quiet
 
-    # Phase 2: port-based fallback for local processes not tracked by PID files
-    $localPorts = @(5030, 5031, 5100, 5281, 5282, 5058, 5032, 5132, 3000)
-    foreach ($port in $localPorts) {
+    # Phase 2: port-based fallback for host processes not tracked by PID files
+    # (e.g. a previous local-launcher run). Docker-published ports are owned by
+    # the Docker backend, not flagged IsPlanora, so containers are never killed.
+    foreach ($port in $HostCleanupPorts) {
         $owner = Get-PortOwner -Port $port
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
@@ -228,14 +327,14 @@ function Stop-PlanoraProcesses {
         }
     }
 
-    # Wait for frontend port to be free
+    # Wait for the frontend port to be free before relaunching it
     $null = Wait-PortFree -Port $FrontendPort -ServiceName "frontend" -TimeoutSeconds 15
 
     # Clean up stale PID files
     Clear-PidDirectory
 
     $elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
-    Write-OK "Local processes stopped ($($elapsed)s)"
+    Write-OK "Host processes stopped ($($elapsed)s)"
 }
 
 # ---------------------------------------------------------------------------
@@ -349,13 +448,14 @@ function Wait-AppContainersReady {
 #  Start the Next.js frontend locally (not in Docker Compose)
 # ---------------------------------------------------------------------------
 function Start-Frontend {
-    Write-Step "Starting Next.js frontend (local)..."
+    Write-Step "Starting Next.js frontend (host)..."
 
     if (-not (Test-Path $FrontendDir)) {
         Write-Warn "Frontend directory not found at $FrontendDir - skipping"
         return
     }
-    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    $npmExe = Get-NpmExecutable
+    if (-not $npmExe) {
         Write-Warn "npm not found - skipping frontend"
         return
     }
@@ -371,11 +471,13 @@ function Start-Frontend {
         'if (Test-Path "node_modules/.bin/next") { Remove-Item -LiteralPath "node_modules/.bin/next" -Force }; ' +
         'if (Test-Path "node_modules/.bin/next.cmd") { Remove-Item -LiteralPath "node_modules/.bin/next.cmd" -Force }; ' +
         'if (Test-Path "node_modules/.bin/next.ps1") { Remove-Item -LiteralPath "node_modules/.bin/next.ps1" -Force }; ' +
-        "npm install --no-fund --no-audit; "
+        '& "' + $npmExe + '" install --no-fund --no-audit; '
     } else {
         ""
     }
 
+    # SECURITY: no secrets on the command line - the child inherits this process's
+    # environment block (loaded by Import-EnvFile) automatically.
     $cmd = $installPart + 'npm run dev -- -H 0.0.0.0 2>&1 | Tee-Object -FilePath "' + $fLog + '"'
 
     $proc = Start-Process powershell `
@@ -401,11 +503,20 @@ function Invoke-AllHealthChecks {
     Write-Step "Waiting for all services to become healthy..."
     $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
-    $services = $HealthChecks | ForEach-Object {
-        @{
-            Name      = $_.Name
-            HealthUrl = $_.HealthUrl
-            Timeout   = if ($_.Name -eq "frontend") { 120 } else { 90 }
+    $services = @()
+    foreach ($name in $ServiceDefs.Keys) {
+        $def = $ServiceDefs[$name]
+        $services += @{
+            Name      = $name
+            HealthUrl = "http://localhost:$($def.HostPort)$($def.HealthPath)"
+            Timeout   = 90
+        }
+    }
+    if (-not $SkipFrontend) {
+        $services += @{
+            Name      = "frontend"
+            HealthUrl = "http://localhost:$FrontendPort"
+            Timeout   = 120
         }
     }
 
@@ -441,7 +552,6 @@ function Show-ContainerStatus {
             $health = if ($parts.Count -gt 1) { $parts[1].Trim() } else { "none" }
             $stateColor  = switch ($state)  { "running" { $GREEN } "exited" { $RED } default { $GRAY } }
             $healthColor = switch ($health) { "healthy" { $GREEN } "unhealthy" { $RED } "starting" { $YELLOW } default { $GRAY } }
-            $row = "  {0,-28} {1}" -f $name, ""
             Write-Host "  ${GRAY}$($name.PadRight(28))${RESET} ${stateColor}$($state.PadRight(10))${RESET} ${healthColor}$health${RESET}"
         } else {
             Write-Host "  ${GRAY}$($name.PadRight(28)) not found${RESET}"
@@ -457,14 +567,15 @@ function Show-Summary {
     param($HealthResults, $TotalSeconds)
 
     $services = @(
-        @{ Name = "Frontend";     Url = "http://localhost:3000";  Key = "frontend" }
-        @{ Name = "API Gateway";  Url = "http://localhost:5132";  Key = "api-gateway" }
-        @{ Name = "Auth API";     Url = "http://localhost:5031";  Key = "auth-api" }
-        @{ Name = "Category API"; Url = "http://localhost:5281";  Key = "category-api" }
-        @{ Name = "Todo API";     Url = "http://localhost:5100";  Key = "todo-api" }
-        @{ Name = "Messaging API";Url = "http://localhost:5058";  Key = "messaging-api" }
-        @{ Name = "Realtime API"; Url = "http://localhost:5032";  Key = "realtime-api" }
-        @{ Name = "RabbitMQ UI";  Url = "http://localhost:15672 (guest/guest)"; Key = $null }
+        @{ Name = "Frontend";          Url = "http://localhost:3000";  Key = "frontend" }
+        @{ Name = "API Gateway";       Url = "http://localhost:5132";  Key = "api-gateway" }
+        @{ Name = "Auth API";          Url = "http://localhost:5031";  Key = "auth-api" }
+        @{ Name = "Category API";      Url = "http://localhost:5281";  Key = "category-api" }
+        @{ Name = "Todo API";          Url = "http://localhost:5100";  Key = "todo-api" }
+        @{ Name = "Collaboration API"; Url = "http://localhost:5060";  Key = "collaboration-api" }
+        @{ Name = "Messaging API";     Url = "http://localhost:5058";  Key = "messaging-api" }
+        @{ Name = "Realtime API";      Url = "http://localhost:5032";  Key = "realtime-api" }
+        @{ Name = "RabbitMQ UI";       Url = "http://localhost:15672"; Key = $null }
     )
 
     $border = "=" * 60
@@ -485,7 +596,7 @@ function Show-Summary {
         } else {
             "$($RED)x${RESET}"
         }
-        $row = "  $statusIcon  $($s.Name.PadRight(16)) $($s.Url)"
+        $row = "  $statusIcon  $($s.Name.PadRight(18)) $($s.Url)"
         Write-Host "${CYAN}  |${RESET}$($row.PadRight(60))${CYAN}|${RESET}"
     }
 
@@ -501,13 +612,26 @@ function Show-Summary {
     Write-Host "${CYAN}  +${border}+${RESET}"
     Write-Host ""
     Write-Info "Log file: $LogFile"
-    Write-Info "Ctrl+C to stop frontend and exit (Docker containers keep running)"
-    Write-Info "To stop all containers: docker compose -f docker-compose.yml down"
+    Write-Info "Ctrl+C stops the host frontend (Docker containers keep running)."
+    Write-Info "Stop everything: .\Start-Planora-Docker.ps1 -Stop"
     Write-Host ""
 }
 
 # ---------------------------------------------------------------------------
-#  Graceful shutdown
+#  Stop the Docker stack (containers + network), preserving data volumes
+# ---------------------------------------------------------------------------
+function Stop-DockerStack {
+    Write-Step "Stopping Docker stack (docker compose down, volumes preserved)..."
+    $null = docker compose -f $ComposeFile down --remove-orphans 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-OK "Containers and network removed (data volumes intact)"
+    } else {
+        Write-Warn "docker compose down reported warnings (continuing)"
+    }
+}
+
+# ---------------------------------------------------------------------------
+#  Graceful shutdown (Ctrl+C): stop the host frontend; containers keep running
 # ---------------------------------------------------------------------------
 $global:ShuttingDown = $false
 
@@ -515,17 +639,21 @@ function Invoke-GracefulShutdown {
     if ($global:ShuttingDown) { return }
     $global:ShuttingDown = $true
     Write-Host ""
-    Write-Step "Shutting down Planora (Docker)..."
+    Write-Step "Shutting down Planora frontend (Docker)..."
 
-    # Stop the locally-running frontend
-    $null = Stop-ServiceByPid -ServiceName "frontend" -Force -GracePeriodSeconds 5
+    # Stop the locally-running frontend on its port first, then by PID file.
+    $owner = Get-PortOwner -Port $FrontendPort
+    if ($owner -and $owner.IsPlanora) {
+        Stop-Process -Id $owner.Pid -Force -ErrorAction SilentlyContinue
+    }
+    $null = Stop-ServiceByPid -ServiceName "frontend" -Force -GracePeriodSeconds 5 -Quiet
 
     # Clear PID files
     Clear-PidDirectory
 
-    Write-OK "Local processes stopped"
+    Write-OK "Host frontend stopped"
     Write-Info "Docker containers are still running. To stop them:"
-    Write-Info "  docker compose -f `"$ComposeFile`" down"
+    Write-Info "  .\Start-Planora-Docker.ps1 -Stop   (or)   docker compose -f `"$ComposeFile`" down"
     Write-Host ""
 
     try { Stop-Transcript | Out-Null } catch {}
@@ -536,14 +664,40 @@ $null = Register-EngineEvent PowerShell.Exiting -Action { Invoke-GracefulShutdow
 # ===========================================================================
 #  ENTRY POINT
 # ===========================================================================
-Clear-Host
-$modeLabel = if ($Clean) { "CLEAN REBUILD" } else { "Fresh Restart" }
+$modeLabel = if ($Stop) { "Stop" } elseif ($Clean) { "CLEAN REBUILD" } else { "Fresh Restart" }
 Show-Header "Planora - Docker Launcher [$modeLabel]"
 
 Write-Info "Log file: $LogFile"
 Write-Host ""
 
 Set-Location -LiteralPath $RepoRoot
+
+try {
+    Import-LauncherModules
+} catch {
+    Write-Fail $_
+    try { Stop-Transcript | Out-Null } catch {}
+    exit 1
+}
+
+# -- -Stop: stop host frontend + Docker stack, then exit ---------------------
+if ($Stop) {
+    $global:ShuttingDown = $true   # prevent the exit handler from re-running the frontend-only path
+    Write-Step "Stopping the host frontend..."
+    $owner = Get-PortOwner -Port $FrontendPort
+    if ($owner -and $owner.IsPlanora) {
+        Stop-Process -Id $owner.Pid -Force -ErrorAction SilentlyContinue
+    }
+    $null = Stop-ServiceByPid -ServiceName "frontend" -Force -GracePeriodSeconds 5 -Quiet
+    Clear-PidDirectory
+    Stop-DockerStack
+    Write-OK "Shutdown complete"
+    try { Stop-Transcript | Out-Null } catch {}
+    exit 0
+}
+
+# Load .env into process environment so JWT_SECRET etc. are available
+Import-EnvFile
 
 # -- Step 1: Preflight -------------------------------------------------------
 $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
@@ -557,21 +711,17 @@ if (-not $preOk) {
     exit 1
 }
 
-# Load .env into process environment so JWT_SECRET etc. are available
-Import-EnvFile
-
-# -- Step 2: Stop existing local processes -----------------------------------
+# -- Step 2: Stop existing host processes ------------------------------------
 Write-Host ""
 $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
 Stop-PlanoraProcesses
 
-# -- Step 3: Clean rebuild (if -Clean) ----------------------------------------
+# -- Step 3: Clean rebuild (if -Clean) ---------------------------------------
 if ($Clean) {
     Write-Host ""
     Write-Step "CLEAN mode - stopping containers and rebuilding images (data preserved)..."
     $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
-    # docker compose down - removes containers but NOT volumes
     Write-Info "docker compose down (containers only, volumes intact)..."
     $null = docker compose -f $ComposeFile down --remove-orphans 2>&1
     if ($LASTEXITCODE -eq 0) {
@@ -641,12 +791,17 @@ Wait-AppContainersReady
 # -- Step 8: Show updated container state ------------------------------------
 Show-ContainerStatus
 
-# -- Step 9: Start frontend locally ------------------------------------------
-Write-Host ""
-$stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
-Start-Frontend
-$elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
-Write-OK "Frontend launch triggered ($($elapsed)s)"
+# -- Step 9: Start frontend on the host --------------------------------------
+if ($SkipFrontend) {
+    Write-Host ""
+    Write-Warn "SkipFrontend specified - frontend will not be started"
+} else {
+    Write-Host ""
+    $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
+    Start-Frontend
+    $elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
+    Write-OK "Frontend launch triggered ($($elapsed)s)"
+}
 
 # -- Step 10: Wait for all health endpoints ----------------------------------
 Write-Host ""
@@ -654,7 +809,7 @@ $healthResults = Invoke-AllHealthChecks
 
 # -- Step 11: Open browser (if frontend is healthy) --------------------------
 $frontendHealthy = $healthResults | Where-Object { $_.ServiceName -eq "frontend" -and $_.Status -eq "Healthy" }
-if ($frontendHealthy) {
+if ($frontendHealthy -and -not $ExitAfterHealthCheck -and -not $NoBrowser -and -not $SkipFrontend) {
     try { Start-Process "http://localhost:3000" | Out-Null } catch {}
 }
 
@@ -669,6 +824,13 @@ if ($Failures.Count -gt 0) {
     Write-Info "Tip: docker compose -f docker-compose.yml logs -f <service-name>"
 } else {
     Write-OK "All systems healthy. Planora is running in Docker mode."
+}
+
+if ($ExitAfterHealthCheck) {
+    Write-Info "ExitAfterHealthCheck specified; shutting down the frontend after verification."
+    $exitCode = if ($Failures.Count -gt 0) { 1 } else { 0 }
+    Invoke-GracefulShutdown
+    exit $exitCode
 }
 
 Write-Host ""

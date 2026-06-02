@@ -1,6 +1,9 @@
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
+using Planora.Todo.Application.Common;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Services;
 using Planora.Todo.Domain.Entities;
@@ -16,7 +19,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
         private readonly IMapper _mapper;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IFriendshipService _friendshipService;
-        private readonly ITodoCommentRepository _commentRepository;
+        private readonly IOutboxRepository _outboxRepository;
         private readonly ILogger<JoinTodoCommandHandler> _logger;
 
         public JoinTodoCommandHandler(
@@ -25,7 +28,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             IMapper mapper,
             ICurrentUserContext currentUserContext,
             IFriendshipService friendshipService,
-            ITodoCommentRepository commentRepository,
+            IOutboxRepository outboxRepository,
             ILogger<JoinTodoCommandHandler> logger)
         {
             _repository = repository;
@@ -33,7 +36,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             _mapper = mapper;
             _currentUserContext = currentUserContext;
             _friendshipService = friendshipService;
-            _commentRepository = commentRepository;
+            _outboxRepository = outboxRepository;
             _logger = logger;
         }
 
@@ -86,8 +89,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             todoItem.AddWorker(userId);
 
             var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-            var systemComment = TodoItemComment.CreateSystem(todoItem.Id, $"{userName} started working on the task");
-            await _commentRepository.AddAsync(systemComment, cancellationToken);
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.StartedWorking),
+                cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
