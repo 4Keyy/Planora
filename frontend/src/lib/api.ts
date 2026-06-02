@@ -348,10 +348,13 @@ export const fetchSubtasks = async (parentTodoId: string): Promise<Todo[]> => {
   return parseApiResponse(data)
 }
 
-/** Creates a subtask under a task (owner-only). Category/visibility are inherited server-side. */
+/**
+ * Creates a subtask under a task (owner-only). Category/visibility are inherited server-side.
+ * Priority is intentionally not part of the subtask UX — when omitted the server defaults it.
+ */
 export const createSubtask = async (
   parentTodoId: string,
-  payload: { title: string; description?: string | null; priority: number },
+  payload: { title: string; description?: string | null; priority?: number },
 ): Promise<Todo> => {
   const { data } = await api.post<ApiResponse<Todo>>(
     `/todos/api/v1/todos/${parentTodoId}/subtasks`,

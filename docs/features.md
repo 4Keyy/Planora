@@ -190,26 +190,34 @@ A **subtask** is a child `TodoItem` (self-referencing `ParentTodoId`) — a part
 task, stored in the parent's tree. Subtasks exist **only inside a task's branch** (the edit modal):
 they never appear on the tasks page, the completed page, the dashboard grid, or any list.
 
+A subtask is **a regular event in the branch timeline**, not a separate panel. It is authored
+exactly like the task description — through the compose box's **"+" menu → "Subtask"**, which
+switches the same input field into subtask mode (plain Enter adds the step; the field stays in
+subtask mode for quick successive entry). Each subtask renders as a simplified task card inline on
+the activity rail, anchored **directly after its "added a subtask" system event** (never pinned to
+the top). The completion toggle doubles as the rail marker, sitting exactly on the timeline line.
+
 | Aspect | Rule |
 |---|---|
 | Storage | child `TodoItem` with `ParentTodoId`; one level deep (a subtask cannot have subtasks) |
 | Category | always inherited from the parent (never set independently) |
 | Visibility | public exactly when the parent is public; inherits the parent's shared audience. A parent's category/visibility/sharing change **propagates** to its subtasks |
 | Dates | none — a subtask never has a due or expected date |
-| Priority | its own (`VeryLow`…`Urgent`), chosen on creation and editable later by the owner |
-| Editing | title and priority are **owner-only** (inline edit in the row; double-click the title or the pencil). Non-owners cannot edit |
+| Priority | **none in the UX** — a subtask is just a checkable titled step; no priority is shown, chosen, or edited. (The entity still has a priority column, defaulted server-side; it is never surfaced.) |
+| Editing | the title is **owner-only** (inline edit in the card; double-click the title or the pencil). Non-owners cannot edit |
 | Status | **anyone with access can complete or reopen it, and it applies globally** — if one participant marks it done it is done for everyone (entity status, not per-viewer). **Stays in the branch after completion** (shown done, not removed). Owner can also take it into work |
 | Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
 | Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
-| Branch messages | creating or completing a subtask posts a system message to the **parent's** branch timeline ("X added a subtask: …" / "X completed a subtask: …") via `TaskActivityIntegrationEvent` (`SubtaskCreated`/`SubtaskCompleted`, `Detail` = title) consumed by Collaboration. A subtask has no branch of its own |
-| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch entry, lighter than the Author's Note |
+| Branch messages | creating or completing a subtask posts a system message to the **parent's** branch timeline ("X added a subtask: …" / "X completed a subtask: …") via `TaskActivityIntegrationEvent` (`SubtaskCreated`/`SubtaskCompleted`, `Detail` = title) consumed by Collaboration. The inline subtask card is anchored beneath the `SubtaskCreated` event by matching its `: <title>` suffix. A subtask has no branch of its own |
+| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note |
 | Lifecycle | deleting a task soft-deletes its whole subtree |
 
 Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/friend lists),
 `CreateSubtaskCommand`, `GetSubtasksQuery`; `TodoItem.CreateSubtask` / `SyncInheritedFromParent`;
-migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask"), rendered
-by `edit-todo-modal/subtasks-section.tsx` as an animated checklist with a progress bar, per-row
-complete (everyone) / inline edit + take-into-work + delete (owner), and a title + priority composer.
+migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask") via the
+shared compose field, and rendered inline on the rail by `edit-todo-modal/branch-feed.tsx`
+(`SubtaskCard`) — per-row complete (everyone) / inline title edit + take-into-work + delete (owner),
+with no priority control.
 
 ### Frontend Behavior
 

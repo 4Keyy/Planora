@@ -4,6 +4,29 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### refactor(subtasks): inline branch cards, no panel, no priority (2026-06-02)
+
+Reworked the subtask UX so a subtask is **a regular branch event**, authored just like the task
+description — not a separate panel.
+
+- **Removed** the standalone Subtasks panel (`edit-todo-modal/subtasks-section.tsx` and its test)
+  that sat below the comments with its own header, progress bar and "Add" button.
+- **Authoring mirrors the description flow.** A new "Subtask" entry in the compose "+" menu switches
+  the **same input field** into subtask mode; plain `Enter` adds the step and the field stays in
+  subtask mode for quick successive entry. No separate composer.
+- **Inline rendering.** Each subtask now renders as a **simplified task card on the activity rail**
+  (`branch-feed.tsx` → `SubtaskCard`), interleaved chronologically and anchored **directly after its
+  "added a subtask" system event** (matched by the `: <title>` suffix) — never pinned to the top. The
+  completion toggle doubles as the rail marker, sitting exactly on the timeline line.
+- **No priority.** The priority picker/dot is gone from subtask create and edit; only the title is
+  authored/edited. The entity column still defaults server-side but is never surfaced.
+- Live polling/merge now refreshes subtasks alongside comments (id-keyed, optimism-preserving), so
+  another participant's add/complete/edit appears without re-opening the modal. Per-row complete
+  (everyone) / inline title edit + take-into-work + delete (owner) retained, with satisfying
+  spring-based toggle, enter and exit animations.
+- Tests/build: removed the obsolete `SubtasksSection` component test; `subtasks-api` tests green;
+  `tsc` + `eslint` clean; `npm run build` succeeds.
+
 ### feat(subtasks): branch system messages on create/complete + non-bold rendering (2026-06-02)
 
 - Creating or completing a subtask now posts a **system message to the parent task's branch**

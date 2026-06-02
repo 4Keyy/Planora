@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, type LucideIcon } from "lucide-react"
-import { fetchComments, addComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
-import type { TodoComment } from "@/types/todo"
+import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, Pause, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, type LucideIcon } from "lucide-react"
+import {
+  fetchComments, addComment, updateComment, deleteComment,
+  fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
+  getApiErrorMessage,
+} from "@/lib/api"
+import type { TodoComment, Todo } from "@/types/todo"
 import { SPRING_STANDARD } from "@/lib/animations"
 import { FriendAvatar } from "./friend-avatar"
-import { SubtasksSection, type SubtasksSectionHandle } from "./subtasks-section"
 import {
   formatDayLabel,
   formatTimeHHMM,
@@ -15,6 +18,10 @@ import {
 
 const COMMENT_MAX = 2000
 const GENESIS_MAX = 5000
+const SUBTASK_MAX = 200
+
+// Snappy spring for subtask micro-interactions (toggle pop, card enter/exit).
+const SPRING_SNAP = { type: "spring" as const, stiffness: 460, damping: 32 }
 
 // Activity-rail geometry. The rail line is centred at RAIL_CENTER within a wrapper that pads its
 // content by RAIL_GUTTER, and every marker is centred on that same x so avatars and system-event
@@ -27,11 +34,23 @@ const RAIL_CENTER = 20
 // Markers are intentionally greyscale (see SystemEvent) so the rail stays calm and uncluttered.
 function getSystemEventIcon(content: string): LucideIcon {
   const t = content.toLowerCase()
+  if (t.includes("subtask") || t.includes("под-задач") || t.includes("подзадач")) return ListTree
   if (t.includes("complet") || t.includes("завершил") || t.includes("выполнил")) return Check
   if (t.includes("start") || t.includes("working") || t.includes("взял в работу") || t.includes("присоединил")) return Play
   if (t.includes("left") || t.includes("leav") || t.includes("покинул") || t.includes("приостановил")) return LogOut
   if (t.includes("creat") || t.includes("создал")) return Plus
   return Circle
+}
+
+// Completion is global: anyone with access marks a subtask done for everyone, so the entity status
+// is the single source of truth (no per-viewer state).
+function isSubtaskDone(s: Todo): boolean {
+  const st = String(s.status).toLowerCase()
+  return st === "done" || st === "completed"
+}
+function isSubtaskWorking(s: Todo): boolean {
+  const st = String(s.status).toLowerCase()
+  return st === "inprogress" || st === "in progress"
 }
 
 interface BranchFeedProps {
@@ -55,21 +74,56 @@ interface BranchFeedProps {
   onCompleteTask?: () => Promise<void>
 }
 
-// Flat list item (day separator or comment)
+// Compose modes — a plain branch message, the task description, or a new subtask. Subtasks are
+// authored exactly like the description: pick it from the "+" menu, type into the same field, send.
+type ComposeMode = "text" | "description" | "subtask"
+
+// Flat list item (day separator, comment, or an inline subtask card)
 type FeedItem =
   | { type: "separator"; label: string; key: string }
   | { type: "comment";   comment: TodoComment }
+  | { type: "subtask";   subtask: Todo }
 
-function buildFeed(comments: TodoComment[]): FeedItem[] {
+// Builds the chronological rail by interleaving branch comments with subtask cards. A subtask is
+// anchored to its "added a subtask: <title>" system event so the card always lands directly after
+// its announcement — a separate event in the branch, never pinned to the top. Subtasks whose
+// announcement hasn't materialised yet (brief outbox lag) fall back to their own creation time.
+function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
+  const creationEvents = comments.filter(
+    (c) => c.isSystemComment && /added a subtask/i.test(c.content),
+  )
+  const used = new Set<string>()
+  const anchorById = new Map<string, string>()
+  const subsByTime = [...subtasks].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+  for (const s of subsByTime) {
+    const suffix = `: ${s.title}`
+    const match = creationEvents.find((c) => !used.has(c.id) && c.content.trimEnd().endsWith(suffix))
+    if (match) {
+      used.add(match.id)
+      anchorById.set(s.id, match.createdAt)
+    }
+  }
+
+  type Ev =
+    | { time: string; order: number; kind: "comment"; comment: TodoComment }
+    | { time: string; order: number; kind: "subtask"; subtask: Todo }
+  const evs: Ev[] = []
+  for (const c of comments) evs.push({ time: c.createdAt, order: 0, kind: "comment", comment: c })
+  // order:1 keeps an anchored card immediately after its same-timestamped announcement.
+  for (const s of subtasks) evs.push({ time: anchorById.get(s.id) ?? s.createdAt, order: 1, kind: "subtask", subtask: s })
+  evs.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : a.order - b.order))
+
   const items: FeedItem[] = []
   let lastDay = ""
-  for (const c of comments) {
-    const day = formatDayLabel(c.createdAt)
+  let sepIdx = 0
+  for (const e of evs) {
+    const day = formatDayLabel(e.time)
     if (day !== lastDay) {
-      items.push({ type: "separator", label: day, key: `sep-${c.createdAt}` })
+      items.push({ type: "separator", label: day, key: `sep-${sepIdx++}-${e.time}` })
       lastDay = day
     }
-    items.push({ type: "comment", comment: c })
+    if (e.kind === "comment") items.push({ type: "comment", comment: e.comment })
+    else items.push({ type: "subtask", subtask: e.subtask })
   }
   return items
 }
@@ -80,6 +134,7 @@ export function BranchFeed({
   onStartWork, onStopWork, onCompleteTask,
 }: BranchFeedProps) {
   const [comments,   setComments]   = useState<TodoComment[]>([])
+  const [subtasks,   setSubtasks]   = useState<Todo[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page,       setPage]       = useState(1)
   const [loading,    setLoading]    = useState(true)
@@ -90,13 +145,15 @@ export function BranchFeed({
   const [editingGenesis,   setEditingGenesis]   = useState(false)
   const [genesisEditContent, setGenesisEditContent] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const [composeMode, setComposeMode] = useState<"text" | "description">("text")
+  const [composeMode, setComposeMode] = useState<ComposeMode>("text")
   const [plusMenuOpen, setPlusMenuOpen] = useState(false)
   // Pinned Author's Note: condensed sticky header is shown once the full card scrolls away.
   const [genesisOutOfView, setGenesisOutOfView] = useState(false)
   const [genesisHighlight,  setGenesisHighlight]  = useState(false)
   // Which task action (if any) is currently awaiting its async handler.
   const [actionPending, setActionPending] = useState<null | "work" | "complete">(null)
+  // Per-subtask in-flight guard so double-clicks can't race (and polling won't clobber optimism).
+  const [subtaskPending, setSubtaskPending] = useState<Set<string>>(new Set())
 
   const feedRef           = useRef<HTMLDivElement>(null)
   const composeRef        = useRef<HTMLTextAreaElement>(null)
@@ -104,14 +161,24 @@ export function BranchFeed({
   const genesisCardRef    = useRef<HTMLDivElement>(null)
   const plusBtnRef        = useRef<HTMLButtonElement>(null)
   const plusMenuRef       = useRef<HTMLDivElement>(null)
-  const subtasksRef       = useRef<SubtasksSectionHandle>(null)
   const highlightTimer    = useRef<ReturnType<typeof setTimeout> | null>(null)
   // After a full (replace) load, pin the view to the newest message at the bottom.
   const pinBottomRef      = useRef(false)
   // Total comment count, mirrored in a ref so polling can target the last page without re-creating the timer.
   const totalCountRef     = useRef(0)
+  // Subtasks currently mid-write — polling must not revert their optimistic state.
+  const subtaskPendingRef = useRef<Set<string>>(new Set())
   // Pending post-action catch-up reloads (the status system-comment is produced asynchronously).
   const retryTimers       = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  const setSubtaskBusy = (id: string, on: boolean) => {
+    setSubtaskPending((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(id); else next.delete(id)
+      subtaskPendingRef.current = next
+      return next
+    })
+  }
 
   const load = useCallback(async (pageNum: number, replace: boolean, pin: boolean = replace) => {
     try {
@@ -125,6 +192,36 @@ export function BranchFeed({
       /* silent */
     } finally {
       setLoading(false)
+    }
+  }, [todoId])
+
+  // Fetch the parent's subtasks and merge by id, so server truth flows in (other users' edits,
+  // completions, the inherited category) without flickering away an in-flight optimistic change.
+  const loadSubtasks = useCallback(async () => {
+    try {
+      const list = await fetchSubtasks(todoId)
+      setSubtasks((prev) => {
+        const pending = subtaskPendingRef.current
+        const prevById = new Map(prev.map((s) => [s.id, s]))
+        const byId = new Map<string, Todo>()
+        let changed = false
+        for (const s of list) {
+          const existing = prevById.get(s.id)
+          // Keep the optimistic copy for rows we're still writing.
+          if (existing && pending.has(s.id)) { byId.set(s.id, existing); continue }
+          if (!existing || existing.status !== s.status || existing.title !== s.title) changed = true
+          byId.set(s.id, s)
+        }
+        // Preserve optimistic-only rows the server hasn't returned yet (just-created).
+        for (const s of prev) {
+          if (!byId.has(s.id) && pending.has(s.id)) byId.set(s.id, s)
+          else if (!byId.has(s.id) && !list.some((l) => l.id === s.id)) changed = true
+        }
+        if (!changed && byId.size === prev.length) return prev
+        return Array.from(byId.values()).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+      })
+    } catch {
+      /* a missing/forbidden parent simply yields no subtasks */
     }
   }, [todoId])
 
@@ -170,29 +267,27 @@ export function BranchFeed({
     }
   }, [todoId])
 
-  useEffect(() => { load(1, true) }, [load, refreshKey])
+  useEffect(() => { load(1, true); void loadSubtasks() }, [load, loadSubtasks, refreshKey])
 
   // After an action bumps refreshKey, the resulting status system-comment is materialised
   // asynchronously (Outbox → Inbox). Schedule a few short catch-up merges so it appears within
-  // ~1–2s without the user re-opening the modal.
+  // ~1–2s without the user re-opening the modal. Subtasks are pulled on the same cadence so a
+  // freshly-created card snaps in beneath its announcement.
   useEffect(() => {
     if (refreshKey === undefined) return
     retryTimers.current.forEach(clearTimeout)
-    // Dense early schedule: with signal-driven outbox dispatch the status comment is written within
-    // a fraction of a second, so the first probes catch it almost immediately; the later ones cover
-    // a slower poll-fallback dispatch. Cheap (id-keyed merge, no-op when nothing changed).
     retryTimers.current = [250, 600, 1100, 1800, 2800, 4200, 5600]
-      .map((ms) => setTimeout(() => { void mergeLatest() }, ms))
+      .map((ms) => setTimeout(() => { void mergeLatest(); void loadSubtasks() }, ms))
     return () => { retryTimers.current.forEach(clearTimeout); retryTimers.current = [] }
-  }, [refreshKey, mergeLatest])
+  }, [refreshKey, mergeLatest, loadSubtasks])
 
-  // Gentle live polling while the branch is open — picks up other participants' messages/edits.
-  // Paused while the viewer is editing so a refresh never clobbers an in-progress draft.
+  // Gentle live polling while the branch is open — picks up other participants' messages/edits and
+  // subtask changes. Paused while the viewer is editing so a refresh never clobbers a draft.
   useEffect(() => {
     if (editingId || editingGenesis) return
-    const id = setInterval(() => { void mergeLatest() }, 5000)
+    const id = setInterval(() => { void mergeLatest(); void loadSubtasks() }, 5000)
     return () => clearInterval(id)
-  }, [mergeLatest, editingId, editingGenesis])
+  }, [mergeLatest, loadSubtasks, editingId, editingGenesis])
 
   const genesis = comments.find((c) => c.isGenesisComment) ?? null
   const stream  = comments.filter((c) => !c.isGenesisComment)
@@ -212,7 +307,7 @@ export function BranchFeed({
     const id = requestAnimationFrame(scrollToBottom)
     return () => cancelAnimationFrame(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [comments])
+  }, [comments, subtasks])
 
   // ── Pinned Author's Note: show the condensed header once the full card scrolls past the top ──
   const updateGenesisVisibility = useCallback(() => {
@@ -264,6 +359,73 @@ export function BranchFeed({
   const showWorkAction     = !!(inProgress ? onStopWork : onStartWork)
   const showCompleteAction = !!onCompleteTask
   const showDescription    = !!onSaveDescription
+
+  // ── Subtask mutations (live inline in the branch; no separate panel) ──────────────────────────
+
+  // Anyone with access can complete/reopen — it applies globally (server-side, status-based).
+  const toggleSubtaskComplete = async (s: Todo) => {
+    if (subtaskPendingRef.current.has(s.id)) return
+    const nextStatus = isSubtaskDone(s) ? "todo" : "done"
+    setSubtaskBusy(s.id, true)
+    setSubtasks((prev) => prev.map((it) => it.id === s.id
+      ? { ...it, status: nextStatus === "done" ? "Done" : "Todo" } : it))
+    try {
+      await updateSubtask(s.id, { status: nextStatus })
+      // A "completed a subtask" system event is emitted async; pull it in shortly.
+      retryTimers.current.push(setTimeout(() => { void mergeLatest() }, 600))
+    } catch (e) {
+      setSubtasks((prev) => prev.map((it) => it.id === s.id ? s : it)) // revert
+      setError(getApiErrorMessage(e))
+    } finally {
+      setSubtaskBusy(s.id, false)
+    }
+  }
+
+  // Owner-only: take a subtask into work / step back out.
+  const toggleSubtaskWork = async (s: Todo) => {
+    if (!isOwner || subtaskPendingRef.current.has(s.id)) return
+    const nextStatus = isSubtaskWorking(s) ? "todo" : "inprogress"
+    setSubtaskBusy(s.id, true)
+    setSubtasks((prev) => prev.map((it) => it.id === s.id
+      ? { ...it, status: nextStatus === "inprogress" ? "InProgress" : "Todo" } : it))
+    try {
+      await updateSubtask(s.id, { status: nextStatus })
+    } catch (e) {
+      setSubtasks((prev) => prev.map((it) => it.id === s.id ? s : it))
+      setError(getApiErrorMessage(e))
+    } finally {
+      setSubtaskBusy(s.id, false)
+    }
+  }
+
+  // Owner-only: rename a subtask (priority is intentionally not part of the subtask UX).
+  const saveSubtaskTitle = async (id: string, title: string) => {
+    const trimmed = title.trim()
+    if (!trimmed) return
+    const snapshot = subtasks
+    setSubtasks((prev) => prev.map((it) => it.id === id ? { ...it, title: trimmed } : it))
+    try {
+      await updateSubtask(id, { title: trimmed })
+    } catch (e) {
+      setSubtasks(snapshot)
+      setError(getApiErrorMessage(e))
+    }
+  }
+
+  const removeSubtask = async (s: Todo) => {
+    if (!isOwner || subtaskPendingRef.current.has(s.id)) return
+    setSubtaskBusy(s.id, true)
+    const snapshot = subtasks
+    setSubtasks((prev) => prev.filter((it) => it.id !== s.id)) // optimistic (animates out)
+    try {
+      await deleteSubtask(s.id)
+    } catch (e) {
+      setSubtasks(snapshot)
+      setError(getApiErrorMessage(e))
+    } finally {
+      setSubtaskBusy(s.id, false)
+    }
+  }
 
   const handleEditSave = async (id: string) => {
     const content = editContent.trim()
@@ -346,6 +508,20 @@ export function BranchFeed({
     return () => document.removeEventListener("mousedown", handle)
   }, [plusMenuOpen])
 
+  const enterComposeMode = (mode: ComposeMode) => {
+    setComposeMode(mode)
+    setNewContent("")
+    setPlusMenuOpen(false)
+    if (composeRef.current) composeRef.current.style.height = "auto"
+    setTimeout(() => composeRef.current?.focus(), 50)
+  }
+
+  const exitComposeMode = () => {
+    setComposeMode("text")
+    setNewContent("")
+    if (composeRef.current) composeRef.current.style.height = "auto"
+  }
+
   const handleSubmitWithMode = async () => {
     const content = newContent.trim()
     if (!content || submitting) return
@@ -360,13 +536,28 @@ export function BranchFeed({
           await load(1, true, false)
         }
         setComposeMode("text")
+        setNewContent("")
+      } else if (composeMode === "subtask") {
+        // Subtasks are authored exactly like the description: from the same field. No priority.
+        const created = await createSubtask(todoId, { title: content })
+        setSubtaskBusy(created.id, false)
+        setSubtasks((prev) => [...prev, created])
+        setNewContent("")
+        // The "added a subtask" announcement is emitted async — pull it in so the card anchors
+        // beneath it. Stay in subtask mode for fast, successive step entry.
+        retryTimers.current.push(
+          setTimeout(() => { void mergeLatest() }, 350),
+          setTimeout(() => { void mergeLatest() }, 1000),
+          setTimeout(() => { void mergeLatest() }, 2000),
+        )
+        setTimeout(() => { scrollToBottom(); composeRef.current?.focus() }, 60)
       } else {
         const c = await addComment(todoId, content)
         setComments((prev) => [...prev, c])
         setTotalCount((n) => n + 1)
+        setNewContent("")
         setTimeout(scrollToBottom, 40)
       }
-      setNewContent("")
       if (composeRef.current) composeRef.current.style.height = "auto"
     } catch (e) {
       setError(getApiErrorMessage(e))
@@ -375,7 +566,9 @@ export function BranchFeed({
     }
   }
 
-  const feed = buildFeed(stream)
+  const feed = buildFeed(stream, subtasks)
+
+  const composeAccent = composeMode === "text" ? "#0a0a0a" : "#4f46e5"
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%", minHeight: 0 }}>
@@ -593,16 +786,6 @@ export function BranchFeed({
         </div>
       )}
 
-        {/* ── Subtasks ── child steps that live only in this branch (pinned above the timeline) ── */}
-        {!loading && (
-          <SubtasksSection
-            ref={subtasksRef}
-            todoId={todoId}
-            isOwner={isOwner}
-            refreshKey={refreshKey}
-          />
-        )}
-
         {/* Load earlier */}
         {hasMore && !loading && (
           <button
@@ -624,7 +807,7 @@ export function BranchFeed({
           <p style={{ fontSize: 12, color: "#a3a3a3" }}>Loading…</p>
         )}
 
-        {!loading && stream.length === 0 && (
+        {!loading && feed.length === 0 && (
           <p style={{ fontSize: 12, color: "#a3a3a3", fontStyle: "italic" }}>
             No messages yet
           </p>
@@ -646,32 +829,49 @@ export function BranchFeed({
               pointerEvents: "none",
             }} />
 
-            {feed.map((item) => {
-              if (item.type === "separator") {
+            <AnimatePresence initial={false}>
+              {feed.map((item) => {
+                if (item.type === "separator") {
+                  return <DaySeparator key={item.key} label={item.label} />
+                }
+                if (item.type === "subtask") {
+                  const s = item.subtask
+                  return (
+                    <SubtaskCard
+                      key={`sub-${s.id}`}
+                      subtask={s}
+                      isOwner={isOwner}
+                      done={isSubtaskDone(s)}
+                      working={isSubtaskWorking(s)}
+                      pending={subtaskPending.has(s.id)}
+                      onToggleComplete={() => toggleSubtaskComplete(s)}
+                      onToggleWork={() => toggleSubtaskWork(s)}
+                      onDelete={() => removeSubtask(s)}
+                      onSaveTitle={(title) => saveSubtaskTitle(s.id, title)}
+                    />
+                  )
+                }
+                const c = item.comment
+                if (c.isSystemComment) {
+                  return <SystemEvent key={c.id} comment={c} />
+                }
                 return (
-                  <DaySeparator key={item.key} label={item.label} />
+                  <MessageItem
+                    key={c.id}
+                    comment={c}
+                    isOwner={isOwner}
+                    editingId={editingId}
+                    editContent={editContent}
+                    submitting={submitting}
+                    onEditStart={(id, content) => { setEditingId(id); setEditContent(content) }}
+                    onEditCancel={() => setEditingId(null)}
+                    onEditSave={handleEditSave}
+                    onEditContentChange={setEditContent}
+                    onDelete={handleDelete}
+                  />
                 )
-              }
-              const c = item.comment
-              if (c.isSystemComment) {
-                return <SystemEvent key={c.id} comment={c} />
-              }
-              return (
-                <MessageItem
-                  key={c.id}
-                  comment={c}
-                  isOwner={isOwner}
-                  editingId={editingId}
-                  editContent={editContent}
-                  submitting={submitting}
-                  onEditStart={(id, content) => { setEditingId(id); setEditContent(content) }}
-                  onEditCancel={() => setEditingId(null)}
-                  onEditSave={handleEditSave}
-                  onEditContentChange={setEditContent}
-                  onDelete={handleDelete}
-                />
-              )
-            })}
+              })}
+            </AnimatePresence>
           </div>
         )}
         </div>
@@ -684,8 +884,8 @@ export function BranchFeed({
       {/* ── Compose ── */}
       <div style={{ position: "relative", marginTop: 8 }}>
 
-        {/* Mode chip — slides in above compose box when in description mode */}
-        {composeMode === "description" && (
+        {/* Mode chip — slides in above compose box when authoring the description or a subtask */}
+        {composeMode !== "text" && (
           <div style={{
             display: "flex", alignItems: "center", gap: 6,
             marginBottom: 6,
@@ -696,15 +896,17 @@ export function BranchFeed({
               background: "#eef2ff", border: "1px solid #c7d2fe",
               borderRadius: 8, padding: "4px 8px 4px 7px",
             }}>
-              <FileText size={11} color="#4f46e5" strokeWidth={2.2} />
+              {composeMode === "description"
+                ? <FileText size={11} color="#4f46e5" strokeWidth={2.2} />
+                : <ListTree size={11} color="#4f46e5" strokeWidth={2.2} />}
               <span style={{
                 fontSize: 11, fontWeight: 900, letterSpacing: "0.06em",
                 textTransform: "uppercase", color: "#4f46e5",
               }}>
-                Description
+                {composeMode === "description" ? "Description" : "Subtask"}
               </span>
               <button
-                onClick={() => { setComposeMode("text"); setNewContent("") }}
+                onClick={exitComposeMode}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center",
                   width: 16, height: 16, borderRadius: 4, border: "none",
@@ -719,7 +921,7 @@ export function BranchFeed({
               </button>
             </div>
             <span style={{ fontSize: 10.5, fontWeight: 600, color: "#a3a3a3" }}>
-              task description · ⌘+↵ to send
+              {composeMode === "description" ? "task description · ⌘+↵ to send" : "a step in this task · ↵ to add"}
             </span>
           </div>
         )}
@@ -727,8 +929,8 @@ export function BranchFeed({
         {/* Compose box — position:relative anchors the floating menu */}
         <div style={{
           position: "relative",
-          background: composeMode === "description" ? "#faf5ff" : "#fafafa",
-          border: composeMode === "description" ? "1.5px solid #c7d2fe" : "1px solid #f0f0f0",
+          background: composeMode !== "text" ? "#faf5ff" : "#fafafa",
+          border: composeMode !== "text" ? "1.5px solid #c7d2fe" : "1px solid #f0f0f0",
           borderRadius: 14,
           padding: 4,
           display: "flex",
@@ -760,12 +962,7 @@ export function BranchFeed({
                 <>
                   <MenuSectionLabel>Attach</MenuSectionLabel>
                   <button
-                    onClick={() => {
-                      if (genesis) return
-                      setComposeMode("description")
-                      setPlusMenuOpen(false)
-                      setTimeout(() => composeRef.current?.focus(), 50)
-                    }}
+                    onClick={() => { if (!genesis) enterComposeMode("description") }}
                     disabled={!!genesis}
                     style={{
                       width: "100%", display: "flex", alignItems: "center", gap: 10,
@@ -811,15 +1008,12 @@ export function BranchFeed({
                 </>
               )}
 
-              {/* Author-only: break the task into subtasks (a step in its tree) */}
+              {/* Author-only: add a subtask — authored in the same field, appears inline in the branch */}
               {isOwner && (
                 <>
                   {!showDescription && <MenuSectionLabel>Attach</MenuSectionLabel>}
                   <button
-                    onClick={() => {
-                      setPlusMenuOpen(false)
-                      subtasksRef.current?.openCreate()
-                    }}
+                    onClick={() => enterComposeMode("subtask")}
                     style={{
                       width: "100%", display: "flex", alignItems: "center", gap: 10,
                       padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
@@ -839,7 +1033,7 @@ export function BranchFeed({
                         Subtask
                       </div>
                       <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
-                        Break this into steps
+                        Add a step to this task
                       </div>
                     </div>
                   </button>
@@ -931,22 +1125,32 @@ export function BranchFeed({
               autoResize(e.target)
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+              // Subtask titles are single-line — plain Enter adds the step. Description/messages
+              // use ⌘/Ctrl+Enter so multi-line text can be composed freely.
+              if (e.key === "Enter" && composeMode === "subtask" && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmitWithMode()
+              } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault()
                 handleSubmitWithMode()
               }
-              if (e.key === "Escape" && composeMode === "description") {
-                setComposeMode("text")
-                setNewContent("")
+              if (e.key === "Escape" && composeMode !== "text") {
+                exitComposeMode()
               }
             }}
             rows={1}
             placeholder={
               composeMode === "description"
                 ? "Enter task description…"
-                : "Write in branch… ⌘+↵ to send"
+                : composeMode === "subtask"
+                  ? "Add a subtask…"
+                  : "Write in branch… ⌘+↵ to send"
             }
-            maxLength={composeMode === "description" ? GENESIS_MAX : COMMENT_MAX}
+            maxLength={
+              composeMode === "description" ? GENESIS_MAX
+                : composeMode === "subtask" ? SUBTASK_MAX
+                  : COMMENT_MAX
+            }
             disabled={submitting}
             style={{
               flex: 1, background: "transparent", border: "none", outline: "none",
@@ -962,14 +1166,14 @@ export function BranchFeed({
               width: 32, height: 32, borderRadius: 10, border: "none",
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: newContent.trim() && !submitting ? "pointer" : "default",
-              background: newContent.trim() && !submitting
-                ? (composeMode === "description" ? "#4f46e5" : "#0a0a0a")
-                : "#e5e5e5",
+              background: newContent.trim() && !submitting ? composeAccent : "#e5e5e5",
               flexShrink: 0,
               transition: "background 120ms",
             }}
           >
-            <Send size={14} color={newContent.trim() && !submitting ? "white" : "#a3a3a3"} />
+            {submitting && composeMode === "subtask"
+              ? <Loader2 size={14} color="white" className="animate-spin" />
+              : <Send size={14} color={newContent.trim() && !submitting ? "white" : "#a3a3a3"} />}
           </button>
         </div>
       </div>
@@ -1109,6 +1313,220 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
         </span>
       </div>
     </div>
+  )
+}
+
+/* ── Subtask card ── a simplified task card that lives inline in the branch as its own event.
+   The completion toggle doubles as the rail marker, sitting exactly on the timeline line. No
+   priority — a subtask is just a checkable step with a title. */
+const SUBTASK_TOGGLE = 24
+interface SubtaskCardProps {
+  subtask: Todo
+  isOwner: boolean
+  done: boolean
+  working: boolean
+  pending: boolean
+  onToggleComplete: () => void
+  onToggleWork: () => void
+  onDelete: () => void
+  onSaveTitle: (title: string) => void
+}
+
+function SubtaskCard({
+  subtask, isOwner, done, working, pending,
+  onToggleComplete, onToggleWork, onDelete, onSaveTitle,
+}: SubtaskCardProps) {
+  const [hovered, setHovered] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(subtask.title)
+  const editInputRef = useRef<HTMLInputElement>(null)
+
+  const beginEdit = () => {
+    if (!isOwner) return
+    setEditTitle(subtask.title)
+    setEditing(true)
+    setTimeout(() => { editInputRef.current?.focus(); editInputRef.current?.select() }, 40)
+  }
+  const commitEdit = () => {
+    const t = editTitle.trim()
+    if (t && t !== subtask.title) onSaveTitle(t)
+    setEditing(false)
+  }
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96, height: 0, marginTop: -2, marginBottom: 0 }}
+      transition={SPRING_SNAP}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ position: "relative", padding: "5px 0" }}
+    >
+      {/* Completion toggle — IS the rail marker, centred on the timeline line */}
+      <button
+        onClick={onToggleComplete}
+        disabled={pending}
+        aria-label={done ? "Mark subtask not done" : "Complete subtask"}
+        style={{
+          position: "absolute",
+          left: RAIL_CENTER - RAIL_GUTTER - SUBTASK_TOGGLE / 2,
+          top: 9,
+          width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
+          border: done ? "none" : `2px solid ${working ? "#f59e0b" : "#d4d4d4"}`,
+          background: done ? "#10b981" : "#ffffff",
+          boxShadow: done
+            ? "0 0 0 3px #ffffff, 0 2px 6px -1px rgba(16,185,129,0.5)"
+            : "0 0 0 3px #ffffff",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: pending ? "default" : "pointer", padding: 0, zIndex: 2,
+          transition: "background 160ms, border-color 160ms, transform 120ms, box-shadow 160ms",
+          transform: hovered && !done ? "scale(1.12)" : "scale(1)",
+        }}
+      >
+        <AnimatePresence mode="wait" initial={false}>
+          {done ? (
+            <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
+              <Check size={14} color="white" strokeWidth={3} />
+            </motion.span>
+          ) : working ? (
+            <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} className="animate-pulse" />
+            </motion.span>
+          ) : hovered ? (
+            <motion.span key="hover" initial={{ scale: 0 }} animate={{ scale: 1 }}>
+              <Check size={13} color="#10b981" strokeWidth={3} />
+            </motion.span>
+          ) : null}
+        </AnimatePresence>
+      </button>
+
+      {/* Card body */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 9,
+        padding: editing ? "9px 11px" : "8px 11px",
+        borderRadius: 12,
+        background: done ? "#f7fdfb" : working ? "#fffdf5" : "#fafafa",
+        border: `1px solid ${done ? "#d7f5ea" : working && !done ? "#fde68a" : "#f0f0f0"}`,
+        transition: "background 200ms, border-color 200ms",
+      }}>
+        {/* Subtask glyph — quietly identifies the row as a branch step */}
+        <div style={{
+          width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+          background: done ? "#e7f8f1" : "#eef2ff",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background 200ms",
+        }}>
+          <ListTree size={12} color={done ? "#10b981" : "#6366f1"} strokeWidth={2} />
+        </div>
+
+        {/* Title (or inline editor) */}
+        {editing ? (
+          <input
+            ref={editInputRef}
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); commitEdit() }
+              if (e.key === "Escape") setEditing(false)
+            }}
+            onBlur={commitEdit}
+            maxLength={SUBTASK_MAX}
+            style={{
+              flex: 1, minWidth: 0, background: "white",
+              border: "1.5px solid #c7d2fe", borderRadius: 8, outline: "none",
+              padding: "5px 9px", fontSize: 13, fontWeight: 400,
+              color: "#262626", fontFamily: "inherit",
+            }}
+          />
+        ) : (
+          <span
+            onDoubleClick={beginEdit}
+            title={isOwner ? "Double-click to edit" : undefined}
+            style={{
+              flex: 1, minWidth: 0,
+              // A subtask carries only a title — render it in a regular, non-bold weight so it
+              // reads as a plain branch step, lighter than the Author's Note.
+              fontSize: 13, fontWeight: 400, lineHeight: 1.4,
+              color: done ? "#a3a3a3" : "#262626",
+              textDecoration: done ? "line-through" : "none",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              cursor: isOwner ? "text" : "default",
+              transition: "color 200ms",
+            }}
+          >
+            {subtask.title}
+          </span>
+        )}
+
+        {/* Working badge */}
+        {working && !done && !editing && (
+          <span style={{
+            fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase",
+            color: "#b45309", background: "#fef3c7", padding: "2px 6px", borderRadius: 5, flexShrink: 0,
+          }}>
+            Working
+          </span>
+        )}
+
+        {/* Owner row actions (revealed on hover) */}
+        {isOwner && !editing && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 2, flexShrink: 0,
+            opacity: hovered ? 1 : 0, transition: "opacity 140ms",
+            pointerEvents: hovered ? "auto" : "none",
+          }}>
+            <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
+              <Pencil size={12} strokeWidth={2} />
+            </SubtaskIconButton>
+            {!done && (
+              <SubtaskIconButton
+                label={working ? "Stop working on subtask" : "Take subtask into work"}
+                title={working ? "Leave" : "Take into work"}
+                color={working ? "#b45309" : "#6366f1"} hoverBg="#f0f0f0"
+                onClick={onToggleWork} disabled={pending}
+              >
+                {working ? <Pause size={13} strokeWidth={2} /> : <Zap size={13} strokeWidth={2} />}
+              </SubtaskIconButton>
+            )}
+            <SubtaskIconButton label="Delete subtask" title="Delete" color="#ef4444" hoverBg="#fef2f2" onClick={onDelete} disabled={pending}>
+              <Trash2 size={13} strokeWidth={2} />
+            </SubtaskIconButton>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+interface SubtaskIconButtonProps {
+  label: string
+  title: string
+  color: string
+  hoverBg: string
+  disabled?: boolean
+  onClick: () => void
+  children: ReactNode
+}
+function SubtaskIconButton({ label, title, color, hoverBg, disabled, onClick, children }: SubtaskIconButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={title}
+      style={{
+        width: 26, height: 26, borderRadius: 8, border: "none",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "transparent", cursor: disabled ? "default" : "pointer", color,
+        transition: "background 120ms",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = hoverBg }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+    >
+      {children}
+    </button>
   )
 }
 
