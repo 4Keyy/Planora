@@ -196,8 +196,9 @@ they never appear on the tasks page, the completed page, the dashboard grid, or 
 | Category | always inherited from the parent (never set independently) |
 | Visibility | public exactly when the parent is public; inherits the parent's shared audience. A parent's category/visibility/sharing change **propagates** to its subtasks |
 | Dates | none — a subtask never has a due or expected date |
-| Priority | its own (`VeryLow`…`Urgent`), chosen on creation |
-| Status | can be taken into work and completed; **stays in the branch after completion** (shown as done, not removed). Friends on a public parent complete per-viewer, like top-level shared tasks |
+| Priority | its own (`VeryLow`…`Urgent`), chosen on creation and editable later by the owner |
+| Editing | title and priority are **owner-only** (inline edit in the row; double-click the title or the pencil). Non-owners cannot edit |
+| Status | **anyone with access can complete or reopen it, and it applies globally** — if one participant marks it done it is done for everyone (entity status, not per-viewer). **Stays in the branch after completion** (shown done, not removed). Owner can also take it into work |
 | Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
 | Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
 | Lifecycle | deleting a task soft-deletes its whole subtree |
@@ -206,7 +207,7 @@ Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/frie
 `CreateSubtaskCommand`, `GetSubtasksQuery`; `TodoItem.CreateSubtask` / `SyncInheritedFromParent`;
 migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask"), rendered
 by `edit-todo-modal/subtasks-section.tsx` as an animated checklist with a progress bar, per-row
-complete / take-into-work / delete, and an inline title + priority composer.
+complete (everyone) / inline edit + take-into-work + delete (owner), and a title + priority composer.
 
 ### Frontend Behavior
 

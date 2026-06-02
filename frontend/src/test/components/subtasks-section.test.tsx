@@ -86,6 +86,34 @@ describe("SubtasksSection", () => {
     await waitFor(() => expect(updateSubtask).toHaveBeenCalledWith("s1", { status: "done" }))
   })
 
+  it("lets the owner rename and re-prioritise a subtask inline", async () => {
+    vi.mocked(fetchSubtasks).mockResolvedValue([sub({ id: "s1", title: "Alpha", priority: "Low" })])
+    vi.mocked(updateSubtask).mockResolvedValue(sub({ id: "s1", title: "Alpha v2", priority: "Urgent" }))
+
+    render(<SubtasksSection todoId="p1" isOwner />)
+    await screen.findByText("Alpha")
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit subtask" }))
+    const input = await screen.findByDisplayValue("Alpha")
+    fireEvent.change(input, { target: { value: "Alpha v2" } })
+    fireEvent.click(screen.getByTitle("Urgent"))
+    fireEvent.click(screen.getByRole("button", { name: "Save subtask" }))
+
+    await waitFor(() => expect(updateSubtask).toHaveBeenCalledWith("s1", { title: "Alpha v2", priority: 5 }))
+  })
+
+  it("hides edit/delete controls from a non-owner viewer", async () => {
+    vi.mocked(fetchSubtasks).mockResolvedValue([sub({ id: "s1", title: "Alpha", status: "Todo" })])
+
+    render(<SubtasksSection todoId="p1" isOwner={false} />)
+    await screen.findByText("Alpha")
+
+    // Viewer can complete (global) but cannot edit or delete.
+    expect(screen.getByRole("button", { name: "Complete subtask" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Edit subtask" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Delete subtask" })).toBeNull()
+  })
+
   it("deletes a subtask for the owner", async () => {
     vi.mocked(fetchSubtasks).mockResolvedValue([sub({ id: "s1", title: "Alpha" })])
     vi.mocked(deleteSubtask).mockResolvedValue(undefined)

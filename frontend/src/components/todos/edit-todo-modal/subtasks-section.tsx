@@ -4,7 +4,7 @@ import {
   forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState,
 } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { Check, Plus, Zap, Pause, Trash2, X, ListTree, Loader2 } from "lucide-react"
+import { Check, Plus, Zap, Pause, Trash2, X, ListTree, Loader2, Pencil } from "lucide-react"
 import {
   fetchSubtasks, createSubtask, updateSubtask, deleteSubtask, getApiErrorMessage,
 } from "@/lib/api"
@@ -27,8 +27,9 @@ interface SubtasksSectionProps {
 
 const SPRING = { type: "spring" as const, stiffness: 460, damping: 32 }
 
-function isDone(s: Todo, isOwner: boolean): boolean {
-  if (!isOwner && s.isCompletedByViewer != null) return !!s.isCompletedByViewer
+// Completion is global: anyone with access marks a subtask done for everyone, so the entity
+// status is the single source of truth (no per-viewer state).
+function isDone(s: Todo): boolean {
   const st = String(s.status).toLowerCase()
   return st === "done" || st === "completed"
 }
@@ -103,14 +104,14 @@ export const SubtasksSection = forwardRef<SubtasksSectionHandle, SubtasksSection
       }
     }
 
+    // Anyone with access can complete/reopen — it applies globally (server-side, status-based).
     const toggleComplete = async (s: Todo) => {
       if (pendingIds.has(s.id)) return
-      const done = isDone(s, isOwner)
-      const nextStatus = done ? "todo" : "done"
+      const nextStatus = isDone(s) ? "todo" : "done"
       setPending(s.id, true)
       // Optimistic flip — instant, satisfying feedback.
       setItems((prev) => prev.map((it) => it.id === s.id
-        ? { ...it, status: nextStatus === "done" ? "Done" : "Todo", isCompletedByViewer: isOwner ? it.isCompletedByViewer : nextStatus === "done" }
+        ? { ...it, status: nextStatus === "done" ? "Done" : "Todo" }
         : it))
       try {
         await updateSubtask(s.id, { status: nextStatus })
@@ -119,6 +120,21 @@ export const SubtasksSection = forwardRef<SubtasksSectionHandle, SubtasksSection
         setError(getApiErrorMessage(e))
       } finally {
         setPending(s.id, false)
+      }
+    }
+
+    // Owner-only: rename and/or re-prioritise a subtask.
+    const editSubtask = async (id: string, title: string, priorityKey: string) => {
+      const trimmed = title.trim()
+      if (!trimmed) return
+      const snapshot = items
+      setItems((prev) => prev.map((it) => it.id === id
+        ? { ...it, title: trimmed, priority: priorityKey } : it))
+      try {
+        await updateSubtask(id, { title: trimmed, priority: getPriorityNumber(priorityKey) })
+      } catch (e) {
+        setItems(snapshot)
+        setError(getApiErrorMessage(e))
       }
     }
 
@@ -155,7 +171,7 @@ export const SubtasksSection = forwardRef<SubtasksSectionHandle, SubtasksSection
     }
 
     const total = items.length
-    const completed = items.filter((s) => isDone(s, isOwner)).length
+    const completed = items.filter((s) => isDone(s)).length
 
     // Nothing to show for a viewer when there are no subtasks (keeps shared branches clean).
     if (!loading && total === 0 && !isOwner) return null
@@ -225,12 +241,13 @@ export const SubtasksSection = forwardRef<SubtasksSectionHandle, SubtasksSection
                 key={s.id}
                 subtask={s}
                 isOwner={isOwner}
-                done={isDone(s, isOwner)}
+                done={isDone(s)}
                 working={isInProgress(s)}
                 pending={pendingIds.has(s.id)}
                 onToggleComplete={() => toggleComplete(s)}
                 onToggleWork={() => toggleWork(s)}
                 onDelete={() => remove(s)}
+                onSaveEdit={(title, priorityKey) => editSubtask(s.id, title, priorityKey)}
               />
             ))}
           </AnimatePresence>
@@ -351,12 +368,113 @@ interface SubtaskRowProps {
   onToggleComplete: () => void
   onToggleWork: () => void
   onDelete: () => void
+  onSaveEdit: (title: string, priorityKey: string) => void
 }
 
-function SubtaskRow({ subtask, isOwner, done, working, pending, onToggleComplete, onToggleWork, onDelete }: SubtaskRowProps) {
+function SubtaskRow({ subtask, isOwner, done, working, pending, onToggleComplete, onToggleWork, onDelete, onSaveEdit }: SubtaskRowProps) {
   const [hovered, setHovered] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(subtask.title)
+  const [editPriority, setEditPriority] = useState(getPriorityString(subtask.priority))
+  const editInputRef = useRef<HTMLInputElement>(null)
   const priorityKey = getPriorityString(subtask.priority)
   const priorityColor = getPriorityColor(priorityKey)
+
+  const beginEdit = () => {
+    if (!isOwner) return
+    setEditTitle(subtask.title)
+    setEditPriority(getPriorityString(subtask.priority))
+    setEditing(true)
+    setTimeout(() => { editInputRef.current?.focus(); editInputRef.current?.select() }, 40)
+  }
+  const commitEdit = () => {
+    const t = editTitle.trim()
+    if (!t) { setEditing(false); return }
+    if (t !== subtask.title || editPriority !== priorityKey) onSaveEdit(t, editPriority)
+    setEditing(false)
+  }
+
+  // ── Owner inline editor ──
+  if (editing) {
+    return (
+      <motion.div
+        layout
+        initial={false}
+        style={{
+          display: "flex", flexDirection: "column", gap: 9,
+          padding: "9px 10px", borderRadius: 12,
+          background: "#fafafa", border: "1.5px solid #e7e9ff",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: getPriorityColor(editPriority) }} />
+          <input
+            ref={editInputRef}
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { e.preventDefault(); commitEdit() }
+              if (e.key === "Escape") setEditing(false)
+            }}
+            maxLength={200}
+            style={{
+              flex: 1, background: "transparent", border: "none", outline: "none",
+              fontSize: 13, fontWeight: 600, color: "#262626", fontFamily: "inherit", minWidth: 0,
+            }}
+          />
+          <button
+            onClick={commitEdit}
+            disabled={!editTitle.trim()}
+            aria-label="Save subtask"
+            style={{
+              width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: editTitle.trim() ? "#4f46e5" : "#e5e5e5",
+              cursor: editTitle.trim() ? "pointer" : "default", transition: "background 120ms",
+            }}
+          >
+            <Check size={14} color={editTitle.trim() ? "white" : "#a3a3a3"} strokeWidth={2.6} />
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            aria-label="Cancel edit"
+            style={{
+              width: 28, height: 28, borderRadius: 8, border: "none", flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "transparent", cursor: "pointer", color: "#a3a3a3",
+            }}
+          >
+            <X size={14} strokeWidth={2.2} />
+          </button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, paddingLeft: 1 }}>
+          <span style={{ fontSize: 9.5, fontWeight: 900, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a3a3a3", marginRight: 2 }}>
+            Priority
+          </span>
+          {PRIORITY_LEVELS.map((p) => {
+            const active = editPriority === p.key
+            return (
+              <button
+                key={p.key}
+                onClick={() => setEditPriority(p.key)}
+                title={p.label}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  height: 22, padding: active ? "0 9px" : "0 7px", borderRadius: 7,
+                  border: active ? `1.5px solid ${p.color}` : "1.5px solid transparent",
+                  background: active ? `${p.color}14` : "#f0f0f0",
+                  cursor: "pointer", transition: "all 120ms",
+                }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: p.color }} />
+                {active && <span style={{ marginLeft: 5, fontSize: 10, fontWeight: 800, color: p.color }}>{p.label}</span>}
+              </button>
+            )
+          })}
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div
@@ -416,12 +534,17 @@ function SubtaskRow({ subtask, isOwner, done, working, pending, onToggleComplete
           }}
           title={`Priority: ${PRIORITY_LEVELS.find((p) => p.key === priorityKey)?.label ?? priorityKey}`}
         />
-        <span style={{
-          fontSize: 13, fontWeight: 600, lineHeight: 1.35,
-          color: done ? "#a3a3a3" : "#262626",
-          textDecoration: done ? "line-through" : "none",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
+        <span
+          onDoubleClick={beginEdit}
+          title={isOwner ? "Double-click to edit" : undefined}
+          style={{
+            fontSize: 13, fontWeight: 600, lineHeight: 1.35,
+            color: done ? "#a3a3a3" : "#262626",
+            textDecoration: done ? "line-through" : "none",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            cursor: isOwner ? "text" : "default",
+          }}
+        >
           {subtask.title}
         </span>
         {working && !done && (
@@ -441,6 +564,22 @@ function SubtaskRow({ subtask, isOwner, done, working, pending, onToggleComplete
           opacity: hovered ? 1 : 0, transition: "opacity 140ms",
           pointerEvents: hovered ? "auto" : "none",
         }}>
+          <button
+            onClick={beginEdit}
+            disabled={pending}
+            aria-label="Edit subtask"
+            title="Edit"
+            style={{
+              width: 26, height: 26, borderRadius: 8, border: "none",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "transparent", cursor: "pointer", color: "#525252",
+              transition: "background 120ms",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0" }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+          >
+            <Pencil size={12} strokeWidth={2} />
+          </button>
           {!done && (
             <button
               onClick={onToggleWork}

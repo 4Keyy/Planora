@@ -16,7 +16,6 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
         private readonly ILogger<GetSubtasksQueryHandler> _logger;
         private readonly IFriendshipService _friendshipService;
         private readonly ICategoryGrpcClient _categoryGrpcClient;
-        private readonly IUserTodoViewPreferenceRepository _viewerPreferenceRepository;
 
         public GetSubtasksQueryHandler(
             ITodoRepository repository,
@@ -24,8 +23,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
             IMapper mapper,
             ILogger<GetSubtasksQueryHandler> logger,
             IFriendshipService friendshipService,
-            ICategoryGrpcClient categoryGrpcClient,
-            IUserTodoViewPreferenceRepository viewerPreferenceRepository)
+            ICategoryGrpcClient categoryGrpcClient)
         {
             _repository = repository;
             _currentUserContext = currentUserContext;
@@ -33,7 +31,6 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
             _logger = logger;
             _friendshipService = friendshipService;
             _categoryGrpcClient = categoryGrpcClient;
-            _viewerPreferenceRepository = viewerPreferenceRepository;
         }
 
         public async Task<Result<IReadOnlyList<TodoItemDto>>> Handle(
@@ -65,18 +62,8 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
             if (subtasks.Count == 0)
                 return Result<IReadOnlyList<TodoItemDto>>.Success(Array.Empty<TodoItemDto>());
 
-            // Per-viewer completion: a friend can mark a subtask done for themselves (the owner's
-            // status is unchanged), exactly like top-level shared tasks.
-            var viewerCompletedIds = new HashSet<Guid>();
-            if (!isOwner)
-            {
-                var prefs = await _viewerPreferenceRepository.GetByViewerIdForTodosAsync(
-                    userId, subtasks.Select(s => s.Id).ToList(), cancellationToken);
-                foreach (var (todoId, pref) in prefs)
-                {
-                    if (pref.CompletedByViewer) viewerCompletedIds.Add(todoId);
-                }
-            }
+            // Subtask completion is GLOBAL: anyone with access marks it done for everyone, so the
+            // status on the entity is the single source of truth (no per-viewer state).
 
             // All subtasks share the parent's (owner's) category — fetch it once.
             CategoryInfo? categoryInfo = null;
@@ -105,7 +92,8 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
                     WorkerCount = s.Workers.Count,
                     WorkerUserIds = s.Workers.Select(w => w.UserId).ToList(),
                     IsWorking = s.UserId != userId && s.Workers.Any(w => w.UserId == userId),
-                    IsCompletedByViewer = isOwner ? null : viewerCompletedIds.Contains(s.Id),
+                    // Completion is global — reflected in Status; no per-viewer flag for subtasks.
+                    IsCompletedByViewer = null,
                 };
                 return dto;
             }).ToList();

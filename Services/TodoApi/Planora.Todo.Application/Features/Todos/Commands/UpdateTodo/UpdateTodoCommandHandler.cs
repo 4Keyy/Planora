@@ -86,6 +86,38 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                     throw new ForbiddenException("You can only mark friend-visible tasks as complete, not edit them");
                 }
 
+                // Subtasks complete GLOBALLY: anyone with access marks the subtask done (or reopens
+                // it) for everyone — its status lives on the entity, not per-viewer. (Editing a
+                // subtask's title/priority remains owner-only, enforced by the guard above.)
+                if (todoItem.IsSubtask)
+                {
+                    if (!string.IsNullOrEmpty(request.Status))
+                    {
+                        var subtaskStatus = TodoStatusExtensions.FromString(request.Status);
+                        if (subtaskStatus.HasValue)
+                        {
+                            if (subtaskStatus == TodoStatus.Done && !todoItem.IsCompleted)
+                                todoItem.MarkAsDone(userId);
+                            else if (subtaskStatus == TodoStatus.InProgress && todoItem.Status != TodoStatus.InProgress)
+                                todoItem.MarkAsInProgress(userId);
+                            else if (subtaskStatus == TodoStatus.Todo && todoItem.Status != TodoStatus.Todo)
+                                todoItem.MarkAsTodo(userId);
+
+                            _repository.Update(todoItem);
+                            await _unitOfWork.SaveChangesAsync(cancellationToken);
+                        }
+                    }
+
+                    return Result<TodoItemDto>.Success(_mapper.Map<TodoItemDto>(todoItem) with
+                    {
+                        WorkerCount = todoItem.Workers.Count,
+                        WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
+                        RequiredWorkers = todoItem.RequiredWorkers,
+                        IsWorking = todoItem.Workers.Any(w => w.UserId == userId),
+                        CategoryId = null, CategoryName = null, CategoryColor = null, CategoryIcon = null,
+                    });
+                }
+
                 // Record completion per-viewer instead of changing the shared task for everyone
                 if (!string.IsNullOrEmpty(request.Status))
                 {
@@ -263,19 +295,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             }
 
             var ownerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-            if (ownerJustCompleted)
+            // Subtasks have no branch of their own, so they emit no timeline activity events.
+            if (ownerJustCompleted && !todoItem.IsSubtask)
             {
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.Completed),
                     cancellationToken);
             }
-            else if (ownerStartedWorking)
+            else if (ownerStartedWorking && !todoItem.IsSubtask)
             {
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.StartedWorking),
                     cancellationToken);
             }
-            else if (ownerStoppedWorking)
+            else if (ownerStoppedWorking && !todoItem.IsSubtask)
             {
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.Left),

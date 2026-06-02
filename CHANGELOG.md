@@ -13,20 +13,23 @@ that live **only** in the parent task's branch and never appear on any list/page
   public flag and shared audience; own priority; no due/expected date; no nesting) and
   `SyncInheritedFromParent`. EF self-FK (NoAction) + index + migration `AddSubtaskParentTodoId`.
   `CreateSubtaskCommand` and `GetSubtasksQuery` (owner-create; owner/friend list with the
-  `GetTodoById` visibility predicate and per-viewer completion). Endpoints
-  `POST`/`GET /todos/api/v1/todos/{id}/subtasks`. `UpdateTodo` rejects editing a subtask's
-  inherited fields and **propagates** a parent's category/visibility/sharing to its children;
+  `GetTodoById` visibility predicate). Endpoints `POST`/`GET /todos/api/v1/todos/{id}/subtasks`.
+  Completion is **global** — anyone who can see the parent may complete/reopen a subtask and it
+  applies for everyone (entity status, not per-viewer); editing a subtask's title/priority is
+  **owner-only**. `UpdateTodo` rejects editing a subtask's inherited fields and **propagates** a
+  parent's category/visibility/sharing to its children;
   `DeleteTodo` soft-deletes the whole subtree. List queries exclude subtasks; `GetUserTodos`
   gains `includeSubtasks` so **completed subtasks still count toward the weekly dashboard stat**.
 - **Frontend.** New "Subtask" entry in the branch "+" menu; `edit-todo-modal/subtasks-section.tsx`
-  renders an animated checklist (progress bar, smooth add/remove, per-row complete / take-into-work /
-  delete) with an inline title + priority composer. `fetchSubtasks`/`createSubtask`/`updateSubtask`/
+  renders an animated checklist (progress bar, smooth add/remove). Anyone with access can complete;
+  the owner can inline-edit title + priority (double-click or pencil), take into work, and delete. `fetchSubtasks`/`createSubtask`/`updateSubtask`/
   `deleteSubtask` API helpers; `Todo.parentTodoId`. Dashboard counts completed subtasks weekly while
   excluding them from the active counter and the grid.
-- **Tests/docs.** 8 backend handler/security tests (inheritance, foreign-parent + nesting rejection,
-  subtask edit guard, parent→child propagation, cascade delete, access control) — Todo suite 119 green;
-  9 frontend tests (API helpers + `SubtasksSection`) — suite 398 green. IDOR coverage doc + features
-  doc updated. Backend builds clean (.NET 10); `tsc`/`eslint` clean; frontend branch coverage 85.95%.
+- **Tests/docs.** 10 backend handler/security tests (inheritance, foreign-parent + nesting rejection,
+  owner-only edit guard, non-owner global completion, parent→child propagation, cascade delete,
+  access control) — Todo suite 121 green; 11 frontend tests (API helpers + `SubtasksSection`) —
+  suite 400 green. IDOR coverage doc + features doc updated. Backend builds clean (.NET 10);
+  `tsc`/`eslint` clean; frontend branch coverage ≥85%.
 
 ### feat(frontend) — quick-save (autosave) for the task-branch and category edit modals (2026-06-02)
 

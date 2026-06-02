@@ -793,6 +793,55 @@ public class TodoCommandHandlerExpandedTests
     }
 
     [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task UpdateTodo_NonOwnerCompletesSubtask_GloballyNotPerViewer()
+    {
+        var ownerId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        // Public parent so the friend has access; subtask inherits public.
+        var parent = TodoItem.Create(ownerId, "Parent", isPublic: true);
+        var subtask = TodoItem.CreateSubtask(parent, ownerId, "Shared step", null);
+        var fixture = new TodoCommandFixture(friendId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(friendId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(subtask.Id, Status: "done"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        // Global completion: the entity status itself flips to Done (not a per-viewer row).
+        Assert.True(subtask.IsCompleted);
+        fixture.TodoRepository.Verify(x => x.Update(subtask), Times.Once);
+        fixture.ViewerPreferences.Verify(
+            x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task UpdateTodo_NonOwnerCannotEditSubtaskTitleOrPriority()
+    {
+        var ownerId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Parent", isPublic: true);
+        var subtask = TodoItem.CreateSubtask(parent, ownerId, "Shared step", null);
+        var fixture = new TodoCommandFixture(friendId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(friendId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateUpdateHandler().Handle(
+                new UpdateTodoCommand(subtask.Id, Priority: TodoPriority.Urgent), CancellationToken.None));
+    }
+
+    [Fact]
     [Trait("TestType", "Security")]
     public async Task GetSubtasks_RejectsViewerWithoutAccessToPrivateParent()
     {
@@ -925,8 +974,7 @@ public class TodoCommandHandlerExpandedTests
                 Mapper.Object,
                 Mock.Of<ILogger<Planora.Todo.Application.Features.Todos.Queries.GetSubtasks.GetSubtasksQueryHandler>>(),
                 FriendshipService.Object,
-                CategoryGrpcClient.Object,
-                ViewerPreferences.Object);
+                CategoryGrpcClient.Object);
     }
 
     private static TodoItemDto ToDto(TodoItem item)
