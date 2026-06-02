@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import { X } from "lucide-react"
 import { ModalPortal }      from "@/components/ui/modal-portal"
-import { AutosaveIndicator } from "@/components/ui/autosave-indicator"
 import { useAutosave }      from "@/hooks/use-autosave"
 import { useAuthStore }     from "@/store/auth"
 import { useFriends }       from "@/hooks/use-friends"
@@ -221,9 +220,6 @@ export function EditTodoModal({
     enabled: !isOwner && canManageViewerCategory,
     onSave: (viewerCategoryId) => onSaveViewerPreference({ viewerCategoryId }),
   })
-
-  const saveStatus = isOwner ? ownerAutosave.status : viewerAutosave.status
-  const autosaveActive = isOwner || canManageViewerCategory
 
   // Re-anchor both baselines whenever the edited task changes, so switching tasks
   // never persists the old task's values against the new one.
@@ -484,47 +480,6 @@ export function EditTodoModal({
             />
           </div>
 
-          {/* Divider */}
-          <div style={{ height: 1, background: "#f0f0f0" }} />
-
-          {/* ── (5) Footer ── (no Save/Cancel: every change autosaves; this only reports status) */}
-          <div style={{
-            padding: "14px 24px",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            background: "white",
-            borderRadius: "0 0 28px 28px",
-            minHeight: 52,
-          }}>
-            {autosaveActive ? (
-              <AutosaveIndicator status={saveStatus} />
-            ) : (
-              <span style={{
-                fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
-                textTransform: "uppercase", color: "#a3a3a3",
-              }}>
-                View only
-              </span>
-            )}
-
-            <div style={{ flex: 1 }} />
-
-            <button
-              onClick={onClose}
-              style={{
-                background: "transparent", border: "none", cursor: "pointer",
-                padding: "12px 18px", borderRadius: 14,
-                fontSize: 12, fontWeight: 900, letterSpacing: "0.04em",
-                textTransform: "uppercase", color: "#525252",
-                transition: "background 120ms",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
-            >
-              Done
-            </button>
-          </div>
         </motion.div>
       </div>
     </ModalPortal>

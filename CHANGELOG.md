@@ -4,6 +4,21 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(branch): drop modal footer, wrap subtask titles, empty "+" when done (2026-06-03)
+
+- **Removed the Task Branch modal footer** — the "Changes save automatically / All changes saved"
+  autosave-status panel, the `View only` label and the `Done` button are gone. Editing still
+  autosaves (the `useAutosave` hooks are untouched); the modal closes via the header **✕**, the
+  backdrop, or `Escape`. Dropped the now-unused `AutosaveIndicator` wiring from the modal.
+- **Long subtask titles now wrap** instead of truncating with an ellipsis. The subtask card is
+  flexible-height (`align-items: flex-start` + `overflow-wrap`), so a long step grows the card
+  downward to fit the branch width and the `layout` spring animates the height change.
+- **The compose "+" menu is empty on a completed task** — description, subtask, and the
+  take-into-work / complete actions are all hidden once the task is done, and the menu doesn't open
+  (no empty popover).
+- Tests/build: updated the two `EditTodoModal` footer assertions (no more "Changes save
+  automatically" / "View only" text); 393 vitest green; `tsc`/`eslint` clean; `npm run build` ok.
+
 ### feat(subtasks): task-like cards, delete cascade, composer auto-close (2026-06-03)
 
 Follow-up polish on the inline subtask cards.

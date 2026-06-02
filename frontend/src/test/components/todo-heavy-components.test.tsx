@@ -678,10 +678,11 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    // Quick-save UX: there is no manual Save/Cancel — only the autosave status indicator
+    // Quick-save UX: every change autosaves, so there is no manual Save/Cancel (and the footer
+    // status panel was removed — the modal closes via the header ✕ or Escape).
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull()
-    expect(screen.getByText("Changes save automatically")).toBeInTheDocument()
+    expect(screen.queryByText("Changes save automatically")).toBeNull()
 
     // Title is an <h1>; click it to enter edit mode, then change the textarea value
     await user.click(screen.getByRole("heading", { level: 1 }))
@@ -756,7 +757,9 @@ describe("EditTodoModal", () => {
       />,
     )
 
-    expect(screen.getByText("View only")).toBeInTheDocument()
+    // A stranger sees the title as a read-only heading (no editable textbox) and the footer
+    // status panel is gone, so the only signal is that nothing is editable / persisted.
+    expect(screen.getByRole("heading", { level: 1, name: "Write coverage tests" })).toBeInTheDocument()
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull()
     expect(onSave).not.toHaveBeenCalled()
     expect(onSaveViewerPreference).not.toHaveBeenCalled()

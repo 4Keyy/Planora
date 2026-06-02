@@ -598,6 +598,13 @@ export function BranchFeed({
 
   const composeAccent = composeMode === "text" ? "#0a0a0a" : "#4f46e5"
 
+  // Once the task is completed the "+" menu offers nothing for now — no description, no subtask,
+  // and no take/complete actions — so the menu simply doesn't open on a done task.
+  const menuShowsDescription = showDescription && !isCompleted
+  const menuShowsSubtask     = isOwner && !isCompleted
+  const menuShowsActions     = (showWorkAction || showCompleteAction) && !isCompleted
+  const hasMenuItems         = menuShowsDescription || menuShowsSubtask || menuShowsActions
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%", minHeight: 0 }}>
 
@@ -967,8 +974,8 @@ export function BranchFeed({
           transition: "border-color 200ms, background 200ms",
         }}>
 
-          {/* Attach menu — absolutely above the compose box */}
-          {plusMenuOpen && (
+          {/* Attach menu — absolutely above the compose box (empty/closed on a completed task) */}
+          {plusMenuOpen && hasMenuItems && (
             <div
               ref={plusMenuRef}
               style={{
@@ -986,7 +993,7 @@ export function BranchFeed({
               }}
             >
               {/* Author-only: add the task description (disabled once one exists) */}
-              {showDescription && (
+              {menuShowsDescription && (
                 <>
                   <MenuSectionLabel>Attach</MenuSectionLabel>
                   <button
@@ -1037,9 +1044,9 @@ export function BranchFeed({
               )}
 
               {/* Author-only: add a subtask — authored in the same field, appears inline in the branch */}
-              {isOwner && (
+              {menuShowsSubtask && (
                 <>
-                  {!showDescription && <MenuSectionLabel>Attach</MenuSectionLabel>}
+                  {!menuShowsDescription && <MenuSectionLabel>Attach</MenuSectionLabel>}
                   <button
                     onClick={() => enterComposeMode("subtask")}
                     style={{
@@ -1068,10 +1075,10 @@ export function BranchFeed({
                 </>
               )}
 
-              {/* Task actions — available to everyone (owner & collaborators) */}
-              {(showWorkAction || showCompleteAction) && (
+              {/* Task actions — available to everyone (owner & collaborators), hidden once done */}
+              {menuShowsActions && (
                 <>
-                  {showDescription && (
+                  {menuShowsDescription && (
                     <div style={{ height: 1, background: "#f3f3f3", margin: "6px 8px" }} />
                   )}
                   <MenuSectionLabel>Actions</MenuSectionLabel>
@@ -1436,10 +1443,11 @@ function SubtaskCard({
         </AnimatePresence>
       </button>
 
-      {/* Card body — taller, more task-like; position:relative anchors the delete strip */}
+      {/* Card body — taller, more task-like; position:relative anchors the delete strip.
+          alignItems:flex-start lets the card grow downward when a long title wraps. */}
       <div style={{
         position: "relative", overflow: "hidden",
-        display: "flex", alignItems: "center", gap: 10,
+        display: "flex", alignItems: "flex-start", gap: 10,
         padding: "11px 12px", paddingRight: bodyPaddingRight,
         borderRadius: 12,
         background: done ? "#f7fdfb" : working ? "#fffdf5" : "#fafafa",
@@ -1482,11 +1490,12 @@ function SubtaskCard({
               title={isOwner ? "Double-click to edit" : undefined}
               style={{
                 // A subtask carries only a title — render it in a regular, non-bold weight so it
-                // reads as a plain branch step, lighter than the Author's Note.
+                // reads as a plain branch step, lighter than the Author's Note. The title wraps
+                // freely so a long step grows the card's height instead of being truncated.
                 fontSize: 13.5, fontWeight: 400, lineHeight: 1.4,
                 color: done ? "#a3a3a3" : "#262626",
                 textDecoration: done ? "line-through" : "none",
-                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                overflowWrap: "anywhere", wordBreak: "break-word",
                 cursor: isOwner ? "text" : "default",
                 transition: "color 200ms",
               }}
