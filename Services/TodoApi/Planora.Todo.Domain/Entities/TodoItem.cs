@@ -24,6 +24,14 @@ namespace Planora.Todo.Domain.Entities
         public bool IsCompleted => Status == TodoStatus.Done;
         public DateTime? CompletedAt { get; private set; }
         public int? RequiredWorkers { get; private set; }
+
+        /// <summary>
+        /// When set, this item is a subtask: a child node in the parent task's tree. Subtasks
+        /// are part of their parent, inherit its category/visibility/sharing, never carry a
+        /// due/expected date, and are hidden from every task list (they live only in the branch).
+        /// </summary>
+        public Guid? ParentTodoId { get; private set; }
+        public bool IsSubtask => ParentTodoId.HasValue;
         public IReadOnlyCollection<TodoItemTag> Tags => _tags.AsReadOnly();
         public IReadOnlyCollection<TodoItemShare> SharedWith => _sharedWith.AsReadOnly();
         public IReadOnlyCollection<TodoItemWorker> Workers => _workers.AsReadOnly();
@@ -85,6 +93,74 @@ namespace Planora.Todo.Domain.Entities
                 categoryId));
 
             return todoItem;
+        }
+
+        /// <summary>
+        /// Create a subtask attached to <paramref name="parent"/>. A subtask is a part of the
+        /// parent task: it inherits the parent's category, public flag and shared audience, has
+        /// its own priority/status/title, and never has a due or expected date. Nesting is not
+        /// allowed — a subtask cannot itself have subtasks.
+        /// </summary>
+        public static TodoItem CreateSubtask(
+            TodoItem parent,
+            Guid userId,
+            string title,
+            string? description,
+            TodoPriority priority = TodoPriority.Medium)
+        {
+            ArgumentNullException.ThrowIfNull(parent);
+
+            if (parent.IsSubtask)
+                throw new BusinessRuleViolationException("A subtask cannot be nested under another subtask");
+
+            if (parent.UserId != userId)
+                throw new BusinessRuleViolationException("Only the parent task owner can add subtasks");
+
+            if (string.IsNullOrWhiteSpace(title))
+                throw new InvalidValueObjectException(nameof(TodoItem), "Title cannot be empty");
+
+            var subtask = new TodoItem
+            {
+                UserId = userId,
+                Title = title.Trim(),
+                Description = description?.Trim(),
+                // Inherited from the parent — never set independently.
+                CategoryId = parent.CategoryId,
+                IsPublic = parent.IsPublic,
+                ParentTodoId = parent.Id,
+                // Subtasks carry their own priority but never a due/expected date.
+                Priority = priority,
+            };
+
+            // Inherit the parent's shared audience so branch access matches the parent exactly.
+            subtask.SetSharedWith(parent._sharedWith.Select(s => s.SharedWithUserId), userId);
+            subtask.MarkAsModified(userId);
+
+            subtask.AddDomainEvent(new TodoItemCreatedDomainEvent(
+                subtask.Id,
+                userId,
+                title,
+                parent.CategoryId));
+
+            return subtask;
+        }
+
+        /// <summary>
+        /// Re-anchor this subtask's inherited fields (category, public flag, shared audience) to
+        /// the parent's current values. Called when the parent task changes so the invariant
+        /// "a subtask is always as visible as its parent" holds.
+        /// </summary>
+        public void SyncInheritedFromParent(TodoItem parent, Guid userId)
+        {
+            ArgumentNullException.ThrowIfNull(parent);
+            if (!IsSubtask || ParentTodoId != parent.Id)
+                throw new BusinessRuleViolationException("Item is not a subtask of the given parent");
+
+            CategoryId = parent.CategoryId;
+            IsPublic = parent.IsPublic;
+            // SetSharedWith also evicts workers who lost access — keeps capacity consistent.
+            SetSharedWith(parent._sharedWith.Select(s => s.SharedWithUserId), userId);
+            MarkAsModified(userId);
         }
 
         public void UpdateTitle(string title, Guid userId)

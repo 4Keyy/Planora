@@ -142,6 +142,17 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 });
             }
 
+            // A subtask inherits category, visibility, sharing and dates from its parent — they
+            // are never editable on the child directly. The owner may still change a subtask's
+            // title, description, priority and status. (Defense in depth: the UI never sends these.)
+            if (todoItem.IsSubtask &&
+                (request.CategoryId.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null ||
+                 request.DueDate != null || request.ExpectedDate != null ||
+                 request.RequiredWorkers.HasValue || request.ClearRequiredWorkers))
+            {
+                throw new ForbiddenException("A subtask inherits category, visibility and dates from its parent");
+            }
+
             if (!string.IsNullOrEmpty(request.Title))
                 todoItem.UpdateTitle(request.Title, userId);
 
@@ -236,6 +247,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             }
 
             _repository.Update(todoItem);
+
+            // Keep subtasks in sync: when the parent's category, public flag or shared audience
+            // changes, re-anchor every child so "a subtask is always as visible as its parent"
+            // stays true. Done in the same unit of work as the parent update.
+            if (!todoItem.IsSubtask &&
+                (request.CategoryId.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null))
+            {
+                var children = await _repository.GetSubtasksTrackedAsync(todoItem.Id, cancellationToken);
+                foreach (var child in children)
+                {
+                    child.SyncInheritedFromParent(todoItem, userId);
+                    _repository.Update(child);
+                }
+            }
 
             var ownerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
             if (ownerJustCompleted)

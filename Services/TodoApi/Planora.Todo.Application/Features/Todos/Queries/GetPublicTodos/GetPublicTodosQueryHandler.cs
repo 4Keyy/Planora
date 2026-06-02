@@ -68,6 +68,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
 
                     var (friendItems, friendTotalCount) = await _repository.FindPageWithIncludesAsync(
                         t => t.UserId == request.FriendId &&
+                             t.ParentTodoId == null &&
                              (t.IsPublic || t.SharedWith.Any(s => s.SharedWithUserId == userId)) &&
                              !t.IsDeleted &&
                              !hiddenTodoIds.Contains(t.Id),
@@ -126,6 +127,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
 
                 var predicate = (System.Linq.Expressions.Expression<Func<TodoItem, bool>>)(t =>
                     friendIdsList.Contains(t.UserId) &&
+                    t.ParentTodoId == null &&
                     (t.IsPublic || t.SharedWith.Any(s => s.SharedWithUserId == userId)) &&
                     !t.IsDeleted &&
                     !hiddenTodoIds.Contains(t.Id));

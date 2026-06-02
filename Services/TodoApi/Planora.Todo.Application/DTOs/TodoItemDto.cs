@@ -40,6 +40,9 @@ namespace Planora.Todo.Application.DTOs
         public bool IsWorking { get; init; }
         public IReadOnlyList<Guid> WorkerUserIds { get; init; } = Array.Empty<Guid>();
         public bool? IsCompletedByViewer { get; init; }
+
+        /// <summary>When set, this item is a subtask (child) of the given parent task.</summary>
+        public Guid? ParentTodoId { get; init; }
     }
 
     public class TodoItemMappingProfile : Profile

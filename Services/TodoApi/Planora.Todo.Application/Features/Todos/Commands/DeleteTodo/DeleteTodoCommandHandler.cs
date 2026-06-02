@@ -11,14 +11,14 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
 {
     public sealed class DeleteTodoCommandHandler : IRequestHandler<DeleteTodoCommand, Result>
     {
-        private readonly IRepository<TodoItem> _repository;
+        private readonly ITodoRepository _repository;
         private readonly IOutboxRepository _outboxRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<DeleteTodoCommandHandler> _logger;
         private readonly ICurrentUserContext _currentUserContext;
 
         public DeleteTodoCommandHandler(
-            IRepository<TodoItem> repository,
+            ITodoRepository repository,
             IOutboxRepository outboxRepository,
             IUnitOfWork unitOfWork,
             ILogger<DeleteTodoCommandHandler> logger,
@@ -43,6 +43,18 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
 
             todoItem.MarkAsDeleted(userId);
             _repository.Update(todoItem);
+
+            // Deleting a task removes its whole subtree: soft-delete every subtask in the same
+            // unit of work. (A subtask itself has no children, so this is a no-op for subtasks.)
+            if (!todoItem.IsSubtask)
+            {
+                var subtasks = await _repository.GetSubtasksTrackedAsync(todoItem.Id, cancellationToken);
+                foreach (var subtask in subtasks)
+                {
+                    subtask.MarkAsDeleted(userId);
+                    _repository.Update(subtask);
+                }
+            }
 
             // The task's comment timeline ("ветка") lives in the Collaboration service. Publish a
             // deletion fact via the outbox; Collaboration cascade-soft-deletes the comments. INV-COMM-3.

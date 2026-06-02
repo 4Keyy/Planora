@@ -46,11 +46,25 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
             builder.Property(x => x.IsDeleted)
                 .HasDefaultValue(false);
 
+            builder.Property(x => x.ParentTodoId)
+                .IsRequired(false);
+
             builder.HasIndex(x => x.UserId);
             builder.HasIndex(x => x.CategoryId);
             builder.HasIndex(x => new { x.UserId, x.Status });
             builder.HasIndex(x => new { x.UserId, x.IsDeleted });
             builder.HasIndex(x => x.CreatedAt);
+
+            // Subtask tree: self-reference to the parent task. NoAction on delete — parent
+            // deletion soft-deletes children explicitly in the delete handler (cascade would
+            // not respect the soft-delete model). Indexed for fast "children of X" lookups.
+            builder.HasIndex(x => new { x.ParentTodoId, x.IsDeleted, x.CreatedAt })
+                .HasDatabaseName("ix_todo_items_parent_deleted_created");
+
+            builder.HasOne<TodoItem>()
+                .WithMany()
+                .HasForeignKey(x => x.ParentTodoId)
+                .OnDelete(DeleteBehavior.NoAction);
 
             // Composite covering index for the most common query: user's non-deleted todos by status, sorted by time
             builder.HasIndex(x => new { x.UserId, x.Status, x.IsDeleted, x.CreatedAt })
