@@ -284,7 +284,7 @@ export const SubtasksSection = forwardRef<SubtasksSectionHandle, SubtasksSection
                     disabled={submitting}
                     style={{
                       flex: 1, background: "transparent", border: "none", outline: "none",
-                      fontSize: 13, fontWeight: 600, color: "#262626", fontFamily: "inherit", minWidth: 0,
+                      fontSize: 13, fontWeight: 400, color: "#262626", fontFamily: "inherit", minWidth: 0,
                     }}
                   />
                   <button
@@ -419,7 +419,7 @@ function SubtaskRow({ subtask, isOwner, done, working, pending, onToggleComplete
             maxLength={200}
             style={{
               flex: 1, background: "transparent", border: "none", outline: "none",
-              fontSize: 13, fontWeight: 600, color: "#262626", fontFamily: "inherit", minWidth: 0,
+              fontSize: 13, fontWeight: 400, color: "#262626", fontFamily: "inherit", minWidth: 0,
             }}
           />
           <button
@@ -538,7 +538,9 @@ function SubtaskRow({ subtask, isOwner, done, working, pending, onToggleComplete
           onDoubleClick={beginEdit}
           title={isOwner ? "Double-click to edit" : undefined}
           style={{
-            fontSize: 13, fontWeight: 600, lineHeight: 1.35,
+            // A subtask has only a title (no description) — render it in a regular, non-bold
+            // weight so it reads as a plain branch entry, lighter than the Author's Note.
+            fontSize: 13, fontWeight: 400, lineHeight: 1.35,
             color: done ? "#a3a3a3" : "#262626",
             textDecoration: done ? "line-through" : "none",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",

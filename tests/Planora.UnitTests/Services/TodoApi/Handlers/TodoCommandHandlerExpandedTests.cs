@@ -688,6 +688,10 @@ public class TodoCommandHandlerExpandedTests
         Assert.Null(added.ExpectedDate);                      // never
         Assert.Equal("Work", result.Value!.CategoryName);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        // A "X added a subtask" system message is enqueued for the parent's branch.
+        fixture.OutboxRepository.Verify(
+            x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -818,6 +822,10 @@ public class TodoCommandHandlerExpandedTests
         fixture.TodoRepository.Verify(x => x.Update(subtask), Times.Once);
         fixture.ViewerPreferences.Verify(
             x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Never);
+        // A "X completed a subtask" system message is enqueued for the parent's branch.
+        fixture.OutboxRepository.Verify(
+            x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -929,7 +937,7 @@ public class TodoCommandHandlerExpandedTests
                 CategoryGrpcClient.Object,
                 FriendshipService.Object,
                 ViewerPreferences.Object,
-                Mock.Of<Planora.BuildingBlocks.Application.Outbox.IOutboxRepository>());
+                OutboxRepository.Object);
 
         public SetTodoHiddenCommandHandler CreateSetHiddenHandler()
             => new(
@@ -965,7 +973,8 @@ public class TodoCommandHandlerExpandedTests
                 Mapper.Object,
                 Mock.Of<ILogger<Planora.Todo.Application.Features.Todos.Commands.CreateSubtask.CreateSubtaskCommandHandler>>(),
                 CurrentUser.Object,
-                CategoryGrpcClient.Object);
+                CategoryGrpcClient.Object,
+                OutboxRepository.Object);
 
         public Planora.Todo.Application.Features.Todos.Queries.GetSubtasks.GetSubtasksQueryHandler CreateGetSubtasksHandler()
             => new(

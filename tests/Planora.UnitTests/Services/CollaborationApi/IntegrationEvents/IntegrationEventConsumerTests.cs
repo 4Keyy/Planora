@@ -73,6 +73,33 @@ public sealed class IntegrationEventConsumerTests
         Assert.Contains("Carol", captured.Content);
     }
 
+    [Theory]
+    [Trait("TestType", "Functional")]
+    [InlineData(TaskActivityType.SubtaskCreated, "added a subtask: Draft outline")]
+    [InlineData(TaskActivityType.SubtaskCompleted, "completed a subtask: Draft outline")]
+    public async Task SubtaskActivity_WritesSystemCommentWithTitle(string activity, string expectedFragment)
+    {
+        var parentId = Guid.NewGuid();
+        var comments = new Mock<ICommentRepository>();
+        Comment? captured = null;
+        comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
+            .Callback<Comment, CancellationToken>((c, _) => captured = c)
+            .ReturnsAsync((Comment c, CancellationToken _) => c);
+
+        var consumer = new TaskActivityEventConsumer(comments.Object, Mock.Of<IUnitOfWork>(),
+            Mock.Of<ILogger<TaskActivityEventConsumer>>());
+
+        await consumer.HandleAsync(
+            new TaskActivityIntegrationEvent(parentId, Guid.NewGuid(), "Dave", activity, "Draft outline"),
+            CancellationToken.None);
+
+        Assert.NotNull(captured);
+        Assert.True(captured!.IsSystemComment);
+        Assert.Equal(parentId, captured.TaskId); // posted to the PARENT's branch
+        Assert.Contains("Dave", captured.Content);
+        Assert.Contains(expectedFragment, captured.Content);
+    }
+
     [Fact]
     [Trait("TestType", "Resilience")]
     public async Task TaskActivity_UnknownType_IsSkippedSilently()

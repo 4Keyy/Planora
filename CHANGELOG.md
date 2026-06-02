@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(subtasks): branch system messages on create/complete + non-bold rendering (2026-06-02)
+
+- Creating or completing a subtask now posts a **system message to the parent task's branch**
+  ("X added a subtask: …" / "X completed a subtask: …"). Reuses `TaskActivityIntegrationEvent`
+  with new `SubtaskCreated`/`SubtaskCompleted` types and an optional `Detail` (the subtask title);
+  the Collaboration `TaskActivityEventConsumer` formats the sentence on the parent's timeline.
+  `CreateSubtaskCommandHandler` and both completion paths in `UpdateTodoCommandHandler` (owner and
+  non-owner global completion) enqueue the event via the outbox.
+- Subtasks (title only, no description) now render **non-bold** in the branch, so a step reads as a
+  plain entry, lighter than the bold Author's Note.
+- Tests: +2 backend consumer cases (subtask sentence incl. title, posted to the parent id) and
+  outbox-emission assertions on create/complete → backend suite 155 green; frontend 400 green.
+
 ### feat — subtasks: tree-structured child tasks inside a task's branch (2026-06-02)
 
 Tasks can now be broken into **subtasks** — child `TodoItem`s (self-referencing `ParentTodoId`)

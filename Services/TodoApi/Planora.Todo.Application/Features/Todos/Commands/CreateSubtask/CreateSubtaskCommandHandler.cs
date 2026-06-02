@@ -1,6 +1,9 @@
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
+using Planora.Todo.Application.Common;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;
@@ -17,6 +20,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
         private readonly ILogger<CreateSubtaskCommandHandler> _logger;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ICategoryGrpcClient _categoryGrpcClient;
+        private readonly IOutboxRepository _outboxRepository;
 
         public CreateSubtaskCommandHandler(
             ITodoRepository repository,
@@ -24,7 +28,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             IMapper mapper,
             ILogger<CreateSubtaskCommandHandler> logger,
             ICurrentUserContext currentUserContext,
-            ICategoryGrpcClient categoryGrpcClient)
+            ICategoryGrpcClient categoryGrpcClient,
+            IOutboxRepository outboxRepository)
         {
             _repository = repository;
             _unitOfWork = unitOfWork;
@@ -32,6 +37,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             _logger = logger;
             _currentUserContext = currentUserContext;
             _categoryGrpcClient = categoryGrpcClient;
+            _outboxRepository = outboxRepository;
         }
 
         public async Task<Result<TodoItemDto>> Handle(
@@ -61,6 +67,13 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
                 request.Priority);
 
             await _repository.AddAsync(subtask, cancellationToken);
+
+            // Announce the new subtask in the PARENT task's branch ("X added a subtask: …").
+            var authorName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new TaskActivityIntegrationEvent(parent.Id, userId, authorName, TaskActivityType.SubtaskCreated, subtask.Title),
+                cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(

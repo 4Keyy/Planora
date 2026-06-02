@@ -96,14 +96,30 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                         var subtaskStatus = TodoStatusExtensions.FromString(request.Status);
                         if (subtaskStatus.HasValue)
                         {
+                            var subtaskJustCompleted = false;
                             if (subtaskStatus == TodoStatus.Done && !todoItem.IsCompleted)
+                            {
                                 todoItem.MarkAsDone(userId);
+                                subtaskJustCompleted = true;
+                            }
                             else if (subtaskStatus == TodoStatus.InProgress && todoItem.Status != TodoStatus.InProgress)
                                 todoItem.MarkAsInProgress(userId);
                             else if (subtaskStatus == TodoStatus.Todo && todoItem.Status != TodoStatus.Todo)
                                 todoItem.MarkAsTodo(userId);
 
                             _repository.Update(todoItem);
+
+                            // Announce completion in the PARENT task's branch ("X completed a subtask: …").
+                            if (subtaskJustCompleted && todoItem.ParentTodoId.HasValue)
+                            {
+                                var completerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+                                await _outboxRepository.EnqueueIntegrationEventAsync(
+                                    new TaskActivityIntegrationEvent(
+                                        todoItem.ParentTodoId.Value, userId, completerName,
+                                        TaskActivityType.SubtaskCompleted, todoItem.Title),
+                                    cancellationToken);
+                            }
+
                             await _unitOfWork.SaveChangesAsync(cancellationToken);
                         }
                     }
@@ -306,6 +322,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             {
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.StartedWorking),
+                    cancellationToken);
+            }
+            else if (ownerJustCompleted && todoItem.IsSubtask && todoItem.ParentTodoId.HasValue)
+            {
+                // A subtask has no branch of its own — its completion is announced in the PARENT's branch.
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new TaskActivityIntegrationEvent(
+                        todoItem.ParentTodoId.Value, userId, ownerName,
+                        TaskActivityType.SubtaskCompleted, todoItem.Title),
                     cancellationToken);
             }
             else if (ownerStoppedWorking && !todoItem.IsSubtask)

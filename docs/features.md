@@ -201,6 +201,8 @@ they never appear on the tasks page, the completed page, the dashboard grid, or 
 | Status | **anyone with access can complete or reopen it, and it applies globally** — if one participant marks it done it is done for everyone (entity status, not per-viewer). **Stays in the branch after completion** (shown done, not removed). Owner can also take it into work |
 | Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
 | Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
+| Branch messages | creating or completing a subtask posts a system message to the **parent's** branch timeline ("X added a subtask: …" / "X completed a subtask: …") via `TaskActivityIntegrationEvent` (`SubtaskCreated`/`SubtaskCompleted`, `Detail` = title) consumed by Collaboration. A subtask has no branch of its own |
+| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch entry, lighter than the Author's Note |
 | Lifecycle | deleting a task soft-deletes its whole subtree |
 
 Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/friend lists),
