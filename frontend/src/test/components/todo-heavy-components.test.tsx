@@ -661,7 +661,7 @@ describe("EditTodoModal", () => {
     resetAuthState()
   })
 
-  it("saves owner edits with normalized payload and closes on Escape/backdrop", async () => {
+  it("autosaves owner edits with a normalized payload and exposes no Save/Cancel buttons", async () => {
     const user = userEvent.setup()
     const onSave = vi.fn().mockResolvedValue(undefined)
     const onClose = vi.fn()
@@ -678,6 +678,11 @@ describe("EditTodoModal", () => {
       />,
     )
 
+    // Quick-save UX: there is no manual Save/Cancel — only the autosave status indicator
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull()
+    expect(screen.getByText("Changes save automatically")).toBeInTheDocument()
+
     // Title is an <h1>; click it to enter edit mode, then change the textarea value
     await user.click(screen.getByRole("heading", { level: 1 }))
     // Title textarea has no placeholder; compose textarea does — first textbox is the title
@@ -685,10 +690,9 @@ describe("EditTodoModal", () => {
     fireEvent.change(titleTextarea, { target: { value: "Updated task" } })
     fireEvent.blur(titleTextarea)
 
-    await user.click(screen.getByRole("button", { name: "Save" }))
-
-    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
-    expect(onSave).toHaveBeenCalledWith({
+    // No button click — the change autosaves on its own (debounced)
+    await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2000 })
+    expect(onSave).toHaveBeenLastCalledWith({
       title: "Updated task",
       description: "Cover every important branch with focused behavior tests.",
       priority: 4,
@@ -700,14 +704,15 @@ describe("EditTodoModal", () => {
       clearRequiredWorkers: false,
     })
 
-    // handleSave calls onClose once; Escape triggers a second call
-    expect(onClose).toHaveBeenCalledTimes(1)
+    // Autosave keeps the modal open; closing is a separate, explicit action
+    expect(onClose).not.toHaveBeenCalled()
     await user.keyboard("{Escape}")
-    expect(onClose).toHaveBeenCalledTimes(2)
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it("lets a shared viewer save only their private category preference", async () => {
+  it("autosaves only a shared viewer's private category preference", async () => {
     resetAuthState("friend-1")
+    const user = userEvent.setup()
     const onSave = vi.fn()
     const onSaveViewerPreference = vi.fn().mockResolvedValue(undefined)
 
@@ -726,31 +731,38 @@ describe("EditTodoModal", () => {
     // Non-owner sees title as a heading (not an editable input)
     expect(screen.getByRole("heading", { level: 1, name: "Write coverage tests" })).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole("button", { name: "Save" }))
+    // Changing the viewer's own category autosaves a viewer preference — never the task
+    await user.click(screen.getByRole("button", { name: "Work" }))
+    await user.click(await screen.findByRole("button", { name: "Home" }))
 
-    await waitFor(() => expect(onSaveViewerPreference).toHaveBeenCalledOnce())
-    expect(onSaveViewerPreference).toHaveBeenCalledWith({ viewerCategoryId: "cat-1" })
+    await waitFor(() => expect(onSaveViewerPreference).toHaveBeenCalled(), { timeout: 2000 })
+    expect(onSaveViewerPreference).toHaveBeenLastCalledWith({ viewerCategoryId: "cat-2" })
     expect(onSave).not.toHaveBeenCalled()
   })
 
-  it("blocks non-owner saves when the task is not public", () => {
+  it("is view-only and autosaves nothing when a non-owner cannot edit", () => {
     resetAuthState("stranger-1")
+    const onSave = vi.fn()
+    const onSaveViewerPreference = vi.fn()
     render(
       <EditTodoModal
         todo={baseTodo({ isPublic: false, sharedWithUserIds: [] })}
         categories={categories}
         onClose={vi.fn()}
-        onSave={vi.fn()}
-        onSaveViewerPreference={vi.fn()}
+        onSave={onSave}
+        onSaveViewerPreference={onSaveViewerPreference}
         onCreateCategory={vi.fn()}
         onDeleteCategory={vi.fn()}
       />,
     )
 
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled()
+    expect(screen.getByText("View only")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull()
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onSaveViewerPreference).not.toHaveBeenCalled()
   })
 
-  it("creates a category inline while saving owner edits", async () => {
+  it("autosaves the owner payload after creating a category inline", async () => {
     const user = userEvent.setup()
     const onSave = vi.fn().mockResolvedValue(undefined)
     const onCreateCategory = vi.fn().mockResolvedValue(undefined)
@@ -800,11 +812,9 @@ describe("EditTodoModal", () => {
     }))
     expect(onCreateCategory).toHaveBeenCalledOnce()
 
-    // Save the todo with the new category
-    await user.click(screen.getByRole("button", { name: "Save" }))
-
-    await waitFor(() => expect(onSave).toHaveBeenCalledOnce())
-    expect(onSave).toHaveBeenCalledWith({
+    // Selecting the freshly created category autosaves the owner payload — no Save click
+    await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2000 })
+    expect(onSave).toHaveBeenLastCalledWith({
       title: "Write coverage tests",
       description: null,
       priority: 3,

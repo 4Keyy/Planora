@@ -454,9 +454,12 @@ export default function DashboardPage() {
         t.id !== todoId ? t : { ...merged, authorName: t.authorName ?? friendNameCache.current.get(updated.userId) }
       setTodos(prev => prev.map(applyMerge))
       setStatsTodos(prev => prev.map(applyMerge))
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Task updated" })
-    } catch { addToast({ type: "error", title: "Failed to update" }) }
+      // Autosave path: keep the modal open and quiet (the in-modal indicator confirms it);
+      // do not refresh `editingTodo` so the open modal's local field state is never clobbered.
+    } catch (error) {
+      addToast({ type: "error", title: "Failed to save changes" })
+      throw error // surface the error state in the modal's autosave indicator
+    }
   }
 
   const handleSaveViewerPreference = useCallback(async (todoId: string, viewerCategoryId: string | null) => {
@@ -475,10 +478,10 @@ export default function DashboardPage() {
 
       setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
       setStatsTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Your category was saved" })
-    } catch {
+      // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
+    } catch (error) {
       addToast({ type: "error", title: "Failed to save your category" })
+      throw error // surface the error state in the modal's autosave indicator
     }
   }, [todos, statsTodos, addToast])
 

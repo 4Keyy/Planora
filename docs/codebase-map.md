@@ -203,6 +203,7 @@ No Realtime EF Core `DbContext` was found.
 |---|---|
 | `frontend/src/app` | Next.js App Router pages |
 | `frontend/src/components` | UI and domain components |
+| `frontend/src/hooks` | reusable React hooks (`use-autosave` debounced quick-save, `use-friends`, `use-collapse-scroll`) |
 | `frontend/src/lib` | API client, auth public client, CSRF, config, analytics, utilities |
 | `frontend/src/store` | Zustand state |
 | `frontend/src/types` | frontend DTO/type helpers |

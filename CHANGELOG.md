@@ -4,6 +4,37 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend) — quick-save (autosave) for the task-branch and category edit modals (2026-06-02)
+
+Removed the manual **Save/Cancel** buttons from the editing modals: every committed change now
+persists automatically, as soon as it is applied.
+
+- **New `useAutosave` hook** (`frontend/src/hooks/use-autosave.ts`) — a debounced, single-flight
+  autosave engine: it coalesces bursts (typing, color-picker drags) into one write, never persists a
+  value equal to the last-saved baseline, runs at most one request at a time (re-firing if the value
+  changed mid-flight so the final state always lands), exposes `idle/saving/saved/error` status, and
+  `flush()`es any pending change on explicit close and on unmount so nothing is lost. A `validate`
+  guard blocks invalid saves (e.g. an empty name/title) and `reset()` re-anchors the baseline when the
+  edited entity changes.
+- **New `AutosaveIndicator`** (`frontend/src/components/ui/autosave-indicator.tsx`) — a quiet
+  `role="status"` `aria-live="polite"` confirmation (`Saving… / All changes saved / Couldn’t save`)
+  that replaces the Save button as the only signal a change reached the server.
+- **Task Branch edit modal** (`edit-todo-modal/modal.tsx`) — title, priority, due date, category, and
+  visibility/sharing autosave. Owners persist the full task payload; a shared viewer autosaves only
+  their private category preference. The description ("Author's Note") keeps its own editor and is
+  excluded from the autosave equality check to avoid a duplicate write. The footer now shows the
+  indicator (or `View only`) plus a `Done` close button. `tasks/page.tsx` `handleUpdate` /
+  `handleSaveViewerPreference` no longer close the modal or toast per save, update the list optimistically,
+  and re-throw on failure so the indicator can show the error state and retry.
+- **Category edit modal** (`categories/page.tsx`) — name, description, color, and icon autosave with an
+  optimistic grid update; an empty name shows an inline hint and is never persisted. **Creating** a
+  category intentionally keeps a single explicit `Create category` button (nothing exists to autosave
+  yet), with no Cancel button.
+- **Tests** — added `frontend/src/test/hooks/use-autosave.test.tsx` (12 cases: debounce, baseline,
+  status, revert, validation, enable/disable, error, flush, reset, single-flight, unmount flush) and
+  `frontend/src/test/components/autosave-indicator.test.tsx`; rewrote the four `EditTodoModal` tests for
+  autosave. Full suite: **389 green**, `tsc --noEmit` and `eslint .` clean.
+
 ### fix(ci) — green markdownlint + restore branch-coverage threshold (2026-06-02)
 
 - Converted every remaining `*`-style list bullet in `CHANGELOG.md` to `-` (272 MD004 violations).

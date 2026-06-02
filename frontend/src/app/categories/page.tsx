@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { SPRING_STANDARD, TWEEN_UI } from "@/lib/animations"
@@ -14,6 +14,8 @@ import { Category, type CategoryListResponse, toCategoryList } from "@/types/cat
 import { ICON_PICKER_ITEMS } from "@/components/ui/icon-picker"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ModalPortal } from "@/components/ui/modal-portal"
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator"
+import { useAutosave } from "@/hooks/use-autosave"
 import { ColorPicker } from "@/components/todos/edit-todo-modal/color-picker"
 import { cn, truncateText } from "@/lib/utils"
 import { ICON_MAP } from "@/lib/icon-map"
@@ -208,12 +210,15 @@ function CategoryModal({
   onSave,
   initialData,
   title,
+  autosave = false,
 }: {
   isOpen: boolean
   onClose: () => void
   onSave: (data: CategoryFormData) => Promise<void>
   initialData?: CategoryFormData
   title: string
+  /** Edit mode: persist every change automatically with no Save/Cancel buttons. */
+  autosave?: boolean
 }) {
   const [name, setName] = useState(initialData?.name ?? "")
   const [desc, setDesc] = useState(initialData?.description ?? "")
@@ -222,18 +227,56 @@ function CategoryModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
 
+  // Live form snapshot, trimmed exactly as it is persisted, used as the autosave value.
+  const formData: CategoryFormData = useMemo(
+    () => ({ name: name.trim(), description: desc.trim(), color, icon }),
+    [name, desc, color, icon],
+  )
+
+  const { status: saveStatus, flush, reset } = useAutosave<CategoryFormData>({
+    value: formData,
+    enabled: autosave && isOpen,
+    onSave,
+    // Never persist an empty name (the category's only required field).
+    validate: (data) => data.name.length > 0,
+  })
+
   /**
-   * Reset form when modal opens/closes
+   * Seed the form (and re-anchor the autosave baseline) only on the modal's *opening*
+   * edge. `initialData` is a fresh object on every parent render, and autosave triggers
+   * parent re-renders (optimistic grid updates) while the modal is open — so resetting on
+   * its identity would clobber in-progress input. Gating on the open transition avoids that
+   * while still re-seeding correctly when a different category is opened (open requires a
+   * prior close, since the modal is a full-screen overlay).
    */
+  const wasOpen = useRef(false)
   useEffect(() => {
-    if (isOpen) {
-      setName(initialData?.name ?? "")
-      setDesc(initialData?.description ?? "")
-      setColor(initialData?.color ?? "#6366f1")
-      setIcon(initialData?.icon ?? null)
+    if (isOpen && !wasOpen.current) {
+      const next = {
+        name: initialData?.name ?? "",
+        description: initialData?.description ?? "",
+        color: initialData?.color ?? "#6366f1",
+        icon: initialData?.icon ?? null,
+      }
+      setName(next.name)
+      setDesc(next.description)
+      setColor(next.color)
+      setIcon(next.icon)
       setError("")
+      reset({ ...next, name: next.name.trim(), description: next.description.trim() })
     }
-  }, [isOpen, initialData])
+    wasOpen.current = isOpen
+  }, [isOpen, initialData, reset])
+
+  /**
+   * Flush any pending autosave, then close. Guarantees the last edit is persisted even
+   * if the user closes within the debounce window (the modal stays mounted between opens,
+   * so we cannot rely on an unmount flush here).
+   */
+  const handleClose = useCallback(() => {
+    if (autosave) void flush()
+    onClose()
+  }, [autosave, flush, onClose])
 
   /**
    * Close on Escape key
@@ -241,15 +284,15 @@ function CategoryModal({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose()
+        handleClose()
       }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [onClose])
+  }, [handleClose])
 
   /**
-   * Handle save
+   * Handle explicit create (create mode only — editing autosaves).
    */
   const handleSave = async () => {
     if (!name.trim()) {
@@ -259,12 +302,7 @@ function CategoryModal({
 
     setSaving(true)
     try {
-      await onSave({
-        name: name.trim(),
-        description: desc.trim(),
-        color,
-        icon,
-      })
+      await onSave(formData)
       onClose()
     } catch {
       setError("Failed to save category")
@@ -282,7 +320,7 @@ function CategoryModal({
         {isOpen && (
       <div
         className="fixed inset-0 z-[2000] flex items-center justify-center p-4"
-        onClick={onClose}
+        onClick={handleClose}
       >
         {/* Backdrop */}
         <motion.div
@@ -318,7 +356,7 @@ function CategoryModal({
               </p>
             </div>
             <motion.button
-              onClick={onClose}
+              onClick={handleClose}
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.95 }}
               className="h-10 w-10 rounded-2xl bg-gray-50 hover:bg-gray-100 flex items-center justify-center transition-[background-color] active:shadow-md"
@@ -414,7 +452,7 @@ function CategoryModal({
               </motion.div>
 
               <AnimatePresence>
-                {error && (
+                {(error || (autosave && !name.trim())) && (
                   <motion.p
                     initial={{ opacity: 0, y: -6, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -422,7 +460,7 @@ function CategoryModal({
                     transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                     className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-center text-[11px] font-bold text-red-600"
                   >
-                    {error}
+                    {error || "Enter a name to save your changes"}
                   </motion.p>
                 )}
               </AnimatePresence>
@@ -478,31 +516,40 @@ function CategoryModal({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.25 }}
-            className="mt-6 flex flex-col-reverse gap-3 border-t border-gray-100 pt-5 sm:flex-row"
+            className="mt-6 flex items-center gap-3 border-t border-gray-100 pt-5"
           >
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="sm:flex-1">
-              <Button
-                variant="outline"
-                className="h-12 w-full rounded-2xl border-gray-100 font-bold text-gray-500 hover:bg-gray-50"
-                onClick={onClose}
-                disabled={saving}
+            {autosave ? (
+              // Edit mode: no Save/Cancel — changes persist automatically. The indicator
+              // confirms each save; "Done" simply closes the (already-saved) modal.
+              <>
+                <AutosaveIndicator status={saveStatus} />
+                <div className="flex-1" />
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    className="h-12 rounded-2xl border-gray-100 px-6 font-bold text-gray-500 hover:bg-gray-50"
+                    onClick={handleClose}
+                  >
+                    Done
+                  </Button>
+                </motion.div>
+              </>
+            ) : (
+              // Create mode: a single explicit Create action (nothing exists to autosave yet).
+              <motion.div
+                whileHover={!saving && name.trim() ? { scale: 1.02 } : undefined}
+                whileTap={!saving && name.trim() ? { scale: 0.98 } : undefined}
+                className="flex-1"
               >
-                Cancel
-              </Button>
-            </motion.div>
-            <motion.div
-              whileHover={!saving && name.trim() ? { scale: 1.02 } : undefined}
-              whileTap={!saving && name.trim() ? { scale: 0.98 } : undefined}
-              className="sm:flex-1"
-            >
-              <Button
-                className="h-12 w-full rounded-2xl bg-black font-bold shadow-xl shadow-black/10 hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
-                onClick={handleSave}
-                disabled={saving || !name.trim()}
-              >
-                {saving ? "Saving..." : "Save"}
-              </Button>
-            </motion.div>
+                <Button
+                  className="h-12 w-full rounded-2xl bg-black font-bold shadow-xl shadow-black/10 hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                  onClick={handleSave}
+                  disabled={saving || !name.trim()}
+                >
+                  {saving ? "Creating..." : "Create category"}
+                </Button>
+              </motion.div>
+            )}
           </motion.div>
         </div>
         </motion.div>
@@ -596,14 +643,18 @@ export default function CategoriesPage() {
   }
 
   /**
-   * Edit existing category
+   * Autosave an edit to the open category. Called by the modal on every committed
+   * change (debounced), so it stays quiet on success and updates the grid optimistically
+   * rather than refetching per keystroke. Errors are toasted and re-thrown so the modal's
+   * AutosaveIndicator can show the failed state and retry on the next change.
    */
   const handleEdit = async (data: CategoryFormData) => {
     if (!editingCategory) return
+    const id = editingCategory.id
 
     try {
       await api.put(
-        `/categories/api/v1/categories/${editingCategory.id}`,
+        `/categories/api/v1/categories/${id}`,
         {
           name: data.name,
           description: data.description || null,
@@ -611,11 +662,17 @@ export default function CategoriesPage() {
           icon: data.icon,
         }
       )
-      await fetchCategories()
-      addToast({ type: "success", title: "Category updated" })
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === id
+            ? { ...c, name: data.name, description: data.description, color: data.color, icon: data.icon }
+            : c
+        )
+      )
     } catch (error) {
       console.error("Failed to update category:", error)
-      addToast({ type: "error", title: "Failed to update category" })
+      addToast({ type: "error", title: "Failed to save category" })
+      throw error
     }
   }
 
@@ -719,6 +776,7 @@ export default function CategoriesPage() {
 
       <CategoryModal
         isOpen={!!editingCategory}
+        autosave
         onClose={() => setEditingCategory(null)}
         onSave={handleEdit}
         initialData={editingCategory ? {

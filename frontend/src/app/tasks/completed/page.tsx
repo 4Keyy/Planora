@@ -247,11 +247,11 @@ export default function CompletedTasksPage() {
       const authorName = existing.authorName ?? friendNameCache.current.get(updated.userId)
 
       setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...updated, authorName } : t)))
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Task updated" })
+      // Autosave path: keep the modal open and quiet; the in-modal indicator confirms the save.
     } catch (error) {
       console.error("Failed to update todo:", error)
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Failed to save changes" })
+      throw error // surface the error state in the modal's autosave indicator
     }
   }
 
@@ -270,11 +270,11 @@ export default function CompletedTasksPage() {
       const enriched = authorName ? { ...fullTask, authorName } : fullTask
 
       setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...t, ...enriched } : t)))
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Your category was saved" })
+      // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
     } catch (error) {
       console.error("Failed to update viewer preference:", error)
       addToast({ type: "error", title: "Failed to save your category" })
+      throw error // surface the error state in the modal's autosave indicator
     }
   }, [todos, addToast])
 

@@ -148,6 +148,13 @@ Organize todos with user-owned labels that carry color, icon, and display order.
 - Delete returns `403` for forbidden access.
 - Category deletion emits integration behavior consumed by Todo; see `Services/TodoApi/Planora.Todo.Application/Features/Todos/Events/CategoryDeletedEventHandler.cs`.
 
+### Frontend Behavior
+
+- Editing an existing category is **quick-save**: there are no Save/Cancel buttons. Changing the name, description, color (color picker), or icon persists automatically. The debounced `useAutosave` hook (`frontend/src/hooks/use-autosave.ts`) coalesces bursts (e.g. dragging the color picker) into a single `PUT`, updates the grid optimistically, and a `AutosaveIndicator` reports `Saving… / All changes saved / Couldn’t save`.
+- An empty name is never persisted (a category's only required field); the modal shows an inline "Enter a name to save your changes" hint and skips the save until a name is present.
+- Pending edits are flushed when the modal closes (X / `Escape` / backdrop / `Done`), so a change made inside the debounce window is never lost.
+- **Creating** a category is the one exception that keeps an explicit `Create category` button: nothing exists to autosave yet, and auto-creating on keystroke would leave half-typed categories behind. There is no Cancel button — closing the modal simply discards the draft.
+
 ## Todos
 
 ### Purpose
@@ -193,6 +200,7 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 - On the dashboard, the create panel opens with a softened layout transition and staged field reveal. Its primary plus icon becomes a rotated close action while the panel is open, so the same control pattern can open and close the draft surface.
 - Toast notifications render on the toast z-index layer and start below the fixed navbar, so completion/update feedback is not hidden behind the header.
 - The floating navbar quick-creates tasks (title only, private, no category) and dispatches a `planora:task-created` custom DOM event on success. Both the dashboard and todos pages listen for this event to refresh their task lists without a page reload; the dashboard also resets pagination to page 1.
+- The Task Branch edit modal (`frontend/src/components/todos/edit-todo-modal`) is **quick-save** with no Save/Cancel buttons: editing the title, priority, due date, category, or visibility/sharing autosaves via the debounced `useAutosave` hook. Owners persist the full task payload; a shared viewer who can manage their own category autosaves only their private category preference. The description ("Author's Note" in the branch) keeps its own explicit editor and is intentionally excluded from the autosave equality check so it is never written twice. The footer shows the `AutosaveIndicator` (or `View only` for non-editors) plus a `Done` button that only closes the already-saved modal; `Escape`/backdrop close as well, and a pending edit is flushed on close/unmount. Save failures are toasted once and surfaced as the indicator's error state, which retries on the next edit.
 - When the user removes a category during task edit, `applyCategoryPatch` (`frontend/src/utils/todo-utils.ts`) zeroes all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) in local state after the PUT — necessary because the backend treats `categoryId: null` as a no-op and echoes back the old values.
 - Todo, dashboard, and completed-task pages enrich author names for public friend tasks as well as direct shared tasks.
 

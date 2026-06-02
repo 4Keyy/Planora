@@ -381,11 +381,14 @@ export default function TasksPage() {
         setTodos((prev) => prev.map((t) => (t.id === id ? nextTodo : t)))
       }
 
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Task updated" })
+      // Autosave path: keep the modal open and stay quiet — the in-modal AutosaveIndicator
+      // reports success. We intentionally do not refresh `editingTodo` so the open modal's
+      // local field state (the source of truth while editing) is never clobbered mid-edit.
     } catch (error) {
       console.error("Failed to update todo:", error)
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Failed to save changes" })
+      // Re-throw so the modal's autosave surfaces the error state and retries on next edit.
+      throw error
     }
   }
 
@@ -409,11 +412,11 @@ export default function TasksPage() {
         setTodos((prev) => prev.map((t) => (t.id === id ? nextTodo : t)))
       }
 
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Your category was saved" })
+      // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
     } catch (error) {
       console.error("Failed to update viewer preference:", error)
       addToast({ type: "error", title: "Failed to save your category" })
+      throw error // surface error state in the modal's autosave indicator
     }
   }
 
