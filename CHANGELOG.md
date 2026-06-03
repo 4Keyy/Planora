@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(subtasks): anyone can take a subtask into work; all viewers see it (2026-06-03)
+
+- **Taking a subtask into work is now global**, like completion. The frontend `toggleSubtaskWork`
+  no longer requires ownership (the backend already authorised any participant to set a subtask's
+  status), and the **Zap "take into work" toggle is shown to every viewer** on hover (editing and
+  delete stay owner-only). So when *any* user picks up a subtask, the others see it.
+- Polished the **"In progress" presence badge**: it now animates in/out (spring), uses a soft amber
+  gradient pill with a pulsing dot, and is shown **to every viewer** on the card — it **never names
+  who** is working (hover title: "Someone is working on this"). Derived from the subtask's live
+  `status` (polled), so it appears for other users without re-opening the modal.
+- Frontend only; `tsc`/`eslint` clean; 393 vitest green; `npm run build` ok.
+
 ### feat(subtasks): no creation notice, icon-less completion reply on a sub-branch (2026-06-03)
 
 - **No "added a subtask" notification anywhere.** `CreateSubtaskCommandHandler` no longer enqueues

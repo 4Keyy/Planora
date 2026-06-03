@@ -201,8 +201,9 @@ never announces that it was created.
 - the **card** (task-like, same **slide-from-right red delete panel**), offset onto the sub-branch.
   Its **completion toggle is the subtask's ONLY marker**, sitting on the sub-branch at the card's
   **vertical centre** (not at the top); a state-tinted fork reaches in from the main rail;
-- while in progress, an **"In progress"** indicator (amber pill + pulsing dot) **visible to every
-  viewer** — it never names who is working;
+- **anyone with access can take a subtask into work** (a Zap toggle on hover, global like
+  completion); while in progress, a soft **"In progress"** presence badge (amber pill + pulsing
+  dot) is shown **to every viewer** — it never names who is working;
 - when done, a **completion reply** — *another reply on the same sub-branch, with **no rail icon***
   — joined by a soft "└" elbow: "**{Name}** completed this · HH:MM" (a nameless "Completed" shows
   instantly on optimistic completion, then the name fills in when the folded system comment lands).
@@ -219,7 +220,7 @@ sub-branch carries is the subtask's own completion toggle.
 | Priority | **none in the UX** — a subtask is just a checkable titled step; no priority is shown, chosen, or edited. (The entity still has a priority column, defaulted server-side; it is never surfaced.) |
 | Title length | a subtask's whole content lives in its title, so it allows **up to 1500 characters** (regular-task titles stay ≤200). Enforced by `CreateSubtaskCommandValidator` (1500), `UpdateTodoCommandValidator` (1500, shared with subtask renames), the widened `TodoItems.Title` `varchar(1500)` column, and the frontend `SUBTASK_MAX = 1500` (create textarea + inline edit textarea both wrap/grow) |
 | Editing | the title is **owner-only** (inline edit in the card; double-click the title or the pencil). Non-owners cannot edit |
-| Status | **anyone with access can complete or reopen it, and it applies globally** — if one participant marks it done it is done for everyone (entity status, not per-viewer). **Stays in the branch after completion** (shown done with its completion reply, not removed). The owner can take it into work; the resulting **in-progress state is shown to every viewer** in-card (no name) |
+| Status | **anyone with access can complete/reopen AND take-into-work/step-out, and it applies globally** — these all live on the entity status, not per-viewer, so any participant's change is seen by everyone. **Stays in the branch after completion** (shown done with its completion reply, not removed). When a subtask is in work, **every viewer sees an "In progress" presence badge** on the card — it never names who took it |
 | Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
 | Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
 | Branch messages | **Creating a subtask emits no event** — `CreateSubtaskCommandHandler` does not enqueue anything, so there is no "added a subtask" notification anywhere. **Completing** a subtask still posts `TaskActivityIntegrationEvent` (`SubtaskCompleted`, `Detail` = title) to the **parent's** branch, but it is **never rendered as a standalone rail node**: `buildFeed` matches it to its subtask by the `: <title>` suffix and renders it as the icon-less completion reply on the sub-branch. Any legacy "added a subtask" comments are likewise hidden. Taking a subtask into work emits no system comment — the in-progress indicator is derived from the subtask's live `status` (polled), so all viewers see it. A subtask has no branch of its own |
@@ -231,9 +232,9 @@ Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/frie
 migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask") via the
 shared compose field, and rendered on the rail by `edit-todo-modal/branch-feed.tsx` as a sub-branch
 (`SubtaskCard` + the icon-less `SubtaskCompletionReply`; `buildFeed` hides the create comment
-entirely and folds the complete comment into `meta`) — per-row complete (everyone) / inline title
-edit + take-into-work + delete (owner), an all-viewers in-progress indicator, and no priority
-control.
+entirely and folds the complete comment into `meta`) — complete **and** take-into-work are global
+(everyone), inline title edit + delete are owner-only, an all-viewers in-progress presence badge,
+and no priority control.
 
 ### Frontend Behavior
 

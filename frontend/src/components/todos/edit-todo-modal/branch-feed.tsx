@@ -422,9 +422,11 @@ export function BranchFeed({
     }
   }
 
-  // Owner-only: take a subtask into work / step back out.
+  // Take a subtask into work / step back out. Like completion, this is GLOBAL: anyone with access
+  // can do it (the server allows any participant to set a subtask's status), and every viewer then
+  // sees the in-progress indicator on the subtask. No one is named.
   const toggleSubtaskWork = async (s: Todo) => {
-    if (!isOwner || subtaskPendingRef.current.has(s.id)) return
+    if (subtaskPendingRef.current.has(s.id)) return
     const nextStatus = isSubtaskWorking(s) ? "todo" : "inprogress"
     setSubtaskBusy(s.id, true)
     setSubtasks((prev) => prev.map((it) => it.id === s.id
@@ -1580,36 +1582,52 @@ function SubtaskCard({
             </span>
           )}
 
-          {/* In-progress indicator — visible to EVERYONE (not just the owner), names no one. */}
-          {working && !done && !editing && (
-            <span style={{
-              display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 3,
-              fontSize: 9.5, fontWeight: 900, letterSpacing: "0.07em", textTransform: "uppercase",
-              color: "#b45309", background: "#fef3c7", padding: "3px 8px 3px 7px", borderRadius: 7,
-            }}>
-              <span style={{ position: "relative", width: 6, height: 6, flexShrink: 0 }}>
-                <span className="animate-ping" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#f59e0b", opacity: 0.65 }} />
-                <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#f59e0b" }} />
-              </span>
-              In progress
-            </span>
-          )}
+          {/* In-progress indicator — a soft "someone is on it" presence badge shown to EVERY viewer
+              (it never names who). Anyone can put a subtask into work, and all viewers see this. */}
+          <AnimatePresence initial={false}>
+            {working && !done && !editing && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ type: "spring", stiffness: 480, damping: 26 }}
+                title="Someone is working on this"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 2,
+                  fontSize: 9.5, fontWeight: 900, letterSpacing: "0.07em", textTransform: "uppercase",
+                  color: "#b45309",
+                  background: "linear-gradient(180deg,#fff8e6,#fef0c7)",
+                  border: "1px solid #fce4a6",
+                  padding: "3px 9px 3px 7px", borderRadius: 999,
+                  boxShadow: "0 1px 3px -1px rgba(245,158,11,0.35)",
+                }}
+              >
+                <span style={{ position: "relative", width: 7, height: 7, flexShrink: 0 }}>
+                  <span className="animate-ping" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#f59e0b", opacity: 0.6 }} />
+                  <span style={{ position: "absolute", inset: 1, borderRadius: "50%", background: "#f59e0b" }} />
+                </span>
+                In progress
+              </motion.span>
+            )}
+          </AnimatePresence>
 
-          {/* Owner inline actions (edit + take-into-work) — revealed on hover, hidden under the
-              delete panel. Delete itself lives in the slide strip below. */}
-          {isOwner && !editing && (
+          {/* Inline actions — revealed on hover, hidden under the delete panel. "Take into work" is
+              available to EVERYONE (global, like completion); editing stays owner-only. */}
+          {!editing && (isOwner || !done) && (
             <div style={{
               display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginTop: 1,
               opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
               pointerEvents: hovered && !deleteHovered ? "auto" : "none",
             }}>
-              <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
-                <Pencil size={13} strokeWidth={2} />
-              </SubtaskIconButton>
+              {isOwner && (
+                <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
+                  <Pencil size={13} strokeWidth={2} />
+                </SubtaskIconButton>
+              )}
               {!done && (
                 <SubtaskIconButton
                   label={working ? "Stop working on subtask" : "Take subtask into work"}
-                  title={working ? "Leave" : "Take into work"}
+                  title={working ? "Step out" : "Take into work"}
                   color={working ? "#b45309" : "#6366f1"} hoverBg="#f0f0f0"
                   onClick={onToggleWork} disabled={pending}
                 >
