@@ -6,6 +6,7 @@ import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, Pause, LogOut,
 import {
   fetchComments, addComment, updateComment, deleteComment,
   fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
+  joinTodo, leaveTodo,
   getApiErrorMessage,
 } from "@/lib/api"
 import type { TodoComment, Todo } from "@/types/todo"
@@ -48,9 +49,11 @@ function isSubtaskDone(s: Todo): boolean {
   const st = String(s.status).toLowerCase()
   return st === "done" || st === "completed"
 }
-function isSubtaskWorking(s: Todo): boolean {
-  const st = String(s.status).toLowerCase()
-  return st === "inprogress" || st === "in progress"
+// "In work" is per-user — derived from worker rows, not status:
+//  • workerCount = how many people are working on it (shown to everyone, anonymously);
+//  • isWorking   = whether THIS viewer is one of them (drives their own toggle).
+function subtaskWorkerCount(s: Todo): number {
+  return s.workerCount ?? 0
 }
 
 interface BranchFeedProps {
@@ -99,18 +102,21 @@ function parseSubtaskActor(content: string, verb: "added" | "completed"): string
   return name || undefined
 }
 
+// True for any subtask lifecycle system comment ("… added a subtask: …" / "… completed a subtask:
+// …"). These are NEVER rendered as standalone rail nodes — not even legacy ones whose subtask was
+// renamed or deleted — so the old "X completed a subtask: <long title>" lines never reappear.
+function isSubtaskSystemComment(c: TodoComment): boolean {
+  return !!c.isSystemComment && /(?:added|completed) a subtask:/i.test(c.content)
+}
+
 // Builds the chronological rail by interleaving branch comments with subtask card clusters. A
-// subtask's lifecycle system comments are never rendered as standalone rail nodes: the "added a
-// subtask" comment is dropped entirely (no creation notification at all), and the "completed a
-// subtask" comment is hidden and parsed into the completion reply shown inside the subtask's own
-// sub-branch. Cards anchor on their own creation time.
+// subtask's lifecycle system comments are hidden from the rail entirely: creation is never shown,
+// and completion is parsed (when it can be matched to a live subtask) into the icon-less completion
+// reply inside the subtask's own sub-branch. Cards anchor on their own creation time.
 function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
-  const creationEvents = comments.filter((c) => c.isSystemComment && /added a subtask:/i.test(c.content))
   const completionEvents = comments.filter((c) => c.isSystemComment && /completed a subtask:/i.test(c.content))
 
-  const usedCreate = new Set<string>()
   const usedComplete = new Set<string>()
-  const hidden = new Set<string>()            // subtask system comments — never rendered on the rail
   const metaById = new Map<string, SubtaskMeta>()
 
   // Match in creation order for stable greedy pairing when titles repeat.
@@ -119,17 +125,9 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
     const suffix = `: ${s.title}`
     const meta: SubtaskMeta = {}
 
-    // Hide the creation comment if one still exists (legacy / in-flight) — it is never shown.
-    const created = creationEvents.find((c) => !usedCreate.has(c.id) && c.content.trimEnd().endsWith(suffix))
-    if (created) {
-      usedCreate.add(created.id)
-      hidden.add(created.id)
-    }
-
     const completed = completionEvents.find((c) => !usedComplete.has(c.id) && c.content.trimEnd().endsWith(suffix))
     if (completed) {
       usedComplete.add(completed.id)
-      hidden.add(completed.id)
       meta.completedBy = parseSubtaskActor(completed.content, "completed")
       meta.completedAt = completed.createdAt
     }
@@ -142,7 +140,7 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
     | { time: string; order: number; kind: "subtask"; subtask: Todo }
   const evs: Ev[] = []
   for (const c of comments) {
-    if (hidden.has(c.id)) continue            // subtask system comment — folded away
+    if (isSubtaskSystemComment(c)) continue   // never a standalone rail node (matched or not)
     evs.push({ time: c.createdAt, order: 0, kind: "comment", comment: c })
   }
   // The subtask card anchors on its own creation time; order:1 keeps it after same-time comments.
@@ -248,7 +246,12 @@ export function BranchFeed({
           const existing = prevById.get(s.id)
           // Keep the optimistic copy for rows we're still writing.
           if (existing && pending.has(s.id)) { byId.set(s.id, existing); continue }
-          if (!existing || existing.status !== s.status || existing.title !== s.title) changed = true
+          // Refresh on any change a viewer must see — including another participant's worker count
+          // (so "N working" updates live) and the viewer's own membership.
+          if (!existing || existing.status !== s.status || existing.title !== s.title ||
+              (existing.workerCount ?? 0) !== (s.workerCount ?? 0) || !!existing.isWorking !== !!s.isWorking) {
+            changed = true
+          }
           byId.set(s.id, s)
         }
         // Preserve optimistic-only rows the server hasn't returned yet (just-created).
@@ -422,19 +425,25 @@ export function BranchFeed({
     }
   }
 
-  // Take a subtask into work / step back out. Like completion, this is GLOBAL: anyone with access
-  // can do it (the server allows any participant to set a subtask's status), and every viewer then
-  // sees the in-progress indicator on the subtask. No one is named.
+  // Take a subtask into work / step back out. This is **per-user**: each viewer joins or leaves
+  // independently (server-side worker rows), so one person working never flips it "in work" for
+  // another — everyone just sees an anonymous "N working" count. The viewer's own membership is
+  // `isWorking`; the count is `workerCount`.
   const toggleSubtaskWork = async (s: Todo) => {
     if (subtaskPendingRef.current.has(s.id)) return
-    const nextStatus = isSubtaskWorking(s) ? "todo" : "inprogress"
+    const amWorking = !!s.isWorking
     setSubtaskBusy(s.id, true)
+    // Optimistic: flip my own membership and nudge the shared count.
     setSubtasks((prev) => prev.map((it) => it.id === s.id
-      ? { ...it, status: nextStatus === "inprogress" ? "InProgress" : "Todo" } : it))
+      ? { ...it, isWorking: !amWorking, workerCount: Math.max(0, (it.workerCount ?? 0) + (amWorking ? -1 : 1)) }
+      : it))
     try {
-      await updateSubtask(s.id, { status: nextStatus })
+      if (amWorking) await leaveTodo(s.id)
+      else await joinTodo(s.id)
+      // Pull fresh worker counts so other participants' numbers settle quickly.
+      retryTimers.current.push(setTimeout(() => { void loadSubtasks() }, 500))
     } catch (e) {
-      setSubtasks((prev) => prev.map((it) => it.id === s.id ? s : it))
+      setSubtasks((prev) => prev.map((it) => it.id === s.id ? s : it)) // revert
       setError(getApiErrorMessage(e))
     } finally {
       setSubtaskBusy(s.id, false)
@@ -916,7 +925,8 @@ export function BranchFeed({
                       meta={item.meta}
                       isOwner={isOwner}
                       done={isSubtaskDone(s)}
-                      working={isSubtaskWorking(s)}
+                      workerCount={subtaskWorkerCount(s)}
+                      viewerWorking={!!s.isWorking}
                       pending={subtaskPending.has(s.id)}
                       onToggleComplete={() => toggleSubtaskComplete(s)}
                       onToggleWork={() => toggleSubtaskWork(s)}
@@ -1410,7 +1420,10 @@ interface SubtaskCardProps {
   meta: SubtaskMeta
   isOwner: boolean
   done: boolean
-  working: boolean
+  /** How many people are working on this subtask (per-user; shown anonymously to everyone). */
+  workerCount: number
+  /** Whether THIS viewer is one of them (drives their own take-into-work / step-out toggle). */
+  viewerWorking: boolean
   pending: boolean
   onToggleComplete: () => void
   onToggleWork: () => void
@@ -1419,7 +1432,7 @@ interface SubtaskCardProps {
 }
 
 function SubtaskCard({
-  subtask, meta, isOwner, done, working, pending,
+  subtask, meta, isOwner, done, workerCount, viewerWorking, pending,
   onToggleComplete, onToggleWork, onDelete, onSaveTitle,
 }: SubtaskCardProps) {
   const [hovered, setHovered] = useState(false)
@@ -1451,8 +1464,10 @@ function SubtaskCard({
 
   const completedName = meta.completedBy?.trim()
   const completedAt = meta.completedAt
+  // Someone (anyone) is working on it → amber accents; the viewer's own membership drives the toggle.
+  const someoneWorking = workerCount > 0
   // Sub-branch accent — the little branch the subtask hangs from, tinted to its state.
-  const branchColor = done ? "#a7f3d0" : working ? "#fcd98c" : "#e1e1e6"
+  const branchColor = done ? "#a7f3d0" : someoneWorking ? "#fcd98c" : "#e1e1e6"
 
   return (
     <motion.div
@@ -1499,7 +1514,7 @@ function SubtaskCard({
             left: SUB_TOGGLE_X - SUBTASK_TOGGLE / 2,
             top: "50%",
             width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
-            border: done ? "none" : `2px solid ${working ? "#f59e0b" : "#d4d4d4"}`,
+            border: done ? "none" : `2px solid ${someoneWorking ? "#f59e0b" : "#d4d4d4"}`,
             background: done ? "#10b981" : "#ffffff",
             boxShadow: done
               ? "0 0 0 3px #ffffff, 0 2px 6px -1px rgba(16,185,129,0.5)"
@@ -1515,7 +1530,7 @@ function SubtaskCard({
               <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
                 <Check size={15} color="white" strokeWidth={3} />
               </motion.span>
-            ) : working ? (
+            ) : someoneWorking ? (
               <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} className="animate-pulse" />
               </motion.span>
@@ -1534,8 +1549,8 @@ function SubtaskCard({
           display: "flex", alignItems: "flex-start", gap: 10,
           padding: "11px 12px", paddingRight: bodyPaddingRight,
           borderRadius: 12,
-          background: done ? "#f7fdfb" : working ? "#fffdf5" : "#fafafa",
-          border: `1px solid ${done ? "#d7f5ea" : working && !done ? "#fde68a" : "#f0f0f0"}`,
+          background: done ? "#f7fdfb" : someoneWorking ? "#fffdf5" : "#fafafa",
+          border: `1px solid ${done ? "#d7f5ea" : someoneWorking && !done ? "#fde68a" : "#f0f0f0"}`,
           transition: "background 200ms, border-color 200ms, padding 160ms",
         }}>
           {/* Title (wraps freely) or inline editor */}
@@ -1582,19 +1597,20 @@ function SubtaskCard({
             </span>
           )}
 
-          {/* In-progress indicator — a soft "someone is on it" presence badge shown to EVERY viewer
-              (it never names who). Anyone can put a subtask into work, and all viewers see this. */}
+          {/* In-work presence badge — per-user, shown to EVERY viewer as an anonymous count
+              ("N working"). It never names anyone. When the viewer is one of the workers the badge
+              reads "You + N" so they can tell their own state at a glance. */}
           <AnimatePresence initial={false}>
-            {working && !done && !editing && (
+            {someoneWorking && !done && !editing && (
               <motion.span
                 initial={{ opacity: 0, scale: 0.7 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.7 }}
                 transition={{ type: "spring", stiffness: 480, damping: 26 }}
-                title="Someone is working on this"
+                title={`${workerCount} ${workerCount === 1 ? "person is" : "people are"} working on this`}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 2,
-                  fontSize: 9.5, fontWeight: 900, letterSpacing: "0.07em", textTransform: "uppercase",
+                  fontSize: 9.5, fontWeight: 900, letterSpacing: "0.06em", textTransform: "uppercase",
                   color: "#b45309",
                   background: "linear-gradient(180deg,#fff8e6,#fef0c7)",
                   border: "1px solid #fce4a6",
@@ -1606,7 +1622,9 @@ function SubtaskCard({
                   <span className="animate-ping" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#f59e0b", opacity: 0.6 }} />
                   <span style={{ position: "absolute", inset: 1, borderRadius: "50%", background: "#f59e0b" }} />
                 </span>
-                In progress
+                {viewerWorking
+                  ? (workerCount > 1 ? `You + ${workerCount - 1} working` : "You're working")
+                  : `${workerCount} working`}
               </motion.span>
             )}
           </AnimatePresence>
@@ -1626,12 +1644,12 @@ function SubtaskCard({
               )}
               {!done && (
                 <SubtaskIconButton
-                  label={working ? "Stop working on subtask" : "Take subtask into work"}
-                  title={working ? "Step out" : "Take into work"}
-                  color={working ? "#b45309" : "#6366f1"} hoverBg="#f0f0f0"
+                  label={viewerWorking ? "Stop working on subtask" : "Take subtask into work"}
+                  title={viewerWorking ? "Step out" : "Take into work"}
+                  color={viewerWorking ? "#b45309" : "#6366f1"} hoverBg="#f0f0f0"
                   onClick={onToggleWork} disabled={pending}
                 >
-                  {working ? <Pause size={14} strokeWidth={2} /> : <Zap size={14} strokeWidth={2} />}
+                  {viewerWorking ? <Pause size={14} strokeWidth={2} /> : <Zap size={14} strokeWidth={2} />}
                 </SubtaskIconButton>
               )}
             </div>
@@ -1731,8 +1749,8 @@ function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
       <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: REPLY_ROW }}>
         <span style={{ fontSize: 12, fontWeight: 500, color: "#6f7d76", lineHeight: 1.3 }}>
           {name
-            ? <><strong style={{ color: "#0a0a0a", fontWeight: 800 }}>{name}</strong> completed this</>
-            : <strong style={{ color: "#059669", fontWeight: 800 }}>Completed</strong>}
+            ? <><strong style={{ color: "#0a0a0a", fontWeight: 800 }}>{name}</strong> completed sub task</>
+            : <strong style={{ color: "#059669", fontWeight: 800 }}>Sub task completed</strong>}
         </span>
         {at && (
           <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", color: "#bdbdbd" }}>

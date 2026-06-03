@@ -371,7 +371,10 @@ namespace Planora.Todo.Domain.Entities
 
         public void AddWorker(Guid workerUserId)
         {
-            if (workerUserId == UserId)
+            // On a normal task the owner is implicitly the primary worker, so they never hold a
+            // worker row. A SUBTASK's "in work" is per-user instead (everyone, owner included, opts
+            // in independently and is counted), so the owner may be added as a worker there.
+            if (workerUserId == UserId && !IsSubtask)
                 throw new BusinessRuleViolationException("Owner is always a worker on their own task");
 
             if (_workers.Any(w => w.UserId == workerUserId))

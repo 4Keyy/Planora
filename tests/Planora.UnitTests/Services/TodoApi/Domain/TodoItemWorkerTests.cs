@@ -32,6 +32,20 @@ public class TodoItemWorkerTests
     }
 
     [Fact]
+    public void AddWorker_OnSubtask_AllowsOwner()
+    {
+        // A subtask's in-work is per-user (everyone, owner included, opts in), so the owner-always-
+        // worker rule does NOT apply to subtasks — the owner may hold a worker row and be counted.
+        var ownerId = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Parent");
+        var subtask = TodoItem.CreateSubtask(parent, ownerId, "child", null);
+
+        subtask.AddWorker(ownerId);
+
+        Assert.Contains(subtask.Workers, w => w.UserId == ownerId);
+    }
+
+    [Fact]
     public void AddWorker_WhenAlreadyWorker_ShouldThrow()
     {
         var ownerId = Guid.NewGuid();

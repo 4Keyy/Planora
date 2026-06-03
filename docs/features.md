@@ -201,12 +201,15 @@ never announces that it was created.
 - the **card** (task-like, same **slide-from-right red delete panel**), offset onto the sub-branch.
   Its **completion toggle is the subtask's ONLY marker**, sitting on the sub-branch at the card's
   **vertical centre** (not at the top); a state-tinted fork reaches in from the main rail;
-- **anyone with access can take a subtask into work** (a Zap toggle on hover, global like
-  completion); while in progress, a soft **"In progress"** presence badge (amber pill + pulsing
-  dot) is shown **to every viewer** — it never names who is working;
+- **anyone with access can take a subtask into work** (a Zap toggle on hover). This is **per-user**:
+  each person joins/leaves independently (server-side worker rows), so one person working never
+  flips it "in work" for another. Every viewer sees an anonymous **"N working"** presence badge
+  (amber pill + pulsing dot) — it **never names anyone**; the viewer's own membership reads
+  "You're working" / "You + N working";
 - when done, a **completion reply** — *another reply on the same sub-branch, with **no rail icon***
-  — joined by a soft "└" elbow: "**{Name}** completed this · HH:MM" (a nameless "Completed" shows
-  instantly on optimistic completion, then the name fills in when the folded system comment lands).
+  — joined by a soft "└" elbow: "**{Name}** completed sub task · HH:MM" (a nameless "Sub task
+  completed" shows instantly on optimistic completion, then the name fills in when the folded
+  system comment lands).
 
 Subtask **system notifications never get their own icons on the rail** — the only marker the
 sub-branch carries is the subtask's own completion toggle.
@@ -220,10 +223,11 @@ sub-branch carries is the subtask's own completion toggle.
 | Priority | **none in the UX** — a subtask is just a checkable titled step; no priority is shown, chosen, or edited. (The entity still has a priority column, defaulted server-side; it is never surfaced.) |
 | Title length | a subtask's whole content lives in its title, so it allows **up to 1500 characters** (regular-task titles stay ≤200). Enforced by `CreateSubtaskCommandValidator` (1500), `UpdateTodoCommandValidator` (1500, shared with subtask renames), the widened `TodoItems.Title` `varchar(1500)` column, and the frontend `SUBTASK_MAX = 1500` (create textarea + inline edit textarea both wrap/grow) |
 | Editing | the title is **owner-only** (inline edit in the card; double-click the title or the pencil). Non-owners cannot edit |
-| Status | **anyone with access can complete/reopen AND take-into-work/step-out, and it applies globally** — these all live on the entity status, not per-viewer, so any participant's change is seen by everyone. **Stays in the branch after completion** (shown done with its completion reply, not removed). When a subtask is in work, **every viewer sees an "In progress" presence badge** on the card — it never names who took it |
+| Status / completion | **Completion is global** — anyone with access marks it done/reopens it for everyone (entity status). Stays in the branch after completion (shown done with its completion reply, not removed) |
+| In-work (per-user) | **"In work" is per-user, not global** — each participant (the **owner included**) joins/leaves a subtask independently via worker rows (`joinTodo`/`leaveTodo`; subtasks have unlimited capacity and the owner-always-worker rule is relaxed for subtasks). If one user picks it up it is **not** "in work" for another; everyone just sees an anonymous **"N working"** count (`workerCount`), and each viewer's own toggle reflects their `isWorking`. No "started working" notification is emitted for subtasks |
 | Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
 | Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
-| Branch messages | **Creating a subtask emits no event** — `CreateSubtaskCommandHandler` does not enqueue anything, so there is no "added a subtask" notification anywhere. **Completing** a subtask still posts `TaskActivityIntegrationEvent` (`SubtaskCompleted`, `Detail` = title) to the **parent's** branch, but it is **never rendered as a standalone rail node**: `buildFeed` matches it to its subtask by the `: <title>` suffix and renders it as the icon-less completion reply on the sub-branch. Any legacy "added a subtask" comments are likewise hidden. Taking a subtask into work emits no system comment — the in-progress indicator is derived from the subtask's live `status` (polled), so all viewers see it. A subtask has no branch of its own |
+| Branch messages | **Creating a subtask emits no event**, and **taking one into work emits no event** (JoinTodo/LeaveTodo skip the activity event for subtasks). **Completing** a subtask still posts `TaskActivityIntegrationEvent` (`SubtaskCompleted`, `Detail` = title) to the **parent's** branch, but **no subtask system comment is ever rendered as a standalone rail node** — `buildFeed` hides *every* "added a subtask: …" / "completed a subtask: …" comment (matched or not, so legacy/renamed ones never reappear) and folds the matched completion into the icon-less reply. The "N working" badge is derived from the subtask's live `workerCount` (polled), so all viewers see it. A subtask has no branch of its own |
 | Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note. A long title **wraps** (the card is flexible-height) rather than being truncated. The subtask forks off the main rail onto a **sub-branch**; its completion toggle is the **only** rail marker; the completion attribution is an **icon-less reply** on the sub-branch (no creation notification at all) |
 | Lifecycle | deleting a task soft-deletes its whole subtree. Deleting a **single subtask** also removes the announcement comments it left in the parent's branch — TodoApi emits `SubtaskDeletedIntegrationEvent(parentTaskId, subtaskId, actor, title)` (instead of `TaskDeletedIntegrationEvent`, which would wipe a whole branch); Collaboration's `SubtaskDeletedEventConsumer` soft-deletes the parent-branch system comments whose content ends with `added a subtask: {title}` / `completed a subtask: {title}`. The client also removes them optimistically (suppressing their ids so polling can't re-add them before the cascade lands) |
 
@@ -231,10 +235,10 @@ Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/frie
 `CreateSubtaskCommand`, `GetSubtasksQuery`; `TodoItem.CreateSubtask` / `SyncInheritedFromParent`;
 migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask") via the
 shared compose field, and rendered on the rail by `edit-todo-modal/branch-feed.tsx` as a sub-branch
-(`SubtaskCard` + the icon-less `SubtaskCompletionReply`; `buildFeed` hides the create comment
-entirely and folds the complete comment into `meta`) — complete **and** take-into-work are global
-(everyone), inline title edit + delete are owner-only, an all-viewers in-progress presence badge,
-and no priority control.
+(`SubtaskCard` + the icon-less `SubtaskCompletionReply`; `buildFeed` hides all subtask system
+comments and folds the matched completion into `meta`) — completion is global (everyone), **taking
+into work is per-user** (worker rows via `joinTodo`/`leaveTodo`, shown as an anonymous "N working"
+count to all), inline title edit + delete are owner-only, and there is no priority control.
 
 ### Frontend Behavior
 

@@ -4,6 +4,30 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(subtasks): per-user in-work with a worker count; hide all subtask system lines (2026-06-03)
+
+**Per-user "in work" with a count.** Taking a subtask into work is no longer a global status —
+it's now **per-user**, like the parent task's worker model:
+
+- Frontend `toggleSubtaskWork` calls `joinTodo`/`leaveTodo` (not a status write); each participant
+  joins/leaves independently. One person working never flips it "in work" for another.
+- Every viewer sees an anonymous **"N working"** presence badge (`workerCount`); the viewer's own
+  membership (`isWorking`) shows as "You're working" / "You + N working" and drives their toggle.
+- Backend: the **owner-always-worker rule is relaxed for subtasks** (`TodoItem.AddWorker`), so the
+  owner opts in like everyone and is counted; `JoinTodo`/`LeaveTodo` let the owner join/leave a
+  subtask and **skip the "started working"/"left" activity events for subtasks** (no naming, no
+  branch noise); `GetSubtasks` reports `IsWorking` from worker membership (owner included). Subtasks
+  have unlimited worker capacity (`RequiredWorkers` is null). The live-merge now refreshes on
+  `workerCount`/`isWorking` changes so other users' counts update without re-opening the modal.
+
+**No stray "completed a subtask: <title>" lines.** `buildFeed` now hides **every** subtask system
+comment (`added`/`completed a subtask:`) from the rail — matched or not — so legacy/renamed/orphaned
+ones never reappear as standalone nodes. The folded completion reply text changed to
+**"{Name} completed sub task"** (nameless fallback "Sub task completed").
+
+Tests: +1 domain test (`AddWorker_OnSubtask_AllowsOwner`); existing worker/handler suites green
+(53 in the touched sets). Frontend 393 vitest green; `tsc`/`eslint` clean; `npm run build` ok.
+
 ### feat(subtasks): anyone can take a subtask into work; all viewers see it (2026-06-03)
 
 - **Taking a subtask into work is now global**, like completion. The frontend `toggleSubtaskWork`

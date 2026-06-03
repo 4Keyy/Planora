@@ -91,7 +91,9 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
                     CategoryIcon = categoryInfo?.Icon,
                     WorkerCount = s.Workers.Count,
                     WorkerUserIds = s.Workers.Select(w => w.UserId).ToList(),
-                    IsWorking = s.UserId != userId && s.Workers.Any(w => w.UserId == userId),
+                    // Subtask in-work is per-user and counted for everyone (owner included), so the
+                    // viewer "is working" iff they hold a worker row — no owner exclusion here.
+                    IsWorking = s.Workers.Any(w => w.UserId == userId),
                     // Completion is global — reflected in Status; no per-viewer flag for subtasks.
                     IsCompletedByViewer = null,
                 };
