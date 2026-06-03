@@ -78,38 +78,79 @@ interface BranchFeedProps {
 // authored exactly like the description: pick it from the "+" menu, type into the same field, send.
 type ComposeMode = "text" | "description" | "subtask"
 
-// Flat list item (day separator, comment, or an inline subtask card)
+// Lifecycle attribution for a subtask, parsed from its (now hidden) system-comment announcements
+// and folded directly into the card cluster so the branch reads as one integrated thread.
+interface SubtaskMeta {
+  createdBy?: string
+  createdAt?: string
+  completedBy?: string
+  completedAt?: string
+}
+
+// Flat list item (day separator, comment, or an inline subtask card cluster)
 type FeedItem =
   | { type: "separator"; label: string; key: string }
   | { type: "comment";   comment: TodoComment }
-  | { type: "subtask";   subtask: Todo }
+  | { type: "subtask";   subtask: Todo; meta: SubtaskMeta }
 
-// Builds the chronological rail by interleaving branch comments with subtask cards. A subtask is
-// anchored to its "added a subtask: <title>" system event so the card always lands directly after
-// its announcement — a separate event in the branch, never pinned to the top. Subtasks whose
-// announcement hasn't materialised yet (brief outbox lag) fall back to their own creation time.
+// Pulls the actor's name out of a subtask system sentence, e.g. "Ann Lee added a subtask: Buy milk".
+function parseSubtaskActor(content: string, verb: "added" | "completed"): string | undefined {
+  const m = content.match(new RegExp(`^(.*?)\\s+${verb} a subtask:`, "i"))
+  const name = m?.[1]?.trim()
+  return name || undefined
+}
+
+// Builds the chronological rail by interleaving branch comments with subtask card clusters. Each
+// subtask's "added a subtask: <title>" / "completed a subtask: <title>" system comments are NOT
+// rendered as standalone rail nodes — they are parsed for attribution and folded into the card
+// cluster (a minimal "added" caption above the card, a "completed" reply below it). The card is
+// anchored to its creation time so it sits where it was added; its completion shows as a reply
+// within the same cluster (a threaded reply), not a far-away timeline node.
 function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
-  const creationEvents = comments.filter(
-    (c) => c.isSystemComment && /added a subtask/i.test(c.content),
-  )
-  const used = new Set<string>()
+  const creationEvents = comments.filter((c) => c.isSystemComment && /added a subtask:/i.test(c.content))
+  const completionEvents = comments.filter((c) => c.isSystemComment && /completed a subtask:/i.test(c.content))
+
+  const usedCreate = new Set<string>()
+  const usedComplete = new Set<string>()
+  const hidden = new Set<string>()            // system comments folded into a card (never rendered raw)
   const anchorById = new Map<string, string>()
+  const metaById = new Map<string, SubtaskMeta>()
+
+  // Match in creation order for stable greedy pairing when titles repeat.
   const subsByTime = [...subtasks].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
   for (const s of subsByTime) {
     const suffix = `: ${s.title}`
-    const match = creationEvents.find((c) => !used.has(c.id) && c.content.trimEnd().endsWith(suffix))
-    if (match) {
-      used.add(match.id)
-      anchorById.set(s.id, match.createdAt)
+    const meta: SubtaskMeta = {}
+
+    const created = creationEvents.find((c) => !usedCreate.has(c.id) && c.content.trimEnd().endsWith(suffix))
+    if (created) {
+      usedCreate.add(created.id)
+      hidden.add(created.id)
+      anchorById.set(s.id, created.createdAt)
+      meta.createdBy = parseSubtaskActor(created.content, "added")
+      meta.createdAt = created.createdAt
     }
+
+    const completed = completionEvents.find((c) => !usedComplete.has(c.id) && c.content.trimEnd().endsWith(suffix))
+    if (completed) {
+      usedComplete.add(completed.id)
+      hidden.add(completed.id)
+      meta.completedBy = parseSubtaskActor(completed.content, "completed")
+      meta.completedAt = completed.createdAt
+    }
+
+    metaById.set(s.id, meta)
   }
 
   type Ev =
     | { time: string; order: number; kind: "comment"; comment: TodoComment }
     | { time: string; order: number; kind: "subtask"; subtask: Todo }
   const evs: Ev[] = []
-  for (const c of comments) evs.push({ time: c.createdAt, order: 0, kind: "comment", comment: c })
-  // order:1 keeps an anchored card immediately after its same-timestamped announcement.
+  for (const c of comments) {
+    if (hidden.has(c.id)) continue            // folded into a subtask cluster
+    evs.push({ time: c.createdAt, order: 0, kind: "comment", comment: c })
+  }
+  // order:1 keeps an anchored cluster immediately after its same-timestamped (hidden) announcement.
   for (const s of subtasks) evs.push({ time: anchorById.get(s.id) ?? s.createdAt, order: 1, kind: "subtask", subtask: s })
   evs.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : a.order - b.order))
 
@@ -123,7 +164,7 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
       lastDay = day
     }
     if (e.kind === "comment") items.push({ type: "comment", comment: e.comment })
-    else items.push({ type: "subtask", subtask: e.subtask })
+    else items.push({ type: "subtask", subtask: e.subtask, meta: metaById.get(e.subtask.id) ?? {} })
   }
   return items
 }
@@ -875,6 +916,7 @@ export function BranchFeed({
                     <SubtaskCard
                       key={`sub-${s.id}`}
                       subtask={s}
+                      meta={item.meta}
                       isOwner={isOwner}
                       done={isSubtaskDone(s)}
                       working={isSubtaskWorking(s)}
@@ -1351,14 +1393,18 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
   )
 }
 
-/* ── Subtask card ── a simplified task card that lives inline in the branch as its own event.
-   The completion toggle doubles as the rail marker, sitting exactly on the timeline line. No
-   priority — a subtask is just a checkable step with a title. Mirrors a regular task card: a
-   taller body and the same slide-from-right red delete panel. */
+/* ── Subtask cluster ── one integrated thread on the rail: a minimal "added a subtask" caption,
+   the card itself (with an all-viewers "In progress" indicator), and — when done — a compact
+   completion "reply" the rail gently bends down to. The card's completion toggle is the primary
+   rail marker; the green completion node sits just below it. The subtask's create/complete system
+   comments are folded in here (parsed into `meta`) instead of appearing as separate rail nodes. */
 const SUBTASK_TOGGLE = 26
 const SUBTASK_DELETE_ZONE = 50
+// x of the rail centre within a cluster's content box (content starts RAIL_GUTTER from the wrapper).
+const RAIL_X = RAIL_CENTER - RAIL_GUTTER
 interface SubtaskCardProps {
   subtask: Todo
+  meta: SubtaskMeta
   isOwner: boolean
   done: boolean
   working: boolean
@@ -1370,7 +1416,7 @@ interface SubtaskCardProps {
 }
 
 function SubtaskCard({
-  subtask, isOwner, done, working, pending,
+  subtask, meta, isOwner, done, working, pending,
   onToggleComplete, onToggleWork, onDelete, onSaveTitle,
 }: SubtaskCardProps) {
   const [hovered, setHovered] = useState(false)
@@ -1400,6 +1446,11 @@ function SubtaskCard({
   // Owner gets the slide-out delete affordance, so reserve the strip's width on the right.
   const bodyPaddingRight = isOwner && !editing ? SUBTASK_DELETE_ZONE - 2 : 12
 
+  const createdBy = (meta.createdBy ?? subtask.authorName ?? "Someone").trim() || "Someone"
+  const createdAt = meta.createdAt ?? subtask.createdAt
+  const completedName = meta.completedBy?.trim()
+  const completedAt = meta.completedAt
+
   return (
     <motion.div
       layout
@@ -1409,104 +1460,113 @@ function SubtaskCard({
       transition={SPRING_SNAP}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setDeleteHovered(false) }}
-      style={{ position: "relative", padding: "5px 0" }}
+      style={{ position: "relative", padding: "6px 0" }}
     >
-      {/* Completion toggle — IS the rail marker, centred on the timeline line */}
-      <button
-        onClick={onToggleComplete}
-        disabled={pending}
-        aria-label={done ? "Mark subtask not done" : "Complete subtask"}
-        style={{
-          position: "absolute",
-          left: RAIL_CENTER - RAIL_GUTTER - SUBTASK_TOGGLE / 2,
-          top: 16,
-          width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
-          border: done ? "none" : `2px solid ${working ? "#f59e0b" : "#d4d4d4"}`,
-          background: done ? "#10b981" : "#ffffff",
-          boxShadow: done
-            ? "0 0 0 3px #ffffff, 0 2px 6px -1px rgba(16,185,129,0.5)"
-            : "0 0 0 3px #ffffff",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: pending ? "default" : "pointer", padding: 0, zIndex: 3,
-          transition: "background 160ms, border-color 160ms, transform 120ms, box-shadow 160ms",
-          transform: hovered && !done ? "scale(1.12)" : "scale(1)",
-        }}
-      >
-        <AnimatePresence mode="wait" initial={false}>
-          {done ? (
-            <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
-              <Check size={15} color="white" strokeWidth={3} />
-            </motion.span>
-          ) : working ? (
-            <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} className="animate-pulse" />
-            </motion.span>
-          ) : hovered ? (
-            <motion.span key="hover" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-              <Check size={14} color="#10b981" strokeWidth={3} />
-            </motion.span>
-          ) : null}
-        </AnimatePresence>
-      </button>
+      {/* ── Creation caption ── minimalist "{name} added a subtask · time", folded in above the
+          card (no rail marker of its own — the rail simply runs down to the card's toggle). */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 7, paddingLeft: 2, marginBottom: 6 }}>
+        <span style={{ fontSize: 11, fontWeight: 500, color: "#9a9a9a", lineHeight: 1.3 }}>
+          <strong style={{ color: "#525252", fontWeight: 800 }}>{createdBy}</strong> added a subtask
+        </span>
+        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", color: "#c4c4c4" }}>
+          {formatTimeHHMM(createdAt)}
+        </span>
+      </div>
 
-      {/* Card body — taller, more task-like; position:relative anchors the delete strip.
-          alignItems:flex-start lets the card grow downward when a long title wraps. */}
-      <div style={{
-        position: "relative", overflow: "hidden",
-        display: "flex", alignItems: "flex-start", gap: 10,
-        padding: "11px 12px", paddingRight: bodyPaddingRight,
-        borderRadius: 12,
-        background: done ? "#f7fdfb" : working ? "#fffdf5" : "#fafafa",
-        border: `1px solid ${done ? "#d7f5ea" : working && !done ? "#fde68a" : "#f0f0f0"}`,
-        transition: "background 200ms, border-color 200ms, padding 160ms",
-      }}>
-        {/* Subtask glyph — quietly identifies the row as a branch step */}
+      {/* ── Card row ── position:relative anchors the completion toggle on the rail. */}
+      <div style={{ position: "relative" }}>
+        {/* Completion toggle — the primary rail marker, centred on the timeline line */}
+        <button
+          onClick={onToggleComplete}
+          disabled={pending}
+          aria-label={done ? "Mark subtask not done" : "Complete subtask"}
+          style={{
+            position: "absolute",
+            left: RAIL_X - SUBTASK_TOGGLE / 2,
+            top: 12,
+            width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
+            border: done ? "none" : `2px solid ${working ? "#f59e0b" : "#d4d4d4"}`,
+            background: done ? "#10b981" : "#ffffff",
+            boxShadow: done
+              ? "0 0 0 3px #ffffff, 0 2px 6px -1px rgba(16,185,129,0.5)"
+              : "0 0 0 3px #ffffff",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: pending ? "default" : "pointer", padding: 0, zIndex: 3,
+            transition: "background 160ms, border-color 160ms, transform 120ms, box-shadow 160ms",
+            transform: hovered && !done ? "scale(1.12)" : "scale(1)",
+          }}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {done ? (
+              <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
+                <Check size={15} color="white" strokeWidth={3} />
+              </motion.span>
+            ) : working ? (
+              <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} className="animate-pulse" />
+              </motion.span>
+            ) : hovered ? (
+              <motion.span key="hover" initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                <Check size={14} color="#10b981" strokeWidth={3} />
+              </motion.span>
+            ) : null}
+          </AnimatePresence>
+        </button>
+
+        {/* Card body — taller, task-like; overflow:hidden clips the delete strip + rounded corners.
+            alignItems:flex-start lets the card grow downward when a long title wraps. */}
         <div style={{
-          width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-          background: done ? "#e7f8f1" : working ? "#fef3c7" : "#eef2ff",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "background 200ms",
+          position: "relative", overflow: "hidden",
+          display: "flex", alignItems: "flex-start", gap: 10,
+          padding: "11px 12px", paddingRight: bodyPaddingRight,
+          borderRadius: 12,
+          background: done ? "#f7fdfb" : working ? "#fffdf5" : "#fafafa",
+          border: `1px solid ${done ? "#d7f5ea" : working && !done ? "#fde68a" : "#f0f0f0"}`,
+          transition: "background 200ms, border-color 200ms, padding 160ms",
         }}>
-          <ListTree size={14} color={done ? "#10b981" : working ? "#b45309" : "#6366f1"} strokeWidth={2} />
-        </div>
+          {/* Subtask glyph — quietly identifies the row as a branch step */}
+          <div style={{
+            width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+            background: done ? "#e7f8f1" : working ? "#fef3c7" : "#eef2ff",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "background 200ms",
+          }}>
+            <ListTree size={14} color={done ? "#10b981" : working ? "#b45309" : "#6366f1"} strokeWidth={2} />
+          </div>
 
-        {/* Title + meta */}
-        {editing ? (
-          <textarea
-            ref={editInputRef}
-            value={editTitle}
-            onChange={(e) => {
-              setEditTitle(e.target.value)
-              e.target.style.height = "auto"
-              e.target.style.height = e.target.scrollHeight + "px"
-            }}
-            onKeyDown={(e) => {
-              // Plain Enter commits (a title is single-string); Shift+Enter is ignored too — the
-              // field only wraps long text visually. Escape cancels.
-              if (e.key === "Enter") { e.preventDefault(); commitEdit() }
-              if (e.key === "Escape") setEditing(false)
-            }}
-            onBlur={commitEdit}
-            maxLength={SUBTASK_MAX}
-            rows={1}
-            style={{
-              flex: 1, minWidth: 0, background: "white",
-              border: "1.5px solid #c7d2fe", borderRadius: 8, outline: "none",
-              padding: "7px 10px", fontSize: 13.5, fontWeight: 400, lineHeight: 1.4,
-              color: "#262626", fontFamily: "inherit", resize: "none",
-              maxHeight: 160, overflowY: "auto",
-            }}
-          />
-        ) : (
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Title (wraps freely) or inline editor */}
+          {editing ? (
+            <textarea
+              ref={editInputRef}
+              value={editTitle}
+              onChange={(e) => {
+                setEditTitle(e.target.value)
+                e.target.style.height = "auto"
+                e.target.style.height = e.target.scrollHeight + "px"
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commitEdit() }
+                if (e.key === "Escape") setEditing(false)
+              }}
+              onBlur={commitEdit}
+              maxLength={SUBTASK_MAX}
+              rows={1}
+              style={{
+                flex: 1, minWidth: 0, background: "white",
+                border: "1.5px solid #c7d2fe", borderRadius: 8, outline: "none",
+                padding: "7px 10px", fontSize: 13.5, fontWeight: 400, lineHeight: 1.4,
+                color: "#262626", fontFamily: "inherit", resize: "none",
+                maxHeight: 160, overflowY: "auto",
+              }}
+            />
+          ) : (
             <span
               onDoubleClick={beginEdit}
               title={isOwner ? "Double-click to edit" : undefined}
               style={{
-                // A subtask carries only a title — render it in a regular, non-bold weight so it
-                // reads as a plain branch step, lighter than the Author's Note. The title wraps
-                // freely so a long step grows the card's height instead of being truncated.
-                fontSize: 13.5, fontWeight: 400, lineHeight: 1.4,
+                flex: 1, minWidth: 0,
+                // Non-bold so it reads as a plain branch step; wraps so a long step grows the card.
+                fontSize: 13.5, fontWeight: 400, lineHeight: 1.45, paddingTop: 4,
                 color: done ? "#a3a3a3" : "#262626",
                 textDecoration: done ? "line-through" : "none",
                 overflowWrap: "anywhere", wordBreak: "break-word",
@@ -1516,101 +1576,159 @@ function SubtaskCard({
             >
               {subtask.title}
             </span>
+          )}
+
+          {/* In-progress indicator — visible to EVERYONE (not just the owner), names no one. */}
+          {working && !done && !editing && (
             <span style={{
-              display: "flex", alignItems: "center", gap: 6,
-              fontSize: 9.5, fontWeight: 800, letterSpacing: "0.08em",
-              textTransform: "uppercase", color: "#b8b8b8",
+              display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 3,
+              fontSize: 9.5, fontWeight: 900, letterSpacing: "0.07em", textTransform: "uppercase",
+              color: "#b45309", background: "#fef3c7", padding: "3px 8px 3px 7px", borderRadius: 7,
             }}>
-              <span>Subtask</span>
-              <span style={{ width: 2.5, height: 2.5, borderRadius: "50%", background: "#d4d4d4" }} />
-              <span style={{ letterSpacing: "0.04em" }}>{formatTimeHHMM(subtask.createdAt)}</span>
+              <span style={{ position: "relative", width: 6, height: 6, flexShrink: 0 }}>
+                <span className="animate-ping" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#f59e0b", opacity: 0.65 }} />
+                <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#f59e0b" }} />
+              </span>
+              In progress
             </span>
-          </div>
-        )}
+          )}
 
-        {/* Working badge */}
-        {working && !done && !editing && (
-          <span style={{
-            fontSize: 9, fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase",
-            color: "#b45309", background: "#fef3c7", padding: "2px 6px", borderRadius: 5, flexShrink: 0,
-          }}>
-            Working
-          </span>
-        )}
-
-        {/* Owner inline actions (edit + take-into-work) — revealed on hover, hidden while the
-            delete panel is sliding over. Delete itself lives in the slide strip below. */}
-        {isOwner && !editing && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 2, flexShrink: 0,
-            opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
-            pointerEvents: hovered && !deleteHovered ? "auto" : "none",
-          }}>
-            <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
-              <Pencil size={13} strokeWidth={2} />
-            </SubtaskIconButton>
-            {!done && (
-              <SubtaskIconButton
-                label={working ? "Stop working on subtask" : "Take subtask into work"}
-                title={working ? "Leave" : "Take into work"}
-                color={working ? "#b45309" : "#6366f1"} hoverBg="#f0f0f0"
-                onClick={onToggleWork} disabled={pending}
-              >
-                {working ? <Pause size={14} strokeWidth={2} /> : <Zap size={14} strokeWidth={2} />}
+          {/* Owner inline actions (edit + take-into-work) — revealed on hover, hidden under the
+              delete panel. Delete itself lives in the slide strip below. */}
+          {isOwner && !editing && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginTop: 1,
+              opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
+              pointerEvents: hovered && !deleteHovered ? "auto" : "none",
+            }}>
+              <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
+                <Pencil size={13} strokeWidth={2} />
               </SubtaskIconButton>
-            )}
-          </div>
-        )}
-
-        {/* Delete strip — slides in from the right, identical in feel to a task card's delete panel */}
-        {isOwner && !editing && (
-          <div
-            onMouseEnter={() => setDeleteHovered(true)}
-            onMouseLeave={() => setDeleteHovered(false)}
-            style={{
-              position: "absolute", top: 0, right: 0, bottom: 0,
-              width: SUBTASK_DELETE_ZONE, zIndex: 2,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              overflow: "hidden", cursor: pending ? "default" : "pointer",
-            }}
-          >
-            <AnimatePresence>
-              {deleteHovered && (
-                <motion.button
-                  key="sub-delete-panel"
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); if (!pending) onDelete() }}
-                  disabled={pending}
-                  aria-label="Delete subtask"
-                  variants={{
-                    hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } },
-                    visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
-                  }}
-                  initial="hidden"
-                  animate="visible"
-                  exit="hidden"
-                  whileHover={{ filter: "brightness(1.1)" }}
-                  style={{
-                    position: "absolute", inset: 0, border: "none", padding: 0,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "white", cursor: pending ? "default" : "pointer",
-                    background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 38%, #dc2626 100%)",
-                    boxShadow: "-6px 0 18px rgba(239,68,68,0.18)",
-                  }}
+              {!done && (
+                <SubtaskIconButton
+                  label={working ? "Stop working on subtask" : "Take subtask into work"}
+                  title={working ? "Leave" : "Take into work"}
+                  color={working ? "#b45309" : "#6366f1"} hoverBg="#f0f0f0"
+                  onClick={onToggleWork} disabled={pending}
                 >
-                  <motion.div
-                    variants={{
-                      hidden: { scale: 0.5, opacity: 0, y: 6 },
-                      visible: { scale: 1, opacity: 1, y: 0, transition: { delay: 0.06, type: "spring", stiffness: 420, damping: 22 } },
-                    }}
-                    style={{ display: "flex" }}
-                  >
-                    {pending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} strokeWidth={2.2} />}
-                  </motion.div>
-                </motion.button>
+                  {working ? <Pause size={14} strokeWidth={2} /> : <Zap size={14} strokeWidth={2} />}
+                </SubtaskIconButton>
               )}
-            </AnimatePresence>
-          </div>
+            </div>
+          )}
+
+          {/* Delete strip — slides in from the right, identical in feel to a task card's delete panel */}
+          {isOwner && !editing && (
+            <div
+              onMouseEnter={() => setDeleteHovered(true)}
+              onMouseLeave={() => setDeleteHovered(false)}
+              style={{
+                position: "absolute", top: 0, right: 0, bottom: 0,
+                width: SUBTASK_DELETE_ZONE, zIndex: 2,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                overflow: "hidden", cursor: pending ? "default" : "pointer",
+              }}
+            >
+              <AnimatePresence>
+                {deleteHovered && (
+                  <motion.button
+                    key="sub-delete-panel"
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); if (!pending) onDelete() }}
+                    disabled={pending}
+                    aria-label="Delete subtask"
+                    variants={{
+                      hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } },
+                      visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
+                    }}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    whileHover={{ filter: "brightness(1.1)" }}
+                    style={{
+                      position: "absolute", inset: 0, border: "none", padding: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "white", cursor: pending ? "default" : "pointer",
+                      background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 38%, #dc2626 100%)",
+                      boxShadow: "-6px 0 18px rgba(239,68,68,0.18)",
+                    }}
+                  >
+                    <motion.div
+                      variants={{
+                        hidden: { scale: 0.5, opacity: 0, y: 6 },
+                        visible: { scale: 1, opacity: 1, y: 0, transition: { delay: 0.06, type: "spring", stiffness: 420, damping: 22 } },
+                      }}
+                      style={{ display: "flex" }}
+                    >
+                      {pending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} strokeWidth={2.2} />}
+                    </motion.div>
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+
+        {/* ── Completion reply ── the branch gently bends down to a green check + a one-line note.
+            Shown whenever the subtask is done; the completer's name fills in once its (folded)
+            system comment lands, otherwise a nameless "Completed" is shown immediately. */}
+        <AnimatePresence initial={false}>
+          {done && (
+            <SubtaskCompletionReply
+              key="completion"
+              name={completedName}
+              at={completedAt}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  )
+}
+
+/* ── Completion reply ── a compact threaded reply under a subtask card. A soft curved connector
+   leads from the rail into a green completion node, then a short "{name} completed this · time". */
+function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      transition={SPRING_SNAP}
+      style={{ position: "relative", marginTop: 2, minHeight: 30 }}
+    >
+      {/* Curved connector — rail bends gently toward the completion node */}
+      <svg
+        width={26} height={34} viewBox="0 0 26 34" fill="none"
+        style={{ position: "absolute", left: RAIL_X - 1, top: -10, overflow: "visible", pointerEvents: "none" }}
+        aria-hidden
+      >
+        <path d="M1 0 V16 Q1 25 11 25" stroke="#bbf7d0" strokeWidth={2} strokeLinecap="round" />
+      </svg>
+
+      {/* Green completion node, sitting just off the rail at the curve's end */}
+      <span style={{
+        position: "absolute", left: RAIL_X + 1, top: 6,
+        width: 19, height: 19, borderRadius: "50%",
+        background: "#10b981", boxShadow: "0 0 0 3px #ffffff, 0 1px 5px -1px rgba(16,185,129,0.55)",
+        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2,
+      }}>
+        <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 520, damping: 18, delay: 0.05 }} style={{ display: "flex" }}>
+          <Check size={11} color="white" strokeWidth={3} />
+        </motion.span>
+      </span>
+
+      {/* Note */}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 7, paddingLeft: 8, paddingTop: 8 }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: "#737373", lineHeight: 1.3 }}>
+          {name
+            ? <><strong style={{ color: "#0a0a0a", fontWeight: 800 }}>{name}</strong> completed this</>
+            : <strong style={{ color: "#059669", fontWeight: 800 }}>Completed</strong>}
+        </span>
+        {at && (
+          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", color: "#bdbdbd" }}>
+            {formatTimeHHMM(at)}
+          </span>
         )}
       </div>
     </motion.div>

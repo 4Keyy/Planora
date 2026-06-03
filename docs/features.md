@@ -193,11 +193,18 @@ they never appear on the tasks page, the completed page, the dashboard grid, or 
 A subtask is **a regular event in the branch timeline**, not a separate panel. It is authored
 exactly like the task description — through the compose box's **"+" menu → "Subtask"**, which
 switches the same input field into subtask mode (plain Enter adds the step; creating a subtask
-**closes the composer**, returning to plain-message mode). Each subtask renders as a simplified
-task card inline on the activity rail, anchored **directly after its "added a subtask" system
-event** (never pinned to the top). The card mirrors a regular task card — a taller body with a
-`Subtask · HH:MM` meta line and the same **slide-from-right red delete panel**. The completion
-toggle doubles as the rail marker, sitting exactly on the timeline line.
+**closes the composer**, returning to plain-message mode). Each subtask renders as **one integrated
+cluster** on the activity rail — its lifecycle system comments are *folded into the card* rather
+than shown as separate rail nodes:
+
+- a minimalist **creation caption** above the card — "**{Name}** added a subtask · HH:MM";
+- the **card** itself (taller, task-like, same **slide-from-right red delete panel**), whose
+  completion toggle is the primary rail marker;
+- while in progress, an **"In progress"** indicator (amber pill + pulsing dot) **visible to every
+  viewer** — it never names who is working;
+- when done, a compact **completion "reply"** the rail gently bends down to: a green check node +
+  "**{Name}** completed this · HH:MM" (a nameless "Completed" shows instantly on optimistic
+  completion, then the name fills in when the folded system comment lands).
 
 | Aspect | Rule |
 |---|---|
@@ -208,19 +215,21 @@ toggle doubles as the rail marker, sitting exactly on the timeline line.
 | Priority | **none in the UX** — a subtask is just a checkable titled step; no priority is shown, chosen, or edited. (The entity still has a priority column, defaulted server-side; it is never surfaced.) |
 | Title length | a subtask's whole content lives in its title, so it allows **up to 1500 characters** (regular-task titles stay ≤200). Enforced by `CreateSubtaskCommandValidator` (1500), `UpdateTodoCommandValidator` (1500, shared with subtask renames), the widened `TodoItems.Title` `varchar(1500)` column, and the frontend `SUBTASK_MAX = 1500` (create textarea + inline edit textarea both wrap/grow) |
 | Editing | the title is **owner-only** (inline edit in the card; double-click the title or the pencil). Non-owners cannot edit |
-| Status | **anyone with access can complete or reopen it, and it applies globally** — if one participant marks it done it is done for everyone (entity status, not per-viewer). **Stays in the branch after completion** (shown done, not removed). Owner can also take it into work |
+| Status | **anyone with access can complete or reopen it, and it applies globally** — if one participant marks it done it is done for everyone (entity status, not per-viewer). **Stays in the branch after completion** (shown done with its completion reply, not removed). The owner can take it into work; the resulting **in-progress state is shown to every viewer** in-card (no name) |
 | Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
 | Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
-| Branch messages | creating or completing a subtask posts a system message to the **parent's** branch timeline ("X added a subtask: …" / "X completed a subtask: …") via `TaskActivityIntegrationEvent` (`SubtaskCreated`/`SubtaskCompleted`, `Detail` = title) consumed by Collaboration. The inline subtask card is anchored beneath the `SubtaskCreated` event by matching its `: <title>` suffix. A subtask has no branch of its own |
-| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note. A long title **wraps** (the card is flexible-height, growing downward to fit the branch width) rather than being truncated |
+| Branch messages | creating or completing a subtask posts a system message to the **parent's** branch timeline ("X added a subtask: …" / "X completed a subtask: …") via `TaskActivityIntegrationEvent` (`SubtaskCreated`/`SubtaskCompleted`, `Detail` = title) consumed by Collaboration. These comments are **not rendered as standalone rail nodes** — `buildFeed` matches them to their subtask by the `: <title>` suffix, parses the actor name, and **folds them into the card cluster** (creation caption + completion reply). Taking a subtask into work emits no system comment — the in-progress indicator is derived from the subtask's live `status` (polled), so all viewers see it. A subtask has no branch of its own |
+| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note. A long title **wraps** (the card is flexible-height, growing downward to fit the branch width) rather than being truncated. Create/complete attribution is shown as a folded caption/reply, not separate rail events |
 | Lifecycle | deleting a task soft-deletes its whole subtree. Deleting a **single subtask** also removes the announcement comments it left in the parent's branch — TodoApi emits `SubtaskDeletedIntegrationEvent(parentTaskId, subtaskId, actor, title)` (instead of `TaskDeletedIntegrationEvent`, which would wipe a whole branch); Collaboration's `SubtaskDeletedEventConsumer` soft-deletes the parent-branch system comments whose content ends with `added a subtask: {title}` / `completed a subtask: {title}`. The client also removes them optimistically (suppressing their ids so polling can't re-add them before the cascade lands) |
 
 Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/friend lists),
 `CreateSubtaskCommand`, `GetSubtasksQuery`; `TodoItem.CreateSubtask` / `SyncInheritedFromParent`;
 migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask") via the
-shared compose field, and rendered inline on the rail by `edit-todo-modal/branch-feed.tsx`
-(`SubtaskCard`) — per-row complete (everyone) / inline title edit + take-into-work + delete (owner),
-with no priority control.
+shared compose field, and rendered inline on the rail by `edit-todo-modal/branch-feed.tsx` as an
+integrated cluster (`SubtaskCard` + `SubtaskCompletionReply`; `buildFeed` folds the create/complete
+system comments into `meta` and hides them as standalone nodes) — per-row complete (everyone) /
+inline title edit + take-into-work + delete (owner), an all-viewers in-progress indicator, and no
+priority control.
 
 ### Frontend Behavior
 

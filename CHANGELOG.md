@@ -4,6 +4,29 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(subtasks): fold lifecycle events into an integrated card cluster (2026-06-03)
+
+Reworked how subtask system notifications appear in a task's branch so they feel native to the
+thread instead of scattered rail nodes. All frontend (`edit-todo-modal/branch-feed.tsx`); the
+backend events/templates are unchanged.
+
+- **Folded the create/complete system comments into the subtask card.** `buildFeed` matches each
+  `"… added a subtask: <title>"` / `"… completed a subtask: <title>"` comment to its subtask by the
+  `: <title>` suffix, parses the actor name into a `SubtaskMeta`, and **hides them as standalone
+  rail nodes**. The subtask now renders as one cluster:
+  - a **minimalist creation caption** — "**{Name}** added a subtask · HH:MM";
+  - the card (toggle = rail marker);
+  - a **completion "reply"** the rail gently bends down to (curved connector → green check node →
+    "**{Name}** completed this · HH:MM"). On optimistic completion a nameless "Completed" shows
+    instantly, then the name fills in when the folded comment lands.
+- **In-progress visible to everyone.** Taking a subtask into work shows an amber "In progress" pill
+  with a pulsing dot to *all* viewers (derived from the live `status`, no name), replacing the old
+  owner-centric "Working" badge.
+- **Deletion still clears everything** — the folded comments are removed optimistically (suppressed
+  ids) and server-side via the existing `SubtaskDeletedIntegrationEvent` cascade.
+- New `SubtaskCompletionReply` component + curved SVG connector; spring enter/exit animations
+  throughout. `tsc`/`eslint` clean; 393 vitest green; `npm run build` ok.
+
 ### fix(subtasks): schema-qualify the Title column widening (500 on long subtask) (2026-06-03)
 
 The startup column-widening shipped in the 1500-char change targeted an unqualified `"TodoItems"`,
