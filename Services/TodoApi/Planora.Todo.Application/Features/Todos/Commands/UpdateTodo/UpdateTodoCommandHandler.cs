@@ -86,6 +86,54 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                     throw new ForbiddenException("You can only mark friend-visible tasks as complete, not edit them");
                 }
 
+                // Subtasks complete GLOBALLY: anyone with access marks the subtask done (or reopens
+                // it) for everyone — its status lives on the entity, not per-viewer. (Editing a
+                // subtask's title/priority remains owner-only, enforced by the guard above.)
+                if (todoItem.IsSubtask)
+                {
+                    if (!string.IsNullOrEmpty(request.Status))
+                    {
+                        var subtaskStatus = TodoStatusExtensions.FromString(request.Status);
+                        if (subtaskStatus.HasValue)
+                        {
+                            var subtaskJustCompleted = false;
+                            if (subtaskStatus == TodoStatus.Done && !todoItem.IsCompleted)
+                            {
+                                todoItem.MarkAsDone(userId);
+                                subtaskJustCompleted = true;
+                            }
+                            else if (subtaskStatus == TodoStatus.InProgress && todoItem.Status != TodoStatus.InProgress)
+                                todoItem.MarkAsInProgress(userId);
+                            else if (subtaskStatus == TodoStatus.Todo && todoItem.Status != TodoStatus.Todo)
+                                todoItem.MarkAsTodo(userId);
+
+                            _repository.Update(todoItem);
+
+                            // Announce completion in the PARENT task's branch ("X completed a subtask: …").
+                            if (subtaskJustCompleted && todoItem.ParentTodoId.HasValue)
+                            {
+                                var completerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+                                await _outboxRepository.EnqueueIntegrationEventAsync(
+                                    new TaskActivityIntegrationEvent(
+                                        todoItem.ParentTodoId.Value, userId, completerName,
+                                        TaskActivityType.SubtaskCompleted, todoItem.Title),
+                                    cancellationToken);
+                            }
+
+                            await _unitOfWork.SaveChangesAsync(cancellationToken);
+                        }
+                    }
+
+                    return Result<TodoItemDto>.Success(_mapper.Map<TodoItemDto>(todoItem) with
+                    {
+                        WorkerCount = todoItem.Workers.Count,
+                        WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
+                        RequiredWorkers = todoItem.RequiredWorkers,
+                        IsWorking = todoItem.Workers.Any(w => w.UserId == userId),
+                        CategoryId = null, CategoryName = null, CategoryColor = null, CategoryIcon = null,
+                    });
+                }
+
                 // Record completion per-viewer instead of changing the shared task for everyone
                 if (!string.IsNullOrEmpty(request.Status))
                 {
@@ -140,6 +188,17 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                     IsWorking = todoItem.Workers.Any(w => w.UserId == userId),
                     CategoryId = null, CategoryName = null, CategoryColor = null, CategoryIcon = null,
                 });
+            }
+
+            // A subtask inherits category, visibility, sharing and dates from its parent — they
+            // are never editable on the child directly. The owner may still change a subtask's
+            // title, description, priority and status. (Defense in depth: the UI never sends these.)
+            if (todoItem.IsSubtask &&
+                (request.CategoryId.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null ||
+                 request.DueDate != null || request.ExpectedDate != null ||
+                 request.RequiredWorkers.HasValue || request.ClearRequiredWorkers))
+            {
+                throw new ForbiddenException("A subtask inherits category, visibility and dates from its parent");
             }
 
             if (!string.IsNullOrEmpty(request.Title))
@@ -237,20 +296,44 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
 
             _repository.Update(todoItem);
 
+            // Keep subtasks in sync: when the parent's category, public flag or shared audience
+            // changes, re-anchor every child so "a subtask is always as visible as its parent"
+            // stays true. Done in the same unit of work as the parent update.
+            if (!todoItem.IsSubtask &&
+                (request.CategoryId.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null))
+            {
+                var children = await _repository.GetSubtasksTrackedAsync(todoItem.Id, cancellationToken);
+                foreach (var child in children)
+                {
+                    child.SyncInheritedFromParent(todoItem, userId);
+                    _repository.Update(child);
+                }
+            }
+
             var ownerName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-            if (ownerJustCompleted)
+            // Subtasks have no branch of their own, so they emit no timeline activity events.
+            if (ownerJustCompleted && !todoItem.IsSubtask)
             {
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.Completed),
                     cancellationToken);
             }
-            else if (ownerStartedWorking)
+            else if (ownerStartedWorking && !todoItem.IsSubtask)
             {
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.StartedWorking),
                     cancellationToken);
             }
-            else if (ownerStoppedWorking)
+            else if (ownerJustCompleted && todoItem.IsSubtask && todoItem.ParentTodoId.HasValue)
+            {
+                // A subtask has no branch of its own — its completion is announced in the PARENT's branch.
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new TaskActivityIntegrationEvent(
+                        todoItem.ParentTodoId.Value, userId, ownerName,
+                        TaskActivityType.SubtaskCompleted, todoItem.Title),
+                    cancellationToken);
+            }
+            else if (ownerStoppedWorking && !todoItem.IsSubtask)
             {
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.Left),

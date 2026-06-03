@@ -49,7 +49,12 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
             var todoItem = await _repository.GetByIdWithIncludesTrackedAsync(request.TodoId, cancellationToken)
                 ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
-            if (todoItem.UserId == userId)
+            // Subtask "in work" is per-user: anyone with access (the owner included) opts in as a
+            // worker and is counted, with NO branch notification. A normal task keeps the classic
+            // model (the owner is implicitly working; only collaborators hold worker rows).
+            var isSubtask = todoItem.IsSubtask;
+
+            if (todoItem.UserId == userId && !isSubtask)
             {
                 var ownerDto = _mapper.Map<TodoItemDto>(todoItem) with
                 {
@@ -61,16 +66,20 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
                 return Result<TodoItemDto>.Success(ownerDto);
             }
 
-            var canAccess = todoItem.IsPublic || todoItem.SharedWith.Any(s => s.SharedWithUserId == userId);
-            if (!canAccess)
-                throw new ForbiddenException("You do not have access to this task");
-
-            // For shared (non-public) tasks, require friendship; public tasks are open to anyone
-            if (!todoItem.IsPublic)
+            // The owner always has access to their own subtask; everyone else needs share/public + friendship.
+            if (todoItem.UserId != userId)
             {
-                var areFriends = await _friendshipService.AreFriendsAsync(userId, todoItem.UserId, cancellationToken);
-                if (!areFriends)
-                    throw new ForbiddenException("You must be friends with the task owner to join");
+                var canAccess = todoItem.IsPublic || todoItem.SharedWith.Any(s => s.SharedWithUserId == userId);
+                if (!canAccess)
+                    throw new ForbiddenException("You do not have access to this task");
+
+                // For shared (non-public) tasks, require friendship; public tasks are open to anyone
+                if (!todoItem.IsPublic)
+                {
+                    var areFriends = await _friendshipService.AreFriendsAsync(userId, todoItem.UserId, cancellationToken);
+                    if (!areFriends)
+                        throw new ForbiddenException("You must be friends with the task owner to join");
+                }
             }
 
             // Idempotent: already a worker → return current state as success
@@ -88,10 +97,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
 
             todoItem.AddWorker(userId);
 
-            var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-            await _outboxRepository.EnqueueIntegrationEventAsync(
-                new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.StartedWorking),
-                cancellationToken);
+            // Subtasks have no branch of their own and never post a "started working" notification —
+            // their in-work state is shown only as an anonymous worker count. Normal tasks announce it.
+            if (!isSubtask)
+            {
+                var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.StartedWorking),
+                    cancellationToken);
+            }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

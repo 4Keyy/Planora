@@ -32,6 +32,7 @@ namespace Planora.Collaboration.Application
             services.AddScoped<TaskCreatedEventConsumer>();
             services.AddScoped<TaskActivityEventConsumer>();
             services.AddScoped<TaskDeletedEventConsumer>();
+            services.AddScoped<SubtaskDeletedEventConsumer>();
             services.AddScoped<UserDeletedEventConsumer>();
 
             return services;

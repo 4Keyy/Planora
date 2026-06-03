@@ -159,6 +159,35 @@ namespace Planora.Todo.Api
                         }
                     }
 
+                    // Subtasks allow up to 1500-character titles (a subtask's whole content is its
+                    // title). The shared TodoItems.Title column historically was varchar(200); widen
+                    // it on existing migration-built databases so long subtask titles persist. This
+                    // is idempotent and metadata-only in PostgreSQL (a varchar length *increase*
+                    // never rewrites the table), and guarded so it only runs while still too narrow.
+                    // Fresh installs already get 1500 from the EF model (TodoItemConfiguration).
+                    try
+                    {
+                        // The TodoItems table lives in the "todo" schema — qualify it explicitly
+                        // (an unqualified name resolves against the search_path/public and fails).
+                        await db.Database.ExecuteSqlRawAsync(@"
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'todo' AND table_name = 'TodoItems' AND column_name = 'Title'
+          AND character_maximum_length IS NOT NULL
+          AND character_maximum_length < 1500
+    ) THEN
+        ALTER TABLE todo.""TodoItems"" ALTER COLUMN ""Title"" TYPE varchar(1500);
+    END IF;
+END $$;", app.Lifetime.ApplicationStopping);
+                        logger.LogInformation("✅ Ensured TodoItems.Title accommodates 1500-character subtask titles");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Could not reconcile TodoItems.Title column width (non-fatal)");
+                    }
+
                     // Subscribe to Integration Events
                     logger.LogInformation("🔄 Subscribing to integration events...");
                     var eventBus = provider.GetRequiredService<IEventBus>();

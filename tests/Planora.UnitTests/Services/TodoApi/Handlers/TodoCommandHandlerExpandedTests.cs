@@ -8,6 +8,8 @@ using Planora.Todo.Application.Features.Todos.Commands.DeleteTodo;
 using Planora.Todo.Application.Features.Todos.Commands.SetTodoHidden;
 using Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference;
 using Planora.Todo.Application.Features.Todos.Commands.UpdateTodo;
+using Planora.Todo.Application.Features.Todos.Commands.CreateSubtask;
+using Planora.Todo.Application.Features.Todos.Queries.GetSubtasks;
 using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;
 using Planora.Todo.Domain.Entities;
@@ -133,7 +135,7 @@ public class TodoCommandHandlerExpandedTests
         var userId = Guid.NewGuid();
         var todo = TodoItem.Create(userId, "Owned task");
         var fixture = new TodoCommandFixture(userId);
-        fixture.GenericRepository
+        fixture.TodoRepository
             .Setup(x => x.GetByIdAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
 
@@ -144,8 +146,38 @@ public class TodoCommandHandlerExpandedTests
         Assert.True(result.IsSuccess);
         Assert.True(todo.IsDeleted);
         Assert.Equal(userId, todo.DeletedBy);
-        fixture.GenericRepository.Verify(x => x.Update(todo), Times.Once);
+        fixture.TodoRepository.Verify(x => x.Update(todo), Times.Once);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task DeleteTodo_OnSubtask_EnqueuesSubtaskDeletedForParentBranch()
+    {
+        // Deleting a subtask must remove only its announcement comments from the PARENT's branch
+        // (SubtaskDeletedIntegrationEvent), never wipe a whole branch (TaskDeletedIntegrationEvent).
+        var userId = Guid.NewGuid();
+        var parent = TodoItem.Create(userId, "Parent");
+        var subtask = TodoItem.CreateSubtask(parent, userId, "Draft outline", null);
+        var fixture = new TodoCommandFixture(userId);
+
+        Planora.BuildingBlocks.Application.Outbox.OutboxMessage? captured = null;
+        fixture.OutboxRepository
+            .Setup(x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<Planora.BuildingBlocks.Application.Outbox.OutboxMessage, CancellationToken>((m, _) => captured = m);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+
+        var result = await fixture.CreateDeleteHandler().Handle(
+            new DeleteTodoCommand(subtask.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(subtask.IsDeleted);
+        Assert.NotNull(captured);
+        Assert.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.SubtaskDeletedIntegrationEvent), captured!.Type);
+        Assert.Contains("Draft outline", captured.Content);            // title for suffix matching
+        Assert.Contains(parent.Id.ToString(), captured.Content);       // targets the parent branch
     }
 
     [Fact]
@@ -156,7 +188,7 @@ public class TodoCommandHandlerExpandedTests
         var userId = Guid.NewGuid();
         var todoId = Guid.NewGuid();
         var fixture = new TodoCommandFixture(userId);
-        fixture.GenericRepository
+        fixture.TodoRepository
             .Setup(x => x.GetByIdAsync(todoId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((TodoItem?)null);
 
@@ -164,7 +196,7 @@ public class TodoCommandHandlerExpandedTests
             fixture.CreateDeleteHandler().Handle(new DeleteTodoCommand(todoId), CancellationToken.None));
 
         var foreign = TodoItem.Create(Guid.NewGuid(), "Foreign task");
-        fixture.GenericRepository
+        fixture.TodoRepository
             .Setup(x => x.GetByIdAsync(foreign.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(foreign);
 
@@ -172,7 +204,7 @@ public class TodoCommandHandlerExpandedTests
             fixture.CreateDeleteHandler().Handle(new DeleteTodoCommand(foreign.Id), CancellationToken.None));
 
         Assert.False(foreign.IsDeleted);
-        fixture.GenericRepository.Verify(x => x.Update(It.IsAny<TodoItem>()), Times.Never);
+        fixture.TodoRepository.Verify(x => x.Update(It.IsAny<TodoItem>()), Times.Never);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -643,6 +675,249 @@ public class TodoCommandHandlerExpandedTests
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    // ── Subtasks ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task CreateSubtask_InheritsParentCategoryVisibilityShares_WithOwnPriorityAndNoDates()
+    {
+        var userId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var categoryId = Guid.NewGuid();
+        var parent = TodoItem.Create(
+            userId, "Parent", "desc", categoryId,
+            DateTime.UtcNow.AddDays(3), null, TodoPriority.Low,
+            isPublic: true, sharedWithUserIds: new[] { friendId });
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parent);
+        TodoItem? added = null;
+        fixture.TodoRepository
+            .Setup(x => x.AddAsync(It.IsAny<TodoItem>(), It.IsAny<CancellationToken>()))
+            .Callback<TodoItem, CancellationToken>((t, _) => added = t)
+            .ReturnsAsync((TodoItem t, CancellationToken _) => t);
+        fixture.CategoryGrpcClient
+            .Setup(x => x.GetCategoryInfoAsync(categoryId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CategoryInfo(categoryId, userId, "Work", "#fff", "icon"));
+
+        var result = await fixture.CreateSubtaskHandler().Handle(
+            new CreateSubtaskCommand(parent.Id, "  Step 1  ", "note", TodoPriority.Urgent),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(added);
+        Assert.Equal(parent.Id, added!.ParentTodoId);
+        Assert.True(added.IsSubtask);
+        Assert.Equal("Step 1", added.Title);
+        Assert.Equal(categoryId, added.CategoryId);          // inherited
+        Assert.True(added.IsPublic);                          // inherited
+        Assert.Contains(added.SharedWith, s => s.SharedWithUserId == friendId); // inherited
+        Assert.Equal(TodoPriority.Urgent, added.Priority);    // own
+        Assert.Null(added.DueDate);                           // never
+        Assert.Null(added.ExpectedDate);                      // never
+        Assert.Equal("Work", result.Value!.CategoryName);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        // Subtask creation is silent — no system message is enqueued for the parent's branch.
+        fixture.OutboxRepository.Verify(
+            x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task CreateSubtask_RejectsForeignParent()
+    {
+        var userId = Guid.NewGuid();
+        var parent = TodoItem.Create(Guid.NewGuid(), "Foreign");
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parent);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateSubtaskHandler().Handle(new CreateSubtaskCommand(parent.Id, "x"), CancellationToken.None));
+        fixture.TodoRepository.Verify(x => x.AddAsync(It.IsAny<TodoItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task CreateSubtask_RejectsNestingUnderSubtask()
+    {
+        var userId = Guid.NewGuid();
+        var parent = TodoItem.Create(userId, "Parent");
+        var subtask = TodoItem.CreateSubtask(parent, userId, "child", null);
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateSubtaskHandler().Handle(new CreateSubtaskCommand(subtask.Id, "grandchild"), CancellationToken.None));
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task UpdateTodo_OnSubtask_RejectsInheritedFieldChanges_ButAllowsPriority()
+    {
+        var userId = Guid.NewGuid();
+        var parent = TodoItem.Create(userId, "Parent", categoryId: Guid.NewGuid());
+        var subtask = TodoItem.CreateSubtask(parent, userId, "child", null, TodoPriority.Low);
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateUpdateHandler().Handle(
+                new UpdateTodoCommand(subtask.Id, CategoryId: Guid.NewGuid()), CancellationToken.None));
+
+        var ok = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(subtask.Id, Priority: TodoPriority.Urgent), CancellationToken.None);
+        Assert.True(ok.IsSuccess);
+        Assert.Equal(TodoPriority.Urgent, subtask.Priority);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task UpdateTodo_OnParent_PropagatesVisibilityToSubtasks()
+    {
+        var userId = Guid.NewGuid();
+        var parent = TodoItem.Create(userId, "Parent", isPublic: true);
+        var child1 = TodoItem.CreateSubtask(parent, userId, "c1", null);
+        var child2 = TodoItem.CreateSubtask(parent, userId, "c2", null);
+        Assert.True(child1.IsPublic);
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parent);
+        fixture.TodoRepository
+            .Setup(x => x.GetSubtasksTrackedAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { child1, child2 });
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(parent.Id, IsPublic: false), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(parent.IsPublic);
+        Assert.False(child1.IsPublic);
+        Assert.False(child2.IsPublic);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task DeleteTodo_SoftDeletesSubtasksWithParent()
+    {
+        var userId = Guid.NewGuid();
+        var parent = TodoItem.Create(userId, "Parent");
+        var child = TodoItem.CreateSubtask(parent, userId, "c1", null);
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parent);
+        fixture.TodoRepository
+            .Setup(x => x.GetSubtasksTrackedAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { child });
+
+        var result = await fixture.CreateDeleteHandler().Handle(new DeleteTodoCommand(parent.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(parent.IsDeleted);
+        Assert.True(child.IsDeleted);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task UpdateTodo_NonOwnerCompletesSubtask_GloballyNotPerViewer()
+    {
+        var ownerId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        // Public parent so the friend has access; subtask inherits public.
+        var parent = TodoItem.Create(ownerId, "Parent", isPublic: true);
+        var subtask = TodoItem.CreateSubtask(parent, ownerId, "Shared step", null);
+        var fixture = new TodoCommandFixture(friendId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(friendId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(subtask.Id, Status: "done"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        // Global completion: the entity status itself flips to Done (not a per-viewer row).
+        Assert.True(subtask.IsCompleted);
+        fixture.TodoRepository.Verify(x => x.Update(subtask), Times.Once);
+        fixture.ViewerPreferences.Verify(
+            x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Never);
+        // A "X completed a subtask" system message is enqueued for the parent's branch.
+        fixture.OutboxRepository.Verify(
+            x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task UpdateTodo_NonOwnerCannotEditSubtaskTitleOrPriority()
+    {
+        var ownerId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Parent", isPublic: true);
+        var subtask = TodoItem.CreateSubtask(parent, ownerId, "Shared step", null);
+        var fixture = new TodoCommandFixture(friendId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(friendId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateUpdateHandler().Handle(
+                new UpdateTodoCommand(subtask.Id, Priority: TodoPriority.Urgent), CancellationToken.None));
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task GetSubtasks_RejectsViewerWithoutAccessToPrivateParent()
+    {
+        var ownerId = Guid.NewGuid();
+        var viewerId = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Private parent"); // not public, not shared
+        var fixture = new TodoCommandFixture(viewerId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parent);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateGetSubtasksHandler().Handle(new GetSubtasksQuery(parent.Id), CancellationToken.None));
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task GetSubtasks_ReturnsChildrenForOwner()
+    {
+        var userId = Guid.NewGuid();
+        var parent = TodoItem.Create(userId, "Parent");
+        var child = TodoItem.CreateSubtask(parent, userId, "c1", null);
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parent);
+        fixture.TodoRepository
+            .Setup(x => x.GetSubtasksAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { child });
+
+        var result = await fixture.CreateGetSubtasksHandler().Handle(new GetSubtasksQuery(parent.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value!);
+        Assert.Equal(child.Id, result.Value![0].Id);
+        Assert.Equal(parent.Id, result.Value![0].ParentTodoId);
+    }
+
     private sealed class TodoCommandFixture
     {
         public Mock<IRepository<TodoItem>> GenericRepository { get; } = new();
@@ -661,6 +936,14 @@ public class TodoCommandHandlerExpandedTests
             CurrentUser.SetupGet(x => x.IsAuthenticated).Returns(userId != Guid.Empty);
             UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             Mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>())).Returns((TodoItem item) => ToDto(item));
+            // Subtask lookups default to empty so parent update/delete propagation is a no-op
+            // unless a test opts in by stubbing these explicitly.
+            TodoRepository
+                .Setup(x => x.GetSubtasksTrackedAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Array.Empty<TodoItem>());
+            TodoRepository
+                .Setup(x => x.GetSubtasksAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Array.Empty<TodoItem>());
         }
 
         public CreateTodoCommandHandler CreateCreateHandler()
@@ -684,7 +967,7 @@ public class TodoCommandHandlerExpandedTests
                 CategoryGrpcClient.Object,
                 FriendshipService.Object,
                 ViewerPreferences.Object,
-                Mock.Of<Planora.BuildingBlocks.Application.Outbox.IOutboxRepository>());
+                OutboxRepository.Object);
 
         public SetTodoHiddenCommandHandler CreateSetHiddenHandler()
             => new(
@@ -707,11 +990,29 @@ public class TodoCommandHandlerExpandedTests
 
         public DeleteTodoCommandHandler CreateDeleteHandler()
             => new(
-                GenericRepository.Object,
+                TodoRepository.Object,
                 OutboxRepository.Object,
                 UnitOfWork.Object,
                 Mock.Of<ILogger<DeleteTodoCommandHandler>>(),
                 CurrentUser.Object);
+
+        public Planora.Todo.Application.Features.Todos.Commands.CreateSubtask.CreateSubtaskCommandHandler CreateSubtaskHandler()
+            => new(
+                TodoRepository.Object,
+                UnitOfWork.Object,
+                Mapper.Object,
+                Mock.Of<ILogger<Planora.Todo.Application.Features.Todos.Commands.CreateSubtask.CreateSubtaskCommandHandler>>(),
+                CurrentUser.Object,
+                CategoryGrpcClient.Object);
+
+        public Planora.Todo.Application.Features.Todos.Queries.GetSubtasks.GetSubtasksQueryHandler CreateGetSubtasksHandler()
+            => new(
+                TodoRepository.Object,
+                CurrentUser.Object,
+                Mapper.Object,
+                Mock.Of<ILogger<Planora.Todo.Application.Features.Todos.Queries.GetSubtasks.GetSubtasksQueryHandler>>(),
+                FriendshipService.Object,
+                CategoryGrpcClient.Object);
     }
 
     private static TodoItemDto ToDto(TodoItem item)
@@ -736,6 +1037,7 @@ public class TodoCommandHandlerExpandedTests
             Tags = item.Tags.Select(tag => tag.Name).ToList(),
             CreatedAt = item.CreatedAt,
             UpdatedAt = item.UpdatedAt,
-            SharedWithUserIds = item.SharedWith.Select(share => share.SharedWithUserId).ToList()
+            SharedWithUserIds = item.SharedWith.Select(share => share.SharedWithUserId).ToList(),
+            ParentTodoId = item.ParentTodoId
         };
 }

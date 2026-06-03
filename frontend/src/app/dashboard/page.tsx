@@ -182,7 +182,10 @@ export default function DashboardPage() {
   const fetchStats = useCallback(async (signal?: AbortSignal) => {
     try {
       const res = await api.get<{ items: Todo[] }>("/todos/api/v1/todos", {
-        params: { pageNumber: 1, pageSize: 1000 },
+        // includeSubtasks: subtasks are hidden from every list, but completed subtasks must
+        // still count toward the weekly statistics below (they are filtered out of the active
+        // counter and never rendered as cards).
+        params: { pageNumber: 1, pageSize: 1000, includeSubtasks: true },
         signal,
       })
       if (signal?.aborted) return
@@ -298,17 +301,20 @@ export default function DashboardPage() {
   }, [isAuthenticated, hasHydrated, mounted, fetchTodos, fetchStats, fetchCategories, clearAuth, router])
 
   const activeStatsTodos = useMemo(() =>
-    statsTodos.filter(t => { 
-      const s = String(t.status).toLowerCase(); 
+    statsTodos.filter(t => {
+      if (t.parentTodoId) return false; // subtasks never inflate the active-task counter
+      const s = String(t.status).toLowerCase();
       const isDone = s === "done" || s === "completed";
       return !isDone && t.isCompletedByViewer !== true;
     }),
     [statsTodos]
   )
 
+  // Completed-this-week deliberately includes completed subtasks so finishing a step in a
+  // task's branch contributes to the weekly statistics.
   const allCompletedStatsTodos = useMemo(() =>
-    statsTodos.filter(t => { 
-      const s = String(t.status).toLowerCase(); 
+    statsTodos.filter(t => {
+      const s = String(t.status).toLowerCase();
       const isDone = s === "done" || s === "completed";
       return isDone || t.isCompletedByViewer === true;
     }),
@@ -454,9 +460,12 @@ export default function DashboardPage() {
         t.id !== todoId ? t : { ...merged, authorName: t.authorName ?? friendNameCache.current.get(updated.userId) }
       setTodos(prev => prev.map(applyMerge))
       setStatsTodos(prev => prev.map(applyMerge))
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Task updated" })
-    } catch { addToast({ type: "error", title: "Failed to update" }) }
+      // Autosave path: keep the modal open and quiet (the in-modal indicator confirms it);
+      // do not refresh `editingTodo` so the open modal's local field state is never clobbered.
+    } catch (error) {
+      addToast({ type: "error", title: "Failed to save changes" })
+      throw error // surface the error state in the modal's autosave indicator
+    }
   }
 
   const handleSaveViewerPreference = useCallback(async (todoId: string, viewerCategoryId: string | null) => {
@@ -475,10 +484,10 @@ export default function DashboardPage() {
 
       setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
       setStatsTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Your category was saved" })
-    } catch {
+      // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
+    } catch (error) {
       addToast({ type: "error", title: "Failed to save your category" })
+      throw error // surface the error state in the modal's autosave indicator
     }
   }, [todos, statsTodos, addToast])
 

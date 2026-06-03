@@ -181,7 +181,7 @@ RabbitMQ contracts (`IEventBus`, `IIntegrationEventHandler`, `IntegrationEvent`,
 |---|---|
 | Todo API | `CategoryDeletedIntegrationEvent`, `UserDeletedIntegrationEvent`, `FriendshipRemovedIntegrationEvent` |
 | Category API | `UserDeletedIntegrationEvent` |
-| Collaboration API | `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`, `TaskDeletedIntegrationEvent`, `UserDeletedIntegrationEvent` |
+| Collaboration API | `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`, `TaskDeletedIntegrationEvent`, `SubtaskDeletedIntegrationEvent`, `UserDeletedIntegrationEvent` |
 | Realtime API | `NotificationEvent` |
 
 Publishers via outbox:

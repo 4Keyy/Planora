@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, type LucideIcon } from "lucide-react"
-import { fetchComments, addComment, updateComment, deleteComment, getApiErrorMessage } from "@/lib/api"
-import type { TodoComment } from "@/types/todo"
+import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, Pause, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, type LucideIcon } from "lucide-react"
+import {
+  fetchComments, addComment, updateComment, deleteComment,
+  fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
+  joinTodo, leaveTodo,
+  getApiErrorMessage,
+} from "@/lib/api"
+import type { TodoComment, Todo } from "@/types/todo"
 import { SPRING_STANDARD } from "@/lib/animations"
 import { FriendAvatar } from "./friend-avatar"
 import {
@@ -14,6 +19,10 @@ import {
 
 const COMMENT_MAX = 2000
 const GENESIS_MAX = 5000
+const SUBTASK_MAX = 1500
+
+// Snappy spring for subtask micro-interactions (toggle pop, card enter/exit).
+const SPRING_SNAP = { type: "spring" as const, stiffness: 460, damping: 32 }
 
 // Activity-rail geometry. The rail line is centred at RAIL_CENTER within a wrapper that pads its
 // content by RAIL_GUTTER, and every marker is centred on that same x so avatars and system-event
@@ -26,11 +35,25 @@ const RAIL_CENTER = 20
 // Markers are intentionally greyscale (see SystemEvent) so the rail stays calm and uncluttered.
 function getSystemEventIcon(content: string): LucideIcon {
   const t = content.toLowerCase()
+  if (t.includes("subtask") || t.includes("под-задач") || t.includes("подзадач")) return ListTree
   if (t.includes("complet") || t.includes("завершил") || t.includes("выполнил")) return Check
   if (t.includes("start") || t.includes("working") || t.includes("взял в работу") || t.includes("присоединил")) return Play
   if (t.includes("left") || t.includes("leav") || t.includes("покинул") || t.includes("приостановил")) return LogOut
   if (t.includes("creat") || t.includes("создал")) return Plus
   return Circle
+}
+
+// Completion is global: anyone with access marks a subtask done for everyone, so the entity status
+// is the single source of truth (no per-viewer state).
+function isSubtaskDone(s: Todo): boolean {
+  const st = String(s.status).toLowerCase()
+  return st === "done" || st === "completed"
+}
+// "In work" is per-user — derived from worker rows, not status:
+//  • workerCount = how many people are working on it (shown to everyone, anonymously);
+//  • isWorking   = whether THIS viewer is one of them (drives their own toggle).
+function subtaskWorkerCount(s: Todo): number {
+  return s.workerCount ?? 0
 }
 
 interface BranchFeedProps {
@@ -54,21 +77,87 @@ interface BranchFeedProps {
   onCompleteTask?: () => Promise<void>
 }
 
-// Flat list item (day separator or comment)
+// Compose modes — a plain branch message, the task description, or a new subtask. Subtasks are
+// authored exactly like the description: pick it from the "+" menu, type into the same field, send.
+type ComposeMode = "text" | "description" | "subtask"
+
+// Completion attribution for a subtask, parsed from its (now hidden) "completed a subtask" system
+// comment and rendered as a no-icon reply in the subtask's sub-branch. Creation is intentionally
+// NOT surfaced — a subtask never shows a "created" notification.
+interface SubtaskMeta {
+  completedBy?: string
+  completedAt?: string
+}
+
+// Flat list item (day separator, comment, or an inline subtask card cluster)
 type FeedItem =
   | { type: "separator"; label: string; key: string }
   | { type: "comment";   comment: TodoComment }
+  | { type: "subtask";   subtask: Todo; meta: SubtaskMeta }
 
-function buildFeed(comments: TodoComment[]): FeedItem[] {
+// Pulls the actor's name out of a subtask system sentence, e.g. "Ann Lee completed a subtask: Buy milk".
+function parseSubtaskActor(content: string, verb: "added" | "completed"): string | undefined {
+  const m = content.match(new RegExp(`^(.*?)\\s+${verb} a subtask:`, "i"))
+  const name = m?.[1]?.trim()
+  return name || undefined
+}
+
+// True for any subtask lifecycle system comment ("… added a subtask: …" / "… completed a subtask:
+// …"). These are NEVER rendered as standalone rail nodes — not even legacy ones whose subtask was
+// renamed or deleted — so the old "X completed a subtask: <long title>" lines never reappear.
+function isSubtaskSystemComment(c: TodoComment): boolean {
+  return !!c.isSystemComment && /(?:added|completed) a subtask:/i.test(c.content)
+}
+
+// Builds the chronological rail by interleaving branch comments with subtask card clusters. A
+// subtask's lifecycle system comments are hidden from the rail entirely: creation is never shown,
+// and completion is parsed (when it can be matched to a live subtask) into the icon-less completion
+// reply inside the subtask's own sub-branch. Cards anchor on their own creation time.
+function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
+  const completionEvents = comments.filter((c) => c.isSystemComment && /completed a subtask:/i.test(c.content))
+
+  const usedComplete = new Set<string>()
+  const metaById = new Map<string, SubtaskMeta>()
+
+  // Match in creation order for stable greedy pairing when titles repeat.
+  const subsByTime = [...subtasks].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+  for (const s of subsByTime) {
+    const suffix = `: ${s.title}`
+    const meta: SubtaskMeta = {}
+
+    const completed = completionEvents.find((c) => !usedComplete.has(c.id) && c.content.trimEnd().endsWith(suffix))
+    if (completed) {
+      usedComplete.add(completed.id)
+      meta.completedBy = parseSubtaskActor(completed.content, "completed")
+      meta.completedAt = completed.createdAt
+    }
+
+    metaById.set(s.id, meta)
+  }
+
+  type Ev =
+    | { time: string; order: number; kind: "comment"; comment: TodoComment }
+    | { time: string; order: number; kind: "subtask"; subtask: Todo }
+  const evs: Ev[] = []
+  for (const c of comments) {
+    if (isSubtaskSystemComment(c)) continue   // never a standalone rail node (matched or not)
+    evs.push({ time: c.createdAt, order: 0, kind: "comment", comment: c })
+  }
+  // The subtask card anchors on its own creation time; order:1 keeps it after same-time comments.
+  for (const s of subtasks) evs.push({ time: s.createdAt, order: 1, kind: "subtask", subtask: s })
+  evs.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : a.order - b.order))
+
   const items: FeedItem[] = []
   let lastDay = ""
-  for (const c of comments) {
-    const day = formatDayLabel(c.createdAt)
+  let sepIdx = 0
+  for (const e of evs) {
+    const day = formatDayLabel(e.time)
     if (day !== lastDay) {
-      items.push({ type: "separator", label: day, key: `sep-${c.createdAt}` })
+      items.push({ type: "separator", label: day, key: `sep-${sepIdx++}-${e.time}` })
       lastDay = day
     }
-    items.push({ type: "comment", comment: c })
+    if (e.kind === "comment") items.push({ type: "comment", comment: e.comment })
+    else items.push({ type: "subtask", subtask: e.subtask, meta: metaById.get(e.subtask.id) ?? {} })
   }
   return items
 }
@@ -79,6 +168,7 @@ export function BranchFeed({
   onStartWork, onStopWork, onCompleteTask,
 }: BranchFeedProps) {
   const [comments,   setComments]   = useState<TodoComment[]>([])
+  const [subtasks,   setSubtasks]   = useState<Todo[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page,       setPage]       = useState(1)
   const [loading,    setLoading]    = useState(true)
@@ -89,13 +179,15 @@ export function BranchFeed({
   const [editingGenesis,   setEditingGenesis]   = useState(false)
   const [genesisEditContent, setGenesisEditContent] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const [composeMode, setComposeMode] = useState<"text" | "description">("text")
+  const [composeMode, setComposeMode] = useState<ComposeMode>("text")
   const [plusMenuOpen, setPlusMenuOpen] = useState(false)
   // Pinned Author's Note: condensed sticky header is shown once the full card scrolls away.
   const [genesisOutOfView, setGenesisOutOfView] = useState(false)
   const [genesisHighlight,  setGenesisHighlight]  = useState(false)
   // Which task action (if any) is currently awaiting its async handler.
   const [actionPending, setActionPending] = useState<null | "work" | "complete">(null)
+  // Per-subtask in-flight guard so double-clicks can't race (and polling won't clobber optimism).
+  const [subtaskPending, setSubtaskPending] = useState<Set<string>>(new Set())
 
   const feedRef           = useRef<HTMLDivElement>(null)
   const composeRef        = useRef<HTMLTextAreaElement>(null)
@@ -108,13 +200,27 @@ export function BranchFeed({
   const pinBottomRef      = useRef(false)
   // Total comment count, mirrored in a ref so polling can target the last page without re-creating the timer.
   const totalCountRef     = useRef(0)
+  // Subtasks currently mid-write — polling must not revert their optimistic state.
+  const subtaskPendingRef = useRef<Set<string>>(new Set())
+  // System-comment ids hidden client-side after a subtask delete, until the async cascade lands —
+  // keeps the deleted subtask's announcement(s) from flickering back via polling/reloads.
+  const suppressedCommentIds = useRef<Set<string>>(new Set())
   // Pending post-action catch-up reloads (the status system-comment is produced asynchronously).
   const retryTimers       = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  const setSubtaskBusy = (id: string, on: boolean) => {
+    setSubtaskPending((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(id); else next.delete(id)
+      subtaskPendingRef.current = next
+      return next
+    })
+  }
 
   const load = useCallback(async (pageNum: number, replace: boolean, pin: boolean = replace) => {
     try {
       const res  = await fetchComments(todoId, pageNum, 50)
-      const items = res.items ?? []
+      const items = (res.items ?? []).filter((c) => !suppressedCommentIds.current.has(c.id))
       setTotalCount(res.totalCount ?? 0)
       totalCountRef.current = res.totalCount ?? 0
       setComments((prev) => (replace ? items : [...items, ...prev]))
@@ -123,6 +229,41 @@ export function BranchFeed({
       /* silent */
     } finally {
       setLoading(false)
+    }
+  }, [todoId])
+
+  // Fetch the parent's subtasks and merge by id, so server truth flows in (other users' edits,
+  // completions, the inherited category) without flickering away an in-flight optimistic change.
+  const loadSubtasks = useCallback(async () => {
+    try {
+      const list = await fetchSubtasks(todoId)
+      setSubtasks((prev) => {
+        const pending = subtaskPendingRef.current
+        const prevById = new Map(prev.map((s) => [s.id, s]))
+        const byId = new Map<string, Todo>()
+        let changed = false
+        for (const s of list) {
+          const existing = prevById.get(s.id)
+          // Keep the optimistic copy for rows we're still writing.
+          if (existing && pending.has(s.id)) { byId.set(s.id, existing); continue }
+          // Refresh on any change a viewer must see — including another participant's worker count
+          // (so "N working" updates live) and the viewer's own membership.
+          if (!existing || existing.status !== s.status || existing.title !== s.title ||
+              (existing.workerCount ?? 0) !== (s.workerCount ?? 0) || !!existing.isWorking !== !!s.isWorking) {
+            changed = true
+          }
+          byId.set(s.id, s)
+        }
+        // Preserve optimistic-only rows the server hasn't returned yet (just-created).
+        for (const s of prev) {
+          if (!byId.has(s.id) && pending.has(s.id)) byId.set(s.id, s)
+          else if (!byId.has(s.id) && !list.some((l) => l.id === s.id)) changed = true
+        }
+        if (!changed && byId.size === prev.length) return prev
+        return Array.from(byId.values()).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+      })
+    } catch {
+      /* a missing/forbidden parent simply yields no subtasks */
     }
   }, [todoId])
 
@@ -150,6 +291,8 @@ export function BranchFeed({
         const byId = new Map(prev.map((c) => [c.id, c]))
         let changed = false
         for (const c of items) {
+          // A subtask just deleted client-side: keep its announcement hidden until the cascade lands.
+          if (suppressedCommentIds.current.has(c.id)) { if (byId.delete(c.id)) changed = true; continue }
           const existing = byId.get(c.id)
           if (!existing) { byId.set(c.id, c); changed = true }
           else if (existing.content !== c.content || existing.updatedAt !== c.updatedAt) {
@@ -168,29 +311,27 @@ export function BranchFeed({
     }
   }, [todoId])
 
-  useEffect(() => { load(1, true) }, [load, refreshKey])
+  useEffect(() => { load(1, true); void loadSubtasks() }, [load, loadSubtasks, refreshKey])
 
   // After an action bumps refreshKey, the resulting status system-comment is materialised
   // asynchronously (Outbox → Inbox). Schedule a few short catch-up merges so it appears within
-  // ~1–2s without the user re-opening the modal.
+  // ~1–2s without the user re-opening the modal. Subtasks are pulled on the same cadence so a
+  // freshly-created card snaps in beneath its announcement.
   useEffect(() => {
     if (refreshKey === undefined) return
     retryTimers.current.forEach(clearTimeout)
-    // Dense early schedule: with signal-driven outbox dispatch the status comment is written within
-    // a fraction of a second, so the first probes catch it almost immediately; the later ones cover
-    // a slower poll-fallback dispatch. Cheap (id-keyed merge, no-op when nothing changed).
     retryTimers.current = [250, 600, 1100, 1800, 2800, 4200, 5600]
-      .map((ms) => setTimeout(() => { void mergeLatest() }, ms))
+      .map((ms) => setTimeout(() => { void mergeLatest(); void loadSubtasks() }, ms))
     return () => { retryTimers.current.forEach(clearTimeout); retryTimers.current = [] }
-  }, [refreshKey, mergeLatest])
+  }, [refreshKey, mergeLatest, loadSubtasks])
 
-  // Gentle live polling while the branch is open — picks up other participants' messages/edits.
-  // Paused while the viewer is editing so a refresh never clobbers an in-progress draft.
+  // Gentle live polling while the branch is open — picks up other participants' messages/edits and
+  // subtask changes. Paused while the viewer is editing so a refresh never clobbers a draft.
   useEffect(() => {
     if (editingId || editingGenesis) return
-    const id = setInterval(() => { void mergeLatest() }, 5000)
+    const id = setInterval(() => { void mergeLatest(); void loadSubtasks() }, 5000)
     return () => clearInterval(id)
-  }, [mergeLatest, editingId, editingGenesis])
+  }, [mergeLatest, loadSubtasks, editingId, editingGenesis])
 
   const genesis = comments.find((c) => c.isGenesisComment) ?? null
   const stream  = comments.filter((c) => !c.isGenesisComment)
@@ -210,7 +351,7 @@ export function BranchFeed({
     const id = requestAnimationFrame(scrollToBottom)
     return () => cancelAnimationFrame(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [comments])
+  }, [comments, subtasks])
 
   // ── Pinned Author's Note: show the condensed header once the full card scrolls past the top ──
   const updateGenesisVisibility = useCallback(() => {
@@ -262,6 +403,103 @@ export function BranchFeed({
   const showWorkAction     = !!(inProgress ? onStopWork : onStartWork)
   const showCompleteAction = !!onCompleteTask
   const showDescription    = !!onSaveDescription
+
+  // ── Subtask mutations (live inline in the branch; no separate panel) ──────────────────────────
+
+  // Anyone with access can complete/reopen — it applies globally (server-side, status-based).
+  const toggleSubtaskComplete = async (s: Todo) => {
+    if (subtaskPendingRef.current.has(s.id)) return
+    const nextStatus = isSubtaskDone(s) ? "todo" : "done"
+    setSubtaskBusy(s.id, true)
+    setSubtasks((prev) => prev.map((it) => it.id === s.id
+      ? { ...it, status: nextStatus === "done" ? "Done" : "Todo" } : it))
+    try {
+      await updateSubtask(s.id, { status: nextStatus })
+      // A "completed a subtask" system event is emitted async; pull it in shortly.
+      retryTimers.current.push(setTimeout(() => { void mergeLatest() }, 600))
+    } catch (e) {
+      setSubtasks((prev) => prev.map((it) => it.id === s.id ? s : it)) // revert
+      setError(getApiErrorMessage(e))
+    } finally {
+      setSubtaskBusy(s.id, false)
+    }
+  }
+
+  // Take a subtask into work / step back out. This is **per-user**: each viewer joins or leaves
+  // independently (server-side worker rows), so one person working never flips it "in work" for
+  // another — everyone just sees an anonymous "N working" count. The viewer's own membership is
+  // `isWorking`; the count is `workerCount`.
+  const toggleSubtaskWork = async (s: Todo) => {
+    if (subtaskPendingRef.current.has(s.id)) return
+    const amWorking = !!s.isWorking
+    setSubtaskBusy(s.id, true)
+    // Optimistic: flip my own membership and nudge the shared count.
+    setSubtasks((prev) => prev.map((it) => it.id === s.id
+      ? { ...it, isWorking: !amWorking, workerCount: Math.max(0, (it.workerCount ?? 0) + (amWorking ? -1 : 1)) }
+      : it))
+    try {
+      if (amWorking) await leaveTodo(s.id)
+      else await joinTodo(s.id)
+      // Pull fresh worker counts so other participants' numbers settle quickly.
+      retryTimers.current.push(setTimeout(() => { void loadSubtasks() }, 500))
+    } catch (e) {
+      setSubtasks((prev) => prev.map((it) => it.id === s.id ? s : it)) // revert
+      setError(getApiErrorMessage(e))
+    } finally {
+      setSubtaskBusy(s.id, false)
+    }
+  }
+
+  // Owner-only: rename a subtask (priority is intentionally not part of the subtask UX).
+  const saveSubtaskTitle = async (id: string, title: string) => {
+    const trimmed = title.trim()
+    if (!trimmed) return
+    const snapshot = subtasks
+    setSubtasks((prev) => prev.map((it) => it.id === id ? { ...it, title: trimmed } : it))
+    try {
+      await updateSubtask(id, { title: trimmed })
+    } catch (e) {
+      setSubtasks(snapshot)
+      setError(getApiErrorMessage(e))
+    }
+  }
+
+  const removeSubtask = async (s: Todo) => {
+    if (!isOwner || subtaskPendingRef.current.has(s.id)) return
+    setSubtaskBusy(s.id, true)
+    const subtasksSnapshot = subtasks
+
+    // Deleting a subtask also clears the system events it left in the branch ("added a subtask: …",
+    // "completed a subtask: …"). Remove them optimistically and suppress their ids so polling can't
+    // re-add them before the server-side cascade (SubtaskDeletedIntegrationEvent) completes.
+    const suffix = `: ${s.title}`
+    const related = comments.filter(
+      (c) => c.isSystemComment && /subtask/i.test(c.content) && c.content.trimEnd().endsWith(suffix),
+    )
+    const relatedIds = new Set(related.map((c) => c.id))
+
+    setSubtasks((prev) => prev.filter((it) => it.id !== s.id)) // optimistic (animates out)
+    if (relatedIds.size) {
+      related.forEach((c) => suppressedCommentIds.current.add(c.id))
+      setComments((prev) => prev.filter((c) => !relatedIds.has(c.id)))
+      setTotalCount((n) => Math.max(0, n - relatedIds.size))
+    }
+
+    try {
+      await deleteSubtask(s.id)
+    } catch (e) {
+      setSubtasks(subtasksSnapshot)
+      if (relatedIds.size) {
+        related.forEach((c) => suppressedCommentIds.current.delete(c.id))
+        setComments((prev) => [...prev, ...related].sort((a, b) =>
+          a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0))
+        setTotalCount((n) => n + relatedIds.size)
+      }
+      setError(getApiErrorMessage(e))
+    } finally {
+      setSubtaskBusy(s.id, false)
+    }
+  }
 
   const handleEditSave = async (id: string) => {
     const content = editContent.trim()
@@ -344,6 +582,20 @@ export function BranchFeed({
     return () => document.removeEventListener("mousedown", handle)
   }, [plusMenuOpen])
 
+  const enterComposeMode = (mode: ComposeMode) => {
+    setComposeMode(mode)
+    setNewContent("")
+    setPlusMenuOpen(false)
+    if (composeRef.current) composeRef.current.style.height = "auto"
+    setTimeout(() => composeRef.current?.focus(), 50)
+  }
+
+  const exitComposeMode = () => {
+    setComposeMode("text")
+    setNewContent("")
+    if (composeRef.current) composeRef.current.style.height = "auto"
+  }
+
   const handleSubmitWithMode = async () => {
     const content = newContent.trim()
     if (!content || submitting) return
@@ -358,13 +610,29 @@ export function BranchFeed({
           await load(1, true, false)
         }
         setComposeMode("text")
+        setNewContent("")
+      } else if (composeMode === "subtask") {
+        // Subtasks are authored exactly like the description: from the same field. No priority.
+        const created = await createSubtask(todoId, { title: content })
+        setSubtasks((prev) => [...prev, created])
+        setNewContent("")
+        // Creating a subtask closes the subtask composer and returns to plain-message mode.
+        setComposeMode("text")
+        // The "added a subtask" announcement is emitted async — pull it in so the card anchors
+        // beneath it.
+        retryTimers.current.push(
+          setTimeout(() => { void mergeLatest() }, 350),
+          setTimeout(() => { void mergeLatest() }, 1000),
+          setTimeout(() => { void mergeLatest() }, 2000),
+        )
+        setTimeout(scrollToBottom, 60)
       } else {
         const c = await addComment(todoId, content)
         setComments((prev) => [...prev, c])
         setTotalCount((n) => n + 1)
+        setNewContent("")
         setTimeout(scrollToBottom, 40)
       }
-      setNewContent("")
       if (composeRef.current) composeRef.current.style.height = "auto"
     } catch (e) {
       setError(getApiErrorMessage(e))
@@ -373,7 +641,16 @@ export function BranchFeed({
     }
   }
 
-  const feed = buildFeed(stream)
+  const feed = buildFeed(stream, subtasks)
+
+  const composeAccent = composeMode === "text" ? "#0a0a0a" : "#4f46e5"
+
+  // Once the task is completed the "+" menu offers nothing for now — no description, no subtask,
+  // and no take/complete actions — so the menu simply doesn't open on a done task.
+  const menuShowsDescription = showDescription && !isCompleted
+  const menuShowsSubtask     = isOwner && !isCompleted
+  const menuShowsActions     = (showWorkAction || showCompleteAction) && !isCompleted
+  const hasMenuItems         = menuShowsDescription || menuShowsSubtask || menuShowsActions
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%", minHeight: 0 }}>
@@ -612,7 +889,7 @@ export function BranchFeed({
           <p style={{ fontSize: 12, color: "#a3a3a3" }}>Loading…</p>
         )}
 
-        {!loading && stream.length === 0 && (
+        {!loading && feed.length === 0 && (
           <p style={{ fontSize: 12, color: "#a3a3a3", fontStyle: "italic" }}>
             No messages yet
           </p>
@@ -634,32 +911,51 @@ export function BranchFeed({
               pointerEvents: "none",
             }} />
 
-            {feed.map((item) => {
-              if (item.type === "separator") {
+            <AnimatePresence initial={false}>
+              {feed.map((item) => {
+                if (item.type === "separator") {
+                  return <DaySeparator key={item.key} label={item.label} />
+                }
+                if (item.type === "subtask") {
+                  const s = item.subtask
+                  return (
+                    <SubtaskCard
+                      key={`sub-${s.id}`}
+                      subtask={s}
+                      meta={item.meta}
+                      isOwner={isOwner}
+                      done={isSubtaskDone(s)}
+                      workerCount={subtaskWorkerCount(s)}
+                      viewerWorking={!!s.isWorking}
+                      pending={subtaskPending.has(s.id)}
+                      onToggleComplete={() => toggleSubtaskComplete(s)}
+                      onToggleWork={() => toggleSubtaskWork(s)}
+                      onDelete={() => removeSubtask(s)}
+                      onSaveTitle={(title) => saveSubtaskTitle(s.id, title)}
+                    />
+                  )
+                }
+                const c = item.comment
+                if (c.isSystemComment) {
+                  return <SystemEvent key={c.id} comment={c} />
+                }
                 return (
-                  <DaySeparator key={item.key} label={item.label} />
+                  <MessageItem
+                    key={c.id}
+                    comment={c}
+                    isOwner={isOwner}
+                    editingId={editingId}
+                    editContent={editContent}
+                    submitting={submitting}
+                    onEditStart={(id, content) => { setEditingId(id); setEditContent(content) }}
+                    onEditCancel={() => setEditingId(null)}
+                    onEditSave={handleEditSave}
+                    onEditContentChange={setEditContent}
+                    onDelete={handleDelete}
+                  />
                 )
-              }
-              const c = item.comment
-              if (c.isSystemComment) {
-                return <SystemEvent key={c.id} comment={c} />
-              }
-              return (
-                <MessageItem
-                  key={c.id}
-                  comment={c}
-                  isOwner={isOwner}
-                  editingId={editingId}
-                  editContent={editContent}
-                  submitting={submitting}
-                  onEditStart={(id, content) => { setEditingId(id); setEditContent(content) }}
-                  onEditCancel={() => setEditingId(null)}
-                  onEditSave={handleEditSave}
-                  onEditContentChange={setEditContent}
-                  onDelete={handleDelete}
-                />
-              )
-            })}
+              })}
+            </AnimatePresence>
           </div>
         )}
         </div>
@@ -672,8 +968,8 @@ export function BranchFeed({
       {/* ── Compose ── */}
       <div style={{ position: "relative", marginTop: 8 }}>
 
-        {/* Mode chip — slides in above compose box when in description mode */}
-        {composeMode === "description" && (
+        {/* Mode chip — slides in above compose box when authoring the description or a subtask */}
+        {composeMode !== "text" && (
           <div style={{
             display: "flex", alignItems: "center", gap: 6,
             marginBottom: 6,
@@ -684,15 +980,17 @@ export function BranchFeed({
               background: "#eef2ff", border: "1px solid #c7d2fe",
               borderRadius: 8, padding: "4px 8px 4px 7px",
             }}>
-              <FileText size={11} color="#4f46e5" strokeWidth={2.2} />
+              {composeMode === "description"
+                ? <FileText size={11} color="#4f46e5" strokeWidth={2.2} />
+                : <ListTree size={11} color="#4f46e5" strokeWidth={2.2} />}
               <span style={{
                 fontSize: 11, fontWeight: 900, letterSpacing: "0.06em",
                 textTransform: "uppercase", color: "#4f46e5",
               }}>
-                Description
+                {composeMode === "description" ? "Description" : "Subtask"}
               </span>
               <button
-                onClick={() => { setComposeMode("text"); setNewContent("") }}
+                onClick={exitComposeMode}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center",
                   width: 16, height: 16, borderRadius: 4, border: "none",
@@ -707,7 +1005,7 @@ export function BranchFeed({
               </button>
             </div>
             <span style={{ fontSize: 10.5, fontWeight: 600, color: "#a3a3a3" }}>
-              task description · ⌘+↵ to send
+              {composeMode === "description" ? "task description · ⌘+↵ to send" : "a step in this task · ↵ to add"}
             </span>
           </div>
         )}
@@ -715,8 +1013,8 @@ export function BranchFeed({
         {/* Compose box — position:relative anchors the floating menu */}
         <div style={{
           position: "relative",
-          background: composeMode === "description" ? "#faf5ff" : "#fafafa",
-          border: composeMode === "description" ? "1.5px solid #c7d2fe" : "1px solid #f0f0f0",
+          background: composeMode !== "text" ? "#faf5ff" : "#fafafa",
+          border: composeMode !== "text" ? "1.5px solid #c7d2fe" : "1px solid #f0f0f0",
           borderRadius: 14,
           padding: 4,
           display: "flex",
@@ -725,8 +1023,8 @@ export function BranchFeed({
           transition: "border-color 200ms, background 200ms",
         }}>
 
-          {/* Attach menu — absolutely above the compose box */}
-          {plusMenuOpen && (
+          {/* Attach menu — absolutely above the compose box (empty/closed on a completed task) */}
+          {plusMenuOpen && hasMenuItems && (
             <div
               ref={plusMenuRef}
               style={{
@@ -744,16 +1042,11 @@ export function BranchFeed({
               }}
             >
               {/* Author-only: add the task description (disabled once one exists) */}
-              {showDescription && (
+              {menuShowsDescription && (
                 <>
                   <MenuSectionLabel>Attach</MenuSectionLabel>
                   <button
-                    onClick={() => {
-                      if (genesis) return
-                      setComposeMode("description")
-                      setPlusMenuOpen(false)
-                      setTimeout(() => composeRef.current?.focus(), 50)
-                    }}
+                    onClick={() => { if (!genesis) enterComposeMode("description") }}
                     disabled={!!genesis}
                     style={{
                       width: "100%", display: "flex", alignItems: "center", gap: 10,
@@ -799,10 +1092,42 @@ export function BranchFeed({
                 </>
               )}
 
-              {/* Task actions — available to everyone (owner & collaborators) */}
-              {(showWorkAction || showCompleteAction) && (
+              {/* Author-only: add a subtask — authored in the same field, appears inline in the branch */}
+              {menuShowsSubtask && (
                 <>
-                  {showDescription && (
+                  {!menuShowsDescription && <MenuSectionLabel>Attach</MenuSectionLabel>}
+                  <button
+                    onClick={() => enterComposeMode("subtask")}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
+                      background: "transparent", textAlign: "left", transition: "background 100ms",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+                  >
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                      background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <ListTree size={14} color="#4f46e5" strokeWidth={1.9} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0a0a0a", letterSpacing: "-0.01em" }}>
+                        Subtask
+                      </div>
+                      <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
+                        Add a step to this task
+                      </div>
+                    </div>
+                  </button>
+                </>
+              )}
+
+              {/* Task actions — available to everyone (owner & collaborators), hidden once done */}
+              {menuShowsActions && (
+                <>
+                  {menuShowsDescription && (
                     <div style={{ height: 1, background: "#f3f3f3", margin: "6px 8px" }} />
                   )}
                   <MenuSectionLabel>Actions</MenuSectionLabel>
@@ -884,22 +1209,32 @@ export function BranchFeed({
               autoResize(e.target)
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+              // Subtask titles are single-line — plain Enter adds the step. Description/messages
+              // use ⌘/Ctrl+Enter so multi-line text can be composed freely.
+              if (e.key === "Enter" && composeMode === "subtask" && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmitWithMode()
+              } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault()
                 handleSubmitWithMode()
               }
-              if (e.key === "Escape" && composeMode === "description") {
-                setComposeMode("text")
-                setNewContent("")
+              if (e.key === "Escape" && composeMode !== "text") {
+                exitComposeMode()
               }
             }}
             rows={1}
             placeholder={
               composeMode === "description"
                 ? "Enter task description…"
-                : "Write in branch… ⌘+↵ to send"
+                : composeMode === "subtask"
+                  ? "Add a subtask…"
+                  : "Write in branch… ⌘+↵ to send"
             }
-            maxLength={composeMode === "description" ? GENESIS_MAX : COMMENT_MAX}
+            maxLength={
+              composeMode === "description" ? GENESIS_MAX
+                : composeMode === "subtask" ? SUBTASK_MAX
+                  : COMMENT_MAX
+            }
             disabled={submitting}
             style={{
               flex: 1, background: "transparent", border: "none", outline: "none",
@@ -915,14 +1250,14 @@ export function BranchFeed({
               width: 32, height: 32, borderRadius: 10, border: "none",
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: newContent.trim() && !submitting ? "pointer" : "default",
-              background: newContent.trim() && !submitting
-                ? (composeMode === "description" ? "#4f46e5" : "#0a0a0a")
-                : "#e5e5e5",
+              background: newContent.trim() && !submitting ? composeAccent : "#e5e5e5",
               flexShrink: 0,
               transition: "background 120ms",
             }}
           >
-            <Send size={14} color={newContent.trim() && !submitting ? "white" : "#a3a3a3"} />
+            {submitting && composeMode === "subtask"
+              ? <Loader2 size={14} color="white" className="animate-spin" />
+              : <Send size={14} color={newContent.trim() && !submitting ? "white" : "#a3a3a3"} />}
           </button>
         </div>
       </div>
@@ -1062,6 +1397,398 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
         </span>
       </div>
     </div>
+  )
+}
+
+/* ── Subtask cluster ── one integrated thread on the rail: a minimal "added a subtask" caption,
+   the card itself (with an all-viewers "In progress" indicator), and — when done — a compact
+   completion "reply" the rail gently bends down to. The card's completion toggle is the primary
+   rail marker; the green completion node sits just below it. The subtask's create/complete system
+   comments are folded in here (parsed into `meta`) instead of appearing as separate rail nodes. */
+const SUBTASK_TOGGLE = 26
+const SUBTASK_DELETE_ZONE = 50
+// x of the rail centre within a cluster's content box (content starts RAIL_GUTTER from the wrapper).
+const RAIL_X = RAIL_CENTER - RAIL_GUTTER
+// A subtask branches off the main rail into its own little sub-branch: the card + its completion
+// reply sit offset to the side (SUBTASK_OFFSET), joined back to the rail by connectors. The ONLY
+// marker is the subtask's completion toggle, which lives on the sub-branch (SUB_TOGGLE_X) — the
+// completion reply is just another (icon-less) reply on that sub-branch.
+const SUBTASK_OFFSET = 28    // card / reply content left edge (the sub-branch column)
+const SUB_TOGGLE_X = 4       // the toggle's centre x — the subtask's sole marker, on the sub-branch
+interface SubtaskCardProps {
+  subtask: Todo
+  meta: SubtaskMeta
+  isOwner: boolean
+  done: boolean
+  /** How many people are working on this subtask (per-user; shown anonymously to everyone). */
+  workerCount: number
+  /** Whether THIS viewer is one of them (drives their own take-into-work / step-out toggle). */
+  viewerWorking: boolean
+  pending: boolean
+  onToggleComplete: () => void
+  onToggleWork: () => void
+  onDelete: () => void
+  onSaveTitle: (title: string) => void
+}
+
+function SubtaskCard({
+  subtask, meta, isOwner, done, workerCount, viewerWorking, pending,
+  onToggleComplete, onToggleWork, onDelete, onSaveTitle,
+}: SubtaskCardProps) {
+  const [hovered, setHovered] = useState(false)
+  const [deleteHovered, setDeleteHovered] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(subtask.title)
+  const editInputRef = useRef<HTMLTextAreaElement>(null)
+
+  const beginEdit = () => {
+    if (!isOwner) return
+    setEditTitle(subtask.title)
+    setEditing(true)
+    setTimeout(() => {
+      const el = editInputRef.current
+      if (!el) return
+      el.focus(); el.select()
+      el.style.height = "auto"
+      el.style.height = el.scrollHeight + "px"
+    }, 40)
+  }
+  const commitEdit = () => {
+    const t = editTitle.trim()
+    if (t && t !== subtask.title) onSaveTitle(t)
+    setEditing(false)
+  }
+
+  // Owner gets the slide-out delete affordance, so reserve the strip's width on the right.
+  const bodyPaddingRight = isOwner && !editing ? SUBTASK_DELETE_ZONE - 2 : 12
+
+  const completedName = meta.completedBy?.trim()
+  const completedAt = meta.completedAt
+  // Someone (anyone) is working on it → amber accents; the viewer's own membership drives the toggle.
+  const someoneWorking = workerCount > 0
+  // Sub-branch accent — the little branch the subtask hangs from, tinted to its state.
+  const branchColor = done ? "#a7f3d0" : someoneWorking ? "#fcd98c" : "#e1e1e6"
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96, height: 0, marginTop: -2, marginBottom: 0 }}
+      transition={SPRING_SNAP}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setDeleteHovered(false) }}
+      style={{ position: "relative", padding: "6px 0" }}
+    >
+      {/* ── Card row ── the subtask forks off the main rail into its own sub-branch. The completion
+          toggle is the subtask's ONLY marker, sitting on the sub-branch at the card's VERTICAL
+          CENTRE; a fork connector reaches in from the main rail, and (when done) the sub-branch
+          continues downward to the completion reply. */}
+      <div style={{ position: "relative", paddingLeft: SUBTASK_OFFSET }}>
+        {/* Fork — main rail → the sub-branch toggle */}
+        <span style={{
+          position: "absolute", left: RAIL_X, top: "50%", transform: "translateY(-50%)",
+          width: SUB_TOGGLE_X - RAIL_X, height: 2, borderRadius: 1,
+          background: branchColor, transition: "background 200ms",
+        }} />
+        {/* Stem — toggle → the offset card */}
+        <span style={{
+          position: "absolute", left: SUB_TOGGLE_X, top: "50%", transform: "translateY(-50%)",
+          width: SUBTASK_OFFSET - SUB_TOGGLE_X, height: 2, borderRadius: 1,
+          background: branchColor, transition: "background 200ms",
+        }} />
+        {/* Sub-branch continuation downward to the completion reply (only when done) */}
+        {done && (
+          <span style={{
+            position: "absolute", left: SUB_TOGGLE_X - 1, top: "50%", bottom: -6, width: 2,
+            background: branchColor, transition: "background 200ms",
+          }} />
+        )}
+        {/* Completion toggle — the subtask's sole marker, on the sub-branch, vertically centred */}
+        <button
+          onClick={onToggleComplete}
+          disabled={pending}
+          aria-label={done ? "Mark subtask not done" : "Complete subtask"}
+          style={{
+            position: "absolute",
+            left: SUB_TOGGLE_X - SUBTASK_TOGGLE / 2,
+            top: "50%",
+            width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
+            border: done ? "none" : `2px solid ${someoneWorking ? "#f59e0b" : "#d4d4d4"}`,
+            background: done ? "#10b981" : "#ffffff",
+            boxShadow: done
+              ? "0 0 0 3px #ffffff, 0 2px 6px -1px rgba(16,185,129,0.5)"
+              : "0 0 0 3px #ffffff",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: pending ? "default" : "pointer", padding: 0, zIndex: 3,
+            transition: "background 160ms, border-color 160ms, transform 120ms, box-shadow 160ms",
+            transform: `translateY(-50%) scale(${hovered && !done ? 1.12 : 1})`,
+          }}
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {done ? (
+              <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
+                <Check size={15} color="white" strokeWidth={3} />
+              </motion.span>
+            ) : someoneWorking ? (
+              <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} className="animate-pulse" />
+              </motion.span>
+            ) : hovered ? (
+              <motion.span key="hover" initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                <Check size={14} color="#10b981" strokeWidth={3} />
+              </motion.span>
+            ) : null}
+          </AnimatePresence>
+        </button>
+
+        {/* Card body — taller, task-like; overflow:hidden clips the delete strip + rounded corners.
+            alignItems:flex-start lets the card grow downward when a long title wraps. */}
+        <div style={{
+          position: "relative", overflow: "hidden",
+          display: "flex", alignItems: "flex-start", gap: 10,
+          padding: "11px 12px", paddingRight: bodyPaddingRight,
+          borderRadius: 12,
+          background: done ? "#f7fdfb" : someoneWorking ? "#fffdf5" : "#fafafa",
+          border: `1px solid ${done ? "#d7f5ea" : someoneWorking && !done ? "#fde68a" : "#f0f0f0"}`,
+          transition: "background 200ms, border-color 200ms, padding 160ms",
+        }}>
+          {/* Title (wraps freely) or inline editor */}
+          {editing ? (
+            <textarea
+              ref={editInputRef}
+              value={editTitle}
+              onChange={(e) => {
+                setEditTitle(e.target.value)
+                e.target.style.height = "auto"
+                e.target.style.height = e.target.scrollHeight + "px"
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); commitEdit() }
+                if (e.key === "Escape") setEditing(false)
+              }}
+              onBlur={commitEdit}
+              maxLength={SUBTASK_MAX}
+              rows={1}
+              style={{
+                flex: 1, minWidth: 0, background: "white",
+                border: "1.5px solid #c7d2fe", borderRadius: 8, outline: "none",
+                padding: "7px 10px", fontSize: 13.5, fontWeight: 400, lineHeight: 1.4,
+                color: "#262626", fontFamily: "inherit", resize: "none",
+                maxHeight: 160, overflowY: "auto",
+              }}
+            />
+          ) : (
+            <span
+              onDoubleClick={beginEdit}
+              title={isOwner ? "Double-click to edit" : undefined}
+              style={{
+                flex: 1, minWidth: 0,
+                // Non-bold so it reads as a plain branch step; wraps so a long step grows the card.
+                fontSize: 13.5, fontWeight: 400, lineHeight: 1.45, paddingTop: 4,
+                color: done ? "#a3a3a3" : "#262626",
+                textDecoration: done ? "line-through" : "none",
+                overflowWrap: "anywhere", wordBreak: "break-word",
+                cursor: isOwner ? "text" : "default",
+                transition: "color 200ms",
+              }}
+            >
+              {subtask.title}
+            </span>
+          )}
+
+          {/* In-work presence badge — per-user, shown to EVERY viewer as an anonymous count
+              ("N working"). It never names anyone. When the viewer is one of the workers the badge
+              reads "You + N" so they can tell their own state at a glance. */}
+          <AnimatePresence initial={false}>
+            {someoneWorking && !done && !editing && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ type: "spring", stiffness: 480, damping: 26 }}
+                title={`${workerCount} ${workerCount === 1 ? "person is" : "people are"} working on this`}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 2,
+                  fontSize: 9.5, fontWeight: 900, letterSpacing: "0.06em", textTransform: "uppercase",
+                  color: "#b45309",
+                  background: "linear-gradient(180deg,#fff8e6,#fef0c7)",
+                  border: "1px solid #fce4a6",
+                  padding: "3px 9px 3px 7px", borderRadius: 999,
+                  boxShadow: "0 1px 3px -1px rgba(245,158,11,0.35)",
+                }}
+              >
+                <span style={{ position: "relative", width: 7, height: 7, flexShrink: 0 }}>
+                  <span className="animate-ping" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#f59e0b", opacity: 0.6 }} />
+                  <span style={{ position: "absolute", inset: 1, borderRadius: "50%", background: "#f59e0b" }} />
+                </span>
+                {viewerWorking
+                  ? (workerCount > 1 ? `You + ${workerCount - 1} working` : "You're working")
+                  : `${workerCount} working`}
+              </motion.span>
+            )}
+          </AnimatePresence>
+
+          {/* Inline actions — revealed on hover, hidden under the delete panel. "Take into work" is
+              available to EVERYONE (global, like completion); editing stays owner-only. */}
+          {!editing && (isOwner || !done) && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginTop: 1,
+              opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
+              pointerEvents: hovered && !deleteHovered ? "auto" : "none",
+            }}>
+              {isOwner && (
+                <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
+                  <Pencil size={13} strokeWidth={2} />
+                </SubtaskIconButton>
+              )}
+              {!done && (
+                <SubtaskIconButton
+                  label={viewerWorking ? "Stop working on subtask" : "Take subtask into work"}
+                  title={viewerWorking ? "Step out" : "Take into work"}
+                  color={viewerWorking ? "#b45309" : "#6366f1"} hoverBg="#f0f0f0"
+                  onClick={onToggleWork} disabled={pending}
+                >
+                  {viewerWorking ? <Pause size={14} strokeWidth={2} /> : <Zap size={14} strokeWidth={2} />}
+                </SubtaskIconButton>
+              )}
+            </div>
+          )}
+
+          {/* Delete strip — slides in from the right, identical in feel to a task card's delete panel */}
+          {isOwner && !editing && (
+            <div
+              onMouseEnter={() => setDeleteHovered(true)}
+              onMouseLeave={() => setDeleteHovered(false)}
+              style={{
+                position: "absolute", top: 0, right: 0, bottom: 0,
+                width: SUBTASK_DELETE_ZONE, zIndex: 2,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                overflow: "hidden", cursor: pending ? "default" : "pointer",
+              }}
+            >
+              <AnimatePresence>
+                {deleteHovered && (
+                  <motion.button
+                    key="sub-delete-panel"
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); if (!pending) onDelete() }}
+                    disabled={pending}
+                    aria-label="Delete subtask"
+                    variants={{
+                      hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } },
+                      visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
+                    }}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    whileHover={{ filter: "brightness(1.1)" }}
+                    style={{
+                      position: "absolute", inset: 0, border: "none", padding: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "white", cursor: pending ? "default" : "pointer",
+                      background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 38%, #dc2626 100%)",
+                      boxShadow: "-6px 0 18px rgba(239,68,68,0.18)",
+                    }}
+                  >
+                    <motion.div
+                      variants={{
+                        hidden: { scale: 0.5, opacity: 0, y: 6 },
+                        visible: { scale: 1, opacity: 1, y: 0, transition: { delay: 0.06, type: "spring", stiffness: 420, damping: 22 } },
+                      }}
+                      style={{ display: "flex" }}
+                    >
+                      {pending ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} strokeWidth={2.2} />}
+                    </motion.div>
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Completion reply ── its own green completion node on the rail (vertically centred) with
+          an offset note; shown whenever the subtask is done. The name fills in once the folded
+          system comment lands, otherwise a nameless "Completed" shows immediately. */}
+      <AnimatePresence initial={false}>
+        {done && (
+          <SubtaskCompletionReply
+            key="completion"
+            name={completedName}
+            at={completedAt}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
+/* ── Completion reply ── another reply hanging off the subtask's sub-branch, with NO rail icon.
+   A soft "└" elbow continues the sub-branch from the card down into an icon-less note. */
+const REPLY_ROW = 26
+function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      transition={SPRING_SNAP}
+      style={{ position: "relative", paddingLeft: SUBTASK_OFFSET, minHeight: REPLY_ROW }}
+    >
+      {/* "└" elbow — continues the sub-branch down from the card, then curves into the note.
+          No node/icon: the completion is just a reply on the sub-branch. */}
+      <span style={{
+        position: "absolute", left: SUB_TOGGLE_X - 1, top: -8,
+        width: SUBTASK_OFFSET - SUB_TOGGLE_X, height: REPLY_ROW / 2 + 8,
+        borderLeft: "2px solid #a7f3d0", borderBottom: "2px solid #a7f3d0",
+        borderBottomLeftRadius: 12, pointerEvents: "none",
+      }} />
+
+      {/* Note (icon-less) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: REPLY_ROW }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: "#6f7d76", lineHeight: 1.3 }}>
+          {name
+            ? <><strong style={{ color: "#0a0a0a", fontWeight: 800 }}>{name}</strong> completed sub task</>
+            : <strong style={{ color: "#059669", fontWeight: 800 }}>Sub task completed</strong>}
+        </span>
+        {at && (
+          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", color: "#bdbdbd" }}>
+            {formatTimeHHMM(at)}
+          </span>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
+interface SubtaskIconButtonProps {
+  label: string
+  title: string
+  color: string
+  hoverBg: string
+  disabled?: boolean
+  onClick: () => void
+  children: ReactNode
+}
+function SubtaskIconButton({ label, title, color, hoverBg, disabled, onClick, children }: SubtaskIconButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={title}
+      style={{
+        width: 26, height: 26, borderRadius: 8, border: "none",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: "transparent", cursor: disabled ? "default" : "pointer", color,
+        transition: "background 120ms",
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = hoverBg }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+    >
+      {children}
+    </button>
   )
 }
 

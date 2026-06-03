@@ -35,7 +35,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetTodosByCategory
                 var (items, totalCount) = await _repository.GetPagedAsync(
                     request.PageNumber,
                     request.PageSize,
-                    t => t.UserId == userId && t.CategoryId == request.CategoryId && !t.IsDeleted,
+                    t => t.UserId == userId && t.CategoryId == request.CategoryId && t.ParentTodoId == null && !t.IsDeleted,
                     t => t.CreatedAt,
                     false,
                     cancellationToken);

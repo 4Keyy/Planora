@@ -104,6 +104,8 @@ export type Todo = {
   isWorking?: boolean
   workerUserIds?: string[] | null
   isCompletedByViewer?: boolean | null
+  /** When set, this todo is a subtask (child) of the given parent task. */
+  parentTodoId?: string | null
 }
 
 export type PagedTodosResponse = {

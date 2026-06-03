@@ -73,6 +73,33 @@ public sealed class IntegrationEventConsumerTests
         Assert.Contains("Carol", captured.Content);
     }
 
+    [Theory]
+    [Trait("TestType", "Functional")]
+    [InlineData(TaskActivityType.SubtaskCreated, "added a subtask: Draft outline")]
+    [InlineData(TaskActivityType.SubtaskCompleted, "completed a subtask: Draft outline")]
+    public async Task SubtaskActivity_WritesSystemCommentWithTitle(string activity, string expectedFragment)
+    {
+        var parentId = Guid.NewGuid();
+        var comments = new Mock<ICommentRepository>();
+        Comment? captured = null;
+        comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
+            .Callback<Comment, CancellationToken>((c, _) => captured = c)
+            .ReturnsAsync((Comment c, CancellationToken _) => c);
+
+        var consumer = new TaskActivityEventConsumer(comments.Object, Mock.Of<IUnitOfWork>(),
+            Mock.Of<ILogger<TaskActivityEventConsumer>>());
+
+        await consumer.HandleAsync(
+            new TaskActivityIntegrationEvent(parentId, Guid.NewGuid(), "Dave", activity, "Draft outline"),
+            CancellationToken.None);
+
+        Assert.NotNull(captured);
+        Assert.True(captured!.IsSystemComment);
+        Assert.Equal(parentId, captured.TaskId); // posted to the PARENT's branch
+        Assert.Contains("Dave", captured.Content);
+        Assert.Contains(expectedFragment, captured.Content);
+    }
+
     [Fact]
     [Trait("TestType", "Resilience")]
     public async Task TaskActivity_UnknownType_IsSkippedSilently()
@@ -104,6 +131,33 @@ public sealed class IntegrationEventConsumerTests
         await consumer.HandleAsync(new TaskDeletedIntegrationEvent(taskId, actor), CancellationToken.None);
 
         comments.Verify(x => x.SoftDeleteByTaskIdAsync(taskId, actor, It.IsAny<CancellationToken>()), Times.Once);
+        uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    // ─── SubtaskDeleted ─────────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("TestType", "Integration")]
+    public async Task SubtaskDeleted_SoftDeletesOnlyTheSubtaskAnnouncementsInParentBranch()
+    {
+        var parentId = Guid.NewGuid();
+        var subtaskId = Guid.NewGuid();
+        var actor = Guid.NewGuid();
+        var comments = new Mock<ICommentRepository>();
+        var uow = new Mock<IUnitOfWork>();
+
+        var consumer = new SubtaskDeletedEventConsumer(comments.Object, uow.Object,
+            Mock.Of<ILogger<SubtaskDeletedEventConsumer>>());
+
+        await consumer.HandleAsync(
+            new SubtaskDeletedIntegrationEvent(parentId, subtaskId, actor, "Draft outline"),
+            CancellationToken.None);
+
+        // Targets the parent branch + title (not a whole-branch wipe).
+        comments.Verify(x => x.SoftDeleteSubtaskActivityAsync(
+            parentId, "Draft outline", actor, It.IsAny<CancellationToken>()), Times.Once);
+        comments.Verify(x => x.SoftDeleteByTaskIdAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

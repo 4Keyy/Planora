@@ -340,6 +340,43 @@ export const joinTodo = async (id: string): Promise<Todo> => {
   return parseApiResponse(data)
 }
 
+// ── Subtasks ── child tasks that live only inside a parent task's branch ──────────
+
+/** Lists a task's subtasks (oldest first). Visible to anyone who can see the parent. */
+export const fetchSubtasks = async (parentTodoId: string): Promise<Todo[]> => {
+  const { data } = await api.get<ApiResponse<Todo[]>>(`/todos/api/v1/todos/${parentTodoId}/subtasks`)
+  return parseApiResponse(data)
+}
+
+/**
+ * Creates a subtask under a task (owner-only). Category/visibility are inherited server-side.
+ * Priority is intentionally not part of the subtask UX — when omitted the server defaults it.
+ */
+export const createSubtask = async (
+  parentTodoId: string,
+  payload: { title: string; description?: string | null; priority?: number },
+): Promise<Todo> => {
+  const { data } = await api.post<ApiResponse<Todo>>(
+    `/todos/api/v1/todos/${parentTodoId}/subtasks`,
+    payload,
+  )
+  return parseApiResponse(data)
+}
+
+/** Updates a subtask's own fields (title, priority, status). Reuses the todo update endpoint. */
+export const updateSubtask = async (
+  id: string,
+  payload: { title?: string; description?: string | null; priority?: number; status?: "todo" | "inprogress" | "done" },
+): Promise<Todo> => {
+  const { data } = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${id}`, payload)
+  return parseApiResponse(data)
+}
+
+/** Deletes a subtask. */
+export const deleteSubtask = async (id: string): Promise<void> => {
+  await api.delete(`/todos/api/v1/todos/${id}`)
+}
+
 export const leaveTodo = async (id: string): Promise<void> => {
   await api.post(`/todos/api/v1/todos/${id}/leave`)
 }

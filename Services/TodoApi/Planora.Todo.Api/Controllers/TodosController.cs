@@ -12,6 +12,8 @@ using Planora.Todo.Application.Features.Todos.Queries.GetTodosByCategory;
 using Planora.Todo.Application.Features.Todos.Queries.GetTodoById;
 using Planora.Todo.Application.Features.Todos.Commands.JoinTodo;
 using Planora.Todo.Application.Features.Todos.Commands.LeaveTodo;
+using Planora.Todo.Application.Features.Todos.Commands.CreateSubtask;
+using Planora.Todo.Application.Features.Todos.Queries.GetSubtasks;
 
 namespace Planora.Todo.Api.Controllers
 {
@@ -39,9 +41,12 @@ namespace Planora.Todo.Api.Controllers
             [FromQuery] string? status = null,
             [FromQuery] Guid? categoryId = null,
             [FromQuery] bool? isCompleted = null,
+            // Subtasks are excluded from lists by default; the dashboard stats fetch opts in so
+            // completed subtasks still count toward weekly statistics.
+            [FromQuery] bool includeSubtasks = false,
             CancellationToken cancellationToken = default)
         {
-            var query = new GetUserTodosQuery(null, pageNumber, pageSize, status, categoryId, isCompleted);
+            var query = new GetUserTodosQuery(null, pageNumber, pageSize, status, categoryId, isCompleted, includeSubtasks);
             var result = await _mediator.Send(query, cancellationToken);
 
             return Ok(result);
@@ -75,6 +80,50 @@ namespace Planora.Todo.Api.Controllers
                 return NotFound(result.Error);
 
             return Ok(result.Value);
+        }
+
+        /// <summary>
+        /// Lists the subtasks (children) of a task. Visible to the owner, or to a friend for a
+        /// shared/public parent. Subtasks live only in the task's branch.
+        /// </summary>
+        [HttpGet("{id}/subtasks")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<IReadOnlyList<TodoItemDto>>> GetSubtasks(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _mediator.Send(new GetSubtasksQuery(id), cancellationToken);
+
+            if (result.IsFailure)
+                return NotFound(result.Error);
+
+            return Ok(result.Value);
+        }
+
+        /// <summary>
+        /// Creates a subtask under a task (owner-only). The subtask inherits the parent's
+        /// category, public flag and shared audience; it has its own title/priority and no dates.
+        /// </summary>
+        [HttpPost("{id}/subtasks")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<TodoItemDto>> CreateSubtask(
+            [FromRoute] Guid id,
+            [FromBody] CreateSubtaskCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            var createCommand = command with { ParentTodoId = id }; // parent comes from the route, never the body
+            var result = await _mediator.Send(createCommand, cancellationToken);
+
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return CreatedAtAction(
+                nameof(GetTodoById),
+                new { id = result.Value!.Id },
+                result.Value);
         }
 
         [HttpPost]

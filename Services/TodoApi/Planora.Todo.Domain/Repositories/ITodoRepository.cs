@@ -36,6 +36,17 @@ namespace Planora.Todo.Domain.Repositories
         Task<int> GetActiveWorkerTaskCountAsync(Guid userId, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Returns the subtasks (children) of a parent task, oldest first, with includes. Read-only.
+        /// </summary>
+        Task<IReadOnlyList<TodoItem>> GetSubtasksAsync(Guid parentTodoId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the tracked subtasks of a parent task so they can be mutated (e.g. to propagate
+        /// the parent's category/visibility changes or to soft-delete them with the parent).
+        /// </summary>
+        Task<IReadOnlyList<TodoItem>> GetSubtasksTrackedAsync(Guid parentTodoId, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Removes all TodoItemShare rows that represent sharing between two users whose
         /// friendship has been revoked. Deletes shares in both directions.
         /// </summary>

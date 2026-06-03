@@ -275,9 +275,13 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             var isAskingForActive = request.IsCompleted == false || 
                 (requestedStatuses != null && requestedStatuses.Count > 0 && requestedStatuses.All(s => s != TodoStatus.Done));
 
+            var includeSubtasks = request.IncludeSubtasks;
+
             return x => !x.IsDeleted &&
+                       // Subtasks live only inside their parent's branch — never in task lists.
+                       (includeSubtasks || x.ParentTodoId == null) &&
                        (requestedStatuses == null || requestedStatuses.Contains(x.Status)) &&
-                       
+
                        // Filter by viewer completion state:
                        // 1. If asking for completed: show globally Done OR viewer-completed
                        // 2. If asking for active: show globally not-Done AND not viewer-completed

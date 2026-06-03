@@ -29,12 +29,19 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
         public async Task HandleAsync(TaskActivityIntegrationEvent @event, CancellationToken cancellationToken)
         {
             var actorName = string.IsNullOrWhiteSpace(@event.ActorName) ? "Someone" : @event.ActorName;
+            var detail = @event.Detail?.Trim();
 
             var text = @event.ActivityType switch
             {
                 TaskActivityType.Completed => $"{actorName} completed the task",
                 TaskActivityType.StartedWorking => $"{actorName} started working on the task",
                 TaskActivityType.Left => $"{actorName} left the task",
+                TaskActivityType.SubtaskCreated => string.IsNullOrWhiteSpace(detail)
+                    ? $"{actorName} added a subtask"
+                    : $"{actorName} added a subtask: {detail}",
+                TaskActivityType.SubtaskCompleted => string.IsNullOrWhiteSpace(detail)
+                    ? $"{actorName} completed a subtask"
+                    : $"{actorName} completed a subtask: {detail}",
                 _ => null
             };
 

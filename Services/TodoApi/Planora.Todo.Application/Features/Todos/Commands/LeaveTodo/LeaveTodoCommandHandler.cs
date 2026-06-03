@@ -41,15 +41,22 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
             var todoItem = await _repository.GetByIdWithIncludesTrackedAsync(request.TodoId, cancellationToken)
                 ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
-            if (todoItem.UserId == userId)
+            // Subtask in-work is per-user (the owner can opt in/out too), so the owner may leave a
+            // subtask. On a normal task the owner is always its worker and cannot leave.
+            var isSubtask = todoItem.IsSubtask;
+            if (todoItem.UserId == userId && !isSubtask)
                 throw new BusinessRuleViolationException("Owner cannot leave their own task");
 
             todoItem.RemoveWorker(userId);
 
-            var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-            await _outboxRepository.EnqueueIntegrationEventAsync(
-                new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.Left),
-                cancellationToken);
+            // Subtasks post no "left the task" notification — their in-work state is an anonymous count.
+            if (!isSubtask)
+            {
+                var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.Left),
+                    cancellationToken);
+            }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -148,6 +148,13 @@ Organize todos with user-owned labels that carry color, icon, and display order.
 - Delete returns `403` for forbidden access.
 - Category deletion emits integration behavior consumed by Todo; see `Services/TodoApi/Planora.Todo.Application/Features/Todos/Events/CategoryDeletedEventHandler.cs`.
 
+### Frontend Behavior
+
+- Editing an existing category is **quick-save**: there are no Save/Cancel buttons. Changing the name, description, color (color picker), or icon persists automatically. The debounced `useAutosave` hook (`frontend/src/hooks/use-autosave.ts`) coalesces bursts (e.g. dragging the color picker) into a single `PUT`, updates the grid optimistically, and a `AutosaveIndicator` reports `Saving… / All changes saved / Couldn’t save`.
+- An empty name is never persisted (a category's only required field); the modal shows an inline "Enter a name to save your changes" hint and skips the save until a name is present.
+- Pending edits are flushed when the modal closes (X / `Escape` / backdrop / `Done`), so a change made inside the debounce window is never lost.
+- **Creating** a category is the one exception that keeps an explicit `Create category` button: nothing exists to autosave yet, and auto-creating on keystroke would leave half-typed categories behind. There is no Cancel button — closing the modal simply discards the draft.
+
 ## Todos
 
 ### Purpose
@@ -177,6 +184,62 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 | Non-owner updates | friend-visible viewer can only change status |
 | Visibility persistence | `UpdateTodoCommandHandler` loads the entity via `GetByIdWithIncludesTrackedAsync` (with EF Core change tracking) so that changes to `IsPublic` and `SharedWith` collection additions/removals are correctly persisted — tracked loading generates the right INSERT/DELETE DML for the `TodoItemShare` collection, whereas a detached `DbSet.Update()` call would silently emit UPDATE-only SQL against non-existent rows |
 
+### Subtasks
+
+A **subtask** is a child `TodoItem` (self-referencing `ParentTodoId`) — a part of its parent
+task, stored in the parent's tree. Subtasks exist **only inside a task's branch** (the edit modal):
+they never appear on the tasks page, the completed page, the dashboard grid, or any list.
+
+A subtask is **a regular event in the branch timeline**, not a separate panel. It is authored
+exactly like the task description — through the compose box's **"+" menu → "Subtask"**, which
+switches the same input field into subtask mode (plain Enter adds the step; creating a subtask
+**closes the composer**, returning to plain-message mode). Each subtask **forks off the main rail
+into its own little sub-branch**: the card and its completion reply sit **offset to the side**,
+joined back to the rail by connectors. **There is no creation notification at all** — a subtask
+never announces that it was created.
+
+- the **card** (task-like, same **slide-from-right red delete panel**), offset onto the sub-branch.
+  Its **completion toggle is the subtask's ONLY marker**, sitting on the sub-branch at the card's
+  **vertical centre** (not at the top); a state-tinted fork reaches in from the main rail;
+- **anyone with access can take a subtask into work** (a Zap toggle on hover). This is **per-user**:
+  each person joins/leaves independently (server-side worker rows), so one person working never
+  flips it "in work" for another. Every viewer sees an anonymous **"N working"** presence badge
+  (amber pill + pulsing dot) — it **never names anyone**; the viewer's own membership reads
+  "You're working" / "You + N working";
+- when done, a **completion reply** — *another reply on the same sub-branch, with **no rail icon***
+  — joined by a soft "└" elbow: "**{Name}** completed sub task · HH:MM" (a nameless "Sub task
+  completed" shows instantly on optimistic completion, then the name fills in when the folded
+  system comment lands).
+
+Subtask **system notifications never get their own icons on the rail** — the only marker the
+sub-branch carries is the subtask's own completion toggle.
+
+| Aspect | Rule |
+|---|---|
+| Storage | child `TodoItem` with `ParentTodoId`; one level deep (a subtask cannot have subtasks) |
+| Category | always inherited from the parent (never set independently) |
+| Visibility | public exactly when the parent is public; inherits the parent's shared audience. A parent's category/visibility/sharing change **propagates** to its subtasks |
+| Dates | none — a subtask never has a due or expected date |
+| Priority | **none in the UX** — a subtask is just a checkable titled step; no priority is shown, chosen, or edited. (The entity still has a priority column, defaulted server-side; it is never surfaced.) |
+| Title length | a subtask's whole content lives in its title, so it allows **up to 1500 characters** (regular-task titles stay ≤200). Enforced by `CreateSubtaskCommandValidator` (1500), `UpdateTodoCommandValidator` (1500, shared with subtask renames), the widened `TodoItems.Title` `varchar(1500)` column, and the frontend `SUBTASK_MAX = 1500` (create textarea + inline edit textarea both wrap/grow) |
+| Editing | the title is **owner-only** (inline edit in the card; double-click the title or the pencil). Non-owners cannot edit |
+| Status / completion | **Completion is global** — anyone with access marks it done/reopens it for everyone (entity status). Stays in the branch after completion (shown done with its completion reply, not removed) |
+| In-work (per-user) | **"In work" is per-user, not global** — each participant (the **owner included**) joins/leaves a subtask independently via worker rows (`joinTodo`/`leaveTodo`; subtasks have unlimited capacity and the owner-always-worker rule is relaxed for subtasks). If one user picks it up it is **not** "in work" for another; everyone just sees an anonymous **"N working"** count (`workerCount`), and each viewer's own toggle reflects their `isWorking`. No "started working" notification is emitted for subtasks |
+| Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
+| Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
+| Branch messages | **Creating a subtask emits no event**, and **taking one into work emits no event** (JoinTodo/LeaveTodo skip the activity event for subtasks). **Completing** a subtask still posts `TaskActivityIntegrationEvent` (`SubtaskCompleted`, `Detail` = title) to the **parent's** branch, but **no subtask system comment is ever rendered as a standalone rail node** — `buildFeed` hides *every* "added a subtask: …" / "completed a subtask: …" comment (matched or not, so legacy/renamed ones never reappear) and folds the matched completion into the icon-less reply. The "N working" badge is derived from the subtask's live `workerCount` (polled), so all viewers see it. A subtask has no branch of its own |
+| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note. A long title **wraps** (the card is flexible-height) rather than being truncated. The subtask forks off the main rail onto a **sub-branch**; its completion toggle is the **only** rail marker; the completion attribution is an **icon-less reply** on the sub-branch (no creation notification at all) |
+| Lifecycle | deleting a task soft-deletes its whole subtree. Deleting a **single subtask** also removes the announcement comments it left in the parent's branch — TodoApi emits `SubtaskDeletedIntegrationEvent(parentTaskId, subtaskId, actor, title)` (instead of `TaskDeletedIntegrationEvent`, which would wipe a whole branch); Collaboration's `SubtaskDeletedEventConsumer` soft-deletes the parent-branch system comments whose content ends with `added a subtask: {title}` / `completed a subtask: {title}`. The client also removes them optimistically (suppressing their ids so polling can't re-add them before the cascade lands) |
+
+Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/friend lists),
+`CreateSubtaskCommand`, `GetSubtasksQuery`; `TodoItem.CreateSubtask` / `SyncInheritedFromParent`;
+migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask") via the
+shared compose field, and rendered on the rail by `edit-todo-modal/branch-feed.tsx` as a sub-branch
+(`SubtaskCard` + the icon-less `SubtaskCompletionReply`; `buildFeed` hides all subtask system
+comments and folds the matched completion into `meta`) — completion is global (everyone), **taking
+into work is per-user** (worker rows via `joinTodo`/`leaveTodo`, shown as an anonymous "N working"
+count to all), inline title edit + delete are owner-only, and there is no priority control.
+
 ### Frontend Behavior
 
 - Active todo page loads active tasks in pages of 200.
@@ -193,6 +256,7 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 - On the dashboard, the create panel opens with a softened layout transition and staged field reveal. Its primary plus icon becomes a rotated close action while the panel is open, so the same control pattern can open and close the draft surface.
 - Toast notifications render on the toast z-index layer and start below the fixed navbar, so completion/update feedback is not hidden behind the header.
 - The floating navbar quick-creates tasks (title only, private, no category) and dispatches a `planora:task-created` custom DOM event on success. Both the dashboard and todos pages listen for this event to refresh their task lists without a page reload; the dashboard also resets pagination to page 1.
+- The Task Branch edit modal (`frontend/src/components/todos/edit-todo-modal`) is **quick-save** with no Save/Cancel buttons: editing the title, priority, due date, category, or visibility/sharing autosaves via the debounced `useAutosave` hook. Owners persist the full task payload; a shared viewer who can manage their own category autosaves only their private category preference. The description ("Author's Note" in the branch) keeps its own explicit editor and is intentionally excluded from the autosave equality check so it is never written twice. There is **no footer panel** — no autosave-status indicator and no `Done` button; the modal closes via the header **✕**, the backdrop, or `Escape`, and a pending edit is flushed on close/unmount. Save failures are toasted once; the autosave retries on the next edit.
 - When the user removes a category during task edit, `applyCategoryPatch` (`frontend/src/utils/todo-utils.ts`) zeroes all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) in local state after the PUT — necessary because the backend treats `categoryId: null` as a no-op and echoes back the old values.
 - Todo, dashboard, and completed-task pages enrich author names for public friend tasks as well as direct shared tasks.
 
@@ -334,7 +398,7 @@ so Collaboration needs no extra lookup to render the sentence. Consumers are ide
 - **Live updates without re-opening:** there is no realtime socket, so the feed merges the newest page on a 5 s interval (paused while editing) and reconciles by comment id — new messages, edits, and the system status-comments appear on their own. After a take/leave/complete action it additionally schedules short catch-up merges (≈0.6 / 1.5 / 3 s); combined with the signal-driven outbox dispatch (see Architecture above), the status system-comment now shows in well under a second. The merge only re-pins to the bottom when the reader was already there.
 - **Non-owner date popover:** a viewer who is not the task owner sees the priority/date/visibility tokens read-only. The date popover omits the Today/Tomorrow/+3 days/Next week quick-pick row entirely (not merely disabled) — only the read-only calendar remains.
 - **Sticky Author's Note:** the pinned card lives at the top of the scrollable rail and scrolls away with content. Once it passes out of view the feed shows a condensed frosted-glass bar (author avatar + truncated first line + animated chevron) at the top of the feed area. Clicking the condensed bar smoothly scrolls back to the full card and fires a violet attention pulse (`genesis_highlight` keyframe) so the note is easy to spot. The bar animates in/out with a spring (Framer Motion `AnimatePresence`).
-- **Compose "+" menu actions:** the menu is visible to all participants (owner and collaborators). The "Description" attachment item is shown only to the task owner and is muted once a description exists (already added). Two additional action items are shown to everyone:
+- **Compose "+" menu actions:** the menu is visible to all participants (owner and collaborators). The "Description" attachment item is shown only to the task owner and is muted once a description exists (already added); the owner also gets a "Subtask" item (authored in the same compose field). **Once the task is completed the menu offers nothing** — description, subtask, and the take/complete actions are all hidden, so the "+" simply doesn't open on a done task. Two action items are otherwise shown to everyone:
   - **Take into work / Leave task** — mirrors the existing join/leave flow exactly (owner: `status → inProgress` / `status → todo`; viewer: `joinTodo` / `leaveTodo`). The button label and icon flip between "Take into work" (Zap, indigo) and "Leave task" (LogOut, red) depending on the current in-progress state. An optimistic `workOverride` state in the modal flips the pill in the header bar instantly before the parent refetch arrives. Leaving — via this menu **or** the header pill — keeps the modal open so the "left the task" event is read in place.
   - **Complete task / Reopen task** — mirrors the existing complete flow (owner: `status → done`; viewer: `completedByViewer` toggle). Closes the modal on success.
 

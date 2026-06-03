@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import { X } from "lucide-react"
 import { ModalPortal }      from "@/components/ui/modal-portal"
+import { useAutosave }      from "@/hooks/use-autosave"
 import { useAuthStore }     from "@/store/auth"
 import { useFriends }       from "@/hooks/use-friends"
 import { SPRING_STANDARD }  from "@/lib/animations"
@@ -17,6 +18,48 @@ import {
 } from "./utils"
 
 type OpenPopover = "priority" | "date" | "category" | "visibility" | null
+
+/**
+ * Equality for the owner autosave channel that deliberately ignores `description`.
+ * The description has a dedicated editor (the branch's "Author's Note") that persists
+ * it directly, so changes to it must not trigger a second write from this channel.
+ */
+function samePayloadExceptDescription(a: UpdateTodoPayload, b: UpdateTodoPayload): boolean {
+  return (
+    a.title === b.title &&
+    a.priority === b.priority &&
+    a.dueDate === b.dueDate &&
+    a.categoryId === b.categoryId &&
+    a.isPublic === b.isPublic &&
+    a.requiredWorkers === b.requiredWorkers &&
+    a.clearRequiredWorkers === b.clearRequiredWorkers &&
+    JSON.stringify(a.sharedWithUserIds ?? []) === JSON.stringify(b.sharedWithUserIds ?? [])
+  )
+}
+
+/**
+ * Build the owner payload that the modal's local state is initialised from, straight
+ * from a task. Used as the autosave baseline so a freshly-opened task is never seen as
+ * "dirty". Mirrors the field initialisation and `buildOwnerPayload` normalisation.
+ */
+function todoToOwnerPayload(todo: Todo): UpdateTodoPayload {
+  const visFriends = todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0
+  const shared = todo.isPublic ? [] : (todo.sharedWithUserIds ?? [])
+  const dueDate = todo.dueDate
+    ? new Date(new Date(todo.dueDate).toISOString().split("T")[0]).toISOString()
+    : null
+  return {
+    title: todo.title.trim(),
+    description: (todo.description ?? "").trim() || null,
+    priority: getPriorityNumber(getPriorityString(todo.priority)),
+    dueDate,
+    categoryId: todo.categoryId || null,
+    isPublic: false,
+    sharedWithUserIds: visFriends ? shared : [],
+    requiredWorkers: visFriends ? 1 + shared.length : null,
+    clearRequiredWorkers: !visFriends,
+  }
+}
 
 export interface EditTodoModalProps {
   todo: Todo
@@ -68,7 +111,6 @@ export function EditTodoModal({
   const [categoryId,   setCategoryId]   = useState<string | null>(todo.categoryId ?? null)
   const [openPopover,  setOpenPopover]  = useState<OpenPopover>(null)
   const [editingTitle, setEditingTitle] = useState(false)
-  const [saving,       setSaving]       = useState(false)
 
   const initialVis = (todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0)
     ? "friends" as const
@@ -140,10 +182,14 @@ export function EditTodoModal({
     setEditingTitle(false)
   }
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  // ── Autosave ────────────────────────────────────────────────────────────────
+  // No Save button: every committed field change is persisted automatically. The
+  // owner channel persists the full task payload; a shared viewer persists only their
+  // private category preference. Both are debounced and single-flight (see useAutosave).
+
   // Full owner payload. `descOverride` lets the branch persist a description edit
   // without disturbing the other fields (single source of truth = the task).
-  const buildOwnerPayload = (descOverride?: string | null): UpdateTodoPayload => ({
+  const buildOwnerPayload = useCallback((descOverride?: string | null): UpdateTodoPayload => ({
     title: title.trim(),
     description: descOverride !== undefined ? descOverride : (description.trim() || null),
     priority: getPriorityNumber(priority),
@@ -153,22 +199,35 @@ export function EditTodoModal({
     sharedWithUserIds: visMode === "private" ? [] : sharedIds,
     requiredWorkers: visMode === "private" ? null : 1 + sharedIds.length,
     clearRequiredWorkers: visMode === "private",
+  }), [title, description, priority, dueDate, categoryId, visMode, sharedIds])
+
+  const ownerPayload = useMemo(() => buildOwnerPayload(), [buildOwnerPayload])
+
+  const ownerAutosave = useAutosave<UpdateTodoPayload>({
+    value: ownerPayload,
+    enabled: isOwner,
+    onSave,
+    // Title is the only required field; an empty title is never persisted (and the
+    // inline editor already reverts blank titles, so this is a belt-and-braces guard).
+    validate: (p) => (p.title ?? "").trim().length > 0,
+    // The description is owned by the branch's "Author's Note" editor, which persists
+    // it on its own. Excluding it here prevents a duplicate write when a note is saved.
+    isEqual: samePayloadExceptDescription,
   })
 
-  const handleSave = async () => {
-    if (isOwner && !title.trim()) return
-    setSaving(true)
-    try {
-      if (isOwner) {
-        await onSave(buildOwnerPayload())
-      } else {
-        await onSaveViewerPreference({ viewerCategoryId: categoryId || null })
-      }
-      onClose()
-    } finally {
-      setSaving(false)
-    }
-  }
+  const viewerAutosave = useAutosave<string | null>({
+    value: categoryId || null,
+    enabled: !isOwner && canManageViewerCategory,
+    onSave: (viewerCategoryId) => onSaveViewerPreference({ viewerCategoryId }),
+  })
+
+  // Re-anchor both baselines whenever the edited task changes, so switching tasks
+  // never persists the old task's values against the new one.
+  useEffect(() => {
+    ownerAutosave.reset(todoToOwnerPayload(todo))
+    viewerAutosave.reset(todo.categoryId ?? null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todo.id])
 
   // Persist a description edit from the branch's "Author's Note" immediately to the
   // task (the single source of truth) — no modal close, other fields untouched.
@@ -421,55 +480,6 @@ export function EditTodoModal({
             />
           </div>
 
-          {/* Divider */}
-          <div style={{ height: 1, background: "#f0f0f0" }} />
-
-          {/* ── (5) Footer ── */}
-          <div style={{
-            padding: "14px 24px",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            background: "white",
-            borderRadius: "0 0 28px 28px",
-          }}>
-            <button
-              onClick={onClose}
-              style={{
-                background: "transparent", border: "none", cursor: "pointer",
-                padding: "12px 18px", borderRadius: 14,
-                fontSize: 12, fontWeight: 900, letterSpacing: "0.04em",
-                textTransform: "uppercase", color: "#525252",
-                transition: "background 120ms",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
-            >
-              Cancel
-            </button>
-
-            <div style={{ flex: 1 }} />
-
-            <button
-              onClick={handleSave}
-              disabled={saving || (isOwner ? !title.trim() : !canManageViewerCategory)}
-              style={{
-                padding: "12px 22px", borderRadius: 14, border: "none", cursor: "pointer",
-                background: (saving || (isOwner && !title.trim()) || (!isOwner && !canManageViewerCategory))
-                  ? "#e5e5e5"
-                  : "#0a0a0a",
-                color: (saving || (isOwner && !title.trim()) || (!isOwner && !canManageViewerCategory))
-                  ? "#a3a3a3"
-                  : "white",
-                fontSize: 12, fontWeight: 900, letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                boxShadow: saving ? "none" : "0 4px 14px rgba(0,0,0,0.18)",
-                transition: "background 120ms, box-shadow 120ms",
-              }}
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-          </div>
         </motion.div>
       </div>
     </ModalPortal>

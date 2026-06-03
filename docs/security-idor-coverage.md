@@ -56,6 +56,9 @@ that ship in `tests/Planora.UnitTests/`** — verified at commit time.
 | `PATCH /todos/api/v1/todos/{id}/viewer-preferences` | UserTodoViewPreference | Same as hidden — viewer scope is the current user. | covered by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs` |
 | `POST /todos/api/v1/todos/{id}/join` | TodoItemWorker | Viewer joins an open public todo. IDOR not applicable (visibility predicate is the gate). | covered by `Services/TodoApi/Domain/TodoItemWorkerTests.cs` (capacity/eviction) + handler access checks |
 | `POST /todos/api/v1/todos/{id}/leave` | TodoItemWorker | Viewer leaves; row keyed on `(userId, todoId)`. | covered by `Services/TodoApi/Domain/TodoItemWorkerTests.cs` |
+| `GET /todos/api/v1/todos/{id}/subtasks` | TodoItem (children) | Caller must see the parent: owner OR shared-with-current-user OR public+friend. `GetSubtasksQueryHandler` mirrors the `GetTodoById` visibility predicate; per-viewer completion applied. | pinned by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs::GetSubtasks_RejectsViewerWithoutAccessToPrivateParent` (+ `GetSubtasks_ReturnsChildrenForOwner`) |
+| `POST /todos/api/v1/todos/{id}/subtasks` | TodoItem (child) | Owner-only; the parent (from the route) must belong to the caller and not itself be a subtask. Inherits the parent's category/visibility/sharing. | pinned by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs::CreateSubtask_RejectsForeignParent` (+ `CreateSubtask_RejectsNestingUnderSubtask`) |
+| `PUT /todos/api/v1/todos/{id}` (subtask) | TodoItem (child) | Editing a subtask's title/priority is **owner-only**; completing/reopening is allowed for anyone who can see the parent and applies **globally** (entity status, not a per-viewer row). | pinned by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs::UpdateTodo_NonOwnerCompletesSubtask_GloballyNotPerViewer` (+ `UpdateTodo_NonOwnerCannotEditSubtaskTitleOrPriority`) |
 
 ## Collaboration API
 

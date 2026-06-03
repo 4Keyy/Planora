@@ -4,6 +4,269 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(subtasks): per-user in-work with a worker count; hide all subtask system lines (2026-06-03)
+
+**Per-user "in work" with a count.** Taking a subtask into work is no longer a global status —
+it's now **per-user**, like the parent task's worker model:
+
+- Frontend `toggleSubtaskWork` calls `joinTodo`/`leaveTodo` (not a status write); each participant
+  joins/leaves independently. One person working never flips it "in work" for another.
+- Every viewer sees an anonymous **"N working"** presence badge (`workerCount`); the viewer's own
+  membership (`isWorking`) shows as "You're working" / "You + N working" and drives their toggle.
+- Backend: the **owner-always-worker rule is relaxed for subtasks** (`TodoItem.AddWorker`), so the
+  owner opts in like everyone and is counted; `JoinTodo`/`LeaveTodo` let the owner join/leave a
+  subtask and **skip the "started working"/"left" activity events for subtasks** (no naming, no
+  branch noise); `GetSubtasks` reports `IsWorking` from worker membership (owner included). Subtasks
+  have unlimited worker capacity (`RequiredWorkers` is null). The live-merge now refreshes on
+  `workerCount`/`isWorking` changes so other users' counts update without re-opening the modal.
+
+**No stray "completed a subtask: <title>" lines.** `buildFeed` now hides **every** subtask system
+comment (`added`/`completed a subtask:`) from the rail — matched or not — so legacy/renamed/orphaned
+ones never reappear as standalone nodes. The folded completion reply text changed to
+**"{Name} completed sub task"** (nameless fallback "Sub task completed").
+
+Tests: +1 domain test (`AddWorker_OnSubtask_AllowsOwner`); existing worker/handler suites green
+(53 in the touched sets). Frontend 393 vitest green; `tsc`/`eslint` clean; `npm run build` ok.
+
+### feat(subtasks): anyone can take a subtask into work; all viewers see it (2026-06-03)
+
+- **Taking a subtask into work is now global**, like completion. The frontend `toggleSubtaskWork`
+  no longer requires ownership (the backend already authorised any participant to set a subtask's
+  status), and the **Zap "take into work" toggle is shown to every viewer** on hover (editing and
+  delete stay owner-only). So when *any* user picks up a subtask, the others see it.
+- Polished the **"In progress" presence badge**: it now animates in/out (spring), uses a soft amber
+  gradient pill with a pulsing dot, and is shown **to every viewer** on the card — it **never names
+  who** is working (hover title: "Someone is working on this"). Derived from the subtask's live
+  `status` (polled), so it appears for other users without re-opening the modal.
+- Frontend only; `tsc`/`eslint` clean; 393 vitest green; `npm run build` ok.
+
+### feat(subtasks): no creation notice, icon-less completion reply on a sub-branch (2026-06-03)
+
+- **No "added a subtask" notification anywhere.** `CreateSubtaskCommandHandler` no longer enqueues
+  the `SubtaskCreated` activity event (dropped its outbox dependency), and the frontend hides any
+  legacy creation comments and renders no creation caption. The subtask card just appears.
+- **Completion is an icon-less reply on the subtask's sub-branch.** The "completed a subtask" system
+  comment is still posted to the parent branch but is never a standalone rail node — it renders as a
+  reply hanging off the subtask via a soft "└" elbow, with **no rail icon/dot**, just
+  "**{Name}** completed this · HH:MM".
+- **Subtask system notifications carry no rail icons** — the only marker on the sub-branch is the
+  subtask's own completion toggle, kept at the card's vertical centre.
+- Polished the "reply"/branch visuals: a fork from the main rail to the toggle, a stem to the offset
+  card, and a state-tinted sub-branch that continues down into the completion reply.
+- Tests: `CreateSubtask` handler now asserts **no** outbox event (`Times.Never`) and the handler
+  drops its `IOutboxRepository` dependency. Backend touched suites green (42); frontend 393 vitest
+  green; `tsc`/`eslint` clean; `npm run build` ok.
+
+### feat(subtasks): branch the subtask cluster off the rail (2026-06-03)
+
+Refined the subtask cluster so it reads as a proper offshoot of the branch. All frontend
+(`edit-todo-modal/branch-feed.tsx`).
+
+- The whole cluster (creation caption, card, completion reply) is now **offset to the side**
+  (`SUBTASK_OFFSET`) and joined back to the rail by short, state-tinted connectors — it clearly
+  branches off like a reply, instead of sitting flush like a normal message.
+- **Every subtask line keeps its own dot on the rail**, on par with other timeline events: a small
+  indigo "added" dot for the creation caption, the completion toggle for the card, and a green node
+  for the completion reply.
+- The **completion toggle (the subtask's rail icon) is now vertically centred on the card** rather
+  than pinned to the top — so tall/wrapped cards stay visually balanced.
+- Dropped the now-redundant in-card list glyph (the rail toggle is the subtask's icon). The
+  completion reply node is likewise centred on the rail with its note offset to the side.
+- `tsc`/`eslint` clean; 393 vitest green; `npm run build` ok.
+
+### feat(subtasks): fold lifecycle events into an integrated card cluster (2026-06-03)
+
+Reworked how subtask system notifications appear in a task's branch so they feel native to the
+thread instead of scattered rail nodes. All frontend (`edit-todo-modal/branch-feed.tsx`); the
+backend events/templates are unchanged.
+
+- **Folded the create/complete system comments into the subtask card.** `buildFeed` matches each
+  `"… added a subtask: <title>"` / `"… completed a subtask: <title>"` comment to its subtask by the
+  `: <title>` suffix, parses the actor name into a `SubtaskMeta`, and **hides them as standalone
+  rail nodes**. The subtask now renders as one cluster:
+  - a **minimalist creation caption** — "**{Name}** added a subtask · HH:MM";
+  - the card (toggle = rail marker);
+  - a **completion "reply"** the rail gently bends down to (curved connector → green check node →
+    "**{Name}** completed this · HH:MM"). On optimistic completion a nameless "Completed" shows
+    instantly, then the name fills in when the folded comment lands.
+- **In-progress visible to everyone.** Taking a subtask into work shows an amber "In progress" pill
+  with a pulsing dot to *all* viewers (derived from the live `status`, no name), replacing the old
+  owner-centric "Working" badge.
+- **Deletion still clears everything** — the folded comments are removed optimistically (suppressed
+  ids) and server-side via the existing `SubtaskDeletedIntegrationEvent` cascade.
+- New `SubtaskCompletionReply` component + curved SVG connector; spring enter/exit animations
+  throughout. `tsc`/`eslint` clean; 393 vitest green; `npm run build` ok.
+
+### fix(subtasks): schema-qualify the Title column widening (500 on long subtask) (2026-06-03)
+
+The startup column-widening shipped in the 1500-char change targeted an unqualified `"TodoItems"`,
+but the table lives in the **`todo` schema**. The `ALTER TABLE "TodoItems" …` threw
+`42P01: relation "TodoItems" does not exist` (swallowed as a non-fatal warning), so the column
+stayed `varchar(200)` and creating a subtask with a >200-char title failed with a Postgres
+`22001: value too long` → HTTP 500. Fixed the statement to `ALTER TABLE todo."TodoItems" …` and the
+`information_schema` guard to filter `table_schema = 'todo'`. The widening was also applied directly
+to the running database, so existing local installs work without a rebuild.
+
+### fix(tasks): keep the Quick Filter plate after creating a task (2026-06-03)
+
+The Quick Filter plate on `/tasks` vanished after creating a task through the create panel. The
+filter bar and the create panel shared one `AnimatePresence mode="wait"` swap; `handleCreate` flips
+`isCreateOpen` and then immediately re-renders via `fetchActiveTodos` (`setLoading`), which
+interrupted the deferred enter and left the filter collapsed at height 0. They are now two
+independent `AnimatePresence` presences, so closing the create panel (on submit or via Close)
+always re-reveals the filter. Frontend `tsc`/`eslint` clean; 393 vitest green; build ok.
+
+### feat(subtasks): allow up to 1500-character subtask titles (2026-06-03)
+
+A subtask's whole content lives in its title, so subtasks now accept **up to 1500 characters**
+(regular-task titles stay ≤200). Updated every layer: `CreateSubtaskCommandValidator` (200→1500),
+`UpdateTodoCommandValidator` (200→1500, since subtask renames share `PUT /todos/{id}`), the EF
+`TodoItems.Title` column (`varchar(200)`→`varchar(1500)`), and the frontend `SUBTASK_MAX`
+(200→1500). The inline subtask editor became an auto-growing **textarea** so long titles are
+comfortable to edit; regular `CreateTodo` titles remain capped at 200.
+
+- **DB reconciliation:** the Todo service runs an idempotent, metadata-only `ALTER TABLE
+  "TodoItems" ALTER COLUMN "Title" TYPE varchar(1500)` at startup (guarded by an `information_schema`
+  check) so existing migration-built databases get the wider column without a committed migration;
+  fresh installs get 1500 straight from the EF model.
+- Tests: EF model-config (1500), Todo validator (subtask 1500 accept / 1501 reject; update path
+  1500), and the error-handling integration update-title case (now 1501) — backend touched suites
+  green. Frontend 393 vitest green; `tsc`/`eslint` clean; `npm run build` ok.
+
+### feat(branch): drop modal footer, wrap subtask titles, empty "+" when done (2026-06-03)
+
+- **Removed the Task Branch modal footer** — the "Changes save automatically / All changes saved"
+  autosave-status panel, the `View only` label and the `Done` button are gone. Editing still
+  autosaves (the `useAutosave` hooks are untouched); the modal closes via the header **✕**, the
+  backdrop, or `Escape`. Dropped the now-unused `AutosaveIndicator` wiring from the modal.
+- **Long subtask titles now wrap** instead of truncating with an ellipsis. The subtask card is
+  flexible-height (`align-items: flex-start` + `overflow-wrap`), so a long step grows the card
+  downward to fit the branch width and the `layout` spring animates the height change.
+- **The compose "+" menu is empty on a completed task** — description, subtask, and the
+  take-into-work / complete actions are all hidden once the task is done, and the menu doesn't open
+  (no empty popover).
+- Tests/build: updated the two `EditTodoModal` footer assertions (no more "Changes save
+  automatically" / "View only" text); 393 vitest green; `tsc`/`eslint` clean; `npm run build` ok.
+
+### feat(subtasks): task-like cards, delete cascade, composer auto-close (2026-06-03)
+
+Follow-up polish on the inline subtask cards.
+
+- **Composer auto-closes** after a subtask is created — submitting returns the compose box to
+  plain-message mode instead of staying in subtask mode.
+- **Delete affordance now matches a regular task card** — the inline trash icon is replaced by the
+  same **slide-from-right red panel** (clip-path reveal + spring trash icon) used on task cards.
+- **Taller, more task-like card** — bigger glyph, roomier padding, and a `Subtask · HH:MM` meta line
+  under the title so a step reads like a compact task rather than a checklist row.
+- **Deleting a subtask now also removes its branch announcements.** A subtask owns no branch, so
+  TodoApi emits the new `SubtaskDeletedIntegrationEvent(parentTaskId, subtaskId, actor, title)`
+  (instead of `TaskDeletedIntegrationEvent`, which would wipe a whole branch). Collaboration's new
+  `SubtaskDeletedEventConsumer` → `ICommentRepository.SoftDeleteSubtaskActivityAsync` soft-deletes
+  the parent-branch system comments ending with `added a subtask: {title}` / `completed a subtask:
+  {title}`. The client removes them optimistically and suppresses their ids so polling can't
+  re-add them before the async cascade lands.
+- **Statistics (already in place, reconfirmed):** an incomplete subtask never counts in the active
+  task counter (`parentTodoId` filtered out), a completed subtask **does** count toward the weekly
+  completed stat (`includeSubtasks=true`), and subtasks never appear on `/tasks/completed` (the
+  list endpoints keep the default `ParentTodoId == null` filter).
+- Tests: +1 Collaboration consumer case (subtask-delete targets the parent branch + title, never a
+  whole-branch wipe) and +1 Todo handler case (subtask delete enqueues `SubtaskDeletedIntegrationEvent`
+  for the parent) → 42 in the touched suites green. `tsc`/`eslint` clean; changed .NET libraries build clean.
+
+### refactor(subtasks): inline branch cards, no panel, no priority (2026-06-02)
+
+Reworked the subtask UX so a subtask is **a regular branch event**, authored just like the task
+description — not a separate panel.
+
+- **Removed** the standalone Subtasks panel (`edit-todo-modal/subtasks-section.tsx` and its test)
+  that sat below the comments with its own header, progress bar and "Add" button.
+- **Authoring mirrors the description flow.** A new "Subtask" entry in the compose "+" menu switches
+  the **same input field** into subtask mode; plain `Enter` adds the step and the field stays in
+  subtask mode for quick successive entry. No separate composer.
+- **Inline rendering.** Each subtask now renders as a **simplified task card on the activity rail**
+  (`branch-feed.tsx` → `SubtaskCard`), interleaved chronologically and anchored **directly after its
+  "added a subtask" system event** (matched by the `: <title>` suffix) — never pinned to the top. The
+  completion toggle doubles as the rail marker, sitting exactly on the timeline line.
+- **No priority.** The priority picker/dot is gone from subtask create and edit; only the title is
+  authored/edited. The entity column still defaults server-side but is never surfaced.
+- Live polling/merge now refreshes subtasks alongside comments (id-keyed, optimism-preserving), so
+  another participant's add/complete/edit appears without re-opening the modal. Per-row complete
+  (everyone) / inline title edit + take-into-work + delete (owner) retained, with satisfying
+  spring-based toggle, enter and exit animations.
+- Tests/build: removed the obsolete `SubtasksSection` component test; `subtasks-api` tests green;
+  `tsc` + `eslint` clean; `npm run build` succeeds.
+
+### feat(subtasks): branch system messages on create/complete + non-bold rendering (2026-06-02)
+
+- Creating or completing a subtask now posts a **system message to the parent task's branch**
+  ("X added a subtask: …" / "X completed a subtask: …"). Reuses `TaskActivityIntegrationEvent`
+  with new `SubtaskCreated`/`SubtaskCompleted` types and an optional `Detail` (the subtask title);
+  the Collaboration `TaskActivityEventConsumer` formats the sentence on the parent's timeline.
+  `CreateSubtaskCommandHandler` and both completion paths in `UpdateTodoCommandHandler` (owner and
+  non-owner global completion) enqueue the event via the outbox.
+- Subtasks (title only, no description) now render **non-bold** in the branch, so a step reads as a
+  plain entry, lighter than the bold Author's Note.
+- Tests: +2 backend consumer cases (subtask sentence incl. title, posted to the parent id) and
+  outbox-emission assertions on create/complete → backend suite 155 green; frontend 400 green.
+
+### feat — subtasks: tree-structured child tasks inside a task's branch (2026-06-02)
+
+Tasks can now be broken into **subtasks** — child `TodoItem`s (self-referencing `ParentTodoId`)
+that live **only** in the parent task's branch and never appear on any list/page.
+
+- **Todo backend.** `TodoItem.ParentTodoId` + `CreateSubtask` (inherits the parent's category,
+  public flag and shared audience; own priority; no due/expected date; no nesting) and
+  `SyncInheritedFromParent`. EF self-FK (NoAction) + index + migration `AddSubtaskParentTodoId`.
+  `CreateSubtaskCommand` and `GetSubtasksQuery` (owner-create; owner/friend list with the
+  `GetTodoById` visibility predicate). Endpoints `POST`/`GET /todos/api/v1/todos/{id}/subtasks`.
+  Completion is **global** — anyone who can see the parent may complete/reopen a subtask and it
+  applies for everyone (entity status, not per-viewer); editing a subtask's title/priority is
+  **owner-only**. `UpdateTodo` rejects editing a subtask's inherited fields and **propagates** a
+  parent's category/visibility/sharing to its children;
+  `DeleteTodo` soft-deletes the whole subtree. List queries exclude subtasks; `GetUserTodos`
+  gains `includeSubtasks` so **completed subtasks still count toward the weekly dashboard stat**.
+- **Frontend.** New "Subtask" entry in the branch "+" menu; `edit-todo-modal/subtasks-section.tsx`
+  renders an animated checklist (progress bar, smooth add/remove). Anyone with access can complete;
+  the owner can inline-edit title + priority (double-click or pencil), take into work, and delete. `fetchSubtasks`/`createSubtask`/`updateSubtask`/
+  `deleteSubtask` API helpers; `Todo.parentTodoId`. Dashboard counts completed subtasks weekly while
+  excluding them from the active counter and the grid.
+- **Tests/docs.** 10 backend handler/security tests (inheritance, foreign-parent + nesting rejection,
+  owner-only edit guard, non-owner global completion, parent→child propagation, cascade delete,
+  access control) — Todo suite 121 green; 11 frontend tests (API helpers + `SubtasksSection`) —
+  suite 400 green. IDOR coverage doc + features doc updated. Backend builds clean (.NET 10);
+  `tsc`/`eslint` clean; frontend branch coverage ≥85%.
+
+### feat(frontend) — quick-save (autosave) for the task-branch and category edit modals (2026-06-02)
+
+Removed the manual **Save/Cancel** buttons from the editing modals: every committed change now
+persists automatically, as soon as it is applied.
+
+- **New `useAutosave` hook** (`frontend/src/hooks/use-autosave.ts`) — a debounced, single-flight
+  autosave engine: it coalesces bursts (typing, color-picker drags) into one write, never persists a
+  value equal to the last-saved baseline, runs at most one request at a time (re-firing if the value
+  changed mid-flight so the final state always lands), exposes `idle/saving/saved/error` status, and
+  `flush()`es any pending change on explicit close and on unmount so nothing is lost. A `validate`
+  guard blocks invalid saves (e.g. an empty name/title) and `reset()` re-anchors the baseline when the
+  edited entity changes.
+- **New `AutosaveIndicator`** (`frontend/src/components/ui/autosave-indicator.tsx`) — a quiet
+  `role="status"` `aria-live="polite"` confirmation (`Saving… / All changes saved / Couldn’t save`)
+  that replaces the Save button as the only signal a change reached the server.
+- **Task Branch edit modal** (`edit-todo-modal/modal.tsx`) — title, priority, due date, category, and
+  visibility/sharing autosave. Owners persist the full task payload; a shared viewer autosaves only
+  their private category preference. The description ("Author's Note") keeps its own editor and is
+  excluded from the autosave equality check to avoid a duplicate write. The footer now shows the
+  indicator (or `View only`) plus a `Done` close button. `tasks/page.tsx` `handleUpdate` /
+  `handleSaveViewerPreference` no longer close the modal or toast per save, update the list optimistically,
+  and re-throw on failure so the indicator can show the error state and retry.
+- **Category edit modal** (`categories/page.tsx`) — name, description, color, and icon autosave with an
+  optimistic grid update; an empty name shows an inline hint and is never persisted. **Creating** a
+  category intentionally keeps a single explicit `Create category` button (nothing exists to autosave
+  yet), with no Cancel button.
+- **Tests** — added `frontend/src/test/hooks/use-autosave.test.tsx` (12 cases: debounce, baseline,
+  status, revert, validation, enable/disable, error, flush, reset, single-flight, unmount flush) and
+  `frontend/src/test/components/autosave-indicator.test.tsx`; rewrote the four `EditTodoModal` tests for
+  autosave. Full suite: **389 green**, `tsc --noEmit` and `eslint .` clean.
+
 ### fix(ci) — green markdownlint + restore branch-coverage threshold (2026-06-02)
 
 - Converted every remaining `*`-style list bullet in `CHANGELOG.md` to `-` (272 MD004 violations).

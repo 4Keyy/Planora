@@ -177,6 +177,31 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
             return (items, totalCount);
         }
 
+        public async Task<IReadOnlyList<TodoItem>> GetSubtasksAsync(Guid parentTodoId, CancellationToken cancellationToken = default)
+        {
+            return await DbSet
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Where(t => t.ParentTodoId == parentTodoId && !t.IsDeleted)
+                .OrderBy(t => t.CreatedAt)
+                .Include(t => t.Tags)
+                .Include(t => t.SharedWith)
+                .Include(t => t.Workers)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<TodoItem>> GetSubtasksTrackedAsync(Guid parentTodoId, CancellationToken cancellationToken = default)
+        {
+            return await DbSet
+                .AsSplitQuery()
+                .Where(t => t.ParentTodoId == parentTodoId && !t.IsDeleted)
+                .OrderBy(t => t.CreatedAt)
+                .Include(t => t.Tags)
+                .Include(t => t.SharedWith)
+                .Include(t => t.Workers)
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<int> GetActiveWorkerTaskCountAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             return await DbSet

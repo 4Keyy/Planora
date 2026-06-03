@@ -381,11 +381,14 @@ export default function TasksPage() {
         setTodos((prev) => prev.map((t) => (t.id === id ? nextTodo : t)))
       }
 
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Task updated" })
+      // Autosave path: keep the modal open and stay quiet — the in-modal AutosaveIndicator
+      // reports success. We intentionally do not refresh `editingTodo` so the open modal's
+      // local field state (the source of truth while editing) is never clobbered mid-edit.
     } catch (error) {
       console.error("Failed to update todo:", error)
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Failed to save changes" })
+      // Re-throw so the modal's autosave surfaces the error state and retries on next edit.
+      throw error
     }
   }
 
@@ -409,11 +412,11 @@ export default function TasksPage() {
         setTodos((prev) => prev.map((t) => (t.id === id ? nextTodo : t)))
       }
 
-      setEditingTodo(null)
-      addToast({ type: "success", title: "Your category was saved" })
+      // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
     } catch (error) {
       console.error("Failed to update viewer preference:", error)
       addToast({ type: "error", title: "Failed to save your category" })
+      throw error // surface error state in the modal's autosave indicator
     }
   }
 
@@ -593,14 +596,20 @@ export default function TasksPage() {
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        {!isCreateOpen ? (
+      {/* The quick-filter plate and the create panel are two INDEPENDENT presences (not a single
+          `mode="wait"` swap). A `mode="wait"` swap dropped the filter's enter animation when the
+          create panel closed on submit, because `handleCreate` flips `isCreateOpen` and then
+          immediately re-renders the page via `fetchActiveTodos` (`setLoading`), interrupting the
+          deferred enter and leaving the filter collapsed at height 0. Decoupling them makes each
+          presence self-contained, so the filter always re-reveals after a task is created. */}
+      <AnimatePresence initial={false}>
+        {!isCreateOpen && (
           <motion.div
             key="quick-filter"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 1, 1] }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
             <QuickFilterBar
@@ -610,7 +619,10 @@ export default function TasksPage() {
               onClear={() => handleFilterChange([])}
             />
           </motion.div>
-        ) : (
+        )}
+      </AnimatePresence>
+      <AnimatePresence initial={false}>
+        {isCreateOpen && (
           <motion.div
             key="create-panel"
             initial={{ opacity: 0, height: 0 }}
