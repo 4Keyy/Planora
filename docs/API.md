@@ -506,7 +506,7 @@ Update body fields are optional:
 
 Rules:
 
-- title required on create, max 200;
+- title required on create, max 200 for a regular task; **subtask titles allow up to 1500** (a subtask's whole content lives in its title — see `POST /todos/{id}/subtasks`). The shared update endpoint (`PUT /todos/{id}`) also accepts up to 1500 because subtask renames go through it;
 - description optional, max 2000 (validators and the EF column agree);
 - expected date cannot be after due date;
 - category must belong to current user;

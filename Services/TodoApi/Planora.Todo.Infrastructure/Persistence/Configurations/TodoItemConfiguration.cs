@@ -8,9 +8,13 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
         {
             builder.HasKey(x => x.Id);
 
+            // 1500 accommodates a subtask's full content (a subtask has no separate body; its
+            // text lives in the title). Regular-task titles are still held to 200 chars by their
+            // create validator + UI. On an existing migration-built database this widening is also
+            // applied at startup (see TodoApi Program.cs) so the column matches this model.
             builder.Property(x => x.Title)
                 .IsRequired()
-                .HasMaxLength(200);
+                .HasMaxLength(1500);
 
             builder.Property(x => x.Description)
                 .HasMaxLength(2000);

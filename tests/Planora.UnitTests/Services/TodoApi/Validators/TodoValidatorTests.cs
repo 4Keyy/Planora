@@ -1,5 +1,6 @@
 using Planora.Todo.Application.Features.Todos.Commands.CreateTodo;
 using Planora.Todo.Application.Features.Todos.Commands.UpdateTodo;
+using Planora.Todo.Application.Features.Todos.Commands.CreateSubtask;
 using Planora.Todo.Domain.Enums;
 
 namespace Planora.UnitTests.Services.TodoApi.Validators;
@@ -49,7 +50,8 @@ public class TodoValidatorTests
 
         var result = validator.Validate(new UpdateTodoCommand(
             TodoId: Guid.Empty,
-            Title: new string('t', 201),
+            // Update allows subtask-sized titles (1500); exceed that to trigger the Title error.
+            Title: new string('t', 1501),
             Description: new string('d', 5001),
             DueDate: new DateTime(2026, 5, 1),
             ExpectedDate: new DateTime(2026, 5, 2)));
@@ -73,5 +75,20 @@ public class TodoValidatorTests
             IsPublic: true));
 
         Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CreateSubtaskValidator_AcceptsUpTo1500CharTitle_AndRejectsBeyond()
+    {
+        var validator = new CreateSubtaskCommandValidator();
+        var parent = Guid.NewGuid();
+
+        // A subtask's whole content lives in its title, so it gets a 1500-char allowance.
+        var atLimit = validator.Validate(new CreateSubtaskCommand(parent, new string('s', 1500)));
+        Assert.True(atLimit.IsValid);
+
+        var tooLong = validator.Validate(new CreateSubtaskCommand(parent, new string('s', 1501)));
+        Assert.False(tooLong.IsValid);
+        Assert.Contains(tooLong.Errors, e => e.ErrorMessage == "Title cannot exceed 1500 characters");
     }
 }

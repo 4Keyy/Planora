@@ -194,14 +194,16 @@ public class ErrorHandlingIntegrationTests : IClassFixture<TodoApiTestFactory>
     {
         var id = await CreateTodoAsync("Update validation integration todo");
 
+        // The update path also edits subtask titles, which allow up to 1500 chars, so the cap here
+        // is 1500 (regular-task titles are kept to 200 by the create validator + UI).
         var response = await _client.PutAsJsonAsync($"/api/v1/todos/{id}", new
         {
-            title = new string('b', 201)
+            title = new string('b', 1501)
         });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         using var body = await ReadJsonAsync(response);
-        AssertFailureEnvelope(body, "VALIDATION.INVALID_INPUT", "Title cannot exceed 200 characters");
+        AssertFailureEnvelope(body, "VALIDATION.INVALID_INPUT", "Title cannot exceed 1500 characters");
     }
 
     [Fact]

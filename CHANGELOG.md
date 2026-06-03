@@ -4,6 +4,32 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(tasks): keep the Quick Filter plate after creating a task (2026-06-03)
+
+The Quick Filter plate on `/tasks` vanished after creating a task through the create panel. The
+filter bar and the create panel shared one `AnimatePresence mode="wait"` swap; `handleCreate` flips
+`isCreateOpen` and then immediately re-renders via `fetchActiveTodos` (`setLoading`), which
+interrupted the deferred enter and left the filter collapsed at height 0. They are now two
+independent `AnimatePresence` presences, so closing the create panel (on submit or via Close)
+always re-reveals the filter. Frontend `tsc`/`eslint` clean; 393 vitest green; build ok.
+
+### feat(subtasks): allow up to 1500-character subtask titles (2026-06-03)
+
+A subtask's whole content lives in its title, so subtasks now accept **up to 1500 characters**
+(regular-task titles stay ≤200). Updated every layer: `CreateSubtaskCommandValidator` (200→1500),
+`UpdateTodoCommandValidator` (200→1500, since subtask renames share `PUT /todos/{id}`), the EF
+`TodoItems.Title` column (`varchar(200)`→`varchar(1500)`), and the frontend `SUBTASK_MAX`
+(200→1500). The inline subtask editor became an auto-growing **textarea** so long titles are
+comfortable to edit; regular `CreateTodo` titles remain capped at 200.
+
+- **DB reconciliation:** the Todo service runs an idempotent, metadata-only `ALTER TABLE
+  "TodoItems" ALTER COLUMN "Title" TYPE varchar(1500)` at startup (guarded by an `information_schema`
+  check) so existing migration-built databases get the wider column without a committed migration;
+  fresh installs get 1500 straight from the EF model.
+- Tests: EF model-config (1500), Todo validator (subtask 1500 accept / 1501 reject; update path
+  1500), and the error-handling integration update-title case (now 1501) — backend touched suites
+  green. Frontend 393 vitest green; `tsc`/`eslint` clean; `npm run build` ok.
+
 ### feat(branch): drop modal footer, wrap subtask titles, empty "+" when done (2026-06-03)
 
 - **Removed the Task Branch modal footer** — the "Changes save automatically / All changes saved"

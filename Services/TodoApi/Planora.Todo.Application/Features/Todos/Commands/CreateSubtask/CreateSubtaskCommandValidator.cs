@@ -7,9 +7,11 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             RuleFor(x => x.ParentTodoId)
                 .NotEmpty().WithMessage("Parent task is required");
 
+            // A subtask's whole content lives in its title (it has no separate body), so it gets a
+            // generous 1500-character allowance — far larger than a regular task's 200-char title.
             RuleFor(x => x.Title)
                 .NotEmpty().WithMessage("Title is required")
-                .MaximumLength(200).WithMessage("Title cannot exceed 200 characters");
+                .MaximumLength(1500).WithMessage("Title cannot exceed 1500 characters");
 
             // Aligned with the TodoItem.Description column (varchar(2000)).
             RuleFor(x => x.Description)

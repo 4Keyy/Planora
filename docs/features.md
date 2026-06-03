@@ -206,6 +206,7 @@ toggle doubles as the rail marker, sitting exactly on the timeline line.
 | Visibility | public exactly when the parent is public; inherits the parent's shared audience. A parent's category/visibility/sharing change **propagates** to its subtasks |
 | Dates | none — a subtask never has a due or expected date |
 | Priority | **none in the UX** — a subtask is just a checkable titled step; no priority is shown, chosen, or edited. (The entity still has a priority column, defaulted server-side; it is never surfaced.) |
+| Title length | a subtask's whole content lives in its title, so it allows **up to 1500 characters** (regular-task titles stay ≤200). Enforced by `CreateSubtaskCommandValidator` (1500), `UpdateTodoCommandValidator` (1500, shared with subtask renames), the widened `TodoItems.Title` `varchar(1500)` column, and the frontend `SUBTASK_MAX = 1500` (create textarea + inline edit textarea both wrap/grow) |
 | Editing | the title is **owner-only** (inline edit in the card; double-click the title or the pencil). Non-owners cannot edit |
 | Status | **anyone with access can complete or reopen it, and it applies globally** — if one participant marks it done it is done for everyone (entity status, not per-viewer). **Stays in the branch after completion** (shown done, not removed). Owner can also take it into work |
 | Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |

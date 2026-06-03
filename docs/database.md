@@ -133,7 +133,7 @@ Default schema: `todo`
 
 | Entity | Important fields/indexes | Code |
 |---|---|---|
-| `TodoItem` | title max 200; description max 2000; status stored as string; priority stored as int; user/category ids; `IsPublic`; `Hidden`; `RequiredWorkers` (nullable int, total headcount including owner); soft delete; indexes by user/category/status/delete/created | `Persistence/Configurations/TodoItemConfiguration.cs` |
+| `TodoItem` | title max 1500 (a subtask's content lives in its title; regular-task titles stay ≤200 via the create validator + UI); description max 2000; status stored as string; priority stored as int; user/category ids; `IsPublic`; `Hidden`; `RequiredWorkers` (nullable int, total headcount including owner); soft delete; indexes by user/category/status/delete/created. On existing migration-built DBs the `Title` column is widened to `varchar(1500)` at TodoApi startup (idempotent, metadata-only) so it matches the EF model | `Persistence/Configurations/TodoItemConfiguration.cs` |
 | `TodoTag` | owned table `todo_tags`, tag name max 50 | `TodoItemConfiguration.cs` |
 | `TodoItemShare` | table `todo_item_shares`, composite key `(TodoItemId, SharedWithUserId)`, index by shared user | `Persistence/Configurations/TodoItemShareConfiguration.cs` |
 | `TodoItemWorker` | table `todo_item_workers`, composite PK `(TodoItemId, UserId)`, `JoinedAt` default `now()`, cascade FK to `TodoItems`; indexes on `UserId` and `TodoItemId` | `Persistence/Configurations/TodoItemWorkerConfiguration.cs` |

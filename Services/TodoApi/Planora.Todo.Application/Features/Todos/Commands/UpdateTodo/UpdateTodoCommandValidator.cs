@@ -9,8 +9,12 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             RuleFor(x => x.TodoId)
                 .NotEmpty().WithMessage("Todo ID is required");
 
+            // This command edits both regular tasks and subtasks (a subtask rename also goes
+            // through here), so the cap matches the larger 1500-char subtask-title allowance and
+            // the widened TodoItems.Title column. Regular-task titles are kept to 200 chars by the
+            // create validator and the UI input limits.
             RuleFor(x => x.Title)
-                .MaximumLength(200).WithMessage("Title cannot exceed 200 characters")
+                .MaximumLength(1500).WithMessage("Title cannot exceed 1500 characters")
                 .When(x => !string.IsNullOrEmpty(x.Title));
 
             // See CreateTodoCommandValidator for the rationale — must match

@@ -18,7 +18,7 @@ import {
 
 const COMMENT_MAX = 2000
 const GENESIS_MAX = 5000
-const SUBTASK_MAX = 200
+const SUBTASK_MAX = 1500
 
 // Snappy spring for subtask micro-interactions (toggle pop, card enter/exit).
 const SPRING_SNAP = { type: "spring" as const, stiffness: 460, damping: 32 }
@@ -1377,13 +1377,19 @@ function SubtaskCard({
   const [deleteHovered, setDeleteHovered] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(subtask.title)
-  const editInputRef = useRef<HTMLInputElement>(null)
+  const editInputRef = useRef<HTMLTextAreaElement>(null)
 
   const beginEdit = () => {
     if (!isOwner) return
     setEditTitle(subtask.title)
     setEditing(true)
-    setTimeout(() => { editInputRef.current?.focus(); editInputRef.current?.select() }, 40)
+    setTimeout(() => {
+      const el = editInputRef.current
+      if (!el) return
+      el.focus(); el.select()
+      el.style.height = "auto"
+      el.style.height = el.scrollHeight + "px"
+    }, 40)
   }
   const commitEdit = () => {
     const t = editTitle.trim()
@@ -1466,21 +1472,29 @@ function SubtaskCard({
 
         {/* Title + meta */}
         {editing ? (
-          <input
+          <textarea
             ref={editInputRef}
             value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
+            onChange={(e) => {
+              setEditTitle(e.target.value)
+              e.target.style.height = "auto"
+              e.target.style.height = e.target.scrollHeight + "px"
+            }}
             onKeyDown={(e) => {
+              // Plain Enter commits (a title is single-string); Shift+Enter is ignored too — the
+              // field only wraps long text visually. Escape cancels.
               if (e.key === "Enter") { e.preventDefault(); commitEdit() }
               if (e.key === "Escape") setEditing(false)
             }}
             onBlur={commitEdit}
             maxLength={SUBTASK_MAX}
+            rows={1}
             style={{
               flex: 1, minWidth: 0, background: "white",
               border: "1.5px solid #c7d2fe", borderRadius: 8, outline: "none",
-              padding: "7px 10px", fontSize: 13.5, fontWeight: 400,
-              color: "#262626", fontFamily: "inherit",
+              padding: "7px 10px", fontSize: 13.5, fontWeight: 400, lineHeight: 1.4,
+              color: "#262626", fontFamily: "inherit", resize: "none",
+              maxHeight: 160, overflowY: "auto",
             }}
           />
         ) : (

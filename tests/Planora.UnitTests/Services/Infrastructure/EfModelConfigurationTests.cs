@@ -81,7 +81,8 @@ public class EfModelConfigurationTests
         var todo = RequireEntity<TodoItem>(model);
         Assert.Equal("todo", todo.GetSchema());
         Assert.NotNull(todo.FindPrimaryKey());
-        Assert.Equal(200, todo.FindProperty(nameof(TodoItem.Title))?.GetMaxLength());
+        // 1500 to hold a subtask's full content (a subtask's text lives in its title).
+        Assert.Equal(1500, todo.FindProperty(nameof(TodoItem.Title))?.GetMaxLength());
         Assert.Equal(2000, todo.FindProperty(nameof(TodoItem.Description))?.GetMaxLength());
         Assert.Equal(TodoStatus.Todo, todo.FindProperty(nameof(TodoItem.Status))!.GetDefaultValue());
         Assert.Equal(TodoPriority.Medium, todo.FindProperty(nameof(TodoItem.Priority))!.GetDefaultValue());
