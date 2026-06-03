@@ -78,11 +78,10 @@ interface BranchFeedProps {
 // authored exactly like the description: pick it from the "+" menu, type into the same field, send.
 type ComposeMode = "text" | "description" | "subtask"
 
-// Lifecycle attribution for a subtask, parsed from its (now hidden) system-comment announcements
-// and folded directly into the card cluster so the branch reads as one integrated thread.
+// Completion attribution for a subtask, parsed from its (now hidden) "completed a subtask" system
+// comment and rendered as a no-icon reply in the subtask's sub-branch. Creation is intentionally
+// NOT surfaced — a subtask never shows a "created" notification.
 interface SubtaskMeta {
-  createdBy?: string
-  createdAt?: string
   completedBy?: string
   completedAt?: string
 }
@@ -93,27 +92,25 @@ type FeedItem =
   | { type: "comment";   comment: TodoComment }
   | { type: "subtask";   subtask: Todo; meta: SubtaskMeta }
 
-// Pulls the actor's name out of a subtask system sentence, e.g. "Ann Lee added a subtask: Buy milk".
+// Pulls the actor's name out of a subtask system sentence, e.g. "Ann Lee completed a subtask: Buy milk".
 function parseSubtaskActor(content: string, verb: "added" | "completed"): string | undefined {
   const m = content.match(new RegExp(`^(.*?)\\s+${verb} a subtask:`, "i"))
   const name = m?.[1]?.trim()
   return name || undefined
 }
 
-// Builds the chronological rail by interleaving branch comments with subtask card clusters. Each
-// subtask's "added a subtask: <title>" / "completed a subtask: <title>" system comments are NOT
-// rendered as standalone rail nodes — they are parsed for attribution and folded into the card
-// cluster (a minimal "added" caption above the card, a "completed" reply below it). The card is
-// anchored to its creation time so it sits where it was added; its completion shows as a reply
-// within the same cluster (a threaded reply), not a far-away timeline node.
+// Builds the chronological rail by interleaving branch comments with subtask card clusters. A
+// subtask's lifecycle system comments are never rendered as standalone rail nodes: the "added a
+// subtask" comment is dropped entirely (no creation notification at all), and the "completed a
+// subtask" comment is hidden and parsed into the completion reply shown inside the subtask's own
+// sub-branch. Cards anchor on their own creation time.
 function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
   const creationEvents = comments.filter((c) => c.isSystemComment && /added a subtask:/i.test(c.content))
   const completionEvents = comments.filter((c) => c.isSystemComment && /completed a subtask:/i.test(c.content))
 
   const usedCreate = new Set<string>()
   const usedComplete = new Set<string>()
-  const hidden = new Set<string>()            // system comments folded into a card (never rendered raw)
-  const anchorById = new Map<string, string>()
+  const hidden = new Set<string>()            // subtask system comments — never rendered on the rail
   const metaById = new Map<string, SubtaskMeta>()
 
   // Match in creation order for stable greedy pairing when titles repeat.
@@ -122,13 +119,11 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
     const suffix = `: ${s.title}`
     const meta: SubtaskMeta = {}
 
+    // Hide the creation comment if one still exists (legacy / in-flight) — it is never shown.
     const created = creationEvents.find((c) => !usedCreate.has(c.id) && c.content.trimEnd().endsWith(suffix))
     if (created) {
       usedCreate.add(created.id)
       hidden.add(created.id)
-      anchorById.set(s.id, created.createdAt)
-      meta.createdBy = parseSubtaskActor(created.content, "added")
-      meta.createdAt = created.createdAt
     }
 
     const completed = completionEvents.find((c) => !usedComplete.has(c.id) && c.content.trimEnd().endsWith(suffix))
@@ -147,11 +142,11 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
     | { time: string; order: number; kind: "subtask"; subtask: Todo }
   const evs: Ev[] = []
   for (const c of comments) {
-    if (hidden.has(c.id)) continue            // folded into a subtask cluster
+    if (hidden.has(c.id)) continue            // subtask system comment — folded away
     evs.push({ time: c.createdAt, order: 0, kind: "comment", comment: c })
   }
-  // order:1 keeps an anchored cluster immediately after its same-timestamped (hidden) announcement.
-  for (const s of subtasks) evs.push({ time: anchorById.get(s.id) ?? s.createdAt, order: 1, kind: "subtask", subtask: s })
+  // The subtask card anchors on its own creation time; order:1 keeps it after same-time comments.
+  for (const s of subtasks) evs.push({ time: s.createdAt, order: 1, kind: "subtask", subtask: s })
   evs.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : a.order - b.order))
 
   const items: FeedItem[] = []
@@ -1402,11 +1397,12 @@ const SUBTASK_TOGGLE = 26
 const SUBTASK_DELETE_ZONE = 50
 // x of the rail centre within a cluster's content box (content starts RAIL_GUTTER from the wrapper).
 const RAIL_X = RAIL_CENTER - RAIL_GUTTER
-// Subtask rows branch OFF to the side: their dots stay on the rail (like every other event), but
-// the content is pushed this far further right, joined back to the rail by a curved connector.
-const SUBTASK_OFFSET = 24
-const CAPTION_NODE = 18      // small rail dot for the "added/completed" lines
-const COMPLETE_NODE = 20     // green completion node
+// A subtask branches off the main rail into its own little sub-branch: the card + its completion
+// reply sit offset to the side (SUBTASK_OFFSET), joined back to the rail by connectors. The ONLY
+// marker is the subtask's completion toggle, which lives on the sub-branch (SUB_TOGGLE_X) — the
+// completion reply is just another (icon-less) reply on that sub-branch.
+const SUBTASK_OFFSET = 28    // card / reply content left edge (the sub-branch column)
+const SUB_TOGGLE_X = 4       // the toggle's centre x — the subtask's sole marker, on the sub-branch
 interface SubtaskCardProps {
   subtask: Todo
   meta: SubtaskMeta
@@ -1451,10 +1447,10 @@ function SubtaskCard({
   // Owner gets the slide-out delete affordance, so reserve the strip's width on the right.
   const bodyPaddingRight = isOwner && !editing ? SUBTASK_DELETE_ZONE - 2 : 12
 
-  const createdBy = (meta.createdBy ?? subtask.authorName ?? "Someone").trim() || "Someone"
-  const createdAt = meta.createdAt ?? subtask.createdAt
   const completedName = meta.completedBy?.trim()
   const completedAt = meta.completedAt
+  // Sub-branch accent — the little branch the subtask hangs from, tinted to its state.
+  const branchColor = done ? "#a7f3d0" : working ? "#fcd98c" : "#e1e1e6"
 
   return (
     <motion.div
@@ -1467,50 +1463,38 @@ function SubtaskCard({
       onMouseLeave={() => { setHovered(false); setDeleteHovered(false) }}
       style={{ position: "relative", padding: "6px 0" }}
     >
-      {/* ── Creation caption ── its own dot on the rail (on par with every other event), but the
-          note sits off to the side, joined back by a short connector — a little branch. */}
-      <div style={{ position: "relative", paddingLeft: SUBTASK_OFFSET, marginBottom: 7, minHeight: CAPTION_NODE }}>
-        <span style={{
-          position: "absolute", left: RAIL_X, top: "50%", transform: "translateY(-50%)",
-          width: SUBTASK_OFFSET - RAIL_X, height: 2, borderRadius: 1, background: "#e6e6ea",
-        }} />
-        <span style={{
-          position: "absolute", left: RAIL_X - CAPTION_NODE / 2, top: "50%", transform: "translateY(-50%)",
-          width: CAPTION_NODE, height: CAPTION_NODE, borderRadius: "50%", background: "#ffffff",
-          boxShadow: "0 0 0 3px #ffffff, inset 0 0 0 1.5px #e2e2f7", zIndex: 2,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <Plus size={10} color="#9499e6" strokeWidth={2.6} />
-        </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: CAPTION_NODE }}>
-          <span style={{ fontSize: 11, fontWeight: 500, color: "#9a9a9a", lineHeight: 1.3 }}>
-            <strong style={{ color: "#525252", fontWeight: 800 }}>{createdBy}</strong> added a subtask
-          </span>
-          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", color: "#c4c4c4" }}>
-            {formatTimeHHMM(createdAt)}
-          </span>
-        </div>
-      </div>
-
-      {/* ── Card row ── the subtask branches off to the side: its completion toggle stays on the
-          rail (the subtask's icon) at the card's VERTICAL CENTRE, with a curved connector reaching
-          out to the offset card. */}
+      {/* ── Card row ── the subtask forks off the main rail into its own sub-branch. The completion
+          toggle is the subtask's ONLY marker, sitting on the sub-branch at the card's VERTICAL
+          CENTRE; a fork connector reaches in from the main rail, and (when done) the sub-branch
+          continues downward to the completion reply. */}
       <div style={{ position: "relative", paddingLeft: SUBTASK_OFFSET }}>
-        {/* Connector from the rail to the offset card, tinted to the current state */}
+        {/* Fork — main rail → the sub-branch toggle */}
         <span style={{
           position: "absolute", left: RAIL_X, top: "50%", transform: "translateY(-50%)",
-          width: SUBTASK_OFFSET - RAIL_X, height: 2, borderRadius: 1,
-          background: done ? "#a7f3d0" : working ? "#fcd98c" : "#e4e4e7",
-          transition: "background 200ms",
+          width: SUB_TOGGLE_X - RAIL_X, height: 2, borderRadius: 1,
+          background: branchColor, transition: "background 200ms",
         }} />
-        {/* Completion toggle — the subtask's rail icon, centred vertically on the card */}
+        {/* Stem — toggle → the offset card */}
+        <span style={{
+          position: "absolute", left: SUB_TOGGLE_X, top: "50%", transform: "translateY(-50%)",
+          width: SUBTASK_OFFSET - SUB_TOGGLE_X, height: 2, borderRadius: 1,
+          background: branchColor, transition: "background 200ms",
+        }} />
+        {/* Sub-branch continuation downward to the completion reply (only when done) */}
+        {done && (
+          <span style={{
+            position: "absolute", left: SUB_TOGGLE_X - 1, top: "50%", bottom: -6, width: 2,
+            background: branchColor, transition: "background 200ms",
+          }} />
+        )}
+        {/* Completion toggle — the subtask's sole marker, on the sub-branch, vertically centred */}
         <button
           onClick={onToggleComplete}
           disabled={pending}
           aria-label={done ? "Mark subtask not done" : "Complete subtask"}
           style={{
             position: "absolute",
-            left: RAIL_X - SUBTASK_TOGGLE / 2,
+            left: SUB_TOGGLE_X - SUBTASK_TOGGLE / 2,
             top: "50%",
             width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
             border: done ? "none" : `2px solid ${working ? "#f59e0b" : "#d4d4d4"}`,
@@ -1704,9 +1688,9 @@ function SubtaskCard({
   )
 }
 
-/* ── Completion reply ── a compact threaded reply under a subtask card. Like the rest of the
-   subtask cluster it keeps its own green node ON the rail (vertically centred) and offsets the
-   note to the side, joined back by a short connector. */
+/* ── Completion reply ── another reply hanging off the subtask's sub-branch, with NO rail icon.
+   A soft "└" elbow continues the sub-branch from the card down into an icon-less note. */
+const REPLY_ROW = 26
 function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
   return (
     <motion.div
@@ -1714,28 +1698,20 @@ function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
       transition={SPRING_SNAP}
-      style={{ position: "relative", paddingLeft: SUBTASK_OFFSET, marginTop: 7, minHeight: COMPLETE_NODE }}
+      style={{ position: "relative", paddingLeft: SUBTASK_OFFSET, minHeight: REPLY_ROW }}
     >
-      {/* Connector from the rail to the offset note */}
+      {/* "└" elbow — continues the sub-branch down from the card, then curves into the note.
+          No node/icon: the completion is just a reply on the sub-branch. */}
       <span style={{
-        position: "absolute", left: RAIL_X, top: "50%", transform: "translateY(-50%)",
-        width: SUBTASK_OFFSET - RAIL_X, height: 2, borderRadius: 1, background: "#a7f3d0",
+        position: "absolute", left: SUB_TOGGLE_X - 1, top: -8,
+        width: SUBTASK_OFFSET - SUB_TOGGLE_X, height: REPLY_ROW / 2 + 8,
+        borderLeft: "2px solid #a7f3d0", borderBottom: "2px solid #a7f3d0",
+        borderBottomLeftRadius: 12, pointerEvents: "none",
       }} />
-      {/* Green completion node on the rail, vertically centred */}
-      <span style={{
-        position: "absolute", left: RAIL_X - COMPLETE_NODE / 2, top: "50%", transform: "translateY(-50%)",
-        width: COMPLETE_NODE, height: COMPLETE_NODE, borderRadius: "50%",
-        background: "#10b981", boxShadow: "0 0 0 3px #ffffff, 0 1px 5px -1px rgba(16,185,129,0.5)",
-        display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2,
-      }}>
-        <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 520, damping: 18, delay: 0.05 }} style={{ display: "flex" }}>
-          <Check size={11} color="white" strokeWidth={3} />
-        </motion.span>
-      </span>
 
-      {/* Note */}
-      <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: COMPLETE_NODE }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: "#737373", lineHeight: 1.3 }}>
+      {/* Note (icon-less) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: REPLY_ROW }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: "#6f7d76", lineHeight: 1.3 }}>
           {name
             ? <><strong style={{ color: "#0a0a0a", fontWeight: 800 }}>{name}</strong> completed this</>
             : <strong style={{ color: "#059669", fontWeight: 800 }}>Completed</strong>}

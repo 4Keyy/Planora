@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(subtasks): no creation notice, icon-less completion reply on a sub-branch (2026-06-03)
+
+- **No "added a subtask" notification anywhere.** `CreateSubtaskCommandHandler` no longer enqueues
+  the `SubtaskCreated` activity event (dropped its outbox dependency), and the frontend hides any
+  legacy creation comments and renders no creation caption. The subtask card just appears.
+- **Completion is an icon-less reply on the subtask's sub-branch.** The "completed a subtask" system
+  comment is still posted to the parent branch but is never a standalone rail node — it renders as a
+  reply hanging off the subtask via a soft "└" elbow, with **no rail icon/dot**, just
+  "**{Name}** completed this · HH:MM".
+- **Subtask system notifications carry no rail icons** — the only marker on the sub-branch is the
+  subtask's own completion toggle, kept at the card's vertical centre.
+- Polished the "reply"/branch visuals: a fork from the main rail to the toggle, a stem to the offset
+  card, and a state-tinted sub-branch that continues down into the completion reply.
+- Tests: `CreateSubtask` handler now asserts **no** outbox event (`Times.Never`) and the handler
+  drops its `IOutboxRepository` dependency. Backend touched suites green (42); frontend 393 vitest
+  green; `tsc`/`eslint` clean; `npm run build` ok.
+
 ### feat(subtasks): branch the subtask cluster off the rail (2026-06-03)
 
 Refined the subtask cluster so it reads as a proper offshoot of the branch. All frontend

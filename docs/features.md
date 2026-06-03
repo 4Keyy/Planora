@@ -193,21 +193,22 @@ they never appear on the tasks page, the completed page, the dashboard grid, or 
 A subtask is **a regular event in the branch timeline**, not a separate panel. It is authored
 exactly like the task description — through the compose box's **"+" menu → "Subtask"**, which
 switches the same input field into subtask mode (plain Enter adds the step; creating a subtask
-**closes the composer**, returning to plain-message mode). Each subtask renders as **one integrated
-cluster** that **branches off the rail**: its lifecycle system comments are *folded into the card*
-rather than shown as separate timeline nodes, and the cluster's content is **offset to the side**,
-joined back to the rail by short connectors. Every line still keeps **its own dot on the rail** (on
-par with all other events):
+**closes the composer**, returning to plain-message mode). Each subtask **forks off the main rail
+into its own little sub-branch**: the card and its completion reply sit **offset to the side**,
+joined back to the rail by connectors. **There is no creation notification at all** — a subtask
+never announces that it was created.
 
-- a minimalist **creation caption** with its own small rail dot — "**{Name}** added a subtask · HH:MM";
-- the **card** itself (task-like, same **slide-from-right red delete panel**), offset to the side;
-  its **completion toggle is the subtask's rail icon, centred vertically on the card** (not at the
-  top), with a state-tinted connector reaching out to the card;
+- the **card** (task-like, same **slide-from-right red delete panel**), offset onto the sub-branch.
+  Its **completion toggle is the subtask's ONLY marker**, sitting on the sub-branch at the card's
+  **vertical centre** (not at the top); a state-tinted fork reaches in from the main rail;
 - while in progress, an **"In progress"** indicator (amber pill + pulsing dot) **visible to every
   viewer** — it never names who is working;
-- when done, a compact **completion "reply"** with its own green check node on the rail (vertically
-  centred) and an offset note — "**{Name}** completed this · HH:MM" (a nameless "Completed" shows instantly on optimistic
-  completion, then the name fills in when the folded system comment lands).
+- when done, a **completion reply** — *another reply on the same sub-branch, with **no rail icon***
+  — joined by a soft "└" elbow: "**{Name}** completed this · HH:MM" (a nameless "Completed" shows
+  instantly on optimistic completion, then the name fills in when the folded system comment lands).
+
+Subtask **system notifications never get their own icons on the rail** — the only marker the
+sub-branch carries is the subtask's own completion toggle.
 
 | Aspect | Rule |
 |---|---|
@@ -221,18 +222,18 @@ par with all other events):
 | Status | **anyone with access can complete or reopen it, and it applies globally** — if one participant marks it done it is done for everyone (entity status, not per-viewer). **Stays in the branch after completion** (shown done with its completion reply, not removed). The owner can take it into work; the resulting **in-progress state is shown to every viewer** in-card (no name) |
 | Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
 | Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
-| Branch messages | creating or completing a subtask posts a system message to the **parent's** branch timeline ("X added a subtask: …" / "X completed a subtask: …") via `TaskActivityIntegrationEvent` (`SubtaskCreated`/`SubtaskCompleted`, `Detail` = title) consumed by Collaboration. These comments are **not rendered as standalone rail nodes** — `buildFeed` matches them to their subtask by the `: <title>` suffix, parses the actor name, and **folds them into the card cluster** (creation caption + completion reply). Taking a subtask into work emits no system comment — the in-progress indicator is derived from the subtask's live `status` (polled), so all viewers see it. A subtask has no branch of its own |
-| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note. A long title **wraps** (the card is flexible-height, growing downward to fit the branch width) rather than being truncated. Create/complete attribution is shown as a folded caption/reply, not separate rail events |
+| Branch messages | **Creating a subtask emits no event** — `CreateSubtaskCommandHandler` does not enqueue anything, so there is no "added a subtask" notification anywhere. **Completing** a subtask still posts `TaskActivityIntegrationEvent` (`SubtaskCompleted`, `Detail` = title) to the **parent's** branch, but it is **never rendered as a standalone rail node**: `buildFeed` matches it to its subtask by the `: <title>` suffix and renders it as the icon-less completion reply on the sub-branch. Any legacy "added a subtask" comments are likewise hidden. Taking a subtask into work emits no system comment — the in-progress indicator is derived from the subtask's live `status` (polled), so all viewers see it. A subtask has no branch of its own |
+| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note. A long title **wraps** (the card is flexible-height) rather than being truncated. The subtask forks off the main rail onto a **sub-branch**; its completion toggle is the **only** rail marker; the completion attribution is an **icon-less reply** on the sub-branch (no creation notification at all) |
 | Lifecycle | deleting a task soft-deletes its whole subtree. Deleting a **single subtask** also removes the announcement comments it left in the parent's branch — TodoApi emits `SubtaskDeletedIntegrationEvent(parentTaskId, subtaskId, actor, title)` (instead of `TaskDeletedIntegrationEvent`, which would wipe a whole branch); Collaboration's `SubtaskDeletedEventConsumer` soft-deletes the parent-branch system comments whose content ends with `added a subtask: {title}` / `completed a subtask: {title}`. The client also removes them optimistically (suppressing their ids so polling can't re-add them before the cascade lands) |
 
 Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/friend lists),
 `CreateSubtaskCommand`, `GetSubtasksQuery`; `TodoItem.CreateSubtask` / `SyncInheritedFromParent`;
 migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask") via the
-shared compose field, and rendered inline on the rail by `edit-todo-modal/branch-feed.tsx` as an
-integrated cluster (`SubtaskCard` + `SubtaskCompletionReply`; `buildFeed` folds the create/complete
-system comments into `meta` and hides them as standalone nodes) — per-row complete (everyone) /
-inline title edit + take-into-work + delete (owner), an all-viewers in-progress indicator, and no
-priority control.
+shared compose field, and rendered on the rail by `edit-todo-modal/branch-feed.tsx` as a sub-branch
+(`SubtaskCard` + the icon-less `SubtaskCompletionReply`; `buildFeed` hides the create comment
+entirely and folds the complete comment into `meta`) — per-row complete (everyone) / inline title
+edit + take-into-work + delete (owner), an all-viewers in-progress indicator, and no priority
+control.
 
 ### Frontend Behavior
 
