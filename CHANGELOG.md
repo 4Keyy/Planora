@@ -4,6 +4,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(subtasks): schema-qualify the Title column widening (500 on long subtask) (2026-06-03)
+
+The startup column-widening shipped in the 1500-char change targeted an unqualified `"TodoItems"`,
+but the table lives in the **`todo` schema**. The `ALTER TABLE "TodoItems" …` threw
+`42P01: relation "TodoItems" does not exist` (swallowed as a non-fatal warning), so the column
+stayed `varchar(200)` and creating a subtask with a >200-char title failed with a Postgres
+`22001: value too long` → HTTP 500. Fixed the statement to `ALTER TABLE todo."TodoItems" …` and the
+`information_schema` guard to filter `table_schema = 'todo'`. The widening was also applied directly
+to the running database, so existing local installs work without a rebuild.
+
 ### fix(tasks): keep the Quick Filter plate after creating a task (2026-06-03)
 
 The Quick Filter plate on `/tasks` vanished after creating a task through the create panel. The

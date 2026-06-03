@@ -167,16 +167,18 @@ namespace Planora.Todo.Api
                     // Fresh installs already get 1500 from the EF model (TodoItemConfiguration).
                     try
                     {
+                        // The TodoItems table lives in the "todo" schema — qualify it explicitly
+                        // (an unqualified name resolves against the search_path/public and fails).
                         await db.Database.ExecuteSqlRawAsync(@"
 DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'TodoItems' AND column_name = 'Title'
+        WHERE table_schema = 'todo' AND table_name = 'TodoItems' AND column_name = 'Title'
           AND character_maximum_length IS NOT NULL
           AND character_maximum_length < 1500
     ) THEN
-        ALTER TABLE ""TodoItems"" ALTER COLUMN ""Title"" TYPE varchar(1500);
+        ALTER TABLE todo.""TodoItems"" ALTER COLUMN ""Title"" TYPE varchar(1500);
     END IF;
 END $$;", app.Lifetime.ApplicationStopping);
                         logger.LogInformation("✅ Ensured TodoItems.Title accommodates 1500-character subtask titles");
