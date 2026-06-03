@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(subtasks): branch the subtask cluster off the rail (2026-06-03)
+
+Refined the subtask cluster so it reads as a proper offshoot of the branch. All frontend
+(`edit-todo-modal/branch-feed.tsx`).
+
+- The whole cluster (creation caption, card, completion reply) is now **offset to the side**
+  (`SUBTASK_OFFSET`) and joined back to the rail by short, state-tinted connectors — it clearly
+  branches off like a reply, instead of sitting flush like a normal message.
+- **Every subtask line keeps its own dot on the rail**, on par with other timeline events: a small
+  indigo "added" dot for the creation caption, the completion toggle for the card, and a green node
+  for the completion reply.
+- The **completion toggle (the subtask's rail icon) is now vertically centred on the card** rather
+  than pinned to the top — so tall/wrapped cards stay visually balanced.
+- Dropped the now-redundant in-card list glyph (the rail toggle is the subtask's icon). The
+  completion reply node is likewise centred on the rail with its note offset to the side.
+- `tsc`/`eslint` clean; 393 vitest green; `npm run build` ok.
+
 ### feat(subtasks): fold lifecycle events into an integrated card cluster (2026-06-03)
 
 Reworked how subtask system notifications appear in a task's branch so they feel native to the

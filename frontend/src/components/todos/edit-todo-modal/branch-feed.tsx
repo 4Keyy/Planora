@@ -1402,6 +1402,11 @@ const SUBTASK_TOGGLE = 26
 const SUBTASK_DELETE_ZONE = 50
 // x of the rail centre within a cluster's content box (content starts RAIL_GUTTER from the wrapper).
 const RAIL_X = RAIL_CENTER - RAIL_GUTTER
+// Subtask rows branch OFF to the side: their dots stay on the rail (like every other event), but
+// the content is pushed this far further right, joined back to the rail by a curved connector.
+const SUBTASK_OFFSET = 24
+const CAPTION_NODE = 18      // small rail dot for the "added/completed" lines
+const COMPLETE_NODE = 20     // green completion node
 interface SubtaskCardProps {
   subtask: Todo
   meta: SubtaskMeta
@@ -1462,20 +1467,43 @@ function SubtaskCard({
       onMouseLeave={() => { setHovered(false); setDeleteHovered(false) }}
       style={{ position: "relative", padding: "6px 0" }}
     >
-      {/* ── Creation caption ── minimalist "{name} added a subtask · time", folded in above the
-          card (no rail marker of its own — the rail simply runs down to the card's toggle). */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: 7, paddingLeft: 2, marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 500, color: "#9a9a9a", lineHeight: 1.3 }}>
-          <strong style={{ color: "#525252", fontWeight: 800 }}>{createdBy}</strong> added a subtask
+      {/* ── Creation caption ── its own dot on the rail (on par with every other event), but the
+          note sits off to the side, joined back by a short connector — a little branch. */}
+      <div style={{ position: "relative", paddingLeft: SUBTASK_OFFSET, marginBottom: 7, minHeight: CAPTION_NODE }}>
+        <span style={{
+          position: "absolute", left: RAIL_X, top: "50%", transform: "translateY(-50%)",
+          width: SUBTASK_OFFSET - RAIL_X, height: 2, borderRadius: 1, background: "#e6e6ea",
+        }} />
+        <span style={{
+          position: "absolute", left: RAIL_X - CAPTION_NODE / 2, top: "50%", transform: "translateY(-50%)",
+          width: CAPTION_NODE, height: CAPTION_NODE, borderRadius: "50%", background: "#ffffff",
+          boxShadow: "0 0 0 3px #ffffff, inset 0 0 0 1.5px #e2e2f7", zIndex: 2,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Plus size={10} color="#9499e6" strokeWidth={2.6} />
         </span>
-        <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", color: "#c4c4c4" }}>
-          {formatTimeHHMM(createdAt)}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: CAPTION_NODE }}>
+          <span style={{ fontSize: 11, fontWeight: 500, color: "#9a9a9a", lineHeight: 1.3 }}>
+            <strong style={{ color: "#525252", fontWeight: 800 }}>{createdBy}</strong> added a subtask
+          </span>
+          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", color: "#c4c4c4" }}>
+            {formatTimeHHMM(createdAt)}
+          </span>
+        </div>
       </div>
 
-      {/* ── Card row ── position:relative anchors the completion toggle on the rail. */}
-      <div style={{ position: "relative" }}>
-        {/* Completion toggle — the primary rail marker, centred on the timeline line */}
+      {/* ── Card row ── the subtask branches off to the side: its completion toggle stays on the
+          rail (the subtask's icon) at the card's VERTICAL CENTRE, with a curved connector reaching
+          out to the offset card. */}
+      <div style={{ position: "relative", paddingLeft: SUBTASK_OFFSET }}>
+        {/* Connector from the rail to the offset card, tinted to the current state */}
+        <span style={{
+          position: "absolute", left: RAIL_X, top: "50%", transform: "translateY(-50%)",
+          width: SUBTASK_OFFSET - RAIL_X, height: 2, borderRadius: 1,
+          background: done ? "#a7f3d0" : working ? "#fcd98c" : "#e4e4e7",
+          transition: "background 200ms",
+        }} />
+        {/* Completion toggle — the subtask's rail icon, centred vertically on the card */}
         <button
           onClick={onToggleComplete}
           disabled={pending}
@@ -1483,7 +1511,7 @@ function SubtaskCard({
           style={{
             position: "absolute",
             left: RAIL_X - SUBTASK_TOGGLE / 2,
-            top: 12,
+            top: "50%",
             width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
             border: done ? "none" : `2px solid ${working ? "#f59e0b" : "#d4d4d4"}`,
             background: done ? "#10b981" : "#ffffff",
@@ -1493,7 +1521,7 @@ function SubtaskCard({
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: pending ? "default" : "pointer", padding: 0, zIndex: 3,
             transition: "background 160ms, border-color 160ms, transform 120ms, box-shadow 160ms",
-            transform: hovered && !done ? "scale(1.12)" : "scale(1)",
+            transform: `translateY(-50%) scale(${hovered && !done ? 1.12 : 1})`,
           }}
         >
           <AnimatePresence mode="wait" initial={false}>
@@ -1524,16 +1552,6 @@ function SubtaskCard({
           border: `1px solid ${done ? "#d7f5ea" : working && !done ? "#fde68a" : "#f0f0f0"}`,
           transition: "background 200ms, border-color 200ms, padding 160ms",
         }}>
-          {/* Subtask glyph — quietly identifies the row as a branch step */}
-          <div style={{
-            width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-            background: done ? "#e7f8f1" : working ? "#fef3c7" : "#eef2ff",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "background 200ms",
-          }}>
-            <ListTree size={14} color={done ? "#10b981" : working ? "#b45309" : "#6366f1"} strokeWidth={2} />
-          </div>
-
           {/* Title (wraps freely) or inline editor */}
           {editing ? (
             <textarea
@@ -1668,26 +1686,27 @@ function SubtaskCard({
             </div>
           )}
         </div>
-
-        {/* ── Completion reply ── the branch gently bends down to a green check + a one-line note.
-            Shown whenever the subtask is done; the completer's name fills in once its (folded)
-            system comment lands, otherwise a nameless "Completed" is shown immediately. */}
-        <AnimatePresence initial={false}>
-          {done && (
-            <SubtaskCompletionReply
-              key="completion"
-              name={completedName}
-              at={completedAt}
-            />
-          )}
-        </AnimatePresence>
       </div>
+
+      {/* ── Completion reply ── its own green completion node on the rail (vertically centred) with
+          an offset note; shown whenever the subtask is done. The name fills in once the folded
+          system comment lands, otherwise a nameless "Completed" shows immediately. */}
+      <AnimatePresence initial={false}>
+        {done && (
+          <SubtaskCompletionReply
+            key="completion"
+            name={completedName}
+            at={completedAt}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }
 
-/* ── Completion reply ── a compact threaded reply under a subtask card. A soft curved connector
-   leads from the rail into a green completion node, then a short "{name} completed this · time". */
+/* ── Completion reply ── a compact threaded reply under a subtask card. Like the rest of the
+   subtask cluster it keeps its own green node ON the rail (vertically centred) and offsets the
+   note to the side, joined back by a short connector. */
 function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
   return (
     <motion.div
@@ -1695,22 +1714,18 @@ function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
       transition={SPRING_SNAP}
-      style={{ position: "relative", marginTop: 2, minHeight: 30 }}
+      style={{ position: "relative", paddingLeft: SUBTASK_OFFSET, marginTop: 7, minHeight: COMPLETE_NODE }}
     >
-      {/* Curved connector — rail bends gently toward the completion node */}
-      <svg
-        width={26} height={34} viewBox="0 0 26 34" fill="none"
-        style={{ position: "absolute", left: RAIL_X - 1, top: -10, overflow: "visible", pointerEvents: "none" }}
-        aria-hidden
-      >
-        <path d="M1 0 V16 Q1 25 11 25" stroke="#bbf7d0" strokeWidth={2} strokeLinecap="round" />
-      </svg>
-
-      {/* Green completion node, sitting just off the rail at the curve's end */}
+      {/* Connector from the rail to the offset note */}
       <span style={{
-        position: "absolute", left: RAIL_X + 1, top: 6,
-        width: 19, height: 19, borderRadius: "50%",
-        background: "#10b981", boxShadow: "0 0 0 3px #ffffff, 0 1px 5px -1px rgba(16,185,129,0.55)",
+        position: "absolute", left: RAIL_X, top: "50%", transform: "translateY(-50%)",
+        width: SUBTASK_OFFSET - RAIL_X, height: 2, borderRadius: 1, background: "#a7f3d0",
+      }} />
+      {/* Green completion node on the rail, vertically centred */}
+      <span style={{
+        position: "absolute", left: RAIL_X - COMPLETE_NODE / 2, top: "50%", transform: "translateY(-50%)",
+        width: COMPLETE_NODE, height: COMPLETE_NODE, borderRadius: "50%",
+        background: "#10b981", boxShadow: "0 0 0 3px #ffffff, 0 1px 5px -1px rgba(16,185,129,0.5)",
         display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2,
       }}>
         <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 520, damping: 18, delay: 0.05 }} style={{ display: "flex" }}>
@@ -1719,7 +1734,7 @@ function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
       </span>
 
       {/* Note */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: 7, paddingLeft: 8, paddingTop: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: COMPLETE_NODE }}>
         <span style={{ fontSize: 12, fontWeight: 500, color: "#737373", lineHeight: 1.3 }}>
           {name
             ? <><strong style={{ color: "#0a0a0a", fontWeight: 800 }}>{name}</strong> completed this</>

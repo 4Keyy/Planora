@@ -194,16 +194,19 @@ A subtask is **a regular event in the branch timeline**, not a separate panel. I
 exactly like the task description — through the compose box's **"+" menu → "Subtask"**, which
 switches the same input field into subtask mode (plain Enter adds the step; creating a subtask
 **closes the composer**, returning to plain-message mode). Each subtask renders as **one integrated
-cluster** on the activity rail — its lifecycle system comments are *folded into the card* rather
-than shown as separate rail nodes:
+cluster** that **branches off the rail**: its lifecycle system comments are *folded into the card*
+rather than shown as separate timeline nodes, and the cluster's content is **offset to the side**,
+joined back to the rail by short connectors. Every line still keeps **its own dot on the rail** (on
+par with all other events):
 
-- a minimalist **creation caption** above the card — "**{Name}** added a subtask · HH:MM";
-- the **card** itself (taller, task-like, same **slide-from-right red delete panel**), whose
-  completion toggle is the primary rail marker;
+- a minimalist **creation caption** with its own small rail dot — "**{Name}** added a subtask · HH:MM";
+- the **card** itself (task-like, same **slide-from-right red delete panel**), offset to the side;
+  its **completion toggle is the subtask's rail icon, centred vertically on the card** (not at the
+  top), with a state-tinted connector reaching out to the card;
 - while in progress, an **"In progress"** indicator (amber pill + pulsing dot) **visible to every
   viewer** — it never names who is working;
-- when done, a compact **completion "reply"** the rail gently bends down to: a green check node +
-  "**{Name}** completed this · HH:MM" (a nameless "Completed" shows instantly on optimistic
+- when done, a compact **completion "reply"** with its own green check node on the rail (vertically
+  centred) and an offset note — "**{Name}** completed this · HH:MM" (a nameless "Completed" shows instantly on optimistic
   completion, then the name fills in when the folded system comment lands).
 
 | Aspect | Rule |
