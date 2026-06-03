@@ -185,10 +185,16 @@ export default function DashboardPage() {
   const fetchStats = useCallback(async (signal?: AbortSignal) => {
     try {
       const res = await api.get<{ items: Todo[] }>("/todos/api/v1/todos", {
-        // includeSubtasks: subtasks are hidden from every list, but completed subtasks must
-        // still count toward the weekly statistics below (they are filtered out of the active
-        // counter and never rendered as cards).
-        params: { pageNumber: 1, pageSize: 1000, includeSubtasks: true },
+        // Only completed items are needed for the weekly stats. Active task count
+        // comes from fetchTodos(totalCount), keeping this request small even when
+        // a user has a large backlog. Completed subtasks still count toward the
+        // weekly total, so this stats-only fetch opts into them.
+        params: {
+          pageNumber: 1,
+          pageSize: STATS_COMPLETED_PREVIEW_SIZE,
+          isCompleted: true,
+          includeSubtasks: true,
+        },
         signal,
         timeout: STATS_REQUEST_TIMEOUT_MS,
       })
@@ -331,15 +337,7 @@ export default function DashboardPage() {
     return () => controller.abort()
   }, [isAuthenticated, hasHydrated, mounted, fetchTodos, fetchStats, fetchCategories, clearAuth, router])
 
-  const activeStatsTodos = useMemo(() =>
-    statsTodos.filter(t => {
-      if (t.parentTodoId) return false; // subtasks never inflate the active-task counter
-      const s = String(t.status).toLowerCase();
-      const isDone = s === "done" || s === "completed";
-      return !isDone && t.isCompletedByViewer !== true;
-    }),
-    [statsTodos]
-  )
+  const activeStatsCount = totalCount
 
   // Completed-this-week deliberately includes completed subtasks so finishing a step in a
   // task's branch contributes to the weekly statistics.
@@ -362,7 +360,7 @@ export default function DashboardPage() {
     })
   }, [allCompletedStatsTodos])
 
-  const totalForStats = activeStatsTodos.length + recentCompletedStatsTodos.length
+  const totalForStats = activeStatsCount + recentCompletedStatsTodos.length
 
   // Filter out tasks that are completed by the viewer (for shared/public tasks)
   const activeTodos = useMemo(() => {
@@ -719,13 +717,13 @@ export default function DashboardPage() {
           <h1 className="text-2xl md:text-3xl xl:text-4xl font-black text-gray-900 tracking-tight leading-tight">
             You have{" "}
             <motion.span
-              key={activeStatsTodos.length}
+              key={activeStatsCount}
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 15 }}
               className="text-black inline-flex items-center px-2 py-1 rounded-xl bg-black/5 border border-black/10 hover:scale-110 transition-transform cursor-default font-black"
             >
-              {activeStatsTodos.length}
+              {activeStatsCount}
             </motion.span>{" "}
             tasks.
           </h1>
