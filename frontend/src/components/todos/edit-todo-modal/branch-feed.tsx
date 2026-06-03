@@ -1464,10 +1464,15 @@ function SubtaskCard({
 
   const completedName = meta.completedBy?.trim()
   const completedAt = meta.completedAt
-  // Someone (anyone) is working on it → amber accents; the viewer's own membership drives the toggle.
+  // "In work" is strictly per-user. The viewer's OWN membership (`meWorking`) is the only thing that
+  // drives the card's amber "in progress" treatment — so taking a subtask into work changes how the
+  // card looks ONLY for the person who did it; its status never flips for anyone else. Other people
+  // working on it are surfaced through an unobtrusive presence badge (below), never by restyling the
+  // card. `someoneWorking` therefore gates only that badge, not the status visuals.
   const someoneWorking = workerCount > 0
-  // Sub-branch accent — the little branch the subtask hangs from, tinted to its state.
-  const branchColor = done ? "#a7f3d0" : someoneWorking ? "#fcd98c" : "#e1e1e6"
+  const meWorking = viewerWorking
+  // Sub-branch accent — tinted amber only when THIS viewer is working; neutral for everyone else.
+  const branchColor = done ? "#a7f3d0" : meWorking ? "#fcd98c" : "#e1e1e6"
 
   return (
     <motion.div
@@ -1514,7 +1519,7 @@ function SubtaskCard({
             left: SUB_TOGGLE_X - SUBTASK_TOGGLE / 2,
             top: "50%",
             width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
-            border: done ? "none" : `2px solid ${someoneWorking ? "#f59e0b" : "#d4d4d4"}`,
+            border: done ? "none" : `2px solid ${meWorking ? "#f59e0b" : "#d4d4d4"}`,
             background: done ? "#10b981" : "#ffffff",
             boxShadow: done
               ? "0 0 0 3px #ffffff, 0 2px 6px -1px rgba(16,185,129,0.5)"
@@ -1530,7 +1535,7 @@ function SubtaskCard({
               <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
                 <Check size={15} color="white" strokeWidth={3} />
               </motion.span>
-            ) : someoneWorking ? (
+            ) : meWorking ? (
               <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} className="animate-pulse" />
               </motion.span>
@@ -1549,8 +1554,8 @@ function SubtaskCard({
           display: "flex", alignItems: "flex-start", gap: 10,
           padding: "11px 12px", paddingRight: bodyPaddingRight,
           borderRadius: 12,
-          background: done ? "#f7fdfb" : someoneWorking ? "#fffdf5" : "#fafafa",
-          border: `1px solid ${done ? "#d7f5ea" : someoneWorking && !done ? "#fde68a" : "#f0f0f0"}`,
+          background: done ? "#f7fdfb" : meWorking ? "#fffdf5" : "#fafafa",
+          border: `1px solid ${done ? "#d7f5ea" : meWorking ? "#fde68a" : "#f0f0f0"}`,
           transition: "background 200ms, border-color 200ms, padding 160ms",
         }}>
           {/* Title (wraps freely) or inline editor */}
@@ -1597,9 +1602,12 @@ function SubtaskCard({
             </span>
           )}
 
-          {/* In-work presence badge — per-user, shown to EVERY viewer as an anonymous count
-              ("N working"). It never names anyone. When the viewer is one of the workers the badge
-              reads "You + N" so they can tell their own state at a glance. */}
+          {/* Presence badge — the ONLY signal other people get that someone is on this subtask, since
+              their card stays status-neutral. Two variants:
+                • the viewer themselves (`meWorking`) → an amber "You're working" / "You + N" chip that
+                  matches their own in-work card treatment;
+                • everyone else → a muted, status-neutral "N working" pill that simply announces the
+                  presence without making the subtask look in-progress for them. */}
           <AnimatePresence initial={false}>
             {someoneWorking && !done && !editing && (
               <motion.span
@@ -1607,22 +1615,32 @@ function SubtaskCard({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.7 }}
                 transition={{ type: "spring", stiffness: 480, damping: 26 }}
-                title={`${workerCount} ${workerCount === 1 ? "person is" : "people are"} working on this`}
+                title={
+                  meWorking
+                    ? (workerCount > 1
+                        ? `You and ${workerCount - 1} other ${workerCount - 1 === 1 ? "person are" : "people are"} working on this`
+                        : "You're working on this")
+                    : `${workerCount} ${workerCount === 1 ? "person is" : "people are"} working on this`
+                }
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 2,
                   fontSize: 9.5, fontWeight: 900, letterSpacing: "0.06em", textTransform: "uppercase",
-                  color: "#b45309",
-                  background: "linear-gradient(180deg,#fff8e6,#fef0c7)",
-                  border: "1px solid #fce4a6",
+                  color: meWorking ? "#b45309" : "#64748b",
+                  background: meWorking
+                    ? "linear-gradient(180deg,#fff8e6,#fef0c7)"
+                    : "linear-gradient(180deg,#f8fafc,#eef2f6)",
+                  border: `1px solid ${meWorking ? "#fce4a6" : "#e2e8f0"}`,
                   padding: "3px 9px 3px 7px", borderRadius: 999,
-                  boxShadow: "0 1px 3px -1px rgba(245,158,11,0.35)",
+                  boxShadow: meWorking
+                    ? "0 1px 3px -1px rgba(245,158,11,0.35)"
+                    : "0 1px 2px -1px rgba(100,116,139,0.25)",
                 }}
               >
                 <span style={{ position: "relative", width: 7, height: 7, flexShrink: 0 }}>
-                  <span className="animate-ping" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#f59e0b", opacity: 0.6 }} />
-                  <span style={{ position: "absolute", inset: 1, borderRadius: "50%", background: "#f59e0b" }} />
+                  <span className="animate-ping" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: meWorking ? "#f59e0b" : "#94a3b8", opacity: 0.6 }} />
+                  <span style={{ position: "absolute", inset: 1, borderRadius: "50%", background: meWorking ? "#f59e0b" : "#94a3b8" }} />
                 </span>
-                {viewerWorking
+                {meWorking
                   ? (workerCount > 1 ? `You + ${workerCount - 1} working` : "You're working")
                   : `${workerCount} working`}
               </motion.span>
