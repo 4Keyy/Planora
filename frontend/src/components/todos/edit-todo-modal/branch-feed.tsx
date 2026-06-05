@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, Pause, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, type LucideIcon } from "lucide-react"
+import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, type LucideIcon } from "lucide-react"
 import {
   fetchComments, addComment, updateComment, deleteComment,
   fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
@@ -1469,6 +1469,23 @@ function SubtaskCard({
   // Sub-branch accent — the little branch the subtask hangs from, tinted to its state.
   const branchColor = done ? "#a7f3d0" : someoneWorking ? "#fcd98c" : "#e1e1e6"
 
+  // A subtask is taken into work and completed through this ONE marker — exactly like a normal task,
+  // with no separate "lightning" affordance. First click takes it into work (per-user join), a
+  // second click (now that you're working) completes it; on a done subtask it reopens.
+  const handleMarkerClick = () => {
+    if (pending) return
+    if (done) { onToggleComplete(); return }        // reopen (global)
+    if (!viewerWorking) { onToggleWork(); return }  // 1st click → take into work (per-user)
+    onToggleComplete()                              // 2nd click → complete (global)
+  }
+  // Marker border tracks the stage: grey idle → amber once in work → green hint when a click
+  // would complete it (you're working and hovering).
+  const markerBorderColor = viewerWorking && hovered ? "#10b981"
+    : someoneWorking ? "#f59e0b"
+    : hovered ? "#f59e0b"
+    : "#d4d4d4"
+  const markerAriaLabel = done ? "Reopen subtask" : viewerWorking ? "Complete subtask" : "Take subtask into work"
+
   return (
     <motion.div
       layout
@@ -1506,15 +1523,15 @@ function SubtaskCard({
         )}
         {/* Completion toggle — the subtask's sole marker, on the sub-branch, vertically centred */}
         <button
-          onClick={onToggleComplete}
+          onClick={handleMarkerClick}
           disabled={pending}
-          aria-label={done ? "Mark subtask not done" : "Complete subtask"}
+          aria-label={markerAriaLabel}
           style={{
             position: "absolute",
             left: SUB_TOGGLE_X - SUBTASK_TOGGLE / 2,
             top: "50%",
             width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
-            border: done ? "none" : `2px solid ${someoneWorking ? "#f59e0b" : "#d4d4d4"}`,
+            border: done ? "none" : `2px solid ${markerBorderColor}`,
             background: done ? "#10b981" : "#ffffff",
             boxShadow: done
               ? "0 0 0 3px #ffffff, 0 2px 6px -1px rgba(16,185,129,0.5)"
@@ -1530,13 +1547,20 @@ function SubtaskCard({
               <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
                 <Check size={15} color="white" strokeWidth={3} />
               </motion.span>
+            ) : viewerWorking && hovered ? (
+              // You're working and hovering → a click completes it.
+              <motion.span key="complete" initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                <Check size={14} color="#10b981" strokeWidth={3} />
+              </motion.span>
             ) : someoneWorking ? (
+              // In work (you and/or others) → calm amber pulse.
               <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} className="animate-pulse" />
               </motion.span>
             ) : hovered ? (
-              <motion.span key="hover" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                <Check size={14} color="#10b981" strokeWidth={3} />
+              // Idle + hovering → hint that a click takes it into work (a small amber dot, no bolt).
+              <motion.span key="take" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#f59e0b" }} />
               </motion.span>
             ) : null}
           </AnimatePresence>
@@ -1629,9 +1653,10 @@ function SubtaskCard({
             )}
           </AnimatePresence>
 
-          {/* Inline actions — revealed on hover, hidden under the delete panel. "Take into work" is
-              available to EVERYONE (global, like completion); editing stays owner-only. */}
-          {!editing && (isOwner || !done) && (
+          {/* Inline actions — revealed on hover, hidden under the delete panel. Taking a subtask into
+              work happens through the completion marker (no separate "lightning"); the only inline
+              actions are owner editing and, when you're working, an exit-work button. */}
+          {!editing && (isOwner || (viewerWorking && !done)) && (
             <div style={{
               display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginTop: 1,
               opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
@@ -1642,14 +1667,14 @@ function SubtaskCard({
                   <Pencil size={13} strokeWidth={2} />
                 </SubtaskIconButton>
               )}
-              {!done && (
+              {viewerWorking && !done && (
                 <SubtaskIconButton
-                  label={viewerWorking ? "Stop working on subtask" : "Take subtask into work"}
-                  title={viewerWorking ? "Step out" : "Take into work"}
-                  color={viewerWorking ? "#b45309" : "#6366f1"} hoverBg="#f0f0f0"
+                  label="Stop working on subtask"
+                  title="Exit work"
+                  color="#b45309" hoverBg="#fef3c7"
                   onClick={onToggleWork} disabled={pending}
                 >
-                  {viewerWorking ? <Pause size={14} strokeWidth={2} /> : <Zap size={14} strokeWidth={2} />}
+                  <LogOut size={14} strokeWidth={2} />
                 </SubtaskIconButton>
               )}
             </div>
