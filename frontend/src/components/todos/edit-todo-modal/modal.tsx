@@ -403,13 +403,19 @@ export function EditTodoModal({
                 maxLength={200}
                 rows={1}
                 style={{
-                  width: "100%", resize: "none", border: "none", outline: "none",
-                  background: "#fafafa", borderRadius: 14, padding: "10px 14px",
-                  marginLeft: -14,
+                  // Box model mirrors the <h1> below exactly (same padding, negative margin,
+                  // radius and font metrics) so entering edit mode never shifts the title
+                  // sideways or resizes it — it just fades from the hover background into a field.
+                  display: "block",
+                  width: "calc(100% + 12px)",
+                  marginLeft: -12,
+                  resize: "none", border: "none", outline: "none",
+                  background: "#fafafa", borderRadius: 10, padding: "8px 12px",
                   fontSize: 22, fontWeight: 900, lineHeight: 1.22,
                   letterSpacing: "-0.025em", color: "#0a0a0a",
                   fontFamily: "inherit", boxSizing: "border-box",
                   overflow: "hidden",
+                  transition: "background 140ms",
                 }}
               />
             ) : (
