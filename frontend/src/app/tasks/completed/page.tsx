@@ -66,13 +66,18 @@ export default function CompletedTasksPage() {
   const todosRef = useRef(todos)
   todosRef.current = todos
 
-  // ── Category filter (mirrors /tasks: "F" hotkey + chip + shared persistence) ──
+  // ── Category filter (mirrors /tasks: "F" hotkey + chip + per-user persistence) ──
   useEffect(() => {
-    setFilterCategoryIds(readFilter())
     const seen = readHintSeen()
     setHintDismissed(seen)
     hintDismissedRef.current = seen
   }, [])
+
+  // Hydrate the persisted filter per-user; re-read when the active user changes so a
+  // filter never leaks across accounts while surviving a hard refresh per user.
+  useEffect(() => {
+    setFilterCategoryIds(readFilter(user?.userId))
+  }, [user?.userId])
 
   useEffect(() => {
     if (hintDismissed) return
@@ -105,8 +110,8 @@ export default function CompletedTasksPage() {
 
   const handleFilterChange = useCallback((ids: string[]) => {
     setFilterCategoryIds(ids)
-    writeFilter(ids)
-  }, [])
+    writeFilter(user?.userId, ids)
+  }, [user?.userId])
 
   const fetchCategories = useCallback(async () => {
     try {

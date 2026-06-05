@@ -31,7 +31,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
-import { TASK_CREATED_EVENT } from "@/lib/events"
+import { TASK_CREATED_EVENT, type TaskCreatedDetail } from "@/lib/events"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 
 const PROGRESS_TRANSITION = { duration: 1.5, ease: "easeOut" } as const
@@ -204,9 +204,11 @@ export default function DashboardPage() {
   // be torn down and re-added on every pagination click).
   useEffect(() => { currentPageRef.current = currentPage }, [currentPage])
 
-  const fetchTodos = useCallback(async (page = currentPageRef.current, signal?: AbortSignal) => {
+  const fetchTodos = useCallback(async (page = currentPageRef.current, { signal, silent = false }: { signal?: AbortSignal; silent?: boolean } = {}) => {
     try {
-      setLoading(true)
+      // Mutation-triggered refreshes pass silent:true so the page reconciles in the
+      // background without flashing the skeleton grid over cards already on screen.
+      if (!silent) setLoading(true)
       const res = await api.get<{ items: Todo[]; totalCount: number }>("/todos/api/v1/todos", {
         params: {
           pageNumber: page,
@@ -225,9 +227,9 @@ export default function DashboardPage() {
       setLastFetchedPage(page)
     } catch (err) {
       if (axios.isCancel(err) || signal?.aborted) return
-      setError(err instanceof Error ? err.message : "Failed to load todos")
+      if (!silent) setError(err instanceof Error ? err.message : "Failed to load todos")
     } finally {
-      if (!signal?.aborted) setLoading(false)
+      if (!silent && !signal?.aborted) setLoading(false)
     }
   }, [pageSize, enrichTodosWithAuthorNames])
 
@@ -249,9 +251,16 @@ export default function DashboardPage() {
 
   // Navbar quick-create fired a task — refresh without a page reload
   useEffect(() => {
-    const handler = () => {
+    const handler = (e: Event) => {
+      const created = (e as CustomEvent<TaskCreatedDetail>).detail?.todo
       setCurrentPage(1)
-      void Promise.all([fetchTodos(1), fetchStats()])
+      // Render the new task instantly on page 1, then reconcile silently.
+      if (created?.id) {
+        setTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [created, ...prev])
+        setStatsTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [created, ...prev])
+        setTotalCount((c) => c + 1)
+      }
+      void Promise.all([fetchTodos(1, { silent: true }), fetchStats()])
     }
     window.addEventListener(TASK_CREATED_EVENT, handler)
     return () => window.removeEventListener(TASK_CREATED_EVENT, handler)
@@ -293,7 +302,7 @@ export default function DashboardPage() {
     // rapid route switch does not race setState on an unmounted component.
     const controller = new AbortController()
     void Promise.all([
-      fetchTodos(currentPageRef.current, controller.signal),
+      fetchTodos(currentPageRef.current, { signal: controller.signal }),
       fetchStats(controller.signal),
       fetchCategories(controller.signal),
     ])
@@ -359,15 +368,23 @@ export default function DashboardPage() {
   }, [loading, totalCount, currentPage, pageSize, activeTodos.length, lastFetchedPage])
 
   const handleCreate = async (payload: CreateTodoPayload) => {
-    await api.post("/todos/api/v1/todos", payload)
+    const res = await api.post<ApiResponse<Todo>>("/todos/api/v1/todos", payload)
     setIsCreateOpen(false)
     setFirstRun(false)
     try {
       sessionStorage.removeItem(FIRST_RUN_STORAGE_KEY)
     } catch { }
-    setCurrentPage(1)
-    await Promise.all([fetchTodos(1), fetchStats()])
     addToast({ type: "success", title: "Task created!" })
+    setCurrentPage(1)
+    // Surface the new task immediately, then reconcile silently in the background.
+    const created = parseApiResponse<Todo>(res.data)
+    if (created?.id) {
+      const [enriched] = await enrichTodosWithAuthorNames([created])
+      setTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [enriched, ...prev])
+      setStatsTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [enriched, ...prev])
+      setTotalCount((c) => c + 1)
+    }
+    await Promise.all([fetchTodos(1, { silent: true }), fetchStats()])
   }
 
   const confirmDelete = async () => {
@@ -403,7 +420,7 @@ export default function DashboardPage() {
           setTodos(prev => prev.filter(t => t.id !== todoId))
           setTotalCount(prev => Math.max(0, prev - 1))
         } else {
-          fetchTodos()
+          void fetchTodos(undefined, { silent: true })
         }
         setStatsTodos(prev => prev.map(t =>
           t.id !== todoId ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false }
@@ -427,7 +444,7 @@ export default function DashboardPage() {
         setTodos(prev => prev.filter(t => t.id !== todoId))
         setTotalCount(prev => Math.max(0, prev - 1))
       } else {
-        fetchTodos()
+        void fetchTodos(undefined, { silent: true })
       }
 
       setStatsTodos(prev => prev.map(t => {

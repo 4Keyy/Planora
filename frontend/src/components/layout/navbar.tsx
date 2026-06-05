@@ -9,10 +9,11 @@ import { cn } from "@/lib/utils"
 import { Avatar } from "@/components/ui/avatar"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
-import { api } from "@/lib/api"
+import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { clearCsrfToken } from "@/lib/csrf"
 import { EASE_OUT_EXPO } from "@/lib/animations"
-import { TASK_CREATED_EVENT } from "@/lib/events"
+import { dispatchTaskCreated } from "@/lib/events"
+import type { Todo } from "@/types/todo"
 
 // ─── Navigation items ─────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ export function Navbar() {
     if (!title || creating) return
     setCreating(true)
     try {
-      await api.post("/todos/api/v1/todos", {
+      const res = await api.post<ApiResponse<Todo>>("/todos/api/v1/todos", {
         title,
         isPublic:    false,
         description: null,
@@ -108,8 +109,11 @@ export function Navbar() {
       addToast({ type: "success", title: "Task created!" })
       setTaskTitle("")
       setCreateMode(false)
-      // Signal dashboard (and any other page) to refresh the task list
-      window.dispatchEvent(new CustomEvent(TASK_CREATED_EVENT))
+      // Signal dashboard (and any other page) to refresh the task list. Ship the
+      // created task on the event so listeners can render it instantly before
+      // their background refetch reconciles.
+      const created = parseApiResponse<Todo>(res.data)
+      dispatchTaskCreated(created?.id ? created : undefined)
     } catch {
       addToast({ type: "error", title: "Failed to create task" })
     } finally {

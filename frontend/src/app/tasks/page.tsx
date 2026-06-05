@@ -32,7 +32,7 @@ const CreateTodoPanel = dynamic(
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
-import { TASK_CREATED_EVENT } from "@/lib/events"
+import { TASK_CREATED_EVENT, type TaskCreatedDetail } from "@/lib/events"
 import { EASE_OUT_EXPO, SPRING_GENTLE } from "@/lib/animations"
 import { readFilter, writeFilter } from "@/utils/category-filter"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
@@ -111,10 +111,12 @@ export default function TasksPage() {
   useCollapseScroll(isCreateOpen)
   useCollapseScroll(showCompleted)
 
-  // Hydrate the persisted category filter after mount
+  // Hydrate the persisted category filter per-user. Re-reads whenever the active
+  // user changes (e.g. switching accounts), so a filter never leaks across accounts
+  // while each user's own filter survives a hard refresh.
   useEffect(() => {
-    setFilterCategoryIds(readFilter())
-  }, [])
+    setFilterCategoryIds(readFilter(user?.userId))
+  }, [user?.userId])
 
   // Press "F" — toggle category filter modal (skip when typing in inputs or create panel open)
   useEffect(() => {
@@ -148,8 +150,8 @@ export default function TasksPage() {
 
   const handleFilterChange = useCallback((ids: string[]) => {
     setFilterCategoryIds(ids)
-    writeFilter(ids)
-  }, [])
+    writeFilter(user?.userId, ids)
+  }, [user?.userId])
 
   const fetchCategories = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -190,8 +192,10 @@ export default function TasksPage() {
     })
   }, [user?.userId])
 
-  const fetchActiveTodos = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true)
+  const fetchActiveTodos = useCallback(async ({ signal, silent = false }: { signal?: AbortSignal; silent?: boolean } = {}) => {
+    // Mutation-triggered refreshes pass silent:true so the list reconciles in the
+    // background without flashing the skeleton grid over cards already on screen.
+    if (!silent) setLoading(true)
     try {
       const all: Todo[] = []
       let page = 1
@@ -226,9 +230,11 @@ export default function TasksPage() {
     } catch (error) {
       if (axios.isCancel(error) || signal?.aborted) return
       console.error("Failed to fetch active todos:", error)
-      addToast({ type: "error", title: "Failed to load tasks" })
+      // A silent background reconcile must not surface a toast — the cards already
+      // on screen stay valid; only an interactive (non-silent) load reports failure.
+      if (!silent) addToast({ type: "error", title: "Failed to load tasks" })
     } finally {
-      if (!signal?.aborted) setLoading(false)
+      if (!silent && !signal?.aborted) setLoading(false)
     }
   }, [addToast, enrichTodosWithAuthorNames])
 
@@ -269,7 +275,7 @@ export default function TasksPage() {
     // unmounted component.
     const controller = new AbortController()
     void Promise.all([
-      fetchActiveTodos(controller.signal),
+      fetchActiveTodos({ signal: controller.signal }),
       fetchCompletedPreview(controller.signal),
       fetchCategories(controller.signal),
     ])
@@ -277,7 +283,14 @@ export default function TasksPage() {
   }, [isAuthenticated, hasHydrated, router, fetchActiveTodos, fetchCompletedPreview, fetchCategories, clearAuth])
 
   useEffect(() => {
-    const handler = () => { void fetchActiveTodos() }
+    const handler = (e: Event) => {
+      const created = (e as CustomEvent<TaskCreatedDetail>).detail?.todo
+      // Render the new task instantly, then reconcile silently in the background.
+      if (created?.id) {
+        setTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [created, ...prev])
+      }
+      void fetchActiveTodos({ silent: true })
+    }
     window.addEventListener(TASK_CREATED_EVENT, handler)
     return () => window.removeEventListener(TASK_CREATED_EVENT, handler)
   }, [fetchActiveTodos])
@@ -301,7 +314,7 @@ export default function TasksPage() {
           setTodos((prev) => prev.filter((t) => t.id !== id))
           await fetchCompletedPreview()
         } else {
-          await Promise.all([fetchActiveTodos(), fetchCompletedPreview()])
+          await Promise.all([fetchActiveTodos({ silent: true }), fetchCompletedPreview()])
         }
         addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
       } catch (error) {
@@ -318,7 +331,7 @@ export default function TasksPage() {
       await api.put(`/todos/api/v1/todos/${id}`, { status: newStatus })
 
       if (isCompleted) {
-        await Promise.all([fetchActiveTodos(), fetchCompletedPreview()])
+        await Promise.all([fetchActiveTodos({ silent: true }), fetchCompletedPreview()])
       } else {
         setTodos((prev) => prev.filter((t) => t.id !== id))
         await fetchCompletedPreview()
@@ -422,10 +435,17 @@ export default function TasksPage() {
 
   const handleCreate = async (payload: CreateTodoPayload) => {
     try {
-      await api.post("/todos/api/v1/todos", payload)
+      const res = await api.post<ApiResponse<Todo>>("/todos/api/v1/todos", payload)
       setIsCreateOpen(false)
-      await fetchActiveTodos()
       addToast({ type: "success", title: "Task created!" })
+      // Show the new task immediately, then reconcile against the server in the
+      // background so the list never blanks out behind a skeleton.
+      const created = parseApiResponse<Todo>(res.data)
+      if (created?.id) {
+        const [enriched] = await enrichTodosWithAuthorNames([created])
+        setTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [enriched, ...prev])
+      }
+      await fetchActiveTodos({ silent: true })
     } catch (error) {
       console.error("Failed to create todo:", error)
       addToast({ type: "error", title: "Failed to create task" })

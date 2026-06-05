@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Frontend task UX: instant updates, steadier title editing, per-user filter, marker-driven subtask work (2026-06-05)
+
+A set of task-experience refinements on the dashboard, tasks pages, and the task-branch modal.
+
+- **Instant task updates.** Creating a task now inserts it into the list immediately from the POST response and reconciles with a silent background refetch instead of blocking on a full reload behind a skeleton grid. The `planora:task-created` event carries the created task so the navbar quick-create appears instantly on both pages, and create/reopen refreshes no longer flash skeletons over existing cards (`fetchActiveTodos`/`fetchTodos` gained a `silent` mode).
+- **Steadier title editing.** In the task-branch modal, the title heading and its inline edit field now share the exact same box model, so clicking the title to rename it no longer slides it sideways or resizes it — it fades cleanly into an editable field.
+- **Per-user category filter.** The category filter on `/tasks` and `/tasks/completed` is persisted per user (`todos-cat-filter:<userId>`), so it survives a hard refresh but never leaks onto another account signed in on the same browser.
+- **Marker-driven subtask work.** A subtask is now taken into work and completed through its single completion marker — there is no separate "lightning" button. First click takes it into work (per-user join), a second click completes it; while working a subtask, hovering its card reveals an exit-work control.
+
+Performance: new tasks render instantly (optimistic insert) instead of after a blocking full-list refetch.
+Security: per-user filter scoping prevents cross-account leakage of view state.
+
 ### feat(subtasks): per-user in-work with a worker count; hide all subtask system lines (2026-06-03)
 
 **Per-user "in work" with a count.** Taking a subtask into work is no longer a global status —

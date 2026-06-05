@@ -201,11 +201,15 @@ never announces that it was created.
 - the **card** (task-like, same **slide-from-right red delete panel**), offset onto the sub-branch.
   Its **completion toggle is the subtask's ONLY marker**, sitting on the sub-branch at the card's
   **vertical centre** (not at the top); a state-tinted fork reaches in from the main rail;
-- **anyone with access can take a subtask into work** (a Zap toggle on hover). This is **per-user**:
-  each person joins/leaves independently (server-side worker rows), so one person working never
-  flips it "in work" for another. Every viewer sees an anonymous **"N working"** presence badge
-  (amber pill + pulsing dot) — it **never names anyone**; the viewer's own membership reads
-  "You're working" / "You + N working";
+- a subtask is **taken into work and completed through that one marker — exactly like a normal
+  task, with no separate "lightning" button.** The first click on an idle subtask **takes it into
+  work** (per-user join; hovering an idle marker hints this with a small amber dot, not a bolt); a
+  second click — now that you're working — **completes** it; on a done subtask the marker reopens
+  it. While you are working a subtask, hovering its card reveals an **exit-work** button (the only
+  inline work control). Taking into work is **per-user**: each person joins/leaves independently
+  (server-side worker rows), so one person working never flips it "in work" for another. Every
+  viewer sees an anonymous **"N working"** presence badge (amber pill + pulsing dot) — it **never
+  names anyone**; the viewer's own membership reads "You're working" / "You + N working";
 - when done, a **completion reply** — *another reply on the same sub-branch, with **no rail icon***
   — joined by a soft "└" elbow: "**{Name}** completed sub task · HH:MM" (a nameless "Sub task
   completed" shows instantly on optimistic completion, then the name fills in when the folded
@@ -245,7 +249,7 @@ count to all), inline title edit + delete are owner-only, and there is no priori
 - Active todo page loads active tasks in pages of 200.
 - Completed preview uses page size 20.
 - Sorting groups active tasks by date urgency and priority in `frontend/src/utils/sort-tasks.ts`.
-- Category filter state is stored in local storage by `frontend/src/utils/category-filter.ts`.
+- Category filter state is stored in local storage by `frontend/src/utils/category-filter.ts`, scoped per user under the key `todos-cat-filter:<userId>`. Each account's filter survives a hard refresh (including Ctrl+F5), and switching accounts never leaks one user's filter onto another. The `/tasks` and `/tasks/completed` pages re-read the filter whenever the active user changes; an unknown/logged-out user resolves to an empty filter.
 - Keyboard shortcuts confirmed in `frontend/src/app/todos/page.tsx`: `F` opens category filter and `C` opens create panel when focus is not inside form controls.
 - Dashboard also keeps the `C` create-panel shortcut. The collapsed panel header shows "New task" as its title and a `press C to open` `<kbd>` hint in the subtitle so the shortcut is self-documenting without a separate dismissible banner.
 - Pressing `Escape` inside the create task panel returns it to the collapsed create action with a calm layout fade instead of leaving an empty white panel or adding bounce.
@@ -255,7 +259,9 @@ count to all), inline title edit + delete are owner-only, and there is no priori
 - The create task panel keeps title and description as labeled light panels, followed by full-width priority, category, due date, and `Share With` sections. Character-limited fields show `current/max` counters at the panel edge and switch to red warning state from 80% of the limit. Friend visibility stays inside a neutral `Share With` selector where all-friends visibility and direct friend selection are mutually exclusive, and the panel does not expose a tags field or a duplicate property summary.
 - On the dashboard, the create panel opens with a softened layout transition and staged field reveal. Its primary plus icon becomes a rotated close action while the panel is open, so the same control pattern can open and close the draft surface.
 - Toast notifications render on the toast z-index layer and start below the fixed navbar, so completion/update feedback is not hidden behind the header.
-- The floating navbar quick-creates tasks (title only, private, no category) and dispatches a `planora:task-created` custom DOM event on success. Both the dashboard and todos pages listen for this event to refresh their task lists without a page reload; the dashboard also resets pagination to page 1.
+- The floating navbar quick-creates tasks (title only, private, no category) and dispatches a `planora:task-created` custom DOM event on success, carrying the freshly created task on `event.detail.todo` (see `frontend/src/lib/events.ts`). Both the dashboard and todos pages listen for this event: they insert the new task into the list immediately (optimistically) and then reconcile with a silent background refetch, so a new task appears instantly instead of after the list reloads. The dashboard also resets pagination to page 1.
+- Task list updates feel instant because mutation-triggered refetches run in "silent" mode (`fetchActiveTodos`/`fetchTodos` accept `{ silent }`): creating a task inserts it from the POST response right away, and create/reopen refreshes no longer flash the skeleton grid over existing cards. The first full page load still shows skeletons; only background reconciliation is silent.
+- In the Task Branch edit modal, the title heading and its inline edit field share the exact same box model (padding, negative margin, border radius and font metrics), so clicking the title to rename it never shifts the heading sideways or changes its size — it simply fades from the hover background into an editable field.
 - The Task Branch edit modal (`frontend/src/components/todos/edit-todo-modal`) is **quick-save** with no Save/Cancel buttons: editing the title, priority, due date, category, or visibility/sharing autosaves via the debounced `useAutosave` hook. Owners persist the full task payload; a shared viewer who can manage their own category autosaves only their private category preference. The description ("Author's Note" in the branch) keeps its own explicit editor and is intentionally excluded from the autosave equality check so it is never written twice. There is **no footer panel** — no autosave-status indicator and no `Done` button; the modal closes via the header **✕**, the backdrop, or `Escape`, and a pending edit is flushed on close/unmount. Save failures are toasted once; the autosave retries on the next edit.
 - When the user removes a category during task edit, `applyCategoryPatch` (`frontend/src/utils/todo-utils.ts`) zeroes all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) in local state after the PUT — necessary because the backend treats `categoryId: null` as a no-op and echoes back the old values.
 - Todo, dashboard, and completed-task pages enrich author names for public friend tasks as well as direct shared tasks.

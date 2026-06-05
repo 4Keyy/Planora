@@ -1,4 +1,4 @@
-const FILTER_KEY = "todos-cat-filter"
+const FILTER_KEY_PREFIX = "todos-cat-filter"
 const HINT_KEY = "todos-cat-hint"
 
 function safe<T>(fn: () => T, fallback: T): T {
@@ -6,19 +6,33 @@ function safe<T>(fn: () => T, fallback: T): T {
   try { return fn() } catch { return fallback }
 }
 
-export function readFilter(): string[] {
+/**
+ * The category filter is persisted per user so that switching accounts never
+ * leaks one user's filter onto another. The key is scoped by userId; without a
+ * known user we never read or write a shared key.
+ */
+function filterKey(userId: string | undefined | null): string | null {
+  if (!userId) return null
+  return `${FILTER_KEY_PREFIX}:${userId}`
+}
+
+export function readFilter(userId: string | undefined | null): string[] {
+  const key = filterKey(userId)
+  if (!key) return []
   return safe(() => {
-    const raw = localStorage.getItem(FILTER_KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? (parsed as string[]) : []
   }, [])
 }
 
-export function writeFilter(ids: string[]): void {
+export function writeFilter(userId: string | undefined | null, ids: string[]): void {
+  const key = filterKey(userId)
+  if (!key) return
   safe(() => {
-    if (ids.length === 0) localStorage.removeItem(FILTER_KEY)
-    else localStorage.setItem(FILTER_KEY, JSON.stringify(ids))
+    if (ids.length === 0) localStorage.removeItem(key)
+    else localStorage.setItem(key, JSON.stringify(ids))
   }, undefined)
 }
 
