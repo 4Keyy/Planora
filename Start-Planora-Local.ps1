@@ -220,6 +220,32 @@ function Set-LocalRedisConnectionEnvironment {
     [System.Environment]::SetEnvironmentVariable("REDIS_CONNECTION", $redisConnection, "Process")
 }
 
+function Set-LocalPostgresConnectionEnvironment {
+    # SECURITY / SINGLE SOURCE OF TRUTH: the per-service appsettings still carry a
+    # local-dev default of Password=postgres. Inject the real POSTGRES_PASSWORD from
+    # .env as ConnectionStrings__<X>Database env vars, which override appsettings in
+    # ASP.NET Core config (the "__" double-underscore convention). This mirrors how the
+    # Docker path resolves ${POSTGRES_PASSWORD} via docker-compose, so a rotated database
+    # password works identically in both host-process and container modes — and a stale
+    # hardcoded password can never silently break host-process startup again.
+    $pgPassword = [System.Environment]::GetEnvironmentVariable("POSTGRES_PASSWORD", "Process")
+    if ([string]::IsNullOrWhiteSpace($pgPassword)) { return }
+    $pgUser = [System.Environment]::GetEnvironmentVariable("POSTGRES_USER", "Process")
+    if ([string]::IsNullOrWhiteSpace($pgUser)) { $pgUser = "postgres" }
+
+    $databases = [ordered]@{
+        "AuthDatabase"          = "planora_auth_db"
+        "CategoryDatabase"      = "planora_category"
+        "TodoDatabase"          = "planora_todo"
+        "MessagingDatabase"     = "planora_messaging"
+        "CollaborationDatabase" = "planora_collaboration"
+    }
+    foreach ($entry in $databases.GetEnumerator()) {
+        $conn = "Host=localhost;Port=5433;Database=$($entry.Value);Username=$pgUser;Password=$pgPassword;Maximum Pool Size=100;Minimum Pool Size=5;"
+        [System.Environment]::SetEnvironmentVariable("ConnectionStrings__$($entry.Key)", $conn, "Process")
+    }
+}
+
 function Show-Header {
     param($Title)
     $line = "=" * 54
@@ -813,6 +839,7 @@ function Import-EnvFile {
     # ASP.NET Core environment + local Redis connection (host-mapped ports).
     [System.Environment]::SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development", "Process")
     Set-LocalRedisConnectionEnvironment
+    Set-LocalPostgresConnectionEnvironment
 }
 
 # ---------------------------------------------------------------------------
