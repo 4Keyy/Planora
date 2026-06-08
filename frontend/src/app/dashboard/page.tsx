@@ -343,7 +343,7 @@ export default function DashboardPage() {
     })
   }, [allCompletedStatsTodos])
 
-  const totalForStats = activeStatsCount + recentCompletedStatsTodos.length
+  const totalForStats = activeStatsTodos.length + recentCompletedStatsTodos.length
 
   // Filter out tasks that are completed by the viewer (for shared/public tasks)
   const activeTodos = useMemo(() => {
@@ -678,13 +678,13 @@ export default function DashboardPage() {
           <h1 className="text-2xl md:text-3xl xl:text-4xl font-black text-gray-900 tracking-tight leading-tight">
             You have{" "}
             <motion.span
-              key={activeStatsCount}
+              key={activeStatsTodos.length}
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 15 }}
               className="text-black inline-flex items-center px-2 py-1 rounded-xl bg-black/5 border border-black/10 hover:scale-110 transition-transform cursor-default font-black"
             >
-              {activeStatsCount}
+              {activeStatsTodos.length}
             </motion.span>{" "}
             tasks.
           </h1>
