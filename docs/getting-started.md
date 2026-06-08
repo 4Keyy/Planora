@@ -7,7 +7,7 @@ This guide takes a clean local checkout to a running Planora app.
 | Requirement | Recommended version | Used by |
 |---|---:|---|
 | .NET SDK | 10.x | backend services and xUnit tests |
-| Node.js | current LTS compatible with Next.js 15 | frontend |
+| Node.js | current LTS compatible with Next.js 16 | frontend |
 | npm | bundled with Node | frontend dependencies/scripts |
 | Docker Desktop | recent stable | PostgreSQL, Redis, RabbitMQ, optional backend containers |
 | PowerShell | 7.x recommended; Windows PowerShell can run the scripts when launcher/helper files remain ASCII-compatible | launch scripts |

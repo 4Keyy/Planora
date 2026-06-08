@@ -4,9 +4,9 @@ This root file is the short architecture summary. The full reference is [`docs/a
 
 ## Summary
 
-Planora is a .NET 10 microservice backend with a Next.js 15 frontend:
+Planora is a .NET 10 microservice backend with a Next.js 16 frontend:
 
-- `frontend/` - browser UI and API client. Next.js 15 App Router; global animated canvas background (`TopologyLayer`) in the root layout; Zustand auth store; Tailwind + Radix UI + Framer Motion.
+- `frontend/` - browser UI and API client. Next.js 16 App Router; global animated canvas background (`TopologyLayer`) in the root layout; Zustand auth store; Tailwind + Radix UI + Framer Motion.
 - `Planora.ApiGateway/` - Ocelot ingress, route map, JWT validation, health routing.
 - `Services/AuthApi/` - users, roles, sessions, refresh tokens, email verification, password reset, 2FA, friendships, analytics intake.
 - `Services/TodoApi/` - todos, shares, hidden state, viewer preferences, category enrichment.

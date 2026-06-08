@@ -6,16 +6,16 @@
 
 **Planora is a personal productivity & task-collaboration platform**, engineered as a
 production-grade **.NET 10 microservices** backend behind an **Ocelot API gateway**, with a
-fast, beautifully animated **Next.js 15** frontend.
+fast, beautifully animated **Next.js 16** frontend.
 
 It is both a genuinely usable product *and* a reference implementation of the patterns that
 make distributed systems trustworthy: database-per-service, the transactional outbox/inbox,
 CQRS, defense-in-depth security, full observability, and an enforced architecture.
 
-[![CI](https://github.com/4Keyy/Planora/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/4Keyy/Planora/actions/workflows/ci.yml)
-[![Security Scan](https://github.com/4Keyy/Planora/actions/workflows/security.yml/badge.svg?branch=develop)](https://github.com/4Keyy/Planora/actions/workflows/security.yml)
+[![CI](https://github.com/4Keyy/Planora/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/4Keyy/Planora/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/4Keyy/Planora/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/4Keyy/Planora/actions/workflows/security.yml)
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License: Source-Available](https://img.shields.io/badge/license-Source--Available%20(Study--Only)-red.svg)](LICENSE)
@@ -45,7 +45,7 @@ throwaway UI. **Planora refuses to compromise on either.**
 - **👀 Observable by default.** Structured, correlation-enriched Serilog logging and end-to-end
   OpenTelemetry traces & metrics across every service — so you can actually *see* a request
   travel the gateway → service → database → event bus.
-- **⚡ A frontend that feels alive.** Next.js 15 App Router, a fluid Framer Motion design system,
+- **⚡ A frontend that feels alive.** Next.js 16 App Router, a fluid Framer Motion design system,
   a live collaboration timeline, real-time SignalR notifications, and an animated WebGL
   background — fast, accessible, and strict-typed end to end.
 - **🛠️ Developer experience that respects your time.** One PowerShell command boots the entire
@@ -111,7 +111,7 @@ the `BuildingBlocks` projects.
 | **Messaging API** | Direct user-to-user messages | `planora_messaging` | `5058` |
 | **Collaboration API** | Task comment timeline ("ветки"): user / genesis / system comments + notifications | `planora_collaboration` | `5060` |
 | **Realtime API** | SignalR notifications with a Redis backplane | Redis only | `5032` |
-| **Frontend** | Next.js 15 App Router, Zustand state, Axios API client | — | `3000` |
+| **Frontend** | Next.js 16 App Router, Zustand state, Axios API client | — | `3000` |
 
 Infrastructure runs on **PostgreSQL** (`5433`), **Redis** (`6379`), and **RabbitMQ** (`5672`,
 management UI `15672`). In local development all ports bind to `127.0.0.1`.
@@ -158,7 +158,7 @@ Backend package versions are managed centrally in
 | **Health checks** | [AspNetCore.HealthChecks](https://www.nuget.org/packages?q=AspNetCore.HealthChecks) for [NpgSql](https://www.nuget.org/packages/AspNetCore.HealthChecks.NpgSql) · [Redis](https://www.nuget.org/packages/AspNetCore.HealthChecks.Redis) · [RabbitMQ](https://www.nuget.org/packages/AspNetCore.HealthChecks.RabbitMQ) `9.0.0` |
 | **Testing** | [xUnit `2.9.3`](https://www.nuget.org/packages/xunit) · [Moq `4.20.72`](https://www.nuget.org/packages/Moq) · [FluentAssertions `6.12.2`](https://www.nuget.org/packages/FluentAssertions) · [NetArchTest.Rules `1.3.2`](https://www.nuget.org/packages/NetArchTest.Rules) · [Mvc.Testing `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.Mvc.Testing) · [coverlet `6.0.4`](https://www.nuget.org/packages/coverlet.collector) |
 
-### Frontend — Next.js 15
+### Frontend — Next.js 16
 
 | Purpose | Packages |
 |---|---|
@@ -332,7 +332,7 @@ Planora/
 ├── BuildingBlocks/           # Shared Domain / Application / Infrastructure
 ├── GrpcContracts/            # .proto service contracts
 ├── Planora.ApiGateway/       # Ocelot gateway
-├── frontend/                 # Next.js 15 app
+├── frontend/                 # Next.js 16 app
 ├── tools/Planora.Migrator/   # One-shot EF migration + data-backfill runner
 ├── tests/                    # xUnit unit / architecture / error-handling tests
 ├── perf/                     # k6 load-test scenarios

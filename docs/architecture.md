@@ -1,6 +1,6 @@
 # Architecture
 
-Planora is a microservice-oriented .NET 10 backend with a Next.js 15 frontend. The system uses database-per-service ownership, Ocelot for browser ingress, gRPC for synchronous service-to-service checks, RabbitMQ for asynchronous integration events, Redis for cache/backplane concerns, and PostgreSQL for persistent data.
+Planora is a microservice-oriented .NET 10 backend with a Next.js 16 frontend. The system uses database-per-service ownership, Ocelot for browser ingress, gRPC for synchronous service-to-service checks, RabbitMQ for asynchronous integration events, Redis for cache/backplane concerns, and PostgreSQL for persistent data.
 
 ## System Diagram
 
