@@ -212,12 +212,19 @@ internal static class Program
     {
         // Equivalent to services.AddDbContext<TContext>(opts => opts.UseNpgsql(connectionString))
         // but resolved generically from a Type at runtime.
+        // Disambiguate on the second parameter type: EF Core exposes two
+        // AddDbContext<TContext> overloads with one generic arg and four parameters —
+        // one taking Action<DbContextOptionsBuilder> and one taking
+        // Action<IServiceProvider, DbContextOptionsBuilder>. We bind the former, since
+        // configureOptions below is an Action<DbContextOptionsBuilder>. Matching on arity
+        // alone throws "Sequence contains more than one matching element".
         var addDbContext = typeof(EntityFrameworkServiceCollectionExtensions)
             .GetMethods()
             .Single(m => m.Name == nameof(EntityFrameworkServiceCollectionExtensions.AddDbContext)
                          && m.IsGenericMethod
                          && m.GetGenericArguments().Length == 1
-                         && m.GetParameters().Length == 4)
+                         && m.GetParameters().Length == 4
+                         && m.GetParameters()[1].ParameterType == typeof(Action<DbContextOptionsBuilder>))
             .MakeGenericMethod(contextType);
 
         Action<DbContextOptionsBuilder> configureOptions = opts => opts.UseNpgsql(connectionString);
