@@ -235,7 +235,13 @@ public class Program
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.UseWhen(ctx => ctx.Request.Path.Equals("/health", StringComparison.OrdinalIgnoreCase), branch =>
+            // Short-circuit the whole /health* segment (/health, /health/live, /health/ready)
+            // with an inline 200 BEFORE Ocelot. Ocelot's terminal UseOcelot() owns the request
+            // pipeline and has no downstream route for these paths, so without this branch the
+            // orchestrator probes (Docker healthcheck, Fly.io / k8s liveness+readiness) 404 and
+            // the gateway is flagged unhealthy even while it is routing correctly. The gateway
+            // holds no readiness-gating dependencies of its own, so "up" is a sufficient signal.
+            app.UseWhen(ctx => ctx.Request.Path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase), branch =>
             {
                 branch.Run(async context =>
                 {
@@ -245,11 +251,9 @@ public class Program
                 });
             });
 
-            // Health Checks — /health/live, /health/ready, /health (aggregate).
-            // The UseWhen branch above continues to short-circuit /health with an inline JSON
-            // response (so the request never reaches Ocelot proxying); the endpoint
-            // registrations published here serve /health/live and /health/ready for orchestrator
-            // liveness/readiness probes (Fly.io / k8s).
+            // Endpoint-routed probes for any non-Ocelot host of this assembly. Under UseOcelot()
+            // these are shadowed by the short-circuit branch above (Ocelot would otherwise swallow
+            // them), so they are a harmless fallback registration rather than the live surface here.
             app.MapPlanoraHealthEndpoints();
 
             await app.UseOcelot();
