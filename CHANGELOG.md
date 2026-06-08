@@ -4,6 +4,30 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(deps): clear transitive hono advisory + full security/performance audit (2026-06-08)
+
+A comprehensive security, performance, and consistency audit of the whole stack. The
+codebase was found to be reference-grade — no Critical/High/Medium defects — with a single
+actionable dependency finding, now resolved.
+
+- **Dependency fix.** `npm audit` flagged four moderate advisories in `hono` `<=4.12.20`
+  (Set-Cookie injection, IPv6 deny-rule bypass, non-Bearer JWT scheme acceptance, mount-prefix
+  mis-routing). The package enters the tree only transitively through the shadcn CLI via
+  `@modelcontextprotocol/sdk` and never reaches the browser runtime bundle, so production
+  exposure was nil. `npm audit fix` bumped only the pinned transitive `hono` version in
+  `frontend/package-lock.json`; `package.json` and the dependency surface are unchanged. `npm
+  audit` now reports zero vulnerabilities.
+- **Audit coverage.** Verified across all six services: JWT validation + Redis security-stamp
+  revocation, CSRF double-submit (timing-safe, scoped to Auth API per ADR-0005), gRPC
+  service-key auth (timing-safe), IDOR hygiene (owner from JWT/context, id from route),
+  refresh-token rotation with reuse-detection (chain invalidation + stamp rotation),
+  `AsNoTracking`/`AsSplitQuery` on all reads, the composite covering index
+  `ix_todo_items_user_status_deleted_created`, batched gRPC category enrichment (no N+1), all
+  docker-compose ports bound to `127.0.0.1`, and frontend access-token-in-memory storage.
+
+Security: clears all outstanding npm audit advisories (moderate); confirms no exploitable
+findings across auth, gateway, gRPC, IDOR, secrets, and infrastructure exposure.
+
 ### Frontend task UX: instant updates, steadier title editing, per-user filter, marker-driven subtask work (2026-06-05)
 
 A set of task-experience refinements on the dashboard, tasks pages, and the task-branch modal.
