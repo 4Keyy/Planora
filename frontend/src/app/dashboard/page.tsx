@@ -39,6 +39,8 @@ const DASHBOARD_MASONRY_BREAKPOINTS = [
   { maxWidth: 1200, columns: 2 },
   { maxWidth: 768, columns: 1 },
 ]
+const STATS_COMPLETED_PREVIEW_SIZE = 100
+const STATS_REQUEST_TIMEOUT_MS = 30000
 const FIRST_RUN_STORAGE_KEY = "planora-first-run"
 type CategoryResponse = Category[] | { items?: Category[]; value?: Category[] | { items?: Category[] } }
 
@@ -187,6 +189,7 @@ export default function DashboardPage() {
         // counter and never rendered as cards).
         params: { pageNumber: 1, pageSize: 1000, includeSubtasks: true },
         signal,
+        timeout: STATS_REQUEST_TIMEOUT_MS,
       })
       if (signal?.aborted) return
       const items = res.data.items ?? []
@@ -340,7 +343,7 @@ export default function DashboardPage() {
     })
   }, [allCompletedStatsTodos])
 
-  const totalForStats = activeStatsTodos.length + recentCompletedStatsTodos.length
+  const totalForStats = activeStatsCount + recentCompletedStatsTodos.length
 
   // Filter out tasks that are completed by the viewer (for shared/public tasks)
   const activeTodos = useMemo(() => {
@@ -675,13 +678,13 @@ export default function DashboardPage() {
           <h1 className="text-2xl md:text-3xl xl:text-4xl font-black text-gray-900 tracking-tight leading-tight">
             You have{" "}
             <motion.span
-              key={activeStatsTodos.length}
+              key={activeStatsCount}
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 15 }}
               className="text-black inline-flex items-center px-2 py-1 rounded-xl bg-black/5 border border-black/10 hover:scale-110 transition-transform cursor-default font-black"
             >
-              {activeStatsTodos.length}
+              {activeStatsCount}
             </motion.span>{" "}
             tasks.
           </h1>
