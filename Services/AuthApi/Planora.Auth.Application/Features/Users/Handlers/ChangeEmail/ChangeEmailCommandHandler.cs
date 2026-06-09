@@ -109,10 +109,10 @@ namespace Planora.Auth.Application.Features.Users.Handlers.ChangeEmail
                 verificationLink,
                 cancellationToken);
 
+            // SECURITY (cs/exposure-of-sensitive-information): correlate by user id, not the new email (PII).
             _logger.LogInformation(
-                "Email changed for user: {UserId}, NewEmail: {Email}",
-                user.Id,
-                newEmail.Value);
+                "Email changed for user {UserId}",
+                user.Id);
 
             return Result.Success();
         }

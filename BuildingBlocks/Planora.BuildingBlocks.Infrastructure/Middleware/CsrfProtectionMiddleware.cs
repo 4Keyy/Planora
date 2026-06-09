@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Planora.BuildingBlocks.Infrastructure.Logging;
 using Planora.BuildingBlocks.Infrastructure.Observability;
 
 namespace Planora.BuildingBlocks.Infrastructure.Middleware;
@@ -39,10 +40,11 @@ public sealed class CsrfProtectionMiddleware
             {
                 PlanoraMetrics.CsrfRejections.Add(1,
                     new KeyValuePair<string, object?>("reason", reason));
+                // SECURITY (cs/log-forging): method and path are attacker-controlled.
                 _logger.LogWarning(
                     "CSRF validation failed: Method={Method} Path={Path} IP={IP} Reason={Reason}",
-                    context.Request.Method,
-                    context.Request.Path,
+                    LogSanitizer.Clean(context.Request.Method),
+                    LogSanitizer.Clean(context.Request.Path.ToString()),
                     context.Connection.RemoteIpAddress,
                     reason);
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;

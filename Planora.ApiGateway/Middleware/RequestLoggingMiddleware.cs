@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Planora.BuildingBlocks.Infrastructure.Logging;
 
 namespace Planora.ApiGateway.Middleware;
 
@@ -20,10 +21,12 @@ public sealed class RequestLoggingMiddleware
         var stopwatch = Stopwatch.StartNew();
         var correlationId = context.Items["X-Correlation-ID"]?.ToString() ?? "unknown";
 
-        var requestPath = context.Request.Path;
-        var requestMethod = context.Request.Method;
-        var userAgent = context.Request.Headers["User-Agent"].ToString();
-        var ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        // SECURITY (cs/log-forging): path, method, IP and User-Agent are attacker-controlled,
+        // so strip CR/LF and control chars before they reach the log sink.
+        var requestPath = LogSanitizer.Clean(context.Request.Path.ToString());
+        var requestMethod = LogSanitizer.Clean(context.Request.Method);
+        var userAgent = LogSanitizer.Clean(context.Request.Headers["User-Agent"].ToString());
+        var ipAddress = LogSanitizer.Clean(context.Connection.RemoteIpAddress?.ToString() ?? "unknown");
 
         _logger.LogInformation(
             "Incoming request: {Method} {Path} | CorrelationId: {CorrelationId} | IP: {IpAddress} | UserAgent: {UserAgent}",

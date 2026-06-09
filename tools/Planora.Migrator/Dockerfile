@@ -47,5 +47,10 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
+# This is a one-shot job container: it applies pending migrations and exits. A liveness
+# HEALTHCHECK is meaningless for a process expected to terminate, so declare its absence
+# explicitly (satisfies scanner DS-0026 and documents the intent for operators).
+HEALTHCHECK NONE
+
 ENTRYPOINT ["dotnet", "Planora.Migrator.dll"]
 CMD ["--all"]

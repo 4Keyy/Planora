@@ -21,12 +21,14 @@ public class BusinessEventLogger : IBusinessEventLogger
 
         using (_logger.BeginScope(new Dictionary<string, object>
         {
-            ["EventType"] = eventType,
-            ["UserId"] = userId ?? "Anonymous",
+            ["EventType"] = LogSanitizer.Clean(eventType),
+            ["UserId"] = LogSanitizer.Clean(userId ?? "Anonymous"),
             ["Data"] = data ?? new { }
         }))
         {
-            _logger.LogInformation("Business event: {Message}", message);
+            // SECURITY (cs/log-forging): the message is composed from caller-supplied values
+            // (which can include user input), so neutralize CR/LF before it reaches the sink.
+            _logger.LogInformation("Business event: {Message}", LogSanitizer.Clean(message));
         }
     }
 

@@ -52,7 +52,10 @@ public sealed class EnhancedGlobalExceptionHandlerMiddleware
         context.Response.ContentType = "application/problem+json";
 
         var traceId = CorrelationIdContext.GetCorrelationId() ?? context.TraceIdentifier;
-        var instance = $"{context.Request.Method} {context.Request.Path}";
+        // SECURITY (cs/log-forging): method + path are attacker-controlled and `instance` is
+        // both logged (scope + 5xx message) and echoed into the ProblemDetails response, so
+        // strip CR/LF and control characters at the single point it is built.
+        var instance = LogSanitizer.Clean($"{context.Request.Method} {context.Request.Path}");
         var userId = context.User?.FindFirst("sub")?.Value;
 
         try

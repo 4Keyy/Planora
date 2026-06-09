@@ -158,7 +158,7 @@ public sealed class EmailService : IEmailService
             "Email sent through {Provider}: Subject={Subject}, To={Email}",
             _options.Provider,
             subject,
-            email);
+            MaskEmail(email));
     }
 
     private EmailMessage BuildMessage(
@@ -258,14 +258,51 @@ public sealed class EmailService : IEmailService
             _logger.LogInformation(
                 "[EMAIL:LOG] Subject={Subject}, To={Email}",
                 subject,
-                email);
+                MaskEmail(email));
             return;
         }
 
         _logger.LogInformation(
             "[EMAIL:LOG] Subject={Subject}, To={Email}, Link={Link}",
             subject,
-            email,
-            actionUrl);
+            MaskEmail(email),
+            RedactLink(actionUrl));
+    }
+
+    // SECURITY (cs/exposure-of-sensitive-information): never write a full email address to a
+    // log. Keep just the first local character and the domain so an operator can still
+    // correlate without the log becoming a PII store.
+    private static string MaskEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return "(none)";
+        }
+
+        var at = email.IndexOf('@');
+        if (at <= 0 || at == email.Length - 1)
+        {
+            return "***";
+        }
+
+        var visible = email[0];
+        var domain = email[at..];
+        return $"{visible}***{domain}";
+    }
+
+    // SECURITY (cs/cleartext-storage-of-sensitive-information): password-reset and email-
+    // verification links carry a single-use secret token in the query string. Logging the raw
+    // link would let anyone with log access take over the account, so strip the query before
+    // logging — only the scheme/host/path remains, which is enough to confirm the flow ran.
+    private static string RedactLink(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return "(none)";
+        }
+
+        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            ? $"{uri.Scheme}://{uri.Authority}{uri.AbsolutePath}?<redacted>"
+            : "<redacted>";
     }
 }

@@ -1,5 +1,6 @@
 using Planora.Realtime.Application.Requests;
 using Planora.Realtime.Application.Interfaces;
+using Planora.BuildingBlocks.Infrastructure.Logging;
 
 namespace Planora.Realtime.Api.Controllers
 {
@@ -49,7 +50,7 @@ namespace Planora.Realtime.Api.Controllers
                 _logger.LogWarning(
                     "User {UserId} supplied an invalid notification type '{Type}'",
                     userId,
-                    request.Type);
+                    LogSanitizer.Clean(request.Type)); // cs/log-forging: client-supplied
                 return BadRequest(new { error = "INVALID_NOTIFICATION_TYPE" });
             }
 
@@ -61,7 +62,7 @@ namespace Planora.Realtime.Api.Controllers
             _logger.LogInformation(
                 "Notification sent to user {UserId}: {Message}",
                 userId,
-                request.Message);
+                LogSanitizer.Clean(request.Message)); // cs/log-forging: client-supplied
 
             return Ok(new { success = true, message = "Notification sent" });
         }
@@ -78,7 +79,7 @@ namespace Planora.Realtime.Api.Controllers
 
             _logger.LogInformation(
                 "Broadcast notification sent: {Message}",
-                request.Message);
+                LogSanitizer.Clean(request.Message)); // cs/log-forging: client-supplied
 
             return Ok(new { success = true, message = "Broadcast sent" });
         }

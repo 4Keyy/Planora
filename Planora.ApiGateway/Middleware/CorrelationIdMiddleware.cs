@@ -1,3 +1,5 @@
+using Planora.BuildingBlocks.Infrastructure.Logging;
+
 namespace Planora.ApiGateway.Middleware;
 
 public sealed class CorrelationIdMiddleware
@@ -43,11 +45,19 @@ public sealed class CorrelationIdMiddleware
 
     private static string GetOrGenerateCorrelationId(HttpContext context)
     {
-        // Try to get from request headers first
+        // Try to get from request headers first.
+        // SECURITY (cs/log-forging + response-splitting): the inbound X-Correlation-ID header is
+        // attacker-controlled and flows into the response header, the log scope and downstream
+        // request headers. Strip CR/LF and control characters here so every consumer receives a
+        // single-line, well-behaved value.
         if (context.Request.Headers.TryGetValue(CorrelationIdHeaderName, out var correlationId) &&
             !string.IsNullOrWhiteSpace(correlationId))
         {
-            return correlationId.ToString();
+            var cleaned = LogSanitizer.Clean(correlationId.ToString());
+            if (!string.IsNullOrWhiteSpace(cleaned))
+            {
+                return cleaned;
+            }
         }
 
         // Generate new correlation ID

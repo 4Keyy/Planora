@@ -40,7 +40,8 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RequestPassw
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Invalid email format: {Email}", command.Email);
+                    // SECURITY (cs/exposure-of-sensitive-information): do not log the raw email (PII).
+                    _logger.LogWarning(ex, "Password reset requested with an invalid email format");
                     return Result.Success();
                 }
 
@@ -48,9 +49,9 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RequestPassw
 
                 if (user == null)
                 {
-                    _logger.LogInformation(
-                        "Password reset requested for non-existent email: {Email}",
-                        email.Value);
+                    // SECURITY (cs/exposure-of-sensitive-information): no user exists and the
+                    // email is PII — record only that an attempt was made, not the address.
+                    _logger.LogInformation("Password reset requested for a non-existent account");
                     return Result.Success();
                 }
 
@@ -77,9 +78,10 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RequestPassw
                     resetLink,
                     cancellationToken);
 
+                // SECURITY (cs/exposure-of-sensitive-information): correlate by user id, not email.
                 _logger.LogInformation(
-                    "Password reset email sent to: {Email}",
-                    user.Email.Value);
+                    "Password reset email sent for user {UserId}",
+                    user.Id);
 
                 return Result.Success();
             }

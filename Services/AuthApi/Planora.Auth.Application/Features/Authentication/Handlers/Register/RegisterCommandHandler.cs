@@ -136,16 +136,18 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Register
                 _logger.LogWarning(ex, "Failed to send verification email for user: {UserId}", user.Id);
             }
 
-            // Log business event
+            // Log business event.
+            // SECURITY (cs/exposure-of-sensitive-information): audit events correlate by user id;
+            // the email address (PII) is deliberately kept out of the log payload.
             _businessLogger.LogBusinessEvent(
                 BusinessEvents.UserRegistered,
-                $"User {user.Id} registered with email {user.Email.Value}",
-                new { UserId = user.Id, Email = user.Email.Value },
+                $"User {user.Id} registered",
+                new { UserId = user.Id },
                 user.Id.ToString());
             _businessLogger.LogBusinessEvent(
                 SignupCompleted,
                 $"User {user.Id} completed signup",
-                new { UserId = user.Id, Email = user.Email.Value },
+                new { UserId = user.Id },
                 user.Id.ToString());
 
             return BuildingBlocks.Domain.Result<RegisterResponse>.Success(response);

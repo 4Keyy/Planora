@@ -47,7 +47,7 @@ public sealed class HttpLoggingMiddleware
             stopwatch.Stop();
             _logger.LogInformation(
                 "📤 gRPC Response | Method: {Method} | Path: {Path} | StatusCode: {StatusCode} | ElapsedMs: {ElapsedMs} | CorrelationId: {CorrelationId}",
-                context.Request.Method, context.Request.Path, context.Response.StatusCode, stopwatch.ElapsedMilliseconds, correlationId);
+                LogSanitizer.Clean(context.Request.Method), LogSanitizer.Clean(context.Request.Path.ToString()), context.Response.StatusCode, stopwatch.ElapsedMilliseconds, correlationId);
             return;
         }
 
@@ -88,12 +88,14 @@ public sealed class HttpLoggingMiddleware
         var request = context.Request;
         var userId = context.User?.FindFirst("sub")?.Value ?? "Anonymous";
 
-        var sanitizedPath = SanitizeQueryString(request.Path.ToString(), request.QueryString.ToString());
-        var method = request.Method;
-        var contentType = request.ContentType ?? "N/A";
+        // SECURITY (cs/log-forging): every value below is attacker-controllable, so strip
+        // CR/LF and control chars before they reach the log sink.
+        var sanitizedPath = LogSanitizer.Clean(SanitizeQueryString(request.Path.ToString(), request.QueryString.ToString()));
+        var method = LogSanitizer.Clean(request.Method);
+        var contentType = LogSanitizer.Clean(request.ContentType ?? "N/A");
         var contentLength = request.ContentLength ?? 0;
-        var userAgent = request.Headers["User-Agent"].ToString();
-        var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        var userAgent = LogSanitizer.Clean(request.Headers["User-Agent"].ToString());
+        var clientIp = LogSanitizer.Clean(context.Connection.RemoteIpAddress?.ToString() ?? "Unknown");
 
         _logger.LogInformation(
             "📥 HTTP Request | Method: {Method} | Path: {Path} | ContentType: {ContentType} | ContentLength: {ContentLength} | UserId: {UserId} | ClientIP: {ClientIp} | UserAgent: {UserAgent} | CorrelationId: {CorrelationId}",
@@ -113,20 +115,22 @@ public sealed class HttpLoggingMiddleware
 
         var level = DetermineLogLevel(statusCode, elapsedMs, exception);
 
-        var sanitizedPath = SanitizeQueryString(context.Request.Path.ToString(), context.Request.QueryString.ToString());
+        // SECURITY (cs/log-forging): neutralize attacker-controlled method/path before logging.
+        var method = LogSanitizer.Clean(context.Request.Method);
+        var sanitizedPath = LogSanitizer.Clean(SanitizeQueryString(context.Request.Path.ToString(), context.Request.QueryString.ToString()));
 
         _logger.Log(
             level,
             exception,
             "📤 HTTP Response | Method: {Method} | Path: {Path} | StatusCode: {StatusCode} | ElapsedMs: {ElapsedMs} | ResponseSize: {ResponseSize} | UserId: {UserId} | CorrelationId: {CorrelationId}",
-            context.Request.Method, sanitizedPath, statusCode, elapsedMs, contentLength, userId, correlationId);
+            method, sanitizedPath, statusCode, elapsedMs, contentLength, userId, correlationId);
 
         // Performance warning for slow requests
         if (elapsedMs > 3000 && exception == null)
         {
             _logger.LogWarning(
                 "⚠️ SLOW REQUEST | Method: {Method} | Path: {Path} | ElapsedMs: {ElapsedMs} | CorrelationId: {CorrelationId}",
-                context.Request.Method, sanitizedPath, elapsedMs, correlationId);
+                method, sanitizedPath, elapsedMs, correlationId);
         }
 
         return Task.CompletedTask;
