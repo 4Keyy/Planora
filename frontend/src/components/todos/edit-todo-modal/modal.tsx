@@ -423,15 +423,23 @@ export function EditTodoModal({
                 ref={titleH1Ref}
                 onClick={() => isOwner && setEditingTitle(true)}
                 style={{
+                  // Box model mirrors the <textarea> above EXACTLY (display, width, negative
+                  // left margin, border-box, padding, radius and font metrics) so clicking to
+                  // edit fades the heading into the field with zero horizontal shift or resize.
+                  // NB: a shorthand `margin: 0` here previously clobbered `marginLeft`, snapping
+                  // the heading 12px right of the field — hence the "title slides left" jump.
+                  display: "block",
+                  width: "calc(100% + 12px)",
+                  marginLeft: -12,
+                  marginTop: 0, marginRight: 0, marginBottom: 0,
+                  boxSizing: "border-box",
                   fontSize: 22, fontWeight: 900, lineHeight: 1.22,
                   letterSpacing: "-0.025em", color: "#0a0a0a",
                   cursor: isOwner ? "text" : "default",
                   padding: "8px 12px",
-                  marginLeft: -12,
                   borderRadius: 10,
                   background: "transparent",
                   transition: "background 140ms",
-                  margin: 0,
                   wordBreak: "break-word",
                 }}
                 onMouseEnter={(e) => { if (isOwner) (e.currentTarget as HTMLHeadingElement).style.background = "#fafafa" }}
