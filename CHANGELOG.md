@@ -4,6 +4,34 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(security): resolve all 45 CodeQL code-scanning alerts (2026-06-09)
+
+Cleared every open code-scanning alert on the repository, plus two runtime defects and an
+avatar regression surfaced while running the stack.
+
+- **Log forging (36 × cs/log-forging).** Added `LogSanitizer` (strips CR/LF + control chars,
+  length-caps) and routed all attacker-controlled values through it before logging: gateway
+  request path/method/User-Agent/IP and the `X-Correlation-ID` header, the shared HTTP logging
+  and global-exception middleware, CSRF middleware, the business-event logger, and the Realtime
+  notifications controller.
+- **PII in logs (7 × cs/exposure-of-sensitive-information).** Email addresses are no longer
+  logged — `EmailService` masks the recipient and the auth handlers (password reset, email
+  change, registration) correlate by user id.
+- **Cleartext secret (1 × high, cs/cleartext-storage-of-sensitive-information).** Password-reset
+  / verification links are no longer logged verbatim; the secret token is redacted.
+- **Dockerfile (1 × DS-0026).** The one-shot `Planora.Migrator` image declares `HEALTHCHECK NONE`.
+- **Runtime fixes.** `Planora.Migrator` crashed under EF Core 10 (ambiguous `AddDbContext`
+  overload) and the API gateway was permanently unhealthy (Ocelot shadowed `/health/ready`);
+  both fixed. `Start-Planora-Local.ps1` now injects the rotated `POSTGRES_PASSWORD` so local
+  host-process startup works after credential rotation.
+- **Avatar regression.** Next.js 16's image-optimizer SSRF block (private-IP upstreams) broke
+  dev avatars; the optimizer is now bypassed in dev (`images.unoptimized`).
+
+Verified: `dotnet build` clean, 800 backend tests + 401 frontend tests pass, `next build`
+compiles. Code-scanning alerts close on the next CodeQL run.
+
+Security: eliminates log forging, PII-in-logs, and cleartext reset-token logging across the stack
+
 ### fix(deps): clear transitive hono advisory + full security/performance audit (2026-06-08)
 
 A comprehensive security, performance, and consistency audit of the whole stack. The
