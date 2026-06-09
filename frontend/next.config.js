@@ -76,15 +76,19 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   compress: true,
-  eslint: {
-    // Lint is an explicit CI gate (`npm run lint`). Next's build-time lint hook
-    // still passes deprecated ESLint options in this toolchain and emits noise.
-    ignoreDuringBuilds: true,
-  },
   images: {
+    // Next.js 16 hardened the image optimizer against SSRF: it refuses to fetch an
+    // upstream image whose host resolves to a private / loopback IP (127.0.0.1, ::1) and
+    // returns `400 "...resolved to private ip"`. In local dev the avatars are served by
+    // the API gateway on localhost (→ 127.0.0.1), so the optimizer blocked every avatar.
+    // Image optimization is a production concern (avatars are already small pre-rendered
+    // webp), so bypass the optimizer in dev and let the browser load the avatar straight
+    // from the gateway — the dev CSP `img-src` already allows `http:`. Production keeps
+    // optimization on; the gateway there is a public host, not a private IP.
+    unoptimized: isDev,
     remotePatterns: (() => {
       // In dev: allow any HTTPS host + any HTTP host (API may be on a LAN IP, not localhost).
-      // In production: restrict to the explicit API hostname only.
+      // In production: restrict to the explicit API host (and its port, if non-default).
       if (isDev) {
         return [
           { protocol: 'https', hostname: '**' },
@@ -93,7 +97,15 @@ const nextConfig = {
       }
       try {
         const u = new URL(apiUrl)
-        return [{ protocol: /** @type {'http'|'https'} */ (u.protocol.replace(':', '')), hostname: u.hostname }]
+        /** @type {{protocol:'http'|'https',hostname:string,port?:string}} */
+        const pattern = {
+          protocol: /** @type {'http'|'https'} */ (u.protocol.replace(':', '')),
+          hostname: u.hostname,
+        }
+        // Include the port only when the URL specifies a non-default one, so the
+        // production pattern matches the gateway whether it runs on 443 or an explicit port.
+        if (u.port) pattern.port = u.port
+        return [pattern]
       } catch {
         return []
       }
