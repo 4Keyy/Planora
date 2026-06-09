@@ -1437,6 +1437,7 @@ function SubtaskCard({
 }: SubtaskCardProps) {
   const [hovered, setHovered] = useState(false)
   const [deleteHovered, setDeleteHovered] = useState(false)
+  const [workPillHovered, setWorkPillHovered] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(subtask.title)
   const editInputRef = useRef<HTMLTextAreaElement>(null)
@@ -1621,62 +1622,94 @@ function SubtaskCard({
             </span>
           )}
 
-          {/* In-work presence badge — per-user, shown to EVERY viewer as an anonymous count
-              ("N working"). It never names anyone. When the viewer is one of the workers the badge
-              reads "You + N" so they can tell their own state at a glance. */}
+          {/* In-work presence pill — per-user, shown to EVERY viewer. For the viewer who is
+              working it doubles as the Leave control: on hover it cross-fades amber→red into
+              "Leave" (mirroring the parent task's In Progress pill at the modal top), so there
+              is no separate exit button. Other viewers see an anonymous "N working" count.
+              Intentionally compact (short label, no extra button) so taking a subtask into work
+              barely nudges the title rather than reflowing it. */}
           <AnimatePresence initial={false}>
             {someoneWorking && !done && !editing && (
-              <motion.span
+              <motion.div
                 initial={{ opacity: 0, scale: 0.7 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.7 }}
                 transition={{ type: "spring", stiffness: 480, damping: 26 }}
-                title={`${workerCount} ${workerCount === 1 ? "person is" : "people are"} working on this`}
+                onMouseEnter={() => { if (viewerWorking) setWorkPillHovered(true) }}
+                onMouseLeave={() => setWorkPillHovered(false)}
+                onClick={(e) => { if (viewerWorking && !pending) { e.stopPropagation(); onToggleWork() } }}
+                title={viewerWorking
+                  ? "You're working on this — click to leave"
+                  : `${workerCount} ${workerCount === 1 ? "person is" : "people are"} working on this`}
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 2,
-                  fontSize: 9.5, fontWeight: 900, letterSpacing: "0.06em", textTransform: "uppercase",
-                  color: "#b45309",
-                  background: "linear-gradient(180deg,#fff8e6,#fef0c7)",
-                  border: "1px solid #fce4a6",
-                  padding: "3px 9px 3px 7px", borderRadius: 999,
-                  boxShadow: "0 1px 3px -1px rgba(245,158,11,0.35)",
+                  display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, marginTop: 2,
+                  background: viewerWorking && workPillHovered
+                    ? "linear-gradient(180deg,#fff1f2,#fee2e2)"
+                    : "linear-gradient(180deg,#fff8e6,#fef0c7)",
+                  border: `1px solid ${viewerWorking && workPillHovered ? "#fecaca" : "#fce4a6"}`,
+                  padding: "3px 8px", borderRadius: 999,
+                  boxShadow: "0 1px 3px -1px rgba(245,158,11,0.3)",
+                  cursor: viewerWorking ? (pending ? "default" : "pointer") : "default",
+                  transition: "background 200ms ease, border-color 200ms ease",
                 }}
               >
-                <span style={{ position: "relative", width: 7, height: 7, flexShrink: 0 }}>
-                  <span className="animate-ping" style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#f59e0b", opacity: 0.6 }} />
-                  <span style={{ position: "absolute", inset: 1, borderRadius: "50%", background: "#f59e0b" }} />
+                {/* Pulsing dot — amber idle, red when a click would leave */}
+                <span style={{ position: "relative", width: 6, height: 6, flexShrink: 0 }}>
+                  <span className="animate-ping" style={{
+                    position: "absolute", inset: 0, borderRadius: "50%",
+                    background: viewerWorking && workPillHovered ? "#ef4444" : "#f59e0b",
+                    opacity: 0.55, transition: "background 200ms ease",
+                  }} />
+                  <span style={{
+                    position: "absolute", inset: 1, borderRadius: "50%",
+                    background: viewerWorking && workPillHovered ? "#ef4444" : "#f59e0b",
+                    transition: "background 200ms ease",
+                  }} />
                 </span>
-                {viewerWorking
-                  ? (workerCount > 1 ? `You + ${workerCount - 1} working` : "You're working")
-                  : `${workerCount} working`}
-              </motion.span>
+                {/* Label / Leave — same slot, crossfade on hover (viewer only) */}
+                <span style={{
+                  position: "relative", display: "inline-block",
+                  fontSize: 9.5, fontWeight: 900, letterSpacing: "0.05em",
+                  textTransform: "uppercase", whiteSpace: "nowrap", lineHeight: 1,
+                }}>
+                  {/* Idle label keeps the slot width even when "Leave" is overlaid */}
+                  <span style={{
+                    display: "block", color: "#b45309",
+                    opacity: viewerWorking && workPillHovered ? 0 : 1,
+                    transition: "opacity 160ms ease", userSelect: "none",
+                  }}>
+                    {viewerWorking
+                      ? (workerCount > 1 ? `You +${workerCount - 1}` : "Working")
+                      : `${workerCount} working`}
+                  </span>
+                  {viewerWorking && (
+                    <span style={{
+                      position: "absolute", inset: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#b91c1c",
+                      opacity: workPillHovered ? 1 : 0,
+                      transition: "opacity 160ms ease", userSelect: "none",
+                    }}>
+                      Leave
+                    </span>
+                  )}
+                </span>
+              </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Inline actions — revealed on hover, hidden under the delete panel. Taking a subtask into
-              work happens through the completion marker (no separate "lightning"); the only inline
-              actions are owner editing and, when you're working, an exit-work button. */}
-          {!editing && (isOwner || (viewerWorking && !done)) && (
+          {/* Inline actions — revealed on hover, hidden under the delete panel. Taking a subtask
+              into work (and leaving) is handled by the marker + the in-work pill above, so the
+              only inline action here is owner editing. */}
+          {!editing && isOwner && (
             <div style={{
               display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginTop: 1,
               opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
               pointerEvents: hovered && !deleteHovered ? "auto" : "none",
             }}>
-              {isOwner && (
-                <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
-                  <Pencil size={13} strokeWidth={2} />
-                </SubtaskIconButton>
-              )}
-              {viewerWorking && !done && (
-                <SubtaskIconButton
-                  label="Stop working on subtask"
-                  title="Exit work"
-                  color="#b45309" hoverBg="#fef3c7"
-                  onClick={onToggleWork} disabled={pending}
-                >
-                  <LogOut size={14} strokeWidth={2} />
-                </SubtaskIconButton>
-              )}
+              <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
+                <Pencil size={13} strokeWidth={2} />
+              </SubtaskIconButton>
             </div>
           )}
 
