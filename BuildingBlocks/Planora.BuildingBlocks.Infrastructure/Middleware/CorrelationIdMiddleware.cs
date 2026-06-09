@@ -32,17 +32,19 @@ public class CorrelationIdMiddleware
         var operation = GetOperationFromPath(context.Request.Path);
         OperationContext.SetOperation(operation);
 
+        // SECURITY (cs/log-forging): method + path are attacker-controlled — neutralize CR/LF.
+        var safeMethod = LogSanitizer.Clean(context.Request.Method);
+        var safePath = LogSanitizer.Clean(context.Request.Path.ToString());
+
         // Log incoming request
-        _logger.LogInformation("HTTP {Method} {Path} started",
-            context.Request.Method,
-            context.Request.Path);
+        _logger.LogInformation("HTTP {Method} {Path} started", safeMethod, safePath);
 
         await _next(context);
 
         // Log response
         _logger.LogInformation("HTTP {Method} {Path} completed with {StatusCode}",
-            context.Request.Method,
-            context.Request.Path,
+            safeMethod,
+            safePath,
             context.Response.StatusCode);
     }
 

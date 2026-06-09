@@ -137,7 +137,7 @@ public sealed class EmailService : IEmailService
         if (!_options.IsSmtpEnabled)
         {
             ValidateProvider();
-            LogDevelopmentEmail(email, subject, actionUrl);
+            LogDevelopmentEmail(subject);
             return;
         }
 
@@ -154,11 +154,12 @@ public sealed class EmailService : IEmailService
 
         await _sender.SendAsync(message, _options, cancellationToken);
 
+        // SECURITY (cs/exposure-of-sensitive-information): never log the recipient address (PII).
+        // Provider + subject are server-defined and safe; correlation is done by user id upstream.
         _logger.LogInformation(
-            "Email sent through {Provider}: Subject={Subject}, To={Email}",
+            "Email sent through {Provider}: Subject={Subject}",
             _options.Provider,
-            subject,
-            MaskEmail(email));
+            subject);
     }
 
     private EmailMessage BuildMessage(
@@ -251,58 +252,12 @@ public sealed class EmailService : IEmailService
             $"Email:Provider must be {EmailOptions.LogProvider}, {EmailOptions.GmailSmtpProvider}, or {EmailOptions.SmtpProvider}.");
     }
 
-    private void LogDevelopmentEmail(string email, string subject, string? actionUrl)
+    // Dev-only "email" sink (Email:Provider=Log). Logs ONLY the server-defined subject.
+    // SECURITY: the recipient (PII, cs/exposure) and the action link — which carries a
+    // single-use password-reset / verification secret token (cs/cleartext-storage, high) — are
+    // deliberately NOT logged. To exercise email flows locally, enable a real SMTP provider.
+    private void LogDevelopmentEmail(string subject)
     {
-        if (string.IsNullOrWhiteSpace(actionUrl))
-        {
-            _logger.LogInformation(
-                "[EMAIL:LOG] Subject={Subject}, To={Email}",
-                subject,
-                MaskEmail(email));
-            return;
-        }
-
-        _logger.LogInformation(
-            "[EMAIL:LOG] Subject={Subject}, To={Email}, Link={Link}",
-            subject,
-            MaskEmail(email),
-            RedactLink(actionUrl));
-    }
-
-    // SECURITY (cs/exposure-of-sensitive-information): never write a full email address to a
-    // log. Keep just the first local character and the domain so an operator can still
-    // correlate without the log becoming a PII store.
-    private static string MaskEmail(string? email)
-    {
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            return "(none)";
-        }
-
-        var at = email.IndexOf('@');
-        if (at <= 0 || at == email.Length - 1)
-        {
-            return "***";
-        }
-
-        var visible = email[0];
-        var domain = email[at..];
-        return $"{visible}***{domain}";
-    }
-
-    // SECURITY (cs/cleartext-storage-of-sensitive-information): password-reset and email-
-    // verification links carry a single-use secret token in the query string. Logging the raw
-    // link would let anyone with log access take over the account, so strip the query before
-    // logging — only the scheme/host/path remains, which is enough to confirm the flow ran.
-    private static string RedactLink(string? url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            return "(none)";
-        }
-
-        return Uri.TryCreate(url, UriKind.Absolute, out var uri)
-            ? $"{uri.Scheme}://{uri.Authority}{uri.AbsolutePath}?<redacted>"
-            : "<redacted>";
+        _logger.LogInformation("[EMAIL:LOG] Subject={Subject}", subject);
     }
 }

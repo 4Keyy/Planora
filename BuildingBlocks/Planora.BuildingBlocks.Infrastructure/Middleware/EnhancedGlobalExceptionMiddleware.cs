@@ -315,7 +315,9 @@ public sealed class EnhancedGlobalExceptionHandlerMiddleware
             logContext["UserId"] = context.UserId;
 
         if (context.ValidationErrors?.Any() == true)
-            logContext["ValidationErrors"] = context.ValidationErrors;
+            // SECURITY (cs/log-forging): validation messages can echo user input — neutralize CR/LF.
+            logContext["ValidationErrors"] = context.ValidationErrors
+                .ToDictionary(kv => kv.Key, kv => kv.Value.Select(LogSanitizer.Clean).ToArray());
 
         if (context.Extensions?.Any() == true)
             logContext["Details"] = context.Extensions;
@@ -328,7 +330,8 @@ public sealed class EnhancedGlobalExceptionHandlerMiddleware
         if (exception.InnerException != null)
         {
             logContext["InnerExceptionType"] = exception.InnerException.GetType().FullName ?? exception.InnerException.GetType().Name;
-            logContext["InnerExceptionMessage"] = exception.InnerException.Message;
+            // SECURITY (cs/log-forging): inner-exception text may contain user input.
+            logContext["InnerExceptionMessage"] = LogSanitizer.Clean(exception.InnerException.Message);
         }
 
         // Determine log level based on status code
@@ -345,7 +348,7 @@ public sealed class EnhancedGlobalExceptionHandlerMiddleware
             {
                 _logger.Log(logLevel, exception, 
                     "❌ Domain Exception | ErrorCode: {ErrorCode} | Message: {Message} | CorrelationId: {CorrelationId}",
-                    context.ErrorCode, exception.Message, context.TraceId);
+                    context.ErrorCode, LogSanitizer.Clean(exception.Message), context.TraceId);
             }
             else if (exception is ValidationException)
             {
@@ -357,13 +360,13 @@ public sealed class EnhancedGlobalExceptionHandlerMiddleware
             {
                 _logger.LogError(exception, 
                     "🚨 System/Infrastructure Error | ErrorCode: {ErrorCode} | StatusCode: {StatusCode} | Instance: {Instance} | CorrelationId: {CorrelationId} | ExceptionType: {ExceptionType} | Message: {Message}",
-                    context.ErrorCode, context.StatusCode, context.Instance, context.TraceId, exception.GetType().Name, exception.Message);
+                    context.ErrorCode, context.StatusCode, context.Instance, context.TraceId, exception.GetType().Name, LogSanitizer.Clean(exception.Message));
             }
             else
             {
                 _logger.Log(logLevel, 
                     "❌ Exception | ErrorCode: {ErrorCode} | StatusCode: {StatusCode} | Message: {Message} | CorrelationId: {CorrelationId}",
-                    context.ErrorCode, context.StatusCode, exception.Message, context.TraceId);
+                    context.ErrorCode, context.StatusCode, LogSanitizer.Clean(exception.Message), context.TraceId);
             }
         }
     }

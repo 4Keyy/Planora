@@ -54,7 +54,8 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Register
             var existingUser = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
             if (existingUser != null)
             {
-                _logger.LogWarning("Registration attempt with already-registered email domain: {Domain}", email.Value.Split('@').LastOrDefault());
+                // SECURITY (cs/exposure-of-sensitive-information): do not log any part of the email (PII).
+                _logger.LogWarning("Registration attempt with an already-registered email address");
                 throw new DuplicateEntityException("User", "email", email.Value);
             }
 
