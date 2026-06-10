@@ -117,6 +117,7 @@ public sealed class CommentCommandHandlerTests
     public async Task UpdateComment_ByAuthor_Updates()
     {
         var fixture = new Fixture();
+        fixture.GrantAccess(fixture.UserId);
         var comment = Comment.Create(fixture.TaskId, fixture.UserId, "Me", "old");
         fixture.Comments.Setup(x => x.GetByIdAsync(comment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(comment);
         fixture.Users
@@ -129,6 +130,22 @@ public sealed class CommentCommandHandlerTests
         Assert.True(result.IsSuccess);
         Assert.Equal("new content", comment.Content);
         fixture.Comments.Verify(x => x.Update(comment), Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task UpdateComment_AuthorWithoutTaskAccess_ThrowsForbidden()
+    {
+        var fixture = new Fixture();
+        fixture.DenyAccess();
+        var comment = Comment.Create(fixture.TaskId, fixture.UserId, "Me", "old");
+        fixture.Comments.Setup(x => x.GetByIdAsync(comment.Id, It.IsAny<CancellationToken>())).ReturnsAsync(comment);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.UpdateHandler().Handle(
+                new UpdateCommentCommand(fixture.TaskId, comment.Id, "x"), CancellationToken.None));
+
+        fixture.Comments.Verify(x => x.Update(It.IsAny<Comment>()), Times.Never);
     }
 
     [Fact]
@@ -189,6 +206,6 @@ public sealed class CommentCommandHandlerTests
             new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object);
 
         public UpdateCommentCommandHandler UpdateHandler() =>
-            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Users.Object);
+            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Users.Object, Access.Object);
     }
 }

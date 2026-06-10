@@ -52,7 +52,7 @@ public sealed class RequestPasswordResetCommandHandlerTests
         missing.TokenService.Verify(x => x.GenerateToken(), Times.Never);
 
         var lockedUser = CreateUser("locked@example.com");
-        lockedUser.LockAccount();
+        lockedUser.LockAccount(30);
         var locked = CreateFixture();
         locked.Users
             .Setup(x => x.GetByEmailAsync(lockedUser.Email, It.IsAny<CancellationToken>()))

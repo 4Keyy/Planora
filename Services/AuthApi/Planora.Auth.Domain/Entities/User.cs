@@ -132,9 +132,12 @@ public sealed class User : BaseEntity, IAggregateRoot
         MarkAsModified(changedBy);
     }
 
-    public void LockAccount()
+    public void LockAccount(int lockoutMinutes)
     {
-        LockedUntil = DateTime.UtcNow.AddMinutes(15);
+        if (lockoutMinutes <= 0)
+            throw new AuthDomainException("Lockout duration must be positive");
+
+        LockedUntil = DateTime.UtcNow.AddMinutes(lockoutMinutes);
         LockoutEndDate = LockedUntil;
         Status = UserStatus.Locked;
         AddDomainEvent(new UserLockedEvent(Id, Email.Value, LockedUntil.Value));

@@ -1,5 +1,6 @@
 using Planora.Auth.Domain.Entities;
 using Planora.Auth.Domain.Events;
+using Planora.BuildingBlocks.Infrastructure.Configuration;
 
 namespace Planora.Auth.Infrastructure.Persistence.Repositories
 {
@@ -84,9 +85,9 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             if (user == null) return;
 
             user.IncrementFailedLoginAttempts();
-            if (user.FailedLoginAttempts >= 5)
+            if (user.FailedLoginAttempts >= SecurityConstants.SecurityPolicies.MaxFailedLoginAttempts)
             {
-                user.LockAccount();
+                user.LockAccount(SecurityConstants.SecurityPolicies.AccountLockoutMinutes);
             }
 
             await _context.SaveChangesAsync(cancellationToken);
