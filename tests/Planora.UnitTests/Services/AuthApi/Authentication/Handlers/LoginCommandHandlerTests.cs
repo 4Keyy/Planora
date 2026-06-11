@@ -41,7 +41,7 @@ public sealed class LoginCommandHandlerTests
                 CancellationToken.None));
 
         var lockedUser = CreateUser("locked-login@example.com");
-        lockedUser.LockAccount();
+        lockedUser.LockAccount(30);
         var locked = CreateFixture();
         locked.Users.Setup(x => x.GetByEmailAsync(lockedUser.Email, It.IsAny<CancellationToken>())).ReturnsAsync(lockedUser);
         locked.Users.Setup(x => x.GetWithRefreshTokensAsync(lockedUser.Id, It.IsAny<CancellationToken>())).ReturnsAsync(lockedUser);

@@ -4,6 +4,7 @@ using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Filters;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Logging;
+using Planora.BuildingBlocks.Infrastructure.Middleware;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
 using Planora.BuildingBlocks.Infrastructure.Security;
@@ -214,6 +215,10 @@ namespace Planora.Messaging.Api
 
                 app.UseAuthentication();
                 app.UseAuthorization();
+
+                // Double-submit CSRF check for browser cookie flows. Internal gRPC
+                // (application/grpc over HTTP/2) is exempt inside the middleware.
+                app.UseCsrfProtection();
 
                 // Swagger UI in Development / Staging only
                 app.UsePlanoraSwagger(app.Environment, documentTitle: "Planora Messaging API");

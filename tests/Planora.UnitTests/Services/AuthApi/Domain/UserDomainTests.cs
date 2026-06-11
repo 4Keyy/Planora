@@ -205,7 +205,7 @@ public class UserDomainTests
         user.VerifyEmail();
         var token = user.AddRefreshToken("refresh-token", "127.0.0.1", DateTime.UtcNow.AddDays(1));
 
-        user.LockAccount();
+        user.LockAccount(30);
 
         Assert.True(user.IsLocked());
         Assert.Equal(UserStatus.Locked, user.Status);

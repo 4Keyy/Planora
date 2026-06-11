@@ -14,17 +14,20 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IUserService _userService;
+        private readonly ITaskAccessService _taskAccessService;
 
         public UpdateCommentCommandHandler(
             ICommentRepository commentRepository,
             IUnitOfWork unitOfWork,
             ICurrentUserContext currentUserContext,
-            IUserService userService)
+            IUserService userService,
+            ITaskAccessService taskAccessService)
         {
             _commentRepository = commentRepository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
             _userService = userService;
+            _taskAccessService = taskAccessService;
         }
 
         public async Task<Result<CommentDto>> Handle(UpdateCommentCommand request, CancellationToken cancellationToken)
@@ -36,6 +39,15 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
 
             if (comment.TaskId != request.TaskId)
                 throw new EntityNotFoundException("Comment", request.CommentId);
+
+            // Authorise against the live task access rules owned by TodoApi (sharing/friendship),
+            // mirroring Add/Delete/Get handlers. Without this a user who authored a comment but
+            // has since lost access to the task could still edit it (IDOR/BOLA).
+            var access = await _taskAccessService.CheckCommentAccessAsync(request.TaskId, userId, cancellationToken);
+            if (!access.Exists)
+                throw new EntityNotFoundException("Task", request.TaskId);
+            if (!access.HasAccess)
+                throw new ForbiddenException("You do not have access to this task");
 
             // The task description ("Author's Note") is no longer a stored comment — it is edited
             // on the task itself (PUT /todos), so this handler only edits real user comments.
