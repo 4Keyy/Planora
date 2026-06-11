@@ -70,7 +70,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
                 "Subtask {SubtaskId} created under task {ParentId} by user {UserId}",
                 subtask.Id, parent.Id, userId);
 
-            var dto = _mapper.Map<TodoItemDto>(subtask);
+            // The creator IS the caller, so their JWT claims are the freshest identity source
+            // available on the write path — no Auth round-trip needed for the author label.
+            var dto = _mapper.Map<TodoItemDto>(subtask) with
+            {
+                AuthorName = _currentUserContext.Name ?? _currentUserContext.Email,
+                AuthorAvatarUrl = string.IsNullOrEmpty(_currentUserContext.ProfilePictureUrl)
+                    ? null
+                    : _currentUserContext.ProfilePictureUrl,
+            };
 
             // Enrich with the (inherited) category so the subtask card shows the same label as the parent.
             if (subtask.CategoryId.HasValue)

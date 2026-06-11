@@ -69,6 +69,8 @@ namespace Planora.Todo.Infrastructure
                     o.Address = new Uri(authGrpcUrl))
                 .AddInterceptor<ServiceKeyClientInterceptor>();
             services.AddScoped<IFriendshipService, Services.FriendshipGrpcService>();
+            // Live subtask-author identity (display name + avatar) — same Auth channel.
+            services.AddScoped<IUserProfileService, Services.UserProfileGrpcService>();
 
             // gRPC client for Category API (port 5282 local / env-configurable)
             var categoryGrpcUrl = configuration["GrpcServices:CategoryApi"] ?? "http://localhost:5282";

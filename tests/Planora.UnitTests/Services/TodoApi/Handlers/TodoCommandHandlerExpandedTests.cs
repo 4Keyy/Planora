@@ -928,6 +928,7 @@ public class TodoCommandHandlerExpandedTests
         public Mock<ICurrentUserContext> CurrentUser { get; } = new();
         public Mock<ICategoryGrpcClient> CategoryGrpcClient { get; } = new();
         public Mock<IFriendshipService> FriendshipService { get; } = new();
+        public Mock<IUserProfileService> UserProfiles { get; } = new();
         public Mock<IUserTodoViewPreferenceRepository> ViewerPreferences { get; } = new();
 
         public TodoCommandFixture(Guid userId)
@@ -944,6 +945,10 @@ public class TodoCommandHandlerExpandedTests
             TodoRepository
                 .Setup(x => x.GetSubtasksAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Array.Empty<TodoItem>());
+            // Author enrichment is failure-tolerant — default to "no profiles resolved".
+            UserProfiles
+                .Setup(x => x.GetProfilesAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Dictionary<Guid, UserProfileInfo>());
         }
 
         public CreateTodoCommandHandler CreateCreateHandler()
@@ -1012,7 +1017,8 @@ public class TodoCommandHandlerExpandedTests
                 Mapper.Object,
                 Mock.Of<ILogger<Planora.Todo.Application.Features.Todos.Queries.GetSubtasks.GetSubtasksQueryHandler>>(),
                 FriendshipService.Object,
-                CategoryGrpcClient.Object);
+                CategoryGrpcClient.Object,
+                UserProfiles.Object);
     }
 
     private static TodoItemDto ToDto(TodoItem item)

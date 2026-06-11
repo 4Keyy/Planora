@@ -43,6 +43,13 @@ namespace Planora.Todo.Application.DTOs
 
         /// <summary>When set, this item is a subtask (child) of the given parent task.</summary>
         public Guid? ParentTodoId { get; init; }
+
+        /// <summary>
+        /// Live display identity of the item's author (subtask reads only — resolved from Auth
+        /// at query time, never stored). Null on list endpoints that skip the enrichment.
+        /// </summary>
+        public string? AuthorName { get; init; }
+        public string? AuthorAvatarUrl { get; init; }
     }
 
     public class TodoItemMappingProfile : Profile
@@ -75,7 +82,10 @@ namespace Planora.Todo.Application.DTOs
                 .ForMember(dst => dst.WorkerUserIds,
                     opt => opt.MapFrom(src => src.Workers.Select(w => w.UserId).ToList()))
                 .ForMember(dst => dst.IsWorking,
-                    opt => opt.MapFrom(src => false));
+                    opt => opt.MapFrom(src => false))
+                // Author identity is resolved live from Auth by the handlers that need it.
+                .ForMember(dst => dst.AuthorName, opt => opt.Ignore())
+                .ForMember(dst => dst.AuthorAvatarUrl, opt => opt.Ignore());
         }
     }
 }

@@ -16,6 +16,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
         private readonly ILogger<GetSubtasksQueryHandler> _logger;
         private readonly IFriendshipService _friendshipService;
         private readonly ICategoryGrpcClient _categoryGrpcClient;
+        private readonly IUserProfileService _userProfileService;
 
         public GetSubtasksQueryHandler(
             ITodoRepository repository,
@@ -23,7 +24,8 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
             IMapper mapper,
             ILogger<GetSubtasksQueryHandler> logger,
             IFriendshipService friendshipService,
-            ICategoryGrpcClient categoryGrpcClient)
+            ICategoryGrpcClient categoryGrpcClient,
+            IUserProfileService userProfileService)
         {
             _repository = repository;
             _currentUserContext = currentUserContext;
@@ -31,6 +33,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
             _logger = logger;
             _friendshipService = friendshipService;
             _categoryGrpcClient = categoryGrpcClient;
+            _userProfileService = userProfileService;
         }
 
         public async Task<Result<IReadOnlyList<TodoItemDto>>> Handle(
@@ -82,8 +85,14 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
                 }
             }
 
+            // Resolve the subtask authors' live identity (name + avatar) in one Auth batch call.
+            // Failure-tolerant: a lookup failure just leaves the author labels empty.
+            var authorProfiles = await _userProfileService.GetProfilesAsync(
+                subtasks.Select(s => s.UserId), cancellationToken);
+
             var dtos = subtasks.Select(s =>
             {
+                authorProfiles.TryGetValue(s.UserId, out var author);
                 var dto = _mapper.Map<TodoItemDto>(s) with
                 {
                     CategoryName = categoryInfo?.Name,
@@ -96,6 +105,8 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
                     IsWorking = s.Workers.Any(w => w.UserId == userId),
                     // Completion is global — reflected in Status; no per-viewer flag for subtasks.
                     IsCompletedByViewer = null,
+                    AuthorName = string.IsNullOrWhiteSpace(author?.DisplayName) ? null : author.DisplayName,
+                    AuthorAvatarUrl = author?.AvatarUrl,
                 };
                 return dto;
             }).ToList();
