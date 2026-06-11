@@ -170,7 +170,9 @@ Confirmed cross-service checks:
 - Todo checks friendship through Auth before exposing public/direct-shared friend todos or accepting shared users.
 - Todo asks Category for category metadata and category ownership.
 - Collaboration authorises every comment read/write through `TodoService.CheckTaskCommentAccess` (owner / shared / public + friendship), so it never reads Todo's database (INV-OWN-1) and never duplicates the sharing rules.
+- Collaboration validates **subtask reply targets** through `TodoService.GetSubtaskBrief` (exists / not deleted / child of exactly this task) and snapshots the returned title + author on the reply — the parent/child check stays where the task aggregate lives (INV-OWN-1), and the client can never forge a quote.
 - Collaboration batch-fetches current user avatar URLs from Auth (`GetUserAvatarsBatch` gRPC) when serving comment threads. Live enrichment is wrapped by `CachingUserService` (in-memory, 60 s TTL) so paged comment reads stay cheap while bounding staleness after a user changes their avatar.
+- Todo batch-fetches subtask author identity (name + avatar) from Auth (`GetUserProfilesBatch`) when listing subtasks, so the branch's subtask cards show a live byline; the lookup is failure-tolerant (labels go empty, the read never fails).
 - Messaging has Auth-related gRPC support in service configuration.
 
 ### Asynchronous RabbitMQ

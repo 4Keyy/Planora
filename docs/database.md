@@ -245,7 +245,7 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 
 | DbSet/table | Purpose |
 |---|---|
-| `comments` | timeline: user + system comments, soft-deletable (the Author's Note/description is synthesised on read, not stored; legacy genesis rows, if any, are excluded by the read query) |
+| `comments` | timeline: user comments, **replies** (comments carrying a quoted-target reference), and system comments, soft-deletable (the Author's Note/description is synthesised on read, not stored; legacy genesis rows, if any, are excluded by the read query) |
 | `OutboxMessages` | `NotificationEvent` fan-out to RabbitMQ (consumed by Realtime → SignalR) |
 | `InboxMessages` | consumer idempotency: PK = integration event id. The event bus skips a handler when the event id already exists (dedup of redelivered/replayed events — INV-COMM-4) |
 
@@ -253,7 +253,7 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 
 | Entity | Important fields/indexes | Code |
 |---|---|---|
-| `Comment` | PK `Id`, `TaskId` (value link to the Todo task — no FK, INV-OWN-1), `AuthorId`, `AuthorName` max 200 (fallback only — identity resolved live), `Content` max 5000, `IsSystemComment`/`IsGenesisComment` bool (default false; new rows never set genesis — kept only so legacy genesis rows are filtered out on read), soft delete, `xmin` optimistic concurrency; indexes `(TaskId, CreatedAt)` for timeline reads and `AuthorId` for the user-deletion cascade / moderation scans | `Persistence/Configurations/CommentConfiguration.cs` |
+| `Comment` | PK `Id`, `TaskId` (value link to the Todo task — no FK, INV-OWN-1), `AuthorId`, `AuthorName` max 200 (fallback only — identity resolved live), `Content` max 5000, `IsSystemComment`/`IsGenesisComment` bool (default false; new rows never set genesis — kept only so legacy genesis rows are filtered out on read), **reply reference** (`ReplyToType` string `"Comment"\|"Subtask"` max 16 NULL, `ReplyToId` uuid NULL, `ReplyToAuthorId` uuid NULL, `ReplyToAuthorName` max 200 NULL — write-time snapshot, identity re-resolved live on read, `ReplyToPreview` max 300 NULL — one-line quote excerpt, `ReplyToDeleted` bool NOT NULL default false — set when the quoted comment/subtask is gone), soft delete, `xmin` optimistic concurrency; indexes `(TaskId, CreatedAt)` for timeline reads, `AuthorId` for the user-deletion cascade / moderation scans, and `(TaskId, ReplyToId)` for the reply-target cascades (SubtaskDeleted quote flagging, live-preview batch loads) | `Persistence/Configurations/CommentConfiguration.cs` |
 | `OutboxMessage` | table `collaboration.OutboxMessages`, status stored as string, indexes `(Status, OccurredOnUtc)` and `ProcessedOnUtc` | `Persistence/Configurations/OutboxMessageConfiguration.cs` |
 
 ### Event Flow
@@ -270,6 +270,17 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 No committed EF migration: like Category, the schema is created on first run via
 `DatabaseStartup.EnsureReadyAsync` → `EnsureCreatedAsync`. The database `planora_collaboration`
 is auto-created at startup by `DependencyWaiter.WaitForPostgresWithDatabaseCreationAsync`.
+
+**Upgrading a pre-replies database:** `EnsureCreatedAsync` never alters an existing schema, so a
+`comments` table created before the reply feature lacks the `ReplyTo*` columns. Run the idempotent
+upgrade once (fresh installs never need it):
+
+```bash
+dotnet run --project tools/Planora.Migrator -- --upgrade-collaboration-replies
+```
+
+It executes `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for the six reply columns and
+`CREATE INDEX IF NOT EXISTS` for `(TaskId, ReplyToId)` — safe to run twice.
 
 ### Data Migration From Todo
 

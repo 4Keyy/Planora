@@ -205,11 +205,16 @@ never announces that it was created.
   task, with no separate "lightning" button.** The first click on an idle subtask **takes it into
   work** (per-user join; hovering an idle marker hints this with a small amber dot, not a bolt); a
   second click — now that you're working — **completes** it; on a done subtask the marker reopens
-  it. While you are working a subtask, hovering its card reveals an **exit-work** button (the only
-  inline work control). Taking into work is **per-user**: each person joins/leaves independently
-  (server-side worker rows), so one person working never flips it "in work" for another. Every
-  viewer sees an anonymous **"N working"** presence badge (amber pill + pulsing dot) — it **never
-  names anyone**; the viewer's own membership reads "You're working" / "You + N working";
+  it. Taking into work is **per-user**: each person joins/leaves independently (server-side worker
+  rows), so one person working never flips it "in work" for another;
+- the card carries a **footer byline**: the subtask author's avatar + name on the left (live
+  identity resolved from Auth on read; the creator's own JWT claims on create), and the work
+  controls on the right — a muted **Reply** action (quotes the subtask in the composer), the
+  anonymous **"N working"** presence pill (amber + pulsing dot; it **never names anyone**; the
+  viewer's own membership reads "Working" / "You +N", and **for the viewer who is working the same
+  pill crossfades to a red "Leave" on hover** — there is no separate exit button), and an explicit
+  **"Take into work"** pill-button (white → ink on hover, `Play` icon) shown whenever the viewer
+  is not working the step — the labelled path beside the marker's click-to-take behaviour;
 - when done, a **completion reply** — *another reply on the same sub-branch, with **no rail icon***
   — joined by a soft "└" elbow: "**{Name}** completed sub task · HH:MM" (a nameless "Sub task
   completed" shows instantly on optimistic completion, then the name fills in when the folded
@@ -232,7 +237,7 @@ sub-branch carries is the subtask's own completion toggle.
 | Lists | excluded from `GetUserTodos`/`GetPublicTodos`/`GetTodosByCategory` (`ParentTodoId == null` filter) |
 | Statistics | a **completed** subtask counts toward the **weekly dashboard stat** — the dashboard stats fetch passes `includeSubtasks=true`; active subtasks are filtered out of the active counter and subtasks are never rendered as cards |
 | Branch messages | **Creating a subtask emits no event**, and **taking one into work emits no event** (JoinTodo/LeaveTodo skip the activity event for subtasks). **Completing** a subtask still posts `TaskActivityIntegrationEvent` (`SubtaskCompleted`, `Detail` = title) to the **parent's** branch, but **no subtask system comment is ever rendered as a standalone rail node** — `buildFeed` hides *every* "added a subtask: …" / "completed a subtask: …" comment (matched or not, so legacy/renamed ones never reappear) and folds the matched completion into the icon-less reply. The "N working" badge is derived from the subtask's live `workerCount` (polled), so all viewers see it. A subtask has no branch of its own |
-| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note. A long title **wraps** (the card is flexible-height) rather than being truncated. The subtask forks off the main rail onto a **sub-branch**; its completion toggle is the **only** rail marker; the completion attribution is an **icon-less reply** on the sub-branch (no creation notification at all) |
+| Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note. A long title **wraps** (the card is flexible-height) rather than being truncated. The subtask forks off the main rail onto a **sub-branch**; its completion toggle is the **only** rail marker; the completion attribution is an **icon-less reply** on the sub-branch (no creation notification at all). Below the title sits the **footer byline**: author avatar + name (live from Auth — `authorName`/`authorAvatarUrl` on the subtask DTO) on the left; Reply, the "N working" pill (hover→Leave for the viewer working) and the "Take into work" button on the right |
 | Lifecycle | deleting a task soft-deletes its whole subtree. Deleting a **single subtask** also removes the announcement comments it left in the parent's branch — TodoApi emits `SubtaskDeletedIntegrationEvent(parentTaskId, subtaskId, actor, title)` (instead of `TaskDeletedIntegrationEvent`, which would wipe a whole branch); Collaboration's `SubtaskDeletedEventConsumer` soft-deletes the parent-branch system comments whose content ends with `added a subtask: {title}` / `completed a subtask: {title}`. The client also removes them optimistically (suppressing their ids so polling can't re-add them before the cascade lands) |
 
 Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/friend lists),
@@ -243,6 +248,43 @@ shared compose field, and rendered on the rail by `edit-todo-modal/branch-feed.t
 comments and folds the matched completion into `meta`) — completion is global (everyone), **taking
 into work is per-user** (worker rows via `joinTodo`/`leaveTodo`, shown as an anonymous "N working"
 count to all), inline title edit + delete are owner-only, and there is no priority control.
+
+### Branch Replies
+
+Any branch message can be answered with a **reply** that quotes its target. Replies work on
+**plain messages, on subtasks, and on replies themselves** (chains are just replies whose target
+is itself a reply — no nesting limit, no separate endpoint). System events and the Author's Note
+cannot be replied to.
+
+**Composing.** Every message row shows a **Reply** action on hover (next to edit/delete; available
+to anyone with branch access), and every subtask card carries a **Reply** action in its footer.
+Starting a reply drops any special compose mode and slides a **"Replying to" chip** above the
+compose box (height-animated, nothing jumps): quoted author's avatar + name, a one-line excerpt,
+an amber `SUBTASK` badge when quoting a subtask, and an ✕ to cancel — `Esc` cancels the reply
+first, then (pressed again) the compose mode, without closing the modal.
+
+**Rendering.** A reply renders as a normal rail message with a compact **quote block above its
+body**: a colour-keyed accent bar (violet for quoted messages, amber for quoted subtasks, grey
+when deleted), the quoted author's avatar + name and the excerpt. Clicking the quote
+**smooth-scrolls the branch to the original** (message row or subtask card) and pulses it
+(`reply_flash` keyframe); targets on unloaded earlier pages are a quiet no-op, and deleted targets
+render muted with a `DELETED` badge and are not clickable.
+
+| Aspect | Rule |
+|---|---|
+| Targets | `comment` (a user comment **or another reply** in the same branch) and `subtask` (a child of this exact task). Never system events or the genesis note |
+| Snapshot | captured **server-side** at write time (`ReplyToAuthorId/Name`, `ReplyToPreview` ≤ 300 chars, newlines flattened); client-supplied preview text is never accepted |
+| Live refresh | quoted author identity is re-resolved from Auth on every read (rename-safe); for **comment** targets the preview is re-read from the live target in one batched query per page (edits propagate) |
+| Target deletion | the reply **survives** with its snapshot. Comment targets: detected live on read (missing row ⇒ `replyToDeleted`). Subtask targets: `SubtaskDeletedEventConsumer` flags quoting replies via `MarkSubtaskReplyTargetsDeletedAsync` — without touching `UpdatedAt`, so the cascade never fakes an "edited" badge |
+| Security | the target is validated against the same branch (cross-branch ids ⇒ `404`, same as missing — no probing oracle); subtask targets are verified by Todo over `GetSubtaskBrief` gRPC (fail-closed `503` when Todo is down) |
+| Notifications | the quoted author receives a dedicated `ReplyAdded` ("… replied to your message/subtask"); every other participant gets the usual `CommentAdded` |
+
+Backend: `Comment.CreateReply` / `TruncatePreview` / `MarkReplyTargetDeleted` (Collaboration
+domain), `AddCommentCommand(ReplyToType, ReplyToId)` + handler target resolution,
+`GetCommentsQueryHandler` live-quote enrichment, `CommentRepository.GetLiveByIdsAsync` /
+`MarkSubtaskReplyTargetsDeletedAsync`, `TodoService.GetSubtaskBrief` gRPC. Frontend:
+`branch-feed.tsx` (`ReplyDraft` composer chip, `ReplyQuote` block, `jumpToQuoted` scroll-and-pulse),
+`addComment(todoId, content, replyTo?)` in `lib/api.ts`, reply fields on `TodoComment`.
 
 ### Frontend Behavior
 

@@ -4,6 +4,44 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(branch): replies to messages, replies & subtasks + subtask card byline (2026-06-12)
+
+The branch ("ветка") timeline gains a full **reply system** and the subtask card gets the
+author byline + footer work controls, with the existing branch visuals untouched.
+
+- **Replies (Collaboration).** A comment can now quote another comment, another reply (chains),
+  or a subtask. The quoted snapshot (`ReplyToType/Id/AuthorId/AuthorName`, preview ≤ 300 chars,
+  `ReplyToDeleted`) is captured **server-side** — client preview text is never trusted. Quoted
+  author identity is re-resolved live from Auth on every read; comment-target previews are
+  refreshed from the live target in one batched query per page, so edits propagate. Deleting a
+  target keeps the reply alive: comment deletions are detected live, subtask deletions flag
+  quoting replies via the existing `SubtaskDeletedIntegrationEvent` consumer **without touching
+  `UpdatedAt`** (no fake "edited" badges). The quoted author gets a dedicated `ReplyAdded`
+  notification; cross-branch target ids return `404` exactly like missing ones (no oracle).
+- **New gRPC contract.** `TodoService.GetSubtaskBrief(parent_task_id, subtask_id)` validates a
+  subtask reply target where the task aggregate lives (INV-OWN-1) and returns the title + author
+  for the snapshot; the Collaboration client fails closed (`503`) when Todo is unreachable.
+- **Subtask author byline (Todo).** `GET /todos/{id}/subtasks` enriches each subtask with the
+  author's live `authorName`/`authorAvatarUrl` (Auth `GetUserProfilesBatch`, one batch call,
+  failure-tolerant); `POST /todos/{id}/subtasks` fills them from the creator's own JWT claims.
+- **Frontend (branch-feed).** Hover **Reply** on every message; **Reply** in the subtask card
+  footer; a height-animated "Replying to" chip above the composer (Esc peels it first, and no
+  longer closes the modal); replies render a colour-keyed quote block (violet = message,
+  amber = subtask, grey + `DELETED` when gone) that smooth-scrolls to the original with a
+  `reply_flash` pulse. The subtask card footer now shows the author avatar + name on the left
+  and, on the right, the **same** amber "N working" pill (hover→Leave crossfade preserved) plus
+  an explicit **"Take into work"** button (white → ink hover, `Play` icon) matching the project's
+  pill language. All existing rail visuals, markers and animations are unchanged.
+- **Schema / ops.** Six nullable reply columns + a `(TaskId, ReplyToId)` index on
+  `collaboration.comments`. Fresh installs get them via `EnsureCreated`; existing databases run
+  the new idempotent `Planora.Migrator --upgrade-collaboration-replies` once.
+
+Verified: `dotnet build` solution clean; Collaboration + Todo unit tests (170, incl. 11 new
+reply tests) and the full frontend suite (405, incl. the new `comments-api` tests) pass;
+`next build` compiles.
+
+Security: reply targets validated server-side with branch-scoped lookups (no cross-task probing), snapshots never client-supplied
+
 ### fix(security): resolve all 45 CodeQL code-scanning alerts (2026-06-09)
 
 Cleared every open code-scanning alert on the repository, plus two runtime defects and an

@@ -463,10 +463,18 @@ All routes require bearer auth.
 | `PATCH` | `/{id}/viewer-preferences` | non-owner viewer hidden/category preference |
 | `POST` | `/{id}/join` | join task as a worker |
 | `POST` | `/{id}/leave` | leave task (stop being a worker) |
+| `GET` | `/{id}/subtasks` | list a task's subtasks (anyone with parent access) |
+| `POST` | `/{id}/subtasks` | create a subtask (owner only; category/visibility inherited) |
 
 > **Comments (the task timeline / "ветки") moved to the Collaboration service** — see the
 > [Collaboration](#collaboration) section. The old `/{id}/comments*` and `/{id}/genesis`
 > routes under `/todos/api/v1/todos` no longer exist.
+
+Subtask reads are enriched with the author's **live identity**: `GET /{id}/subtasks` resolves
+`authorName` + `authorAvatarUrl` for each subtask from Auth (`GetUserProfilesBatch`, one batch call
+per request, failure-tolerant — labels are simply empty if Auth is down), and
+`POST /{id}/subtasks` fills them from the caller's own JWT claims (the creator is the caller).
+Both fields are `null` on list endpoints that skip the enrichment (e.g. the dashboard task lists).
 
 Create body:
 
@@ -579,7 +587,7 @@ description via the task itself (`PUT /todos/api/v1/todos/{id}`), not through a 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/{taskId}?pageNumber=1&pageSize=50` | get paginated comments (oldest-first); page 1 also includes the synthesised Author's Note |
-| `POST` | `/{taskId}` | add a comment |
+| `POST` | `/{taskId}` | add a comment, optionally as a **reply** quoting another comment/reply or a subtask |
 | `PUT` | `/{taskId}/{commentId}` | edit a regular comment (author only) |
 | `DELETE` | `/{taskId}/{commentId}` | soft-delete a comment (author or task owner) |
 
@@ -606,9 +614,27 @@ is kept so frontend timeline components are unchanged):
   "isOwn": true,
   "isEdited": false,
   "isSystemComment": false,
-  "isGenesisComment": false
+  "isGenesisComment": false,
+  "replyToType": null,
+  "replyToId": null,
+  "replyToAuthorId": null,
+  "replyToAuthorName": null,
+  "replyToAuthorAvatarUrl": null,
+  "replyToPreview": null,
+  "replyToDeleted": false
 }
 ```
+
+**Reply block** (`replyTo*` — all `null`/`false` on a plain comment): when the comment is a reply,
+`replyToType` is `"comment"` (a user comment or another reply) or `"subtask"`, `replyToId` is the
+quoted target's id and `replyToPreview` is a one-line excerpt (≤ 300 chars) of the quoted text.
+The quoted author (`replyToAuthorId` / `replyToAuthorName` / `replyToAuthorAvatarUrl`) is resolved
+**live** from Auth on every read — the stored name is only a fallback. For **comment** targets the
+preview is refreshed from the live target on read (edits propagate) and `replyToDeleted` flips to
+`true` the moment the target is gone (the stored snapshot then backs the preview). For **subtask**
+targets the preview is the title snapshot taken at reply time and `replyToDeleted` is maintained by
+the `SubtaskDeletedIntegrationEvent` consumer. Reply chains are just replies whose target is itself
+a reply — there is no nesting limit and no extra endpoint.
 
 `isOwn` is `true` when `authorId == currentUserId` AND `isSystemComment` is `false`. `isEdited` is
 `true` when `updatedAt > createdAt + 5 seconds` for a regular user comment; system comments
@@ -627,10 +653,30 @@ access check is unavailable.
 
 ### `POST /collaboration/api/v1/comments/{taskId}`
 
-Add a comment. Caller must have task access. Body: `{ "content": "Great progress!" }` — required, max
-2000 characters. Success `201 Created`: `CommentDto`. On success a `NotificationEvent` is fanned out
-(via outbox → RabbitMQ → Realtime/SignalR) to every other participant. Errors: `400` validation;
-`403` no access; `404` task not found.
+Add a comment. Caller must have task access. Body:
+
+```json
+{
+  "content": "Great progress!",
+  "replyTo": { "type": "comment", "id": "00000000-0000-0000-0000-000000000000" }
+}
+```
+
+`content` — required, max 2000 characters. `replyTo` — optional; when present the comment becomes a
+**reply** quoting the target. `type` is `"comment"` (a user comment or another reply in the same
+branch) or `"subtask"` (a subtask of this task). The target is validated **server-side** and the
+quote snapshot (author + preview) is captured there — preview text from the client is never
+accepted. Comment targets must live in the same task branch and may not be system events or the
+genesis note; subtask targets are verified live via the `TodoService.GetSubtaskBrief` gRPC call
+(exists, not deleted, child of this exact task).
+
+Success `201 Created`: `CommentDto` (with the populated reply block). On success a
+`NotificationEvent` is fanned out (via outbox → RabbitMQ → Realtime/SignalR) to every other
+participant; the quoted author receives a dedicated `ReplyAdded` notification ("… replied to your
+message/subtask") instead of the generic `CommentAdded`. Errors: `400` validation / invalid reply
+target type; `403` no access; `404` task, target comment, or target subtask not found (cross-branch
+target ids return `404` exactly like missing ones — no probing oracle); `503` if the Todo
+validation call is unavailable.
 
 > **The task description (Author's Note) is edited on the task, not here.** Use
 > `PUT /todos/api/v1/todos/{id}` with the new `description` (owner only). There is no genesis
