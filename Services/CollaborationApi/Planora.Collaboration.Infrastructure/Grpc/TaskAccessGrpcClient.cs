@@ -75,6 +75,39 @@ namespace Planora.Collaboration.Infrastructure.Grpc
                 throw new ExternalServiceUnavailableException("TodoApi", "CheckTaskCommentAccess", ex);
             }
         }
+
+        public async Task<SubtaskBrief> GetSubtaskBriefAsync(
+            Guid taskId,
+            Guid subtaskId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _client.GetSubtaskBriefAsync(
+                    new GetSubtaskBriefRequest
+                    {
+                        ParentTaskId = taskId.ToString(),
+                        SubtaskId = subtaskId.ToString(),
+                    },
+                    cancellationToken: cancellationToken);
+
+                Guid.TryParse(response.AuthorId, out var authorId);
+                return new SubtaskBrief(response.Exists, response.Title ?? string.Empty, authorId);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (RpcException ex)
+            {
+                // Fail closed: an unverifiable reply target must never be written.
+                _logger.LogWarning(
+                    ex,
+                    "Todo gRPC unavailable while validating subtask reply target {SubtaskId} in task {TaskId}: Status={Status}",
+                    subtaskId, taskId, ex.StatusCode);
+                throw new ExternalServiceUnavailableException("TodoApi", "GetSubtaskBrief", ex);
+            }
+        }
     }
 }
 

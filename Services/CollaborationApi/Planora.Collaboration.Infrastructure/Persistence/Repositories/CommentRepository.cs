@@ -1,5 +1,6 @@
 using Planora.BuildingBlocks.Application.Pagination;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
+using Planora.Collaboration.Domain.Enums;
 
 namespace Planora.Collaboration.Infrastructure.Persistence.Repositories
 {
@@ -73,6 +74,37 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Repositories
 
             foreach (var comment in comments)
                 comment.MarkAsDeleted(deletedBy);
+        }
+
+        public async Task<IReadOnlyDictionary<Guid, Comment>> GetLiveByIdsAsync(
+            Guid taskId, IReadOnlyCollection<Guid> commentIds, CancellationToken ct = default)
+        {
+            if (commentIds.Count == 0)
+                return new Dictionary<Guid, Comment>();
+
+            // One indexed lookup for the whole page (PK + TaskId guard) — the TaskId predicate
+            // keeps a forged id from ever surfacing another branch's content.
+            var items = await DbSet
+                .AsNoTracking()
+                .Where(c => c.TaskId == taskId && !c.IsDeleted && commentIds.Contains(c.Id))
+                .ToListAsync(ct);
+
+            return items.ToDictionary(c => c.Id);
+        }
+
+        public async Task MarkSubtaskReplyTargetsDeletedAsync(
+            Guid parentTaskId, Guid subtaskId, CancellationToken ct = default)
+        {
+            // Load-then-update keeps parity with the other cascade helpers (InMemory-friendly);
+            // replies quoting one subtask are bounded per branch.
+            var replies = await DbSet
+                .Where(c => c.TaskId == parentTaskId && !c.IsDeleted &&
+                            c.ReplyToType == ReplyTargetType.Subtask &&
+                            c.ReplyToId == subtaskId && !c.ReplyToDeleted)
+                .ToListAsync(ct);
+
+            foreach (var reply in replies)
+                reply.MarkReplyTargetDeleted();
         }
     }
 }

@@ -32,6 +32,33 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Configurations
                 .IsRequired()
                 .HasDefaultValue(false);
 
+            // ── Reply reference (nullable on plain comments) ──
+            // Stored as a string ("Comment"/"Subtask") for readable rows and stable values
+            // even if enum members are ever reordered.
+            builder.Property(x => x.ReplyToType)
+                .HasConversion<string>()
+                .HasMaxLength(16)
+                .IsRequired(false);
+
+            builder.Property(x => x.ReplyToId).IsRequired(false);
+            builder.Property(x => x.ReplyToAuthorId).IsRequired(false);
+
+            builder.Property(x => x.ReplyToAuthorName)
+                .HasMaxLength(200)
+                .IsRequired(false);
+
+            builder.Property(x => x.ReplyToPreview)
+                .HasMaxLength(Comment.ReplyPreviewMaxLength)
+                .IsRequired(false);
+
+            builder.Property(x => x.ReplyToDeleted)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            // Reply-target lookups: the SubtaskDeleted cascade ("flag every reply quoting this
+            // subtask") and any per-target fan-in are both keyed by (TaskId, ReplyToId).
+            builder.HasIndex(x => new { x.TaskId, x.ReplyToId });
+
             // Optimised for timeline reads (ordered by creation per task).
             builder.HasIndex(x => new { x.TaskId, x.CreatedAt });
 

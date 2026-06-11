@@ -16,5 +16,22 @@ namespace Planora.Collaboration.Domain.Repositories
         /// </summary>
         Task SoftDeleteSubtaskActivityAsync(
             Guid parentTaskId, string subtaskTitle, Guid deletedBy, CancellationToken ct = default);
+
+        /// <summary>
+        /// Batch-loads the live (non-deleted) comments with the given ids inside one task's
+        /// branch. Used by the timeline read to refresh reply quotes from their live targets
+        /// (live preview + deletion detection) in a single indexed query — never one query
+        /// per reply.
+        /// </summary>
+        Task<IReadOnlyDictionary<Guid, Comment>> GetLiveByIdsAsync(
+            Guid taskId, IReadOnlyCollection<Guid> commentIds, CancellationToken ct = default);
+
+        /// <summary>
+        /// Flags every reply in the parent branch that quotes the given subtask as
+        /// "target deleted". The replies themselves survive with their snapshot preview.
+        /// Naturally idempotent. Changes are flushed by the caller's unit of work.
+        /// </summary>
+        Task MarkSubtaskReplyTargetsDeletedAsync(
+            Guid parentTaskId, Guid subtaskId, CancellationToken ct = default);
     }
 }

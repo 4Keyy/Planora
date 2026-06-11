@@ -8,6 +8,7 @@ using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.Collaboration.Application.DTOs;
 using Planora.Collaboration.Application.Services;
 using Planora.Collaboration.Domain.Entities;
+using Planora.Collaboration.Domain.Enums;
 using Planora.Collaboration.Domain.Repositories;
 
 namespace Planora.Collaboration.Application.Features.Comments.Commands.AddComment
@@ -19,19 +20,22 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ITaskAccessService _taskAccessService;
         private readonly IOutboxRepository _outboxRepository;
+        private readonly IUserService _userService;
 
         public AddCommentCommandHandler(
             ICommentRepository commentRepository,
             IUnitOfWork unitOfWork,
             ICurrentUserContext currentUserContext,
             ITaskAccessService taskAccessService,
-            IOutboxRepository outboxRepository)
+            IOutboxRepository outboxRepository,
+            IUserService userService)
         {
             _commentRepository = commentRepository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
             _taskAccessService = taskAccessService;
             _outboxRepository = outboxRepository;
+            _userService = userService;
         }
 
         public async Task<Result<CommentDto>> Handle(AddCommentCommand request, CancellationToken cancellationToken)
@@ -50,14 +54,29 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
                 ?? _currentUserContext.Email
                 ?? userId.ToString();
 
-            var comment = Comment.Create(request.TaskId, userId, authorName, request.Content);
+            // ── Resolve + validate the reply target (server-side snapshot, never client data) ──
+            ReplyTarget? target = null;
+            if (request.ReplyToType is not null && request.ReplyToId.HasValue)
+            {
+                target = await ResolveReplyTargetAsync(
+                    request.TaskId, request.ReplyToType, request.ReplyToId.Value, cancellationToken);
+            }
+
+            var comment = target is null
+                ? Comment.Create(request.TaskId, userId, authorName, request.Content)
+                : Comment.CreateReply(
+                    request.TaskId, userId, authorName, request.Content,
+                    target.Type, target.Id, target.AuthorId, target.AuthorName, target.Preview);
+
             await _commentRepository.AddAsync(comment, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // Fan out a notification to every other task participant. Written to the outbox so
+            // Fan out notifications to every other task participant. Written to the outbox so
             // delivery is reliable and atomic-ish with the comment write (INV-COMM-3). RealtimeApi
-            // consumes NotificationEvent and pushes it over SignalR.
-            await PublishNotificationsAsync(request.TaskId, userId, authorName, access.ParticipantIds, cancellationToken);
+            // consumes NotificationEvent and pushes it over SignalR. The quoted author gets a
+            // dedicated "replied to you" instead of the generic line.
+            await PublishNotificationsAsync(
+                userId, authorName, access.ParticipantIds, target, cancellationToken);
 
             // Avatar URL comes from the live caller context — this is the author themselves,
             // so their JWT claim is the freshest source available on the write path.
@@ -76,14 +95,105 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
                 comment.UpdatedAt,
                 IsOwn: true,
                 IsEdited: false,
-                IsSystemComment: false));
+                IsSystemComment: false,
+                IsGenesisComment: false,
+                ReplyToType: target?.Type switch
+                {
+                    ReplyTargetType.Comment => "comment",
+                    ReplyTargetType.Subtask => "subtask",
+                    _ => null,
+                },
+                ReplyToId: target?.Id,
+                ReplyToAuthorId: target?.AuthorId,
+                ReplyToAuthorName: target?.AuthorName,
+                ReplyToAuthorAvatarUrl: target?.AuthorAvatarUrl,
+                ReplyToPreview: comment.ReplyToPreview,
+                ReplyToDeleted: false));
+        }
+
+        /// <summary>The validated, server-captured snapshot of what a reply quotes.</summary>
+        private sealed record ReplyTarget(
+            ReplyTargetType Type,
+            Guid Id,
+            Guid AuthorId,
+            string? AuthorName,
+            string? AuthorAvatarUrl,
+            string? Preview);
+
+        private async Task<ReplyTarget> ResolveReplyTargetAsync(
+            Guid taskId, string replyToType, Guid replyToId, CancellationToken cancellationToken)
+        {
+            switch (replyToType.ToLowerInvariant())
+            {
+                case "comment":
+                {
+                    var targetComment = await _commentRepository.GetByIdAsync(replyToId, cancellationToken);
+
+                    // Cross-task ids are treated as "not found" — same response as a genuinely
+                    // missing comment, so a forged id cannot probe other branches (no oracle).
+                    if (targetComment is null || targetComment.TaskId != taskId)
+                        throw new EntityNotFoundException("Comment", replyToId);
+
+                    // System events and the genesis note are timeline furniture, not messages.
+                    if (targetComment.IsSystemComment || targetComment.IsGenesisComment)
+                        return ThrowInvalidTarget();
+
+                    var profile = await ResolveProfileAsync(targetComment.AuthorId, cancellationToken);
+
+                    return new ReplyTarget(
+                        ReplyTargetType.Comment,
+                        targetComment.Id,
+                        targetComment.AuthorId,
+                        // Live name when available; the stored name is the fallback snapshot.
+                        string.IsNullOrWhiteSpace(profile?.DisplayName) ? targetComment.AuthorName : profile!.DisplayName,
+                        profile?.AvatarUrl,
+                        Comment.TruncatePreview(targetComment.Content));
+                }
+
+                case "subtask":
+                {
+                    // Todo owns the task aggregate: it verifies the subtask exists, is alive and
+                    // is a child of THIS task (INV-OWN-1), and returns the snapshot material.
+                    var brief = await _taskAccessService.GetSubtaskBriefAsync(taskId, replyToId, cancellationToken);
+                    if (!brief.Exists)
+                        throw new EntityNotFoundException("Subtask", replyToId);
+
+                    var profile = await ResolveProfileAsync(brief.AuthorId, cancellationToken);
+
+                    return new ReplyTarget(
+                        ReplyTargetType.Subtask,
+                        replyToId,
+                        brief.AuthorId,
+                        profile?.DisplayName,
+                        profile?.AvatarUrl,
+                        Comment.TruncatePreview(brief.Title));
+                }
+
+                default:
+                    return ThrowInvalidTarget();
+            }
+
+            static ReplyTarget ThrowInvalidTarget() =>
+                throw new InvalidValueObjectException(
+                    nameof(Comment), "Replies can only target a user comment, a reply, or a subtask");
+        }
+
+        private async Task<UserProfile?> ResolveProfileAsync(Guid userId, CancellationToken cancellationToken)
+        {
+            if (userId == Guid.Empty)
+                return null;
+
+            // Cached (60 s) batch service — a single-id lookup on the write path is cheap and
+            // gives the immediate response the same live identity the read path would show.
+            var profiles = await _userService.GetUserProfilesAsync(new[] { userId }, cancellationToken);
+            return profiles.TryGetValue(userId, out var profile) ? profile : null;
         }
 
         private async Task PublishNotificationsAsync(
-            Guid taskId,
             Guid authorId,
             string authorName,
             IReadOnlyList<Guid> participantIds,
+            ReplyTarget? target,
             CancellationToken cancellationToken)
         {
             var recipients = participantIds
@@ -93,11 +203,21 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
 
             foreach (var recipientId in recipients)
             {
-                var notification = new NotificationEvent(
-                    recipientId,
-                    "New comment",
-                    $"{authorName} commented on a task",
-                    "CommentAdded");
+                var isQuotedAuthor = target is not null && recipientId == target.AuthorId;
+
+                var notification = isQuotedAuthor
+                    ? new NotificationEvent(
+                        recipientId,
+                        "New reply",
+                        target!.Type == ReplyTargetType.Subtask
+                            ? $"{authorName} replied to your subtask"
+                            : $"{authorName} replied to your message",
+                        "ReplyAdded")
+                    : new NotificationEvent(
+                        recipientId,
+                        "New comment",
+                        $"{authorName} commented on a task",
+                        "CommentAdded");
 
                 var outboxMessage = new OutboxMessage(
                     notification.GetType().AssemblyQualifiedName ?? notification.GetType().Name,

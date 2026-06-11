@@ -78,6 +78,39 @@ public class TodoGrpcService : TodoService.TodoServiceBase
         return response;
     }
 
+    /// <summary>
+    /// Validates a subtask as a reply target inside its parent task's branch. Returns the data
+    /// Collaboration snapshots on the reply (title preview + author id). The parent/child check
+    /// lives here because only Todo owns the task aggregate (INV-OWN-1). Authorisation is NOT
+    /// repeated here — the caller has already authorised the requester against the parent task
+    /// via <see cref="CheckTaskCommentAccess"/> in the same operation.
+    /// </summary>
+    public override async Task<GetSubtaskBriefResponse> GetSubtaskBrief(
+        GetSubtaskBriefRequest request, ServerCallContext context)
+    {
+        if (!Guid.TryParse(request.ParentTaskId, out var parentTaskId) ||
+            !Guid.TryParse(request.SubtaskId, out var subtaskId))
+        {
+            throw new RpcException(new global::Grpc.Core.Status(
+                global::Grpc.Core.StatusCode.InvalidArgument, "parent_task_id and subtask_id must be valid GUIDs"));
+        }
+
+        var subtask = await _todoRepository.GetByIdAsync(subtaskId, context.CancellationToken);
+
+        // Exists only as a valid reply target: a live child of exactly this parent task.
+        if (subtask is null || subtask.ParentTodoId != parentTaskId)
+        {
+            return new GetSubtaskBriefResponse { Exists = false, Title = string.Empty, AuthorId = string.Empty };
+        }
+
+        return new GetSubtaskBriefResponse
+        {
+            Exists = true,
+            Title = subtask.Title,
+            AuthorId = subtask.UserId.ToString(),
+        };
+    }
+
     public override async Task<GetUserTodosResponse> GetUserTodos(GetUserTodosRequest request, ServerCallContext context)
     {
         var query = new GetUserTodosQuery(

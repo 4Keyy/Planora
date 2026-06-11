@@ -30,10 +30,16 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
         {
             await _commentRepository.SoftDeleteSubtaskActivityAsync(
                 @event.ParentTaskId, @event.Title, @event.ActorId, cancellationToken);
+
+            // Replies that quoted the deleted subtask survive — only their quote flips to the
+            // "deleted target" state (snapshot preview is kept for context).
+            await _commentRepository.MarkSubtaskReplyTargetsDeletedAsync(
+                @event.ParentTaskId, @event.SubtaskId, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
-                "Soft-deleted subtask {SubtaskId} announcement comments in parent branch {ParentTaskId} (actor {ActorId})",
+                "Soft-deleted subtask {SubtaskId} announcement comments and flagged its reply quotes in parent branch {ParentTaskId} (actor {ActorId})",
                 @event.SubtaskId, @event.ParentTaskId, @event.ActorId);
         }
     }

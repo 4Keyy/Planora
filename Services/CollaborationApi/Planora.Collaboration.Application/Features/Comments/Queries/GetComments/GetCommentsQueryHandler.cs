@@ -5,6 +5,8 @@ using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.Collaboration.Application.DTOs;
 using Planora.Collaboration.Application.Services;
+using Planora.Collaboration.Domain.Entities;
+using Planora.Collaboration.Domain.Enums;
 using Planora.Collaboration.Domain.Repositories;
 
 namespace Planora.Collaboration.Application.Features.Comments.Queries.GetComments
@@ -54,13 +56,31 @@ namespace Planora.Collaboration.Application.Features.Comments.Queries.GetComment
 
             // Resolve author identity LIVE (display name + avatar) so a profile rename is reflected
             // everywhere and the name is never a stored copy. Author ids: real comment authors plus
-            // the task owner (the synthesised genesis author).
+            // the task owner (the synthesised genesis author) plus every quoted reply-target author.
             var authorIds = new HashSet<Guid>();
             foreach (var c in items)
+            {
                 if (!c.IsSystemComment && c.AuthorId != Guid.Empty)
                     authorIds.Add(c.AuthorId);
+                if (c.ReplyToAuthorId is { } replyAuthorId && replyAuthorId != Guid.Empty)
+                    authorIds.Add(replyAuthorId);
+            }
             if (hasGenesis && access.OwnerId != Guid.Empty)
                 authorIds.Add(access.OwnerId);
+
+            // Refresh reply quotes from their LIVE targets in one indexed batch query: an edited
+            // target shows its current text, and a missing row means the target was deleted.
+            // (Subtask targets live in Todo's DB — those rely on the stored snapshot plus the
+            // ReplyToDeleted flag maintained by the SubtaskDeleted integration event.)
+            var quotedCommentIds = items
+                .Where(c => c.ReplyToType == ReplyTargetType.Comment && c.ReplyToId.HasValue)
+                .Select(c => c.ReplyToId!.Value)
+                .Distinct()
+                .ToList();
+
+            IReadOnlyDictionary<Guid, Comment> liveTargets = quotedCommentIds.Count > 0
+                ? await _commentRepository.GetLiveByIdsAsync(request.TaskId, quotedCommentIds, cancellationToken)
+                : new Dictionary<Guid, Comment>();
 
             IReadOnlyDictionary<Guid, UserProfile> profiles = authorIds.Count > 0
                 ? await _userService.GetUserProfilesAsync(authorIds, cancellationToken)
@@ -98,6 +118,45 @@ namespace Planora.Collaboration.Application.Features.Comments.Queries.GetComment
                     avatarUrl = p.AvatarUrl;
                 }
 
+                // ── Reply quote enrichment ──
+                string? replyToType = null;
+                string? replyToAuthorName = null;
+                string? replyToAuthorAvatarUrl = null;
+                string? replyToPreview = null;
+                var replyToDeleted = false;
+
+                if (c.ReplyToType is { } targetType && c.ReplyToId is { } targetId)
+                {
+                    replyToType = targetType == ReplyTargetType.Subtask ? "subtask" : "comment";
+
+                    // Quoted author resolved live; the snapshot name is only the fallback.
+                    replyToAuthorName = c.ReplyToAuthorName;
+                    if (c.ReplyToAuthorId is { } qa && profiles.TryGetValue(qa, out var qp))
+                    {
+                        if (!string.IsNullOrWhiteSpace(qp.DisplayName)) replyToAuthorName = qp.DisplayName;
+                        replyToAuthorAvatarUrl = qp.AvatarUrl;
+                    }
+
+                    if (targetType == ReplyTargetType.Comment)
+                    {
+                        // Live target → current text (edits propagate); missing → deleted.
+                        if (liveTargets.TryGetValue(targetId, out var live))
+                            replyToPreview = Comment.TruncatePreview(live.Content);
+                        else
+                        {
+                            replyToPreview = c.ReplyToPreview;
+                            replyToDeleted = true;
+                        }
+                    }
+                    else
+                    {
+                        // Subtask quotes keep their write-time snapshot; deletion is flagged by
+                        // the SubtaskDeleted integration event consumer.
+                        replyToPreview = c.ReplyToPreview;
+                        replyToDeleted = c.ReplyToDeleted;
+                    }
+                }
+
                 dtos.Add(new CommentDto(
                     c.Id,
                     c.TaskId,
@@ -110,7 +169,14 @@ namespace Planora.Collaboration.Application.Features.Comments.Queries.GetComment
                     IsOwn: !c.IsSystemComment && c.AuthorId == userId,
                     IsEdited: c.IsEdited,
                     IsSystemComment: c.IsSystemComment,
-                    IsGenesisComment: false));
+                    IsGenesisComment: false,
+                    ReplyToType: replyToType,
+                    ReplyToId: c.ReplyToId,
+                    ReplyToAuthorId: c.ReplyToAuthorId,
+                    ReplyToAuthorName: replyToAuthorName,
+                    ReplyToAuthorAvatarUrl: replyToAuthorAvatarUrl,
+                    ReplyToPreview: replyToPreview,
+                    ReplyToDeleted: replyToDeleted));
             }
 
             return Result<PagedResult<CommentDto>>.Success(

@@ -14,6 +14,23 @@ service TodoService {
   // ownership / sharing / public + friendship rules so the Collaboration service
   // never has to read Todo's database or know about the sharing model.
   rpc CheckTaskCommentAccess (CheckTaskCommentAccessRequest) returns (CheckTaskCommentAccessResponse);
+  // Validates a subtask as a reply target within a task's branch and returns the
+  // snapshot data Collaboration stores on the reply (title preview + author).
+  // Collaboration never reads Todo's database (INV-OWN-1), so the parent/child
+  // relationship is verified here, where the task aggregate lives.
+  rpc GetSubtaskBrief (GetSubtaskBriefRequest) returns (GetSubtaskBriefResponse);
+}
+
+message GetSubtaskBriefRequest {
+  string parent_task_id = 1;  // the branch's task — must be the subtask's parent
+  string subtask_id = 2;
+}
+
+message GetSubtaskBriefResponse {
+  // True only when the subtask exists, is not deleted, and is a child of parent_task_id.
+  bool exists = 1;
+  string title = 2;      // current subtask title (preview snapshot source)
+  string author_id = 3;  // subtask creator — resolved live for the quote header
 }
 
 message CheckTaskCommentAccessRequest {

@@ -1,5 +1,6 @@
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.Collaboration.Domain.Entities;
+using Planora.Collaboration.Domain.Enums;
 using Planora.Collaboration.Domain.Events;
 
 namespace Planora.UnitTests.Services.CollaborationApi.Domain;
@@ -133,6 +134,75 @@ public class CommentTests
 
         Assert.Throws<InvalidValueObjectException>(() =>
             comment.UpdateContent(longContent, _authorId));
+    }
+
+    // ─── Replies ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void CreateReply_ShouldCarryTargetSnapshot()
+    {
+        var targetId = Guid.NewGuid();
+        var targetAuthor = Guid.NewGuid();
+
+        var reply = Comment.CreateReply(
+            _taskId, _authorId, "Alice", "Sounds good",
+            ReplyTargetType.Comment, targetId, targetAuthor, "  Bob  ", "Quoted text");
+
+        Assert.True(reply.IsReply);
+        Assert.Equal(ReplyTargetType.Comment, reply.ReplyToType);
+        Assert.Equal(targetId, reply.ReplyToId);
+        Assert.Equal(targetAuthor, reply.ReplyToAuthorId);
+        Assert.Equal("Bob", reply.ReplyToAuthorName);
+        Assert.Equal("Quoted text", reply.ReplyToPreview);
+        Assert.False(reply.ReplyToDeleted);
+        // A reply is still a regular comment underneath — domain event included.
+        Assert.Contains(reply.DomainEvents, e => e is CommentAddedDomainEvent);
+    }
+
+    [Fact]
+    public void CreateReply_WithEmptyTargetId_ShouldThrow()
+    {
+        Assert.Throws<InvalidValueObjectException>(() =>
+            Comment.CreateReply(
+                _taskId, _authorId, "Alice", "x",
+                ReplyTargetType.Comment, Guid.Empty, Guid.NewGuid(), "Bob", "q"));
+    }
+
+    [Fact]
+    public void TruncatePreview_ShouldFlattenNewlinesAndCapLength()
+    {
+        var multiline = "first line\r\nsecond line\n\nthird";
+        Assert.Equal("first line second line third", Comment.TruncatePreview(multiline));
+
+        var oversized = new string('a', Comment.ReplyPreviewMaxLength + 50);
+        var truncated = Comment.TruncatePreview(oversized)!;
+        Assert.Equal(Comment.ReplyPreviewMaxLength, truncated.Length);
+        Assert.EndsWith("…", truncated);
+
+        Assert.Null(Comment.TruncatePreview("   "));
+        Assert.Null(Comment.TruncatePreview(null));
+    }
+
+    [Fact]
+    public void MarkReplyTargetDeleted_ShouldFlagWithoutTouchingUpdatedAt()
+    {
+        var reply = Comment.CreateReply(
+            _taskId, _authorId, "Alice", "x",
+            ReplyTargetType.Subtask, Guid.NewGuid(), Guid.NewGuid(), "Bob", "Step title");
+
+        reply.MarkReplyTargetDeleted();
+
+        Assert.True(reply.ReplyToDeleted);
+        // Not an author edit: the timeline must never show "edited" because of the cascade.
+        Assert.Null(reply.UpdatedAt);
+        Assert.False(reply.IsEdited);
+    }
+
+    [Fact]
+    public void MarkReplyTargetDeleted_OnPlainComment_ShouldThrow()
+    {
+        var comment = Comment.Create(_taskId, _authorId, "Alice", "plain");
+        Assert.Throws<InvalidValueObjectException>(() => comment.MarkReplyTargetDeleted());
     }
 
     // ─── SoftDelete ───────────────────────────────────────────────────────────

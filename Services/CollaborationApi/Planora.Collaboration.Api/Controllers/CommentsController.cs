@@ -51,7 +51,9 @@ namespace Planora.Collaboration.Api.Controllers
             [FromBody] AddCommentRequest request,
             CancellationToken cancellationToken = default)
         {
-            var result = await _mediator.Send(new AddCommentCommand(taskId, request.Content), cancellationToken);
+            var result = await _mediator.Send(
+                new AddCommentCommand(taskId, request.Content, request.ReplyTo?.Type, request.ReplyTo?.Id),
+                cancellationToken);
             if (result.IsFailure)
                 return BadRequest(result.Error);
             return StatusCode(StatusCodes.Status201Created, result.Value);
@@ -90,6 +92,13 @@ namespace Planora.Collaboration.Api.Controllers
         }
     }
 
-    public sealed record AddCommentRequest(string Content);
+    /// <summary>
+    /// The optional quoted target turning a comment into a reply. <c>Type</c> is
+    /// "comment" (a user comment or another reply) or "subtask"; the target is validated
+    /// server-side and the quote snapshot is captured there — never trusted from the client.
+    /// </summary>
+    public sealed record ReplyToRequest(string Type, Guid Id);
+
+    public sealed record AddCommentRequest(string Content, ReplyToRequest? ReplyTo = null);
     public sealed record UpdateCommentRequest(string Content);
 }

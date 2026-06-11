@@ -74,7 +74,7 @@ internal static class Program
             ? Services
             : Services.Where(s => parsed.Services.Contains(s.Name, StringComparer.OrdinalIgnoreCase)).ToList();
 
-        if (selected.Count == 0 && !parsed.BackfillCollaboration)
+        if (selected.Count == 0 && !parsed.BackfillCollaboration && !parsed.UpgradeCollaborationReplies)
         {
             logger.LogError("No matching services. Valid names: {Names}", string.Join(", ", Services.Select(s => s.Name)));
             return ExitBadArgs;
@@ -120,6 +120,30 @@ internal static class Program
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Collaboration backfill failed.");
+                    anyFailure = true;
+                }
+            }
+        }
+
+        if (parsed.UpgradeCollaborationReplies && !parsed.ListPendingOnly)
+        {
+            var collabConn = parsed.OverrideConnectionString
+                ?? configuration.GetConnectionString("CollaborationDatabase");
+            if (string.IsNullOrWhiteSpace(collabConn))
+            {
+                logger.LogError(
+                    "Replies upgrade requires ConnectionStrings__CollaborationDatabase (or --connection-string).");
+                anyFailure = true;
+            }
+            else
+            {
+                try
+                {
+                    await CollaborationRepliesUpgrade.RunAsync(collabConn, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Collaboration replies upgrade failed.");
                     anyFailure = true;
                 }
             }
@@ -243,6 +267,7 @@ internal static class Program
         var allServices = false;
         var listPending = false;
         var backfillCollaboration = false;
+        var upgradeCollaborationReplies = false;
         string? overrideConnStr = null;
         var services = new List<string>();
 
@@ -259,6 +284,9 @@ internal static class Program
                 case "--backfill-collaboration":
                     backfillCollaboration = true;
                     break;
+                case "--upgrade-collaboration-replies":
+                    upgradeCollaborationReplies = true;
+                    break;
                 case "--service" when i + 1 < args.Length:
                     services.Add(args[++i]);
                     break;
@@ -273,12 +301,14 @@ internal static class Program
             }
         }
 
-        if (!allServices && services.Count == 0 && !backfillCollaboration)
+        if (!allServices && services.Count == 0 && !backfillCollaboration && !upgradeCollaborationReplies)
         {
             return null;
         }
 
-        return new ParsedArgs(allServices, services, listPending, backfillCollaboration, overrideConnStr);
+        return new ParsedArgs(
+            allServices, services, listPending, backfillCollaboration,
+            upgradeCollaborationReplies, overrideConnStr);
     }
 
     private static void PrintUsage()
@@ -307,6 +337,12 @@ internal static class Program
               collaboration.comments (idempotent). Needs ConnectionStrings__TodoDatabase
               and ConnectionStrings__CollaborationDatabase.
 
+            UPGRADES
+              --upgrade-collaboration-replies adds the reply-reference columns to
+              collaboration.comments on databases created before the reply feature
+              (idempotent; fresh installs never need it). Needs
+              ConnectionStrings__CollaborationDatabase or --connection-string.
+
             EXIT CODES
               0   success
               64  bad arguments
@@ -325,6 +361,7 @@ internal static class Program
         List<string> Services,
         bool ListPendingOnly,
         bool BackfillCollaboration,
+        bool UpgradeCollaborationReplies,
         string? OverrideConnectionString);
 
     /// <summary>

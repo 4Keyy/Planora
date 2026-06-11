@@ -66,6 +66,131 @@ public sealed class CommentCommandHandlerTests
             fixture.AddHandler().Handle(new AddCommentCommand(fixture.TaskId, "x"), CancellationToken.None));
     }
 
+    // ─── AddComment: replies ────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task AddComment_ReplyToComment_SnapshotsTargetAndNotifiesQuotedAuthor()
+    {
+        var fixture = new Fixture();
+        var owner = Guid.NewGuid();
+        var quotedAuthor = Guid.NewGuid();
+        fixture.GrantAccess(owner, participants: new[] { owner, fixture.UserId, quotedAuthor });
+
+        var target = Comment.Create(fixture.TaskId, quotedAuthor, "Anna M", "Original message text");
+        fixture.Comments.Setup(x => x.GetByIdAsync(target.Id, It.IsAny<CancellationToken>())).ReturnsAsync(target);
+
+        var result = await fixture.AddHandler().Handle(
+            new AddCommentCommand(fixture.TaskId, "Agreed!", "comment", target.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var dto = result.Value!;
+        Assert.Equal("comment", dto.ReplyToType);
+        Assert.Equal(target.Id, dto.ReplyToId);
+        Assert.Equal(quotedAuthor, dto.ReplyToAuthorId);
+        Assert.Equal("Anna M", dto.ReplyToAuthorName);
+        Assert.Equal("Original message text", dto.ReplyToPreview);
+        Assert.False(dto.ReplyToDeleted);
+
+        // Quoted author gets the dedicated reply notification; the other participant the generic one.
+        Assert.Equal(2, fixture.OutboxMessages.Count);
+        Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("ReplyAdded"));
+        Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("CommentAdded"));
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task AddComment_ReplyToReply_IsAllowed_QuotesTheReplyItself()
+    {
+        var fixture = new Fixture();
+        fixture.GrantAccess(owner: Guid.NewGuid());
+
+        var firstAuthor = Guid.NewGuid();
+        var existingReply = Comment.CreateReply(
+            fixture.TaskId, firstAuthor, "First", "I answered already",
+            Planora.Collaboration.Domain.Enums.ReplyTargetType.Comment,
+            Guid.NewGuid(), Guid.NewGuid(), "Root", "root text");
+        fixture.Comments.Setup(x => x.GetByIdAsync(existingReply.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingReply);
+
+        var result = await fixture.AddHandler().Handle(
+            new AddCommentCommand(fixture.TaskId, "Chain it", "comment", existingReply.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(existingReply.Id, result.Value!.ReplyToId);
+        Assert.Equal("I answered already", result.Value.ReplyToPreview);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task AddComment_ReplyToCommentFromAnotherTask_ThrowsNotFound()
+    {
+        var fixture = new Fixture();
+        fixture.GrantAccess(owner: Guid.NewGuid());
+
+        var foreign = Comment.Create(Guid.NewGuid(), Guid.NewGuid(), "Other", "other branch");
+        fixture.Comments.Setup(x => x.GetByIdAsync(foreign.Id, It.IsAny<CancellationToken>())).ReturnsAsync(foreign);
+
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
+            fixture.AddHandler().Handle(
+                new AddCommentCommand(fixture.TaskId, "x", "comment", foreign.Id), CancellationToken.None));
+
+        fixture.Comments.Verify(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task AddComment_ReplyToSystemComment_IsRejected()
+    {
+        var fixture = new Fixture();
+        fixture.GrantAccess(owner: Guid.NewGuid());
+
+        var system = Comment.CreateSystem(fixture.TaskId, "X completed the task");
+        fixture.Comments.Setup(x => x.GetByIdAsync(system.Id, It.IsAny<CancellationToken>())).ReturnsAsync(system);
+
+        await Assert.ThrowsAsync<InvalidValueObjectException>(() =>
+            fixture.AddHandler().Handle(
+                new AddCommentCommand(fixture.TaskId, "x", "comment", system.Id), CancellationToken.None));
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task AddComment_ReplyToSubtask_ValidatesViaTodoAndSnapshotsTitle()
+    {
+        var fixture = new Fixture();
+        var subtaskId = Guid.NewGuid();
+        var subtaskAuthor = Guid.NewGuid();
+        fixture.GrantAccess(owner: subtaskAuthor, participants: new[] { subtaskAuthor, fixture.UserId });
+        fixture.Access.Setup(x => x.GetSubtaskBriefAsync(fixture.TaskId, subtaskId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubtaskBrief(true, "Collect the hiring numbers", subtaskAuthor));
+
+        var result = await fixture.AddHandler().Handle(
+            new AddCommentCommand(fixture.TaskId, "On it", "subtask", subtaskId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var dto = result.Value!;
+        Assert.Equal("subtask", dto.ReplyToType);
+        Assert.Equal(subtaskId, dto.ReplyToId);
+        Assert.Equal(subtaskAuthor, dto.ReplyToAuthorId);
+        Assert.Equal("Collect the hiring numbers", dto.ReplyToPreview);
+        Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("ReplyAdded"));
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task AddComment_ReplyToMissingSubtask_ThrowsNotFound()
+    {
+        var fixture = new Fixture();
+        var subtaskId = Guid.NewGuid();
+        fixture.GrantAccess(owner: Guid.NewGuid());
+        fixture.Access.Setup(x => x.GetSubtaskBriefAsync(fixture.TaskId, subtaskId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SubtaskBrief(false, string.Empty, Guid.Empty));
+
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
+            fixture.AddHandler().Handle(
+                new AddCommentCommand(fixture.TaskId, "x", "subtask", subtaskId), CancellationToken.None));
+    }
+
     // ─── DeleteComment ──────────────────────────────────────────────────────────
 
     [Fact]
@@ -157,6 +282,8 @@ public sealed class CommentCommandHandlerTests
         public Mock<IOutboxRepository> Outbox { get; } = new();
         public Mock<IUserService> Users { get; } = new();
 
+        public List<OutboxMessage> OutboxMessages { get; } = new();
+
         public Fixture()
         {
             CurrentUser.SetupGet(x => x.UserId).Returns(UserId);
@@ -167,7 +294,11 @@ public sealed class CommentCommandHandlerTests
             Comments.Setup(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Comment c, CancellationToken _) => c);
             Outbox.Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<OutboxMessage, CancellationToken>((m, _) => OutboxMessages.Add(m))
                 .Returns(Task.CompletedTask);
+            // Live profile resolution defaults to "unknown" — handlers must fall back gracefully.
+            Users.Setup(x => x.GetUserProfilesAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Dictionary<Guid, UserProfile>());
         }
 
         public void GrantAccess(Guid owner, IReadOnlyList<Guid>? participants = null) =>
@@ -183,7 +314,7 @@ public sealed class CommentCommandHandlerTests
                 .ReturnsAsync(new TaskAccessResult(false, false, Guid.Empty, Array.Empty<Guid>(), string.Empty, null));
 
         public AddCommentCommandHandler AddHandler() =>
-            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object, Outbox.Object);
+            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object, Outbox.Object, Users.Object);
 
         public DeleteCommentCommandHandler DeleteHandler() =>
             new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object);
