@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, type LucideIcon } from "lucide-react"
+import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, type LucideIcon } from "lucide-react"
 import {
   fetchComments, addComment, updateComment, deleteComment,
   fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
   joinTodo, leaveTodo,
   getApiErrorMessage,
 } from "@/lib/api"
-import type { TodoComment, Todo } from "@/types/todo"
+import type { TodoComment, Todo, ReplyTargetType } from "@/types/todo"
 import { SPRING_STANDARD } from "@/lib/animations"
 import { FriendAvatar } from "./friend-avatar"
 import {
@@ -80,6 +80,23 @@ interface BranchFeedProps {
 // Compose modes — a plain branch message, the task description, or a new subtask. Subtasks are
 // authored exactly like the description: pick it from the "+" menu, type into the same field, send.
 type ComposeMode = "text" | "description" | "subtask"
+
+// What the composer is currently replying to. Captured client-side purely for the chip preview —
+// the server re-validates the target and takes its own snapshot on write.
+interface ReplyDraft {
+  type: ReplyTargetType
+  id: string
+  authorId?: string | null
+  authorName?: string | null
+  authorAvatarUrl?: string | null
+  preview: string
+}
+
+// Quote accents — violet for quoted messages (matching the branch's indigo accents), amber for
+// quoted subtasks (matching the subtask in-work palette), grey once the target is deleted.
+const QUOTE_ACCENT_COMMENT = "#c4b5fd"
+const QUOTE_ACCENT_SUBTASK = "#fcd34d"
+const QUOTE_ACCENT_DELETED = "#e5e5e5"
 
 // Completion attribution for a subtask, parsed from its (now hidden) "completed a subtask" system
 // comment and rendered as a no-icon reply in the subtask's sub-branch. Creation is intentionally
@@ -188,6 +205,10 @@ export function BranchFeed({
   const [actionPending, setActionPending] = useState<null | "work" | "complete">(null)
   // Per-subtask in-flight guard so double-clicks can't race (and polling won't clobber optimism).
   const [subtaskPending, setSubtaskPending] = useState<Set<string>>(new Set())
+  // What the composer is replying to (chip above the compose box); null = a plain message.
+  const [replyDraft, setReplyDraft] = useState<ReplyDraft | null>(null)
+  // Feed node currently pulsing after a quote-jump ("c-{id}" / "s-{id}").
+  const [flashKey, setFlashKey] = useState<string | null>(null)
 
   const feedRef           = useRef<HTMLDivElement>(null)
   const composeRef        = useRef<HTMLTextAreaElement>(null)
@@ -207,6 +228,9 @@ export function BranchFeed({
   const suppressedCommentIds = useRef<Set<string>>(new Set())
   // Pending post-action catch-up reloads (the status system-comment is produced asynchronously).
   const retryTimers       = useRef<ReturnType<typeof setTimeout>[]>([])
+  // Feed item DOM nodes by key ("c-{commentId}" / "s-{subtaskId}") for quote-jump scrolling.
+  const itemNodes         = useRef(new Map<string, HTMLDivElement>())
+  const flashTimers       = useRef<ReturnType<typeof setTimeout>[]>([])
 
   const setSubtaskBusy = (id: string, on: boolean) => {
     setSubtaskPending((prev) => {
@@ -385,6 +409,41 @@ export function BranchFeed({
   }, [])
 
   useEffect(() => () => { if (highlightTimer.current) clearTimeout(highlightTimer.current) }, [])
+  useEffect(() => () => { flashTimers.current.forEach(clearTimeout) }, [])
+
+  // ── Replies ────────────────────────────────────────────────────────────────────────────────
+
+  // Ref-callback registry: feed rows register themselves so a quote click can scroll to its
+  // target. Keys: "c-{commentId}" for messages/replies, "s-{subtaskId}" for subtask cards.
+  const registerNode = useCallback((key: string) => (el: HTMLDivElement | null) => {
+    if (el) itemNodes.current.set(key, el)
+    else itemNodes.current.delete(key)
+  }, [])
+
+  // Begin replying: drop any special compose mode (a reply is a plain branch message),
+  // show the chip and put the caret in the composer.
+  const startReply = useCallback((draft: ReplyDraft) => {
+    setComposeMode("text")
+    setPlusMenuOpen(false)
+    setReplyDraft(draft)
+    setTimeout(() => composeRef.current?.focus(), 50)
+  }, [])
+
+  const cancelReply = useCallback(() => setReplyDraft(null), [])
+
+  // Smooth-scroll the feed to a quoted target and give it a soft pulse once it settles.
+  const jumpToQuoted = useCallback((type: ReplyTargetType, id: string) => {
+    const key = type === "subtask" ? `s-${id}` : `c-${id}`
+    const el = itemNodes.current.get(key)
+    if (!el) return // target lives on an unloaded earlier page — quietly do nothing
+    el.scrollIntoView({ behavior: "smooth", block: "center" })
+    flashTimers.current.forEach(clearTimeout)
+    setFlashKey(null)
+    flashTimers.current = [
+      setTimeout(() => setFlashKey(key), 240),
+      setTimeout(() => setFlashKey(null), 1500),
+    ]
+  }, [])
 
   // Run a compose-panel task action (take/leave/complete) with a pending indicator.
   const runAction = async (kind: "work" | "complete", fn?: () => Promise<void>) => {
@@ -586,6 +645,7 @@ export function BranchFeed({
     setComposeMode(mode)
     setNewContent("")
     setPlusMenuOpen(false)
+    setReplyDraft(null) // a description/subtask draft is never a reply
     if (composeRef.current) composeRef.current.style.height = "auto"
     setTimeout(() => composeRef.current?.focus(), 50)
   }
@@ -627,10 +687,14 @@ export function BranchFeed({
         )
         setTimeout(scrollToBottom, 60)
       } else {
-        const c = await addComment(todoId, content)
+        const c = await addComment(
+          todoId, content,
+          replyDraft ? { type: replyDraft.type, id: replyDraft.id } : undefined,
+        )
         setComments((prev) => [...prev, c])
         setTotalCount((n) => n + 1)
         setNewContent("")
+        setReplyDraft(null)
         setTimeout(scrollToBottom, 40)
       }
       if (composeRef.current) composeRef.current.style.height = "auto"
@@ -928,10 +992,17 @@ export function BranchFeed({
                       workerCount={subtaskWorkerCount(s)}
                       viewerWorking={!!s.isWorking}
                       pending={subtaskPending.has(s.id)}
+                      flash={flashKey === `s-${s.id}`}
+                      nodeRef={registerNode(`s-${s.id}`)}
                       onToggleComplete={() => toggleSubtaskComplete(s)}
                       onToggleWork={() => toggleSubtaskWork(s)}
                       onDelete={() => removeSubtask(s)}
                       onSaveTitle={(title) => saveSubtaskTitle(s.id, title)}
+                      onReply={() => startReply({
+                        type: "subtask", id: s.id,
+                        authorId: s.userId, authorName: s.authorName,
+                        authorAvatarUrl: s.authorAvatarUrl, preview: s.title,
+                      })}
                     />
                   )
                 }
@@ -947,11 +1018,19 @@ export function BranchFeed({
                     editingId={editingId}
                     editContent={editContent}
                     submitting={submitting}
+                    flash={flashKey === `c-${c.id}`}
+                    nodeRef={registerNode(`c-${c.id}`)}
                     onEditStart={(id, content) => { setEditingId(id); setEditContent(content) }}
                     onEditCancel={() => setEditingId(null)}
                     onEditSave={handleEditSave}
                     onEditContentChange={setEditContent}
                     onDelete={handleDelete}
+                    onReply={() => startReply({
+                      type: "comment", id: c.id,
+                      authorId: c.authorId, authorName: c.authorName,
+                      authorAvatarUrl: c.authorAvatarUrl, preview: c.content,
+                    })}
+                    onQuoteJump={jumpToQuoted}
                   />
                 )
               })}
@@ -967,6 +1046,99 @@ export function BranchFeed({
 
       {/* ── Compose ── */}
       <div style={{ position: "relative", marginTop: 8 }}>
+
+        {/* Reply chip — the quoted target the next message will answer. Animates its height so
+            the composer grows/settles smoothly instead of jumping. */}
+        <AnimatePresence initial={false}>
+          {replyDraft && composeMode === "text" && (
+            <motion.div
+              key={`reply-${replyDraft.type}-${replyDraft.id}`}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={SPRING_SNAP}
+              style={{ overflow: "hidden" }}
+            >
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8,
+                marginBottom: 6, padding: "7px 8px 7px 10px",
+                background: "#fafafa",
+                border: "1px solid #f0f0f0",
+                borderLeft: `2.5px solid ${replyDraft.type === "subtask" ? QUOTE_ACCENT_SUBTASK : QUOTE_ACCENT_COMMENT}`,
+                borderRadius: 12,
+              }}>
+                <Reply size={12} color="#a3a3a3" strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                <FriendAvatar
+                  friend={{
+                    id: replyDraft.authorId ?? "",
+                    firstName: replyDraft.authorName?.split(" ")[0],
+                    lastName: replyDraft.authorName?.split(" ")[1],
+                    profilePictureUrl: replyDraft.authorAvatarUrl,
+                  }}
+                  size={20}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <span style={{
+                      fontSize: 8.5, fontWeight: 900, letterSpacing: "0.12em",
+                      textTransform: "uppercase", color: "#a3a3a3", lineHeight: 1.2,
+                    }}>
+                      Replying to
+                    </span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 800, letterSpacing: "-0.01em",
+                      color: "#0a0a0a", whiteSpace: "nowrap", overflow: "hidden",
+                      textOverflow: "ellipsis", lineHeight: 1.2,
+                    }}>
+                      {replyDraft.authorName || "Unknown"}
+                    </span>
+                    {replyDraft.type === "subtask" && (
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 3,
+                        fontSize: 8, fontWeight: 900, letterSpacing: "0.1em",
+                        textTransform: "uppercase", color: "#b45309",
+                        background: "#fef3c7", border: "1px solid #fde68a",
+                        padding: "1px 6px", borderRadius: 5, flexShrink: 0,
+                      }}>
+                        <ListTree size={8} strokeWidth={2.6} />
+                        Subtask
+                      </span>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: 11, fontWeight: 500, color: "#737373", lineHeight: 1.35,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    marginTop: 1,
+                  }}>
+                    {replyDraft.preview}
+                  </div>
+                </div>
+                <button
+                  onClick={cancelReply}
+                  aria-label="Cancel reply"
+                  title="Cancel reply (Esc)"
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    width: 22, height: 22, borderRadius: 7, border: "none",
+                    background: "transparent", cursor: "pointer", padding: 0,
+                    color: "#a3a3a3", flexShrink: 0,
+                    transition: "background 120ms, color 120ms",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "#eeeeee"
+                    ;(e.currentTarget as HTMLButtonElement).style.color = "#525252"
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                    ;(e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+                  }}
+                >
+                  <X size={11} strokeWidth={2.5} />
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Mode chip — slides in above compose box when authoring the description or a subtask */}
         {composeMode !== "text" && (
@@ -1218,8 +1390,12 @@ export function BranchFeed({
                 e.preventDefault()
                 handleSubmitWithMode()
               }
-              if (e.key === "Escape" && composeMode !== "text") {
-                exitComposeMode()
+              if (e.key === "Escape" && (replyDraft || composeMode !== "text")) {
+                // Escape peels affordances back one layer: first the reply chip, then the mode.
+                // Consume the event so the modal's global Escape handler doesn't also close.
+                e.stopPropagation()
+                if (replyDraft) cancelReply()
+                else exitComposeMode()
               }
             }}
             rows={1}
@@ -1425,15 +1601,20 @@ interface SubtaskCardProps {
   /** Whether THIS viewer is one of them (drives their own take-into-work / step-out toggle). */
   viewerWorking: boolean
   pending: boolean
+  /** Pulse the card after a quote-jump landed on it. */
+  flash?: boolean
+  /** Registers the card's DOM node so reply quotes can scroll to it. */
+  nodeRef?: (el: HTMLDivElement | null) => void
   onToggleComplete: () => void
   onToggleWork: () => void
   onDelete: () => void
   onSaveTitle: (title: string) => void
+  onReply: () => void
 }
 
 function SubtaskCard({
-  subtask, meta, isOwner, done, workerCount, viewerWorking, pending,
-  onToggleComplete, onToggleWork, onDelete, onSaveTitle,
+  subtask, meta, isOwner, done, workerCount, viewerWorking, pending, flash, nodeRef,
+  onToggleComplete, onToggleWork, onDelete, onSaveTitle, onReply,
 }: SubtaskCardProps) {
   const [hovered, setHovered] = useState(false)
   const [deleteHovered, setDeleteHovered] = useState(false)
@@ -1490,13 +1671,17 @@ function SubtaskCard({
   return (
     <motion.div
       layout
+      ref={nodeRef}
       initial={{ opacity: 0, y: 8, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.96, height: 0, marginTop: -2, marginBottom: 0 }}
       transition={SPRING_SNAP}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setDeleteHovered(false) }}
-      style={{ position: "relative", padding: "6px 0" }}
+      style={{
+        position: "relative", padding: "6px 0", borderRadius: 14,
+        animation: flash ? "reply_flash 1100ms ease-out" : undefined,
+      }}
     >
       {/* ── Card row ── the subtask forks off the main rail into its own sub-branch. The completion
           toggle is the subtask's ONLY marker, sitting on the sub-branch at the card's VERTICAL
@@ -1568,17 +1753,18 @@ function SubtaskCard({
         </button>
 
         {/* Card body — taller, task-like; overflow:hidden clips the delete strip + rounded corners.
-            alignItems:flex-start lets the card grow downward when a long title wraps. */}
+            Stacked: the title row on top, the footer (author identity + work controls) below. */}
         <div style={{
           position: "relative", overflow: "hidden",
-          display: "flex", alignItems: "flex-start", gap: 10,
+          display: "flex", flexDirection: "column",
           padding: "11px 12px", paddingRight: bodyPaddingRight,
           borderRadius: 12,
           background: done ? "#f7fdfb" : someoneWorking ? "#fffdf5" : "#fafafa",
           border: `1px solid ${done ? "#d7f5ea" : someoneWorking && !done ? "#fde68a" : "#f0f0f0"}`,
           transition: "background 200ms, border-color 200ms, padding 160ms",
         }}>
-          {/* Title (wraps freely) or inline editor */}
+          {/* ── Title row ── (wraps freely) or inline editor */}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
           {editing ? (
             <textarea
               ref={editInputRef}
@@ -1622,85 +1808,9 @@ function SubtaskCard({
             </span>
           )}
 
-          {/* In-work presence pill — per-user, shown to EVERY viewer. For the viewer who is
-              working it doubles as the Leave control: on hover it cross-fades amber→red into
-              "Leave" (mirroring the parent task's In Progress pill at the modal top), so there
-              is no separate exit button. Other viewers see an anonymous "N working" count.
-              Intentionally compact (short label, no extra button) so taking a subtask into work
-              barely nudges the title rather than reflowing it. */}
-          <AnimatePresence initial={false}>
-            {someoneWorking && !done && !editing && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.7 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.7 }}
-                transition={{ type: "spring", stiffness: 480, damping: 26 }}
-                onMouseEnter={() => { if (viewerWorking) setWorkPillHovered(true) }}
-                onMouseLeave={() => setWorkPillHovered(false)}
-                onClick={(e) => { if (viewerWorking && !pending) { e.stopPropagation(); onToggleWork() } }}
-                title={viewerWorking
-                  ? "You're working on this — click to leave"
-                  : `${workerCount} ${workerCount === 1 ? "person is" : "people are"} working on this`}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0, marginTop: 2,
-                  background: viewerWorking && workPillHovered
-                    ? "linear-gradient(180deg,#fff1f2,#fee2e2)"
-                    : "linear-gradient(180deg,#fff8e6,#fef0c7)",
-                  border: `1px solid ${viewerWorking && workPillHovered ? "#fecaca" : "#fce4a6"}`,
-                  padding: "3px 8px", borderRadius: 999,
-                  boxShadow: "0 1px 3px -1px rgba(245,158,11,0.3)",
-                  cursor: viewerWorking ? (pending ? "default" : "pointer") : "default",
-                  transition: "background 200ms ease, border-color 200ms ease",
-                }}
-              >
-                {/* Pulsing dot — amber idle, red when a click would leave */}
-                <span style={{ position: "relative", width: 6, height: 6, flexShrink: 0 }}>
-                  <span className="animate-ping" style={{
-                    position: "absolute", inset: 0, borderRadius: "50%",
-                    background: viewerWorking && workPillHovered ? "#ef4444" : "#f59e0b",
-                    opacity: 0.55, transition: "background 200ms ease",
-                  }} />
-                  <span style={{
-                    position: "absolute", inset: 1, borderRadius: "50%",
-                    background: viewerWorking && workPillHovered ? "#ef4444" : "#f59e0b",
-                    transition: "background 200ms ease",
-                  }} />
-                </span>
-                {/* Label / Leave — same slot, crossfade on hover (viewer only) */}
-                <span style={{
-                  position: "relative", display: "inline-block",
-                  fontSize: 9.5, fontWeight: 900, letterSpacing: "0.05em",
-                  textTransform: "uppercase", whiteSpace: "nowrap", lineHeight: 1,
-                }}>
-                  {/* Idle label keeps the slot width even when "Leave" is overlaid */}
-                  <span style={{
-                    display: "block", color: "#b45309",
-                    opacity: viewerWorking && workPillHovered ? 0 : 1,
-                    transition: "opacity 160ms ease", userSelect: "none",
-                  }}>
-                    {viewerWorking
-                      ? (workerCount > 1 ? `You +${workerCount - 1}` : "Working")
-                      : `${workerCount} working`}
-                  </span>
-                  {viewerWorking && (
-                    <span style={{
-                      position: "absolute", inset: 0,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      color: "#b91c1c",
-                      opacity: workPillHovered ? 1 : 0,
-                      transition: "opacity 160ms ease", userSelect: "none",
-                    }}>
-                      Leave
-                    </span>
-                  )}
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Inline actions — revealed on hover, hidden under the delete panel. Taking a subtask
-              into work (and leaving) is handled by the marker + the in-work pill above, so the
-              only inline action here is owner editing. */}
+          {/* Inline actions — revealed on hover, hidden under the delete panel. Taking a
+              subtask into work lives in the footer below; the only title-row action is
+              owner editing. */}
           {!editing && isOwner && (
             <div style={{
               display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginTop: 1,
@@ -1710,6 +1820,184 @@ function SubtaskCard({
               <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
                 <Pencil size={13} strokeWidth={2} />
               </SubtaskIconButton>
+            </div>
+          )}
+          </div>
+
+          {/* ── Footer ── the subtask's byline + work controls: who added this step on the
+              left; reply + the work cluster on the right. The in-work pill is the SAME pill
+              as always (amber pulse, crossfade to "Leave" on hover) — just anchored at the
+              bottom of the card. */}
+          {!editing && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 9, minHeight: 22 }}>
+              {subtask.authorName && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, flexShrink: 1 }}>
+                  <FriendAvatar
+                    friend={{
+                      id: subtask.userId,
+                      firstName: subtask.authorName.split(" ")[0],
+                      lastName: subtask.authorName.split(" ")[1],
+                      profilePictureUrl: subtask.authorAvatarUrl,
+                    }}
+                    size={16}
+                  />
+                  <span style={{
+                    fontSize: 10.5, fontWeight: 700, color: "#8a8a8a", lineHeight: 1.3,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    transition: "color 200ms",
+                  }}>
+                    {subtask.authorName}
+                  </span>
+                </div>
+              )}
+              <div style={{ flex: 1 }} />
+
+              {/* Reply — quote this subtask in the composer */}
+              <button
+                onClick={(e) => { e.stopPropagation(); onReply() }}
+                aria-label="Reply to subtask"
+                title="Reply in branch"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0,
+                  padding: "3px 7px", borderRadius: 7, border: "none",
+                  background: "transparent", cursor: "pointer",
+                  fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em",
+                  textTransform: "uppercase", color: "#a3a3a3", lineHeight: 1,
+                  transition: "color 140ms, background 140ms",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = "#525252"
+                  ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(0,0,0,0.045)"
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+                  ;(e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                }}
+              >
+                <Reply size={10} strokeWidth={2.4} />
+                Reply
+              </button>
+
+              <AnimatePresence initial={false}>
+                {/* In-work presence pill — per-user, shown to EVERY viewer. For the viewer who
+                    is working it doubles as the Leave control: on hover it cross-fades
+                    amber→red into "Leave" (mirroring the parent task's In Progress pill at the
+                    modal top), so there is no separate exit button. Other viewers see an
+                    anonymous "N working" count. */}
+                {someoneWorking && !done && (
+                  <motion.div
+                    key="work-pill"
+                    initial={{ opacity: 0, scale: 0.7 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.7 }}
+                    transition={{ type: "spring", stiffness: 480, damping: 26 }}
+                    onMouseEnter={() => { if (viewerWorking) setWorkPillHovered(true) }}
+                    onMouseLeave={() => setWorkPillHovered(false)}
+                    onClick={(e) => { if (viewerWorking && !pending) { e.stopPropagation(); onToggleWork() } }}
+                    title={viewerWorking
+                      ? "You're working on this — click to leave"
+                      : `${workerCount} ${workerCount === 1 ? "person is" : "people are"} working on this`}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
+                      background: viewerWorking && workPillHovered
+                        ? "linear-gradient(180deg,#fff1f2,#fee2e2)"
+                        : "linear-gradient(180deg,#fff8e6,#fef0c7)",
+                      border: `1px solid ${viewerWorking && workPillHovered ? "#fecaca" : "#fce4a6"}`,
+                      padding: "3px 8px", borderRadius: 999,
+                      boxShadow: "0 1px 3px -1px rgba(245,158,11,0.3)",
+                      cursor: viewerWorking ? (pending ? "default" : "pointer") : "default",
+                      transition: "background 200ms ease, border-color 200ms ease",
+                    }}
+                  >
+                    {/* Pulsing dot — amber idle, red when a click would leave */}
+                    <span style={{ position: "relative", width: 6, height: 6, flexShrink: 0 }}>
+                      <span className="animate-ping" style={{
+                        position: "absolute", inset: 0, borderRadius: "50%",
+                        background: viewerWorking && workPillHovered ? "#ef4444" : "#f59e0b",
+                        opacity: 0.55, transition: "background 200ms ease",
+                      }} />
+                      <span style={{
+                        position: "absolute", inset: 1, borderRadius: "50%",
+                        background: viewerWorking && workPillHovered ? "#ef4444" : "#f59e0b",
+                        transition: "background 200ms ease",
+                      }} />
+                    </span>
+                    {/* Label / Leave — same slot, crossfade on hover (viewer only) */}
+                    <span style={{
+                      position: "relative", display: "inline-block",
+                      fontSize: 9.5, fontWeight: 900, letterSpacing: "0.05em",
+                      textTransform: "uppercase", whiteSpace: "nowrap", lineHeight: 1,
+                    }}>
+                      {/* Idle label keeps the slot width even when "Leave" is overlaid */}
+                      <span style={{
+                        display: "block", color: "#b45309",
+                        opacity: viewerWorking && workPillHovered ? 0 : 1,
+                        transition: "opacity 160ms ease", userSelect: "none",
+                      }}>
+                        {viewerWorking
+                          ? (workerCount > 1 ? `You +${workerCount - 1}` : "Working")
+                          : `${workerCount} working`}
+                      </span>
+                      {viewerWorking && (
+                        <span style={{
+                          position: "absolute", inset: 0,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "#b91c1c",
+                          opacity: workPillHovered ? 1 : 0,
+                          transition: "opacity 160ms ease", userSelect: "none",
+                        }}>
+                          Leave
+                        </span>
+                      )}
+                    </span>
+                  </motion.div>
+                )}
+
+                {/* Take into work — explicit footer button mirroring the screenshot's
+                    affordance, styled like the project's primary pills (white → ink on
+                    hover). The marker keeps its click behaviour too; this is the visible,
+                    labelled path. */}
+                {!viewerWorking && !done && (
+                  <motion.button
+                    key="take-into-work"
+                    type="button"
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    transition={{ type: "spring", stiffness: 480, damping: 26 }}
+                    onClick={(e) => { e.stopPropagation(); if (!pending) onToggleWork() }}
+                    disabled={pending}
+                    aria-label="Take subtask into work"
+                    title="Take into work"
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
+                      padding: "4px 10px", borderRadius: 999,
+                      border: "1px solid #e8e8e8", background: "white",
+                      cursor: pending ? "default" : "pointer",
+                      fontSize: 9.5, fontWeight: 900, letterSpacing: "0.06em",
+                      textTransform: "uppercase", color: "#404040", lineHeight: 1,
+                      whiteSpace: "nowrap",
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                      transition: "background 160ms, color 160ms, border-color 160ms",
+                      fontFamily: "inherit",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (pending) return
+                      const b = e.currentTarget as HTMLButtonElement
+                      b.style.background = "#0a0a0a"; b.style.color = "white"; b.style.borderColor = "#0a0a0a"
+                    }}
+                    onMouseLeave={(e) => {
+                      const b = e.currentTarget as HTMLButtonElement
+                      b.style.background = "white"; b.style.color = "#404040"; b.style.borderColor = "#e8e8e8"
+                    }}
+                  >
+                    {pending
+                      ? <Loader2 size={9} className="animate-spin" />
+                      : <Play size={9} strokeWidth={2.6} fill="currentColor" />}
+                    Take into work
+                  </motion.button>
+                )}
+              </AnimatePresence>
             </div>
           )}
 
@@ -1850,6 +2138,97 @@ function SubtaskIconButton({ label, title, color, hoverBg, disabled, onClick, ch
   )
 }
 
+/* ── Reply quote ── the compact quoted-target block above a reply's body: accent bar, the
+   quoted author's avatar + name and a one-line excerpt. Clicking it travels up the branch to
+   the original (when it is loaded) with a soft pulse; a deleted target renders muted and inert. */
+function ReplyQuote({
+  comment: c,
+  onJump,
+}: {
+  comment: TodoComment
+  onJump?: (type: ReplyTargetType, id: string) => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  if (!c.replyToType || !c.replyToId) return null
+
+  const isSubtask = c.replyToType === "subtask"
+  const deleted = !!c.replyToDeleted
+  const clickable = !deleted && !!onJump
+  const accent = deleted ? QUOTE_ACCENT_DELETED : isSubtask ? QUOTE_ACCENT_SUBTASK : QUOTE_ACCENT_COMMENT
+
+  return (
+    <button
+      type="button"
+      onClick={() => { if (clickable) onJump!(c.replyToType!, c.replyToId!) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      tabIndex={clickable ? 0 : -1}
+      aria-label={clickable
+        ? (isSubtask ? "Go to the quoted subtask" : "Go to the quoted message")
+        : undefined}
+      title={clickable
+        ? (isSubtask ? "Go to subtask" : "Go to message")
+        : undefined}
+      style={{
+        display: "flex", alignItems: "center", gap: 7,
+        width: "100%", boxSizing: "border-box", textAlign: "left",
+        marginBottom: 6, padding: "5px 9px 5px 8px",
+        background: clickable && hovered ? "#f1f1f4" : "#f7f7f8",
+        border: "none",
+        borderLeft: `2.5px solid ${accent}`,
+        borderRadius: 10,
+        cursor: clickable ? "pointer" : "default",
+        fontFamily: "inherit",
+        transition: "background 140ms",
+      }}
+    >
+      {!deleted && (
+        <FriendAvatar
+          friend={{
+            id: c.replyToAuthorId ?? "",
+            firstName: c.replyToAuthorName?.split(" ")[0],
+            lastName: c.replyToAuthorName?.split(" ")[1],
+            profilePictureUrl: c.replyToAuthorAvatarUrl,
+          }}
+          size={16}
+        />
+      )}
+      {isSubtask && (
+        <ListTree size={10} color={deleted ? "#b8b8b8" : "#d97706"} strokeWidth={2.4} style={{ flexShrink: 0 }} />
+      )}
+      {c.replyToAuthorName && (
+        <span style={{
+          fontSize: 10.5, fontWeight: 800, letterSpacing: "-0.01em",
+          color: deleted ? "#a8a8a8" : "#404040",
+          whiteSpace: "nowrap", flexShrink: 0, lineHeight: 1.3,
+        }}>
+          {c.replyToAuthorName}
+        </span>
+      )}
+      <span style={{
+        flex: 1, minWidth: 0,
+        fontSize: 11, fontWeight: 500, lineHeight: 1.35,
+        color: deleted ? "#b3b3b3" : "#8a8a8a",
+        fontStyle: deleted ? "italic" : "normal",
+        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+      }}>
+        {c.replyToPreview || (deleted
+          ? (isSubtask ? "Subtask deleted" : "Message deleted")
+          : "")}
+      </span>
+      {deleted && (
+        <span style={{
+          fontSize: 8, fontWeight: 900, letterSpacing: "0.1em", textTransform: "uppercase",
+          color: "#b3b3b3", background: "#efefef", padding: "1px 6px", borderRadius: 5,
+          flexShrink: 0,
+        }}>
+          Deleted
+        </span>
+      )}
+    </button>
+  )
+}
+
 /* ── Message item ── */
 interface MessageItemProps {
   comment: TodoComment
@@ -1857,16 +2236,22 @@ interface MessageItemProps {
   editingId: string | null
   editContent: string
   submitting: boolean
+  /** Pulse the row after a quote-jump landed on it. */
+  flash?: boolean
+  /** Registers the row's DOM node so reply quotes can scroll to it. */
+  nodeRef?: (el: HTMLDivElement | null) => void
   onEditStart: (id: string, content: string) => void
   onEditCancel: () => void
   onEditSave: (id: string) => void
   onEditContentChange: (v: string) => void
   onDelete: (id: string) => void
+  onReply: () => void
+  onQuoteJump?: (type: ReplyTargetType, id: string) => void
 }
 
 function MessageItem({
-  comment: c, isOwner, editingId, editContent, submitting,
-  onEditStart, onEditCancel, onEditSave, onEditContentChange, onDelete,
+  comment: c, isOwner, editingId, editContent, submitting, flash, nodeRef,
+  onEditStart, onEditCancel, onEditSave, onEditContentChange, onDelete, onReply, onQuoteJump,
 }: MessageItemProps) {
   const [hovered, setHovered] = useState(false)
   const isEditing = editingId === c.id
@@ -1874,6 +2259,7 @@ function MessageItem({
 
   return (
     <div
+      ref={nodeRef}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -1883,6 +2269,7 @@ function MessageItem({
         borderRadius: 12,
         background: hovered ? "#fafafa" : "transparent",
         transition: "background 140ms",
+        animation: flash ? "reply_flash 1100ms ease-out" : undefined,
       }}
     >
       {/* Avatar marker — centred on the rail */}
@@ -1925,12 +2312,29 @@ function MessageItem({
           <span style={{ fontSize: 9, color: "#a3a3a3", fontStyle: "italic" }}>edited</span>
         )}
 
-        {/* Hover actions */}
-        {hovered && canAct && !isEditing && (
+        {/* Hover actions — reply is available to everyone with branch access; edit/delete
+            keep their ownership rules. */}
+        {hovered && !isEditing && (
           <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
+            <button
+              onClick={onReply}
+              aria-label="Reply"
+              title="Reply"
+              style={{
+                width: 20, height: 20, borderRadius: 5, border: "none",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "transparent", cursor: "pointer",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#eaeaea" }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+            >
+              <Reply size={11} color="#525252" strokeWidth={2.2} />
+            </button>
             {c.isOwn && (
               <button
                 onClick={() => onEditStart(c.id, c.content)}
+                aria-label="Edit message"
+                title="Edit"
                 style={{
                   width: 20, height: 20, borderRadius: 5, border: "none",
                   display: "flex", alignItems: "center", justifyContent: "center",
@@ -1942,21 +2346,30 @@ function MessageItem({
                 <Pencil size={10} color="#525252" />
               </button>
             )}
-            <button
-              onClick={() => onDelete(c.id)}
-              style={{
-                width: 20, height: 20, borderRadius: 5, border: "none",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "transparent", cursor: "pointer",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#eaeaea" }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
-            >
-              <Trash2 size={10} color="#525252" />
-            </button>
+            {canAct && (
+              <button
+                onClick={() => onDelete(c.id)}
+                aria-label="Delete message"
+                title="Delete"
+                style={{
+                  width: 20, height: 20, borderRadius: 5, border: "none",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "transparent", cursor: "pointer",
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#eaeaea" }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+              >
+                <Trash2 size={10} color="#525252" />
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {/* Quoted target — rendered above the body so the reply reads top-down like a thread */}
+      {!isEditing && c.replyToType && (
+        <ReplyQuote comment={c} onJump={onQuoteJump} />
+      )}
 
       {/* Body */}
       {isEditing ? (

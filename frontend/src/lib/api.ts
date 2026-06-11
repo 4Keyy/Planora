@@ -5,7 +5,7 @@ import { refreshAccessToken } from "@/lib/auth-public"
 import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
 import { getApiBaseUrl } from "@/lib/config"
 import { newTraceparent, extractTraceId, traceparentForExistingTrace } from "@/lib/trace"
-import type { Todo, TodoComment } from "@/types/todo"
+import type { ReplyTargetType, Todo, TodoComment } from "@/types/todo"
 import type { AuthTokenDto } from "@/types/auth"
 
 const BASE_URL = getApiBaseUrl()
@@ -395,10 +395,20 @@ export const fetchComments = async (
   return parseApiResponse(data)
 }
 
-export const addComment = async (todoId: string, content: string): Promise<TodoComment> => {
+/**
+ * Adds a branch message. Pass `replyTo` to make it a reply quoting another
+ * comment/reply (`type: "comment"`) or a subtask card (`type: "subtask"`).
+ * The server validates the target and captures the quote snapshot — the client
+ * never sends preview text.
+ */
+export const addComment = async (
+  todoId: string,
+  content: string,
+  replyTo?: { type: ReplyTargetType; id: string },
+): Promise<TodoComment> => {
   const { data } = await api.post<ApiResponse<TodoComment>>(
     `/collaboration/api/v1/comments/${todoId}`,
-    { content },
+    replyTo ? { content, replyTo } : { content },
   )
   return parseApiResponse(data)
 }

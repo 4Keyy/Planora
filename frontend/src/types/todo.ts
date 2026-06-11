@@ -106,12 +106,17 @@ export type Todo = {
   isCompletedByViewer?: boolean | null
   /** When set, this todo is a subtask (child) of the given parent task. */
   parentTodoId?: string | null
+  /** Live author avatar (subtask reads — resolved from Auth server-side, never stored). */
+  authorAvatarUrl?: string | null
 }
 
 export type PagedTodosResponse = {
   items: Todo[]
   totalCount: number
 }
+
+/** What a reply quotes: another comment/reply, or a subtask card in the same branch. */
+export type ReplyTargetType = "comment" | "subtask"
 
 export type TodoComment = {
   id: string
@@ -126,6 +131,17 @@ export type TodoComment = {
   isEdited: boolean
   isSystemComment?: boolean
   isGenesisComment?: boolean
+  // ── Reply reference (present only on replies) ──
+  // The quoted author is resolved live server-side; the preview is the live target text
+  // for comment targets (snapshot fallback when deleted) and the title snapshot for subtasks.
+  replyToType?: ReplyTargetType | null
+  replyToId?: string | null
+  replyToAuthorId?: string | null
+  replyToAuthorName?: string | null
+  replyToAuthorAvatarUrl?: string | null
+  replyToPreview?: string | null
+  /** True when the quoted target was deleted — the quote renders muted and un-clickable. */
+  replyToDeleted?: boolean
 }
 
 export type CreateTodoPayload = {
