@@ -28,6 +28,28 @@ function addDays(base: string | null, n: number): string {
 function todayISO(): string { return toISO(new Date()) }
 
 export function DatePopover({ open, onClose, value, onChange, containerRef, readOnly }: DatePopoverProps) {
+  return (
+    <Popover open={open} onClose={onClose} width={320} containerRef={containerRef}>
+      <DateCalendar value={value} onChange={onChange} readOnly={readOnly} autoClose={onClose} />
+    </Popover>
+  )
+}
+
+interface DateCalendarProps {
+  value: string                 // YYYY-MM-DD or ""
+  onChange: (isoDate: string | null) => void
+  readOnly?: boolean
+  /** Called after a pick — the popover closes; the always-open sidebar omits it (stays open). */
+  autoClose?: () => void
+  /** Drops the popover's header/CLEAR row; the sidebar renders its own header + clear control. */
+  headless?: boolean
+}
+
+/**
+ * The due-date quick-picks + month calendar, extracted from {@link DatePopover} so it can render
+ * inline (always-open) in the branch page's meta sidebar as well as inside the popover.
+ */
+export function DateCalendar({ value, onChange, readOnly, autoClose, headless }: DateCalendarProps) {
   const nowDate   = new Date()
   const initYear  = value ? new Date(value).getFullYear() : nowDate.getFullYear()
   const initMonth = value ? new Date(value).getMonth()    : nowDate.getMonth()
@@ -47,7 +69,7 @@ export function DatePopover({ open, onClose, value, onChange, containerRef, read
     { label: "Next week",  iso: plusWeek  },
   ]
 
-  const selectDate = (iso: string) => { if (readOnly) return; onChange(iso); onClose() }
+  const selectDate = (iso: string) => { if (readOnly) return; onChange(iso); autoClose?.() }
 
   const prevMonth = () => {
     if (viewMonth === 0) { setViewYear(viewYear - 1); setViewMonth(11) }
@@ -72,7 +94,7 @@ export function DatePopover({ open, onClose, value, onChange, containerRef, read
 
   const clearAction = value && !readOnly ? (
     <button
-      onClick={() => { onChange(null); onClose() }}
+      onClick={() => { onChange(null); autoClose?.() }}
       style={{
         background: "none",
         border: "none",
@@ -92,9 +114,9 @@ export function DatePopover({ open, onClose, value, onChange, containerRef, read
   ) : undefined
 
   return (
-    <Popover open={open} onClose={onClose} width={320} containerRef={containerRef}>
-      {/* Header with "Очистить" on same row */}
-      <PopoverHeader label="Due date" action={clearAction} />
+    <>
+      {/* Header with "Очистить" on same row (omitted in the headless/sidebar variant) */}
+      {!headless && <PopoverHeader label="Due date" action={clearAction} />}
 
       {/* Quick picks — owner only. A non-owner viewer reads the date but never sets it, so the
           Today/Tomorrow/… shortcuts are omitted entirely (not just disabled). */}
@@ -219,6 +241,6 @@ export function DatePopover({ open, onClose, value, onChange, containerRef, read
           </div>
         </div>
       </div>
-    </Popover>
+    </>
   )
 }

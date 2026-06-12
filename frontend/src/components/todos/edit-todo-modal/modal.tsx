@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { X, ExternalLink, ArrowLeft } from "lucide-react"
@@ -13,6 +13,7 @@ import { Todo, type UpdateTodoPayload, isTodoOwner } from "@/types/todo"
 import { Category }         from "@/types/category"
 import { BranchFeed }       from "./branch-feed"
 import { InlineTokenStrip } from "./inline-token-strip"
+import { PageMetaPanel }    from "./page-meta-panel"
 import {
   getPriorityNumber,
   getPriorityString,
@@ -259,269 +260,241 @@ export function TodoEditor({
 
   const isPage = variant === "page"
 
+  // ── Reusable nodes (shared by the modal and page layouts) ──
+
+  // The editable title — same logic for both layouts; only the sizing/inset differs.
+  const renderTitle = (fontSize: number, inset: number, vpad: number) => {
+    const box: CSSProperties = {
+      display: "block",
+      width: `calc(100% + ${inset}px)`,
+      marginLeft: -inset,
+      padding: `${vpad}px ${inset}px`,
+      boxSizing: "border-box",
+      fontSize, fontWeight: 900, lineHeight: 1.22, letterSpacing: "-0.025em",
+      color: "#0a0a0a", borderRadius: 10,
+    }
+    return editingTitle && isOwner ? (
+      <textarea
+        ref={titleTextareaRef}
+        value={titleDraft}
+        onChange={(e) => {
+          setTitleDraft(e.target.value)
+          e.target.style.height = "auto"
+          e.target.style.height = e.target.scrollHeight + "px"
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitTitle() }
+          if (e.key === "Escape") { setEditingTitle(false); setTitleDraft(title) }
+        }}
+        onBlur={commitTitle}
+        maxLength={200}
+        rows={1}
+        style={{
+          ...box,
+          resize: "none", border: "none", outline: "none",
+          background: "#fafafa", fontFamily: "inherit", overflow: "hidden",
+          transition: "background 140ms",
+        }}
+      />
+    ) : (
+      <h1
+        ref={titleH1Ref}
+        onClick={() => isOwner && setEditingTitle(true)}
+        style={{
+          ...box,
+          marginTop: 0, marginRight: 0, marginBottom: 0,
+          cursor: isOwner ? "text" : "default",
+          background: "transparent", transition: "background 140ms", wordBreak: "break-word",
+        }}
+        onMouseEnter={(e) => { if (isOwner) (e.currentTarget as HTMLHeadingElement).style.background = "#fafafa" }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLHeadingElement).style.background = "transparent" }}
+      >
+        {title}
+      </h1>
+    )
+  }
+
+  // The In Progress pill (with hover → Leave). Shown when the viewer has the task in progress.
+  const pillNode = effectiveInProgress && onLeave ? (
+    <div
+      onMouseEnter={() => setPillHovered(true)}
+      onMouseLeave={() => setPillHovered(false)}
+      style={{
+        display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+        background: pillHovered ? "#fef2f2" : "#f5f3ff",
+        border: `1px solid ${pillHovered ? "#fecaca" : "#ddd6fe"}`,
+        borderRadius: 100, padding: "5px 10px 5px 8px", cursor: "default",
+        transition: "background 240ms ease, border-color 240ms ease",
+      }}
+    >
+      <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
+        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "#ef4444" : "#8b5cf6", transition: "background 240ms ease" }} />
+        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "#ef4444" : "#8b5cf6", animation: "pl_pulse 1.6s ease-in-out infinite", transition: "background 240ms ease" }} />
+      </div>
+      <div style={{ position: "relative", display: "inline-block" }}>
+        <span style={{ display: "block", fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", color: "#6d28d9", opacity: pillHovered ? 0 : 1, transition: "opacity 180ms ease", userSelect: "none" }}>
+          In Progress
+        </span>
+        <button
+          onClick={async (e) => { e.stopPropagation(); setWorkOverride(false); await onLeave() }}
+          style={{
+            position: "absolute", inset: "-3px -6px",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "transparent", border: "1px solid #fecaca", borderRadius: 6, cursor: "pointer",
+            fontSize: 11, fontWeight: 700, color: "#991b1b", whiteSpace: "nowrap", fontFamily: "inherit",
+            opacity: pillHovered ? 1 : 0, pointerEvents: pillHovered ? "auto" : "none",
+            transition: "opacity 180ms ease, background 120ms ease",
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2" }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
+        >
+          Leave
+        </button>
+      </div>
+    </div>
+  ) : null
+
+  // The branch timeline (flex-fills its column).
+  const branchNode = (
+    <BranchFeed
+      todoId={todo.id}
+      isOwner={isOwner}
+      refreshKey={commentsRefreshKey}
+      onSaveDescription={isOwner ? handleSaveDescription : undefined}
+      inProgress={effectiveInProgress}
+      isCompleted={isCompleted}
+      onStartWork={onStartWork ? async () => { setWorkOverride(true); await onStartWork() } : undefined}
+      onStopWork={onLeave ? async () => { setWorkOverride(false); await onLeave() } : undefined}
+      // The modal closes after complete/duplicate; the page stays (duplicate navigates itself).
+      onCompleteTask={onCompleteTask ? async () => { await onCompleteTask(); onClose?.() } : undefined}
+      onDuplicate={onDuplicate ? async () => { await onDuplicate(); onClose?.() } : undefined}
+    />
+  )
+
+  const metaProps = {
+    priority, onPriorityChange: setPriority,
+    dueDate, onDueDateChange: (v: string | null) => setDueDate(v ?? ""),
+    categoryId, onCategoryChange: setCategoryId,
+    categories, onCreateCategory, canEditCategory,
+    authorCategoryName: todo.authorCategoryName,
+    authorCategoryColor: todo.authorCategoryColor,
+    authorCategoryIcon: todo.authorCategoryIcon,
+    isOwner,
+    visMode, onVisModeChange: setVisMode,
+    sharedIds, onSharedIdsChange: setSharedIds,
+    friends, openPopover, setOpenPopover,
+  }
+
+  // ── Page layout ── wide, two-column: a compact meta sidebar on the left, the branch on the
+  // right, and a header row carrying the Task Branch label + the editable title + the pill.
+  if (isPage) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+        {/* Header: TASK BRANCH label · Title · In Progress (right) */}
+        <div style={{ padding: "16px 26px 0", display: "flex", alignItems: "flex-start", gap: 14 }}>
+          <Link
+            href="/tasks"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 9,
+              fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase",
+              color: "#a3a3a3", textDecoration: "none",
+            }}
+          >
+            <ArrowLeft size={13} strokeWidth={2.4} /> Task Branch
+          </Link>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {renderTitle(20, 12, 6)}
+          </div>
+          {pillNode && <div style={{ marginTop: 6 }}>{pillNode}</div>}
+        </div>
+
+        {/* Body: meta sidebar | branch */}
+        <div style={{ flex: 1, minHeight: 0, display: "flex", padding: "14px 26px 22px", gap: 0 }}>
+          <div style={{ width: 296, flexShrink: 0, overflowY: "auto", paddingRight: 24 }} className="branch-scroll">
+            <PageMetaPanel {...metaProps} />
+          </div>
+          <div style={{ width: 1, background: "#f5f5f5", flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0, paddingLeft: 24, display: "flex", flexDirection: "column" }}>
+            {branchNode}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Modal layout ── single column: chrome bar, title, horizontal meta strip, branch.
   return (
     <div
       style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}
       className="branch-scroll"
     >
-          {/* ── (1) Top chrome bar ── */}
-          <div style={{
-            padding: "16px 26px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-          }}>
-            {/* Left: a back link on the page, a plain label in the modal */}
-            {isPage ? (
-              <Link
-                href="/tasks"
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
-                  textTransform: "uppercase", color: "#a3a3a3", textDecoration: "none",
-                }}
-              >
-                <ArrowLeft size={13} strokeWidth={2.4} /> Task Branch
-              </Link>
-            ) : (
-              <span style={{
-                fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
-                textTransform: "uppercase", color: "#a3a3a3",
-              }}>
-                Task Branch
-              </span>
-            )}
+      {/* ── (1) Top chrome bar ── */}
+      <div style={{ padding: "16px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3" }}>
+          Task Branch
+        </span>
 
-            {/* Right: open-page + in-progress pill + close */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {/* Open this branch on its own page (new tab) — modal only; grey, same row as the pill. */}
-              {!isPage && (
-                <button
-                  onClick={() => window.open(`/branch/${todo.id}`, "_blank", "noopener,noreferrer")}
-                  title="Open this branch on its own page"
-                  style={{
-                    display: "flex", alignItems: "center", gap: 5,
-                    background: "transparent", border: "none", cursor: "pointer",
-                    padding: "5px 6px", borderRadius: 8,
-                    fontSize: 11, fontWeight: 700, letterSpacing: "0.02em",
-                    color: "#a3a3a3", fontFamily: "inherit",
-                    transition: "color 120ms, background 120ms",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.color = "#525252"
-                    ;(e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
-                    ;(e.currentTarget as HTMLButtonElement).style.background = "transparent"
-                  }}
-                >
-                  <ExternalLink size={12} strokeWidth={2} />
-                  Open page
-                </button>
-              )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Open this branch on its own page (new tab) — grey, same row as the pill. */}
+          <button
+            onClick={() => window.open(`/branch/${todo.id}`, "_blank", "noopener,noreferrer")}
+            title="Open this branch on its own page"
+            style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: "transparent", border: "none", cursor: "pointer",
+              padding: "5px 6px", borderRadius: 8,
+              fontSize: 11, fontWeight: 700, letterSpacing: "0.02em",
+              color: "#a3a3a3", fontFamily: "inherit",
+              transition: "color 120ms, background 120ms",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "#525252"
+              ;(e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+              ;(e.currentTarget as HTMLButtonElement).style.background = "transparent"
+            }}
+          >
+            <ExternalLink size={12} strokeWidth={2} />
+            Open page
+          </button>
 
-              {effectiveInProgress && onLeave && (
-                <div
-                  onMouseEnter={() => setPillHovered(true)}
-                  onMouseLeave={() => setPillHovered(false)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    background: pillHovered ? "#fef2f2" : "#f5f3ff",
-                    border: `1px solid ${pillHovered ? "#fecaca" : "#ddd6fe"}`,
-                    borderRadius: 100,
-                    padding: "5px 10px 5px 8px",
-                    cursor: "default",
-                    transition: "background 240ms ease, border-color 240ms ease",
-                  }}
-                >
-                  {/* Pulsing dot — violet idle, red on hover */}
-                  <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
-                    <div style={{
-                      position: "absolute", inset: 0, borderRadius: "50%",
-                      background: pillHovered ? "#ef4444" : "#8b5cf6",
-                      transition: "background 240ms ease",
-                    }} />
-                    <div style={{
-                      position: "absolute", inset: 0, borderRadius: "50%",
-                      background: pillHovered ? "#ef4444" : "#8b5cf6",
-                      animation: "pl_pulse 1.6s ease-in-out infinite",
-                      transition: "background 240ms ease",
-                    }} />
-                  </div>
+          {pillNode}
 
-                  {/* Label / Leave button — same space, crossfade on hover */}
-                  <div style={{ position: "relative", display: "inline-block" }}>
-                    {/* "In Progress" keeps the container width even when invisible */}
-                    <span style={{
-                      display: "block",
-                      fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
-                      textTransform: "uppercase", whiteSpace: "nowrap",
-                      color: "#6d28d9",
-                      opacity: pillHovered ? 0 : 1,
-                      transition: "opacity 180ms ease",
-                      userSelect: "none",
-                    }}>
-                      In Progress
-                    </span>
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            style={{
+              width: 30, height: 30, borderRadius: 10, border: "none",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "#fafafa", cursor: "pointer", transition: "background 120ms",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0" }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
+          >
+            <X size={12} color="#525252" />
+          </button>
+        </div>
+      </div>
 
-                    {/* "Leave" button — absolutely overlaid, fades in on hover.
-                        Leaving keeps the modal open (the "left the task" event shows in the branch). */}
-                    <button
-                      onClick={async (e) => { e.stopPropagation(); setWorkOverride(false); await onLeave() }}
-                      style={{
-                        position: "absolute",
-                        inset: "-3px -6px",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        background: "transparent",
-                        border: "1px solid #fecaca",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        fontSize: 11, fontWeight: 700, color: "#991b1b",
-                        whiteSpace: "nowrap", fontFamily: "inherit",
-                        opacity: pillHovered ? 1 : 0,
-                        pointerEvents: pillHovered ? "auto" : "none",
-                        transition: "opacity 180ms ease, background 120ms ease",
-                      }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2" }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
-                    >
-                      Leave
-                    </button>
-                  </div>
-                </div>
-              )}
+      {/* ── (2) Title heading ── */}
+      <div style={{ padding: "22px 26px 12px" }}>
+        {renderTitle(22, 12, 8)}
+      </div>
 
-              {/* Close button — modal only */}
-              {!isPage && (
-                <button
-                  onClick={onClose}
-                  style={{
-                    width: 30, height: 30, borderRadius: 10, border: "none",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    background: "#fafafa", cursor: "pointer", transition: "background 120ms",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0" }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
-                >
-                  <X size={12} color="#525252" />
-                </button>
-              )}
-            </div>
-          </div>
+      {/* ── (3) Inline token meta strip ── */}
+      <div style={{ padding: "0 22px 18px 22px" }}>
+        <InlineTokenStrip {...metaProps} />
+      </div>
 
-          {/* ── (2) Title heading ── */}
-          <div style={{ padding: "22px 26px 12px" }}>
-            {editingTitle && isOwner ? (
-              <textarea
-                ref={titleTextareaRef}
-                value={titleDraft}
-                onChange={(e) => {
-                  setTitleDraft(e.target.value)
-                  e.target.style.height = "auto"
-                  e.target.style.height = e.target.scrollHeight + "px"
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitTitle() }
-                  if (e.key === "Escape") { setEditingTitle(false); setTitleDraft(title) }
-                }}
-                onBlur={commitTitle}
-                maxLength={200}
-                rows={1}
-                style={{
-                  // Box model mirrors the <h1> below exactly (same padding, negative margin,
-                  // radius and font metrics) so entering edit mode never shifts the title
-                  // sideways or resizes it — it just fades from the hover background into a field.
-                  display: "block",
-                  width: "calc(100% + 12px)",
-                  marginLeft: -12,
-                  resize: "none", border: "none", outline: "none",
-                  background: "#fafafa", borderRadius: 10, padding: "8px 12px",
-                  fontSize: 22, fontWeight: 900, lineHeight: 1.22,
-                  letterSpacing: "-0.025em", color: "#0a0a0a",
-                  fontFamily: "inherit", boxSizing: "border-box",
-                  overflow: "hidden",
-                  transition: "background 140ms",
-                }}
-              />
-            ) : (
-              <h1
-                ref={titleH1Ref}
-                onClick={() => isOwner && setEditingTitle(true)}
-                style={{
-                  // Box model mirrors the <textarea> above EXACTLY (display, width, negative
-                  // left margin, border-box, padding, radius and font metrics) so clicking to
-                  // edit fades the heading into the field with zero horizontal shift or resize.
-                  // NB: a shorthand `margin: 0` here previously clobbered `marginLeft`, snapping
-                  // the heading 12px right of the field — hence the "title slides left" jump.
-                  display: "block",
-                  width: "calc(100% + 12px)",
-                  marginLeft: -12,
-                  marginTop: 0, marginRight: 0, marginBottom: 0,
-                  boxSizing: "border-box",
-                  fontSize: 22, fontWeight: 900, lineHeight: 1.22,
-                  letterSpacing: "-0.025em", color: "#0a0a0a",
-                  cursor: isOwner ? "text" : "default",
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  background: "transparent",
-                  transition: "background 140ms",
-                  wordBreak: "break-word",
-                }}
-                onMouseEnter={(e) => { if (isOwner) (e.currentTarget as HTMLHeadingElement).style.background = "#fafafa" }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLHeadingElement).style.background = "transparent" }}
-              >
-                {title}
-              </h1>
-            )}
-          </div>
+      {/* Divider */}
+      <div style={{ height: 1, background: "#f5f5f5", margin: "0 26px" }} />
 
-          {/* ── (3) Inline token meta strip ── */}
-          <div style={{ padding: "0 22px 18px 22px" }}>
-            <InlineTokenStrip
-              priority={priority}
-              onPriorityChange={setPriority}
-              dueDate={dueDate}
-              onDueDateChange={(v) => setDueDate(v ?? "")}
-              categoryId={categoryId}
-              onCategoryChange={setCategoryId}
-              categories={categories}
-              onCreateCategory={onCreateCategory}
-              canEditCategory={canEditCategory}
-              authorCategoryName={todo.authorCategoryName}
-              authorCategoryColor={todo.authorCategoryColor}
-              authorCategoryIcon={todo.authorCategoryIcon}
-              isOwner={isOwner}
-              visMode={visMode}
-              onVisModeChange={setVisMode}
-              sharedIds={sharedIds}
-              onSharedIdsChange={setSharedIds}
-              friends={friends}
-              openPopover={openPopover}
-              setOpenPopover={setOpenPopover}
-            />
-          </div>
-
-          {/* Divider */}
-          <div style={{ height: 1, background: "#f5f5f5", margin: "0 26px" }} />
-
-          {/* ── (4) Branch panel ── (flex-fills the container; scrolls internally) */}
-          <div style={{ padding: "18px 26px 20px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-            <BranchFeed
-              todoId={todo.id}
-              isOwner={isOwner}
-              refreshKey={commentsRefreshKey}
-              onSaveDescription={isOwner ? handleSaveDescription : undefined}
-              inProgress={effectiveInProgress}
-              isCompleted={isCompleted}
-              onStartWork={onStartWork ? async () => { setWorkOverride(true); await onStartWork() } : undefined}
-              onStopWork={onLeave ? async () => { setWorkOverride(false); await onLeave() } : undefined}
-              // The modal closes after complete/duplicate; the page stays (duplicate navigates itself).
-              onCompleteTask={onCompleteTask ? async () => { await onCompleteTask(); onClose?.() } : undefined}
-              onDuplicate={onDuplicate ? async () => { await onDuplicate(); onClose?.() } : undefined}
-            />
-          </div>
+      {/* ── (4) Branch panel ── (flex-fills the container; scrolls internally) */}
+      <div style={{ padding: "18px 26px 20px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+        {branchNode}
+      </div>
     </div>
   )
 }
