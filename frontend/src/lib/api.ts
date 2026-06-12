@@ -340,6 +340,17 @@ export const joinTodo = async (id: string): Promise<Todo> => {
   return parseApiResponse(data)
 }
 
+/**
+ * Duplicates a task (owner-only) into a fresh active task. The server copies title,
+ * description, priority, category, visibility, shared audience, tags and required workers —
+ * but not the dates, completion state, or the branch (comments/subtasks) — and emits the
+ * normal creation events. Returns the newly created task.
+ */
+export const duplicateTodo = async (id: string): Promise<Todo> => {
+  const { data } = await api.post<ApiResponse<Todo>>(`/todos/api/v1/todos/${id}/duplicate`)
+  return parseApiResponse(data)
+}
+
 // ── Subtasks ── child tasks that live only inside a parent task's branch ──────────
 
 /** Lists a task's subtasks (oldest first). Visible to anyone who can see the parent. */

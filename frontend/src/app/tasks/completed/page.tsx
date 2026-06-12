@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, CheckCircle2, History } from "lucide-react"
-import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse } from "@/lib/api"
+import { api, setTaskHidden, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -221,6 +221,17 @@ export default function CompletedTasksPage() {
     } catch (error) {
       console.error("Failed to reopen todo:", error)
       addToast({ type: "error", title: "Failed to update task" })
+    }
+  }
+
+  const handleDuplicate = async (todoId: string) => {
+    try {
+      await duplicateTodo(todoId)
+      addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
+    } catch (error) {
+      console.error("Failed to duplicate todo:", error)
+      addToast({ type: "error", title: "Failed to duplicate task" })
+      throw error
     }
   }
 
@@ -501,6 +512,8 @@ export default function CompletedTasksPage() {
           onSave={(payload) => handleUpdate(editingTodo.id, payload)}
           onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
           onCreateCategory={fetchCategories}
+          onCompleteTask={isTodoOwner(editingTodo, user?.userId) ? () => handleComplete(editingTodo.id) : undefined}
+          onDuplicate={isTodoOwner(editingTodo, user?.userId) ? () => handleDuplicate(editingTodo.id) : undefined}
           onDescriptionChange={(desc) => {
             setTodos((prev) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t))
             setEditingTodo(prev => prev ? { ...prev, description: desc } : null)

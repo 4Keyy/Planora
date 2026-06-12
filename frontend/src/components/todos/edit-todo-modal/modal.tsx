@@ -74,6 +74,8 @@ export interface EditTodoModalProps {
   onStartWork?: () => Promise<void>
   /** Complete (or, when already completed, reopen) the task. */
   onCompleteTask?: () => Promise<void>
+  /** Duplicate the task into a fresh copy (owner-only; surfaced for completed tasks). */
+  onDuplicate?: () => Promise<void>
   onDescriptionChange?: (newDescription: string) => void
   commentsRefreshKey?: number
 }
@@ -88,6 +90,7 @@ export function EditTodoModal({
   onLeave,
   onStartWork,
   onCompleteTask,
+  onDuplicate,
   onDescriptionChange,
   commentsRefreshKey,
 }: EditTodoModalProps) {
@@ -491,6 +494,7 @@ export function EditTodoModal({
               onStartWork={onStartWork ? async () => { setWorkOverride(true); await onStartWork() } : undefined}
               onStopWork={onLeave ? async () => { setWorkOverride(false); await onLeave() } : undefined}
               onCompleteTask={onCompleteTask ? async () => { await onCompleteTask(); onClose() } : undefined}
+              onDuplicate={onDuplicate ? async () => { await onDuplicate(); onClose() } : undefined}
             />
           </div>
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, type LucideIcon } from "lucide-react"
+import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, RotateCcw, Copy, type LucideIcon } from "lucide-react"
 import {
   fetchComments, addComment, updateComment, deleteComment,
   fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
@@ -36,8 +36,8 @@ const RAIL_CENTER = 20
 // RAIL_GUTTER), so its local x=0 maps to that origin; the main rail therefore sits at local
 // THREAD_MAIN_RAIL_X. Reply rows pad their content by THREAD_CONTENT and centre their avatar on
 // the sub-rail at THREAD_RAIL_X.
-const THREAD_CONTENT      = 34                       // left padding reserving the sub-rail + avatar
-const THREAD_RAIL_X       = 12                       // sub-rail line x within the thread wrapper
+const THREAD_CONTENT      = 32                       // left padding reserving the sub-rail + avatar
+const THREAD_RAIL_X       = 10                       // sub-rail line x within the thread wrapper
 const THREAD_MAIN_RAIL_X  = RAIL_CENTER - RAIL_GUTTER // main rail x in the thread's local coords (-20)
 const THREAD_AVATAR       = 22                       // reply avatar size (smaller than a rail message)
 // Avatar left within a thread reply row so its centre lands on the sub-rail. Mirrors the main-rail
@@ -89,6 +89,8 @@ interface BranchFeedProps {
   onStopWork?: () => Promise<void>
   // Complete (or reopen) the task. Hidden when undefined.
   onCompleteTask?: () => Promise<void>
+  // Duplicate the task into a fresh copy (owner-only; surfaced once the task is completed).
+  onDuplicate?: () => Promise<void>
 }
 
 // Compose modes — a plain branch message, the task description, or a new subtask. Subtasks are
@@ -299,7 +301,7 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
 export function BranchFeed({
   todoId, isOwner, refreshKey, onSaveDescription,
   inProgress = false, isCompleted = false,
-  onStartWork, onStopWork, onCompleteTask,
+  onStartWork, onStopWork, onCompleteTask, onDuplicate,
 }: BranchFeedProps) {
   const [comments,   setComments]   = useState<TodoComment[]>([])
   const [subtasks,   setSubtasks]   = useState<Todo[]>([])
@@ -319,7 +321,7 @@ export function BranchFeed({
   const [genesisOutOfView, setGenesisOutOfView] = useState(false)
   const [genesisHighlight,  setGenesisHighlight]  = useState(false)
   // Which task action (if any) is currently awaiting its async handler.
-  const [actionPending, setActionPending] = useState<null | "work" | "complete">(null)
+  const [actionPending, setActionPending] = useState<null | "work" | "complete" | "duplicate">(null)
   // Per-subtask in-flight guard so double-clicks can't race (and polling won't clobber optimism).
   const [subtaskPending, setSubtaskPending] = useState<Set<string>>(new Set())
   // What the composer is replying to (chip above the compose box); null = a plain message.
@@ -562,8 +564,8 @@ export function BranchFeed({
     ]
   }, [])
 
-  // Run a compose-panel task action (take/leave/complete) with a pending indicator.
-  const runAction = async (kind: "work" | "complete", fn?: () => Promise<void>) => {
+  // Run a compose-panel task action (take/leave/complete/restore/duplicate) with a pending indicator.
+  const runAction = async (kind: "work" | "complete" | "duplicate", fn?: () => Promise<void>) => {
     if (!fn || actionPending) return
     setActionPending(kind)
     try {
@@ -578,6 +580,7 @@ export function BranchFeed({
 
   const showWorkAction     = !!(inProgress ? onStopWork : onStartWork)
   const showCompleteAction = !!onCompleteTask
+  const showDuplicate      = !!onDuplicate
   const showDescription    = !!onSaveDescription
 
   // ── Subtask mutations (live inline in the branch; no separate panel) ──────────────────────────
@@ -852,12 +855,14 @@ export function BranchFeed({
 
   const composeAccent = composeMode === "text" ? "#0a0a0a" : "#4f46e5"
 
-  // Once the task is completed the "+" menu offers nothing for now — no description, no subtask,
-  // and no take/complete actions — so the menu simply doesn't open on a done task.
-  const menuShowsDescription = showDescription && !isCompleted
-  const menuShowsSubtask     = isOwner && !isCompleted
-  const menuShowsActions     = (showWorkAction || showCompleteAction) && !isCompleted
-  const hasMenuItems         = menuShowsDescription || menuShowsSubtask || menuShowsActions
+  // While the task is active the "+" menu offers description / subtask / take-into-work + complete.
+  // Once it is completed those are hidden and the menu instead offers the two completed-task
+  // actions — Restore (reopen) and Duplicate — so the done task is never a dead end.
+  const menuShowsDescription      = showDescription && !isCompleted
+  const menuShowsSubtask          = isOwner && !isCompleted
+  const menuShowsActions          = (showWorkAction || showCompleteAction) && !isCompleted
+  const menuShowsCompletedActions = isCompleted && (showCompleteAction || showDuplicate)
+  const hasMenuItems              = menuShowsDescription || menuShowsSubtask || menuShowsActions || menuShowsCompletedActions
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%", minHeight: 0 }}>
@@ -1517,6 +1522,38 @@ export function BranchFeed({
                       pending={actionPending === "complete"}
                       disabled={actionPending !== null}
                       onClick={() => runAction("complete", onCompleteTask)}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* Completed-task actions — restore (reopen) + duplicate. Shown only on a done task,
+                  so the "+" menu stays useful instead of being a dead end. */}
+              {menuShowsCompletedActions && (
+                <>
+                  <MenuSectionLabel>Actions</MenuSectionLabel>
+
+                  {showCompleteAction && (
+                    <MenuActionItem
+                      icon={<RotateCcw size={13} color="#059669" strokeWidth={1.9} />}
+                      iconBg="#ecfdf5"
+                      title="Restore task"
+                      subtitle="Bring this back to active"
+                      pending={actionPending === "complete"}
+                      disabled={actionPending !== null}
+                      onClick={() => runAction("complete", onCompleteTask)}
+                    />
+                  )}
+
+                  {showDuplicate && (
+                    <MenuActionItem
+                      icon={<Copy size={13} color="#4f46e5" strokeWidth={1.9} />}
+                      iconBg="#eef2ff"
+                      title="Duplicate task"
+                      subtitle="Create a fresh copy"
+                      pending={actionPending === "duplicate"}
+                      disabled={actionPending !== null}
+                      onClick={() => runAction("duplicate", onDuplicate)}
                     />
                   )}
                 </>
@@ -2443,21 +2480,24 @@ function ReplyThread({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      style={{ position: "relative", paddingLeft: THREAD_CONTENT, marginTop: 2, marginBottom: 8 }}
+      style={{ position: "relative", paddingLeft: THREAD_CONTENT, marginTop: -4, marginBottom: 8 }}
     >
-      {/* Branch-off elbow — curves from the parent's main rail into this sub-rail */}
+      {/* Branch-off elbow — rises along the parent's main rail and curves into this sub-rail, so
+          the thread visibly forks from the message/subtask directly above it. The tall vertical
+          overlaps the spine right under the parent, making the parent↔thread link unmistakable. */}
       <span style={{
         position: "absolute",
         left: THREAD_MAIN_RAIL_X - 1,
-        top: -10,
+        top: -22,
         width: THREAD_RAIL_X - (THREAD_MAIN_RAIL_X - 1),
-        height: 26,
-        borderLeft: "2px solid #e4e4e7",
-        borderBottom: "2px solid #e4e4e7",
-        borderBottomLeftRadius: 12,
+        height: 38,
+        borderLeft: "2px solid #d4d4d8",
+        borderBottom: "2px solid #d4d4d8",
+        borderBottomLeftRadius: 14,
         pointerEvents: "none",
       }} />
-      {/* Sub-rail — the line the reply avatars sit on; soft fade at the bottom */}
+      {/* Sub-rail — the line the reply avatars sit on; continues down from the elbow with a soft
+          fade at the bottom. */}
       <span style={{
         position: "absolute",
         left: THREAD_RAIL_X - 1,
@@ -2465,7 +2505,7 @@ function ReplyThread({
         bottom: 12,
         width: 2,
         borderRadius: 1,
-        background: "linear-gradient(to bottom, #e4e4e7 0, #e4e4e7 calc(100% - 12px), transparent 100%)",
+        background: "linear-gradient(to bottom, #d4d4d8 0, #d4d4d8 calc(100% - 12px), transparent 100%)",
         pointerEvents: "none",
       }} />
 

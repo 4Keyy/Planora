@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, CheckCircle2, ChevronRight, History, X } from "lucide-react"
 import axios from "axios"
-import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo } from "@/lib/api"
+import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -344,6 +344,18 @@ export default function TasksPage() {
     } catch (error) {
       console.error("Failed to update todo:", error)
       addToast({ type: "error", title: "Failed to update task" })
+    }
+  }
+
+  const handleDuplicate = async (id: string) => {
+    try {
+      await duplicateTodo(id)
+      await fetchActiveTodos({ silent: true })
+      addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
+    } catch (error) {
+      console.error("Failed to duplicate todo:", error)
+      addToast({ type: "error", title: "Failed to duplicate task" })
+      throw error
     }
   }
 
@@ -898,6 +910,7 @@ export default function TasksPage() {
               }
             }}
             onCompleteTask={() => handleComplete(editingTodo.id)}
+            onDuplicate={isTodoOwner(editingTodo, user?.userId) ? () => handleDuplicate(editingTodo.id) : undefined}
             onDescriptionChange={(desc) => {
               const update = (prev: Todo[]) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t)
               setTodos(update)

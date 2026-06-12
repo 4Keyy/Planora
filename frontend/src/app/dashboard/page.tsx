@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Plus, CheckCircle2 } from "lucide-react"
 import axios from "axios"
-import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, type ApiResponse } from "@/lib/api"
+import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
@@ -561,6 +561,17 @@ export default function DashboardPage() {
     }
   }, [todos, statsTodos, user?.userId, addToast])
 
+  const handleDuplicate = useCallback(async (todoId: string) => {
+    try {
+      await duplicateTodo(todoId)
+      void fetchTodos(undefined, { silent: true })
+      addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
+    } catch {
+      addToast({ type: "error", title: "Could not duplicate task" })
+      throw new Error("duplicate failed")
+    }
+  }, [fetchTodos, addToast])
+
   const handleToggleHidden = useCallback(async (todoId: string) => {
     const existing = todosRef.current.find(t => t.id === todoId) ?? statsTodosRef.current.find(t => t.id === todoId)
     if (!existing) return
@@ -970,6 +981,7 @@ export default function DashboardPage() {
             onLeave={editingTodo ? async () => handleLeave(editingTodo.id) : undefined}
             onStartWork={editingTodo ? async () => handleJoin(editingTodo.id) : undefined}
             onCompleteTask={editingTodo ? async () => handleComplete(editingTodo.id) : undefined}
+            onDuplicate={editingTodo && isTodoOwner(editingTodo, user?.userId) ? async () => handleDuplicate(editingTodo.id) : undefined}
           />
         )}
       </AnimatePresence>
