@@ -345,15 +345,25 @@ The task branch opens in-place as a modal on a plain card click, but it also has
 page** at `/branch/{id}` (`app/branch/[id]`, behind the shared `AuthGuard` + `Navbar` layout, with
 the **same left/right gutters** as the rest of the app — `max-w-[1600px]` + `px-4/5/6`).
 
-The editor body is **shared, not duplicated**: `modal.tsx` exports `TodoEditor` (title, the inline
-meta strip — priority / due date / category / visibility popovers — and the branch), and
-`EditTodoModal` is now just the dialog chrome wrapping `<TodoEditor variant="modal">`. The page
-renders `<TodoEditor variant="page">` full-width inside a page card. So the page is the **full
-editor** — every control the modal has (inline title edit, priority, due date, category picker,
+The editor body is **shared, not duplicated**: `modal.tsx` exports `TodoEditor` (title, the meta
+controls — priority / due date / category / visibility — and the branch), and `EditTodoModal` is
+now just the dialog chrome wrapping `<TodoEditor variant="modal">`. The page renders
+`<TodoEditor variant="page">` full-width inside a page card. So the page is the **full editor** —
+every control the modal has (inline title edit, priority, due date, category picker,
 visibility/sharing, owner autosave, the In Progress pill with hover → Leave, the "+" menu) plus the
-complete branch — not a read-only view. The two variants differ only in chrome: the modal shows a
-close button + "Open page", the page shows a back-link to `/tasks` and skips both; Escape closes
-the modal but is a no-op (beyond popover/title) on the page.
+complete branch — not a read-only view.
+
+The two variants share the title editor, In Progress pill and branch but lay them out differently:
+
+- **Modal** — single column: chrome bar (Task Branch label · Open page · pill · close), title,
+  the horizontal `InlineTokenStrip`, the branch.
+- **Page** — wide two-column: a header row carrying the `Task Branch` back-link, the editable title
+  and the In Progress pill on the right; below it a **compact left meta sidebar** (`PageMetaPanel`,
+  ~296px) and the branch filling the rest. The sidebar stacks priority, category and visibility as
+  full-width rows that open their popovers, and renders the **due-date calendar always-open**
+  (`DateCalendar`, extracted from `DatePopover` so it renders headless inline) so the empty left
+  space becomes a one-click date picker. Escape closes the modal but is a no-op (beyond
+  popover/title) on the page.
 
 The page owns the task + category data and wires every editor action against the API: owner
 autosave (`PUT` preserving status), viewer category preference, take/leave work, complete/restore,
@@ -367,6 +377,14 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
 
 ### Frontend Behavior
 
+- **Branch composer conventions** (`edit-todo-modal/branch-feed.tsx`): **Enter** sends/adds in every
+  mode — plain message, subtask, and description; **Shift+Enter** inserts a newline. The same
+  Enter-saves / Shift+Enter-newline convention applies to editing a message and to the Author's
+  Note (description) editor. Switching the compose mode from the "+" menu (to subtask/description
+  and back) **keeps the typed draft** instead of clearing it, so a message can be promoted into a
+  description or subtask without retyping. Double-clicking a subtask title edits it **in place** —
+  the view `<span>` and edit `<textarea>` share an identical box model, so the field fades in with
+  no layout jump.
 - Active todo page loads active tasks in pages of 200.
 - Completed preview uses page size 20.
 - Sorting groups active tasks by date urgency and priority in `frontend/src/utils/sort-tasks.ts`.

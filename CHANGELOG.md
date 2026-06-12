@@ -4,6 +4,21 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(branch): page meta sidebar + composer polish (2026-06-13)
+
+- **Branch page two-column layout.** The standalone `/branch/{id}` page now puts the editable title
+  on the header row next to the `Task Branch` label with the In Progress pill to its right, and
+  moves the task controls into a compact **left meta sidebar** (`PageMetaPanel`) — priority,
+  category and visibility as full-width rows, and the **due-date calendar always open** (extracted
+  `DateCalendar` from `DatePopover`) so the previously-empty left space is a one-click date picker.
+  The modal keeps its single-column layout.
+- **Compose conventions unified.** In the branch composer, **Enter** now sends/adds in every mode
+  (plain message, subtask, description); **Shift+Enter** inserts a newline. The same convention
+  applies to editing a message and the Author's Note editor. Switching compose mode via "+" no
+  longer wipes the typed draft.
+- **Subtask inline-edit jump fixed.** Double-clicking a subtask title now edits in place — the
+  view/edit elements share one box model, so the field fades in without the text jumping.
+
 ### feat(branch): full editor on the standalone branch page (2026-06-12)
 
 Extracted the modal's editor body into a shared `TodoEditor` (exported from `modal.tsx`) so the
