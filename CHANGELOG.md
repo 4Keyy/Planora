@@ -4,6 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(todo): duplicate & restore completed tasks + clearer reply connector (2026-06-12)
+
+- **Duplicate a task.** New owner-only `POST /todos/{id}/duplicate` (`DuplicateTodoCommand`) authors
+  a fresh active copy server-side: copies title, description, priority, category (re-validated),
+  visibility, shared audience (re-validated against current friendships), tags and required workers
+  — but not the dates, completion state, or the branch (comments/subtasks). It emits the normal
+  `TaskCreatedIntegrationEvent`, so the new branch's "created" comment and all participant
+  notifications fire. A subtask can't be duplicated (404). Covered by new handler tests.
+- **Completed-task "+" menu.** A completed task's branch menu now offers **Restore task** (reopen)
+  and **Duplicate task** instead of being empty, styled as the existing menu action rows. Wired
+  owner-gated through `EditTodoModal` → `BranchFeed` in the tasks, completed and dashboard pages
+  (`duplicateTodo` API, `onDuplicate`).
+- **Reply connector.** The reply sub-branch now visibly forks from its parent: a taller elbow rises
+  along the main rail right under the parent message/subtask and curves into the thread's sub-rail,
+  pulled tight to the parent so it's always clear which conversation a reply belongs to.
+
+Backend Todo unit tests (127) and the full frontend suite (405) pass; `next build` compiles.
+
+Security: duplicate is owner-only with server-side category/friendship re-validation; no cross-task forking
+
 ### feat(branch): nest replies into sub-branches under their root (2026-06-12)
 
 Reworked how replies are laid out in the branch ("ветка") so they read as nested conversations

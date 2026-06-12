@@ -303,6 +303,40 @@ domain), `AddCommentCommand(ReplyToType, ReplyToId)` + handler target resolution
 composer chip, `ReplyQuote` block, `jumpToQuoted` scroll-and-pulse), `addComment(todoId, content,
 replyTo?)` in `lib/api.ts`, reply fields on `TodoComment`.
 
+The reply sub-branch is visibly **forked off its parent**: a tall elbow rises along the main rail
+right under the parent message/subtask and curves into the thread's sub-rail (`ReplyThread`
+connector, `THREAD_*` geometry), so it always reads which conversation a reply belongs to.
+
+### Completed-task actions (Restore & Duplicate)
+
+Once a task is **completed**, opening its branch and pressing **"+"** swaps the compose menu's
+active-task actions (description / subtask / take-into-work / complete) for the two completed-task
+actions, so a done task is never a dead end:
+
+- **Restore task** — reopens it (the same status flip as un-completing), moving it back to active.
+  Wired to the page's existing complete/reopen handler (`onCompleteTask`); the modal closes and the
+  list refreshes with the usual "reopened" toast.
+- **Duplicate task** — creates a **fresh active copy** owned by the caller. Owner-only. The server
+  (`POST /todos/{id}/duplicate`, `DuplicateTodoCommand`) copies the content — title, description,
+  priority, category, visibility, shared audience, tags, required workers — but **not** the dates,
+  the completion state, or the **branch** (comments/subtasks), and emits the normal
+  `TaskCreatedIntegrationEvent` so the new branch's "created" comment and all participant
+  notifications fire. The copy lands in the active list (the page refreshes; a "Task duplicated"
+  toast confirms).
+
+| Aspect | Rule |
+|---|---|
+| Availability | both actions are surfaced only when `isCompleted` and only to the owner (`onDuplicate`/`onCompleteTask` are passed owner-gated by every page) |
+| Copied by Duplicate | title, description, priority, category (re-validated; dropped if deleted), `isPublic`, shared audience (re-validated vs. current friends), tags, `requiredWorkers` |
+| NOT copied | `dueDate`/`expectedDate`, completion state (copy starts active), the branch (comments & subtasks) |
+| Security | owner-only IDOR guard; a subtask cannot be duplicated (no standalone existence); category/friendship re-validated server-side |
+| Notifications | full support — the copy emits `TaskCreated` exactly like a normal create (new branch system comment + participant notifications) |
+
+Backend: `DuplicateTodoCommand` + handler, `POST /todos/api/v1/todos/{id}/duplicate`. Frontend:
+`duplicateTodo(id)` in `lib/api.ts`, `onDuplicate` through `EditTodoModal` → `BranchFeed` (the
+completed-state "+" menu's Restore + Duplicate `MenuActionItem`s), wired in the tasks, completed,
+and dashboard pages.
+
 ### Frontend Behavior
 
 - Active todo page loads active tasks in pages of 200.
