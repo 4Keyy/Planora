@@ -339,6 +339,20 @@ Backend: `DuplicateTodoCommand` + handler, `POST /todos/api/v1/todos/{id}/duplic
 completed-state "+" menu's Restore + Duplicate `MenuActionItem`s), wired in the tasks, completed,
 and dashboard pages.
 
+### Branch on its own page
+
+The task branch opens in-place as a modal on a plain card click, but it also has a **standalone
+page** at `/branch/{id}` (`app/branch/[id]`, behind the shared `AuthGuard` + `Navbar` layout). The
+page renders the same timeline the modal does — title, the In Progress pill (hover → Leave) and the
+full `BranchFeed` — and wires every task action directly against the API (description save,
+take/leave work, complete/restore, duplicate; duplicating navigates to the new copy's page). A
+missing/forbidden task shows a friendly "not found" with a link back to `/tasks`.
+
+Two ways to reach it: **Ctrl/⌘-click a task card** opens the page in a **new tab** (a plain click
+still opens the modal), and the modal's top chrome has a grey **"Open page"** button (same row as
+the In Progress pill) that opens it in a new tab. Both compute the URL from the task id;
+`TodoCard` handles the modifier-click, `EditTodoModal` renders the button.
+
 ### Frontend Behavior
 
 - Active todo page loads active tasks in pages of 200.

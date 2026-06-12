@@ -333,10 +333,16 @@ function TodoCardComponent({
         }}
         onHoverStart={() => setIsCardHovered(true)}
         onHoverEnd={() => setIsCardHovered(false)}
-        onClick={() => {
+        onClick={(e) => {
           if (isVisibilityPending || isCompletionPending) return
           if (isCollapsed) {
             void handleVisibilityToggle(false)
+            return
+          }
+          // Ctrl/Cmd-click (or middle-click handled by the browser) opens the task's branch on its
+          // own page in a new tab instead of the in-place modal.
+          if (e.metaKey || e.ctrlKey) {
+            window.open(`/branch/${todo.id}`, "_blank", "noopener,noreferrer")
             return
           }
           onEdit()

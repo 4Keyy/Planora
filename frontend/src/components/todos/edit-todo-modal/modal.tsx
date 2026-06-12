@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
-import { X } from "lucide-react"
+import { X, ExternalLink } from "lucide-react"
 import { ModalPortal }      from "@/components/ui/modal-portal"
 import { useAutosave }      from "@/hooks/use-autosave"
 import { useAuthStore }     from "@/store/auth"
@@ -298,8 +298,33 @@ export function EditTodoModal({
               Task Branch
             </span>
 
-            {/* Right: in-progress pill + close */}
+            {/* Right: open-page + in-progress pill + close */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* Open this branch on its own page (new tab) — grey, low-key, same row as the pill. */}
+              <button
+                onClick={() => window.open(`/branch/${todo.id}`, "_blank", "noopener,noreferrer")}
+                title="Open this branch on its own page"
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: "transparent", border: "none", cursor: "pointer",
+                  padding: "5px 6px", borderRadius: 8,
+                  fontSize: 11, fontWeight: 700, letterSpacing: "0.02em",
+                  color: "#a3a3a3", fontFamily: "inherit",
+                  transition: "color 120ms, background 120ms",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = "#525252"
+                  ;(e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+                  ;(e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                }}
+              >
+                <ExternalLink size={12} strokeWidth={2} />
+                Open page
+              </button>
+
               {effectiveInProgress && onLeave && (
                 <div
                   onMouseEnter={() => setPillHovered(true)}

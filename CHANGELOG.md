@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(branch): open a task's branch on its own page (2026-06-12)
+
+- **Standalone branch page** at `/branch/{id}` (`app/branch/[id]`) renders the same task timeline
+  the modal shows — title, In Progress pill (with hover-to-Leave), and the full `BranchFeed` with
+  every action wired (description save, take/leave work, complete/restore, duplicate). Behind the
+  shared `AuthGuard` + `Navbar` layout.
+- **Ctrl/⌘-click a task card** opens that branch page in a **new tab** instead of the in-place
+  modal; a plain click still opens the modal as before.
+- **"Open page" button** added to the branch modal's top chrome (grey, same row as the In Progress
+  pill) that opens the page in a new tab.
+
 ### fix(branch): subtask reply sub-branch joins the subtask line; no tail after last reply (2026-06-12)
 
 - Replies under a **subtask** now hang on the subtask's **own** sub-branch axis and inherit its
