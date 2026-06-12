@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, RotateCcw, Copy, type LucideIcon } from "lucide-react"
 import {
@@ -764,17 +764,22 @@ export function BranchFeed({
 
   const enterComposeMode = (mode: ComposeMode) => {
     setComposeMode(mode)
-    setNewContent("")
+    // Keep whatever the user already typed — switching to a subtask/description should carry the
+    // draft over, not throw it away (especially handy when promoting a message into a description).
     setPlusMenuOpen(false)
     setReplyDraft(null) // a description/subtask draft is never a reply
-    if (composeRef.current) composeRef.current.style.height = "auto"
-    setTimeout(() => composeRef.current?.focus(), 50)
+    setTimeout(() => {
+      const el = composeRef.current
+      if (!el) return
+      el.focus()
+      // Caret to the end of the preserved text.
+      el.setSelectionRange(el.value.length, el.value.length)
+    }, 50)
   }
 
   const exitComposeMode = () => {
+    // Return to a plain message but keep the text — the draft becomes a normal branch message.
     setComposeMode("text")
-    setNewContent("")
-    if (composeRef.current) composeRef.current.style.height = "auto"
   }
 
   const handleSubmitWithMode = async () => {
@@ -1037,7 +1042,8 @@ export function BranchFeed({
                 }}
                 maxLength={GENESIS_MAX}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleGenesisSave()
+                  // Enter saves; Shift+Enter inserts a newline (project-wide convention).
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenesisSave() }
                   if (e.key === "Escape") setEditingGenesis(false)
                 }}
                 style={{
@@ -1369,7 +1375,7 @@ export function BranchFeed({
               </button>
             </div>
             <span style={{ fontSize: 10.5, fontWeight: 600, color: "#a3a3a3" }}>
-              {composeMode === "description" ? "task description · ⌘+↵ to send" : "a step in this task · ↵ to add"}
+              {composeMode === "description" ? "task description · ↵ to save · ⇧↵ new line" : "a step in this task · ↵ to add"}
             </span>
           </div>
         )}
@@ -1605,12 +1611,9 @@ export function BranchFeed({
               autoResize(e.target)
             }}
             onKeyDown={(e) => {
-              // Subtask titles are single-line — plain Enter adds the step. Description/messages
-              // use ⌘/Ctrl+Enter so multi-line text can be composed freely.
-              if (e.key === "Enter" && composeMode === "subtask" && !e.shiftKey) {
-                e.preventDefault()
-                handleSubmitWithMode()
-              } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+              // Project-wide convention: Enter sends/adds in every mode (message, subtask,
+              // description); Shift+Enter inserts a newline.
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault()
                 handleSubmitWithMode()
               }
@@ -1625,10 +1628,10 @@ export function BranchFeed({
             rows={1}
             placeholder={
               composeMode === "description"
-                ? "Enter task description…"
+                ? "Enter task description… ↵ to save · ⇧↵ new line"
                 : composeMode === "subtask"
-                  ? "Add a subtask…"
-                  : "Write in branch… ⌘+↵ to send"
+                  ? "Add a subtask… ↵ to add"
+                  : "Write in branch… ↵ to send · ⇧↵ new line"
             }
             maxLength={
               composeMode === "description" ? GENESIS_MAX
@@ -1807,6 +1810,14 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
    comments are folded in here (parsed into `meta`) instead of appearing as separate rail nodes. */
 const SUBTASK_TOGGLE = 26
 const SUBTASK_DELETE_ZONE = 50
+// Shared box model for the subtask title's view (<span>) and edit (<textarea>) states, so
+// double-clicking to edit fades in place with zero layout shift (identical padding/border/metrics).
+const SUBTASK_TITLE_BOX = {
+  flex: 1, minWidth: 0, boxSizing: "border-box" as const,
+  padding: "5px 9px", borderRadius: 8,
+  fontSize: 13.5, fontWeight: 400, lineHeight: 1.45,
+  fontFamily: "inherit",
+} satisfies CSSProperties
 // x of the rail centre within a cluster's content box (content starts RAIL_GUTTER from the wrapper).
 const RAIL_X = RAIL_CENTER - RAIL_GUTTER
 // A subtask branches off the main rail into its own little sub-branch: the card + its completion
@@ -1987,7 +1998,10 @@ function SubtaskCard({
           border: `1px solid ${done ? "#d7f5ea" : someoneWorking && !done ? "#fde68a" : "#f0f0f0"}`,
           transition: "background 200ms, border-color 200ms, padding 160ms",
         }}>
-          {/* ── Title row ── (wraps freely) or inline editor */}
+          {/* ── Title row ── (wraps freely) or inline editor. The <span> and <textarea> share an
+              IDENTICAL box model (border-box, same padding, transparent vs. indigo 1.5px border,
+              radius, font metrics) so entering edit mode fades the text into a field in place —
+              no horizontal/vertical jump or resize. Mirrors the modal title's h1↔textarea trick. */}
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
           {editing ? (
             <textarea
@@ -1999,33 +2013,30 @@ function SubtaskCard({
                 e.target.style.height = e.target.scrollHeight + "px"
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") { e.preventDefault(); commitEdit() }
+                // Enter saves; Shift+Enter inserts a newline (project-wide convention).
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitEdit() }
                 if (e.key === "Escape") setEditing(false)
               }}
               onBlur={commitEdit}
               maxLength={SUBTASK_MAX}
               rows={1}
-              style={{
-                flex: 1, minWidth: 0, background: "white",
-                border: "1.5px solid #c7d2fe", borderRadius: 8, outline: "none",
-                padding: "7px 10px", fontSize: 13.5, fontWeight: 400, lineHeight: 1.4,
-                color: "#262626", fontFamily: "inherit", resize: "none",
-                maxHeight: 160, overflowY: "auto",
-              }}
+              style={{ ...SUBTASK_TITLE_BOX, background: "white", border: "1.5px solid #c7d2fe", outline: "none", color: "#262626", resize: "none", maxHeight: 160, overflowY: "auto" }}
             />
           ) : (
             <span
               onDoubleClick={beginEdit}
+              onMouseEnter={(e) => { if (isOwner) (e.currentTarget as HTMLSpanElement).style.background = "#ffffff" }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.background = "transparent" }}
               title={isOwner ? "Double-click to edit" : undefined}
               style={{
-                flex: 1, minWidth: 0,
-                // Non-bold so it reads as a plain branch step; wraps so a long step grows the card.
-                fontSize: 13.5, fontWeight: 400, lineHeight: 1.45, paddingTop: 4,
+                ...SUBTASK_TITLE_BOX,
+                display: "block", whiteSpace: "pre-wrap",
+                border: "1.5px solid transparent", background: "transparent",
                 color: done ? "#a3a3a3" : "#262626",
                 textDecoration: done ? "line-through" : "none",
                 overflowWrap: "anywhere", wordBreak: "break-word",
                 cursor: isOwner ? "text" : "default",
-                transition: "color 200ms",
+                transition: "background 140ms, color 200ms",
               }}
             >
               {subtask.title}
@@ -2752,7 +2763,8 @@ function MessageItem({
             autoFocus
             rows={2}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) onEditSave(c.id)
+              // Enter saves; Shift+Enter inserts a newline (project-wide convention).
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEditSave(c.id) }
               if (e.key === "Escape") onEditCancel()
             }}
             style={{
