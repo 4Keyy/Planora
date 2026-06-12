@@ -5,6 +5,7 @@ using Planora.BuildingBlocks.Application.Context;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Features.Todos.Commands.CreateTodo;
 using Planora.Todo.Application.Features.Todos.Commands.DeleteTodo;
+using Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo;
 using Planora.Todo.Application.Features.Todos.Commands.SetTodoHidden;
 using Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference;
 using Planora.Todo.Application.Features.Todos.Commands.UpdateTodo;
@@ -178,6 +179,99 @@ public class TodoCommandHandlerExpandedTests
         Assert.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.SubtaskDeletedIntegrationEvent), captured!.Type);
         Assert.Contains("Draft outline", captured.Content);            // title for suffix matching
         Assert.Contains(parent.Id.ToString(), captured.Content);       // targets the parent branch
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task DuplicateTodo_ByOwner_CopiesContentNotDatesOrBranch_AndEmitsCreated()
+    {
+        var userId = Guid.NewGuid();
+        var categoryId = Guid.NewGuid();
+        var fixture = new TodoCommandFixture(userId);
+
+        var source = TodoItem.Create(
+            userId, "Quarterly report", "Collect the numbers", categoryId,
+            dueDate: DateTime.UtcNow.AddDays(3), expectedDate: DateTime.UtcNow.AddDays(2),
+            priority: TodoPriority.High, isPublic: false, sharedWithUserIds: null, requiredWorkers: 3);
+        source.AddTag("urgent", userId);
+
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesAsync(source.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(source);
+        fixture.CategoryGrpcClient
+            .Setup(x => x.GetCategoryInfoAsync(categoryId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CategoryInfo(categoryId, userId, "Work", "#111111", "briefcase"));
+
+        TodoItem? copy = null;
+        Planora.BuildingBlocks.Application.Outbox.OutboxMessage? captured = null;
+        fixture.TodoRepository
+            .Setup(x => x.AddAsync(It.IsAny<TodoItem>(), It.IsAny<CancellationToken>()))
+            .Callback<TodoItem, CancellationToken>((t, _) => copy = t)
+            .ReturnsAsync((TodoItem t, CancellationToken _) => t);
+        fixture.OutboxRepository
+            .Setup(x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<Planora.BuildingBlocks.Application.Outbox.OutboxMessage, CancellationToken>((m, _) => captured = m);
+
+        var result = await fixture.CreateDuplicateHandler().Handle(
+            new DuplicateTodoCommand(source.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(copy);
+        // Content copied …
+        Assert.Equal("Quarterly report", copy!.Title);
+        Assert.Equal("Collect the numbers", copy.Description);
+        Assert.Equal(TodoPriority.High, copy.Priority);
+        Assert.Equal(categoryId, copy.CategoryId);
+        Assert.Equal(3, copy.RequiredWorkers);
+        Assert.Contains(copy.Tags, t => t.Name == "urgent");
+        // … dates, completion and identity NOT copied …
+        Assert.Null(copy.DueDate);
+        Assert.Null(copy.ExpectedDate);
+        Assert.False(copy.IsCompleted);
+        Assert.NotEqual(source.Id, copy.Id);
+        // … and the new branch's creation fact is published.
+        Assert.NotNull(captured);
+        Assert.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.TaskCreatedIntegrationEvent), captured!.Type);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task DuplicateTodo_ByNonOwner_ThrowsForbidden()
+    {
+        var userId = Guid.NewGuid();
+        var fixture = new TodoCommandFixture(userId);
+        var foreign = TodoItem.Create(Guid.NewGuid(), "Someone else's task");
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesAsync(foreign.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(foreign);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateDuplicateHandler().Handle(new DuplicateTodoCommand(foreign.Id), CancellationToken.None));
+
+        fixture.TodoRepository.Verify(x => x.AddAsync(It.IsAny<TodoItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task DuplicateTodo_OnSubtaskOrMissing_ThrowsNotFound()
+    {
+        var userId = Guid.NewGuid();
+        var fixture = new TodoCommandFixture(userId);
+
+        var missingId = Guid.NewGuid();
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesAsync(missingId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TodoItem?)null);
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
+            fixture.CreateDuplicateHandler().Handle(new DuplicateTodoCommand(missingId), CancellationToken.None));
+
+        var parent = TodoItem.Create(userId, "Parent");
+        var subtask = TodoItem.CreateSubtask(parent, userId, "A step", null);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+        await Assert.ThrowsAsync<EntityNotFoundException>(() =>
+            fixture.CreateDuplicateHandler().Handle(new DuplicateTodoCommand(subtask.Id), CancellationToken.None));
     }
 
     [Fact]
@@ -1009,6 +1103,17 @@ public class TodoCommandHandlerExpandedTests
                 Mock.Of<ILogger<Planora.Todo.Application.Features.Todos.Commands.CreateSubtask.CreateSubtaskCommandHandler>>(),
                 CurrentUser.Object,
                 CategoryGrpcClient.Object);
+
+        public DuplicateTodoCommandHandler CreateDuplicateHandler()
+            => new(
+                TodoRepository.Object,
+                UnitOfWork.Object,
+                Mapper.Object,
+                Mock.Of<ILogger<DuplicateTodoCommandHandler>>(),
+                CurrentUser.Object,
+                CategoryGrpcClient.Object,
+                FriendshipService.Object,
+                OutboxRepository.Object);
 
         public Planora.Todo.Application.Features.Todos.Queries.GetSubtasks.GetSubtasksQueryHandler CreateGetSubtasksHandler()
             => new(

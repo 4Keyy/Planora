@@ -2,6 +2,7 @@ using Planora.BuildingBlocks.Application.Pagination;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Features.Todos.Commands.CreateTodo;
+using Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo;
 using Planora.Todo.Application.Features.Todos.Commands.UpdateTodo;
 using Planora.Todo.Application.Features.Todos.Commands.DeleteTodo;
 using Planora.Todo.Application.Features.Todos.Commands.SetTodoHidden;
@@ -117,6 +118,30 @@ namespace Planora.Todo.Api.Controllers
             var createCommand = command with { ParentTodoId = id }; // parent comes from the route, never the body
             var result = await _mediator.Send(createCommand, cancellationToken);
 
+            if (result.IsFailure)
+                return BadRequest(result.Error);
+
+            return CreatedAtAction(
+                nameof(GetTodoById),
+                new { id = result.Value!.Id },
+                result.Value);
+        }
+
+        /// <summary>
+        /// Duplicates a task (owner-only) into a fresh active task: copies title, description,
+        /// priority, category, visibility, shared audience, tags and required workers — but not the
+        /// dates, completion state, or the branch (comments/subtasks). Emits the normal creation
+        /// events so notifications fire.
+        /// </summary>
+        [HttpPost("{id}/duplicate")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<TodoItemDto>> DuplicateTodo(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _mediator.Send(new DuplicateTodoCommand(id), cancellationToken);
             if (result.IsFailure)
                 return BadRequest(result.Error);
 
