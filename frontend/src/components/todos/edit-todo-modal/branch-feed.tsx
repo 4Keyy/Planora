@@ -30,19 +30,20 @@ const SPRING_SNAP = { type: "spring" as const, stiffness: 460, damping: 32 }
 const RAIL_GUTTER = 40
 const RAIL_CENTER = 20
 
-// Reply sub-branch (thread) geometry. A reply thread hangs beneath its root (a message or a
-// subtask) as a tidy indented column with its own sub-rail, branched off the main rail by a soft
-// elbow. The thread wrapper is a flow child of the main rail container (whose content origin is
-// RAIL_GUTTER), so its local x=0 maps to that origin; the main rail therefore sits at local
-// THREAD_MAIN_RAIL_X. Reply rows pad their content by THREAD_CONTENT and centre their avatar on
-// the sub-rail at THREAD_RAIL_X.
-const THREAD_CONTENT      = 32                       // left padding reserving the sub-rail + avatar
-const THREAD_RAIL_X       = 10                       // sub-rail line x within the thread wrapper
+// Reply sub-branch (thread) geometry. A reply thread hangs beneath its root as a tidy indented
+// column with its own sub-rail. The thread wrapper is a flow child of the main rail container
+// (content origin RAIL_GUTTER), so its local x=0 maps to that origin; the main rail therefore sits
+// at local THREAD_MAIN_RAIL_X. Two variants:
+//  • under a MESSAGE — indented onto its own sub-rail (THREAD_RAIL_X) and forked off the main rail
+//    by an elbow;
+//  • under a SUBTASK — aligned onto the subtask's OWN sub-branch x (so the green/amber subtask line
+//    continues straight down into the reply avatars — no detour to the main rail). See ReplyThread.
+const THREAD_CONTENT      = 32                       // message variant: left padding (sub-rail + avatar)
+const THREAD_RAIL_X       = 10                       // message variant: sub-rail x within the thread
+const THREAD_SUB_CONTENT  = 26                       // subtask variant: left padding
 const THREAD_MAIN_RAIL_X  = RAIL_CENTER - RAIL_GUTTER // main rail x in the thread's local coords (-20)
 const THREAD_AVATAR       = 22                       // reply avatar size (smaller than a rail message)
-// Avatar left within a thread reply row so its centre lands on the sub-rail. Mirrors the main-rail
-// formula: railX - contentOrigin - size/2.
-const THREAD_AVATAR_LEFT  = THREAD_RAIL_X - THREAD_CONTENT - THREAD_AVATAR / 2
+const THREAD_AVATAR_CY    = 21                       // avatar centre y from a reply row's top (margin+top+r)
 
 // Maps a system-event comment to a simple, monochrome icon that hints at its meaning.
 // Matches the English event sentences Todo emits (and keeps the legacy Russian keywords).
@@ -829,10 +830,12 @@ export function BranchFeed({
 
   // Renders a root's reply sub-branch, wiring the shared branch handlers. A plain element factory
   // (not an inline component) so the stable top-level ReplyThread keeps its children mounted.
-  const renderReplyThread = (key: string, replies: ThreadReply[]) => (
+  const renderReplyThread = (key: string, replies: ThreadReply[], variant: "comment" | "subtask", lineColor?: string) => (
     <ReplyThread
       key={key}
       replies={replies}
+      variant={variant}
+      lineColor={lineColor}
       isOwner={isOwner}
       editingId={editingId}
       editContent={editContent}
@@ -1154,7 +1157,11 @@ export function BranchFeed({
                       })}
                     />,
                     item.replies.length > 0
-                      ? renderReplyThread(`thread-s-${s.id}`, item.replies)
+                      ? renderReplyThread(
+                          `thread-s-${s.id}`, item.replies, "subtask",
+                          // Continue the subtask's own sub-branch colour into the reply rail.
+                          isSubtaskDone(s) ? "#a7f3d0" : subtaskWorkerCount(s) > 0 ? "#fcd98c" : "#e1e1e6",
+                        )
                       : null,
                   ]
                 }
@@ -1215,7 +1222,7 @@ export function BranchFeed({
                     onQuoteJump={jumpToQuoted}
                   />,
                   item.replies.length > 0
-                    ? renderReplyThread(`thread-c-${c.id}`, item.replies)
+                    ? renderReplyThread(`thread-c-${c.id}`, item.replies, "comment")
                     : null,
                 ]
               })}
@@ -2453,6 +2460,12 @@ function ReplyQuote({
    the reply it answers. Avatars sit on the sub-rail exactly as messages sit on the main rail. */
 interface ReplyThreadProps {
   replies: ThreadReply[]
+  /** Where the thread hangs from — a message (indented, forked off the main rail) or a subtask
+      (aligned onto the subtask's own sub-branch line so it reads as one continuous branch). */
+  variant: "comment" | "subtask"
+  /** Sub-rail colour — for a subtask this is the subtask's own branch colour, so the green/amber
+      subtask line flows seamlessly into the reply rail. Defaults to the neutral message colour. */
+  lineColor?: string
   isOwner: boolean
   editingId: string | null
   editContent: string
@@ -2468,11 +2481,24 @@ interface ReplyThreadProps {
   onQuoteJump: (type: ReplyTargetType, id: string) => void
 }
 
+const THREAD_LINE = "#d4d4d8"
+
 function ReplyThread({
-  replies, isOwner, editingId, editContent, submitting, flashKey, registerNode,
+  replies, variant, lineColor, isOwner, editingId, editContent, submitting, flashKey, registerNode,
   onEditStart, onEditCancel, onEditSave, onEditContentChange, onDelete, onReplyTo, onQuoteJump,
 }: ReplyThreadProps) {
   if (replies.length === 0) return null
+
+  const isSub = variant === "subtask"
+  const line  = lineColor ?? THREAD_LINE
+  // Subtask replies share the subtask's own sub-branch x (SUB_TOGGLE_X) so the line continues
+  // straight down into them; message replies get their own indented sub-rail.
+  const railX       = isSub ? SUB_TOGGLE_X : THREAD_RAIL_X
+  const contentPad  = isSub ? THREAD_SUB_CONTENT : THREAD_CONTENT
+  const avatarLeft  = railX - contentPad - THREAD_AVATAR / 2
+  const railLeftRow = railX - contentPad - 1   // sub-rail x inside a reply row (row box starts at contentPad)
+  const lastIndex   = replies.length - 1
+
   return (
     <motion.div
       layout="position"
@@ -2480,37 +2506,39 @@ function ReplyThread({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      style={{ position: "relative", paddingLeft: THREAD_CONTENT, marginTop: -4, marginBottom: 8 }}
+      style={{ position: "relative", paddingLeft: contentPad, marginTop: -6, marginBottom: 8 }}
     >
-      {/* Branch-off elbow — rises along the parent's main rail and curves into this sub-rail, so
-          the thread visibly forks from the message/subtask directly above it. The tall vertical
-          overlaps the spine right under the parent, making the parent↔thread link unmistakable. */}
-      <span style={{
-        position: "absolute",
-        left: THREAD_MAIN_RAIL_X - 1,
-        top: -22,
-        width: THREAD_RAIL_X - (THREAD_MAIN_RAIL_X - 1),
-        height: 38,
-        borderLeft: "2px solid #d4d4d8",
-        borderBottom: "2px solid #d4d4d8",
-        borderBottomLeftRadius: 14,
-        pointerEvents: "none",
-      }} />
-      {/* Sub-rail — the line the reply avatars sit on; continues down from the elbow with a soft
-          fade at the bottom. */}
-      <span style={{
-        position: "absolute",
-        left: THREAD_RAIL_X - 1,
-        top: 16,
-        bottom: 12,
-        width: 2,
-        borderRadius: 1,
-        background: "linear-gradient(to bottom, #d4d4d8 0, #d4d4d8 calc(100% - 12px), transparent 100%)",
-        pointerEvents: "none",
-      }} />
+      {/* Parent connector — joins the thread to whatever sits directly above it, ending exactly at
+          the FIRST reply's avatar (no line below the last avatar; that's handled per-row). */}
+      {isSub ? (
+        // Subtask: a straight vertical that continues the subtask's own sub-branch line down into
+        // the first reply avatar — so the green/amber subtask branch flows into the conversation.
+        <span style={{
+          position: "absolute",
+          left: railX - 1,
+          top: -22,
+          height: 22 + THREAD_AVATAR_CY,
+          width: 2,
+          background: line,
+          pointerEvents: "none",
+        }} />
+      ) : (
+        // Message: an elbow rising along the main rail and curving into the first reply avatar.
+        <span style={{
+          position: "absolute",
+          left: THREAD_MAIN_RAIL_X - 1,
+          top: -20,
+          width: railX - (THREAD_MAIN_RAIL_X - 1),
+          height: 20 + THREAD_AVATAR_CY,
+          borderLeft: `2px solid ${line}`,
+          borderBottom: `2px solid ${line}`,
+          borderBottomLeftRadius: 14,
+          pointerEvents: "none",
+        }} />
+      )}
 
       <AnimatePresence initial={false}>
-        {replies.map(({ comment: r, showQuote }) => (
+        {replies.map(({ comment: r, showQuote }, i) => (
           <motion.div
             key={r.id}
             layout="position"
@@ -2518,7 +2546,23 @@ function ReplyThread({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={SPRING_SNAP}
+            style={{ position: "relative" }}
           >
+            {/* Inter-avatar rail — drawn per row so the line connects consecutive avatars and
+                STOPS at the last one (no dangling segment below it). Slight overlaps keep it gapless;
+                the avatar's white ring masks the joint. */}
+            {i > 0 && (
+              <span style={{
+                position: "absolute", left: railLeftRow, top: -4, height: THREAD_AVATAR_CY + 4,
+                width: 2, background: line, pointerEvents: "none",
+              }} />
+            )}
+            {i < lastIndex && (
+              <span style={{
+                position: "absolute", left: railLeftRow, top: THREAD_AVATAR_CY, bottom: -4,
+                width: 2, background: line, pointerEvents: "none",
+              }} />
+            )}
             <MessageItem
               comment={r}
               isOwner={isOwner}
@@ -2528,7 +2572,7 @@ function ReplyThread({
               flash={flashKey === `c-${r.id}`}
               nodeRef={registerNode(`c-${r.id}`)}
               avatarSize={THREAD_AVATAR}
-              avatarLeft={THREAD_AVATAR_LEFT}
+              avatarLeft={avatarLeft}
               showQuote={showQuote}
               onEditStart={onEditStart}
               onEditCancel={onEditCancel}

@@ -4,6 +4,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(branch): subtask reply sub-branch joins the subtask line; no tail after last reply (2026-06-12)
+
+- Replies under a **subtask** now hang on the subtask's **own** sub-branch axis and inherit its
+  line colour (green when done, amber in-work, grey idle), so the subtask branch flows straight
+  into the reply avatars instead of detouring to the main rail. Message replies keep their indented
+  elbow off the main rail.
+- The reply rail is now drawn per-row and **stops at the last reply's avatar** — no dangling line
+  segment below it. Consecutive avatars stay connected; the parent connector ends exactly at the
+  first avatar.
+
 ### feat(todo): duplicate & restore completed tasks + clearer reply connector (2026-06-12)
 
 - **Duplicate a task.** New owner-only `POST /todos/{id}/duplicate` (`DuplicateTodoCommand`) authors

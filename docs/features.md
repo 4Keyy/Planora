@@ -303,9 +303,11 @@ domain), `AddCommentCommand(ReplyToType, ReplyToId)` + handler target resolution
 composer chip, `ReplyQuote` block, `jumpToQuoted` scroll-and-pulse), `addComment(todoId, content,
 replyTo?)` in `lib/api.ts`, reply fields on `TodoComment`.
 
-The reply sub-branch is visibly **forked off its parent**: a tall elbow rises along the main rail
-right under the parent message/subtask and curves into the thread's sub-rail (`ReplyThread`
-connector, `THREAD_*` geometry), so it always reads which conversation a reply belongs to.
+The reply sub-branch is visibly **forked off its parent** (`ReplyThread`, `THREAD_*` geometry).
+Under a **message** it indents onto its own sub-rail and connects to the main rail by an elbow;
+under a **subtask** it sits on the subtask's **own** sub-branch axis and inherits its line colour
+(green/amber/grey), so the subtask branch flows straight into the reply avatars. The rail is drawn
+per row and **ends at the last reply's avatar** — never a dangling segment below it.
 
 ### Completed-task actions (Restore & Duplicate)
 
