@@ -263,15 +263,31 @@ compose box (height-animated, nothing jumps): quoted author's avatar + name, a o
 an amber `SUBTASK` badge when quoting a subtask, and an ✕ to cancel — `Esc` cancels the reply
 first, then (pressed again) the compose mode, without closing the modal.
 
-**Rendering.** A reply renders as a normal rail message with a compact **quote block above its
-body**: a colour-keyed accent bar (violet for quoted messages, amber for quoted subtasks, grey
-when deleted), the quoted author's avatar + name and the excerpt. Clicking the quote
-**smooth-scrolls the branch to the original** (message row or subtask card) and pulses it
-(`reply_flash` keyframe); targets on unloaded earlier pages are a quiet no-op, and deleted targets
-render muted with a `DELETED` badge and are not clickable.
+**Rendering — nested sub-branches, not a flat stream.** Replies do **not** sit inline on the main
+rail. Each reply is grouped into a **sub-branch (thread) hanging beneath its root** — the top-level
+message or the subtask it ultimately descends from — rendered as a tidy indented column with its
+own sub-rail, branched off the main rail by a soft elbow and with the reply avatars sitting on the
+sub-rail exactly as messages sit on the main rail (`ReplyThread`, geometry constants
+`THREAD_CONTENT` / `THREAD_RAIL_X` / `THREAD_AVATAR`). The model is **two levels, flat**: every
+reply in a root's chain lands in that one thread (no ever-deepening indentation), and chain depth
+is conveyed by quotes instead. `buildFeed` → `resolveThreads` walks each reply's chain up to its
+root to group it; a reply whose root is on an unloaded earlier page falls back to a standalone
+main-rail row so it is never lost, and rejoins its thread once earlier messages load.
+
+**Quote visibility follows the nesting:**
+- a **direct reply to a message or subtask** shows **no quote** — its position in that root's
+  sub-branch already says what it answers;
+- a **reply to another reply** shows the compact **quote block** of the reply it answers (the
+  `ReplyQuote` chip): colour-keyed accent bar (violet for a quoted message, amber for a quoted
+  subtask, grey when deleted), the quoted author's avatar + name and a one-line excerpt. Clicking it
+  **smooth-scrolls the branch to that reply** and pulses it (`reply_flash` keyframe); targets on
+  unloaded pages are a quiet no-op, deleted targets render muted with a `DELETED` badge and are
+  not clickable.
 
 | Aspect | Rule |
 |---|---|
+| Layout | reply nests in its root's sub-branch (message/subtask); reply-to-reply joins the **same** sub-branch as the reply it answers (flat, one indentation level) — never on the main rail (except the unresolved-root fallback) |
+| Quote | shown **only** when answering another reply; a direct reply to a root shows none (nesting conveys it). Resolved per-reply by `resolveThreads` (`showQuote`) |
 | Targets | `comment` (a user comment **or another reply** in the same branch) and `subtask` (a child of this exact task). Never system events or the genesis note |
 | Snapshot | captured **server-side** at write time (`ReplyToAuthorId/Name`, `ReplyToPreview` ≤ 300 chars, newlines flattened); client-supplied preview text is never accepted |
 | Live refresh | quoted author identity is re-resolved from Auth on every read (rename-safe); for **comment** targets the preview is re-read from the live target in one batched query per page (edits propagate) |
@@ -283,8 +299,9 @@ Backend: `Comment.CreateReply` / `TruncatePreview` / `MarkReplyTargetDeleted` (C
 domain), `AddCommentCommand(ReplyToType, ReplyToId)` + handler target resolution,
 `GetCommentsQueryHandler` live-quote enrichment, `CommentRepository.GetLiveByIdsAsync` /
 `MarkSubtaskReplyTargetsDeletedAsync`, `TodoService.GetSubtaskBrief` gRPC. Frontend:
-`branch-feed.tsx` (`ReplyDraft` composer chip, `ReplyQuote` block, `jumpToQuoted` scroll-and-pulse),
-`addComment(todoId, content, replyTo?)` in `lib/api.ts`, reply fields on `TodoComment`.
+`branch-feed.tsx` (`resolveThreads` root grouping, `ReplyThread` nested sub-branch, `ReplyDraft`
+composer chip, `ReplyQuote` block, `jumpToQuoted` scroll-and-pulse), `addComment(todoId, content,
+replyTo?)` in `lib/api.ts`, reply fields on `TodoComment`.
 
 ### Frontend Behavior
 

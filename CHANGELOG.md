@@ -4,6 +4,24 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(branch): nest replies into sub-branches under their root (2026-06-12)
+
+Reworked how replies are laid out in the branch ("ветка") so they read as nested conversations
+instead of one flat stream — the backend reply model is unchanged.
+
+- **Threaded sub-branches.** A reply no longer sits inline on the main rail; it now hangs in a
+  sub-branch beneath the message or subtask it ultimately descends from, rendered as a tidy
+  indented column with its own sub-rail, an elbow branching off the main rail, and avatars sitting
+  on the line (new `ReplyThread`). The model is two-level and flat: every reply in a root's chain
+  lands in that one thread (no ever-deepening indentation), and chain depth is shown by quotes.
+- **Quote visibility follows nesting.** A direct reply to a message or subtask shows **no quote**
+  (its place in the sub-branch already says what it answers); only a reply to another reply shows
+  the quote of the reply it answers. Computed by the new `resolveThreads` (`buildFeed`), which
+  walks each reply's chain to its root; replies whose root is on an unloaded page fall back to a
+  standalone main-rail row and rejoin once earlier messages load.
+- No backend / API / schema changes — purely the frontend rail rendering. `next build`, `tsc` and
+  the frontend suite (incl. `comments-api`) pass.
+
 ### feat(branch): replies to messages, replies & subtasks + subtask card byline (2026-06-12)
 
 The branch ("ветка") timeline gains a full **reply system** and the subtask card gets the

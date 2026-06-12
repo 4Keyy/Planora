@@ -30,6 +30,20 @@ const SPRING_SNAP = { type: "spring" as const, stiffness: 460, damping: 32 }
 const RAIL_GUTTER = 40
 const RAIL_CENTER = 20
 
+// Reply sub-branch (thread) geometry. A reply thread hangs beneath its root (a message or a
+// subtask) as a tidy indented column with its own sub-rail, branched off the main rail by a soft
+// elbow. The thread wrapper is a flow child of the main rail container (whose content origin is
+// RAIL_GUTTER), so its local x=0 maps to that origin; the main rail therefore sits at local
+// THREAD_MAIN_RAIL_X. Reply rows pad their content by THREAD_CONTENT and centre their avatar on
+// the sub-rail at THREAD_RAIL_X.
+const THREAD_CONTENT      = 34                       // left padding reserving the sub-rail + avatar
+const THREAD_RAIL_X       = 12                       // sub-rail line x within the thread wrapper
+const THREAD_MAIN_RAIL_X  = RAIL_CENTER - RAIL_GUTTER // main rail x in the thread's local coords (-20)
+const THREAD_AVATAR       = 22                       // reply avatar size (smaller than a rail message)
+// Avatar left within a thread reply row so its centre lands on the sub-rail. Mirrors the main-rail
+// formula: railX - contentOrigin - size/2.
+const THREAD_AVATAR_LEFT  = THREAD_RAIL_X - THREAD_CONTENT - THREAD_AVATAR / 2
+
 // Maps a system-event comment to a simple, monochrome icon that hints at its meaning.
 // Matches the English event sentences Todo emits (and keeps the legacy Russian keywords).
 // Markers are intentionally greyscale (see SystemEvent) so the rail stays calm and uncluttered.
@@ -106,11 +120,90 @@ interface SubtaskMeta {
   completedAt?: string
 }
 
-// Flat list item (day separator, comment, or an inline subtask card cluster)
+// A single reply inside a thread, paired with whether its quote should show. The quote is shown
+// ONLY when the reply answers another reply (its branch position already says it belongs to the
+// root, so a direct reply to the root needs no quote). See resolveThreads.
+interface ThreadReply {
+  comment: TodoComment
+  showQuote: boolean
+}
+
+// Main-rail items. A regular message and a subtask card each carry the (flattened, chronological)
+// thread of replies that hang beneath them as a sub-branch. System events and unresolved
+// "orphan" replies (whose root is on an unloaded page) stand alone on the rail.
 type FeedItem =
   | { type: "separator"; label: string; key: string }
-  | { type: "comment";   comment: TodoComment }
-  | { type: "subtask";   subtask: Todo; meta: SubtaskMeta }
+  | { type: "comment";   comment: TodoComment; replies: ThreadReply[] }
+  | { type: "subtask";   subtask: Todo; meta: SubtaskMeta; replies: ThreadReply[] }
+  | { type: "orphan";    comment: TodoComment }
+
+// A reply's ultimate thread root: a top-level message ("comment") or a subtask card ("subtask").
+type ThreadRoot = { kind: "comment" | "subtask"; id: string }
+
+// Resolves, for every reply, the root its thread hangs from — by walking the reply chain up until
+// it reaches a top-level message or a subtask. Returns:
+//  • repliesByRoot — root key ("c:<id>" / "s:<id>") → its flattened, chronological replies;
+//  • showQuoteById — comment id → whether its quote should render (true iff it answers a reply);
+//  • orphanIds     — replies whose root could not be resolved within the loaded pages.
+function resolveThreads(comments: TodoComment[], byId: Map<string, TodoComment>): {
+  repliesByRoot: Map<string, ThreadReply[]>
+  orphanIds: Set<string>
+} {
+  const rootCache = new Map<string, ThreadRoot | null>()
+
+  const rootOf = (c: TodoComment, seen: Set<string>): ThreadRoot | null => {
+    const cached = rootCache.get(c.id)
+    if (cached !== undefined) return cached
+    if (seen.has(c.id)) return null // defensive cycle guard
+    seen.add(c.id)
+
+    let result: ThreadRoot | null
+    if (c.replyToType === "subtask") {
+      result = c.replyToId ? { kind: "subtask", id: c.replyToId } : null
+    } else if (c.replyToType === "comment" && c.replyToId) {
+      const target = byId.get(c.replyToId)
+      if (!target) result = null                          // target on an unloaded page
+      else if (!target.replyToType) result = { kind: "comment", id: target.id } // target is a root message
+      else result = rootOf(target, seen)                  // target is itself a reply → keep climbing
+    } else {
+      result = null
+    }
+    rootCache.set(c.id, result)
+    return result
+  }
+
+  // A reply shows its quote iff the thing it directly answers is itself a reply. A direct reply to
+  // a root message or a subtask shows none — the sub-branch already conveys the target.
+  const showQuoteFor = (c: TodoComment): boolean => {
+    if (c.replyToType === "subtask") return false
+    if (c.replyToType === "comment" && c.replyToId) {
+      const target = byId.get(c.replyToId)
+      if (!target) return true            // unknown target → keep the quote for context
+      return !!target.replyToType         // quote only when answering another reply
+    }
+    return false
+  }
+
+  const repliesByRoot = new Map<string, ThreadReply[]>()
+  const orphanIds = new Set<string>()
+
+  for (const c of comments) {
+    if (c.isSystemComment || !c.replyToType) continue // system events & root messages aren't thread members
+    const root = rootOf(c, new Set())
+    if (!root) { orphanIds.add(c.id); continue }
+    const key = `${root.kind === "subtask" ? "s" : "c"}:${root.id}`
+    const list = repliesByRoot.get(key) ?? []
+    list.push({ comment: c, showQuote: showQuoteFor(c) })
+    repliesByRoot.set(key, list)
+  }
+
+  // Each thread is shown oldest-first, like the main rail.
+  for (const list of repliesByRoot.values()) {
+    list.sort((a, b) => (a.comment.createdAt < b.comment.createdAt ? -1 : a.comment.createdAt > b.comment.createdAt ? 1 : 0))
+  }
+
+  return { repliesByRoot, orphanIds }
+}
 
 // Pulls the actor's name out of a subtask system sentence, e.g. "Ann Lee completed a subtask: Buy milk".
 function parseSubtaskActor(content: string, verb: "added" | "completed"): string | undefined {
@@ -126,10 +219,12 @@ function isSubtaskSystemComment(c: TodoComment): boolean {
   return !!c.isSystemComment && /(?:added|completed) a subtask:/i.test(c.content)
 }
 
-// Builds the chronological rail by interleaving branch comments with subtask card clusters. A
-// subtask's lifecycle system comments are hidden from the rail entirely: creation is never shown,
-// and completion is parsed (when it can be matched to a live subtask) into the icon-less completion
-// reply inside the subtask's own sub-branch. Cards anchor on their own creation time.
+// Builds the rail. Top-level messages, subtask cards and system events sit on the main rail in
+// chronological order; **replies do not** — each reply is grouped into a flattened sub-branch
+// (thread) hanging beneath its root message/subtask (see resolveThreads), so the branch reads as
+// nested conversations rather than one flat stream. A subtask's lifecycle system comments are
+// hidden from the rail entirely (creation never shown; completion folded into the icon-less
+// completion reply). Cards anchor on their own creation time; threads hang under their root.
 function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
   const completionEvents = comments.filter((c) => c.isSystemComment && /completed a subtask:/i.test(c.content))
 
@@ -152,12 +247,24 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
     metaById.set(s.id, meta)
   }
 
+  // Resolve the reply threads once; the result keys each root to its flattened replies.
+  const byId = new Map(comments.map((c) => [c.id, c]))
+  const { repliesByRoot, orphanIds } = resolveThreads(comments, byId)
+
   type Ev =
     | { time: string; order: number; kind: "comment"; comment: TodoComment }
     | { time: string; order: number; kind: "subtask"; subtask: Todo }
+    | { time: string; order: number; kind: "orphan";  comment: TodoComment }
   const evs: Ev[] = []
   for (const c of comments) {
     if (isSubtaskSystemComment(c)) continue   // never a standalone rail node (matched or not)
+    // Replies live inside their root's sub-branch, not on the main rail — unless their root could
+    // not be resolved (its ancestor is on an older, unloaded page), in which case they stand alone
+    // so they are never lost.
+    if (!c.isSystemComment && c.replyToType) {
+      if (orphanIds.has(c.id)) evs.push({ time: c.createdAt, order: 0, kind: "orphan", comment: c })
+      continue
+    }
     evs.push({ time: c.createdAt, order: 0, kind: "comment", comment: c })
   }
   // The subtask card anchors on its own creation time; order:1 keeps it after same-time comments.
@@ -173,8 +280,18 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
       items.push({ type: "separator", label: day, key: `sep-${sepIdx++}-${e.time}` })
       lastDay = day
     }
-    if (e.kind === "comment") items.push({ type: "comment", comment: e.comment })
-    else items.push({ type: "subtask", subtask: e.subtask, meta: metaById.get(e.subtask.id) ?? {} })
+    if (e.kind === "comment") {
+      items.push({ type: "comment", comment: e.comment, replies: repliesByRoot.get(`c:${e.comment.id}`) ?? [] })
+    } else if (e.kind === "subtask") {
+      items.push({
+        type: "subtask",
+        subtask: e.subtask,
+        meta: metaById.get(e.subtask.id) ?? {},
+        replies: repliesByRoot.get(`s:${e.subtask.id}`) ?? [],
+      })
+    } else {
+      items.push({ type: "orphan", comment: e.comment })
+    }
   }
   return items
 }
@@ -707,6 +824,32 @@ export function BranchFeed({
 
   const feed = buildFeed(stream, subtasks)
 
+  // Renders a root's reply sub-branch, wiring the shared branch handlers. A plain element factory
+  // (not an inline component) so the stable top-level ReplyThread keeps its children mounted.
+  const renderReplyThread = (key: string, replies: ThreadReply[]) => (
+    <ReplyThread
+      key={key}
+      replies={replies}
+      isOwner={isOwner}
+      editingId={editingId}
+      editContent={editContent}
+      submitting={submitting}
+      flashKey={flashKey}
+      registerNode={registerNode}
+      onEditStart={(id, content) => { setEditingId(id); setEditContent(content) }}
+      onEditCancel={() => setEditingId(null)}
+      onEditSave={handleEditSave}
+      onEditContentChange={setEditContent}
+      onDelete={handleDelete}
+      onReplyTo={(rc) => startReply({
+        type: "comment", id: rc.id,
+        authorId: rc.authorId, authorName: rc.authorName,
+        authorAvatarUrl: rc.authorAvatarUrl, preview: rc.content,
+      })}
+      onQuoteJump={jumpToQuoted}
+    />
+  )
+
   const composeAccent = composeMode === "text" ? "#0a0a0a" : "#4f46e5"
 
   // Once the task is completed the "+" menu offers nothing for now — no description, no subtask,
@@ -980,9 +1123,10 @@ export function BranchFeed({
                 if (item.type === "separator") {
                   return <DaySeparator key={item.key} label={item.label} />
                 }
+
                 if (item.type === "subtask") {
                   const s = item.subtask
-                  return (
+                  return [
                     <SubtaskCard
                       key={`sub-${s.id}`}
                       subtask={s}
@@ -1003,14 +1147,47 @@ export function BranchFeed({
                         authorId: s.userId, authorName: s.authorName,
                         authorAvatarUrl: s.authorAvatarUrl, preview: s.title,
                       })}
+                    />,
+                    item.replies.length > 0
+                      ? renderReplyThread(`thread-s-${s.id}`, item.replies)
+                      : null,
+                  ]
+                }
+
+                if (item.type === "orphan") {
+                  // A reply whose root is on an unloaded page — shown standalone (with its quote)
+                  // so it is never lost; it rejoins its thread once earlier messages load.
+                  const c = item.comment
+                  return (
+                    <MessageItem
+                      key={c.id}
+                      comment={c}
+                      isOwner={isOwner}
+                      editingId={editingId}
+                      editContent={editContent}
+                      submitting={submitting}
+                      flash={flashKey === `c-${c.id}`}
+                      nodeRef={registerNode(`c-${c.id}`)}
+                      onEditStart={(id, content) => { setEditingId(id); setEditContent(content) }}
+                      onEditCancel={() => setEditingId(null)}
+                      onEditSave={handleEditSave}
+                      onEditContentChange={setEditContent}
+                      onDelete={handleDelete}
+                      onReply={() => startReply({
+                        type: "comment", id: c.id,
+                        authorId: c.authorId, authorName: c.authorName,
+                        authorAvatarUrl: c.authorAvatarUrl, preview: c.content,
+                      })}
+                      onQuoteJump={jumpToQuoted}
                     />
                   )
                 }
+
                 const c = item.comment
                 if (c.isSystemComment) {
                   return <SystemEvent key={c.id} comment={c} />
                 }
-                return (
+                return [
                   <MessageItem
                     key={c.id}
                     comment={c}
@@ -1031,8 +1208,11 @@ export function BranchFeed({
                       authorAvatarUrl: c.authorAvatarUrl, preview: c.content,
                     })}
                     onQuoteJump={jumpToQuoted}
-                  />
-                )
+                  />,
+                  item.replies.length > 0
+                    ? renderReplyThread(`thread-c-${c.id}`, item.replies)
+                    : null,
+                ]
               })}
             </AnimatePresence>
           </div>
@@ -2229,6 +2409,102 @@ function ReplyQuote({
   )
 }
 
+/* ── Reply thread ── the reply sub-branch hanging beneath a root message or subtask. All replies
+   that descend from the root are flattened into one tidy indented column with its own sub-rail,
+   branched off the main rail by a soft elbow at the top. A direct reply to the root shows no quote
+   (the nesting already says what it answers); a reply to another reply shows the compact quote of
+   the reply it answers. Avatars sit on the sub-rail exactly as messages sit on the main rail. */
+interface ReplyThreadProps {
+  replies: ThreadReply[]
+  isOwner: boolean
+  editingId: string | null
+  editContent: string
+  submitting: boolean
+  flashKey: string | null
+  registerNode: (key: string) => (el: HTMLDivElement | null) => void
+  onEditStart: (id: string, content: string) => void
+  onEditCancel: () => void
+  onEditSave: (id: string) => void
+  onEditContentChange: (v: string) => void
+  onDelete: (id: string) => void
+  onReplyTo: (c: TodoComment) => void
+  onQuoteJump: (type: ReplyTargetType, id: string) => void
+}
+
+function ReplyThread({
+  replies, isOwner, editingId, editContent, submitting, flashKey, registerNode,
+  onEditStart, onEditCancel, onEditSave, onEditContentChange, onDelete, onReplyTo, onQuoteJump,
+}: ReplyThreadProps) {
+  if (replies.length === 0) return null
+  return (
+    <motion.div
+      layout="position"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      style={{ position: "relative", paddingLeft: THREAD_CONTENT, marginTop: 2, marginBottom: 8 }}
+    >
+      {/* Branch-off elbow — curves from the parent's main rail into this sub-rail */}
+      <span style={{
+        position: "absolute",
+        left: THREAD_MAIN_RAIL_X - 1,
+        top: -10,
+        width: THREAD_RAIL_X - (THREAD_MAIN_RAIL_X - 1),
+        height: 26,
+        borderLeft: "2px solid #e4e4e7",
+        borderBottom: "2px solid #e4e4e7",
+        borderBottomLeftRadius: 12,
+        pointerEvents: "none",
+      }} />
+      {/* Sub-rail — the line the reply avatars sit on; soft fade at the bottom */}
+      <span style={{
+        position: "absolute",
+        left: THREAD_RAIL_X - 1,
+        top: 16,
+        bottom: 12,
+        width: 2,
+        borderRadius: 1,
+        background: "linear-gradient(to bottom, #e4e4e7 0, #e4e4e7 calc(100% - 12px), transparent 100%)",
+        pointerEvents: "none",
+      }} />
+
+      <AnimatePresence initial={false}>
+        {replies.map(({ comment: r, showQuote }) => (
+          <motion.div
+            key={r.id}
+            layout="position"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={SPRING_SNAP}
+          >
+            <MessageItem
+              comment={r}
+              isOwner={isOwner}
+              editingId={editingId}
+              editContent={editContent}
+              submitting={submitting}
+              flash={flashKey === `c-${r.id}`}
+              nodeRef={registerNode(`c-${r.id}`)}
+              avatarSize={THREAD_AVATAR}
+              avatarLeft={THREAD_AVATAR_LEFT}
+              showQuote={showQuote}
+              onEditStart={onEditStart}
+              onEditCancel={onEditCancel}
+              onEditSave={onEditSave}
+              onEditContentChange={onEditContentChange}
+              onDelete={onDelete}
+              onReply={() => onReplyTo(r)}
+              onQuoteJump={onQuoteJump}
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
 /* ── Message item ── */
 interface MessageItemProps {
   comment: TodoComment
@@ -2240,6 +2516,13 @@ interface MessageItemProps {
   flash?: boolean
   /** Registers the row's DOM node so reply quotes can scroll to it. */
   nodeRef?: (el: HTMLDivElement | null) => void
+  /** Avatar size — smaller inside a reply thread. */
+  avatarSize?: number
+  /** Avatar absolute left so it centres on the relevant rail (main rail vs. thread sub-rail). */
+  avatarLeft?: number
+  /** Whether to render the quote block. Defaults to "render when this is a reply" — a thread
+      passes false for a direct reply to its root (the nesting already says what it answers). */
+  showQuote?: boolean
   onEditStart: (id: string, content: string) => void
   onEditCancel: () => void
   onEditSave: (id: string) => void
@@ -2251,11 +2534,14 @@ interface MessageItemProps {
 
 function MessageItem({
   comment: c, isOwner, editingId, editContent, submitting, flash, nodeRef,
+  avatarSize = 26, avatarLeft = RAIL_CENTER - RAIL_GUTTER - 26 / 2, showQuote,
   onEditStart, onEditCancel, onEditSave, onEditContentChange, onDelete, onReply, onQuoteJump,
 }: MessageItemProps) {
   const [hovered, setHovered] = useState(false)
   const isEditing = editingId === c.id
   const canAct    = c.isOwn || isOwner
+  // Default: show the quote whenever this comment is a reply (main rail / orphan). Threads override.
+  const quoteVisible = showQuote ?? !!c.replyToType
 
   return (
     <div
@@ -2272,10 +2558,10 @@ function MessageItem({
         animation: flash ? "reply_flash 1100ms ease-out" : undefined,
       }}
     >
-      {/* Avatar marker — centred on the rail */}
+      {/* Avatar marker — centred on the rail (main rail, or the thread sub-rail when nested) */}
       <div style={{
         position: "absolute",
-        left: RAIL_CENTER - RAIL_GUTTER - 26 / 2,
+        left: avatarLeft,
         top: 8,
         zIndex: 2,
       }}>
@@ -2286,7 +2572,7 @@ function MessageItem({
             lastName: c.authorName?.split(" ")[1],
             profilePictureUrl: c.authorAvatarUrl
           }}
-          size={26}
+          size={avatarSize}
           style={{ boxShadow: "0 0 0 3px white" }}
         />
       </div>
@@ -2366,8 +2652,9 @@ function MessageItem({
         )}
       </div>
 
-      {/* Quoted target — rendered above the body so the reply reads top-down like a thread */}
-      {!isEditing && c.replyToType && (
+      {/* Quoted target — rendered above the body so the reply reads top-down like a thread.
+          Hidden for a direct reply inside a thread (its position already conveys the target). */}
+      {!isEditing && c.replyToType && quoteVisible && (
         <ReplyQuote comment={c} onJump={onQuoteJump} />
       )}
 
