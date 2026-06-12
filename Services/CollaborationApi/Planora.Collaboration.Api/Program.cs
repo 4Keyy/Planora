@@ -196,6 +196,10 @@ namespace Planora.Collaboration.Api
                 app.UseAuthentication();
                 app.UseAuthorization();
 
+                // Double-submit CSRF check for browser cookie flows. Internal gRPC
+                // (application/grpc over HTTP/2) is exempt inside the middleware.
+                app.UseCsrfProtection();
+
                 // Swagger UI in Development / Staging only
                 app.UsePlanoraSwagger(app.Environment, documentTitle: "Planora Collaboration API");
 

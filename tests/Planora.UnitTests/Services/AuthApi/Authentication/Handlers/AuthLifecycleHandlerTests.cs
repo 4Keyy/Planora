@@ -411,7 +411,7 @@ public class AuthLifecycleHandlerTests
         Assert.Equal("INVALID_REFRESH_TOKEN", inactiveResult.Error!.Code);
 
         var lockedUser = CreateUser();
-        lockedUser.LockAccount();
+        lockedUser.LockAccount(30);
         var lockedToken = new RefreshTokenEntity(lockedUser.Id, "locked", "127.0.0.1", DateTime.UtcNow.AddDays(1));
         AddRefreshTokenToUser(lockedUser, lockedToken);
         fixture.Users.Setup(x => x.GetByRefreshTokenAsync("locked", It.IsAny<CancellationToken>()))
@@ -498,7 +498,7 @@ public class AuthLifecycleHandlerTests
         Assert.Equal(userId, missingUser.Value.UserId);
 
         var lockedUser = CreateUser();
-        lockedUser.LockAccount();
+        lockedUser.LockAccount(30);
         fixture.TokenService.Setup(x => x.ValidateAccessToken("locked")).Returns(lockedUser.Id);
         fixture.Users.Setup(x => x.GetByIdAsync(lockedUser.Id, It.IsAny<CancellationToken>())).ReturnsAsync(lockedUser);
         var locked = await handler.Handle(new ValidateTokenQuery { Token = "locked" }, CancellationToken.None);
