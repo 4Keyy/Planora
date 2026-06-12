@@ -342,16 +342,28 @@ and dashboard pages.
 ### Branch on its own page
 
 The task branch opens in-place as a modal on a plain card click, but it also has a **standalone
-page** at `/branch/{id}` (`app/branch/[id]`, behind the shared `AuthGuard` + `Navbar` layout). The
-page renders the same timeline the modal does — title, the In Progress pill (hover → Leave) and the
-full `BranchFeed` — and wires every task action directly against the API (description save,
-take/leave work, complete/restore, duplicate; duplicating navigates to the new copy's page). A
-missing/forbidden task shows a friendly "not found" with a link back to `/tasks`.
+page** at `/branch/{id}` (`app/branch/[id]`, behind the shared `AuthGuard` + `Navbar` layout, with
+the **same left/right gutters** as the rest of the app — `max-w-[1600px]` + `px-4/5/6`).
+
+The editor body is **shared, not duplicated**: `modal.tsx` exports `TodoEditor` (title, the inline
+meta strip — priority / due date / category / visibility popovers — and the branch), and
+`EditTodoModal` is now just the dialog chrome wrapping `<TodoEditor variant="modal">`. The page
+renders `<TodoEditor variant="page">` full-width inside a page card. So the page is the **full
+editor** — every control the modal has (inline title edit, priority, due date, category picker,
+visibility/sharing, owner autosave, the In Progress pill with hover → Leave, the "+" menu) plus the
+complete branch — not a read-only view. The two variants differ only in chrome: the modal shows a
+close button + "Open page", the page shows a back-link to `/tasks` and skips both; Escape closes
+the modal but is a no-op (beyond popover/title) on the page.
+
+The page owns the task + category data and wires every editor action against the API: owner
+autosave (`PUT` preserving status), viewer category preference, take/leave work, complete/restore,
+and duplicate (which navigates to the new copy's page). A missing/forbidden task shows a friendly
+"not found" with a link back to `/tasks` (access is enforced server-side by `GetTodoById`).
 
 Two ways to reach it: **Ctrl/⌘-click a task card** opens the page in a **new tab** (a plain click
 still opens the modal), and the modal's top chrome has a grey **"Open page"** button (same row as
 the In Progress pill) that opens it in a new tab. Both compute the URL from the task id;
-`TodoCard` handles the modifier-click, `EditTodoModal` renders the button.
+`TodoCard` handles the modifier-click, `TodoEditor` (modal variant) renders the button.
 
 ### Frontend Behavior
 

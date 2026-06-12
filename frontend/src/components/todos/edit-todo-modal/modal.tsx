@@ -1,8 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { motion } from "framer-motion"
-import { X, ExternalLink } from "lucide-react"
+import { X, ExternalLink, ArrowLeft } from "lucide-react"
 import { ModalPortal }      from "@/components/ui/modal-portal"
 import { useAutosave }      from "@/hooks/use-autosave"
 import { useAuthStore }     from "@/store/auth"
@@ -61,10 +62,14 @@ function todoToOwnerPayload(todo: Todo): UpdateTodoPayload {
   }
 }
 
-export interface EditTodoModalProps {
+export interface TodoEditorProps {
+  /** "modal" wraps the editor in the centred dialog chrome; "page" renders it inline on its
+      own route. The chrome (close/open-page vs. back-link) and Escape behaviour differ; the body
+      — title, meta strip, popovers and branch — is identical. */
+  variant?: "modal" | "page"
   todo: Todo
   categories: Category[]
-  onClose: () => void
+  onClose?: () => void
   onSave: (payload: UpdateTodoPayload) => Promise<void>
   onSaveViewerPreference: (payload: { viewerCategoryId: string | null }) => Promise<void>
   onCreateCategory: () => Promise<void>
@@ -80,7 +85,16 @@ export interface EditTodoModalProps {
   commentsRefreshKey?: number
 }
 
-export function EditTodoModal({
+/** Props for the modal wrapper — same as the editor but the close handler is required. */
+export type EditTodoModalProps = Omit<TodoEditorProps, "variant"> & { onClose: () => void }
+
+/**
+ * The full task editor body — title, the inline meta strip (priority / due date / category /
+ * visibility popovers) and the branch — shared by the in-place modal and the standalone
+ * `/branch/{id}` page. Fills its container (height: 100%); the wrapper sizes it.
+ */
+export function TodoEditor({
+  variant = "modal",
   todo,
   categories,
   onClose,
@@ -93,7 +107,7 @@ export function EditTodoModal({
   onDuplicate,
   onDescriptionChange,
   commentsRefreshKey,
-}: EditTodoModalProps) {
+}: TodoEditorProps) {
   const viewerId = useAuthStore((s) => s.user?.userId)
 
   const isOwner          = isTodoOwner(todo, viewerId)
@@ -155,13 +169,13 @@ export function EditTodoModal({
     setSharedIds(todo.isPublic ? [] : (todo.sharedWithUserIds ?? []))
   }, [todo.id, todo.title, todo.priority, todo.dueDate, todo.categoryId, todo.isPublic, todo.sharedWithUserIds])
 
-  // Escape key — close modal (unless a popover is open)
+  // Escape key — peel back popover, then title edit, then (modal only) close.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (openPopover) { setOpenPopover(null); return }
         if (editingTitle) { setEditingTitle(false); setTitleDraft(title); return }
-        onClose()
+        onClose?.()
       }
     }
     window.addEventListener("keydown", handler)
@@ -243,45 +257,13 @@ export function EditTodoModal({
 
 
 
-  return (
-    <ModalPortal>
-      <div
-        className="fixed inset-0 z-[2000] flex items-center justify-center p-4"
-        onClick={onClose}
-      >
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/60 backdrop-blur-md"
-        />
+  const isPage = variant === "page"
 
-        {/* Modal */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={SPRING_STANDARD}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: "relative",
-            width: 660,
-            // Fixed size regardless of content: the modal is always the same (max) height,
-            // whether the branch is empty or full. The branch feed in the middle flex-fills
-            // and scrolls internally, so title/meta/footer stay put.
-            height: "90vh",
-            maxHeight: 880,
-            overflow: "hidden",
-            borderRadius: 28,
-            background: "white",
-            boxShadow: "0 30px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.05)",
-            zIndex: 2001,
-            display: "flex",
-            flexDirection: "column",
-          }}
-          className="branch-scroll"
-        >
+  return (
+    <div
+      style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}
+      className="branch-scroll"
+    >
           {/* ── (1) Top chrome bar ── */}
           <div style={{
             padding: "16px 26px",
@@ -290,40 +272,55 @@ export function EditTodoModal({
             justifyContent: "space-between",
             gap: 8,
           }}>
-            {/* Left: label + ID */}
-            <span style={{
-              fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
-              textTransform: "uppercase", color: "#a3a3a3",
-            }}>
-              Task Branch
-            </span>
+            {/* Left: a back link on the page, a plain label in the modal */}
+            {isPage ? (
+              <Link
+                href="/tasks"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
+                  textTransform: "uppercase", color: "#a3a3a3", textDecoration: "none",
+                }}
+              >
+                <ArrowLeft size={13} strokeWidth={2.4} /> Task Branch
+              </Link>
+            ) : (
+              <span style={{
+                fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
+                textTransform: "uppercase", color: "#a3a3a3",
+              }}>
+                Task Branch
+              </span>
+            )}
 
             {/* Right: open-page + in-progress pill + close */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {/* Open this branch on its own page (new tab) — grey, low-key, same row as the pill. */}
-              <button
-                onClick={() => window.open(`/branch/${todo.id}`, "_blank", "noopener,noreferrer")}
-                title="Open this branch on its own page"
-                style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  background: "transparent", border: "none", cursor: "pointer",
-                  padding: "5px 6px", borderRadius: 8,
-                  fontSize: 11, fontWeight: 700, letterSpacing: "0.02em",
-                  color: "#a3a3a3", fontFamily: "inherit",
-                  transition: "color 120ms, background 120ms",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.color = "#525252"
-                  ;(e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
-                  ;(e.currentTarget as HTMLButtonElement).style.background = "transparent"
-                }}
-              >
-                <ExternalLink size={12} strokeWidth={2} />
-                Open page
-              </button>
+              {/* Open this branch on its own page (new tab) — modal only; grey, same row as the pill. */}
+              {!isPage && (
+                <button
+                  onClick={() => window.open(`/branch/${todo.id}`, "_blank", "noopener,noreferrer")}
+                  title="Open this branch on its own page"
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    background: "transparent", border: "none", cursor: "pointer",
+                    padding: "5px 6px", borderRadius: 8,
+                    fontSize: 11, fontWeight: 700, letterSpacing: "0.02em",
+                    color: "#a3a3a3", fontFamily: "inherit",
+                    transition: "color 120ms, background 120ms",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = "#525252"
+                    ;(e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+                    ;(e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                  }}
+                >
+                  <ExternalLink size={12} strokeWidth={2} />
+                  Open page
+                </button>
+              )}
 
               {effectiveInProgress && onLeave && (
                 <div
@@ -396,19 +393,21 @@ export function EditTodoModal({
                 </div>
               )}
 
-              {/* Close button */}
-              <button
-                onClick={onClose}
-                style={{
-                  width: 30, height: 30, borderRadius: 10, border: "none",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "#fafafa", cursor: "pointer", transition: "background 120ms",
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0" }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
-              >
-                <X size={12} color="#525252" />
-              </button>
+              {/* Close button — modal only */}
+              {!isPage && (
+                <button
+                  onClick={onClose}
+                  style={{
+                    width: 30, height: 30, borderRadius: 10, border: "none",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: "#fafafa", cursor: "pointer", transition: "background 120ms",
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0" }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
+                >
+                  <X size={12} color="#525252" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -507,7 +506,7 @@ export function EditTodoModal({
           {/* Divider */}
           <div style={{ height: 1, background: "#f5f5f5", margin: "0 26px" }} />
 
-          {/* ── (4) Branch panel ── (flex-fills the fixed-height modal; scrolls internally) */}
+          {/* ── (4) Branch panel ── (flex-fills the container; scrolls internally) */}
           <div style={{ padding: "18px 26px 20px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
             <BranchFeed
               todoId={todo.id}
@@ -518,11 +517,54 @@ export function EditTodoModal({
               isCompleted={isCompleted}
               onStartWork={onStartWork ? async () => { setWorkOverride(true); await onStartWork() } : undefined}
               onStopWork={onLeave ? async () => { setWorkOverride(false); await onLeave() } : undefined}
-              onCompleteTask={onCompleteTask ? async () => { await onCompleteTask(); onClose() } : undefined}
-              onDuplicate={onDuplicate ? async () => { await onDuplicate(); onClose() } : undefined}
+              // The modal closes after complete/duplicate; the page stays (duplicate navigates itself).
+              onCompleteTask={onCompleteTask ? async () => { await onCompleteTask(); onClose?.() } : undefined}
+              onDuplicate={onDuplicate ? async () => { await onDuplicate(); onClose?.() } : undefined}
             />
           </div>
+    </div>
+  )
+}
 
+/**
+ * In-place dialog wrapper around {@link TodoEditor} — backdrop, centred card, and close-on-backdrop.
+ * The standalone `/branch/{id}` page renders {@link TodoEditor} directly with `variant="page"`.
+ */
+export function EditTodoModal(props: EditTodoModalProps) {
+  return (
+    <ModalPortal>
+      <div
+        className="fixed inset-0 z-[2000] flex items-center justify-center p-4"
+        onClick={props.onClose}
+      >
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-black/60 backdrop-blur-md"
+        />
+
+        {/* Modal card — fixed size; the branch in the middle flex-fills and scrolls internally. */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={SPRING_STANDARD}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "relative",
+            width: 660,
+            height: "90vh",
+            maxHeight: 880,
+            overflow: "hidden",
+            borderRadius: 28,
+            background: "white",
+            boxShadow: "0 30px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.05)",
+            zIndex: 2001,
+          }}
+        >
+          <TodoEditor variant="modal" {...props} />
         </motion.div>
       </div>
     </ModalPortal>

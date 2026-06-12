@@ -4,12 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(branch): full editor on the standalone branch page (2026-06-12)
+
+Extracted the modal's editor body into a shared `TodoEditor` (exported from `modal.tsx`) so the
+branch page is the **complete editor**, not a stripped view. `EditTodoModal` is now just the dialog
+chrome around `<TodoEditor variant="modal">`; the `/branch/{id}` page renders
+`<TodoEditor variant="page">` full-width.
+
+- The page now has **every editing control** the modal has — inline title edit, priority, due date,
+  category picker, visibility/sharing, owner autosave, the In Progress pill (hover → Leave) and the
+  "+" menu — plus the full branch.
+- The page is **full-width** with the same gutters as the rest of the app (`max-w-[1600px]`,
+  `px-4/5/6`); it owns the task + category data and wires every action against the API (autosave
+  preserves status, viewer category preference, take/leave, complete/restore, duplicate→navigate).
+- Variants differ only in chrome (modal: close + "Open page"; page: back-link, Escape is a no-op
+  beyond popover/title). Access stays server-enforced via `GetTodoById`.
+
 ### feat(branch): open a task's branch on its own page (2026-06-12)
 
-- **Standalone branch page** at `/branch/{id}` (`app/branch/[id]`) renders the same task timeline
-  the modal shows — title, In Progress pill (with hover-to-Leave), and the full `BranchFeed` with
-  every action wired (description save, take/leave work, complete/restore, duplicate). Behind the
-  shared `AuthGuard` + `Navbar` layout.
+- **Standalone branch page** at `/branch/{id}` (`app/branch/[id]`), behind the shared `AuthGuard` +
+  `Navbar` layout.
 - **Ctrl/⌘-click a task card** opens that branch page in a **new tab** instead of the in-place
   modal; a plain click still opens the modal as before.
 - **"Open page" button** added to the branch modal's top chrome (grey, same row as the In Progress

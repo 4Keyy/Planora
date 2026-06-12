@@ -3,17 +3,21 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
-import { api, fetchTaskById, duplicateTodo, joinTodo, leaveTodo, setViewerPreference, parseApiResponse, getApiErrorMessage, type ApiResponse } from "@/lib/api"
+import {
+  api, fetchTaskById, duplicateTodo, joinTodo, leaveTodo, setViewerPreference,
+  parseApiResponse, getApiErrorMessage, type ApiResponse,
+} from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
-import { Todo, isTodoOwner } from "@/types/todo"
-import { BranchFeed } from "@/components/todos/edit-todo-modal/branch-feed"
+import { Todo, type UpdateTodoPayload, isTodoOwner, toApiTodoStatus } from "@/types/todo"
+import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
+import { TodoEditor } from "@/components/todos/edit-todo-modal"
 
 /**
- * Standalone branch page — the same task timeline ("ветка") the modal shows, on its own URL so it
- * can be opened in a new tab (Ctrl/Cmd-click a card, or the modal's "Open page" button). Reuses
- * BranchFeed and wires the same task actions directly against the API.
+ * Standalone branch page — the same full task editor the modal shows (title, the inline meta strip
+ * with priority / due date / category / visibility, and the branch timeline), on its own URL so it
+ * can be opened in a new tab (Ctrl/⌘-click a card, or the modal's "Open page" button). It owns the
+ * task + category data and wires every editor action directly against the API.
  */
 export default function BranchPage() {
   const params = useParams<{ id: string }>()
@@ -23,11 +27,11 @@ export default function BranchPage() {
   const viewerId = useAuthStore((s) => s.user?.userId)
 
   const [todo, setTodo] = useState<Todo | null>(null)
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
-  const [pillHovered, setPillHovered] = useState(false)
-  // Optimistic in-progress flag so the pill flips instantly before the refetch lands.
-  const [workOverride, setWorkOverride] = useState<boolean | null>(null)
+  // Bumped after an action whose system event is materialised asynchronously, so the branch
+  // catches it up without a manual refresh.
   const [refreshKey, setRefreshKey] = useState(0)
 
   const load = useCallback(async () => {
@@ -43,21 +47,52 @@ export default function BranchPage() {
     }
   }, [todoId])
 
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories")
+      setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
+    } catch {
+      /* categories are optional enrichment — a failure just leaves the picker empty */
+    }
+  }, [])
+
   useEffect(() => { void load() }, [load])
-  useEffect(() => { setWorkOverride(null) }, [todoId])
+  useEffect(() => { void fetchCategories() }, [fetchCategories])
 
   const isOwner = todo ? isTodoOwner(todo, viewerId) : false
 
   const statusKey = String(todo?.status ?? "").toLowerCase().replace(/\s/g, "")
-  const ownerInProgress = statusKey === "inprogress"
-  const baseInProgress = isOwner ? ownerInProgress : (todo?.isWorking ?? false)
-  const inProgress = workOverride ?? baseInProgress
-  const isCompleted = isOwner
-    ? (statusKey === "done" || statusKey === "completed")
-    : (todo?.isCompletedByViewer ?? false)
   const isShared = !!todo && (todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0)
 
-  // ── Action handlers (mirror the modal's, calling the API directly) ──
+  // ── Editor actions (owner autosave + the branch's task actions) ──
+  // Owner autosave: persist the full payload, preserving the current status (the editor payload
+  // never carries status — that is driven by the work/complete actions below).
+  const handleSave = useCallback(async (payload: UpdateTodoPayload) => {
+    if (!todoId || !todo) return
+    try {
+      const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todoId}`, {
+        ...payload,
+        status: toApiTodoStatus(todo.status),
+      })
+      const updated = parseApiResponse(res.data)
+      setTodo((p) => (p ? { ...p, ...updated, authorName: p.authorName ?? updated.authorName } : updated))
+    } catch (e) {
+      addToast({ type: "error", title: getApiErrorMessage(e, "Failed to save changes") })
+      throw e // surface the editor's autosave error state
+    }
+  }, [todoId, todo, addToast])
+
+  const handleSaveViewerPreference = useCallback(async ({ viewerCategoryId }: { viewerCategoryId: string | null }) => {
+    if (!todoId) return
+    try {
+      await setViewerPreference(todoId, { viewerCategoryId, updateViewerCategory: true })
+      await load()
+    } catch (e) {
+      addToast({ type: "error", title: getApiErrorMessage(e, "Failed to save your category") })
+      throw e
+    }
+  }, [todoId, load, addToast])
+
   const patchStatus = useRef(async (status: "todo" | "inProgress" | "done") => {
     if (!todoId) return
     const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todoId}`, { status })
@@ -65,53 +100,46 @@ export default function BranchPage() {
     setRefreshKey((k) => k + 1)
   }).current
 
-  const handleSaveDescription = async (text: string) => {
-    if (!todoId) return
-    const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${todoId}`, { description: text.trim() || null })
-    setTodo(parseApiResponse(res.data))
-  }
-
-  const handleStartWork = async () => {
+  const handleStartWork = useCallback(async () => {
     if (!todo) return
-    setWorkOverride(true)
     try {
       if (isOwner) await patchStatus("inProgress")
-      else { const u = await joinTodo(todo.id); setTodo((p) => p ? { ...p, ...u } : u); setRefreshKey((k) => k + 1) }
-    } catch (e) { setWorkOverride(null); addToast({ type: "error", title: getApiErrorMessage(e, "Could not update task") }) }
-  }
+      else { const u = await joinTodo(todo.id); setTodo((p) => (p ? { ...p, ...u } : u)); setRefreshKey((k) => k + 1) }
+    } catch (e) { addToast({ type: "error", title: getApiErrorMessage(e, "Could not update task") }) }
+  }, [todo, isOwner, patchStatus, addToast])
 
-  const handleStopWork = async () => {
+  const handleStopWork = useCallback(async () => {
     if (!todo) return
-    setWorkOverride(false)
     try {
       if (isOwner) await patchStatus("todo")
       else { await leaveTodo(todo.id); await load(); setRefreshKey((k) => k + 1) }
-    } catch (e) { setWorkOverride(null); addToast({ type: "error", title: getApiErrorMessage(e, "Could not stop working") }) }
-  }
+    } catch (e) { addToast({ type: "error", title: getApiErrorMessage(e, "Could not stop working") }) }
+  }, [todo, isOwner, patchStatus, load, addToast])
 
-  const handleComplete = async () => {
+  const handleComplete = useCallback(async () => {
     if (!todo) return
+    const completed = isOwner
+      ? (statusKey === "done" || statusKey === "completed")
+      : (todo.isCompletedByViewer ?? false)
     try {
       if (!isOwner && isShared) {
-        const wasCompleted = todo.isCompletedByViewer === true
-        const r = await setViewerPreference(todo.id, { completedByViewer: !wasCompleted })
-        setTodo((p) => p ? { ...p, isCompletedByViewer: r.completedByViewer ?? false } : p)
-        addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
-        return
+        const r = await setViewerPreference(todo.id, { completedByViewer: !completed })
+        setTodo((p) => (p ? { ...p, isCompletedByViewer: r.completedByViewer ?? false } : p))
+      } else {
+        await patchStatus(completed ? "todo" : "done")
       }
-      await patchStatus(isCompleted ? "todo" : "done")
-      addToast({ type: "success", title: isCompleted ? "Task reopened!" : "Task completed!" })
+      addToast({ type: "success", title: completed ? "Task reopened!" : "Task completed!" })
     } catch (e) { addToast({ type: "error", title: getApiErrorMessage(e, "Could not update task") }) }
-  }
+  }, [todo, isOwner, isShared, statusKey, patchStatus, addToast])
 
-  const handleDuplicate = async () => {
+  const handleDuplicate = useCallback(async () => {
     if (!todo) return
     try {
       const copy = await duplicateTodo(todo.id)
       addToast({ type: "success", title: "Task duplicated", description: "Opening the new copy." })
       router.push(`/branch/${copy.id}`)
     } catch (e) { addToast({ type: "error", title: getApiErrorMessage(e, "Could not duplicate task") }) }
-  }
+  }, [todo, router, addToast])
 
   if (loading) {
     return <p style={{ fontSize: 13, color: "#a3a3a3", padding: "8px 2px" }}>Loading branch…</p>
@@ -132,8 +160,10 @@ export default function BranchPage() {
   return (
     <div
       style={{
+        // Full-width card matching the page's left/right gutters; the branch flex-fills and
+        // scrolls internally so the title/meta stay put.
         display: "flex", flexDirection: "column",
-        height: "calc(100vh - 140px)", minHeight: 520,
+        height: "calc(100vh - 152px)", minHeight: 560,
         background: "white",
         border: "1px solid #f0f0f0",
         borderRadius: 24,
@@ -141,83 +171,20 @@ export default function BranchPage() {
         overflow: "hidden",
       }}
     >
-      {/* ── Top chrome ── */}
-      <div style={{ padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <Link
-          href="/tasks"
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase",
-            color: "#a3a3a3", textDecoration: "none",
-          }}
-        >
-          <ArrowLeft size={13} strokeWidth={2.4} /> Task Branch
-        </Link>
-
-        {inProgress && (
-          <div
-            onMouseEnter={() => setPillHovered(true)}
-            onMouseLeave={() => setPillHovered(false)}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              background: pillHovered ? "#fef2f2" : "#f5f3ff",
-              border: `1px solid ${pillHovered ? "#fecaca" : "#ddd6fe"}`,
-              borderRadius: 100, padding: "5px 10px 5px 8px", cursor: "default",
-              transition: "background 240ms ease, border-color 240ms ease",
-            }}
-          >
-            <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "#ef4444" : "#8b5cf6", transition: "background 240ms ease" }} />
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "#ef4444" : "#8b5cf6", animation: "pl_pulse 1.6s ease-in-out infinite", transition: "background 240ms ease" }} />
-            </div>
-            <div style={{ position: "relative", display: "inline-block" }}>
-              <span style={{ display: "block", fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", color: "#6d28d9", opacity: pillHovered ? 0 : 1, transition: "opacity 180ms ease", userSelect: "none" }}>
-                In Progress
-              </span>
-              <button
-                onClick={async (e) => { e.stopPropagation(); await handleStopWork() }}
-                style={{
-                  position: "absolute", inset: "-3px -6px",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "transparent", border: "1px solid #fecaca", borderRadius: 6, cursor: "pointer",
-                  fontSize: 11, fontWeight: 700, color: "#991b1b", whiteSpace: "nowrap", fontFamily: "inherit",
-                  opacity: pillHovered ? 1 : 0, pointerEvents: pillHovered ? "auto" : "none",
-                  transition: "opacity 180ms ease, background 120ms ease",
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2" }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
-              >
-                Leave
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Title ── */}
-      <div style={{ padding: "6px 26px 14px" }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, lineHeight: 1.22, letterSpacing: "-0.025em", color: "#0a0a0a", wordBreak: "break-word" }}>
-          {todo.title}
-        </h1>
-      </div>
-
-      <div style={{ height: 1, background: "#f5f5f5", margin: "0 26px" }} />
-
-      {/* ── Branch ── */}
-      <div style={{ padding: "18px 26px 20px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
-        <BranchFeed
-          todoId={todo.id}
-          isOwner={isOwner}
-          refreshKey={refreshKey}
-          onSaveDescription={isOwner ? handleSaveDescription : undefined}
-          inProgress={inProgress}
-          isCompleted={isCompleted}
-          onStartWork={handleStartWork}
-          onStopWork={handleStopWork}
-          onCompleteTask={handleComplete}
-          onDuplicate={isOwner ? handleDuplicate : undefined}
-        />
-      </div>
+      <TodoEditor
+        variant="page"
+        todo={todo}
+        categories={categories}
+        onSave={handleSave}
+        onSaveViewerPreference={handleSaveViewerPreference}
+        onCreateCategory={fetchCategories}
+        commentsRefreshKey={refreshKey}
+        onLeave={handleStopWork}
+        onStartWork={handleStartWork}
+        onCompleteTask={handleComplete}
+        onDuplicate={isOwner ? handleDuplicate : undefined}
+        onDescriptionChange={(desc: string) => setTodo((p) => (p ? { ...p, description: desc } : p))}
+      />
     </div>
   )
 }

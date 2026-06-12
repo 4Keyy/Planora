@@ -8,7 +8,9 @@ export default function BranchLayout({ children }: { children: ReactNode }) {
             <div className="min-h-screen bg-transparent">
                 <Navbar />
                 <main className="pt-20">
-                    <div className="mx-auto w-full max-w-[840px] px-4 sm:px-5 lg:px-6 py-8">
+                    {/* Same gutters as the rest of the app (tasks/dashboard) so the branch page
+                        lines up edge-to-edge with the normal pages. */}
+                    <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-5 lg:px-6 py-8">
                         {children}
                     </div>
                 </main>
