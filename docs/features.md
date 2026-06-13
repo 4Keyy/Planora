@@ -360,11 +360,17 @@ The two variants share the title editor, In Progress pill and branch but lay the
   the horizontal `InlineTokenStrip`, the branch.
 - **Page** — wide two-column: a header row carrying the `Task Branch` back-link, the editable title
   and the In Progress pill on the right; below it a **compact left meta sidebar** (`PageMetaPanel`,
-  ~296px) and the branch filling the rest. The sidebar stacks priority, category and visibility as
+  ~370px) and the branch filling the rest. The sidebar stacks priority, category and visibility as
   full-width rows that open their popovers, and renders the **due-date calendar always-open**
-  (`DateCalendar`, extracted from `DatePopover` so it renders headless inline) so the empty left
-  space becomes a one-click date picker. Escape closes the modal but is a no-op (beyond
-  popover/title) on the page.
+  (`DateCalendar`, extracted from `DatePopover` so it renders headless inline; the quick-pick chips
+  are hidden here via `hideQuickPicks` — just the calendar) so the empty left space becomes a
+  one-click date picker. Escape closes the modal but is a no-op (beyond popover/title) on the page.
+
+The editor seeds its local fields from the task **once per task** (`todo.id`), not on every prop
+update — so on the page (where the parent feeds the saved task back after autosave) the controls
+never "snap back". This matters because a friends-visibility task with no one selected persists as
+`isPublic:false, sharedWith:[]`, indistinguishable from private; re-seeding on every update used to
+flip the selection. The shared `Popover` animates open **and** close (framer-motion).
 
 The page owns the task + category data and wires every editor action against the API: owner
 autosave (`PUT` preserving status), viewer category preference, take/leave work, complete/restore,
@@ -396,7 +402,7 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
 - `frontend/src/components/todos/todo-card.tsx` runs a short local completion/reopen animation before calling the page-level status update, so list refreshes happen after the card has visually acknowledged the action.
 - Hidden/collapsed task cards blur the category pill until hover/focus, keeping category filtering visible without exposing it at rest.
 - Urgent, overdue, and due-today private cards use a red border only; shared/public urgent cards keep the blue shared frame and use a red left border wall. The previous filled left urgency stripe is intentionally absent.
-- The create task panel keeps title and description as labeled light panels, followed by full-width priority, category, due date, and `Share With` sections. Character-limited fields show `current/max` counters at the panel edge and switch to red warning state from 80% of the limit. Friend visibility stays inside a neutral `Share With` selector where all-friends visibility and direct friend selection are mutually exclusive, and the panel does not expose a tags field or a duplicate property summary.
+- The create task panel keeps title and description as labeled light panels, followed by full-width priority, category, due date, and `Share With` sections. The due-date field uses the project's own inline `DateCalendar` (with its Today/Tomorrow/+3/Next-week quick-picks), not a native `<input type="date">`. Character-limited fields show `current/max` counters at the panel edge and switch to red warning state from 80% of the limit. Friend visibility stays inside a neutral `Share With` selector where all-friends visibility and direct friend selection are mutually exclusive, and the panel does not expose a tags field or a duplicate property summary.
 - On the dashboard, the create panel opens with a softened layout transition and staged field reveal. Its primary plus icon becomes a rotated close action while the panel is open, so the same control pattern can open and close the draft surface.
 - Toast notifications render on the toast z-index layer and start below the fixed navbar, so completion/update feedback is not hidden behind the header.
 - The floating navbar quick-creates tasks (title only, private, no category) and dispatches a `planora:task-created` custom DOM event on success, carrying the freshly created task on `event.detail.todo` (see `frontend/src/lib/events.ts`). Both the dashboard and todos pages listen for this event: they insert the new task into the list immediately (optimistically) and then reconcile with a silent background refetch, so a new task appears instantly instead of after the list reloads. The dashboard also resets pagination to page 1.

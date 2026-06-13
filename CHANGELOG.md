@@ -4,6 +4,31 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ui): branch-page polish, smooth dropdowns, in-place title edit, custom calendar (2026-06-14)
+
+A batch of branch-editor and dashboard UX fixes.
+
+- **Branch page meta sidebar** widened ~25% (296 → 370px) so the controls fit, and the
+  always-open due-date calendar now hides its quick-pick chips on the page (`DateCalendar`
+  `hideQuickPicks`).
+- **In-place title edit** no longer jumps: the title textarea is sized before paint
+  (`useLayoutEffect`) so entering edit mode fades in place instead of flashing a 1-row field then
+  growing. Applies to both the modal and the page.
+- **Page edits now stick** — fixed the "controls snap back / flip between options" bug. The editor
+  re-seeds its fields from the task only on task switch (`todo.id`), not on every fed-back update,
+  so an autosave that returns `isPublic:false, sharedWith:[]` no longer flips visibility
+  friends→private (and the same for every other control).
+- **Smooth dropdowns** — the shared `Popover` (priority / due date / category / visibility) now
+  animates open AND close via framer-motion (`AnimatePresence`, scale/fade/slide) instead of an
+  enter-only CSS keyframe.
+- **"New Task" button** no longer jerks sideways: fixed min-width + centred label, and the
+  label crossfades (no rotate) so swapping New Task ⇄ Close stays put.
+- **Custom calendar on the create panel** (dashboard + tasks): the native `<input type="date">`
+  and quick chips are replaced by the project's own inline `DateCalendar`.
+- **Quieter console** — background branch polling (`mergeLatest` / subtask refresh) is marked
+  best-effort so a transient failure no longer logs `[API Error]` to the console; one-off loads
+  still log.
+
 ### fix(frontend): clean LAN dev console — allowedDevOrigins + prod-only Cross-Origin headers (2026-06-13)
 
 Addresses the console noise a teammate saw opening the LAN-shared dev server
