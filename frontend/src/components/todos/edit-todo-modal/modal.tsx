@@ -420,7 +420,7 @@ export function TodoEditor({
 
         {/* Body: meta sidebar | branch */}
         <div style={{ flex: 1, minHeight: 0, display: "flex", padding: "14px 26px 22px", gap: 0 }}>
-          <div style={{ width: 370, flexShrink: 0, overflowY: "auto", paddingRight: 24 }} className="branch-scroll">
+          <div style={{ width: 389, flexShrink: 0, overflowY: "auto", paddingRight: 24 }} className="branch-scroll">
             <PageMetaPanel {...metaProps} />
           </div>
           <div style={{ width: 1, background: "#f5f5f5", flexShrink: 0 }} />

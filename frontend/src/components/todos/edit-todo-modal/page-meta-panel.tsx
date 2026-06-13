@@ -5,7 +5,7 @@ import { Calendar, Globe2, Lock, ChevronDown } from "lucide-react"
 import { PriorityPopover }   from "./popovers/priority"
 import { DateCalendar }      from "./popovers/date"
 import { CategoryPopover }   from "./popovers/category"
-import { VisibilityPopover } from "./popovers/visibility"
+import { VisibilityPanel } from "./popovers/visibility"
 import { ICON_MAP }          from "@/lib/icon-map"
 import { Category }          from "@/types/category"
 import { FriendDto }         from "@/types/auth"
@@ -111,7 +111,6 @@ export function PageMetaPanel({
 }: PageMetaPanelProps) {
   const priorityRef   = useRef<HTMLDivElement>(null)
   const categoryRef   = useRef<HTMLDivElement>(null)
-  const visibilityRef = useRef<HTMLDivElement>(null)
 
   const toggle = (key: OpenPopover) => setOpenPopover(openPopover === key ? null : key)
   const close = () => setOpenPopover(null)
@@ -209,34 +208,29 @@ export function PageMetaPanel({
         />
       </div>
 
-      {/* ── Visibility ── */}
+      {/* ── Visibility (always-open inline — no dropdown) ── */}
       <div>
-        <SectionLabel>Visibility</SectionLabel>
-        <MetaButton
-          onClick={() => toggle("visibility")}
-          isOpen={openPopover === "visibility"}
-          muted={ownerLocked}
-          containerRef={visibilityRef}
-          label={
-            <>
-              {visMode === "private" ? <Lock size={13} strokeWidth={2} /> : <Globe2 size={13} strokeWidth={2} />}
+        <SectionLabel
+          action={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: "#a3a3a3" }}>
+              {visMode === "private" ? <Lock size={10} strokeWidth={2.2} /> : <Globe2 size={10} strokeWidth={2.2} />}
               {visMode === "private" ? "Private" : `Shared · ${sharedIds.length}`}
-            </>
+            </span>
           }
-          popover={
-            <VisibilityPopover
-              open={openPopover === "visibility"}
-              onClose={close}
-              mode={visMode}
-              onModeChange={onVisModeChange}
-              sharedIds={sharedIds}
-              onSharedIdsChange={onSharedIdsChange}
-              friends={friends}
-              containerRef={visibilityRef as RefObject<HTMLElement | null>}
-              readOnly={ownerLocked}
-            />
-          }
-        />
+        >
+          Visibility
+        </SectionLabel>
+        <div style={{ border: "1px solid #f0f0f0", borderRadius: 14, overflow: "hidden", background: "white" }}>
+          <VisibilityPanel
+            mode={visMode}
+            onModeChange={onVisModeChange}
+            sharedIds={sharedIds}
+            onSharedIdsChange={onSharedIdsChange}
+            friends={friends}
+            readOnly={ownerLocked}
+            headless
+          />
+        </div>
       </div>
 
       {/* ── Due date (always-open calendar — fills the empty space) ── */}

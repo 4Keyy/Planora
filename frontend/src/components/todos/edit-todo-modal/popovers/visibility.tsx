@@ -27,6 +27,38 @@ function friendName(f: FriendDto): string {
 export function VisibilityPopover({
   open, onClose, mode, onModeChange, sharedIds, onSharedIdsChange, friends, containerRef, readOnly,
 }: VisibilityPopoverProps) {
+  return (
+    <Popover open={open} onClose={onClose} width={340} align="right" containerRef={containerRef}>
+      <VisibilityPanel
+        mode={mode}
+        onModeChange={onModeChange}
+        sharedIds={sharedIds}
+        onSharedIdsChange={onSharedIdsChange}
+        friends={friends}
+        readOnly={readOnly}
+      />
+    </Popover>
+  )
+}
+
+interface VisibilityPanelProps {
+  mode: "private" | "friends"
+  onModeChange: (m: "private" | "friends") => void
+  sharedIds: string[]
+  onSharedIdsChange: (ids: string[]) => void
+  friends: FriendDto[]
+  readOnly?: boolean
+  /** Drops the internal "Task access" header — the always-open sidebar renders its own label. */
+  headless?: boolean
+}
+
+/**
+ * The visibility body (private/public mode picker + friend access list), extracted from
+ * {@link VisibilityPopover} so it can render always-open inline in the branch page's meta sidebar.
+ */
+export function VisibilityPanel({
+  mode, onModeChange, sharedIds, onSharedIdsChange, friends, readOnly, headless,
+}: VisibilityPanelProps) {
   const toggleFriend = (id: string) => {
     if (readOnly) return
     onSharedIdsChange(
@@ -47,8 +79,8 @@ export function VisibilityPopover({
     : <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>{sharedIds.length} of {friends.length}</span>
 
   return (
-    <Popover open={open} onClose={onClose} width={340} align="right" containerRef={containerRef}>
-      <PopoverHeader label="Task access" sub={sub} />
+    <>
+      {!headless && <PopoverHeader label="Task access" sub={sub} />}
 
       <div style={{ opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
 
@@ -175,6 +207,6 @@ export function VisibilityPopover({
         </div>
       )}
       </div>
-    </Popover>
+    </>
   )
 }
