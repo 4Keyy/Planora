@@ -43,13 +43,15 @@ interface DateCalendarProps {
   autoClose?: () => void
   /** Drops the popover's header/CLEAR row; the sidebar renders its own header + clear control. */
   headless?: boolean
+  /** Hides the Today/Tomorrow/… quick-pick chips (the always-open sidebar shows the calendar only). */
+  hideQuickPicks?: boolean
 }
 
 /**
  * The due-date quick-picks + month calendar, extracted from {@link DatePopover} so it can render
  * inline (always-open) in the branch page's meta sidebar as well as inside the popover.
  */
-export function DateCalendar({ value, onChange, readOnly, autoClose, headless }: DateCalendarProps) {
+export function DateCalendar({ value, onChange, readOnly, autoClose, headless, hideQuickPicks }: DateCalendarProps) {
   const nowDate   = new Date()
   const initYear  = value ? new Date(value).getFullYear() : nowDate.getFullYear()
   const initMonth = value ? new Date(value).getMonth()    : nowDate.getMonth()
@@ -118,9 +120,9 @@ export function DateCalendar({ value, onChange, readOnly, autoClose, headless }:
       {/* Header with "Очистить" on same row (omitted in the headless/sidebar variant) */}
       {!headless && <PopoverHeader label="Due date" action={clearAction} />}
 
-      {/* Quick picks — owner only. A non-owner viewer reads the date but never sets it, so the
-          Today/Tomorrow/… shortcuts are omitted entirely (not just disabled). */}
-      {!readOnly && (
+      {/* Quick picks — owner only, and suppressed entirely when hideQuickPicks (the page sidebar
+          shows just the calendar). A non-owner viewer never sees them either. */}
+      {!readOnly && !hideQuickPicks && (
         <div style={{
           padding: "10px 12px",
           borderBottom: "1px solid #f5f5f5",

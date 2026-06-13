@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { X, ExternalLink, ArrowLeft } from "lucide-react"
@@ -159,7 +159,12 @@ export function TodoEditor({
   const titleH1Ref       = useRef<HTMLHeadingElement>(null)
   const [titleDraft, setTitleDraft] = useState(title)
 
-  // Reset on todo change
+  // Initialise the editor's local fields from the task — ONLY when switching to a different task
+  // (todo.id). Deliberately NOT on every todo field change: the editor owns these fields while open,
+  // and after an autosave the parent may feed back the saved task (e.g. the standalone page updates
+  // its `todo` state). Re-seeding on those updates made the controls "snap back" — most visibly
+  // visibility flipping friends→private when the saved data (isPublic:false, sharedWith:[]) is
+  // indistinguishable from private. Seeding once per task keeps the user's selection stable.
   useEffect(() => {
     setTitle(todo.title)
     setTitleDraft(todo.title)
@@ -168,7 +173,8 @@ export function TodoEditor({
     setCategoryId(todo.categoryId ?? null)
     setVisMode((todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) ? "friends" : "private")
     setSharedIds(todo.isPublic ? [] : (todo.sharedWithUserIds ?? []))
-  }, [todo.id, todo.title, todo.priority, todo.dueDate, todo.categoryId, todo.isPublic, todo.sharedWithUserIds])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todo.id])
 
   // Escape key — peel back popover, then title edit, then (modal only) close.
   useEffect(() => {
@@ -183,14 +189,18 @@ export function TodoEditor({
     return () => window.removeEventListener("keydown", handler)
   }, [onClose, openPopover, editingTitle, title])
 
-  // Auto-height for title textarea
-  useEffect(() => {
+  // Auto-height for the title textarea — sized BEFORE paint (useLayoutEffect) so entering edit mode
+  // never shows a one-frame single-row textarea that then jumps to the full height. Focus after.
+  useLayoutEffect(() => {
     if (editingTitle && titleTextareaRef.current) {
       const el = titleTextareaRef.current
       el.style.height = "auto"
       el.style.height = el.scrollHeight + "px"
-      el.focus()
     }
+  }, [editingTitle])
+
+  useEffect(() => {
+    if (editingTitle) titleTextareaRef.current?.focus()
   }, [editingTitle])
 
   const commitTitle = () => {
@@ -410,7 +420,7 @@ export function TodoEditor({
 
         {/* Body: meta sidebar | branch */}
         <div style={{ flex: 1, minHeight: 0, display: "flex", padding: "14px 26px 22px", gap: 0 }}>
-          <div style={{ width: 296, flexShrink: 0, overflowY: "auto", paddingRight: 24 }} className="branch-scroll">
+          <div style={{ width: 370, flexShrink: 0, overflowY: "auto", paddingRight: 24 }} className="branch-scroll">
             <PageMetaPanel {...metaProps} />
           </div>
           <div style={{ width: 1, background: "#f5f5f5", flexShrink: 0 }} />

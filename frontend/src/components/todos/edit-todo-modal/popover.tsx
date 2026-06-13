@@ -1,6 +1,7 @@
 "use client"
 
 import { ReactNode, RefObject, useEffect, useRef } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 
 interface PopoverProps {
   open: boolean
@@ -32,33 +33,39 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
     }
   }, [open, onClose, containerRef])
 
-  if (!open) return null
-
+  // Positioning lives on the (static) wrapper so the motion.div can own its transform for a clean
+  // scale/fade/slide on BOTH open and close (AnimatePresence keeps it mounted through the exit).
   const alignStyle: React.CSSProperties =
     align === "right"  ? { right: 0 } :
     align === "center" ? { left: "50%", transform: "translateX(-50%)" } :
     { left: 0 }
 
   return (
-    <div
-      ref={ref}
-      role="dialog"
-      style={{
-        position: "absolute",
-        top: "calc(100% + 8px)",
-        ...alignStyle,
-        width,
-        zIndex: 50,
-        background: "white",
-        borderRadius: 16,
-        border: "1px solid #f0f0f0",
-        boxShadow: "0 16px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.05)",
-        overflow: "hidden",
-        animation: "pop_in 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards",
-      }}
-    >
-      {children}
-    </div>
+    <AnimatePresence>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", zIndex: 50, ...alignStyle }}>
+          <motion.div
+            ref={ref}
+            role="dialog"
+            initial={{ opacity: 0, y: -6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.7 }}
+            style={{
+              width,
+              transformOrigin: align === "right" ? "top right" : align === "center" ? "top center" : "top left",
+              background: "white",
+              borderRadius: 16,
+              border: "1px solid #f0f0f0",
+              boxShadow: "0 16px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.05)",
+              overflow: "hidden",
+            }}
+          >
+            {children}
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   )
 }
 

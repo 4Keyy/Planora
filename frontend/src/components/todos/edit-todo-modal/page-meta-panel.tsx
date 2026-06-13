@@ -269,7 +269,7 @@ export function PageMetaPanel({
 
         {/* The calendar itself — always visible. */}
         <div style={{ border: "1px solid #f0f0f0", borderRadius: 14, overflow: "hidden", background: "white" }}>
-          <DateCalendar value={dueDate} onChange={onDueDateChange} readOnly={ownerLocked} headless />
+          <DateCalendar value={dueDate} onChange={onDueDateChange} readOnly={ownerLocked} headless hideQuickPicks />
         </div>
       </div>
     </div>
