@@ -363,7 +363,9 @@ export function BranchFeed({
 
   const load = useCallback(async (pageNum: number, replace: boolean, pin: boolean = replace) => {
     try {
-      const res  = await fetchComments(todoId, pageNum, 50)
+      // Best-effort: the failure is swallowed and live polling re-attempts, so a transient error
+      // (e.g. a momentary rate-limit) must not raise the Next dev error overlay.
+      const res  = await fetchComments(todoId, pageNum, 50, { silent: true })
       const items = (res.items ?? []).filter((c) => !suppressedCommentIds.current.has(c.id))
       setTotalCount(res.totalCount ?? 0)
       totalCountRef.current = res.totalCount ?? 0
@@ -466,16 +468,20 @@ export function BranchFeed({
   useEffect(() => {
     if (refreshKey === undefined) return
     retryTimers.current.forEach(clearTimeout)
-    retryTimers.current = [250, 600, 1100, 1800, 2800, 4200, 5600]
+    // A few catch-up merges (the async status comment lands within ~1–2s). Kept short so a burst of
+    // actions can't flood the per-user rate limit (100 req/min) and trigger 429s on other requests.
+    retryTimers.current = [500, 1500, 3500]
       .map((ms) => setTimeout(() => { void mergeLatest(); void loadSubtasks() }, ms))
     return () => { retryTimers.current.forEach(clearTimeout); retryTimers.current = [] }
   }, [refreshKey, mergeLatest, loadSubtasks])
 
   // Gentle live polling while the branch is open — picks up other participants' messages/edits and
-  // subtask changes. Paused while the viewer is editing so a refresh never clobbers a draft.
+  // subtask changes. Paused while the viewer is editing so a refresh never clobbers a draft. The
+  // 9s cadence (≈13 req/min) leaves ample headroom under the 100 req/min per-user rate limit so
+  // editing + autosave never compete with polling for the budget.
   useEffect(() => {
     if (editingId || editingGenesis) return
-    const id = setInterval(() => { void mergeLatest(); void loadSubtasks() }, 5000)
+    const id = setInterval(() => { void mergeLatest(); void loadSubtasks() }, 9000)
     return () => clearInterval(id)
   }, [mergeLatest, loadSubtasks, editingId, editingGenesis])
 
@@ -1154,6 +1160,7 @@ export function BranchFeed({
                       pending={subtaskPending.has(s.id)}
                       flash={flashKey === `s-${s.id}`}
                       nodeRef={registerNode(`s-${s.id}`)}
+                      hasReplies={item.replies.length > 0}
                       onToggleComplete={() => toggleSubtaskComplete(s)}
                       onToggleWork={() => toggleSubtaskWork(s)}
                       onDelete={() => removeSubtask(s)}
@@ -1842,6 +1849,9 @@ interface SubtaskCardProps {
   flash?: boolean
   /** Registers the card's DOM node so reply quotes can scroll to it. */
   nodeRef?: (el: HTMLDivElement | null) => void
+  /** Whether this subtask has a reply thread hanging beneath it — extends the sub-branch line down
+      so the marker connects to its replies with no gap. */
+  hasReplies?: boolean
   onToggleComplete: () => void
   onToggleWork: () => void
   onDelete: () => void
@@ -1850,7 +1860,7 @@ interface SubtaskCardProps {
 }
 
 function SubtaskCard({
-  subtask, meta, isOwner, done, workerCount, viewerWorking, pending, flash, nodeRef,
+  subtask, meta, isOwner, done, workerCount, viewerWorking, pending, flash, nodeRef, hasReplies,
   onToggleComplete, onToggleWork, onDelete, onSaveTitle, onReply,
 }: SubtaskCardProps) {
   const [hovered, setHovered] = useState(false)
@@ -1937,10 +1947,13 @@ function SubtaskCard({
           width: SUBTASK_OFFSET - SUB_TOGGLE_X, height: 2, borderRadius: 1,
           background: branchColor, transition: "background 200ms",
         }} />
-        {/* Sub-branch continuation downward to the completion reply (only when done) */}
-        {done && (
+        {/* Sub-branch continuation downward — drawn whenever the subtask continues below the marker:
+            to the completion reply (done) and/or to its reply thread (hasReplies). Reaches past the
+            card row so it visually meets the reply thread's connector, leaving no gap from the
+            marker to the replies. */}
+        {(done || hasReplies) && (
           <span style={{
-            position: "absolute", left: SUB_TOGGLE_X - 1, top: "50%", bottom: -6, width: 2,
+            position: "absolute", left: SUB_TOGGLE_X - 1, top: "50%", bottom: hasReplies ? -16 : -6, width: 2,
             background: branchColor, transition: "background 200ms",
           }} />
         )}
