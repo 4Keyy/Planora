@@ -190,10 +190,18 @@ public class TodoApiTestFactory : WebApplicationFactory<Program>
     public new HttpClient CreateClient()
     {
         var client = base.CreateClient();
-        
+
         // Add default test authentication token
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {CreateTestJwt()}");
-        
+
+        // The API enforces double-submit CSRF on state-modifying requests (UseCsrfProtection):
+        // the X-CSRF-Token header must equal the XSRF-TOKEN cookie. A real browser client supplies
+        // both; mirror that here with a matching pair so POST/PUT/DELETE go through the genuine CSRF
+        // middleware (still exercised) instead of being rejected with 403.
+        const string csrfToken = "test-csrf-token";
+        client.DefaultRequestHeaders.Add("X-CSRF-Token", csrfToken);
+        client.DefaultRequestHeaders.Add("Cookie", $"XSRF-TOKEN={csrfToken}");
+
         return client;
     }
 
