@@ -1,6 +1,27 @@
 /** @type {import('next').NextConfig} */
 
+const os = require('os')
+
 const isDev = process.env.NODE_ENV === 'development'
+
+// When the dev server is shared on the LAN (`next dev -H 0.0.0.0`), a teammate opens it via the
+// host's LAN IP (e.g. http://192.168.x.y:3000). Next 16 treats that as a cross-origin dev request
+// and blocks the internal `/_next/*` resources — including the HMR websocket — unless the origin is
+// allow-listed. Collect this machine's own non-internal IPv4 addresses so those LAN origins are
+// trusted in dev (no-op in production, where `allowedDevOrigins` is ignored). An explicit
+// comma-separated NEXT_DEV_ALLOWED_ORIGINS env var can add more.
+const devAllowedOrigins = (() => {
+  if (!isDev) return []
+  const fromEnv = (process.env.NEXT_DEV_ALLOWED_ORIGINS || '')
+    .split(',').map((s) => s.trim()).filter(Boolean)
+  const lanIps = []
+  for (const ifaces of Object.values(os.networkInterfaces() || {})) {
+    for (const iface of ifaces || []) {
+      if (iface.family === 'IPv4' && !iface.internal) lanIps.push(iface.address)
+    }
+  }
+  return [...new Set([...lanIps, ...fromEnv])]
+})()
 
 const defaultApiUrl = 'http://localhost:5132'
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_GATEWAY_URL || defaultApiUrl
@@ -57,25 +78,29 @@ const securityHeaders = [
       'xr-spatial-tracking=()',
     ].join(', '),
   },
-  // Cross-Origin-Opener-Policy isolates this top-level window from any
-  // unrelated cross-origin window, blocking Spectre-class cross-origin
-  // leaks and improving the security of postMessage flows.
-  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-  // Cross-Origin-Resource-Policy declares that this resource is only
-  // intended to be loaded from same-origin documents. Defence-in-depth
-  // against the same Spectre family.
-  { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
-  // SECURITY: HSTS — tells browsers to only connect via HTTPS for the next year.
-  // Only enable in production; development uses HTTP.
-  ...(isDev ? [] : [{
-    key: 'Strict-Transport-Security',
-    value: 'max-age=31536000; includeSubDomains; preload',
-  }]),
+  // Cross-Origin-Opener-Policy / Cross-Origin-Resource-Policy isolate this top-level window and
+  // resource from unrelated cross-origin contexts (Spectre-class defence-in-depth). The browser
+  // only honours these on a *secure* context (HTTPS or localhost) and ignores them — with a console
+  // warning — when the page is served over plain HTTP, e.g. a teammate opening the LAN dev URL
+  // http://192.168.x.y:3000. So apply them in production only; in dev they add noise without effect.
+  ...(isDev ? [] : [
+    { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+    { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+    // SECURITY: HSTS — tells browsers to only connect via HTTPS for the next year. Production only.
+    {
+      key: 'Strict-Transport-Security',
+      value: 'max-age=31536000; includeSubDomains; preload',
+    },
+  ]),
 ]
 
 const nextConfig = {
   reactStrictMode: true,
   compress: true,
+  // Trust the host's own LAN IPs in dev so a teammate opening the shared `next dev -H 0.0.0.0`
+  // URL gets the internal `/_next/*` resources (incl. the HMR websocket) instead of cross-origin
+  // blocks. Empty (and ignored) in production.
+  allowedDevOrigins: devAllowedOrigins,
   images: {
     // Next.js 16 hardened the image optimizer against SSRF: it refuses to fetch an
     // upstream image whose host resolves to a private / loopback IP (127.0.0.1, ::1) and

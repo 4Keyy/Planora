@@ -276,7 +276,19 @@ Frontend static headers (set in `next.config.js`):
 - `X-Content-Type-Options`
 - `Referrer-Policy`
 - `Permissions-Policy`
-- production HSTS
+- **production only:** `Strict-Transport-Security` (HSTS), `Cross-Origin-Opener-Policy: same-origin`,
+  `Cross-Origin-Resource-Policy: same-origin`. The two Cross-Origin-* headers are gated to production
+  because browsers only honour them on a secure context (HTTPS / `localhost`) and ignore them — with
+  a console warning — when the page is served over plain HTTP, e.g. a teammate opening the shared LAN
+  dev URL `http://192.168.x.y:3000`. Emitting them in dev added only that warning, never protection.
+
+> **LAN dev sharing.** When the dev server is shared with `next dev -H 0.0.0.0`, `next.config.js`
+> auto-populates `allowedDevOrigins` with the host's own non-internal IPv4 addresses (plus anything
+> in `NEXT_DEV_ALLOWED_ORIGINS`). Without it, Next 16 treats a teammate's `http://<lan-ip>:3000`
+> as a cross-origin dev request and blocks the internal `/_next/*` resources — including the HMR
+> websocket (`ws://<lan-ip>:3000/_next/webpack-hmr`). This is dev-only (ignored in production);
+> for a fully clean shared experience, serve a production build (`next build` + `next start`), which
+> has no HMR websocket or React-DevTools console notice at all.
 
 Content-Security-Policy is set **per-request** with a unique nonce by `src/middleware.ts` (Next.js Edge Middleware) instead of a static header in `next.config.js`. Each request generates a `crypto.randomUUID()`-based nonce in base64, injected into the CSP `script-src` directive. The middleware sets the CSP on both the response and the forwarded request headers, and the root layout (`src/app/layout.tsx`) opts every route into dynamic rendering (`export const dynamic = "force-dynamic"`), so Next.js reads the nonce and stamps it onto its own inline bootstrap scripts. In development, `'unsafe-eval'` is added to support hot-module replacement.
 

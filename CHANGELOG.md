@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): clean LAN dev console — allowedDevOrigins + prod-only Cross-Origin headers (2026-06-13)
+
+Addresses the console noise a teammate saw opening the LAN-shared dev server
+(`http://<lan-ip>:3000`):
+
+- **HMR websocket blocked.** Next 16 treats a teammate's LAN-IP origin as a cross-origin dev
+  request and blocks the internal `/_next/*` resources (incl. `ws://…/_next/webpack-hmr`) unless
+  the origin is allow-listed. `next.config.js` now auto-populates `allowedDevOrigins` (dev only)
+  with the host's own non-internal IPv4 addresses, plus any `NEXT_DEV_ALLOWED_ORIGINS` env entries.
+- **COOP "header ignored" warning.** `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy`
+  are now sent in **production only** (alongside HSTS). Browsers ignore them over plain HTTP (a LAN
+  IP isn't a secure context) and log a warning; emitting them in dev added noise without protection.
+
+(The "Download React DevTools" notice is inherent to React in dev and is gone in a production
+build; functionality was never affected.)
+
 ### feat(branch): page meta sidebar + composer polish (2026-06-13)
 
 - **Branch page two-column layout.** The standalone `/branch/{id}` page now puts the editable title
