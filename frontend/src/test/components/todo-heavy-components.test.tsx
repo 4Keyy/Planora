@@ -430,9 +430,10 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("Add details, context, or acceptance criteria..."), {
       target: { value: "  Regression coverage  " },
     })
-    // Due date now uses the project's own inline calendar (no native date input). Pick "Today"
+    // Due date uses the project's own calendar, collapsed by default — open it, then pick "Today"
     // via its quick-pick and assert against the same ISO the component derives.
     const todayDueIso = new Date(new Date().toISOString().split("T")[0]).toISOString()
+    fireEvent.click(screen.getByRole("button", { name: /Select a date/ }))
     fireEvent.click(screen.getByRole("button", { name: "Today" }))
     fireEvent.click(screen.getByRole("button", { name: /High/ }))
     expect(screen.queryByText("Visible to all friends")).not.toBeInTheDocument()

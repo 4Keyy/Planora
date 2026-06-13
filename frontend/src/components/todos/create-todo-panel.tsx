@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import {
   AlignLeft,
   Calendar,
+  ChevronDown,
   ChevronRight,
   FileText,
   Folder,
@@ -129,6 +130,7 @@ export function CreateTodoPanel({
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState("Medium")
   const [dueDate, setDueDate] = useState("")
+  const [dateOpen, setDateOpen] = useState(false)
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined)
   const [creating, setCreating] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -151,6 +153,7 @@ export function CreateTodoPanel({
     setDescription("")
     setPriority("Medium")
     setDueDate("")
+    setDateOpen(false)
     setCategoryId(undefined)
     setFormError(null)
     setIsPublic(false)
@@ -542,26 +545,45 @@ export function CreateTodoPanel({
                 {...fieldMotion(0.14)}
               >
                 <PanelBlock icon={Calendar} title="Due date">
-                  {/* The project's own calendar (DateCalendar), shown inline & always open — not a
-                      native <input type="date">. It carries its own quick-picks (Today/Tomorrow/…),
-                      so no separate chip row is needed, and rendering inline avoids the popover
-                      being clipped by the create panel's overflow-hidden height animation. */}
-                  <div className="flex items-center gap-2 px-1 pb-2 text-xs font-bold text-gray-600">
+                  {/* The project's own calendar (DateCalendar) — hidden by default, opens on click
+                      (collapsible inline so it isn't clipped by the panel's overflow-hidden height
+                      animation, unlike a popover). It carries its own quick-picks, so no extra chip
+                      row is needed. Only the standalone branch page keeps the calendar always open. */}
+                  <button
+                    type="button"
+                    onClick={() => setDateOpen(o => !o)}
+                    className="flex w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                  >
                     <Calendar className="h-3.5 w-3.5" strokeWidth={1.8} />
-                    {dueDate ? formatDatePretty(dueDate) : <span className="text-gray-400">No due date</span>}
+                    {dueDate ? formatDatePretty(dueDate) : <span className="text-gray-400">Select a date</span>}
                     {dueDate && (
-                      <button
-                        type="button"
-                        onClick={() => setDueDate("")}
-                        className="ml-auto text-[10px] font-black uppercase tracking-wider text-gray-400 hover:text-gray-700"
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={e => { e.stopPropagation(); setDueDate("") }}
+                        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setDueDate("") } }}
+                        className="ml-auto cursor-pointer text-[10px] font-black uppercase tracking-wider text-gray-400 hover:text-gray-700"
                       >
                         Clear
-                      </button>
+                      </span>
                     )}
-                  </div>
-                  <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
-                    <DateCalendar value={dueDate} onChange={v => setDueDate(v ?? "")} headless />
-                  </div>
+                    <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform", dueDate ? "ml-2" : "ml-auto", dateOpen && "rotate-180")} />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {dateOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-2 overflow-hidden rounded-2xl border border-gray-100 bg-white">
+                          <DateCalendar value={dueDate} onChange={v => { setDueDate(v ?? ""); setDateOpen(false) }} headless />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </PanelBlock>
               </motion.div>
 
