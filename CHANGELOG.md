@@ -4,6 +4,21 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(branch+ui): subtask reply connector, always-open visibility, click-to-open calendars, fewer requests (2026-06-14)
+
+- **Subtask → reply now connects** with no gap: the subtask's sub-branch line is drawn down from
+  its marker whenever it has replies (not only when completed) and overlaps the reply thread's
+  connector, so the marker visibly continues into its replies.
+- **Page meta sidebar** widened a further ~5% (370 → 389px), and the **visibility control is now
+  always-open inline** there (extracted `VisibilityPanel`) — no dropdown.
+- **Calendars are click-to-open everywhere except the branch page.** The create panel's calendar is
+  now a collapsible inline picker (hidden until clicked); the branch page sidebar keeps its
+  always-open calendar; the modal keeps its popover.
+- **Fewer branch requests** to stay well under the 100 req/min per-user limit (was tripping 429 on
+  autosave + a cascading 500 on `fetchComments`): live polling slowed 5s → 9s, the post-action
+  catch-up burst trimmed from 7 retries to 3, and the initial branch load is best-effort (no
+  console error on a transient failure).
+
 ### fix(ui): branch-page polish, smooth dropdowns, in-place title edit, custom calendar (2026-06-14)
 
 A batch of branch-editor and dashboard UX fixes.

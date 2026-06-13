@@ -360,11 +360,17 @@ The two variants share the title editor, In Progress pill and branch but lay the
   the horizontal `InlineTokenStrip`, the branch.
 - **Page** — wide two-column: a header row carrying the `Task Branch` back-link, the editable title
   and the In Progress pill on the right; below it a **compact left meta sidebar** (`PageMetaPanel`,
-  ~370px) and the branch filling the rest. The sidebar stacks priority, category and visibility as
-  full-width rows that open their popovers, and renders the **due-date calendar always-open**
-  (`DateCalendar`, extracted from `DatePopover` so it renders headless inline; the quick-pick chips
-  are hidden here via `hideQuickPicks` — just the calendar) so the empty left space becomes a
-  one-click date picker. Escape closes the modal but is a no-op (beyond popover/title) on the page.
+  ~389px) and the branch filling the rest. The sidebar stacks priority and category as full-width
+  rows that open their popovers, and renders **two controls always-open inline** so the wide space
+  is useful at a glance: the **visibility panel** (`VisibilityPanel`, extracted from
+  `VisibilityPopover` — private/public + the friend access list, no dropdown) and the **due-date
+  calendar** (`DateCalendar`, headless, quick-picks hidden via `hideQuickPicks` — just the grid).
+  Escape closes the modal but is a no-op (beyond popover/title) on the page.
+
+**Calendars are click-to-open everywhere except this page.** The branch page sidebar is the only
+place the calendar stays open; the modal's date token opens a popover, and the create panel uses a
+collapsible inline calendar (hidden until clicked) — so the calendar is never shown unprompted
+except on the dedicated branch page.
 
 The editor seeds its local fields from the task **once per task** (`todo.id`), not on every prop
 update — so on the page (where the parent feeds the saved task back after autosave) the controls
