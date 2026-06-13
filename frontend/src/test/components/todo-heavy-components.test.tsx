@@ -410,7 +410,7 @@ describe("CreateTodoPanel", () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     const onToggle = vi.fn()
 
-    const { container } = render(
+    render(
       <CreateTodoPanel
         isOpen
         onToggle={onToggle}
@@ -430,9 +430,10 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("Add details, context, or acceptance criteria..."), {
       target: { value: "  Regression coverage  " },
     })
-    fireEvent.change(container.querySelector('input[type="date"]') as HTMLInputElement, {
-      target: { value: "2026-05-02" },
-    })
+    // Due date now uses the project's own inline calendar (no native date input). Pick "Today"
+    // via its quick-pick and assert against the same ISO the component derives.
+    const todayDueIso = new Date(new Date().toISOString().split("T")[0]).toISOString()
+    fireEvent.click(screen.getByRole("button", { name: "Today" }))
     fireEvent.click(screen.getByRole("button", { name: /High/ }))
     expect(screen.queryByText("Visible to all friends")).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Private task" }))
@@ -446,7 +447,7 @@ describe("CreateTodoPanel", () => {
       title: "Ship test suite",
       description: "Regression coverage",
       categoryId: null,
-      dueDate: new Date("2026-05-02").toISOString(),
+      dueDate: todayDueIso,
       priority: 4,
       isPublic: true,
       sharedWithUserIds: [],

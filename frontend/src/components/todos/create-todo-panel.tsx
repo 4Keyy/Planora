@@ -24,6 +24,8 @@ import { IconPicker } from "@/components/ui/icon-picker"
 import { ICON_MAP } from "@/lib/icon-map"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { FriendMultiSelect } from "@/components/todos/friend-multi-select"
+import { DateCalendar } from "@/components/todos/edit-todo-modal/popovers/date"
+import { formatDatePretty } from "@/components/todos/edit-todo-modal/utils"
 import { useFriends } from "@/hooks/use-friends"
 import { cn } from "@/lib/utils"
 import { TWEEN_FAST, SPRING_RESPONSIVE, EASE_OUT_EXPO } from "@/lib/animations"
@@ -46,12 +48,6 @@ const priorityOptions = [
   { value: "Urgent", label: "Urgent", short: "5", num: 5 },
 ]
 
-const quickDueOptions = [
-  { label: "Today", days: 0 },
-  { label: "Tomorrow", days: 1 },
-  { label: "Next week", days: 7 },
-]
-
 const TITLE_MAX_LENGTH = 200
 const DESCRIPTION_MAX_LENGTH = 5000
 const CATEGORY_NAME_MAX_LENGTH = 50
@@ -62,17 +58,6 @@ const getPriorityNumber = (p: string): number => {
   return match?.num ?? 3
 }
 
-const toDateInputValue = (date: Date) => {
-  const offset = date.getTimezoneOffset()
-  const local = new Date(date.getTime() - offset * 60_000)
-  return local.toISOString().slice(0, 10)
-}
-
-const quickDueValue = (days: number) => {
-  const date = new Date()
-  date.setDate(date.getDate() + days)
-  return toDateInputValue(date)
-}
 
 function SectionLabel({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
   return (
@@ -557,40 +542,25 @@ export function CreateTodoPanel({
                 {...fieldMotion(0.14)}
               >
                 <PanelBlock icon={Calendar} title="Due date">
-                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_280px]">
-                    <Input
-                      type="date"
-                      value={dueDate}
-                      onChange={e => setDueDate(e.target.value)}
-                      className="h-11 rounded-xl border-gray-200 bg-white text-xs font-bold uppercase shadow-sm"
-                    />
-                    <div className="grid grid-cols-3 gap-1 rounded-2xl border border-gray-100 bg-gray-50 p-1">
-                      {quickDueOptions.map(option => {
-                        const value = quickDueValue(option.days)
-                        const active = dueDate === value
-                        return (
-                          <motion.button
-                            key={option.label}
-                            type="button"
-                            onClick={() => setDueDate(value)}
-                            whileTap={{ scale: 0.97 }}
-                            className={cn(
-                              "relative min-h-9 overflow-hidden rounded-xl px-2 text-[10px] font-black uppercase transition-colors duration-300",
-                              active ? "text-white" : "text-gray-500 hover:text-gray-950"
-                            )}
-                          >
-                            {active && (
-                              <motion.span
-                                layoutId="create-due-active"
-                                className="absolute inset-0 rounded-xl bg-gray-950 shadow-sm"
-                                transition={SPRING_RESPONSIVE}
-                              />
-                            )}
-                            <span className="relative z-10">{option.label}</span>
-                          </motion.button>
-                        )
-                      })}
-                    </div>
+                  {/* The project's own calendar (DateCalendar), shown inline & always open — not a
+                      native <input type="date">. It carries its own quick-picks (Today/Tomorrow/…),
+                      so no separate chip row is needed, and rendering inline avoids the popover
+                      being clipped by the create panel's overflow-hidden height animation. */}
+                  <div className="flex items-center gap-2 px-1 pb-2 text-xs font-bold text-gray-600">
+                    <Calendar className="h-3.5 w-3.5" strokeWidth={1.8} />
+                    {dueDate ? formatDatePretty(dueDate) : <span className="text-gray-400">No due date</span>}
+                    {dueDate && (
+                      <button
+                        type="button"
+                        onClick={() => setDueDate("")}
+                        className="ml-auto text-[10px] font-black uppercase tracking-wider text-gray-400 hover:text-gray-700"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+                    <DateCalendar value={dueDate} onChange={v => setDueDate(v ?? "")} headless />
                   </div>
                 </PanelBlock>
               </motion.div>
