@@ -275,6 +275,7 @@ root to group it; a reply whose root is on an unloaded earlier page falls back t
 main-rail row so it is never lost, and rejoins its thread once earlier messages load.
 
 **Quote visibility follows the nesting:**
+
 - a **direct reply to a message or subtask** shows **no quote** — its position in that root's
   sub-branch already says what it answers;
 - a **reply to another reply** shows the compact **quote block** of the reply it answers (the

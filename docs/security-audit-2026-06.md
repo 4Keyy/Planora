@@ -37,6 +37,7 @@ The codebase is mature. Strong, correctly-implemented controls already in place 
 ## Findings fixed in this pass
 
 ### 1. Comment update missing task-access authorization (IDOR/BOLA) — High
+
 `UpdateCommentCommandHandler` checked only comment authorship (inside `Comment.UpdateContent`)
 and, unlike the Add/Delete/Get handlers, never called `ITaskAccessService.CheckCommentAccessAsync`.
 A user who authored a comment but later lost access to the parent task (e.g. a share was revoked)
@@ -47,6 +48,7 @@ Fix: the handler now resolves live task access via gRPC to TodoApi and returns
 unit test (`UpdateComment_AuthorWithoutTaskAccess_ThrowsForbidden`).
 
 ### 2. CSRF enforcement only on AuthApi — Medium (defense-in-depth)
+
 The documented security model requires a double-submit CSRF token on browser state-changing
 requests, but `UseCsrfProtection()` was wired only into AuthApi. Business services authenticate
 with a bearer token (not an ambient cookie), so they were not classically CSRF-exploitable, but
@@ -59,6 +61,7 @@ legitimate traffic breaks. Realtime is intentionally excluded — its only mutat
 SignalR negotiate POST, which does not carry the CSRF header and is bearer-authenticated.
 
 ### 3. Account-lockout values hardcoded and inconsistent — Medium
+
 `User.LockAccount()` hardcoded a 15-minute lockout while `SecurityConstants.SecurityPolicies`
 defined `AccountLockoutMinutes = 30` and `MaxFailedLoginAttempts = 5`; `UserRepository` separately
 hardcoded the `>= 5` threshold. The documented policy was not the one actually enforced.
@@ -68,6 +71,7 @@ and `UserRepository` drives both the threshold and the duration from
 `SecurityConstants.SecurityPolicies`. Single source of truth restored.
 
 ### 4. PresenceHub broadcast of unvalidated client string — Low
+
 `PresenceHub.UpdateStatus(string status)` rebroadcast an arbitrary, unbounded client-supplied
 string to all other connected clients (an amplification vector). The hub is not currently mapped,
 but the method was hardened anyway.
