@@ -4,6 +4,12 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Central package versions for all projects -->
+    <!-- Security override: SignalR's StackExchangeRedis backplane pulls MessagePack 2.5.187, which
+         is vulnerable (GHSA-hv8m-jj95-wg3x — LZ4 decompression AccessViolationException, fixed in
+         2.5.301). The affected projects (Realtime.Api) add a direct <PackageReference Include=
+         "MessagePack" /> to force this patched 2.5.x (kept on the 2.5 line for SignalR-2.x protocol
+         compatibility). Remove both once SignalR ships a patched transitive. -->
+    <PackageVersion Include="MessagePack" Version="2.5.302" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection" Version="10.0.8" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" Version="10.0.8" />

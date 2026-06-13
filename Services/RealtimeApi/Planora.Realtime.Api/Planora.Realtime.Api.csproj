@@ -13,6 +13,10 @@
 		<PackageReference Include="Grpc.AspNetCore" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" />
+		<!-- Security override (GHSA-hv8m-jj95-wg3x): the SignalR Redis backplane pulls MessagePack
+		     transitively at the vulnerable 2.5.187; this direct reference forces the patched 2.5.x
+		     pinned centrally in Directory.Packages.props. -->
+		<PackageReference Include="MessagePack" />
 		<PackageReference Include="MediatR" />
 		<PackageReference Include="OpenTelemetry.Extensions.Hosting" />
 		<PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
