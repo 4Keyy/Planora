@@ -380,7 +380,8 @@ export function BranchFeed({
   // completions, the inherited category) without flickering away an in-flight optimistic change.
   const loadSubtasks = useCallback(async () => {
     try {
-      const list = await fetchSubtasks(todoId)
+      // Best-effort enrichment + polling — failures are swallowed, so don't log them.
+      const list = await fetchSubtasks(todoId, { silent: true })
       setSubtasks((prev) => {
         const pending = subtaskPendingRef.current
         const prevById = new Map(prev.map((s) => [s.id, s]))
@@ -425,7 +426,8 @@ export function BranchFeed({
     try {
       const size = 50
       const lastPage = Math.max(1, Math.ceil((totalCountRef.current || 0) / size))
-      const res = await fetchComments(todoId, lastPage, size)
+      // Background live-merge poll — swallowed on failure, so don't log transient errors.
+      const res = await fetchComments(todoId, lastPage, size, { silent: true })
       const items = res.items ?? []
       setTotalCount(res.totalCount ?? 0)
       totalCountRef.current = res.totalCount ?? 0

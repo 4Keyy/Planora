@@ -594,16 +594,18 @@ export default function TasksPage() {
           <Button
             onClick={() => setIsCreateOpen(!isCreateOpen)}
             variant={isCreateOpen ? "outline" : "default"}
-            className={isCreateOpen ? "border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400 transition-[background-color,border-color,color]" : ""}
+            // Fixed min-width + centred content so swapping the "New Task" ⇄ "Close" label never
+            // resizes the button and makes it jerk sideways. The label crossfades in place.
+            className={`relative min-w-[150px] justify-center overflow-hidden ${isCreateOpen ? "border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400 transition-[background-color,border-color,color]" : ""}`}
           >
             <AnimatePresence mode="wait" initial={false}>
               {isCreateOpen ? (
                 <motion.span
                   key="close"
-                  initial={{ opacity: 0, rotate: -90, scale: 0.8 }}
-                  animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                  exit={{ opacity: 0, rotate: 90, scale: 0.8 }}
-                  transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
                   className="flex items-center gap-1.5"
                 >
                   <X className="h-4 w-4" />
@@ -612,10 +614,10 @@ export default function TasksPage() {
               ) : (
                 <motion.span
                   key="new"
-                  initial={{ opacity: 0, rotate: 90, scale: 0.8 }}
-                  animate={{ opacity: 1, rotate: 0, scale: 1 }}
-                  exit={{ opacity: 0, rotate: -90, scale: 0.8 }}
-                  transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
                   className="flex items-center gap-1.5"
                 >
                   <Plus className="h-4 w-4" />

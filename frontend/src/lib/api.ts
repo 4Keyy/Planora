@@ -13,7 +13,13 @@ let refreshPromise: Promise<AuthTokenDto> | null = null
 type RetriableRequestConfig = NonNullable<AxiosError["config"]> & {
   _retry?: boolean
   _csrfRetry?: boolean
+  /** Best-effort calls (e.g. background polling) set this so a transient failure does not spam
+      the console — the caller already handles the rejection gracefully. */
+  suppressErrorLog?: boolean
 }
+
+/** Axios request options that allow marking a call as best-effort (no error logging). */
+type SilentRequestConfig = { params?: Record<string, unknown>; suppressErrorLog?: boolean }
 type HiddenStateResponse = {
   hidden: boolean
   categoryName?: string | null
@@ -89,6 +95,10 @@ export const getApiErrorMessage = (error: unknown, fallback = "Something went wr
 const logApiHttpError = (error: AxiosError): void => {
   const status = error.response?.status
   if (!status) return
+
+  // Best-effort calls (background polling) opt out of console logging — the caller swallows the
+  // failure and retries on the next tick, so logging would just spam the console/overlay.
+  if ((error.config as RetriableRequestConfig | undefined)?.suppressErrorLog) return
 
   const details = {
     status,
@@ -353,9 +363,13 @@ export const duplicateTodo = async (id: string): Promise<Todo> => {
 
 // ── Subtasks ── child tasks that live only inside a parent task's branch ──────────
 
-/** Lists a task's subtasks (oldest first). Visible to anyone who can see the parent. */
-export const fetchSubtasks = async (parentTodoId: string): Promise<Todo[]> => {
-  const { data } = await api.get<ApiResponse<Todo[]>>(`/todos/api/v1/todos/${parentTodoId}/subtasks`)
+/** Lists a task's subtasks (oldest first). Visible to anyone who can see the parent.
+ *  Pass `{ silent: true }` for background polling so transient failures don't log. */
+export const fetchSubtasks = async (parentTodoId: string, opts?: { silent?: boolean }): Promise<Todo[]> => {
+  const url = `/todos/api/v1/todos/${parentTodoId}/subtasks`
+  const { data } = opts?.silent
+    ? await api.get<ApiResponse<Todo[]>>(url, { suppressErrorLog: true } as SilentRequestConfig)
+    : await api.get<ApiResponse<Todo[]>>(url)
   return parseApiResponse(data)
 }
 
@@ -398,10 +412,11 @@ export const fetchComments = async (
   todoId: string,
   pageNumber = 1,
   pageSize = 50,
+  opts?: { silent?: boolean },
 ): Promise<PagedCommentsResponse> => {
   const { data } = await api.get<ApiResponse<PagedCommentsResponse>>(
     `/collaboration/api/v1/comments/${todoId}`,
-    { params: { pageNumber, pageSize } },
+    { params: { pageNumber, pageSize }, ...(opts?.silent ? { suppressErrorLog: true } : {}) } as SilentRequestConfig,
   )
   return parseApiResponse(data)
 }
