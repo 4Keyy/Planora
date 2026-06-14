@@ -181,6 +181,18 @@ public class Program
                         },
                         OnMessageReceived = context =>
                         {
+                            // SignalR / WebSocket auth: a browser cannot set the Authorization header
+                            // on a WebSocket, so the client sends the JWT as ?access_token= instead.
+                            // Accept it ONLY for the realtime hub path so this never widens auth for
+                            // ordinary REST routes (which must keep using the header). The downstream
+                            // RealtimeApi performs the same extraction for defense in depth.
+                            var accessToken = context.Request.Query["access_token"];
+                            if (!string.IsNullOrEmpty(accessToken) &&
+                                context.HttpContext.Request.Path.StartsWithSegments("/realtime"))
+                            {
+                                context.Token = accessToken;
+                            }
+
                             // SECURITY: Never log Authorization header or token details - XSS/exposure risk
                             if (context.Request.Headers.ContainsKey("Authorization"))
                             {
@@ -231,6 +243,11 @@ public class Program
             app.UseCors(corsPolicy);
 
             app.UseSecurityHeaders();
+
+            // Required for Ocelot to proxy the SignalR WebSocket upgrade through to RealtimeApi
+            // (the /realtime route uses the ws downstream scheme). Without this the upgrade request
+            // is treated as a plain HTTP GET and the hub handshake never completes.
+            app.UseWebSockets();
 
             app.UseAuthentication();
             app.UseAuthorization();
