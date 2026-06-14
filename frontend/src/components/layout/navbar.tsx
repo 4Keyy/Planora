@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
-import { Plus, Sparkles, X, User, LogOut } from "lucide-react"
+import { Plus, Sparkles, X, User, LogOut, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar } from "@/components/ui/avatar"
 import { useAuthStore } from "@/store/auth"
@@ -43,6 +43,7 @@ export function Navbar() {
   const [taskTitle,  setTaskTitle]  = useState("")
   const [creating,   setCreating]   = useState(false)
   const [dropOpen,   setDropOpen]   = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const [mounted,    setMounted]    = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -85,6 +86,7 @@ export function Navbar() {
 
   const handleLogout = async () => {
     setDropOpen(false)
+    setMobileOpen(false)
     try { await api.post("/auth/api/v1/auth/logout") } catch { /* ignore */ }
     finally {
       clearAuth()
@@ -139,13 +141,17 @@ export function Navbar() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed top-4 inset-x-0 z-[1000] flex justify-center pointer-events-none">
-      {/* Mount animation */}
+    <div
+      className="fixed inset-x-0 z-[1000] flex justify-center px-3 pointer-events-none"
+      style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
+    >
+      {/* Desktop pill (pointer devices, sm and up). Hidden on phones, which can't
+          fire the hover that expands it — they get the dedicated mobile bar below. */}
       <motion.div
         initial={{ opacity: 0, y: -14, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.45, ease: EASE_OUT_EXPO }}
-        className="pointer-events-none"
+        className="pointer-events-none hidden sm:block"
       >
         {/*
           Pill uses Framer Motion `layout` so it smoothly springs to fit
@@ -358,6 +364,160 @@ export function Navbar() {
           </motion.div>
         </LayoutGroup>
       </motion.div>
+
+      {/* ── Mobile bar (touch devices, below sm) ──────────────────────────────
+          The desktop pill expands on hover, which never reliably fires on a
+          touchscreen — so phones get a dedicated bar with a tap-to-open sheet:
+          quick-add, navigation with an active indicator, and account actions.
+          Reuses the same state + handlers as the desktop pill (no duplication). */}
+      <div className="sm:hidden relative w-full max-w-md pointer-events-none">
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              key="m-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
+              onClick={() => setMobileOpen(false)}
+              className="fixed inset-0 bg-black/20 pointer-events-auto"
+              aria-hidden="true"
+            />
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          initial={{ opacity: 0, y: -12, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.45, ease: EASE_OUT_EXPO }}
+          className="pointer-events-auto relative z-10 flex h-14 items-center justify-between rounded-full border border-gray-200/90 bg-white/95 pl-4 pr-2 backdrop-blur-xl shadow-[0_4px_28px_rgba(0,0,0,0.07),0_1px_6px_rgba(0,0,0,0.04)]"
+        >
+          <Link
+            href="/dashboard"
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-1.5"
+          >
+            <span className="h-[6px] w-[6px] rounded-full bg-gray-900 flex-shrink-0" />
+            <span className="text-sm font-black tracking-tight text-gray-900 select-none">Planora</span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => setMobileOpen(v => !v)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+            aria-haspopup="menu"
+            className="flex h-11 items-center gap-1.5 rounded-full pl-2 pr-1.5 transition-colors duration-150 active:bg-gray-100"
+          >
+            <span className="h-8 w-8 overflow-hidden rounded-full">
+              <Avatar
+                src={user?.profilePictureUrl}
+                firstName={user?.firstName}
+                lastName={user?.lastName}
+                email={user?.email}
+                size={32}
+                priority
+              />
+            </span>
+            <motion.span animate={{ rotate: mobileOpen ? 180 : 0 }} transition={ICON_SPRING} className="flex">
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            </motion.span>
+          </button>
+        </motion.div>
+
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              key="m-sheet"
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
+              role="menu"
+              aria-label="Main menu"
+              className="pointer-events-auto absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-3xl border border-gray-200/90 bg-white/97 backdrop-blur-xl shadow-[0_16px_48px_rgba(0,0,0,0.14)]"
+            >
+              {/* Quick add — same NLP-friendly create path as the desktop pill */}
+              <div className="border-b border-gray-100 p-2.5">
+                <div className="flex h-12 items-center gap-2 rounded-2xl border border-gray-200/70 bg-gray-50 px-3 transition-colors focus-within:border-gray-300 focus-within:bg-white">
+                  <Sparkles className="h-4 w-4 flex-shrink-0" style={{ color: "rgba(99,102,241,0.7)" }} />
+                  <input
+                    value={taskTitle}
+                    onChange={e => setTaskTitle(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { handleCreate(); setMobileOpen(false) } }}
+                    placeholder="Add a task…"
+                    disabled={creating}
+                    className={cn(
+                      "min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400",
+                      creating && "opacity-50",
+                    )}
+                  />
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.9 }}
+                    transition={ICON_SPRING}
+                    onClick={() => { handleCreate(); setMobileOpen(false) }}
+                    disabled={!taskTitle.trim() || creating}
+                    aria-label="Create task"
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-opacity disabled:opacity-40"
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.5} />
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Navigation */}
+              <nav className="space-y-1 p-2">
+                {NAV_TABS.map(tab => {
+                  const active = isActive(tab.href)
+                  return (
+                    <Link
+                      key={tab.href}
+                      href={tab.href}
+                      onClick={() => setMobileOpen(false)}
+                      role="menuitem"
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex h-12 items-center justify-between rounded-2xl px-4 text-[15px] font-semibold transition-colors duration-150",
+                        active ? "bg-gray-900 text-white" : "text-gray-700 active:bg-gray-100",
+                      )}
+                    >
+                      {tab.label}
+                      {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                    </Link>
+                  )
+                })}
+              </nav>
+
+              {/* Account */}
+              <div className="border-t border-gray-100 p-2">
+                <div className="px-4 py-2">
+                  <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
+                  {user?.email && <p className="mt-0.5 truncate text-xs text-gray-400">{user.email}</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setMobileOpen(false); router.push("/profile") }}
+                  role="menuitem"
+                  className="flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-[15px] font-medium text-gray-700 transition-colors duration-150 active:bg-gray-100"
+                >
+                  <User className="h-4 w-4 text-gray-400" />
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  role="menuitem"
+                  className="flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-[15px] font-medium text-red-500 transition-colors duration-150 active:bg-red-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
