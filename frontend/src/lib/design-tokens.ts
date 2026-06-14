@@ -162,7 +162,7 @@ export const designTokens = {
   // ============ TYPOGRAPHY ============
   typography: {
     fontFamily: {
-      sans: 'var(--font-manrope), system-ui, -apple-system, sans-serif',
+      sans: 'var(--font-sans), system-ui, -apple-system, sans-serif',
     },
     
     fontSize: {
