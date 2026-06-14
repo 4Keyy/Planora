@@ -20,10 +20,12 @@ interface CategoryPopoverProps {
   onCreateCategory: () => Promise<void>
   containerRef: RefObject<HTMLElement | null>
   canEdit: boolean
+  /** Popover alignment under the trigger. Default "left"; the page sidebar uses "center". */
+  align?: "left" | "right" | "center"
 }
 
 export function CategoryPopover({
-  open, onClose, value, onChange, categories, onCreateCategory, containerRef, canEdit,
+  open, onClose, value, onChange, categories, onCreateCategory, containerRef, canEdit, align = "left",
 }: CategoryPopoverProps) {
   const [creating,  setCreating]  = useState(false)
   const [name,      setName]      = useState("")
@@ -78,7 +80,7 @@ export function CategoryPopover({
   const width = creating ? 360 : 320
 
   return (
-    <Popover open={open} onClose={onClose} width={width} containerRef={containerRef}>
+    <Popover open={open} onClose={onClose} width={width} align={align} containerRef={containerRef}>
       {creating ? (
         /* ── CREATE PANEL ── */
         <div style={{ padding: "16px 16px 14px" }}>

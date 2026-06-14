@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(branch-page): center priority/category dropdowns under their plate (2026-06-14)
+
+- **Branch-page priority & category dropdowns are now centered.** The previous round centered the
+  Radix dropdowns and added an `align` prop to the custom `PriorityPopover`/`CategoryPopover`, but
+  the branch page's `PageMetaPanel` never passed it — so both popovers still opened with the default
+  `align="left"`, hugging the left edge of the full-width meta plate ("crooked"). `PageMetaPanel`
+  now passes `align="center"` to both, so each popover opens centered under its plate
+  (`left: 50%` + `translateX(-50%)` relative to the full-width trigger wrapper). The modal's
+  `InlineTokenStrip` intentionally keeps `align="left"`, where the popover sits under a narrow inline
+  token.
+
 ### fix(ui): centered + smoother dropdowns, subtask-edit jump removed (2026-06-14)
 
 - **Dropdowns open smoothly and centered.** The shared Radix `Select` and `DropdownMenu` (priority,

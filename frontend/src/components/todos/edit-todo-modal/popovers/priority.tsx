@@ -12,9 +12,11 @@ interface PriorityPopoverProps {
   containerRef: RefObject<HTMLElement | null>
   /** When true the options are shown muted and non-interactive (viewer who is not the owner). */
   readOnly?: boolean
+  /** Popover alignment under the trigger. Default "left"; the page sidebar uses "center". */
+  align?: "left" | "right" | "center"
 }
 
-export function PriorityPopover({ open, onClose, value, onChange, containerRef, readOnly }: PriorityPopoverProps) {
+export function PriorityPopover({ open, onClose, value, onChange, containerRef, readOnly, align = "left" }: PriorityPopoverProps) {
   const handleSelect = (key: string) => {
     if (readOnly) return
     onChange(key)
@@ -22,7 +24,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
   }
 
   return (
-    <Popover open={open} onClose={onClose} width={300} containerRef={containerRef}>
+    <Popover open={open} onClose={onClose} width={300} align={align} containerRef={containerRef}>
       <PopoverHeader label="Priority" />
       <div style={{ padding: 6, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
         {PRIORITY_LEVELS.map((p, i) => {

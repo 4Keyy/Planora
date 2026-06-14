@@ -153,6 +153,7 @@ export function PageMetaPanel({
               onChange={(v) => { onPriorityChange(v); close() }}
               containerRef={priorityRef as RefObject<HTMLElement | null>}
               readOnly={ownerLocked}
+              align="center"
             />
           }
         />
@@ -203,6 +204,7 @@ export function PageMetaPanel({
               onCreateCategory={onCreateCategory}
               containerRef={categoryRef as RefObject<HTMLElement | null>}
               canEdit={canEditCategory}
+              align="center"
             />
           }
         />
