@@ -1,7 +1,10 @@
 using MediatR;
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
+using Planora.Collaboration.Application.Common;
 using Planora.Collaboration.Application.DTOs;
 using Planora.Collaboration.Application.Services;
 using Planora.Collaboration.Domain.Repositories;
@@ -15,19 +18,22 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IUserService _userService;
         private readonly ITaskAccessService _taskAccessService;
+        private readonly IOutboxRepository _outboxRepository;
 
         public UpdateCommentCommandHandler(
             ICommentRepository commentRepository,
             IUnitOfWork unitOfWork,
             ICurrentUserContext currentUserContext,
             IUserService userService,
-            ITaskAccessService taskAccessService)
+            ITaskAccessService taskAccessService,
+            IOutboxRepository outboxRepository)
         {
             _commentRepository = commentRepository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
             _userService = userService;
             _taskAccessService = taskAccessService;
+            _outboxRepository = outboxRepository;
         }
 
         public async Task<Result<CommentDto>> Handle(UpdateCommentCommand request, CancellationToken cancellationToken)
@@ -55,6 +61,12 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
 
             _commentRepository.Update(comment);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Live: the edited content reconciles in every open branch view of this task.
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new RealtimeSyncIntegrationEvent(
+                    RealtimeSyncAction.CommentUpdated, comment.Id, userId, branchTaskId: request.TaskId),
+                cancellationToken);
 
             // Resolve the author's current name + avatar live (never a stored copy).
             string authorName = comment.AuthorName;

@@ -4,6 +4,7 @@ using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.Todo.Application.Common;
+using Planora.Todo.Application.Services;
 using Planora.Todo.Domain.Repositories;
 using MediatR;
 
@@ -16,30 +17,40 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<DeleteTodoCommandHandler> _logger;
         private readonly ICurrentUserContext _currentUserContext;
+        private readonly IFriendshipService _friendshipService;
 
         public DeleteTodoCommandHandler(
             ITodoRepository repository,
             IOutboxRepository outboxRepository,
             IUnitOfWork unitOfWork,
             ILogger<DeleteTodoCommandHandler> logger,
-            ICurrentUserContext currentUserContext)
+            ICurrentUserContext currentUserContext,
+            IFriendshipService friendshipService)
         {
             _repository = repository;
             _outboxRepository = outboxRepository;
             _unitOfWork = unitOfWork;
             _logger = logger;
             _currentUserContext = currentUserContext;
+            _friendshipService = friendshipService;
         }
 
         public async Task<Result> Handle(DeleteTodoCommand request, CancellationToken cancellationToken)
         {
             var userId = _currentUserContext.UserId;
 
-            var todoItem = await _repository.GetByIdAsync(request.TodoId, cancellationToken)
+            // Load with includes so the feed audience (shared-with set) can be resolved before the
+            // task is soft-deleted — everyone who could see it must be told to drop the card.
+            var todoItem = await _repository.GetByIdWithIncludesTrackedAsync(request.TodoId, cancellationToken)
                 ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
             if (todoItem.UserId != userId)
                 throw new ForbiddenException("You can only delete your own todo items. Friends cannot delete your public tasks");
+
+            // Capture the feed audience while the task is still alive and its shares are loaded.
+            var audience = todoItem.IsSubtask
+                ? (IReadOnlyList<Guid>)System.Array.Empty<Guid>()
+                : await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken);
 
             todoItem.MarkAsDeleted(userId);
             _repository.Update(todoItem);
@@ -60,17 +71,31 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
             // deletion fact via the outbox; Collaboration cascade-soft-deletes the comments. INV-COMM-3.
             if (todoItem.IsSubtask)
             {
+                var parentId = todoItem.ParentTodoId!.Value;
                 // A subtask has no branch of its own — its only footprint is the announcement
                 // comments it left in the PARENT's branch. Remove exactly those, not a whole branch.
                 await _outboxRepository.EnqueueIntegrationEventAsync(
-                    new SubtaskDeletedIntegrationEvent(
-                        todoItem.ParentTodoId!.Value, todoItem.Id, userId, todoItem.Title),
+                    new SubtaskDeletedIntegrationEvent(parentId, todoItem.Id, userId, todoItem.Title),
+                    cancellationToken);
+
+                // Live: the parent's open branch refreshes its subtask list.
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new RealtimeSyncIntegrationEvent(
+                        RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId, branchTaskId: parentId),
                     cancellationToken);
             }
             else
             {
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskDeletedIntegrationEvent(todoItem.Id, userId),
+                    cancellationToken);
+
+                // Live: drop the card from every viewer's feed, and tell any open branch the task
+                // is gone so the view can close itself.
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new RealtimeSyncIntegrationEvent(
+                        RealtimeSyncAction.TaskDeleted, todoItem.Id, userId,
+                        branchTaskId: todoItem.Id, audienceUserIds: audience),
                     cancellationToken);
             }
 

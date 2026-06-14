@@ -1,6 +1,9 @@
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
+using Planora.Todo.Application.Common;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;
@@ -17,6 +20,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
         private readonly ILogger<CreateSubtaskCommandHandler> _logger;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ICategoryGrpcClient _categoryGrpcClient;
+        private readonly IOutboxRepository _outboxRepository;
 
         public CreateSubtaskCommandHandler(
             ITodoRepository repository,
@@ -24,7 +28,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             IMapper mapper,
             ILogger<CreateSubtaskCommandHandler> logger,
             ICurrentUserContext currentUserContext,
-            ICategoryGrpcClient categoryGrpcClient)
+            ICategoryGrpcClient categoryGrpcClient,
+            IOutboxRepository outboxRepository)
         {
             _repository = repository;
             _unitOfWork = unitOfWork;
@@ -32,6 +37,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             _logger = logger;
             _currentUserContext = currentUserContext;
             _categoryGrpcClient = categoryGrpcClient;
+            _outboxRepository = outboxRepository;
         }
 
         public async Task<Result<TodoItemDto>> Handle(
@@ -62,8 +68,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
 
             await _repository.AddAsync(subtask, cancellationToken);
 
-            // Subtask creation is deliberately NOT announced in the parent's branch — there is no
-            // "created a subtask" system notification. (Completion still emits SubtaskCompleted.)
+            // Subtask creation is deliberately NOT announced in the parent's branch as a system
+            // comment — there is no "created a subtask" notification. (Completion still emits
+            // SubtaskCompleted.) It IS pushed live, though, so anyone with the parent's branch open
+            // sees the new subtask card appear without a refresh.
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new RealtimeSyncIntegrationEvent(
+                    RealtimeSyncAction.SubtaskChanged, subtask.Id, userId, branchTaskId: parent.Id),
+                cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(

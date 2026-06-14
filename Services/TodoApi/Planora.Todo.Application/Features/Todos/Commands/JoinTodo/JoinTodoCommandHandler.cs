@@ -105,6 +105,24 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.StartedWorking),
                     cancellationToken);
+
+                // Live: worker count changed → refresh the card on every viewer's feed and the
+                // "started working" entry in the task's open branch.
+                var audience = await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken);
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new RealtimeSyncIntegrationEvent(
+                        RealtimeSyncAction.TaskUpdated, todoItem.Id, userId,
+                        branchTaskId: todoItem.Id, audienceUserIds: audience),
+                    cancellationToken);
+            }
+            else if (todoItem.ParentTodoId.HasValue)
+            {
+                // A subtask's worker count shows on its card inside the parent's branch.
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new RealtimeSyncIntegrationEvent(
+                        RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId,
+                        branchTaskId: todoItem.ParentTodoId.Value),
+                    cancellationToken);
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);

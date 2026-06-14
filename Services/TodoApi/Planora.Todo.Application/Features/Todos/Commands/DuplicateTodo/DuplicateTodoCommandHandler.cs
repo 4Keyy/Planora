@@ -119,6 +119,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
                 new TaskCreatedIntegrationEvent(copy.Id, userId, authorName, source.Description),
                 cancellationToken);
 
+            // Live feed sync: the copy appears on every viewer's list/dashboard, exactly like a
+            // normal create. The audience is computed from the copy's own visibility.
+            var audience = await RealtimeAudience.ResolveAsync(
+                userId, source.IsPublic, sharedWith, _friendshipService, cancellationToken);
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new RealtimeSyncIntegrationEvent(
+                    RealtimeSyncAction.TaskCreated, copy.Id, userId, audienceUserIds: audience),
+                cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(

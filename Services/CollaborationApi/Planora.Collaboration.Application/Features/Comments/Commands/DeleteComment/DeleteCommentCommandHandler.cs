@@ -1,7 +1,10 @@
 using MediatR;
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
+using Planora.Collaboration.Application.Common;
 using Planora.Collaboration.Application.Services;
 using Planora.Collaboration.Domain.Repositories;
 
@@ -13,17 +16,20 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.DeleteCom
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly ITaskAccessService _taskAccessService;
+        private readonly IOutboxRepository _outboxRepository;
 
         public DeleteCommentCommandHandler(
             ICommentRepository commentRepository,
             IUnitOfWork unitOfWork,
             ICurrentUserContext currentUserContext,
-            ITaskAccessService taskAccessService)
+            ITaskAccessService taskAccessService,
+            IOutboxRepository outboxRepository)
         {
             _commentRepository = commentRepository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
             _taskAccessService = taskAccessService;
+            _outboxRepository = outboxRepository;
         }
 
         public async Task<Result> Handle(DeleteCommentCommand request, CancellationToken cancellationToken)
@@ -55,6 +61,12 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.DeleteCom
             comment.MarkAsDeleted(userId);
             _commentRepository.Update(comment);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Live: the comment disappears from every open branch view of this task.
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new RealtimeSyncIntegrationEvent(
+                    RealtimeSyncAction.CommentDeleted, comment.Id, userId, branchTaskId: request.TaskId),
+                cancellationToken);
 
             return Result.Success();
         }

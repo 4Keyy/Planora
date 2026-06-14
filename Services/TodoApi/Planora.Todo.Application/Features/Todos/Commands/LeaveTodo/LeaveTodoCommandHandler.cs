@@ -4,6 +4,7 @@ using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Application.Outbox;
 using Planora.Todo.Application.Common;
+using Planora.Todo.Application.Services;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Repositories;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserContext _currentUserContext;
         private readonly IOutboxRepository _outboxRepository;
+        private readonly IFriendshipService _friendshipService;
         private readonly ILogger<LeaveTodoCommandHandler> _logger;
 
         public LeaveTodoCommandHandler(
@@ -23,12 +25,14 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
             IUnitOfWork unitOfWork,
             ICurrentUserContext currentUserContext,
             IOutboxRepository outboxRepository,
+            IFriendshipService friendshipService,
             ILogger<LeaveTodoCommandHandler> logger)
         {
             _repository = repository;
             _unitOfWork = unitOfWork;
             _currentUserContext = currentUserContext;
             _outboxRepository = outboxRepository;
+            _friendshipService = friendshipService;
             _logger = logger;
         }
 
@@ -55,6 +59,22 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
                 var userName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.Left),
+                    cancellationToken);
+
+                // Live: worker count dropped → refresh the card everywhere and the branch timeline.
+                var audience = await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken);
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new RealtimeSyncIntegrationEvent(
+                        RealtimeSyncAction.TaskUpdated, todoItem.Id, userId,
+                        branchTaskId: todoItem.Id, audienceUserIds: audience),
+                    cancellationToken);
+            }
+            else if (todoItem.ParentTodoId.HasValue)
+            {
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new RealtimeSyncIntegrationEvent(
+                        RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId,
+                        branchTaskId: todoItem.ParentTodoId.Value),
                     cancellationToken);
             }
 

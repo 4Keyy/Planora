@@ -105,6 +105,16 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
                 new TaskCreatedIntegrationEvent(todoItem.Id, userId, authorName, request.Description),
                 cancellationToken);
 
+            // Live feed sync: every user who can now see this task (owner + shared-with + friends
+            // when public) gets a TaskFeedChanged push so the card appears on their list/dashboard
+            // without a refresh. Emitted in the same unit of work as the create (INV-COMM-3).
+            var audience = await RealtimeAudience.ResolveAsync(
+                userId, request.IsPublic, sharedWith, _friendshipService, cancellationToken);
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new RealtimeSyncIntegrationEvent(
+                    RealtimeSyncAction.TaskCreated, todoItem.Id, userId, audienceUserIds: audience),
+                cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(

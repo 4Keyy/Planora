@@ -5,6 +5,7 @@ using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
+using Planora.Collaboration.Application.Common;
 using Planora.Collaboration.Application.DTOs;
 using Planora.Collaboration.Application.Services;
 using Planora.Collaboration.Domain.Entities;
@@ -70,6 +71,14 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
 
             await _commentRepository.AddAsync(comment, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Live: push the new message into the task's branch room so everyone with the branch
+            // open sees it appear instantly (both directions). The client refetches the comment
+            // slice through the authorized endpoint, so the signal carries no comment content.
+            await _outboxRepository.EnqueueIntegrationEventAsync(
+                new RealtimeSyncIntegrationEvent(
+                    RealtimeSyncAction.CommentAdded, comment.Id, userId, branchTaskId: request.TaskId),
+                cancellationToken);
 
             // Fan out notifications to every other task participant. Written to the outbox so
             // delivery is reliable and atomic-ish with the comment write (INV-COMM-3). RealtimeApi

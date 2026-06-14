@@ -120,6 +120,17 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                     cancellationToken);
                             }
 
+                            // Live: any subtask status toggle (done/in-progress/todo) reconciles in
+                            // the parent's open branch for everyone viewing it.
+                            if (todoItem.ParentTodoId.HasValue)
+                            {
+                                await _outboxRepository.EnqueueIntegrationEventAsync(
+                                    new RealtimeSyncIntegrationEvent(
+                                        RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId,
+                                        branchTaskId: todoItem.ParentTodoId.Value),
+                                    cancellationToken);
+                            }
+
                             await _unitOfWork.SaveChangesAsync(cancellationToken);
                         }
                     }
@@ -160,6 +171,14 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                             await _outboxRepository.EnqueueIntegrationEventAsync(
                                 new TaskActivityIntegrationEvent(todoItem.Id, userId, userName, TaskActivityType.Completed),
                                 cancellationToken);
+
+                            // Live: the "completed" system entry appears in the task's open branch.
+                            // Per-viewer completion is private to this viewer's feed, so no feed push.
+                            await _outboxRepository.EnqueueIntegrationEventAsync(
+                                new RealtimeSyncIntegrationEvent(
+                                    RealtimeSyncAction.BranchActivity, todoItem.Id, userId,
+                                    branchTaskId: todoItem.Id),
+                                cancellationToken);
                         }
 
                         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -189,6 +208,12 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                     CategoryId = null, CategoryName = null, CategoryColor = null, CategoryIcon = null,
                 });
             }
+
+            // Snapshot the pre-change visibility so the live feed push can also reach users who are
+            // about to LOSE access (un-publish or un-share): they must be told to drop the card.
+            var wasPublic = todoItem.IsPublic;
+            var wasCompleted = todoItem.IsCompleted;
+            var previousSharedWith = todoItem.SharedWith.Select(s => s.SharedWithUserId).ToList();
 
             // A subtask inherits category, visibility, sharing and dates from its parent — they
             // are never editable on the child directly. The owner may still change a subtask's
@@ -337,6 +362,48 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             {
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new TaskActivityIntegrationEvent(todoItem.Id, userId, ownerName, TaskActivityType.Left),
+                    cancellationToken);
+            }
+
+            // ── Live sync (owner edit) ────────────────────────────────────────────────────
+            if (todoItem.IsSubtask)
+            {
+                // A subtask is not a feed card; its edits surface only in the parent's open branch.
+                if (todoItem.ParentTodoId.HasValue)
+                {
+                    await _outboxRepository.EnqueueIntegrationEventAsync(
+                        new RealtimeSyncIntegrationEvent(
+                            RealtimeSyncAction.SubtaskChanged, todoItem.Id, userId,
+                            branchTaskId: todoItem.ParentTodoId.Value),
+                        cancellationToken);
+                }
+            }
+            else
+            {
+                // Feed audience = everyone who could see the task before OR after the change, so an
+                // un-share/un-publish reaches the users who just lost access (they drop the card).
+                var audienceSet = new HashSet<Guid> { todoItem.UserId };
+                foreach (var s in todoItem.SharedWith) audienceSet.Add(s.SharedWithUserId);
+                foreach (var s in previousSharedWith) audienceSet.Add(s);
+                if (wasPublic || todoItem.IsPublic)
+                {
+                    foreach (var f in await _friendshipService.GetFriendIdsAsync(todoItem.UserId, cancellationToken))
+                        audienceSet.Add(f);
+                }
+                audienceSet.Remove(Guid.Empty);
+
+                var feedAction = ownerJustCompleted
+                    ? RealtimeSyncAction.TaskCompleted
+                    : (wasCompleted && !todoItem.IsCompleted)
+                        ? RealtimeSyncAction.TaskReopened
+                        : RealtimeSyncAction.TaskUpdated;
+
+                // One event drives both surfaces: the feed card for every viewer, and the task's
+                // own open branch (title/description/status/worker changes reconcile live).
+                await _outboxRepository.EnqueueIntegrationEventAsync(
+                    new RealtimeSyncIntegrationEvent(
+                        feedAction, todoItem.Id, userId,
+                        branchTaskId: todoItem.Id, audienceUserIds: audienceSet.ToList()),
                     cancellationToken);
             }
 
