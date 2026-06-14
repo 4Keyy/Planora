@@ -388,6 +388,23 @@
   100% { background-color: rgba(139,92,246,0); }
 }
 
+/* Branch "is typing" indicator — three softly bouncing dots above the compose box */
+.branch-typing-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: currentColor;
+  display: inline-block;
+  animation: branch_typing_bounce 1s infinite ease-in-out both;
+}
+@keyframes branch_typing_bounce {
+  0%, 80%, 100% { transform: translateY(0);    opacity: 0.45; }
+  40%           { transform: translateY(-3px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .branch-typing-dot { animation: none; opacity: 0.7; }
+}
+
 /* Spellcheck/grammar underline color */
 ::spelling-error {
   text-decoration: underline wavy #000;

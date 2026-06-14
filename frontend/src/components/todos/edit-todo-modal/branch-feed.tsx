@@ -9,8 +9,10 @@ import {
   joinTodo, leaveTodo,
   getApiErrorMessage,
 } from "@/lib/api"
-import type { TodoComment, Todo, ReplyTargetType } from "@/types/todo"
+import { sameUserId, type TodoComment, type Todo, type ReplyTargetType } from "@/types/todo"
 import { SPRING_STANDARD } from "@/lib/animations"
+import { useAuthStore } from "@/store/auth"
+import { useBranchRoom, useTyping } from "@/lib/realtime/hooks"
 import { FriendAvatar } from "./friend-avatar"
 import {
   formatDayLabel,
@@ -20,6 +22,14 @@ import {
 const COMMENT_MAX = 2000
 const GENESIS_MAX = 5000
 const SUBTASK_MAX = 1500
+
+/** "Имя Фамилия печатает…" — names of others currently typing in this branch. */
+function formatTyping(names: string[]): string {
+  if (names.length === 0) return ""
+  if (names.length === 1) return `${names[0]} печатает…`
+  if (names.length === 2) return `${names[0]} и ${names[1]} печатают…`
+  return `${names[0]} и ещё ${names.length - 1} печатают…`
+}
 
 // Snappy spring for subtask micro-interactions (toggle pop, card enter/exit).
 const SPRING_SNAP = { type: "spring" as const, stiffness: 460, damping: 32 }
@@ -330,6 +340,10 @@ export function BranchFeed({
   // Feed node currently pulsing after a quote-jump ("c-{id}" / "s-{id}").
   const [flashKey, setFlashKey] = useState<string | null>(null)
 
+  // Live presence: who else is typing in this branch right now, and a notifier to call on keystroke.
+  const viewerId = useAuthStore((s) => s.user?.userId)
+  const { typingNames, notifyTyping } = useTyping(todoId, true)
+
   const feedRef           = useRef<HTMLDivElement>(null)
   const composeRef        = useRef<HTMLTextAreaElement>(null)
   const genesisEditRef    = useRef<HTMLTextAreaElement>(null)
@@ -484,6 +498,23 @@ export function BranchFeed({
     const id = setInterval(() => { void mergeLatest(); void loadSubtasks() }, 9000)
     return () => clearInterval(id)
   }, [mergeLatest, loadSubtasks, editingId, editingGenesis])
+
+  // ── Live push ──────────────────────────────────────────────────────────────
+  // Join this task's branch room. When anyone else adds/edits/deletes a message, changes a subtask,
+  // or the task's status changes, pull the delta instantly instead of waiting for the 9s poll above
+  // (which now acts purely as a backstop if the socket is down). Our own echoes are skipped — the
+  // optimistic handlers already applied them.
+  useBranchRoom(
+    todoId,
+    useCallback(
+      (payload) => {
+        if (sameUserId(payload.actorId, viewerId)) return
+        void mergeLatest()
+        void loadSubtasks()
+      },
+      [mergeLatest, loadSubtasks, viewerId],
+    ),
+  )
 
   const genesis = comments.find((c) => c.isGenesisComment) ?? null
   const stream  = comments.filter((c) => !c.isGenesisComment)
@@ -1389,6 +1420,28 @@ export function BranchFeed({
           </div>
         )}
 
+        {/* Live "is typing" presence — sits just above the compose box, as requested. */}
+        <div style={{ minHeight: 16, padding: "0 4px 2px", overflow: "hidden" }} aria-live="polite">
+          <AnimatePresence>
+            {typingNames.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 4 }}
+                transition={{ duration: 0.18 }}
+                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, color: "#6d5bd0" }}
+              >
+                <span style={{ display: "inline-flex", gap: 2 }}>
+                  <span className="branch-typing-dot" style={{ animationDelay: "-0.32s" }} />
+                  <span className="branch-typing-dot" style={{ animationDelay: "-0.16s" }} />
+                  <span className="branch-typing-dot" />
+                </span>
+                {formatTyping(typingNames)}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Compose box — position:relative anchors the floating menu */}
         <div style={{
           position: "relative",
@@ -1618,6 +1671,7 @@ export function BranchFeed({
             onChange={(e) => {
               setNewContent(e.target.value)
               autoResize(e.target)
+              notifyTyping()
             }}
             onKeyDown={(e) => {
               // Project-wide convention: Enter sends/adds in every mode (message, subtask,

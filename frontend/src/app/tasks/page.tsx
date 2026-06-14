@@ -33,6 +33,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
 import { TASK_CREATED_EVENT, type TaskCreatedDetail } from "@/lib/events"
+import { useFeedSync } from "@/lib/realtime/hooks"
 import { EASE_OUT_EXPO, SPRING_GENTLE } from "@/lib/animations"
 import { readFilter, writeFilter } from "@/utils/category-filter"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
@@ -294,6 +295,53 @@ export default function TasksPage() {
     window.addEventListener(TASK_CREATED_EVENT, handler)
     return () => window.removeEventListener(TASK_CREATED_EVENT, handler)
   }, [fetchActiveTodos])
+
+  // ── Live cross-user sync ──────────────────────────────────────────────────
+  // A friend created/updated/deleted/completed a task we can see. Reconcile the single affected
+  // task against the authoritative endpoint so the feed updates instantly — no full refetch, no
+  // flicker. Our own echoes are ignored: the local optimistic update already applied them.
+  const reconcileTaskById = useCallback(async (taskId: string) => {
+    let fresh: Todo | null = null
+    try {
+      fresh = await fetchTaskById(taskId)
+    } catch {
+      fresh = null
+    }
+
+    // Lost access (un-shared / un-published / deleted) → drop the card everywhere.
+    if (!fresh) {
+      setTodos((prev) => prev.filter((t) => t.id !== taskId))
+      setCompletedPreview((prev) => prev.filter((t) => t.id !== taskId))
+      return
+    }
+
+    const authorName = fresh.authorName ?? friendNameCache.current.get(fresh.userId)
+    const [enriched] = authorName ? [{ ...fresh, authorName }] : await enrichTodosWithAuthorNames([fresh])
+    const upsert = (prev: Todo[]) =>
+      prev.some((t) => t.id === taskId)
+        ? prev.map((t) => (t.id === taskId ? enriched : t))
+        : [enriched, ...prev]
+
+    if (isCompletedTodoStatus(enriched.status)) {
+      setTodos((prev) => prev.filter((t) => t.id !== taskId))
+      setCompletedPreview(upsert)
+    } else {
+      setCompletedPreview((prev) => prev.filter((t) => t.id !== taskId))
+      setTodos(upsert)
+    }
+  }, [enrichTodosWithAuthorNames])
+
+  useFeedSync(useCallback((signal) => {
+    if (sameUserId(signal.actorId, user?.userId)) return
+    if (signal.action === "task.deleted") {
+      setTodos((prev) => prev.filter((t) => t.id !== signal.taskId))
+      setCompletedPreview((prev) => prev.filter((t) => t.id !== signal.taskId))
+      // Keep the completed count badge honest after a remote delete.
+      void fetchCompletedPreview()
+      return
+    }
+    void reconcileTaskById(signal.taskId)
+  }, [reconcileTaskById, fetchCompletedPreview, user?.userId]))
 
   const handleComplete = async (id: string) => {
     const existingTodo = todosRef.current.find((t) => t.id === id) ?? completedPreviewRef.current.find((t) => t.id === id)

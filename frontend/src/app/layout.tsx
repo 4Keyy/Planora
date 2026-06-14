@@ -9,6 +9,7 @@ import { ReactNode } from "react"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toast"
 import { SecurityInitializer } from "@/components/security-initializer"
+import { RealtimeManager } from "@/components/realtime-manager"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
 import { MotionPreferencesProvider } from "@/components/motion-preferences-provider"
@@ -76,6 +77,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className={cn("text-gray-900 antialiased min-h-screen bg-transparent")}>
         <ColorBendsLayer />
         <SecurityInitializer />
+        <RealtimeManager />
         {/* T4.10 — global MotionConfig with reducedMotion="user" makes every
             framer-motion component in the tree automatically honour the OS
             prefers-reduced-motion setting (transforms collapse, opacity stays).

@@ -11,7 +11,8 @@ import { ensureFriendNames } from "@/lib/friend-names"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
-import { Todo, isTodoOwner, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
+import { Todo, isTodoOwner, sameUserId, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
+import { useFeedSync } from "@/lib/realtime/hooks"
 import { TodoCard } from "@/components/todos/todo-card"
 import { useToastStore } from "@/store/toast"
 import { Category } from "@/types/category"
@@ -268,6 +269,20 @@ export default function DashboardPage() {
     window.addEventListener(TASK_CREATED_EVENT, handler)
     return () => window.removeEventListener(TASK_CREATED_EVENT, handler)
   }, [fetchTodos, fetchStats])
+
+  // ── Live cross-user sync ──────────────────────────────────────────────────
+  // A friend changed a task we can see. The dashboard is paginated + drives weekly stats, so the
+  // cleanest reconcile is a silent refetch of the current page and the stats set. A short debounce
+  // coalesces bursts (e.g. a friend completing several tasks) into one refresh. Own echoes are
+  // skipped — the local optimistic update already reflected them.
+  const liveSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useFeedSync(useCallback((signal) => {
+    if (sameUserId(signal.actorId, user?.userId)) return
+    if (liveSyncTimerRef.current) clearTimeout(liveSyncTimerRef.current)
+    liveSyncTimerRef.current = setTimeout(() => {
+      void Promise.all([fetchTodos(undefined, { silent: true }), fetchStats()])
+    }, 400)
+  }, [fetchTodos, fetchStats, user?.userId]))
 
   // Press "C" — open create panel (skip when typing or panel already open)
   useEffect(() => {
