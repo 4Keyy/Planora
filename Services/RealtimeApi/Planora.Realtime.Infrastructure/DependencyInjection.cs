@@ -3,8 +3,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain.Interfaces;
+using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.Realtime.Application.Interfaces;
+using Planora.Realtime.Infrastructure.Grpc;
 using Planora.Realtime.Infrastructure.Persistence;
 using Planora.Realtime.Infrastructure.Services;
 
@@ -18,6 +20,21 @@ public static class DependencyInjection
     {
         services.AddSingleton<IConnectionManager, ConnectionManager>();
         services.AddSingleton<INotificationService, NotificationService>();
+
+        // Live data-sync fan-out over SignalR (TaskFeedChanged / BranchChanged). Singleton like
+        // NotificationService — it only holds the hub context, which is itself a singleton.
+        services.AddSingleton<IRealtimeBroadcaster, RealtimeBroadcaster>();
+
+        // Branch-room join authorization → TodoApi gRPC. The x-service-key header is added by the
+        // shared interceptor (INV-COMM-2); the URL mirrors the Collaboration service's wiring.
+        services.AddSingleton<ServiceKeyClientInterceptor>();
+        var todoGrpcUrl = configuration["GrpcServices:TodoApi"]
+            ?? configuration["Services:Todo:Url"]
+            ?? "http://localhost:5101";
+        services.AddGrpcClient<Planora.GrpcContracts.TodoService.TodoServiceClient>(o =>
+                o.Address = new Uri(todoGrpcUrl))
+            .AddInterceptor<ServiceKeyClientInterceptor>();
+        services.AddScoped<ITaskBranchAuthorizer, TaskBranchAuthorizer>();
 
         services.AddSingleton<IRabbitMqConnectionManager>(sp =>
         {

@@ -116,6 +116,8 @@ public class Program
 
             // Event Handlers
             builder.Services.AddTransient<IIntegrationEventHandler<NotificationEvent>, NotificationEventHandler>();
+            // Live data sync — TaskFeedChanged (lists/dashboard) + BranchChanged (open branches).
+            builder.Services.AddTransient<IIntegrationEventHandler<RealtimeSyncIntegrationEvent>, RealtimeSyncEventHandler>();
 
             // Health Checks
             builder.Services.AddHealthChecks();
@@ -154,6 +156,7 @@ public class Program
 
                 // Subscribe to events
                 await eventBus.SubscribeAsync<NotificationEvent, NotificationEventHandler>(app.Lifetime.ApplicationStopping);
+                await eventBus.SubscribeAsync<RealtimeSyncIntegrationEvent, RealtimeSyncEventHandler>(app.Lifetime.ApplicationStopping);
                 logger.LogInformation("✅ RealtimeApi dependencies ready");
             }
 

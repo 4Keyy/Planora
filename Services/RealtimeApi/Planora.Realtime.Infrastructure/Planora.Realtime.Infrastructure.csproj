@@ -13,6 +13,10 @@
 		<PackageReference Include="MassTransit.RabbitMQ" />
 		<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
 		<PackageReference Include="StackExchange.Redis" />
+		<!-- gRPC client → TodoApi: authorizes branch-room joins against the task's
+		     ownership/sharing rules (reuses CheckTaskCommentAccess, INV-OWN-1/INV-COMM-2). -->
+		<PackageReference Include="Grpc.Net.Client" />
+		<PackageReference Include="Grpc.Net.ClientFactory" />
 		<!-- T2.5 — durable notification log + outbox table. EF/Npgsql parity with sister services. -->
 		<PackageReference Include="Microsoft.EntityFrameworkCore" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="All" />
@@ -30,6 +34,7 @@
 		<ProjectReference Include="..\..\..\BuildingBlocks\Planora.BuildingBlocks.Infrastructure\Planora.BuildingBlocks.Infrastructure.csproj" />
 		<ProjectReference Include="..\Planora.Realtime.Application\Planora.Realtime.Application.csproj" />
 		<ProjectReference Include="..\Planora.Realtime.Domain\Planora.Realtime.Domain.csproj" />
+		<ProjectReference Include="..\..\..\GrpcContracts\GrpcContracts.csproj" />
 	</ItemGroup>
 
 </Project>
