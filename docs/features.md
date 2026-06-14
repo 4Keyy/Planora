@@ -656,6 +656,36 @@ Track current connections and deliver notifications through SignalR and service 
 - SignalR reads `access_token` from the query string for `/hubs` paths.
 - Redis backplane channel prefix is `planora`.
 
+## Live Sync And Branch Presence
+
+### Purpose
+
+Reflect other users' actions in the UI the instant they happen — no manual refresh — and show who is
+typing in a branch. One SignalR connection per client carries notifications, data-sync signals and
+typing presence.
+
+### Implementation
+
+- `BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/RealtimeSyncIntegrationEvent.cs` — the single fan-out contract.
+- TodoApi command handlers (`CreateTodo`/`UpdateTodo`/`DeleteTodo`/`JoinTodo`/`LeaveTodo`/`CreateSubtask`/`DuplicateTodo`) emit it; feed audience resolved by `Services/TodoApi/Planora.Todo.Application/Common/RealtimeAudience.cs`.
+- CollaborationApi `AddComment`/`UpdateComment`/`DeleteComment` emit the branch-scope event.
+- `Services/RealtimeApi/.../RealtimeSyncEventHandler.cs` + `RealtimeBroadcaster.cs` fan it out; `NotificationHub.cs` hosts the authorized branch rooms + typing relay.
+- Frontend: `frontend/src/lib/realtime/client.ts` (single connection), `hooks.ts` (`useFeedSync` / `useBranchRoom` / `useTyping`), `components/realtime-manager.tsx` (lifecycle), wired into `app/tasks/page.tsx`, `app/dashboard/page.tsx`, and `components/todos/edit-todo-modal/branch-feed.tsx`.
+
+### Key Rules
+
+- **Feed audience** = task owner + explicitly shared-with users + (when the task is public) the
+  owner's accepted friends. An un-share/un-publish also reaches the users who just lost access, so
+  they drop the card. Resolution happens in the producing service; RealtimeApi only routes.
+- **Branch rooms** (`task:{id}`) require authorization via TodoApi's `CheckTaskCommentAccess` gRPC;
+  joins fail closed. Membership is reference-counted client-side and re-joined on reconnect.
+- **Typing** is ephemeral (never persisted), relayed only to rooms the caller joined, throttled on
+  send, idle-cleared, and TTL-swept; the indicator reads "Имя Фамилия печатает…" (multi-user aware).
+- **Signals carry no content** — only ids + an action string. The client refetches through the
+  normal authorized endpoints, so a stale or forged signal can never leak data a user may not read.
+- A client **ignores its own echoes** so optimistic updates are never clobbered.
+- The branch's 9-second poll remains as a backstop if the socket is temporarily down.
+
 ## Product Analytics Events
 
 ### Purpose

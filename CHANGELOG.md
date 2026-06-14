@@ -4,6 +4,32 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(realtime): end-to-end live collaboration over SignalR (2026-06-14)
+
+- **Friends' task changes now appear instantly.** When someone creates, edits, completes, deletes,
+  joins or leaves a task you can see (your own, a task shared with you, or a public task of a
+  friend), the card updates on your **Tasks** and **Dashboard** in real time — no refresh. The
+  producing service (TodoApi) resolves the exact feed audience (owner + shared-with + the owner's
+  accepted friends when public) and emits a single `RealtimeSyncIntegrationEvent` through its
+  outbox; RealtimeApi fans it out over SignalR to each recipient's `user:{id}` group, and the client
+  reconciles just the affected task by refetching it through the normal authorized endpoint.
+- **Branches are live in both directions.** Opening a task's branch (modal or `/branch/{id}`) joins
+  an authorization-gated room (`task:{id}`, verified against TodoApi's ownership/sharing rules over
+  gRPC). New messages, edits, deletes, subtask create/complete/delete and status changes are pushed
+  to everyone in the room the moment they happen; the previous 9-second poll is now only a backstop.
+- **"Имя Фамилия печатает…".** While someone types in a branch, their name shows above the compose
+  box (multi-user aware: "X и ещё 2 печатают…"). Presence is ephemeral — relayed through the hub,
+  never stored — throttled on send, idle-cleared, and TTL-swept so it can never get stuck.
+- **One socket, secure by construction.** The whole app shares a single SignalR connection
+  (WebSockets, JWT via `?access_token=` since browsers can't header-auth a socket). The gateway
+  proxies the upgrade (`UseWebSockets`) and accepts the query token **only** on `/realtime` paths.
+  Every realtime payload is a thin id+action signal — clients refetch through authorized endpoints,
+  so a signal can never leak content a user may not read. Branch joins fail closed; typing is only
+  relayed to rooms the caller actually joined.
+
+Security: feed audience resolved server-side at the producer; branch joins authorized via TodoApi
+(INV-OWN-1, INV-COMM-2); query-token auth scoped to the realtime path only.
+
 ### fix(branch-page): center priority/category dropdowns under their plate (2026-06-14)
 
 - **Branch-page priority & category dropdowns are now centered.** The previous round centered the

@@ -184,12 +184,38 @@ RabbitMQ contracts (`IEventBus`, `IIntegrationEventHandler`, `IntegrationEvent`,
 | Todo API | `CategoryDeletedIntegrationEvent`, `UserDeletedIntegrationEvent`, `FriendshipRemovedIntegrationEvent` |
 | Category API | `UserDeletedIntegrationEvent` |
 | Collaboration API | `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`, `TaskDeletedIntegrationEvent`, `SubtaskDeletedIntegrationEvent`, `UserDeletedIntegrationEvent` |
-| Realtime API | `NotificationEvent` |
+| Realtime API | `NotificationEvent`, `RealtimeSyncIntegrationEvent` |
 
 Publishers via outbox:
 
 - Todo publishes `TaskCreated` / `TaskActivity` / `TaskDeleted` on task lifecycle (create, complete/start/leave, delete) — these drive the Collaboration timeline instead of the old in-transaction comment writes.
 - Collaboration publishes `NotificationEvent` per participant when a comment is added; Realtime delivers it over SignalR.
+- Todo and Collaboration publish `RealtimeSyncIntegrationEvent` on every task/comment mutation; Realtime fans it out over SignalR for live UI sync (see below).
+
+### Live UI sync (SignalR)
+
+Every client holds one SignalR connection to the unified hub (`/hubs/notifications`, reached as
+`/realtime/hubs/notifications` through the gateway, WebSockets with the JWT in `?access_token=`).
+The hub multiplexes three streams over that one socket:
+
+| Stream | Server → client | Mechanism |
+|---|---|---|
+| Notifications | `ReceiveNotification` | per-user `user:{id}` group, from `NotificationEvent` |
+| Feed sync | `TaskFeedChanged` | per-user `user:{id}` group, from `RealtimeSyncIntegrationEvent` (feed scope) |
+| Branch sync | `BranchChanged` | per-task `task:{id}` room, from `RealtimeSyncIntegrationEvent` (branch scope) |
+| Typing | `UserTyping` / `UserStoppedTyping` | per-task room, ephemeral (never persisted) |
+
+`RealtimeSyncIntegrationEvent` carries the feed audience (resolved by the producing service: owner +
+shared-with + the owner's accepted friends when public) and/or a branch task id. RealtimeApi only
+routes — it makes no authorization decision. Branch rooms are joined via the hub's `JoinTask`, which
+authorizes against TodoApi's `CheckTaskCommentAccess` gRPC and fails closed. Payloads are thin
+id+action signals; the client refetches through authorized endpoints to reconcile, so a signal never
+carries readable content. The Redis backplane fans group sends across all RealtimeApi instances.
+
+Code: `Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs`,
+`Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/RealtimeBroadcaster.cs`,
+`Services/RealtimeApi/Planora.Realtime.Application/Handlers/RealtimeSyncEventHandler.cs`,
+`frontend/src/lib/realtime/client.ts` + `hooks.ts`.
 
 Code:
 
