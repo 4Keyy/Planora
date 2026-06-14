@@ -77,19 +77,24 @@ SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayNam
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => (
+>(({ className, children, position = "popper", align = "center", sideOffset = 6, ...props }, ref) => (
   <SelectPrimitive.Portal>
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
         "relative max-h-96 min-w-[10rem] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-hover-lg",
         "z-[3000]",
-        "data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out",
-        position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+        // Smooth open/close: a clean fade + gentle scale FROM the trigger anchor (Radix supplies
+        // the transform-origin), so it grows out of the plate centred with no slide/jitter.
+        "origin-[var(--radix-select-content-transform-origin)]",
+        "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+        "duration-150 ease-out",
         className
       )}
       position={position}
+      align={align}
+      sideOffset={sideOffset}
       {...props}
     >
       <SelectScrollUpButton />

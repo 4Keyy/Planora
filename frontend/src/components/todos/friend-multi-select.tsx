@@ -135,7 +135,7 @@ export function FriendMultiSelect({
       </DropdownMenuTrigger>
       {!disabled && (
         <DropdownMenuContent
-          align="start"
+          align="center"
           className={cn(
             "w-[min(420px,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded-2xl border-gray-200/80 bg-white p-2 shadow-2xl",
             contentClassName
