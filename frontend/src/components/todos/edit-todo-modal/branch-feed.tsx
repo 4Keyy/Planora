@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, RotateCcw, Copy, type LucideIcon } from "lucide-react"
 import {
@@ -1874,14 +1874,19 @@ function SubtaskCard({
     if (!isOwner) return
     setEditTitle(subtask.title)
     setEditing(true)
-    setTimeout(() => {
-      const el = editInputRef.current
-      if (!el) return
-      el.focus(); el.select()
-      el.style.height = "auto"
-      el.style.height = el.scrollHeight + "px"
-    }, 40)
   }
+  // Size + focus the editor BEFORE paint (useLayoutEffect), so opening edit mode never flashes a
+  // 1-row field that then jumps to the full height — it fades in already at the right size.
+  useLayoutEffect(() => {
+    if (!editing) return
+    const el = editInputRef.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = el.scrollHeight + "px"
+  }, [editing])
+  useEffect(() => {
+    if (editing) { const el = editInputRef.current; el?.focus(); el?.select() }
+  }, [editing])
   const commitEdit = () => {
     const t = editTitle.trim()
     if (t && t !== subtask.title) onSaveTitle(t)

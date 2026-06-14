@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ui): centered + smoother dropdowns, subtask-edit jump removed (2026-06-14)
+
+- **Dropdowns open smoothly and centered.** The shared Radix `Select` and `DropdownMenu` (priority,
+  category, the "Share With" picker on the dashboard / tasks / create panel) now fade + gently scale
+  out of the trigger's anchor (`transform-origin` from Radix) instead of sliding — no post-open
+  jitter — and default to `align="center"` so a dropdown narrower than its plate is centered under
+  it (the "Share With" picker switched from `start` to `center` too).
+- **Subtask title edit no longer jumps.** Entering edit mode sizes + focuses the textarea before
+  paint (`useLayoutEffect`) instead of after a 40 ms timeout, so it fades in at the right height
+  rather than flashing a 1-row field that then leaps to full size.
+
 ### fix(branch+ui): subtask reply connector, always-open visibility, click-to-open calendars, fewer requests (2026-06-14)
 
 - **Subtask → reply now connects** with no gap: the subtask's sub-branch line is drawn down from
