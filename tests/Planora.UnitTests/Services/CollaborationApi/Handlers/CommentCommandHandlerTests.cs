@@ -38,8 +38,9 @@ public sealed class CommentCommandHandlerTests
         Assert.True(result.Value.IsOwn);
         fixture.Comments.Verify(x => x.AddAsync(It.IsAny<Comment>(), It.IsAny<CancellationToken>()), Times.Once);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        // Notification to every participant except the author (owner + 1 other = 2).
-        fixture.Outbox.Verify(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        // Two participant notifications (owner + 1 other, author excluded) plus the live-sync
+        // branch event that pushes the new message to anyone viewing the branch = 3 outbox writes.
+        fixture.Outbox.Verify(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
     [Fact]
@@ -92,10 +93,12 @@ public sealed class CommentCommandHandlerTests
         Assert.Equal("Original message text", dto.ReplyToPreview);
         Assert.False(dto.ReplyToDeleted);
 
-        // Quoted author gets the dedicated reply notification; the other participant the generic one.
-        Assert.Equal(2, fixture.OutboxMessages.Count);
+        // Quoted author gets the dedicated reply notification; the other participant the generic one;
+        // plus the live-sync branch event = 3 outbox writes.
+        Assert.Equal(3, fixture.OutboxMessages.Count);
         Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("ReplyAdded"));
         Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("CommentAdded"));
+        Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("comment.added"));
     }
 
     [Fact]
@@ -334,9 +337,9 @@ public sealed class CommentCommandHandlerTests
             new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object, Outbox.Object, Users.Object);
 
         public DeleteCommentCommandHandler DeleteHandler() =>
-            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object);
+            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Access.Object, Outbox.Object);
 
         public UpdateCommentCommandHandler UpdateHandler() =>
-            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Users.Object, Access.Object);
+            new(Comments.Object, UnitOfWork.Object, CurrentUser.Object, Users.Object, Access.Object, Outbox.Object);
     }
 }

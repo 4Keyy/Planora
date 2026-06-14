@@ -101,10 +101,19 @@ public sealed class WorkerLifecycleEventTests
             CurrentUser.SetupGet(x => x.UserId).Returns(userId);
             CurrentUser.SetupGet(x => x.Name).Returns("Worker");
             UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            // The live-sync feed audience is resolved for public tasks on join/leave; default to
+            // "no friends" so these tests don't NRE on an unmocked friend list.
+            Friendship.Setup(x => x.GetFriendIdsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Array.Empty<Guid>());
             Repository.Setup(x => x.GetActiveWorkerTaskCountAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(1);
             Outbox.Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
-                .Callback<OutboxMessage, CancellationToken>((m, _) => _captured = m)
+                // Ignore the live-sync envelope so _captured stays the TaskActivity event under test.
+                .Callback<OutboxMessage, CancellationToken>((m, _) =>
+                {
+                    if (!m.Type.Contains(nameof(RealtimeSyncIntegrationEvent)))
+                        _captured = m;
+                })
                 .Returns(Task.CompletedTask);
             Mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>()))
                 .Returns(new TodoItemDto
@@ -135,6 +144,6 @@ public sealed class WorkerLifecycleEventTests
 
         public LeaveTodoCommandHandler LeaveHandler() => new(
             Repository.Object, UnitOfWork.Object, CurrentUser.Object,
-            Outbox.Object, Mock.Of<ILogger<LeaveTodoCommandHandler>>());
+            Outbox.Object, Friendship.Object, Mock.Of<ILogger<LeaveTodoCommandHandler>>());
     }
 }

@@ -1,3 +1,4 @@
+using Planora.Realtime.Application.Interfaces;
 using Planora.Realtime.Infrastructure.Hubs;
 using Planora.Realtime.Infrastructure.Services;
 using Planora.Realtime.Infrastructure.SignalR;
@@ -110,7 +111,7 @@ public class NotificationInfrastructureTests
     {
         var groups = new Mock<IGroupManager>();
         var connectionManager = new Mock<IConnectionManager>();
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object)
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object, Mock.Of<ITaskBranchAuthorizer>())
         {
             Context = HubContext("user-1", "conn-1"),
             Groups = groups.Object
@@ -136,7 +137,7 @@ public class NotificationInfrastructureTests
     {
         var groups = new Mock<IGroupManager>();
         var connectionManager = new Mock<IConnectionManager>();
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object)
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object, Mock.Of<ITaskBranchAuthorizer>())
         {
             Context = HubContext("user-1", "conn-1"),
             Groups = groups.Object
@@ -160,7 +161,7 @@ public class NotificationInfrastructureTests
     {
         var groups = new Mock<IGroupManager>();
         var connectionManager = new Mock<IConnectionManager>();
-        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object)
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), connectionManager.Object, Mock.Of<ITaskBranchAuthorizer>())
         {
             Context = HubContext(userId: null, connectionId: "conn-anon"),
             Groups = groups.Object
@@ -190,6 +191,9 @@ public class NotificationInfrastructureTests
         var context = new Mock<HubCallerContext>();
         context.SetupGet(x => x.UserIdentifier).Returns(userId);
         context.SetupGet(x => x.ConnectionId).Returns(connectionId);
+        // The hub stores per-connection branch-room membership in Context.Items (for typing authz
+        // and disconnect cleanup); back it with a real dictionary so those paths don't NRE.
+        context.SetupGet(x => x.Items).Returns(new Dictionary<object, object?>());
         return context.Object;
     }
 }

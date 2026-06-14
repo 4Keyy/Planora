@@ -137,7 +137,7 @@ public class TodoCommandHandlerExpandedTests
         var todo = TodoItem.Create(userId, "Owned task");
         var fixture = new TodoCommandFixture(userId);
         fixture.TodoRepository
-            .Setup(x => x.GetByIdAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(todo);
 
         var result = await fixture.CreateDeleteHandler().Handle(
@@ -165,9 +165,14 @@ public class TodoCommandHandlerExpandedTests
         Planora.BuildingBlocks.Application.Outbox.OutboxMessage? captured = null;
         fixture.OutboxRepository
             .Setup(x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()))
-            .Callback<Planora.BuildingBlocks.Application.Outbox.OutboxMessage, CancellationToken>((m, _) => captured = m);
+            .Callback<Planora.BuildingBlocks.Application.Outbox.OutboxMessage, CancellationToken>((m, _) =>
+            {
+                // Ignore the live-sync envelope so the captured message stays the domain event under test.
+                if (!m.Type.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.RealtimeSyncIntegrationEvent)))
+                    captured = m;
+            });
         fixture.TodoRepository
-            .Setup(x => x.GetByIdAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subtask);
 
         var result = await fixture.CreateDeleteHandler().Handle(
@@ -210,7 +215,12 @@ public class TodoCommandHandlerExpandedTests
             .ReturnsAsync((TodoItem t, CancellationToken _) => t);
         fixture.OutboxRepository
             .Setup(x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()))
-            .Callback<Planora.BuildingBlocks.Application.Outbox.OutboxMessage, CancellationToken>((m, _) => captured = m);
+            .Callback<Planora.BuildingBlocks.Application.Outbox.OutboxMessage, CancellationToken>((m, _) =>
+            {
+                // Ignore the live-sync envelope so the captured message stays the domain event under test.
+                if (!m.Type.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.RealtimeSyncIntegrationEvent)))
+                    captured = m;
+            });
 
         var result = await fixture.CreateDuplicateHandler().Handle(
             new DuplicateTodoCommand(source.Id), CancellationToken.None);
@@ -283,7 +293,7 @@ public class TodoCommandHandlerExpandedTests
         var todoId = Guid.NewGuid();
         var fixture = new TodoCommandFixture(userId);
         fixture.TodoRepository
-            .Setup(x => x.GetByIdAsync(todoId, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todoId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((TodoItem?)null);
 
         await Assert.ThrowsAsync<EntityNotFoundException>(() =>
@@ -291,7 +301,7 @@ public class TodoCommandHandlerExpandedTests
 
         var foreign = TodoItem.Create(Guid.NewGuid(), "Foreign task");
         fixture.TodoRepository
-            .Setup(x => x.GetByIdAsync(foreign.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(foreign.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(foreign);
 
         await Assert.ThrowsAsync<ForbiddenException>(() =>
@@ -812,10 +822,17 @@ public class TodoCommandHandlerExpandedTests
         Assert.Null(added.ExpectedDate);                      // never
         Assert.Equal("Work", result.Value!.CategoryName);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        // Subtask creation is silent — no system message is enqueued for the parent's branch.
+        // Subtask creation posts no system comment to the timeline, but it does push exactly one
+        // live-sync event so the parent's open branch shows the new subtask card instantly.
+        fixture.OutboxRepository.Verify(
+            x => x.AddAsync(
+                It.Is<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(
+                    m => m.Type.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.RealtimeSyncIntegrationEvent))),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
         fixture.OutboxRepository.Verify(
             x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+            Times.Once);
     }
 
     [Fact]
@@ -907,7 +924,7 @@ public class TodoCommandHandlerExpandedTests
         var child = TodoItem.CreateSubtask(parent, userId, "c1", null);
         var fixture = new TodoCommandFixture(userId);
         fixture.TodoRepository
-            .Setup(x => x.GetByIdAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(parent.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(parent);
         fixture.TodoRepository
             .Setup(x => x.GetSubtasksTrackedAsync(parent.Id, It.IsAny<CancellationToken>()))
@@ -946,9 +963,16 @@ public class TodoCommandHandlerExpandedTests
         fixture.TodoRepository.Verify(x => x.Update(subtask), Times.Once);
         fixture.ViewerPreferences.Verify(
             x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Never);
-        // A "X completed a subtask" system message is enqueued for the parent's branch.
+        // A "X completed a subtask" system message is enqueued for the parent's branch, plus the
+        // live-sync event that reconciles the subtask in everyone's open branch = 2 outbox writes.
         fixture.OutboxRepository.Verify(
             x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+        fixture.OutboxRepository.Verify(
+            x => x.AddAsync(
+                It.Is<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(
+                    m => m.Type.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.RealtimeSyncIntegrationEvent))),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -1043,6 +1067,11 @@ public class TodoCommandHandlerExpandedTests
             UserProfiles
                 .Setup(x => x.GetProfilesAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new Dictionary<Guid, UserProfileInfo>());
+            // Live-sync feed audience resolution calls this for public tasks; default to "no friends"
+            // so a test that doesn't care about the audience never NREs on an unmocked friend list.
+            FriendshipService
+                .Setup(x => x.GetFriendIdsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Array.Empty<Guid>());
         }
 
         public CreateTodoCommandHandler CreateCreateHandler()
@@ -1093,7 +1122,8 @@ public class TodoCommandHandlerExpandedTests
                 OutboxRepository.Object,
                 UnitOfWork.Object,
                 Mock.Of<ILogger<DeleteTodoCommandHandler>>(),
-                CurrentUser.Object);
+                CurrentUser.Object,
+                FriendshipService.Object);
 
         public Planora.Todo.Application.Features.Todos.Commands.CreateSubtask.CreateSubtaskCommandHandler CreateSubtaskHandler()
             => new(
@@ -1102,7 +1132,8 @@ public class TodoCommandHandlerExpandedTests
                 Mapper.Object,
                 Mock.Of<ILogger<Planora.Todo.Application.Features.Todos.Commands.CreateSubtask.CreateSubtaskCommandHandler>>(),
                 CurrentUser.Object,
-                CategoryGrpcClient.Object);
+                CategoryGrpcClient.Object,
+                OutboxRepository.Object);
 
         public DuplicateTodoCommandHandler CreateDuplicateHandler()
             => new(
