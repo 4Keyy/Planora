@@ -6,6 +6,7 @@ import "@fontsource/plus-jakarta-sans/600.css"
 import "@fontsource/plus-jakarta-sans/700.css"
 import "@fontsource/plus-jakarta-sans/800.css"
 import { ReactNode } from "react"
+import type { Viewport } from "next"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toast"
 import { SecurityInitializer } from "@/components/security-initializer"
@@ -21,6 +22,18 @@ export const metadata = {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
+}
+
+// viewport-fit=cover exposes the iPhone safe-area insets (notch / Dynamic
+// Island / home indicator) to env(safe-area-inset-*), which the navbar and
+// globals.css consume. themeColor tints the mobile browser chrome to match the
+// light UI. maximumScale/userScalable are intentionally left at their defaults
+// so pinch-zoom stays available — disabling it is a WCAG 1.4.4 violation.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 }
 
 // Render every route per-request so the CSP middleware's per-request nonce

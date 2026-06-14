@@ -61,10 +61,12 @@
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  /* Minimal focus */
+  /* Visible keyboard-focus ring. Only shows for keyboard navigation (never
+     mouse/touch), so a clearly-visible ring is pure accessibility upside with
+     no cost to the minimalist look during normal pointer use. */
   :focus-visible {
-    outline: 2px solid rgba(0,0,0,0.08);
-    outline-offset: 1px;
+    outline: 2px solid rgba(0,0,0,0.35);
+    outline-offset: 2px;
     border-radius: 8px;
   }
 
@@ -417,4 +419,50 @@
 }
 ::-webkit-grammar-error {
   text-decoration: underline wavy #000;
+}
+
+/* ── Mobile, touch & accessibility foundations ──────────────────────────────
+   Global hardening for phones (iOS + Android) and reduced-motion users. Kept
+   as plain CSS because these target raw elements / media features that Tailwind
+   utilities cannot reach reliably across every input and control in the app. */
+
+/* Remove the grey/blue tap flash on touch and the 300 ms double-tap delay on
+   controls — every press feels immediate and native. */
+a, button, [role="button"], input, label, select, textarea, summary {
+  -webkit-tap-highlight-color: transparent;
+}
+a, button, [role="button"], label, summary {
+  touch-action: manipulation;
+}
+
+/* iOS Safari zooms the whole page when a focused form control has a font below
+   16px. The app uses 14px (text-sm) inputs, so pin every mobile form control to
+   16px: this only ever scales text UP on phones and kills the jarring
+   zoom-on-tap. !important is required to outrank Tailwind's text-sm utility. */
+@media (max-width: 639.98px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe-area helpers for notch / Dynamic Island / home indicator. Active only
+   when the viewport opts in via viewport-fit=cover (set in app/layout.tsx). */
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Honour prefers-reduced-motion for the CSS keyframe animations in this file
+   (framer-motion is already covered globally by MotionConfig reducedMotion).
+   Collapsed to near-instant rather than fully removed so state changes stay
+   legible for users who still need the visual cue. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
