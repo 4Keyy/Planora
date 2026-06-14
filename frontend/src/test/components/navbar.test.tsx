@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { Navbar } from "@/components/layout/navbar"
@@ -45,14 +45,22 @@ describe("Navbar", () => {
     })
   })
 
+  // Both the desktop pill and the mobile bar render into the DOM (visibility is
+  // CSS-only via Tailwind responsive classes, which jsdom does not apply), so
+  // queries for elements that exist in both variants (brand link, avatar, quick
+  // create) are scoped to the relevant testid root to stay unambiguous.
+  const desktop = () => within(screen.getByTestId("navbar-desktop"))
+  const mobile = () => within(screen.getByTestId("navbar-mobile"))
+  const desktopPill = () => desktop().getByRole("link", { name: /Planora/i }).closest("div[class]")!
+
   it("renders the Planora brand link pointing to /dashboard", () => {
     render(<Navbar />)
-    expect(screen.getByRole("link", { name: /Planora/i })).toHaveAttribute("href", "/dashboard")
+    expect(desktop().getByRole("link", { name: /Planora/i })).toHaveAttribute("href", "/dashboard")
   })
 
   it("renders user initials in the avatar button once mounted", async () => {
     render(<Navbar />)
-    await waitFor(() => expect(screen.getByText("AL")).toBeInTheDocument())
+    await waitFor(() => expect(desktop().getByText("AL")).toBeInTheDocument())
   })
 
   it("avatar button has the correct aria attributes", async () => {
@@ -112,7 +120,7 @@ describe("Navbar", () => {
     const user = userEvent.setup()
     render(<Navbar />)
     // Hover the pill to expand the nav section
-    const pill = screen.getByRole("link", { name: /Planora/i }).closest("div[class]")!
+    const pill = desktopPill()
     await user.hover(pill)
     await waitFor(() => {
       const links = screen.getAllByRole("link")
@@ -133,7 +141,7 @@ describe("Navbar", () => {
     window.addEventListener(TASK_CREATED_EVENT, listener)
 
     // Hover to expand, then click + to enter create mode
-    const pill = screen.getByRole("link", { name: /Planora/i }).closest("div[class]")!
+    const pill = desktopPill()
     await user.hover(pill)
     const addBtn = await screen.findByRole("button", { name: "Create task" })
     await user.click(addBtn)
@@ -165,7 +173,7 @@ describe("Navbar", () => {
     const user = userEvent.setup()
     render(<Navbar />)
 
-    const pill = screen.getByRole("link", { name: /Planora/i }).closest("div[class]")!
+    const pill = desktopPill()
     await user.hover(pill)
     await user.click(await screen.findByRole("button", { name: "Create task" }))
     await user.type(await screen.findByPlaceholderText(/Add task/i), "Failing task")
@@ -183,7 +191,7 @@ describe("Navbar", () => {
     const user = userEvent.setup()
     render(<Navbar />)
 
-    const pill = screen.getByRole("link", { name: /Planora/i }).closest("div[class]")!
+    const pill = desktopPill()
     await user.hover(pill)
     await user.click(await screen.findByRole("button", { name: "Create task" }))
     await screen.findByPlaceholderText(/Add task/i)
@@ -199,7 +207,7 @@ describe("Navbar", () => {
     const user = userEvent.setup()
     render(<Navbar />)
 
-    const pill = screen.getByRole("link", { name: /Planora/i }).closest("div[class]")!
+    const pill = desktopPill()
     await user.hover(pill)
     await user.click(await screen.findByRole("button", { name: "Create task" }))
     const input = await screen.findByPlaceholderText(/Add task/i)
@@ -222,5 +230,40 @@ describe("Navbar", () => {
     await user.click(document.body)
 
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument())
+  })
+
+  // ── Mobile bar (touch devices) ────────────────────────────────────────────
+
+  it("mobile bar opens a sheet with navigation tabs and account actions", async () => {
+    const user = userEvent.setup()
+    render(<Navbar />)
+
+    await user.click(mobile().getByRole("button", { name: /open menu/i }))
+
+    const dashboard = await mobile().findByRole("menuitem", { name: /Dashboard/i })
+    expect(dashboard).toHaveAttribute("href", "/dashboard")
+    expect(mobile().getByRole("menuitem", { name: /Tasks/i })).toHaveAttribute("href", "/tasks")
+    expect(mobile().getByRole("menuitem", { name: /Categories/i })).toHaveAttribute("href", "/categories")
+    expect(mobile().getByRole("menuitem", { name: "Profile" })).toBeInTheDocument()
+    expect(mobile().getByRole("menuitem", { name: "Sign out" })).toBeInTheDocument()
+  })
+
+  it("mobile sheet quick-create dispatches TASK_CREATED_EVENT", async () => {
+    const user = userEvent.setup()
+    render(<Navbar />)
+
+    const received: Event[] = []
+    const listener = (e: Event) => received.push(e)
+    window.addEventListener(TASK_CREATED_EVENT, listener)
+
+    await user.click(mobile().getByRole("button", { name: /open menu/i }))
+    const input = await mobile().findByPlaceholderText(/add a task/i)
+    await user.type(input, "Mobile task")
+    await user.keyboard("{Enter}")
+
+    await waitFor(() => expect(received).toHaveLength(1))
+    expect(received[0].type).toBe(TASK_CREATED_EVENT)
+
+    window.removeEventListener(TASK_CREATED_EVENT, listener)
   })
 })

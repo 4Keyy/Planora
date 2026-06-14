@@ -148,6 +148,7 @@ export function Navbar() {
       {/* Desktop pill (pointer devices, sm and up). Hidden on phones, which can't
           fire the hover that expands it — they get the dedicated mobile bar below. */}
       <motion.div
+        data-testid="navbar-desktop"
         initial={{ opacity: 0, y: -14, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.45, ease: EASE_OUT_EXPO }}
@@ -370,7 +371,7 @@ export function Navbar() {
           touchscreen — so phones get a dedicated bar with a tap-to-open sheet:
           quick-add, navigation with an active indicator, and account actions.
           Reuses the same state + handlers as the desktop pill (no duplication). */}
-      <div className="sm:hidden relative w-full max-w-md pointer-events-none">
+      <div data-testid="navbar-mobile" className="sm:hidden relative w-full max-w-md pointer-events-none">
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
