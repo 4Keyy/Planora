@@ -913,7 +913,9 @@ export function BranchFeed({
   // Restore (reopen) is author-only — returning a task to work belongs to its owner — so a non-owner
   // sees only Duplicate, their way to fork a fresh copy instead of reopening the shared task.
   const menuShowsDescription      = showDescription && !isCompleted
-  const menuShowsSubtask          = isOwner && !isCompleted
+  // Any branch participant (owner or a friend the task is shared with) can add a subtask — the
+  // backend authorises access; completion/"in work" are already collaborator-capable.
+  const menuShowsSubtask          = !isCompleted
   const menuShowsActions          = (showWorkAction || showCompleteAction) && !isCompleted
   const menuShowsCompletedActions = isCompleted && ((isOwner && showCompleteAction) || showDuplicate)
   const hasMenuItems              = menuShowsDescription || menuShowsSubtask || menuShowsActions || menuShowsCompletedActions
@@ -1540,7 +1542,7 @@ export function BranchFeed({
                 </>
               )}
 
-              {/* Author-only: add a subtask — authored in the same field, appears inline in the branch */}
+              {/* Add a subtask (any branch participant) — authored in the same field, appears inline in the branch */}
               {menuShowsSubtask && (
                 <>
                   {!menuShowsDescription && <MenuSectionLabel>Attach</MenuSectionLabel>}

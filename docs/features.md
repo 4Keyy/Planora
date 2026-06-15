@@ -226,6 +226,7 @@ sub-branch carries is the subtask's own completion toggle.
 | Aspect | Rule |
 |---|---|
 | Storage | child `TodoItem` with `ParentTodoId`; one level deep (a subtask cannot have subtasks) |
+| Creation | **any branch participant** can add one — the owner, or a friend with access to a shared/public parent (`CreateSubtaskCommandHandler` mirrors the `GET …/subtasks` access check, so collaborators contribute steps, not just the author). The child is **always owned by the parent owner** regardless of who created it, so rename/delete stay owner-only and it inherits the parent's category/visibility/sharing |
 | Category | always inherited from the parent (never set independently) |
 | Visibility | public exactly when the parent is public; inherits the parent's shared audience. A parent's category/visibility/sharing change **propagates** to its subtasks |
 | Dates | none — a subtask never has a due or expected date |
@@ -240,7 +241,7 @@ sub-branch carries is the subtask's own completion toggle.
 | Rendering | a subtask shows only its title (no description), rendered **non-bold** so it reads as a plain branch step, lighter than the Author's Note. A long title **wraps** (the card is flexible-height) rather than being truncated. The subtask forks off the main rail onto a **sub-branch**; its completion toggle is the **only** rail marker; the completion attribution is an **icon-less reply** on the sub-branch (no creation notification at all). Below the title sits the **footer byline**: author avatar + name (live from Auth — `authorName`/`authorAvatarUrl` on the subtask DTO) on the left; Reply, the "N working" pill (hover→Leave for the viewer working) and the "Take into work" button on the right |
 | Lifecycle | deleting a task soft-deletes its whole subtree. Deleting a **single subtask** also removes the announcement comments it left in the parent's branch — TodoApi emits `SubtaskDeletedIntegrationEvent(parentTaskId, subtaskId, actor, title)` (instead of `TaskDeletedIntegrationEvent`, which would wipe a whole branch); Collaboration's `SubtaskDeletedEventConsumer` soft-deletes the parent-branch system comments whose content ends with `added a subtask: {title}` / `completed a subtask: {title}`. The client also removes them optimistically (suppressing their ids so polling can't re-add them before the cascade lands) |
 
-Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner creates; owner/friend lists),
+Backend: `POST/GET /todos/api/v1/todos/{id}/subtasks` (owner **or friend-with-access** creates, child owned by the parent owner; owner/friend lists),
 `CreateSubtaskCommand`, `GetSubtasksQuery`; `TodoItem.CreateSubtask` / `SyncInheritedFromParent`;
 migration `AddSubtaskParentTodoId`. Frontend: created from the branch "+" menu ("Subtask") via the
 shared compose field, and rendered on the rail by `edit-todo-modal/branch-feed.tsx` as a sub-branch

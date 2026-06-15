@@ -19,6 +19,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
         private readonly IMapper _mapper;
         private readonly ILogger<CreateSubtaskCommandHandler> _logger;
         private readonly ICurrentUserContext _currentUserContext;
+        private readonly IFriendshipService _friendshipService;
         private readonly ICategoryGrpcClient _categoryGrpcClient;
         private readonly IOutboxRepository _outboxRepository;
 
@@ -28,6 +29,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             IMapper mapper,
             ILogger<CreateSubtaskCommandHandler> logger,
             ICurrentUserContext currentUserContext,
+            IFriendshipService friendshipService,
             ICategoryGrpcClient categoryGrpcClient,
             IOutboxRepository outboxRepository)
         {
@@ -36,6 +38,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             _mapper = mapper;
             _logger = logger;
             _currentUserContext = currentUserContext;
+            _friendshipService = friendshipService;
             _categoryGrpcClient = categoryGrpcClient;
             _outboxRepository = outboxRepository;
         }
@@ -53,9 +56,17 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             var parent = await _repository.GetByIdWithIncludesTrackedAsync(request.ParentTodoId, cancellationToken)
                 ?? throw new EntityNotFoundException("TodoItem", request.ParentTodoId);
 
-            // Only the owner can add subtasks (IDOR guard); never to another subtask (no nesting).
-            if (parent.UserId != userId)
-                throw new ForbiddenException("You can only add subtasks to your own tasks");
+            // Branch-access guard (mirrors GetSubtasks): the owner, OR a friend with access to a
+            // shared/public parent, may add a subtask — collaborators contribute steps to a task
+            // they participate in, not just the author. Never to another subtask (no nesting).
+            var isOwner = parent.UserId == userId;
+            var hasAccess = isOwner;
+            if (!isOwner && (parent.IsPublic || parent.SharedWith.Any(s => s.SharedWithUserId == userId)))
+            {
+                hasAccess = await _friendshipService.AreFriendsAsync(userId, parent.UserId, cancellationToken);
+            }
+            if (!hasAccess)
+                throw new ForbiddenException("You do not have access to this task");
             if (parent.IsSubtask)
                 throw new ForbiddenException("A subtask cannot have its own subtasks");
 
@@ -83,15 +94,21 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
                 "Subtask {SubtaskId} created under task {ParentId} by user {UserId}",
                 subtask.Id, parent.Id, userId);
 
-            // The creator IS the caller, so their JWT claims are the freshest identity source
-            // available on the write path — no Auth round-trip needed for the author label.
-            var dto = _mapper.Map<TodoItemDto>(subtask) with
+            // The subtask is owned by the parent owner. When the owner is the caller, their JWT
+            // claims are the freshest author source; when a collaborator added it the author (the
+            // owner) is resolved on the next branch reconcile (GetSubtasks), so it is left unset
+            // here rather than mislabelled as the collaborator.
+            var dto = _mapper.Map<TodoItemDto>(subtask);
+            if (subtask.UserId == userId)
             {
-                AuthorName = _currentUserContext.Name ?? _currentUserContext.Email,
-                AuthorAvatarUrl = string.IsNullOrEmpty(_currentUserContext.ProfilePictureUrl)
-                    ? null
-                    : _currentUserContext.ProfilePictureUrl,
-            };
+                dto = dto with
+                {
+                    AuthorName = _currentUserContext.Name ?? _currentUserContext.Email,
+                    AuthorAvatarUrl = string.IsNullOrEmpty(_currentUserContext.ProfilePictureUrl)
+                        ? null
+                        : _currentUserContext.ProfilePictureUrl,
+                };
+            }
 
             // Enrich with the (inherited) category so the subtask card shows the same label as the parent.
             if (subtask.CategoryId.HasValue)

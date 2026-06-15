@@ -964,6 +964,57 @@ public class TodoCommandHandlerExpandedTests
     }
 
     [Fact]
+    [Trait("TestType", "Security")]
+    public async Task CreateSubtask_BySharedFriend_Succeeds()
+    {
+        var ownerId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Shared parent", sharedWithUserIds: new[] { friendId });
+        // Caller is the collaborator (friend the task is shared with), not the owner.
+        var fixture = new TodoCommandFixture(friendId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parent);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(friendId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        TodoItem? added = null;
+        fixture.TodoRepository
+            .Setup(x => x.AddAsync(It.IsAny<TodoItem>(), It.IsAny<CancellationToken>()))
+            .Callback<TodoItem, CancellationToken>((t, _) => added = t)
+            .ReturnsAsync((TodoItem t, CancellationToken _) => t);
+
+        var result = await fixture.CreateSubtaskHandler().Handle(
+            new CreateSubtaskCommand(parent.Id, "Collaborator step"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(added);
+        // The subtask belongs to the parent OWNER, not the collaborator who added it.
+        Assert.Equal(ownerId, added!.UserId);
+        Assert.Equal(parent.Id, added.ParentTodoId);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task CreateSubtask_ByNonFriendOnSharedParent_ThrowsForbidden()
+    {
+        var ownerId = Guid.NewGuid();
+        var strangerId = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Shared parent", sharedWithUserIds: new[] { strangerId });
+        var fixture = new TodoCommandFixture(strangerId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(parent.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(parent);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(strangerId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateSubtaskHandler().Handle(new CreateSubtaskCommand(parent.Id, "x"), CancellationToken.None));
+        fixture.TodoRepository.Verify(x => x.AddAsync(It.IsAny<TodoItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     [Trait("TestType", "Functional")]
     public async Task CreateSubtask_RejectsNestingUnderSubtask()
     {
@@ -1244,6 +1295,7 @@ public class TodoCommandHandlerExpandedTests
                 Mapper.Object,
                 Mock.Of<ILogger<Planora.Todo.Application.Features.Todos.Commands.CreateSubtask.CreateSubtaskCommandHandler>>(),
                 CurrentUser.Object,
+                FriendshipService.Object,
                 CategoryGrpcClient.Object,
                 OutboxRepository.Object);
 

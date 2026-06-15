@@ -303,4 +303,28 @@ public class TodoItemWorkerTests
         Assert.Contains(todo.Workers, w => w.UserId == friend);
         Assert.DoesNotContain(todo.DomainEvents, e => e is TodoWorkerRemovedDomainEvent);
     }
+
+    [Fact]
+    public void SetSharedWith_OnSubtask_KeepsOwnerWorkerRow()
+    {
+        // A subtask's "in work" is per-user and the OWNER may hold a worker row (unlike a normal
+        // task). Re-syncing the subtask's inherited shares from the parent must NOT evict the
+        // owner — a share/visibility change never removes the owner's own access. Regression: the
+        // owner's "in work" status was dropped whenever the parent task was edited.
+        var ownerId = Guid.NewGuid();
+        var friend = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Parent", sharedWithUserIds: new[] { friend });
+        var subtask = TodoItem.CreateSubtask(parent, ownerId, "Step", null);
+
+        subtask.AddWorker(ownerId);   // owner marks the subtask "in work"
+        subtask.AddWorker(friend);
+        subtask.ClearDomainEvents();
+
+        // Re-sync shares (as SyncInheritedFromParent does on a parent edit).
+        subtask.SetSharedWith(new[] { friend }, ownerId);
+
+        Assert.Contains(subtask.Workers, w => w.UserId == ownerId);
+        Assert.Contains(subtask.Workers, w => w.UserId == friend);
+        Assert.DoesNotContain(subtask.DomainEvents, e => e is TodoWorkerRemovedDomainEvent);
+    }
 }

@@ -103,7 +103,7 @@ namespace Planora.Todo.Domain.Entities
         /// </summary>
         public static TodoItem CreateSubtask(
             TodoItem parent,
-            Guid userId,
+            Guid creatorUserId,
             string title,
             string? description,
             TodoPriority priority = TodoPriority.Medium)
@@ -113,15 +113,18 @@ namespace Planora.Todo.Domain.Entities
             if (parent.IsSubtask)
                 throw new BusinessRuleViolationException("A subtask cannot be nested under another subtask");
 
-            if (parent.UserId != userId)
-                throw new BusinessRuleViolationException("Only the parent task owner can add subtasks");
-
             if (string.IsNullOrWhiteSpace(title))
                 throw new InvalidValueObjectException(nameof(TodoItem), "Title cannot be empty");
 
+            // A subtask always belongs to the PARENT TASK'S OWNER, regardless of which collaborator
+            // added it: it is "part of" the parent task, inherits the parent's category/visibility/
+            // shares, and stays owner-managed (rename/delete). WHO may add a subtask (the owner, or
+            // a friend with access to a shared/public parent) is authorised by the application
+            // handler — completion and "in work" are already per-user for collaborators.
+            var ownerId = parent.UserId;
             var subtask = new TodoItem
             {
-                UserId = userId,
+                UserId = ownerId,
                 Title = title.Trim(),
                 Description = description?.Trim(),
                 // Inherited from the parent — never set independently.
@@ -133,12 +136,13 @@ namespace Planora.Todo.Domain.Entities
             };
 
             // Inherit the parent's shared audience so branch access matches the parent exactly.
-            subtask.SetSharedWith(parent._sharedWith.Select(s => s.SharedWithUserId), userId);
-            subtask.MarkAsModified(userId);
+            subtask.SetSharedWith(parent._sharedWith.Select(s => s.SharedWithUserId), ownerId);
+            subtask.MarkAsModified(ownerId);
 
+            // The domain event records the actual creator (which may be a collaborator, not the owner).
             subtask.AddDomainEvent(new TodoItemCreatedDomainEvent(
                 subtask.Id,
-                userId,
+                creatorUserId,
                 title,
                 parent.CategoryId));
 
@@ -404,7 +408,13 @@ namespace Planora.Todo.Domain.Entities
 
         private void CleanupWorkersOnAccessChange(IEnumerable<Guid> allowedUserIds)
         {
-            var allowed = new HashSet<Guid>(allowedUserIds);
+            // The owner always retains access to their own task, so their worker row — only ever
+            // present on a SUBTASK (a normal task's owner is implicitly working, never a worker
+            // row; see AddWorker) — must never be evicted by a share/visibility change. Without
+            // including UserId here, re-syncing a subtask's inherited shares from the parent
+            // (SyncInheritedFromParent → SetSharedWith) dropped the owner's "in work" status
+            // whenever the parent task was edited or its visibility changed.
+            var allowed = new HashSet<Guid>(allowedUserIds) { UserId };
             var toEvict = _workers.Where(w => !allowed.Contains(w.UserId)).ToList();
             foreach (var worker in toEvict)
             {
