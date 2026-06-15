@@ -519,7 +519,8 @@ export default function TasksPage() {
         const [enriched] = await enrichTodosWithAuthorNames([created])
         setTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [enriched, ...prev])
       }
-      await fetchActiveTodos({ silent: true })
+      // Reconcile in the background — don't block the create panel's field reset on the refetch.
+      void fetchActiveTodos({ silent: true })
     } catch (error) {
       console.error("Failed to create todo:", error)
       addToast({ type: "error", title: "Failed to create task" })

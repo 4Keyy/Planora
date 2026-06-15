@@ -406,7 +406,9 @@ export default function DashboardPage() {
       setStatsTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [enriched, ...prev])
       setTotalCount((c) => c + 1)
     }
-    await Promise.all([fetchTodos(1, { silent: true }), fetchStats()])
+    // Reconcile in the background — don't block on the slow refetch. The create panel's resetForm
+    // runs only after onSubmit resolves, so awaiting here left the fields filled for seconds.
+    void Promise.all([fetchTodos(1, { silent: true }), fetchStats()])
   }
 
   const confirmDelete = async () => {
