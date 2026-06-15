@@ -161,7 +161,7 @@ export function VisibilityPanel({
                 </button>
               </div>
 
-              <div style={{ maxHeight: 240, overflowY: "auto", padding: "0 6px 6px" }}>
+              <div style={{ maxHeight: 240, overflowY: "auto", scrollbarGutter: "stable", padding: "0 6px 6px" }}>
                 {friends.map((f) => {
                   const isSelected = sharedIds.includes(f.id)
                   return (

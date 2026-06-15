@@ -530,15 +530,18 @@ export function BranchFeed({
   // scrollTop change fires onScroll, which re-evaluates the condensed-note visibility.
   useEffect(() => {
     if (!pinBottomRef.current) return
-    pinBottomRef.current = false
-    // Scroll to the newest message across a few frames so late layout — avatar images
-    // decoding, async subtask cards snapping in — can't leave the branch stranded above
-    // the bottom. Only runs on an explicit pin (initial open / arriving at bottom), so the
-    // repeats never fight the reader's own scrolling.
+    // Stay pinned across the initial settle: late layout (avatar images decoding, async subtask
+    // cards arriving in a SEPARATE fetch) used to land *after* the one-shot scroll and leave the
+    // branch stranded above the newest message. We scroll now + over the next frames, and only
+    // RELEASE the pin ~600ms after the last comments/subtasks change (each re-run cancels the
+    // pending release, so it always waits for content to settle). The programmatic scrollTop also
+    // fires onScroll, refreshing the condensed-note visibility.
+    scrollToBottom()
     const raf = requestAnimationFrame(scrollToBottom)
-    const t1 = setTimeout(scrollToBottom, 80)
-    const t2 = setTimeout(scrollToBottom, 240)
-    return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2) }
+    const t1 = setTimeout(scrollToBottom, 120)
+    const t2 = setTimeout(scrollToBottom, 360)
+    const release = setTimeout(() => { pinBottomRef.current = false }, 600)
+    return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2); clearTimeout(release) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comments, subtasks])
 
