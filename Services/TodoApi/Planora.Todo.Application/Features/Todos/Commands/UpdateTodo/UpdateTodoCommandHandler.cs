@@ -387,7 +387,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 foreach (var s in previousSharedWith) audienceSet.Add(s);
                 if (wasPublic || todoItem.IsPublic)
                 {
-                    foreach (var f in await _friendshipService.GetFriendIdsAsync(todoItem.UserId, cancellationToken))
+                    // Best-effort: an Auth-gRPC blip must not fail the update for a feed nicety.
+                    foreach (var f in await RealtimeAudience.SafeGetFriendIdsAsync(
+                        _friendshipService, todoItem.UserId, cancellationToken, _logger))
                         audienceSet.Add(f);
                 }
                 audienceSet.Remove(Guid.Empty);

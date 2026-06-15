@@ -62,7 +62,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.LeaveTodo
                     cancellationToken);
 
                 // Live: worker count dropped → refresh the card everywhere and the branch timeline.
-                var audience = await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken);
+                var audience = await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken, _logger);
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new RealtimeSyncIntegrationEvent(
                         RealtimeSyncAction.TaskUpdated, todoItem.Id, userId,

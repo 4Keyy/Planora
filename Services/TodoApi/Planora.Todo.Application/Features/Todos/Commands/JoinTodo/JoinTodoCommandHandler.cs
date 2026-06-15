@@ -108,7 +108,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
 
                 // Live: worker count changed → refresh the card on every viewer's feed and the
                 // "started working" entry in the task's open branch.
-                var audience = await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken);
+                var audience = await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken, _logger);
                 await _outboxRepository.EnqueueIntegrationEventAsync(
                     new RealtimeSyncIntegrationEvent(
                         RealtimeSyncAction.TaskUpdated, todoItem.Id, userId,

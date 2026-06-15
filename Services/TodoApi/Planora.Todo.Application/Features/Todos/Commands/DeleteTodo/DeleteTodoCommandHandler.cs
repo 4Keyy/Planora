@@ -50,7 +50,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
             // Capture the feed audience while the task is still alive and its shares are loaded.
             var audience = todoItem.IsSubtask
                 ? (IReadOnlyList<Guid>)System.Array.Empty<Guid>()
-                : await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken);
+                : await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken, _logger);
 
             todoItem.MarkAsDeleted(userId);
             _repository.Update(todoItem);

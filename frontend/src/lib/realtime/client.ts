@@ -69,7 +69,17 @@ class RealtimeClient {
   async start(): Promise<void> {
     this.wantConnected = true
 
-    if (this.connection?.state === signalR.HubConnectionState.Connected) return
+    // A connection already exists and is up or coming up (initial connect or an automatic
+    // reconnect). Never build a second socket — accessTokenFactory re-reads the token on each
+    // (re)connect, so a token refresh does not require tearing down a working connection.
+    const state = this.connection?.state
+    if (state === signalR.HubConnectionState.Connected) return
+    if (
+      state === signalR.HubConnectionState.Connecting ||
+      state === signalR.HubConnectionState.Reconnecting
+    ) {
+      return this.startPromise ?? Promise.resolve()
+    }
     if (this.startPromise) return this.startPromise
 
     const connection = this.build()

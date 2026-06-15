@@ -109,7 +109,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
             // when public) gets a TaskFeedChanged push so the card appears on their list/dashboard
             // without a refresh. Emitted in the same unit of work as the create (INV-COMM-3).
             var audience = await RealtimeAudience.ResolveAsync(
-                userId, request.IsPublic, sharedWith, _friendshipService, cancellationToken);
+                userId, request.IsPublic, sharedWith, _friendshipService, cancellationToken, _logger);
             await _outboxRepository.EnqueueIntegrationEventAsync(
                 new RealtimeSyncIntegrationEvent(
                     RealtimeSyncAction.TaskCreated, todoItem.Id, userId, audienceUserIds: audience),

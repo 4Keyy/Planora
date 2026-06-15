@@ -174,6 +174,129 @@ public class NotificationInfrastructureTests
         connectionManager.VerifyNoOtherCalls();
     }
 
+    // ── Branch rooms (authorized) + typing presence ──────────────────────────────
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task JoinTask_WhenAuthorized_AddsToBranchRoom()
+    {
+        var userId = Guid.NewGuid();
+        var taskId = Guid.NewGuid();
+        var groups = new Mock<IGroupManager>();
+        var authorizer = new Mock<ITaskBranchAuthorizer>();
+        authorizer.Setup(x => x.CanAccessBranchAsync(taskId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object)
+        {
+            Context = HubContext(userId.ToString(), "conn-1"),
+            Groups = groups.Object,
+        };
+
+        await hub.JoinTask(taskId.ToString());
+
+        groups.Verify(x => x.AddToGroupAsync("conn-1", $"task:{taskId}", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task JoinTask_WhenDeniedOrMalformed_DoesNotJoin()
+    {
+        var userId = Guid.NewGuid();
+        var taskId = Guid.NewGuid();
+        var groups = new Mock<IGroupManager>();
+        var authorizer = new Mock<ITaskBranchAuthorizer>();
+        authorizer.Setup(x => x.CanAccessBranchAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object)
+        {
+            Context = HubContext(userId.ToString(), "conn-1"),
+            Groups = groups.Object,
+        };
+
+        await hub.JoinTask(taskId.ToString());   // authorizer denies
+        await hub.JoinTask("not-a-guid");          // malformed id
+
+        groups.Verify(x => x.AddToGroupAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task StartTyping_AfterJoin_RelaysToOthersInRoom()
+    {
+        var userId = Guid.NewGuid();
+        var taskId = Guid.NewGuid();
+        var othersProxy = new Mock<IClientProxy>();
+        var clients = new Mock<IHubCallerClients>();
+        clients.Setup(x => x.OthersInGroup($"task:{taskId}")).Returns(othersProxy.Object);
+        var authorizer = new Mock<ITaskBranchAuthorizer>();
+        authorizer.Setup(x => x.CanAccessBranchAsync(taskId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object)
+        {
+            Context = HubContext(userId.ToString(), "conn-1"),
+            Groups = Mock.Of<IGroupManager>(),
+            Clients = clients.Object,
+        };
+
+        await hub.JoinTask(taskId.ToString());
+        await hub.StartTyping(taskId.ToString());
+
+        othersProxy.Verify(
+            x => x.SendCoreAsync("UserTyping", It.Is<object?[]>(a => a.Length == 1), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task StartTyping_WithoutJoiningRoom_IsIgnored()
+    {
+        var userId = Guid.NewGuid();
+        var taskId = Guid.NewGuid();
+        var othersProxy = new Mock<IClientProxy>();
+        var clients = new Mock<IHubCallerClients>();
+        clients.Setup(x => x.OthersInGroup(It.IsAny<string>())).Returns(othersProxy.Object);
+
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), Mock.Of<ITaskBranchAuthorizer>())
+        {
+            Context = HubContext(userId.ToString(), "conn-1"),
+            Groups = Mock.Of<IGroupManager>(),
+            Clients = clients.Object,
+        };
+
+        await hub.StartTyping(taskId.ToString()); // never joined → must not relay typing noise
+
+        othersProxy.Verify(
+            x => x.SendCoreAsync(It.IsAny<string>(), It.IsAny<object?[]>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task OnDisconnected_ClearsTypingForJoinedRooms()
+    {
+        var userId = Guid.NewGuid();
+        var taskId = Guid.NewGuid();
+        var othersProxy = new Mock<IClientProxy>();
+        var clients = new Mock<IHubCallerClients>();
+        clients.Setup(x => x.OthersInGroup($"task:{taskId}")).Returns(othersProxy.Object);
+        var authorizer = new Mock<ITaskBranchAuthorizer>();
+        authorizer.Setup(x => x.CanAccessBranchAsync(taskId, userId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var hub = new NotificationHub(Mock.Of<ILogger<NotificationHub>>(), Mock.Of<IConnectionManager>(), authorizer.Object)
+        {
+            Context = HubContext(userId.ToString(), "conn-1"),
+            Groups = Mock.Of<IGroupManager>(),
+            Clients = clients.Object,
+        };
+
+        await hub.JoinTask(taskId.ToString());
+        await hub.OnDisconnectedAsync(null);
+
+        othersProxy.Verify(
+            x => x.SendCoreAsync("UserStoppedTyping", It.Is<object?[]>(a => a.Length == 1), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
     private static void VerifyNotification(Mock<IClientProxy> proxy, string message, string type)
     {
         proxy.Verify(
