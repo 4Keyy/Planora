@@ -188,6 +188,22 @@ END $$;", app.Lifetime.ApplicationStopping);
                         logger.LogWarning(ex, "Could not reconcile TodoItems.Title column width (non-fatal)");
                     }
 
+                    // CreatedByUserId records who added a subtask (a collaborator may now add one),
+                    // letting the creator rename/delete their own subtask. Additive nullable column;
+                    // add it on existing migration-built databases. Idempotent (IF NOT EXISTS) and
+                    // metadata-only. Fresh installs already get it from the EF model.
+                    try
+                    {
+                        await db.Database.ExecuteSqlRawAsync(
+                            @"ALTER TABLE todo.""TodoItems"" ADD COLUMN IF NOT EXISTS ""CreatedByUserId"" uuid;",
+                            app.Lifetime.ApplicationStopping);
+                        logger.LogInformation("✅ Ensured TodoItems.CreatedByUserId column exists");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Could not ensure TodoItems.CreatedByUserId column (non-fatal)");
+                    }
+
                     // Subscribe to Integration Events
                     logger.LogInformation("🔄 Subscribing to integration events...");
                     var eventBus = provider.GetRequiredService<IEventBus>();

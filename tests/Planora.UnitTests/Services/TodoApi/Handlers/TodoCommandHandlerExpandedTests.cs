@@ -989,8 +989,10 @@ public class TodoCommandHandlerExpandedTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(added);
-        // The subtask belongs to the parent OWNER, not the collaborator who added it.
+        // The subtask belongs to the parent OWNER (access stays anchored on the owner)...
         Assert.Equal(ownerId, added!.UserId);
+        // ...but the collaborator is recorded as its creator, so they may rename/delete it.
+        Assert.Equal(friendId, added.CreatedByUserId);
         Assert.Equal(parent.Id, added.ParentTodoId);
     }
 
@@ -1012,6 +1014,68 @@ public class TodoCommandHandlerExpandedTests
         await Assert.ThrowsAsync<ForbiddenException>(() =>
             fixture.CreateSubtaskHandler().Handle(new CreateSubtaskCommand(parent.Id, "x"), CancellationToken.None));
         fixture.TodoRepository.Verify(x => x.AddAsync(It.IsAny<TodoItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task DeleteSubtask_ByCreator_Succeeds()
+    {
+        // A collaborator created a subtask on someone else's task; they may delete their own subtask.
+        var ownerId = Guid.NewGuid();
+        var creatorId = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Parent", sharedWithUserIds: new[] { creatorId });
+        var subtask = TodoItem.CreateSubtask(parent, creatorId, "My step", null);
+        Assert.Equal(ownerId, subtask.UserId);             // owned by the parent owner
+        Assert.Equal(creatorId, subtask.CreatedByUserId);  // created by the collaborator
+        var fixture = new TodoCommandFixture(creatorId);   // caller is the creator, not the owner
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+
+        var result = await fixture.CreateDeleteHandler().Handle(
+            new DeleteTodoCommand(subtask.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(subtask.IsDeleted);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task DeleteSubtask_ByNonCreatorNonOwner_ThrowsForbidden()
+    {
+        var ownerId = Guid.NewGuid();
+        var creatorId = Guid.NewGuid();
+        var strangerId = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Parent", sharedWithUserIds: new[] { creatorId, strangerId });
+        var subtask = TodoItem.CreateSubtask(parent, creatorId, "My step", null);
+        var fixture = new TodoCommandFixture(strangerId);  // neither the owner nor the creator
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateDeleteHandler().Handle(new DeleteTodoCommand(subtask.Id), CancellationToken.None));
+        Assert.False(subtask.IsDeleted);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task UpdateSubtask_TitleByCreator_Succeeds()
+    {
+        var ownerId = Guid.NewGuid();
+        var creatorId = Guid.NewGuid();
+        var parent = TodoItem.Create(ownerId, "Parent", sharedWithUserIds: new[] { creatorId });
+        var subtask = TodoItem.CreateSubtask(parent, creatorId, "Old", null);
+        var fixture = new TodoCommandFixture(creatorId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(subtask);
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(subtask.Id, Title: "Renamed by creator"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Renamed by creator", subtask.Title);
     }
 
     [Fact]

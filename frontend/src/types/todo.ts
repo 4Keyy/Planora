@@ -72,6 +72,9 @@ export const TodoPriorityOrder: Record<string, number> = {
 export type Todo = {
   id: string
   userId: string
+  /** Who created the item. Only set for subtasks (the collaborator who added it); a subtask's
+   *  creator may rename/delete it as well as the parent owner. Null for top-level tasks. */
+  createdByUserId?: string | null
   title: string
   description?: string | null
   status: TodoStatus | string

@@ -14,6 +14,13 @@ namespace Planora.Todo.Domain.Entities
         public string? Description { get; private set; }
         public TodoStatus Status { get; private set; } = TodoStatus.Todo;
         public Guid UserId { get; private set; }
+        /// <summary>
+        /// Who actually created this item. For a top-level task this equals <see cref="UserId"/>
+        /// (left null — the owner is the creator). For a SUBTASK it records the collaborator who
+        /// added it, which may differ from the parent owner (<see cref="UserId"/>): a subtask is
+        /// owned by the parent owner for access purposes, but its creator may also rename/delete it.
+        /// </summary>
+        public Guid? CreatedByUserId { get; private set; }
         public Guid? CategoryId { get; private set; }
         public DateTime? DueDate { get; private set; }
         public DateTime? ExpectedDate { get; private set; }
@@ -125,6 +132,9 @@ namespace Planora.Todo.Domain.Entities
             var subtask = new TodoItem
             {
                 UserId = ownerId,
+                // Record who actually added it — may be a collaborator, not the owner. This lets the
+                // creator rename/delete their own subtask while access stays anchored on the owner.
+                CreatedByUserId = creatorUserId,
                 Title = title.Trim(),
                 Description = description?.Trim(),
                 // Inherited from the parent — never set independently.

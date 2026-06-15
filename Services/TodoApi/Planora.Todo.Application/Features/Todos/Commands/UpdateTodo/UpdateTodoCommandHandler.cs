@@ -63,7 +63,11 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             var todoItem = await _repository.GetByIdWithIncludesTrackedAsync(request.TodoId, cancellationToken)
                 ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
-            var isOwner = todoItem.UserId == userId;
+            // A SUBTASK's creator may edit it like an owner — subtasks only allow title/priority/
+            // status changes (inherited category/visibility/dates stay blocked by the guard below),
+            // so this lets a collaborator rename the step they added on a task that isn't theirs.
+            var isOwner = todoItem.UserId == userId
+                || (todoItem.IsSubtask && todoItem.CreatedByUserId == userId);
             var hasFriendVisibleAccess = !isOwner &&
                 (todoItem.IsPublic || todoItem.SharedWith.Any(s => s.SharedWithUserId == userId));
             if (hasFriendVisibleAccess)

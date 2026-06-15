@@ -31,6 +31,12 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
             builder.Property(x => x.UserId)
                 .IsRequired();
 
+            // Creator of the item — only populated for subtasks (a collaborator may add one). Null
+            // for top-level tasks, where the owner is the creator. On existing migration-built
+            // databases the column is added at startup (see TodoApi Program.cs).
+            builder.Property(x => x.CreatedByUserId)
+                .IsRequired(false);
+
             builder.Property(x => x.IsPublic)
                 .HasDefaultValue(false);
 

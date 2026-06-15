@@ -9,6 +9,10 @@ namespace Planora.Todo.Application.DTOs
     {
         public required Guid Id { get; init; }
         public required Guid UserId { get; init; }
+        /// <summary>Who created the item. Only set for subtasks (the collaborator who added it);
+        /// null for top-level tasks where the owner is the creator. Lets the UI surface
+        /// rename/delete to a subtask's creator as well as the parent owner.</summary>
+        public Guid? CreatedByUserId { get; init; }
         public required string Title { get; init; }
         public string? Description { get; init; }
         public required string Status { get; init; }

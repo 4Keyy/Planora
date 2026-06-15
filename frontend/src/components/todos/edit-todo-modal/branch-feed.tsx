@@ -693,7 +693,9 @@ export function BranchFeed({
   }
 
   const removeSubtask = async (s: Todo) => {
-    if (!isOwner || subtaskPendingRef.current.has(s.id)) return
+    // The parent owner OR the subtask's own creator may delete it.
+    const canManage = isOwner || sameUserId(s.createdByUserId, viewerId)
+    if (!canManage || subtaskPendingRef.current.has(s.id)) return
     setSubtaskBusy(s.id, true)
     const subtasksSnapshot = subtasks
 
@@ -1205,7 +1207,7 @@ export function BranchFeed({
                       key={`sub-${s.id}`}
                       subtask={s}
                       meta={item.meta}
-                      isOwner={isOwner}
+                      isOwner={isOwner || sameUserId(s.createdByUserId, viewerId)}
                       done={isSubtaskDone(s)}
                       workerCount={subtaskWorkerCount(s)}
                       viewerWorking={!!s.isWorking}

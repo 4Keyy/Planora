@@ -160,6 +160,7 @@ pending migrations automatically via `DatabaseStartup.EnsureReadyAsync`. Current
 | `AddCommentAvatarUrl` | 2026-05-25 | Adds `AuthorAvatarUrl varchar(2048) NULL` to `todo_item_comments`; adds `xmin` row-version column to `TodoItems` for EF Core optimistic concurrency |
 | `RemoveCommentAvatarSnapshot` | 2026-05-26 | Drops `AuthorAvatarUrl` from `todo_item_comments`. Comment listing now always batch-fetches the live avatar from Auth via gRPC, cached in-memory 60 s. Single source of truth eliminates stale-avatar drift after the user changes their picture. |
 | `RemoveCommentsAddOutbox` | 2026-05-29 | **Drops `todo_item_comments`** (the timeline moved to the Collaboration service) and creates `todo.OutboxMessages` so Todo can publish task-lifecycle integration events. Run the Collaboration backfill (`Planora.Migrator --backfill-collaboration`) **before** this migration is applied in production so no comment is lost. |
+| `AddTodoCreatedByUserId` (startup ALTER) | 2026-06-16 | Adds nullable `CreatedByUserId uuid` to `todo.TodoItems`. Records who created a subtask (a collaborator may now add one) so the creator — as well as the parent owner — can rename/delete it; null for top-level tasks. Applied idempotently at TodoApi startup (`ADD COLUMN IF NOT EXISTS`, see `Planora.Todo.Api/Program.cs`), so existing databases pick it up on the next deploy without a formal EF migration. |
 
 To apply manually:
 
