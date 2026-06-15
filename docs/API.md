@@ -460,10 +460,10 @@ All routes require bearer auth.
 | `PUT` | `/{id}` | update todo |
 | `DELETE` | `/{id}` | delete todo |
 | `PATCH` | `/{id}/hidden` | owner hidden toggle |
-| `PATCH` | `/{id}/viewer-preferences` | non-owner viewer hidden/category preference |
+| `PATCH` | `/{id}/viewer-preferences` | non-owner viewer hidden/category/completion preference (reopen blocked — see below) |
 | `POST` | `/{id}/join` | join task as a worker |
 | `POST` | `/{id}/leave` | leave task (stop being a worker) |
-| `POST` | `/{id}/duplicate` | duplicate a task into a fresh active copy (owner only) |
+| `POST` | `/{id}/duplicate` | duplicate a task into a fresh active copy (any participant) |
 | `GET` | `/{id}/subtasks` | list a task's subtasks (anyone with parent access) |
 | `POST` | `/{id}/subtasks` | create a subtask (owner only; category/visibility inherited) |
 
@@ -543,15 +543,23 @@ Hidden toggle body:
 { "hidden": true }
 ```
 
-Viewer preference body:
+Viewer preference body (non-owner only; the owner gets `OWNER_MUST_USE_HIDDEN_ENDPOINT`):
 
 ```json
 {
   "hiddenByViewer": true,
   "viewerCategoryId": "00000000-0000-0000-0000-000000000000",
-  "updateViewerCategory": true
+  "updateViewerCategory": true,
+  "completedByViewer": true
 }
 ```
+
+- `completedByViewer: true` marks the shared/public task done **for this viewer only** (writes
+  `UserTodoViewPreference.CompletedByViewer`; never touches the owner's `TodoItem`).
+- `completedByViewer: false` (reopen) is **rejected for non-owners** — returning a completed task
+  to work is author-only. If the viewer's stored preference is already completed, the request fails
+  with `403 ForbiddenException` ("Only the task author can return a completed task to active.
+  Duplicate it to work on your own copy."). The non-owner's path on a done task is `POST /{id}/duplicate`.
 
 ### `POST /{id}/join`
 
@@ -571,17 +579,21 @@ Errors: `400` for owner or non-worker; `404` if task not found.
 
 ### `POST /{id}/duplicate`
 
-Duplicate a task (owner-only) into a brand-new **active** task owned by the caller. The server
-authors the copy and copies the task's content — title, description, priority, category (re-validated;
-dropped if since-deleted), visibility (`isPublic`), shared audience (re-validated against current
-friendships — since-removed friends are dropped), tags, and `requiredWorkers`. It deliberately does
-**not** copy the dates (`dueDate`/`expectedDate`), the completion state (the copy starts active), or
-the **branch** (comments / subtasks). The copy emits the same `TaskCreatedIntegrationEvent` a normal
-create does, so the new branch's "created" system comment and all participant notifications fire.
+Duplicate a task into a brand-new **active** task owned by the caller. **Open to any participant** —
+the owner, or a friend who can see the task (public or directly shared) — so a non-owner can fork a
+completed task instead of reopening it (returning a task to work is author-only). The server authors
+the copy and copies the task's content — title, description, priority, category (re-validated against
+the duplicator; dropped if not theirs or since-deleted), visibility (`isPublic`), shared audience
+(re-validated against the **duplicator's** current friendships — others dropped), tags, and
+`requiredWorkers`. It deliberately does **not** copy the dates (`dueDate`/`expectedDate`), the
+completion state (the copy starts active), or the **branch** (comments / subtasks). The copy emits the
+same `TaskCreatedIntegrationEvent` a normal create does, so the new branch's "created" system comment
+and all participant notifications fire.
 
 No request body. Success `201 Created`: the new `TodoItemDto` (with category info populated). Errors:
-`403` if the caller is not the owner; `404` if the task does not exist or is a subtask (subtasks
-have no standalone existence to duplicate); `503` if the Category/Auth gRPC checks are unavailable.
+`403` if the caller cannot access the task (not the owner and not a friend who can see a public/shared
+task); `404` if the task does not exist or is a subtask (subtasks have no standalone existence to
+duplicate); `503` if the Category/Auth gRPC checks are unavailable.
 
 Hidden shared/public todos may return a redacted `TodoItemDto`; see [`features.md`](features.md#shared-todos-and-hidden-viewer-preferences).
 

@@ -283,6 +283,10 @@ export default function DashboardPage() {
       void Promise.all([fetchTodos(undefined, { silent: true }), fetchStats()])
     }, 400)
   }, [fetchTodos, fetchStats, user?.userId]))
+  // Cancel any pending debounced refresh on unmount so it never setStates an unmounted page.
+  useEffect(() => () => {
+    if (liveSyncTimerRef.current) clearTimeout(liveSyncTimerRef.current)
+  }, [])
 
   // Press "C" — open create panel (skip when typing or panel already open)
   useEffect(() => {
@@ -432,6 +436,15 @@ export default function DashboardPage() {
     // Non-owner viewing a shared task: toggle per-viewer completion only
     if (!isOwner && isShared) {
       const wasCompleted = existing.isCompletedByViewer === true
+      // Returning a completed task to work is author-only; a participant duplicates instead.
+      if (wasCompleted) {
+        addToast({
+          type: "warning",
+          title: "Only the author can reopen this task",
+          description: "Duplicate it to work on your own copy.",
+        })
+        return
+      }
       try {
         const result = await setViewerPreference(todoId, { completedByViewer: !wasCompleted })
         if (!wasCompleted) {
@@ -996,7 +1009,7 @@ export default function DashboardPage() {
             onLeave={editingTodo ? async () => handleLeave(editingTodo.id) : undefined}
             onStartWork={editingTodo ? async () => handleJoin(editingTodo.id) : undefined}
             onCompleteTask={editingTodo ? async () => handleComplete(editingTodo.id) : undefined}
-            onDuplicate={editingTodo && isTodoOwner(editingTodo, user?.userId) ? async () => handleDuplicate(editingTodo.id) : undefined}
+            onDuplicate={editingTodo ? async () => handleDuplicate(editingTodo.id) : undefined}
           />
         )}
       </AnimatePresence>

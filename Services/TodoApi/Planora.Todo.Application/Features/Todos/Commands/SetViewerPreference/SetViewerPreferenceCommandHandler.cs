@@ -106,6 +106,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
 
             if (request.CompletedByViewer.HasValue)
             {
+                // Returning a completed task to active is author-only. A viewer may mark a shared/public
+                // task done for themselves, but cannot reopen it — that transition belongs to the owner
+                // (who never reaches this handler: owners are rejected above with OWNER_MUST_USE_HIDDEN_
+                // ENDPOINT). The UI funnels non-owners to "Duplicate" instead; this is the server-side
+                // guard so a direct API call cannot bypass it.
+                if (!request.CompletedByViewer.Value && preference.CompletedByViewer)
+                    throw new ForbiddenException(
+                        "Only the task author can return a completed task to active. Duplicate it to work on your own copy.");
+
                 preference.CompletedByViewer = request.CompletedByViewer.Value;
                 preference.CompletedByViewerAt = request.CompletedByViewer.Value ? DateTime.UtcNow : (DateTime?)null;
             }

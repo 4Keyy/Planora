@@ -4,6 +4,25 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(todos): only the author can return a completed task to work (2026-06-15)
+
+- **Reopening a completed task is now author-only.** A friend of a public/shared task's author could
+  previously pull a *completed* task back into "active". Returning a task to work now belongs solely
+  to its creator; a non-owner who presses the completion button on a done task (on a card, in the
+  modal, or on the `/branch/{id}` page) gets a warning toast — *"Only the author can reopen this task
+  — duplicate it to work on your own copy."* — instead of the flip.
+- **Any participant can duplicate instead.** Duplication is no longer owner-only: any participant (a
+  friend who can see a public/shared task) may fork it into a fresh active copy owned by themselves.
+  The "+" menu on a completed task therefore shows non-owners **Duplicate** only (Restore is hidden),
+  so a done shared task is never a dead end for them.
+- **Enforced server-side, not just in the UI.** `SetViewerPreferenceCommandHandler` rejects a
+  non-owner's `completedByViewer: false` (reopen) with `403` once their preference is completed, and
+  `DuplicateTodoCommandHandler` now authorizes against the view rule (owner, or friend who can see a
+  public/shared task) rather than owner-only. New unit tests pin both directions.
+
+Security: closes a non-owner reopen path on completed shared/public tasks (returning a task to work
+is now author-only; duplication is the non-owner's sanctioned alternative).
+
 ### perf+harden(realtime): decouple feed sync from Auth, cache friend lookups (2026-06-15)
 
 - **A live-sync push can never fail a task mutation.** Feed-audience friend resolution is now

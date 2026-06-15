@@ -59,10 +59,19 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
             if (source.IsSubtask)
                 throw new EntityNotFoundException("TodoItem", request.SourceTodoId);
 
-            // Owner-only (IDOR guard): you can only duplicate a task you own. A collaborator who can
-            // see a shared task cannot silently fork it into their own list.
-            if (source.UserId != userId)
-                throw new ForbiddenException("You can only duplicate your own tasks");
+            // Any participant may fork a task they can see into their own list — the copy is created
+            // under the duplicator's account (TodoItem.Create(userId, …) below), so the author keeps
+            // the original untouched. This is the non-owner's path on a completed shared task:
+            // returning it to work is author-only, but duplicating it is open to every participant.
+            // Access mirrors the view rule (owner, or a friend who can see a public/shared task).
+            var isOwner = source.UserId == userId;
+            if (!isOwner)
+            {
+                var canSee = (source.IsPublic || source.SharedWith.Any(s => s.SharedWithUserId == userId))
+                    && await _friendshipService.AreFriendsAsync(userId, source.UserId, cancellationToken);
+                if (!canSee)
+                    throw new ForbiddenException("You can only duplicate tasks you have access to");
+            }
 
             // Category is the owner's own; re-validate it still exists. If it was deleted, drop it
             // rather than failing the duplicate (the copy simply starts uncategorised).
@@ -122,7 +131,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
             // Live feed sync: the copy appears on every viewer's list/dashboard, exactly like a
             // normal create. The audience is computed from the copy's own visibility.
             var audience = await RealtimeAudience.ResolveAsync(
-                userId, source.IsPublic, sharedWith, _friendshipService, cancellationToken);
+                userId, source.IsPublic, sharedWith, _friendshipService, cancellationToken, _logger);
             await _outboxRepository.EnqueueIntegrationEventAsync(
                 new RealtimeSyncIntegrationEvent(
                     RealtimeSyncAction.TaskCreated, copy.Id, userId, audienceUserIds: audience),

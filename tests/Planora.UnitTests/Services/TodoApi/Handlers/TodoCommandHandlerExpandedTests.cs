@@ -285,6 +285,66 @@ public class TodoCommandHandlerExpandedTests
     }
 
     [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task DuplicateTodo_ByParticipant_OnPublicFriendTask_CopiesUnderDuplicator()
+    {
+        // A participant (a friend who can see a public task) may fork it into their own list. The copy
+        // is created under the duplicator's account — this is the non-owner's alternative to reopening
+        // a completed shared task, which is author-only.
+        var ownerId = Guid.NewGuid();
+        var participantId = Guid.NewGuid();
+        var fixture = new TodoCommandFixture(participantId);
+
+        var source = TodoItem.Create(ownerId, "Plan the offsite", "Book the venue", isPublic: true);
+
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesAsync(source.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(source);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(participantId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        TodoItem? copy = null;
+        fixture.TodoRepository
+            .Setup(x => x.AddAsync(It.IsAny<TodoItem>(), It.IsAny<CancellationToken>()))
+            .Callback<TodoItem, CancellationToken>((t, _) => copy = t)
+            .ReturnsAsync((TodoItem t, CancellationToken _) => t);
+
+        var result = await fixture.CreateDuplicateHandler().Handle(
+            new DuplicateTodoCommand(source.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(copy);
+        Assert.Equal(participantId, copy!.UserId);   // belongs to the duplicator, not the author
+        Assert.Equal("Plan the offsite", copy.Title);
+        Assert.False(copy.IsCompleted);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task DuplicateTodo_ByNonFriendOnPublicTask_ThrowsForbidden()
+    {
+        // Visibility is not enough: a non-friend who can technically reach a public task still cannot
+        // duplicate it — access mirrors the view rule (public/shared AND friends).
+        var ownerId = Guid.NewGuid();
+        var strangerId = Guid.NewGuid();
+        var fixture = new TodoCommandFixture(strangerId);
+        var source = TodoItem.Create(ownerId, "Public task", isPublic: true);
+
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesAsync(source.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(source);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(strangerId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateDuplicateHandler().Handle(new DuplicateTodoCommand(source.Id), CancellationToken.None));
+
+        fixture.TodoRepository.Verify(x => x.AddAsync(It.IsAny<TodoItem>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
     public async Task DeleteTodo_ShouldRejectMissingAndForeignTodoBeforePersisting()
@@ -710,6 +770,58 @@ public class TodoCommandHandlerExpandedTests
             viewerFixture.CreateSetViewerPreferenceHandler().Handle(
                 new SetViewerPreferenceCommand(todo.Id, ViewerCategoryId: foreignCategoryId, UpdateViewerCategory: true),
                 CancellationToken.None));
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task SetViewerPreference_NonOwnerCannotReopenCompletedTask_ButMayStillComplete()
+    {
+        // Returning a completed task to active is author-only. A viewer who already completed a shared
+        // task for themselves cannot flip it back (done → active) — they must duplicate instead. They
+        // CAN still mark it complete (active → done); only the reopen direction is blocked.
+        var ownerId = Guid.NewGuid();
+        var viewerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Public friend task", isPublic: true);
+        var fixture = new TodoCommandFixture(viewerId);
+
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(viewerId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        fixture.ViewerPreferences
+            .Setup(x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        // Already completed for this viewer → reopening (CompletedByViewer: false) is forbidden.
+        fixture.ViewerPreferences
+            .Setup(x => x.GetAsync(viewerId, todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserTodoViewPreference
+            {
+                ViewerId = viewerId,
+                TodoItemId = todo.Id,
+                CompletedByViewer = true,
+            });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() =>
+            fixture.CreateSetViewerPreferenceHandler().Handle(
+                new SetViewerPreferenceCommand(todo.Id, CompletedByViewer: false),
+                CancellationToken.None));
+        fixture.ViewerPreferences.Verify(
+            x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        // Not yet completed → marking it done for themselves is still allowed.
+        fixture.ViewerPreferences
+            .Setup(x => x.GetAsync(viewerId, todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserTodoViewPreference?)null);
+
+        var completeResult = await fixture.CreateSetViewerPreferenceHandler().Handle(
+            new SetViewerPreferenceCommand(todo.Id, CompletedByViewer: true),
+            CancellationToken.None);
+
+        Assert.True(completeResult.IsSuccess);
+        Assert.True(completeResult.Value!.CompletedByViewer);
     }
 
     [Fact]

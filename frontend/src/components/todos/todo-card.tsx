@@ -11,6 +11,7 @@ import { isTodoOwner, type Todo } from "@/types/todo"
 import { formatDate, isPastDate, truncateText, formatPublicName, cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { EASE_OUT_EXPO, SPRING_RESPONSIVE, VARIANTS_CARD, TAP_CARD } from "@/lib/animations"
+import { haptic } from "@/lib/haptics"
 import { CompletionCelebration } from "@/components/animated/celebration"
 
 const PRIORITY_CONFIG: Record<string, { color: string; num: number }> = {
@@ -172,8 +173,16 @@ function TodoCardComponent({
   const handleCompletionToggle = async () => {
     if (isCompletionPending || isVisibilityPending) return
 
+    // Reopening a completed task is author-only. For a non-owner, skip the reopen animation and just
+    // invoke onComplete so the parent's "only the author can reopen" notification fires instantly.
+    if (isCompleted && !isOwner) {
+      await Promise.resolve(onComplete())
+      return
+    }
+
     const nextPhase: Exclude<CompletionPhase, null> = isCompleted ? "reopening" : "completing"
     setCompletionPhase(nextPhase)
+    haptic(isCompleted ? "tap" : "success")
 
     if (!isCompleted) {
       setShowCompletionCelebration(true)
@@ -201,6 +210,7 @@ function TodoCardComponent({
   const handleJoin = async () => {
     if (!onJoin || isCompletionPending || isVisibilityPending) return
     setCompletionPhase("joining")
+    haptic("tap")
     if (!shouldReduceMotion) {
       await new Promise((r) => setTimeout(r, JOIN_PRE_COMMIT_MS))
     }

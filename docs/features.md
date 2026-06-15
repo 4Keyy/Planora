@@ -317,22 +317,29 @@ active-task actions (description / subtask / take-into-work / complete) for the 
 actions, so a done task is never a dead end:
 
 - **Restore task** — reopens it (the same status flip as un-completing), moving it back to active.
-  Wired to the page's existing complete/reopen handler (`onCompleteTask`); the modal closes and the
-  list refreshes with the usual "reopened" toast.
-- **Duplicate task** — creates a **fresh active copy** owned by the caller. Owner-only. The server
-  (`POST /todos/{id}/duplicate`, `DuplicateTodoCommand`) copies the content — title, description,
-  priority, category, visibility, shared audience, tags, required workers — but **not** the dates,
-  the completion state, or the **branch** (comments/subtasks), and emits the normal
-  `TaskCreatedIntegrationEvent` so the new branch's "created" comment and all participant
-  notifications fire. The copy lands in the active list (the page refreshes; a "Task duplicated"
-  toast confirms).
+  **Author-only**: returning a completed task to work belongs to its creator. The Restore action is
+  hidden for non-owners (`isOwner && showCompleteAction` in `BranchFeed`), and every reopen path is
+  guarded — a non-owner who presses the completion button on a done task gets a warning toast
+  ("Only the author can reopen this task — duplicate it to work on your own copy.") instead of the
+  flip. Server-side, the owner's `status → todo` and the viewer's `completedByViewer → false`
+  reopen are both rejected for non-owners (the latter throws `ForbiddenException` in
+  `SetViewerPreferenceCommandHandler`).
+- **Duplicate task** — creates a **fresh active copy** owned by the caller. **Open to any
+  participant** (the owner, or a friend who can see a public/shared task) — this is the non-owner's
+  alternative to reopening. The server (`POST /todos/{id}/duplicate`, `DuplicateTodoCommand`) copies
+  the content — title, description, priority, category, visibility, shared audience, tags, required
+  workers — but **not** the dates, the completion state, or the **branch** (comments/subtasks), and
+  emits the normal `TaskCreatedIntegrationEvent` so the new branch's "created" comment and all
+  participant notifications fire. The copy is created under the duplicator's account and lands in
+  their active list (the page refreshes; a "Task duplicated" toast confirms).
 
 | Aspect | Rule |
 |---|---|
-| Availability | both actions are surfaced only when `isCompleted` and only to the owner (`onDuplicate`/`onCompleteTask` are passed owner-gated by every page) |
-| Copied by Duplicate | title, description, priority, category (re-validated; dropped if deleted), `isPublic`, shared audience (re-validated vs. current friends), tags, `requiredWorkers` |
+| Restore availability | surfaced only when `isCompleted` **and** the viewer is the owner; non-owner reopen is blocked everywhere (menu hidden + completion-button toast + server guard) |
+| Duplicate availability | surfaced when `isCompleted` to **any participant**; `onDuplicate` is wired un-gated by every page |
+| Copied by Duplicate | title, description, priority, category (re-validated against the duplicator; dropped if not theirs/deleted), `isPublic`, shared audience (re-validated vs. the duplicator's current friends), tags, `requiredWorkers` |
 | NOT copied | `dueDate`/`expectedDate`, completion state (copy starts active), the branch (comments & subtasks) |
-| Security | owner-only IDOR guard; a subtask cannot be duplicated (no standalone existence); category/friendship re-validated server-side |
+| Security | duplicate access mirrors the view rule (owner, or friend who can see a public/shared task), re-validated server-side; a subtask cannot be duplicated (no standalone existence); reopen is author-only |
 | Notifications | full support — the copy emits `TaskCreated` exactly like a normal create (new branch system comment + participant notifications) |
 
 Backend: `DuplicateTodoCommand` + handler, `POST /todos/api/v1/todos/{id}/duplicate`. Frontend:
@@ -559,7 +566,7 @@ so Collaboration needs no extra lookup to render the sentence. Consumers are ide
 - **Sticky Author's Note:** the pinned card lives at the top of the scrollable rail and scrolls away with content. Once it passes out of view the feed shows a condensed frosted-glass bar (author avatar + truncated first line + animated chevron) at the top of the feed area. Clicking the condensed bar smoothly scrolls back to the full card and fires a violet attention pulse (`genesis_highlight` keyframe) so the note is easy to spot. The bar animates in/out with a spring (Framer Motion `AnimatePresence`).
 - **Compose "+" menu actions:** the menu is visible to all participants (owner and collaborators). The "Description" attachment item is shown only to the task owner and is muted once a description exists (already added); the owner also gets a "Subtask" item (authored in the same compose field). **Once the task is completed the menu offers nothing** — description, subtask, and the take/complete actions are all hidden, so the "+" simply doesn't open on a done task. Two action items are otherwise shown to everyone:
   - **Take into work / Leave task** — mirrors the existing join/leave flow exactly (owner: `status → inProgress` / `status → todo`; viewer: `joinTodo` / `leaveTodo`). The button label and icon flip between "Take into work" (Zap, indigo) and "Leave task" (LogOut, red) depending on the current in-progress state. An optimistic `workOverride` state in the modal flips the pill in the header bar instantly before the parent refetch arrives. Leaving — via this menu **or** the header pill — keeps the modal open so the "left the task" event is read in place.
-  - **Complete task / Reopen task** — mirrors the existing complete flow (owner: `status → done`; viewer: `completedByViewer` toggle). Closes the modal on success.
+  - **Complete task / Reopen task** — mirrors the existing complete flow (owner: `status → done`; viewer: `completedByViewer → true`). Closes the modal on success. **Reopening is author-only**: a viewer can mark a shared task done for themselves but cannot return it to work — the completed-state menu shows them only **Duplicate** (see "Completed-task actions" above), and any reopen attempt surfaces the "Only the author can reopen this task" toast.
 
 ## Shared Todos And Hidden Viewer Preferences
 
@@ -589,6 +596,8 @@ Allow a viewer to hide a shared/public task without changing the owner's task. H
 ### Per-Viewer Completion
 
 Completion state is tracked independently per participant. Marking a public or shared task as "done" as a viewer (non-owner) writes only to `UserTodoViewPreference.CompletedByViewer` — it never changes `TodoItem.IsCompleted` or any owner-facing state. The owner completing the task writes to `TodoItem` only and does not affect any viewer's `CompletedByViewer` flag.
+
+**Reopening is author-only.** A viewer may complete a task for themselves (`CompletedByViewer → true`) but cannot return it to work: `SetViewerPreferenceCommandHandler` throws `ForbiddenException` on a `CompletedByViewer: false` request when the viewer's stored preference is already completed. The non-owner's path forward on a done task is **Duplicate** (open to any participant), not reopen. The owner reopens freely (writes `TodoItem.Status`).
 
 | Participant | Completion stored in | Affects other participants? |
 |---|---|---|

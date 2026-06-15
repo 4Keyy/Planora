@@ -214,6 +214,17 @@ export default function CompletedTasksPage() {
     const existing = todosRef.current.find((t) => t.id === todoId)
     if (!existing) return
 
+    // Returning a completed task to work is author-only. A participant viewing a friend's completed
+    // public/shared task can't reopen it — they duplicate it into their own list instead.
+    if (!isTodoOwner(existing, user?.userId)) {
+      addToast({
+        type: "warning",
+        title: "Only the author can reopen this task",
+        description: "Duplicate it to work on your own copy.",
+      })
+      return
+    }
+
     try {
       await api.put(`/todos/api/v1/todos/${todoId}`, { status: "todo" })
       await fetchCompletedTodos(currentPage)
@@ -513,7 +524,7 @@ export default function CompletedTasksPage() {
           onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}
           onCreateCategory={fetchCategories}
           onCompleteTask={isTodoOwner(editingTodo, user?.userId) ? () => handleComplete(editingTodo.id) : undefined}
-          onDuplicate={isTodoOwner(editingTodo, user?.userId) ? () => handleDuplicate(editingTodo.id) : undefined}
+          onDuplicate={() => handleDuplicate(editingTodo.id)}
           onDescriptionChange={(desc) => {
             setTodos((prev) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t))
             setEditingTodo(prev => prev ? { ...prev, description: desc } : null)

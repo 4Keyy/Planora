@@ -325,11 +325,16 @@ export default function TasksPage() {
     if (isCompletedTodoStatus(enriched.status)) {
       setTodos((prev) => prev.filter((t) => t.id !== taskId))
       setCompletedPreview(upsert)
+      // A task transitioning INTO completed bumps the "done" count — refresh it authoritatively
+      // (only on the transition, not on edits of an already-completed task) so the badge stays honest.
+      if (!completedPreviewRef.current.some((t) => t.id === taskId)) {
+        void fetchCompletedPreview()
+      }
     } else {
       setCompletedPreview((prev) => prev.filter((t) => t.id !== taskId))
       setTodos(upsert)
     }
-  }, [enrichTodosWithAuthorNames])
+  }, [enrichTodosWithAuthorNames, fetchCompletedPreview])
 
   useFeedSync(useCallback((signal) => {
     if (sameUserId(signal.actorId, user?.userId)) return
@@ -353,6 +358,15 @@ export default function TasksPage() {
 
     if (!isOwner && isShared) {
       const wasCompleted = existingTodo.isCompletedByViewer === true
+      // Returning a completed task to work is author-only; a participant duplicates instead.
+      if (wasCompleted) {
+        addToast({
+          type: "warning",
+          title: "Only the author can reopen this task",
+          description: "Duplicate it to work on your own copy.",
+        })
+        return
+      }
       try {
         const result = await setViewerPreference(id, { completedByViewer: !wasCompleted })
         setTodos((prev) => prev.map((t) =>
@@ -960,7 +974,7 @@ export default function TasksPage() {
               }
             }}
             onCompleteTask={() => handleComplete(editingTodo.id)}
-            onDuplicate={isTodoOwner(editingTodo, user?.userId) ? () => handleDuplicate(editingTodo.id) : undefined}
+            onDuplicate={() => handleDuplicate(editingTodo.id)}
             onDescriptionChange={(desc) => {
               const update = (prev: Todo[]) => prev.map(t => t.id === editingTodo.id ? { ...t, description: desc } : t)
               setTodos(update)

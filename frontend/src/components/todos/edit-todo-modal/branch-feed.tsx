@@ -903,12 +903,13 @@ export function BranchFeed({
   const composeAccent = composeMode === "text" ? "#0a0a0a" : "#4f46e5"
 
   // While the task is active the "+" menu offers description / subtask / take-into-work + complete.
-  // Once it is completed those are hidden and the menu instead offers the two completed-task
-  // actions — Restore (reopen) and Duplicate — so the done task is never a dead end.
+  // Once it is completed those are hidden and the menu instead offers the completed-task actions.
+  // Restore (reopen) is author-only — returning a task to work belongs to its owner — so a non-owner
+  // sees only Duplicate, their way to fork a fresh copy instead of reopening the shared task.
   const menuShowsDescription      = showDescription && !isCompleted
   const menuShowsSubtask          = isOwner && !isCompleted
   const menuShowsActions          = (showWorkAction || showCompleteAction) && !isCompleted
-  const menuShowsCompletedActions = isCompleted && (showCompleteAction || showDuplicate)
+  const menuShowsCompletedActions = isCompleted && ((isOwner && showCompleteAction) || showDuplicate)
   const hasMenuItems              = menuShowsDescription || menuShowsSubtask || menuShowsActions || menuShowsCompletedActions
 
   return (
@@ -1608,7 +1609,7 @@ export function BranchFeed({
                 <>
                   <MenuSectionLabel>Actions</MenuSectionLabel>
 
-                  {showCompleteAction && (
+                  {isOwner && showCompleteAction && (
                     <MenuActionItem
                       icon={<RotateCcw size={13} color="#059669" strokeWidth={1.9} />}
                       iconBg="#ecfdf5"

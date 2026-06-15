@@ -351,10 +351,12 @@ export const joinTodo = async (id: string): Promise<Todo> => {
 }
 
 /**
- * Duplicates a task (owner-only) into a fresh active task. The server copies title,
- * description, priority, category, visibility, shared audience, tags and required workers —
- * but not the dates, completion state, or the branch (comments/subtasks) — and emits the
- * normal creation events. Returns the newly created task.
+ * Duplicates a task into a fresh active task owned by the caller. Open to any participant — the
+ * owner or a friend who can see a public/shared task — so a non-owner can fork a completed task
+ * instead of reopening it (returning a task to work is author-only). The server copies title,
+ * description, priority, category, visibility, shared audience, tags and required workers — but
+ * not the dates, completion state, or the branch (comments/subtasks) — and emits the normal
+ * creation events. Returns the newly created task.
  */
 export const duplicateTodo = async (id: string): Promise<Todo> => {
   const { data } = await api.post<ApiResponse<Todo>>(`/todos/api/v1/todos/${id}/duplicate`)

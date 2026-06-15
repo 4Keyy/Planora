@@ -121,6 +121,16 @@ export default function BranchPage() {
     const completed = isOwner
       ? (statusKey === "done" || statusKey === "completed")
       : (todo.isCompletedByViewer ?? false)
+    // Returning a completed task to work is author-only. A participant can't reopen a shared task —
+    // they duplicate it into their own list instead.
+    if (completed && !isOwner) {
+      addToast({
+        type: "warning",
+        title: "Only the author can reopen this task",
+        description: "Duplicate it to work on your own copy.",
+      })
+      return
+    }
     try {
       if (!isOwner && isShared) {
         const r = await setViewerPreference(todo.id, { completedByViewer: !completed })
@@ -182,7 +192,7 @@ export default function BranchPage() {
         onLeave={handleStopWork}
         onStartWork={handleStartWork}
         onCompleteTask={handleComplete}
-        onDuplicate={isOwner ? handleDuplicate : undefined}
+        onDuplicate={handleDuplicate}
         onDescriptionChange={(desc: string) => setTodo((p) => (p ? { ...p, description: desc } : p))}
       />
     </div>
