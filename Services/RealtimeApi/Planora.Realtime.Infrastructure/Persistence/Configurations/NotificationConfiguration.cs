@@ -29,6 +29,17 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
             .IsRequired()
             .HasMaxLength(64);
 
+        // Routing + actor attribution. Both are optional (Guid.Empty) for non-task-scoped or
+        // system-authored notifications.
+        builder.Property(x => x.TaskId);
+        builder.Property(x => x.ActorId);
+
+        // Read state — backs the "becomes inactive once seen" behavior and the unread counts.
+        builder.Property(x => x.IsRead)
+            .IsRequired()
+            .HasDefaultValue(false);
+        builder.Property(x => x.ReadAtUtc);
+
         builder.Property(x => x.OccurredOnUtc)
             .IsRequired();
 
@@ -45,7 +56,12 @@ public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notific
         // RabbitMQ redelivery, replay, etc.), we want to land the row at most once.
         builder.HasIndex(x => x.SourceEventId).IsUnique();
 
+        // List query: a user's notifications newest-first.
         builder.HasIndex(x => new { x.UserId, x.OccurredOnUtc });
+        // Unread total (bell badge).
+        builder.HasIndex(x => new { x.UserId, x.IsRead });
+        // Per-task unread (card dots + branch badges) and bulk mark-task-read.
+        builder.HasIndex(x => new { x.UserId, x.TaskId, x.IsRead });
         builder.HasIndex(x => x.UserId);
 
         // Global soft-delete filter so administrative purges hide naturally from
