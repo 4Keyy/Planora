@@ -68,7 +68,15 @@ namespace Planora.Todo.Infrastructure
             services.AddGrpcClient<AuthService.AuthServiceClient>(o =>
                     o.Address = new Uri(authGrpcUrl))
                 .AddInterceptor<ServiceKeyClientInterceptor>();
-            services.AddScoped<IFriendshipService, Services.FriendshipGrpcService>();
+            // Friendship checks → Auth gRPC, wrapped in a short in-memory cache for the friend-id
+            // list (the realtime feed-audience hot path). AreFriends stays uncached so every
+            // authorization decision sees live friendship state. See CachingFriendshipService.
+            services.AddMemoryCache();
+            services.AddScoped<Services.FriendshipGrpcService>();
+            services.AddScoped<IFriendshipService>(sp => new Services.CachingFriendshipService(
+                sp.GetRequiredService<Services.FriendshipGrpcService>(),
+                sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Services.CachingFriendshipService>>()));
             // Live subtask-author identity (display name + avatar) — same Auth channel.
             services.AddScoped<IUserProfileService, Services.UserProfileGrpcService>();
 

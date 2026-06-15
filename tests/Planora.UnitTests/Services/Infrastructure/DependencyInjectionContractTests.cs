@@ -224,7 +224,15 @@ public class DependencyInjectionContractTests
         AssertScoped<GenericTodoRepository, TodoRepository>(services);
         AssertScoped<IUserTodoViewPreferenceRepository, UserTodoViewPreferenceRepository>(services);
         AssertScoped<TodoCurrentUserContext, TodoCurrentUserContextImpl>(services);
-        AssertScoped<IFriendshipService, Planora.Todo.Infrastructure.Services.FriendshipGrpcService>(services);
+        // IFriendshipService is the caching decorator over the gRPC client (factory registration),
+        // so it has no ImplementationType — assert the concrete inner is scoped and the public
+        // service resolves through a scoped factory.
+        AssertScoped<Planora.Todo.Infrastructure.Services.FriendshipGrpcService,
+            Planora.Todo.Infrastructure.Services.FriendshipGrpcService>(services);
+        Assert.Contains(services, d =>
+            d.ServiceType == typeof(IFriendshipService)
+            && d.Lifetime == ServiceLifetime.Scoped
+            && d.ImplementationFactory is not null);
         AssertScoped<ICategoryGrpcClient, Planora.Todo.Infrastructure.Grpc.CategoryGrpcClient>(services);
 
         using var provider = services.BuildServiceProvider();
