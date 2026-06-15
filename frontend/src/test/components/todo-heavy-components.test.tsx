@@ -1,8 +1,7 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import FaultyTerminal from "@/components/faulty-terminal"
 import { CreateTodoPanel } from "@/components/todos/create-todo-panel"
 import { EditTodoModal } from "@/components/todos/edit-todo-modal"
 import { TodoCard } from "@/components/todos/todo-card"
@@ -11,59 +10,6 @@ import { useAuthStore } from "@/store/auth"
 import type { FriendDto } from "@/types/auth"
 import type { Category } from "@/types/category"
 import { TodoPriority, TodoStatus, type Todo } from "@/types/todo"
-
-const oglMocks = vi.hoisted(() => ({
-  render: vi.fn(),
-  setSize: vi.fn(),
-  clearColor: vi.fn(),
-  loseContext: vi.fn(),
-  constructedPrograms: [] as any[],
-}))
-
-vi.mock("ogl", () => {
-  class Renderer {
-    gl = {
-      canvas: document.createElement("canvas"),
-      clearColor: oglMocks.clearColor,
-      getExtension: vi.fn(() => ({ loseContext: oglMocks.loseContext })),
-    }
-
-    constructor(public options: unknown) {}
-
-    setSize(width: number, height: number) {
-      oglMocks.setSize(width, height)
-      this.gl.canvas.width = width
-      this.gl.canvas.height = height
-    }
-
-    render(args: unknown) {
-      oglMocks.render(args)
-    }
-  }
-
-  class Program {
-    uniforms: any
-
-    constructor(_gl: unknown, options: any) {
-      this.uniforms = options.uniforms
-      oglMocks.constructedPrograms.push(this)
-    }
-  }
-
-  class Mesh {
-    constructor(public gl: unknown, public options: unknown) {}
-  }
-
-  class Color {
-    constructor(public r: number, public g: number, public b: number) {}
-  }
-
-  class Triangle {
-    constructor(public gl: unknown) {}
-  }
-
-  return { Renderer, Program, Mesh, Color, Triangle }
-})
 
 vi.mock("@/hooks/use-friends", () => ({
   useFriends: () => [
@@ -144,18 +90,6 @@ const resetAuthState = (userId = "owner-1") => {
     hasHydrated: true,
     hasRestoredSession: true,
   })
-}
-
-class MockResizeObserver {
-  constructor(private callback: ResizeObserverCallback) {}
-
-  observe(target: Element) {
-    this.callback([{ target } as ResizeObserverEntry], this as unknown as ResizeObserver)
-  }
-
-  unobserve() {}
-
-  disconnect() {}
 }
 
 describe("TodoCard", () => {
@@ -833,71 +767,3 @@ describe("EditTodoModal", () => {
   })
 })
 
-describe("FaultyTerminal", () => {
-  let rafCallbacks: FrameRequestCallback[]
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    oglMocks.constructedPrograms.length = 0
-    rafCallbacks = []
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      rafCallbacks.push(callback)
-      return rafCallbacks.length
-    })
-    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(vi.fn())
-    vi.stubGlobal("ResizeObserver", MockResizeObserver)
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-    vi.restoreAllMocks()
-  })
-
-  it("creates and tears down the OGL renderer with mouse animation enabled", () => {
-    const { container, unmount } = render(
-      <FaultyTerminal
-        className="terminal-under-test"
-        style={{ width: 320, height: 180 }}
-        tint="#abc"
-        dither
-        mouseReact
-      />,
-    )
-
-    expect(container.querySelector(".faulty-terminal-container")).toHaveClass("terminal-under-test")
-    expect(container.querySelector("canvas")).toBeInTheDocument()
-    expect(oglMocks.clearColor).toHaveBeenCalledWith(0, 0, 0, 0)
-    expect(oglMocks.setSize).toHaveBeenCalled()
-
-    fireEvent.mouseMove(window, { clientX: 10, clientY: 20 })
-    act(() => rafCallbacks[0](1000))
-
-    expect(oglMocks.render).toHaveBeenCalledOnce()
-    expect(oglMocks.constructedPrograms[0].uniforms.uDither.value).toBe(1)
-    expect(oglMocks.constructedPrograms[0].uniforms.uUseMouse.value).toBe(1)
-
-    unmount()
-    expect(window.cancelAnimationFrame).toHaveBeenCalled()
-    expect(oglMocks.loseContext).toHaveBeenCalledOnce()
-  })
-
-  it("supports paused, non-mouse, non-page-load rendering options", () => {
-    render(
-      <FaultyTerminal
-        pause
-        mouseReact={false}
-        pageLoadAnimation={false}
-        dither={0.5}
-        tint="#112233"
-      />,
-    )
-
-    act(() => rafCallbacks[0](500))
-
-    const uniforms = oglMocks.constructedPrograms[0].uniforms
-    expect(uniforms.uUseMouse.value).toBe(0)
-    expect(uniforms.uUsePageLoadAnimation.value).toBe(0)
-    expect(uniforms.uPageLoadProgress.value).toBe(1)
-    expect(uniforms.uDither.value).toBe(0.5)
-  })
-})

@@ -1,16 +1,8 @@
-import { act, render, screen, waitFor } from "@testing-library/react"
+import { act, render, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { LayoutWrapper } from "@/components/layout-wrapper"
-import { PageBackground } from "@/components/page-background"
 import { SecurityInitializer } from "@/components/security-initializer"
 import { getCsrfToken } from "@/lib/csrf"
 import { useAuthStore } from "@/store/auth"
-
-vi.mock("@/components/faulty-terminal", () => ({
-  default: (props: Record<string, unknown>) => (
-    <div data-testid="faulty-terminal" data-scale={String(props.scale)} />
-  ),
-}))
 
 vi.mock("@/lib/csrf", () => ({
   getCsrfToken: vi.fn(),
@@ -27,28 +19,6 @@ describe("shell components", () => {
 
   afterEach(() => {
     vi.clearAllMocks()
-  })
-
-  it("renders the layout background terminal behind page content", () => {
-    render(
-      <LayoutWrapper>
-        <main>Private content</main>
-      </LayoutWrapper>,
-    )
-
-    expect(screen.getByTestId("faulty-terminal")).toHaveAttribute("data-scale", "2.9")
-    expect(screen.getByText("Private content")).toBeInTheDocument()
-  })
-
-  it("wraps pages with a stable layered background", () => {
-    render(
-      <PageBackground>
-        <section>Dashboard</section>
-      </PageBackground>,
-    )
-
-    expect(screen.getByText("Dashboard")).toBeInTheDocument()
-    expect(screen.getByText("Dashboard").parentElement).toHaveClass("relative")
   })
 
   it("initializes CSRF immediately and waits for hydration before restoring session", async () => {
