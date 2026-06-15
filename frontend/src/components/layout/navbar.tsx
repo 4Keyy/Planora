@@ -12,6 +12,7 @@ import { useToastStore } from "@/store/toast"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { clearCsrfToken } from "@/lib/csrf"
 import { EASE_OUT_EXPO } from "@/lib/animations"
+import { haptic } from "@/lib/haptics"
 import { dispatchTaskCreated } from "@/lib/events"
 import type { Todo } from "@/types/todo"
 
@@ -44,6 +45,7 @@ export function Navbar() {
   const [creating,   setCreating]   = useState(false)
   const [dropOpen,   setDropOpen]   = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [hideMobileBar, setHideMobileBar] = useState(false)
   const [mounted,    setMounted]    = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -51,6 +53,28 @@ export function Navbar() {
   const pillRef  = useRef<HTMLDivElement>(null)
 
   useEffect(() => { setMounted(true) }, [])
+
+  // Mobile bar auto-hide: slide the floating bar away when scrolling down and
+  // bring it back on scroll-up (or near the top), reclaiming screen space on
+  // phones. rAF-throttled passive listener; only the mobile bar transforms.
+  useEffect(() => {
+    let lastY = window.scrollY
+    let ticking = false
+    const onScroll = () => {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        const y = window.scrollY
+        if (y < 64) setHideMobileBar(false)
+        else if (y > lastY + 4) setHideMobileBar(true)
+        else if (y < lastY - 4) setHideMobileBar(false)
+        lastY = y
+        ticking = false
+      })
+    }
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
 
   // Focus task input when create mode opens
   useEffect(() => {
@@ -109,6 +133,7 @@ export function Navbar() {
         dueDate:     null,
       })
       addToast({ type: "success", title: "Task created!" })
+      haptic("success")
       setTaskTitle("")
       setCreateMode(false)
       // Signal dashboard (and any other page) to refresh the task list. Ship the
@@ -389,8 +414,14 @@ export function Navbar() {
 
         <motion.div
           initial={{ opacity: 0, y: -12, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.45, ease: EASE_OUT_EXPO }}
+          animate={{
+            opacity: 1,
+            // Slide the bar up out of view on scroll-down (unless the sheet is open),
+            // and bring it back on scroll-up — clears 56px bar + top inset.
+            y: hideMobileBar && !mobileOpen ? -96 : 0,
+            scale: 1,
+          }}
+          transition={{ duration: 0.32, ease: EASE_OUT_EXPO }}
           className="pointer-events-auto relative z-10 flex h-14 items-center justify-between rounded-full border border-gray-200/90 bg-white/95 pl-4 pr-2 backdrop-blur-xl shadow-[0_4px_28px_rgba(0,0,0,0.07),0_1px_6px_rgba(0,0,0,0.04)]"
         >
           <Link
