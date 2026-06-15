@@ -130,7 +130,9 @@ export function InlineTokenStrip({
     : `public · ${sharedIds.length}`
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+    // flexWrap lets the tokens flow onto a second row on a narrow modal (phones)
+    // instead of overflowing and being clipped by the modal's overflow:hidden.
+    <div style={{ display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap", rowGap: 2 }}>
 
       {/* ── Priority token ── */}
       <InlineToken

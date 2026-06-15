@@ -418,13 +418,17 @@ export function TodoEditor({
           {pillNode && <div style={{ marginTop: 6 }}>{pillNode}</div>}
         </div>
 
-        {/* Body: meta sidebar | branch */}
-        <div style={{ flex: 1, minHeight: 0, display: "flex", padding: "14px 26px 22px", gap: 0 }}>
-          <div style={{ width: 389, flexShrink: 0, overflowY: "auto", paddingRight: 24 }} className="branch-scroll">
+        {/* Body: meta sidebar | branch — stacks vertically on phones, two columns on lg+ so the
+            fixed 389px sidebar never overflows a narrow screen. */}
+        <div
+          style={{ flex: 1, minHeight: 0, padding: "14px 26px 22px" }}
+          className="flex flex-col gap-4 lg:flex-row lg:gap-0"
+        >
+          <div className="branch-scroll w-full flex-shrink-0 lg:w-[389px] lg:overflow-y-auto lg:pr-6">
             <PageMetaPanel {...metaProps} />
           </div>
-          <div style={{ width: 1, background: "#f5f5f5", flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0, paddingLeft: 24, display: "flex", flexDirection: "column" }}>
+          <div style={{ background: "#f5f5f5" }} className="hidden w-px flex-shrink-0 lg:block" />
+          <div className="flex min-w-0 flex-1 flex-col lg:pl-6">
             {branchNode}
           </div>
         </div>
@@ -537,7 +541,11 @@ export function EditTodoModal(props: EditTodoModalProps) {
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "relative",
-            width: 660,
+            // Responsive width: fills the padded viewport on phones (the parent's
+            // p-4 reserves 16px gutters), capped at 660px on larger screens. A hard
+            // 660px width overflowed the screen on mobile and cut off the card.
+            width: "100%",
+            maxWidth: 660,
             height: "90vh",
             maxHeight: 880,
             overflow: "hidden",
