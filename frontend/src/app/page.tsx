@@ -39,7 +39,10 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
       {/* Nav */}
-      <nav className="flex items-center justify-between px-4 py-5 max-w-6xl mx-auto w-full sticky top-0 z-20">
+      <nav
+        className="flex items-center justify-between px-4 pb-5 max-w-6xl mx-auto w-full sticky top-0 z-20"
+        style={{ paddingTop: "calc(1.25rem + env(safe-area-inset-top, 0px))" }}
+      >
         <span className="text-base font-bold tracking-tight text-gray-900">Planora</span>
         <div className="flex items-center gap-3">
           <Link href="/auth/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors px-3 py-1.5" suppressHydrationWarning>
@@ -56,7 +59,7 @@ export default function HomePage() {
       </nav>
 
       {/* Hero */}
-      <section className="flex-1 flex flex-col items-center justify-center text-center px-4 py-24 max-w-4xl mx-auto w-full">
+      <section className="flex-1 flex flex-col items-center justify-center text-center px-4 py-16 sm:py-24 max-w-4xl mx-auto w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -68,13 +71,13 @@ export default function HomePage() {
             Private coordination, beautifully designed
           </div>
 
-          <h1 className="text-6xl sm:text-7xl font-bold text-gray-900 leading-[1.05] tracking-tight">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold text-gray-900 leading-[1.08] sm:leading-[1.05] tracking-tight text-balance">
             Real life needs
             <br />
             <span className="text-gray-400">real coordination.</span>
           </h1>
 
-          <p className="text-xl text-gray-500 max-w-xl mx-auto leading-relaxed">
+          <p className="text-lg sm:text-xl text-gray-500 max-w-xl mx-auto leading-relaxed">
             Planora is a private task workspace for people who matter to you — share selectively, coordinate without noise, stay secure across every session.
           </p>
 
@@ -101,7 +104,7 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={FEATURES_TRANSITION}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-24 w-full text-left"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-16 sm:mt-24 w-full text-left"
         >
           {features.map((f) => (
             <div
