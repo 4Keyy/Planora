@@ -531,8 +531,14 @@ export function BranchFeed({
   useEffect(() => {
     if (!pinBottomRef.current) return
     pinBottomRef.current = false
-    const id = requestAnimationFrame(scrollToBottom)
-    return () => cancelAnimationFrame(id)
+    // Scroll to the newest message across a few frames so late layout — avatar images
+    // decoding, async subtask cards snapping in — can't leave the branch stranded above
+    // the bottom. Only runs on an explicit pin (initial open / arriving at bottom), so the
+    // repeats never fight the reader's own scrolling.
+    const raf = requestAnimationFrame(scrollToBottom)
+    const t1 = setTimeout(scrollToBottom, 80)
+    const t2 = setTimeout(scrollToBottom, 240)
+    return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comments, subtasks])
 
@@ -1118,11 +1124,20 @@ export function BranchFeed({
               </div>
             </div>
           ) : (
-            <p style={{
-              fontSize: 13.5, fontWeight: 500, lineHeight: 1.65, color: "#262626",
-              whiteSpace: "pre-wrap", letterSpacing: "-0.005em", margin: 0,
-              overflowWrap: "anywhere", wordBreak: "break-word",
-            }}>
+            <p
+              onDoubleClick={() => {
+                // Double-click to edit the description, mirroring subtask titles. Owner-only,
+                // matching the Edit button's gating. Works in both the modal and the page.
+                if (isOwner) { setEditingGenesis(true); setGenesisEditContent(genesis.content) }
+              }}
+              title={isOwner ? "Double-click to edit" : undefined}
+              style={{
+                fontSize: 13.5, fontWeight: 500, lineHeight: 1.65, color: "#262626",
+                whiteSpace: "pre-wrap", letterSpacing: "-0.005em", margin: 0,
+                overflowWrap: "anywhere", wordBreak: "break-word",
+                cursor: isOwner ? "text" : "default",
+              }}
+            >
               {genesis.content}
             </p>
           )}

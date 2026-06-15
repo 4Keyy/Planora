@@ -200,7 +200,14 @@ export function TodoEditor({
   }, [editingTitle])
 
   useEffect(() => {
-    if (editingTitle) titleTextareaRef.current?.focus()
+    if (editingTitle && titleTextareaRef.current) {
+      const el = titleTextareaRef.current
+      el.focus()
+      // Place the caret at the END of the existing title (not the left edge, which is
+      // where a bare focus() lands) so editing continues from where the text finishes.
+      const end = el.value.length
+      el.setSelectionRange(end, end)
+    }
   }, [editingTitle])
 
   const commitTitle = () => {

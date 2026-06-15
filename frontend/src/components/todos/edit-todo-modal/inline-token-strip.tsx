@@ -130,9 +130,10 @@ export function InlineTokenStrip({
     : `public · ${sharedIds.length}`
 
   return (
-    // flexWrap lets the tokens flow onto a second row on a narrow modal (phones)
-    // instead of overflowing and being clipped by the modal's overflow:hidden.
-    <div style={{ display: "flex", alignItems: "center", gap: 0, flexWrap: "wrap", rowGap: 2 }}>
+    // Single non-wrapping row. Wrapping caused the whole strip to reflow as the
+    // right-anchored visibility token changed width between "private" and
+    // "public · N" — the visibility label below is fixed-width so nothing shifts.
+    <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 0 }}>
 
       {/* ── Priority token ── */}
       <InlineToken
@@ -262,7 +263,8 @@ export function InlineTokenStrip({
                 ? <Lock size={12} strokeWidth={2} />
                 : <Globe2 size={12} strokeWidth={2} />
               }
-              {visLabel}
+              {/* Fixed-width label so toggling private⇄public never changes the token width. */}
+              <span style={{ display: "inline-block", minWidth: 54, textAlign: "left" }}>{visLabel}</span>
             </>
           }
           popover={
