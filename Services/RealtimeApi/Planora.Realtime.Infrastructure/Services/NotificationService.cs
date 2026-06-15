@@ -1,5 +1,6 @@
 using Planora.Realtime.Infrastructure.Hubs;
 using Planora.Realtime.Application.Interfaces;
+using Planora.Realtime.Application.Response;
 
 namespace Planora.Realtime.Infrastructure.Services
 {
@@ -14,6 +15,40 @@ namespace Planora.Realtime.Infrastructure.Services
         {
             _hubContext = hubContext;
             _logger = logger;
+        }
+
+        public async Task SendToUserAsync(NotificationPayload payload, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // The full persisted shape — id + task routing + read state — so the client renders
+                // the toast, lights the right card/branch indicator and decides on an OS notification
+                // without a follow-up fetch. The Redis backplane fans this out across every pod, so a
+                // recipient connected to a different instance still receives it.
+                await _hubContext.Clients
+                    .Group($"user:{payload.UserId}")
+                    .SendAsync("ReceiveNotification", new
+                    {
+                        id = payload.Id,
+                        userId = payload.UserId,
+                        taskId = payload.TaskId,
+                        actorId = payload.ActorId,
+                        type = payload.Type,
+                        title = payload.Title,
+                        message = payload.Message,
+                        occurredOn = payload.OccurredOnUtc,
+                        isRead = payload.IsRead,
+                    }, cancellationToken);
+
+                _logger.LogInformation(
+                    "Notification {NotificationId} ({Type}) pushed to user {UserId}",
+                    payload.Id, payload.Type, payload.UserId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to push notification {NotificationId} to user {UserId}", payload.Id, payload.UserId);
+                throw;
+            }
         }
 
         public async Task SendNotificationAsync(string userId, string message, string type, CancellationToken cancellationToken = default)
