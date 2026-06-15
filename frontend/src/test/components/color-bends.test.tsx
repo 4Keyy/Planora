@@ -312,4 +312,72 @@ describe("ColorBendsLayer", () => {
       }
     }
   })
+
+  // ── Lightweight (static gradient) fallback — no three.js / no WebGL loop ──
+  // On touch / small / Save-Data / weak hardware the layer renders a static CSS
+  // gradient instead of mounting the WebGL shader, so no WebGLRenderer is ever
+  // constructed. Each branch of prefersLightweightBackground is exercised here.
+
+  const expectStaticGradient = (container: HTMLElement) => {
+    expect(MockedRenderer.instances).toHaveLength(0)
+    const bg = container.querySelector('div[aria-hidden="true"]')
+    expect(bg).not.toBeNull()
+    expect(bg?.getAttribute("style") ?? "").toContain("gradient")
+  }
+
+  it("renders the static gradient (no WebGL) on a low-core device", () => {
+    const original = Object.getOwnPropertyDescriptor(Navigator.prototype, "hardwareConcurrency")
+    Object.defineProperty(navigator, "hardwareConcurrency", { configurable: true, get: () => 2 })
+    try {
+      const { container } = render(<ColorBendsLayer />)
+      expectStaticGradient(container)
+    } finally {
+      if (original) Object.defineProperty(Navigator.prototype, "hardwareConcurrency", original)
+    }
+  })
+
+  it("renders the static gradient on a coarse-pointer (touch) device", () => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true, configurable: true,
+      value: vi.fn((q: string) => ({
+        matches: q.includes("coarse"), media: q,
+        addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      })),
+    })
+    const { container } = render(<ColorBendsLayer />)
+    expectStaticGradient(container)
+  })
+
+  it("renders the static gradient on a small viewport", () => {
+    const original = window.innerWidth
+    Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 375 })
+    try {
+      const { container } = render(<ColorBendsLayer />)
+      expectStaticGradient(container)
+    } finally {
+      Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: original })
+    }
+  })
+
+  it("renders the static gradient when Save-Data is enabled", () => {
+    Object.defineProperty(navigator, "connection", { configurable: true, value: { saveData: true } })
+    try {
+      const { container } = render(<ColorBendsLayer />)
+      expectStaticGradient(container)
+    } finally {
+      // @ts-expect-error — clean the stubbed connection off navigator.
+      delete navigator.connection
+    }
+  })
+
+  it("renders the static gradient on a low-memory device", () => {
+    Object.defineProperty(navigator, "deviceMemory", { configurable: true, value: 2 })
+    try {
+      const { container } = render(<ColorBendsLayer />)
+      expectStaticGradient(container)
+    } finally {
+      // @ts-expect-error — clean the stubbed deviceMemory off navigator.
+      delete navigator.deviceMemory
+    }
+  })
 })

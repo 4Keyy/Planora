@@ -266,4 +266,28 @@ describe("Navbar", () => {
 
     window.removeEventListener(TASK_CREATED_EVENT, listener)
   })
+
+  it("auto-hides the mobile bar on scroll-down and restores it on scroll-up", () => {
+    // Run the rAF-throttled scroll handler synchronously so each scroll applies immediately.
+    const raf = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb: FrameRequestCallback) => {
+      cb(0)
+      return 1
+    })
+    try {
+      render(<Navbar />)
+      const scrollTo = (y: number) => {
+        Object.defineProperty(window, "scrollY", { configurable: true, writable: true, value: y })
+        window.dispatchEvent(new Event("scroll"))
+      }
+      scrollTo(10)   // near top → shown
+      scrollTo(300)  // scrolling down → hidden
+      scrollTo(150)  // scrolling up → shown
+      scrollTo(0)    // back at the top → shown
+      // The bar (and its menu toggle) stays mounted across hide/show transitions.
+      expect(mobile().getByRole("button", { name: /open menu/i })).toBeInTheDocument()
+    } finally {
+      raf.mockRestore()
+      Object.defineProperty(window, "scrollY", { configurable: true, writable: true, value: 0 })
+    }
+  })
 })
