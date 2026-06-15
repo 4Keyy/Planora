@@ -45,8 +45,18 @@ function detectIterations(): number {
  */
 function prefersLightweightBackground(): boolean {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false
-  const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
-  if (conn?.saveData) return true
+  const nav = navigator as Navigator & {
+    connection?: { saveData?: boolean }
+    deviceMemory?: number
+  }
+  // Explicit data-saver opt-out.
+  if (nav.connection?.saveData) return true
+  // Weak hardware: a continuous full-screen shader steals frames from the rest of
+  // the UI on low-memory (≤2 GB) or low-core (≤2) machines, so they get the static
+  // gradient instead — this is what keeps the app smooth on the weakest devices.
+  if (typeof nav.deviceMemory === "number" && nav.deviceMemory <= 2) return true
+  if (typeof navigator.hardwareConcurrency === "number" && navigator.hardwareConcurrency <= 2) return true
+  // Touch / phones / tablets: no mouse parallax to justify the GPU + battery cost.
   const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false
   const smallViewport = window.innerWidth <= 768
   return coarsePointer || smallViewport
