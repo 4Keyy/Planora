@@ -685,6 +685,14 @@ typing presence.
   normal authorized endpoints, so a stale or forged signal can never leak data a user may not read.
 - A client **ignores its own echoes** so optimistic updates are never clobbered.
 - The branch's 9-second poll remains as a backstop if the socket is temporarily down.
+- **Live sync never fails a write.** Feed-audience friend resolution is best-effort: an Auth-gRPC
+  outage degrades the audience to owner + shared-with rather than throwing, so the underlying task
+  mutation always succeeds (`RealtimeAudience.SafeGetFriendIdsAsync`).
+- **Friend-id lookups are cached 30s** (`CachingFriendshipService`) to keep the feed-audience hot
+  path cheap, but the `AreFriendsAsync` authorization check is never cached — every access decision
+  sees live friendship state, so a stale id list can only cost a content-free fan-out signal.
+- The frontend holds **one** SignalR connection and never opens a second during an automatic
+  reconnect (e.g. a token refresh mid-reconnect).
 
 ## Product Analytics Events
 

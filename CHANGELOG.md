@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### perf+harden(realtime): decouple feed sync from Auth, cache friend lookups (2026-06-15)
+
+- **A live-sync push can never fail a task mutation.** Feed-audience friend resolution is now
+  best-effort: a transient Auth-gRPC outage degrades the audience to owner + shared-with (those still
+  sync) and logs a warning instead of throwing, so creating/editing a public task no longer depends
+  on Auth being reachable. Cancellation still propagates.
+- **Friend-id lookups are cached on the hot path.** A 30s in-memory cache (`CachingFriendshipService`)
+  collapses the repeated Auth-gRPC calls that the feed audience made on every public-task mutation
+  (e.g. each autosave). The friendship **authorization** check (`AreFriendsAsync`) is deliberately
+  left uncached, so every access decision stays live — a stale id list can at most cost one
+  content-free fan-out signal, never a content leak.
+- **No duplicate sockets on reconnect.** The frontend client reuses the existing connection when
+  `start()` is called during an automatic reconnect (e.g. a token refresh) instead of opening a second.
+- **Full unit coverage** for the new realtime zones: audience resolution + degradation, the
+  fail-closed branch authorizer, the fan-out router, hub room/typing authorization, the friend cache,
+  and the SignalR client's ref-counted rooms / reconnect behaviour.
+
 ### feat(realtime): end-to-end live collaboration over SignalR (2026-06-14)
 
 - **Friends' task changes now appear instantly.** When someone creates, edits, completes, deletes,
