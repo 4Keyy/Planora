@@ -282,9 +282,11 @@ Both route files expose canonical friendship routes under `/auth/api/v1/friendsh
 | Todo | `ConnectionStrings:TodoDatabase` | `planora_todo` |
 | Category | `ConnectionStrings:CategoryDatabase` | `planora_category` |
 | Messaging | `ConnectionStrings:MessagingDatabase` | `planora_messaging` |
-| Realtime | none found | no EF Core context found |
+| Realtime | `ConnectionStrings:RealtimeDatabase` | `planora_realtime` |
 
 Startup code waits for PostgreSQL and initializes schemas for Auth, Todo, Category, and Messaging. If user-owned EF migrations exist, startup applies pending migrations. If no migrations exist in the assembly, startup creates the schema from the current EF model through `DatabaseStartup.EnsureReadyAsync`.
+
+The Realtime service is wired conditionally: when `ConnectionStrings:RealtimeDatabase` is set it persists notifications (durable `Notifications` / `NotificationDeliveries` / `OutboxMessages` tables) and serves the read API; when it is absent the service falls back to ephemeral SignalR pushes only. Realtime's schema is **not** created at startup — apply its EF migration explicitly with `Planora.Migrator --service realtime` (the runner creates `planora_realtime` if it does not yet exist) before first boot.
 
 ## Known Configuration Inconsistencies To Keep Visible
 

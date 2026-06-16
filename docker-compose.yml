@@ -318,10 +318,12 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
-      # T2.5 — durable Notification + NotificationDelivery log. Activated by the
-      # follow-up commit that lands the initial EF migration. Pool sizing matches
-      # sister services (T4.4): 10 max, 60s idle reaper.
-      # ConnectionStrings__RealtimeDatabase: "Host=postgres;Port=5432;Database=planora_realtime;Username=postgres;Password=${POSTGRES_PASSWORD};Maximum Pool Size=10;Connection Idle Lifetime=60;"
+      # T2.5 — durable Notification + NotificationDelivery + Outbox log. The schema lives in
+      # planora_realtime (initial EF migration 20260615211750_InitialRealtimeNotifications);
+      # apply it with `Planora.Migrator --service realtime` before first boot. When this is set
+      # the service persists notifications and serves the read API; when absent it falls back to
+      # ephemeral SignalR pushes only. Pool sizing matches sister services (T4.4): 10 max, 60s reaper.
+      ConnectionStrings__RealtimeDatabase: "Host=postgres;Port=5432;Database=planora_realtime;Username=postgres;Password=${POSTGRES_PASSWORD};Maximum Pool Size=10;Connection Idle Lifetime=60;"
       REDIS_CONNECTION: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set},abortConnect=false"
       RateLimiting__Backend: Redis
       RABBITMQ_HOST: "rabbitmq"
@@ -333,6 +335,8 @@ services:
       JwtSettings__Audience: "Planora.Clients"
       GrpcSettings__ServiceKey: ${GRPC_SERVICE_KEY:?GRPC_SERVICE_KEY env var must be set}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
