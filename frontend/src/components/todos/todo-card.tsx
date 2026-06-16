@@ -10,9 +10,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { isTodoOwner, type Todo } from "@/types/todo"
 import { formatDate, isPastDate, truncateText, formatPublicName, cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
+import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import { EASE_OUT_EXPO, SPRING_RESPONSIVE, VARIANTS_CARD, TAP_CARD } from "@/lib/animations"
 import { haptic } from "@/lib/haptics"
 import { CompletionCelebration } from "@/components/animated/celebration"
+import { NotificationBadge } from "@/components/notifications/notification-badge"
 
 const PRIORITY_CONFIG: Record<string, { color: string; num: number }> = {
   "1": { color: "#9ca3af", num: 1 },
@@ -87,6 +89,10 @@ function TodoCardComponent({
   const mountedRef = useRef(true)
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const viewerId = useAuthStore((s) => s.user?.userId)
+  // Live unread roll-up for this task — drives the top-right notification mark. Subscribing here
+  // (not via props) keeps the card's memo intact while still updating the badge in real time.
+  const unread = useTaskUnread(todo.id)
+  const markTaskRead = useNotificationStore((s) => s.markTaskRead)
   const isCompleted = variant === "completed"
   const isCompleting = completionPhase === "completing"
   const isReopening = completionPhase === "reopening"
@@ -349,6 +355,8 @@ function TodoCardComponent({
             void handleVisibilityToggle(false)
             return
           }
+          // Opening the branch is "seeing the events", so its unread notifications go inactive.
+          void markTaskRead(todo.id)
           // Ctrl/Cmd-click (or middle-click handled by the browser) opens the task's branch on its
           // own page in a new tab instead of the in-place modal.
           if (e.metaKey || e.ctrlKey) {
@@ -363,6 +371,19 @@ function TodoCardComponent({
           isCompleted ? "opacity-60 hover:opacity-70" : "z-10"
         )}
       >
+      {/* Unread notification mark — top-right, above the card surface (the Card clips its own
+          overflow). Hidden while the delete affordance is active so the two never collide. */}
+      <AnimatePresence>
+        {unread && unread.count > 0 && !isDeleteZoneHovered && (
+          <NotificationBadge
+            key="unread-mark"
+            type={unread.latestType}
+            size={20}
+            pulse={!isCompleted}
+            className="absolute top-1.5 right-1.5 z-40 pointer-events-none"
+          />
+        )}
+      </AnimatePresence>
       <Card
         style={{
           boxShadow: cardHoverShadow,
