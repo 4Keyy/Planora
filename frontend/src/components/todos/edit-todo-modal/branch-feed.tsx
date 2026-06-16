@@ -12,7 +12,9 @@ import {
 import { sameUserId, type TodoComment, type Todo, type ReplyTargetType } from "@/types/todo"
 import { SPRING_STANDARD } from "@/lib/animations"
 import { useAuthStore } from "@/store/auth"
+import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import { useBranchRoom, useTyping } from "@/lib/realtime/hooks"
+import { NotificationBadge } from "@/components/notifications/notification-badge"
 import { FriendAvatar } from "./friend-avatar"
 import {
   formatDayLabel,
@@ -343,6 +345,18 @@ export function BranchFeed({
   // Live presence: who else is typing in this branch right now, and a notifier to call on keystroke.
   const viewerId = useAuthStore((s) => s.user?.userId)
   const { typingNames, notifyTyping } = useTyping(todoId, true)
+
+  // Unread notifications for this branch — shown by the composer, then marked read once the viewer
+  // has had a moment to see them (the "becomes inactive once seen" behavior). New notifications that
+  // arrive while the branch is open flash the count, then clear on the next tick.
+  const branchUnread = useTaskUnread(todoId)
+  const markTaskRead = useNotificationStore((s) => s.markTaskRead)
+  useEffect(() => {
+    if (!todoId || !branchUnread || branchUnread.count === 0) return
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return
+    const t = setTimeout(() => { void markTaskRead(todoId) }, 1200)
+    return () => clearTimeout(t)
+  }, [todoId, branchUnread, markTaskRead])
 
   const feedRef           = useRef<HTMLDivElement>(null)
   const composeRef        = useRef<HTMLTextAreaElement>(null)
@@ -1443,23 +1457,51 @@ export function BranchFeed({
           </div>
         )}
 
-        {/* Live "is typing" presence — sits just above the compose box, as requested. */}
-        <div style={{ minHeight: 16, padding: "0 4px 2px", overflow: "hidden" }} aria-live="polite">
+        {/* Live "is typing" presence + this branch's unread mark — sits just above the compose box. */}
+        <div
+          style={{
+            minHeight: 18, padding: "0 4px 4px",
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+          }}
+          aria-live="polite"
+        >
           <AnimatePresence>
             {typingNames.length > 0 && (
               <motion.div
+                key="typing"
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 4 }}
                 transition={{ duration: 0.18 }}
-                style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 600, color: "#6d5bd0" }}
+                style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 11, fontWeight: 600, color: "#6d5bd0" }}
               >
                 <span style={{ display: "inline-flex", gap: 2 }}>
                   <span className="branch-typing-dot" style={{ animationDelay: "-0.32s" }} />
                   <span className="branch-typing-dot" style={{ animationDelay: "-0.16s" }} />
                   <span className="branch-typing-dot" />
                 </span>
-                {formatTyping(typingNames)}
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {formatTyping(typingNames)}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Unread for this branch — icon + count, mirroring the card mark. Auto-clears once seen. */}
+          <AnimatePresence>
+            {branchUnread && branchUnread.count > 0 && (
+              <motion.div
+                key="branch-unread"
+                initial={{ opacity: 0, scale: 0.7, x: 8 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.7, x: 8 }}
+                transition={SPRING_SNAP}
+                style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: "auto" }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: "#a3a3a3" }}>
+                  {branchUnread.count} new
+                </span>
+                <NotificationBadge type={branchUnread.latestType} count={branchUnread.count} showCount size={22} />
               </motion.div>
             )}
           </AnimatePresence>
