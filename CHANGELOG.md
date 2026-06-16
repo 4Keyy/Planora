@@ -38,6 +38,20 @@ from recipients; live signals remain content-free (the client refetches through 
 Performance: one `summary` round trip backs every inline indicator; mark-read uses a single bulk
 `ExecuteUpdate`; the live push carries the full shape so the client never refetches a notification.
 
+### chore(deps): patch high/moderate transitive frontend CVEs (2026-06-16)
+
+Ran `npm audit fix` in `frontend/` to clear 5 advisories (3 high, 1 moderate, 1 low)
+reported by `npm audit --audit-level=high`. All were transitive dev-dependency CVEs and
+the fixes were semver-compatible, so only `package-lock.json` changed (no `package.json`
+range edits, no `--force`). Resolved advisories: `vite`/`launch-editor` (GHSA-fx2h-pf6j-xcff,
+GHSA-v6wh-96g9-6wx3), `hono` serve-static path traversal et al. (GHSA-wwfh-h76j-fc44 +
+related), `form-data` CRLF injection (GHSA-hmw2-7cc7-3qxx), `@babel/core` arbitrary file
+read (GHSA-4x5r-pxfx-6jf8), and `js-yaml` quadratic-complexity DoS (GHSA-h67p-54hq-rp68).
+Verified clean afterward: `npm audit` reports 0 vulnerabilities, `tsc --noEmit` and
+`npm run build` pass, and all 393 vitest tests are green.
+
+Security: clears 3 high-severity transitive CVEs in the frontend toolchain
+
 ### fix(todos): only the author can return a completed task to work (2026-06-15)
 
 - **Reopening a completed task is now author-only.** A friend of a public/shared task's author could
