@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore } from "@/store/notifications"
+import { isSystemNotification } from "@/lib/notifications/types"
+import { notifySystem } from "@/lib/notifications/web-notifications"
 import {
   realtime,
   type BranchChangedPayload,
@@ -50,7 +52,15 @@ export function useNotificationsLifecycle(): void {
     void store.hydrate()
 
     const off = realtime.on("ReceiveNotification", (payload) => {
-      useNotificationStore.getState().ingest(payload)
+      const store = useNotificationStore.getState()
+      // Dedupe up front so a redelivered push never double-toasts or double-OS-notifies.
+      if (store.seen.has(payload.id)) return
+      store.ingest(payload)
+      // High-signal kinds also raise a native OS notification — but only while the tab is
+      // backgrounded (notifySystem guards focus + permission internally).
+      if (isSystemNotification(payload.type)) {
+        notifySystem({ title: payload.title, body: payload.message, taskId: payload.taskId })
+      }
     })
 
     // Catch up on anything missed while hidden/disconnected — the summary is the source of truth.

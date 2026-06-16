@@ -7,6 +7,7 @@ import { Bell, CheckCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { EASE_OUT_EXPO } from "@/lib/animations"
 import { getNotificationKind } from "@/lib/notifications/types"
+import { ensurePermission } from "@/lib/notifications/web-notifications"
 import { useNotificationStore, type AppNotification } from "@/store/notifications"
 
 const EMPTY_GUID = "00000000-0000-0000-0000-000000000000"
@@ -45,6 +46,9 @@ export function NotificationBell({ className }: { className?: string }) {
   useEffect(() => {
     if (!open) return
     void loadList()
+    // Opening the bell is a user gesture — the moment to (politely) ask for OS-notification
+    // permission so future high-signal events can surface natively while the tab is backgrounded.
+    void ensurePermission()
     const handle = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
