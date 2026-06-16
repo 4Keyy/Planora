@@ -1,6 +1,6 @@
 # Database
 
-Planora uses PostgreSQL with database-per-service ownership for Auth, Todo, Category, and Messaging. Realtime does not have an EF Core database context in the inspected code.
+Planora uses PostgreSQL with database-per-service ownership for Auth, Todo, Category, Messaging, Collaboration, and Realtime (Realtime persists the durable notification log).
 
 Infrastructure:
 
@@ -17,7 +17,7 @@ Infrastructure:
 | Category | `CategoryDbContext` | `CategoryDatabase` | `planora_category` |
 | Messaging | `MessagingDbContext` | `MessagingDatabase` | `planora_messaging` |
 | Collaboration | `CollaborationDbContext` | `CollaborationDatabase` | `planora_collaboration` |
-| Realtime | none found | none found | not applicable |
+| Realtime | `RealtimeDbContext` | `RealtimeDatabase` | `planora_realtime` |
 
 Code:
 
@@ -298,12 +298,30 @@ at cutover to capture the window).
 
 ## Realtime Persistence
 
-No EF Core `DbContext`, migration folder, or database connection string was found for Realtime. Realtime connection state and notification delivery are implemented through service abstractions, SignalR, Redis backplane, and RabbitMQ subscriptions.
+`RealtimeDbContext` owns the durable notification read-model. The DbContext is wired conditionally on
+`ConnectionStrings__RealtimeDatabase`; ephemeral/test hosts without it fall back to in-memory
+behavior (ephemeral SignalR push, empty read API). Live connection presence still uses the Redis
+backplane; notifications are now persisted so an offline recipient is caught up on reconnect and the
+UI can query unread counts.
+
+| Table | Purpose | Notable columns / constraints |
+|---|---|---|
+| `Notifications` | one row per delivered notification | `UserId`, `Title`, `Message`, `Type` (taxonomy discriminator), `TaskId` + `ActorId` (routing/attribution), `IsRead` + `ReadAtUtc` (read state), `OccurredOnUtc`, `SourceEventId`. **Unique `SourceEventId`** (idempotency anchor); indexes on `(UserId, IsRead)`, `(UserId, TaskId, IsRead)`, `(UserId, OccurredOnUtc)`; global soft-delete query filter. |
+| `NotificationDeliveries` | per-user SignalR delivery audit | `NotificationId`, `UserId`, `Status`, `AttemptCount`, `DeliveredAtUtc`. |
+| `OutboxMessages` | canonical outbox (shared shape) | standard outbox state machine. |
+
+Migration: `20260615211750_InitialRealtimeNotifications` (the first Realtime migration — creates all
+three tables). Apply with `Planora.Migrator --service realtime`. Per the repo convention, Realtime
+migration files are kept out of git (gitignored, like Auth/Category/Messaging) and ship in the build
+context.
 
 Code:
 
-- `Services/RealtimeApi/Planora.Realtime.Api/Program.cs`
-- `Services/RealtimeApi/Planora.Realtime.Infrastructure`
+- `Services/RealtimeApi/Planora.Realtime.Domain/Entities/Notification.cs`
+- `Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs`
+- `Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationStore.cs` (write side, idempotent)
+- `Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs` (read side)
+- `Services/RealtimeApi/Planora.Realtime.Application/Handlers/NotificationEventHandler.cs` (persist + push)
 
 ## Outbox / Inbox Pattern
 

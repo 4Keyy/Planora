@@ -648,23 +648,49 @@ The HTTP controller overwrites sender from the current user context by sending `
 
 ### Purpose
 
-Track current connections and deliver notifications through SignalR and service notification abstractions.
+A durable, per-user, per-task notification system: when anything happens in a task's branch (a new
+message, a subtask, someone taking the task into work, a completion) every **other** participant —
+never the actor — gets a notification in real time, shown as an unread mark on the task card, an
+unread count by the branch composer, a header bell, an in-app toast, and (for high-signal events) a
+native OS notification.
 
 ### Implementation
 
-- `Services/RealtimeApi/Planora.Realtime.Api/Controllers/ConnectionsController.cs`
-- `Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs`
-- `Services/RealtimeApi/Planora.Realtime.Api/Program.cs`
-- `Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs`
+- Producers fan out one `NotificationEvent` per recipient (actor excluded) through their transactional
+  outbox: `TodoApi/.../Common/NotificationFanout.cs` (wired into JoinTodo, CreateSubtask, UpdateTodo)
+  and `CollaborationApi/.../AddComment` for messages/replies.
+- `RealtimeApi/.../Handlers/NotificationEventHandler.cs` persists each event to the durable log
+  (idempotent on the event id) via `NotificationStore`, then pushes the full shape over SignalR
+  (`ReceiveNotification`). Read API: `NotificationReadStore` + `NotificationsController`
+  (`summary` / list / `read`).
+- Frontend: `store/notifications.ts` (read-model + optimistic mark-read), `lib/notifications/types.ts`
+  (type → icon/tint/OS flag), `components/notifications/notification-badge.tsx` (card dot + branch
+  badge), `notification-bell.tsx` (header center), `lib/notifications/web-notifications.ts` (OS), and
+  the `useNotificationsLifecycle` hook in `lib/realtime/hooks.ts`.
 
 ### Key Rules
 
-- `/api/v1/connections/active` returns only the current user's connections.
-- `/api/v1/connections/stats` is admin-only.
-- `/api/v1/notifications/send` sends to the authenticated user from the JWT `sub` claim.
-- `/api/v1/notifications/broadcast` is admin-only.
-- SignalR reads `access_token` from the query string for `/hubs` paths.
-- Redis backplane channel prefix is `planora`.
+- **Actor exclusion:** a notification is only ever sent to participants *other than* the person who
+  triggered the event — you never notify yourself, and never see a dot for your own action.
+- **Recipients** = the task's audience (owner + shared-with + the owner's friends when public),
+  resolved where the visibility model lives (`RealtimeAudience`), minus the actor.
+- **Review milestone (author-only):** when every participant except the author has completed a
+  public/shared task, the author gets `task.review` if **all subtasks are also done**, otherwise
+  `task.participants_done` (the "people + check" mark). Fires once, only on the completion that
+  crosses the threshold, and is suppressed if the author already closed the task themselves.
+- **Read-on-view:** opening a task's branch (modal or `/branch/{id}`) marks its notifications read
+  after a brief "seen" delay; opening a card marks them read immediately; reading a bell row marks
+  that one. Read state is persisted, so the indicator stays inactive across reloads.
+- **OS notifications** fire only for high-signal kinds (`comment.reply`, `task.completed`,
+  `task.review`, `task.participants_done`) and only while the tab is backgrounded/unfocused (a focused
+  user already has the toast). Permission is requested from a user gesture (first bell open).
+- **Durable + idempotent:** persisted before fan-out (offline recipients are caught up on reconnect /
+  tab focus); a redelivered event is stored and pushed at most once (unique `SourceEventId`).
+- **Security:** every read/mark-read query is scoped to the JWT subject (no IDOR); live-sync signals
+  remain content-free (the client refetches through authorized endpoints).
+- `/api/v1/connections/active` returns only the current user's connections;
+  `/api/v1/connections/stats` and `/notifications/broadcast` are admin-only. SignalR reads
+  `access_token` from the query string for `/hubs` paths; Redis backplane channel prefix is `planora`.
 
 ## Live Sync And Branch Presence
 

@@ -699,8 +699,8 @@ genesis note; subtask targets are verified live via the `TodoService.GetSubtaskB
 
 Success `201 Created`: `CommentDto` (with the populated reply block). On success a
 `NotificationEvent` is fanned out (via outbox → RabbitMQ → Realtime/SignalR) to every other
-participant; the quoted author receives a dedicated `ReplyAdded` notification ("… replied to your
-message/subtask") instead of the generic `CommentAdded`. Errors: `400` validation / invalid reply
+participant; the quoted author receives a dedicated `comment.reply` notification ("… replied to your
+message/subtask") instead of the generic `comment.added`. Errors: `400` validation / invalid reply
 target type; `403` no access; `404` task, target comment, or target subtask not found (cross-branch
 target ids return `404` exactly like missing ones — no probing oracle); `503` if the Todo
 validation call is unavailable.
@@ -779,16 +779,36 @@ Service-local protected routes:
 |---|---|---|---|---|
 | `GET` | `/api/v1/connections/active` | `/realtime/api/v1/connections/active` | bearer | current user's active SignalR connections |
 | `GET` | `/api/v1/connections/stats` | `/realtime/api/v1/connections/stats` | admin | total connection count |
+| `GET` | `/api/v1/notifications/summary` | `/realtime/api/v1/notifications/summary` | bearer | unread total + per-task breakdown (card dots, branch badges, bell count) |
+| `GET` | `/api/v1/notifications` | `/realtime/api/v1/notifications` | bearer | paged notification list, newest first (bell dropdown); `?take=&before=` |
+| `POST` | `/api/v1/notifications/read` | `/realtime/api/v1/notifications/read` | bearer | mark read by `{ all }`, `{ taskId }`, or `{ ids }`; returns fresh summary |
 | `POST` | `/api/v1/notifications/send` | `/realtime/api/v1/notifications/send` | bearer | send notification to current user |
 | `POST` | `/api/v1/notifications/broadcast` | `/realtime/api/v1/notifications/broadcast` | admin | broadcast notification |
 
-Notification body:
+Every notification endpoint is scoped to the JWT subject server-side — a user can only ever read or
+mark read **their own** notifications (no IDOR surface), and all reads are `AsNoTracking`.
+
+`GET /notifications/summary` response (drives every inline indicator in one round trip):
 
 ```json
 {
-  "message": "Saved",
-  "type": "info"
+  "totalUnread": 4,
+  "perTask": [
+    { "taskId": "11111111-1111-1111-1111-111111111111", "count": 2, "latestType": "task.review" }
+  ]
 }
+```
+
+`POST /notifications/read` request (exactly one selector, priority `all` → `taskId` → `ids`):
+
+```json
+{ "taskId": "11111111-1111-1111-1111-111111111111" }
+```
+
+Legacy `POST /notifications/send` body:
+
+```json
+{ "message": "Saved", "type": "info" }
 ```
 
 SignalR:
@@ -796,6 +816,33 @@ SignalR:
 - Hub path inside service: `/hubs/notifications`
 - Gateway path: `/realtime/hubs/notifications`
 - JWT can be supplied as `access_token` query parameter for `/hubs` paths.
+- The hub multiplexes three streams over one socket: `ReceiveNotification` (per-user notifications),
+  `TaskFeedChanged` / `BranchChanged` (live data-sync), and `UserTyping` / `UserStoppedTyping`.
+
+`ReceiveNotification` payload (the full persisted shape — the client renders the toast, lights the
+right card/branch indicator and decides on an OS notification without a follow-up fetch):
+
+```json
+{
+  "id": "…", "userId": "…", "taskId": "…", "actorId": "…",
+  "type": "task.review", "title": "Ready for review",
+  "message": "Everyone finished \"Launch plan\" — it's ready for your review",
+  "occurredOnUtc": "2026-06-16T09:00:00Z", "isRead": false
+}
+```
+
+Notification `type` discriminators (the actor is **always excluded** from recipients):
+
+| `type` | Raised when | Recipients | OS notification |
+|---|---|---|---|
+| `comment.added` | new branch message | other participants | no |
+| `comment.reply` | a reply targets you | the quoted author | yes |
+| `subtask.added` | subtask created | other participants | no |
+| `subtask.completed` | subtask marked done | other participants | no |
+| `task.started` | someone takes the task into work | other participants | no |
+| `task.completed` | a collaborator/owner completes a public/shared task | the others | yes |
+| `task.review` | **all** participants (≠author) done **and all subtasks done** | author only | yes |
+| `task.participants_done` | all participants (≠author) done **but subtasks remain** | author only | yes |
 
 ## Health Endpoints
 

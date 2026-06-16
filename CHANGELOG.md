@@ -4,6 +4,40 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(notifications): durable real-time notification system (2026-06-16)
+
+- **Every branch event notifies the other participants — never the actor.** A new message, a subtask,
+  someone taking the task into work, or a completion now raises a notification for everyone who can see
+  the task *except* the person who triggered it. Taking a task into work no longer lights your own
+  card. Recipients are the task's audience (owner + shared-with + the owner's friends when public),
+  resolved where the visibility model lives and minus the actor (`NotificationFanout`).
+- **Two author-only review signals.** When every participant except the author has completed a
+  public/shared task, the author gets a **`task.review`** notification if all subtasks are also done
+  (ready to review), or **`task.participants_done`** (the "little people + checkmark" mark) if subtasks
+  remain. Fires once, only on the completion that crosses the threshold, and never when the author has
+  already closed the task.
+- **Durable + idempotent delivery.** RealtimeApi now persists each notification to a read-model before
+  fan-out, so an offline recipient is caught up on reconnect (and on tab focus); a redelivered event is
+  stored and pushed at most once (unique `SourceEventId`). New read API — `GET /notifications/summary`
+  (total + per-task unread), `GET /notifications` (bell list), `POST /notifications/read` — every query
+  scoped to the JWT subject (no IDOR). First Realtime EF migration adds the `Notifications` table.
+- **Polished, animated UI.** A reusable notification badge drives the unread mark at the top-right of
+  each task card and the unread count beside the branch composer, plus a global header bell with a
+  dropdown (mark-all-read, click-to-open). Each notification type has its own icon + accent; the
+  all-participants-done kind renders a dedicated people-and-check glyph. Spring pops, ping rings and a
+  count roll, all reduced-motion aware.
+- **Read-on-view.** Opening a card or viewing a branch marks its notifications read (persisted, so the
+  mark stays inactive across reloads); reading a bell row marks that one.
+- **Native OS notifications.** High-signal events (a reply to you, a friend completing your public
+  task, the review milestones) raise a real Windows/macOS notification — but only while the Planora tab
+  is backgrounded/unfocused (a focused user already sees the in-app toast). Permission is requested from
+  a user gesture; clicking the OS notification focuses the tab and opens the branch.
+
+Security: every notification read/mark-read is scoped to the JWT subject; the actor is always excluded
+from recipients; live signals remain content-free (the client refetches through authorized endpoints).
+Performance: one `summary` round trip backs every inline indicator; mark-read uses a single bulk
+`ExecuteUpdate`; the live push carries the full shape so the client never refetches a notification.
+
 ### fix(todos): only the author can return a completed task to work (2026-06-15)
 
 - **Reopening a completed task is now author-only.** A friend of a public/shared task's author could

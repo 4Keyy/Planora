@@ -205,6 +205,14 @@ The hub multiplexes three streams over that one socket:
 | Branch sync | `BranchChanged` | per-task `task:{id}` room, from `RealtimeSyncIntegrationEvent` (branch scope) |
 | Typing | `UserTyping` / `UserStoppedTyping` | per-task room, ephemeral (never persisted) |
 
+The Notifications stream is **durable**: RealtimeApi persists each `NotificationEvent` to its
+read-model (`RealtimeDbContext`, idempotent on the event id) before pushing, so an offline recipient
+is caught up on reconnect and the UI can query unread counts (`/notifications/summary`) for per-card
+dots, per-branch badges and the header bell. The actor who triggered an event is always excluded by
+the producer (`NotificationFanout`), and the author-only review milestones (`task.review` /
+`task.participants_done`) fire when every collaborator has finished. See `docs/features.md` →
+Realtime Notifications.
+
 `RealtimeSyncIntegrationEvent` carries the feed audience (resolved by the producing service: owner +
 shared-with + the owner's accepted friends when public) and/or a branch task id. RealtimeApi only
 routes — it makes no authorization decision. Branch rooms are joined via the hub's `JoinTask`, which
