@@ -26,11 +26,31 @@ export interface TypingPayload {
   name?: string
 }
 
+/**
+ * A per-user notification pushed live by RealtimeApi. Carries the durable id + task routing + read
+ * state so the client can render the toast, light the right card/branch unread indicator, and decide
+ * on an OS notification without a follow-up fetch. `occurredOnUtc` is the canonical timestamp; the
+ * legacy `occurredOn` alias is tolerated by the store.
+ */
+export interface NotificationPayload {
+  id: string
+  userId: string
+  taskId: string
+  actorId: string
+  type: string
+  title: string
+  message: string
+  occurredOnUtc?: string
+  occurredOn?: string
+  isRead: boolean
+}
+
 interface ServerEventMap {
   TaskFeedChanged: TaskFeedChangedPayload
   BranchChanged: BranchChangedPayload
   UserTyping: TypingPayload
   UserStoppedTyping: TypingPayload
+  ReceiveNotification: NotificationPayload
 }
 
 type ServerEvent = keyof ServerEventMap
@@ -41,6 +61,7 @@ const SERVER_EVENTS: readonly ServerEvent[] = [
   "BranchChanged",
   "UserTyping",
   "UserStoppedTyping",
+  "ReceiveNotification",
 ]
 
 /**

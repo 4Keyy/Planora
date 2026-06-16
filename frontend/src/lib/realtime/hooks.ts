@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuthStore } from "@/store/auth"
+import { useNotificationStore } from "@/store/notifications"
 import {
   realtime,
   type BranchChangedPayload,
@@ -27,6 +28,44 @@ export function useRealtimeLifecycle(): void {
     // We intentionally do NOT stop() on every token refresh — only on real logout (handled by the
     // !isAuthenticated branch). The live connection keeps running across silent token rotations.
   }, [isAuthenticated, accessToken])
+}
+
+/**
+ * Owns the notification read-model lifecycle. While authenticated it loads the unread summary
+ * (card dots / branch badges / bell count), applies every live `ReceiveNotification` push through
+ * the store, and re-hydrates when the tab regains focus so any notifications that arrived while the
+ * socket was down (they are persisted server-side) are reconciled. Clears everything on logout.
+ * Mounted once near the app root, next to {@link useRealtimeLifecycle}.
+ */
+export function useNotificationsLifecycle(): void {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      useNotificationStore.getState().reset()
+      return
+    }
+
+    const store = useNotificationStore.getState()
+    void store.hydrate()
+
+    const off = realtime.on("ReceiveNotification", (payload) => {
+      useNotificationStore.getState().ingest(payload)
+    })
+
+    // Catch up on anything missed while hidden/disconnected — the summary is the source of truth.
+    const onFocus = () => {
+      if (document.visibilityState === "visible") void useNotificationStore.getState().hydrate()
+    }
+    document.addEventListener("visibilitychange", onFocus)
+    window.addEventListener("focus", onFocus)
+
+    return () => {
+      off()
+      document.removeEventListener("visibilitychange", onFocus)
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [isAuthenticated])
 }
 
 /**
