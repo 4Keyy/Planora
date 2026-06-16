@@ -7,6 +7,7 @@ import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
 import { Plus, Sparkles, X, User, LogOut, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar } from "@/components/ui/avatar"
+import { NotificationBell } from "@/components/notifications/notification-bell"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
@@ -325,6 +326,11 @@ export function Navbar() {
               )}
             </AnimatePresence>
 
+            {/* ── Notifications bell (always visible) ───────────────── */}
+            <motion.div layout transition={CONTENT_SPRING} className="flex flex-shrink-0 items-center">
+              <NotificationBell />
+            </motion.div>
+
             {/* ── Avatar + dropdown (always visible) ────────────────── */}
             <motion.div layout transition={CONTENT_SPRING} className="relative flex flex-shrink-0 items-center px-1.5" ref={dropRef}>
               <motion.button
@@ -433,28 +439,31 @@ export function Navbar() {
             <span className="text-sm font-black tracking-tight text-gray-900 select-none">Planora</span>
           </Link>
 
-          <button
-            type="button"
-            onClick={() => setMobileOpen(v => !v)}
-            aria-label={mobileOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileOpen}
-            aria-haspopup="menu"
-            className="flex h-11 items-center gap-1.5 rounded-full pl-2 pr-1.5 transition-colors duration-150 active:bg-gray-100"
-          >
-            <span className="h-8 w-8 overflow-hidden rounded-full">
-              <Avatar
-                src={user?.profilePictureUrl}
-                firstName={user?.firstName}
-                lastName={user?.lastName}
-                email={user?.email}
-                size={32}
-                priority
-              />
-            </span>
-            <motion.span animate={{ rotate: mobileOpen ? 180 : 0 }} transition={ICON_SPRING} className="flex">
-              <ChevronDown className="h-4 w-4 text-gray-400" />
-            </motion.span>
-          </button>
+          <div className="flex items-center gap-0.5">
+            <NotificationBell />
+            <button
+              type="button"
+              onClick={() => setMobileOpen(v => !v)}
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileOpen}
+              aria-haspopup="menu"
+              className="flex h-11 items-center gap-1.5 rounded-full pl-2 pr-1.5 transition-colors duration-150 active:bg-gray-100"
+            >
+              <span className="h-8 w-8 overflow-hidden rounded-full">
+                <Avatar
+                  src={user?.profilePictureUrl}
+                  firstName={user?.firstName}
+                  lastName={user?.lastName}
+                  email={user?.email}
+                  size={32}
+                  priority
+                />
+              </span>
+              <motion.span animate={{ rotate: mobileOpen ? 180 : 0 }} transition={ICON_SPRING} className="flex">
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </motion.span>
+            </button>
+          </div>
         </motion.div>
 
         <AnimatePresence>
