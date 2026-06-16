@@ -56,6 +56,7 @@ Use this guide from the symptom outward. Prefer gateway URLs for browser/API che
 | Message send fails validation | missing recipient/subject/body or subject/body too long | subject <= 200, body <= 10000, recipient id required |
 | Message pagination fails | page/pageSize invalid | page > 0, pageSize 1-100 |
 | SignalR auth fails | token not supplied for hub connection | pass `access_token` query parameter for `/hubs` paths |
+| `Failed to start the connection: WebSocket failed to connect` at login | realtime service still booting / momentary gateway WS-upgrade hiccup; `withAutomaticReconnect()` does NOT retry a failed *initial* connect | the frontend client now retries the initial connect with backoff (2s/5s/10s/30s) and self-heals; if it keeps failing, verify RealtimeApi is up and the gateway `/realtime` ws route is reachable |
 | Active connections empty | user has no active hub connection or different token/user | reconnect frontend and verify bearer token |
 | Broadcast rejected | user is not Admin | use an admin account |
 

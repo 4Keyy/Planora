@@ -8,22 +8,37 @@ const mock = vi.hoisted(() => {
     handlers = new Map<string, (p: unknown) => void>()
     reconnected: (() => void) | null = null
     invokes: Array<{ method: string; args: unknown[] }> = []
+    /** When > 0, the next start() rejects (simulates a transient connect failure). */
+    failNextStarts = 0
     on(event: string, cb: (p: unknown) => void) { this.handlers.set(event, cb) }
     onreconnected(cb: () => void) { this.reconnected = cb }
-    async start() { this.state = "Connected" }
+    async start() {
+      if (this.failNextStarts > 0) {
+        this.failNextStarts -= 1
+        throw new Error("WebSocket failed to connect")
+      }
+      this.state = "Connected"
+    }
     async stop() { this.state = "Disconnected" }
     async invoke(method: string, ...args: unknown[]) { this.invokes.push({ method, args }) }
     /** Simulate a server→client push. */
     server(event: string, payload: unknown) { this.handlers.get(event)?.(payload) }
   }
   const built: FakeConnection[] = []
+  // Arms the NEXT connection(s) built to fail their first start() — set before realtime.start().
+  const state = { nextFailStarts: 0 }
   class FakeBuilder {
     withUrl() { return this }
     withAutomaticReconnect() { return this }
     configureLogging() { return this }
-    build() { const c = new FakeConnection(); built.push(c); return c }
+    build() {
+      const c = new FakeConnection()
+      c.failNextStarts = state.nextFailStarts
+      built.push(c)
+      return c
+    }
   }
-  return { built, FakeBuilder, FakeConnection }
+  return { built, state, FakeBuilder, FakeConnection }
 })
 
 vi.mock("@microsoft/signalr", () => ({
@@ -44,6 +59,7 @@ describe("realtime client", () => {
   beforeEach(async () => {
     await realtime.stop()
     mock.built.length = 0
+    mock.state.nextFailStarts = 0
   })
 
   it("opens exactly one connection and never rebuilds while connected", async () => {
@@ -106,6 +122,43 @@ describe("realtime client", () => {
     off()
     conn.server("TaskFeedChanged", { action: "task.updated", taskId: "x" })
     expect(received).toHaveLength(1) // no further delivery after unsubscribe
+  })
+
+  it("retries a failed initial connect with backoff until it succeeds", async () => {
+    vi.useFakeTimers()
+    try {
+      // withAutomaticReconnect only covers post-handshake drops, so the client must retry a
+      // start() that never connected. Arm the first connection to fail, then let the retry win.
+      mock.state.nextFailStarts = 1
+      await realtime.start()
+      expect(mock.built).toHaveLength(1)
+      expect(mock.built[0].state).toBe("Disconnected")
+
+      mock.state.nextFailStarts = 0
+      await vi.advanceTimersByTimeAsync(2_000) // first backoff step
+
+      expect(mock.built).toHaveLength(2)
+      expect(mock.built[1].state).toBe("Connected")
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("cancels a pending connect retry on logout", async () => {
+    vi.useFakeTimers()
+    try {
+      mock.state.nextFailStarts = 1
+      await realtime.start() // fails, schedules a retry
+      expect(mock.built).toHaveLength(1)
+
+      await realtime.stop() // logout must cancel the pending retry
+      mock.state.nextFailStarts = 0
+      await vi.advanceTimersByTimeAsync(60_000)
+
+      expect(mock.built).toHaveLength(1) // no further connection built
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("does not invoke hub methods when disconnected", async () => {

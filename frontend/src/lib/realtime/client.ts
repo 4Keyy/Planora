@@ -82,6 +82,15 @@ class RealtimeClient {
   private startPromise: Promise<void> | null = null
   private wantConnected = false
 
+  // Backoff schedule for retrying a failed INITIAL connect. `withAutomaticReconnect()` only
+  // recovers a connection that handshook successfully and then dropped — it does NOT retry a
+  // start() that never connected. So a transient failure at connect time (the realtime service
+  // still booting, a momentary gateway / WebSocket-upgrade hiccup) would otherwise leave the
+  // socket dead until the next auth tick (token refresh or re-login). We retry it ourselves.
+  private static readonly RETRY_DELAYS_MS = [2_000, 5_000, 10_000, 30_000] as const
+  private retryTimer: ReturnType<typeof setTimeout> | null = null
+  private retryAttempt = 0
+
   private readonly listeners = new Map<ServerEvent, Set<Listener<ServerEvent>>>()
   /** taskId → number of active subscribers (modal + page can overlap). */
   private readonly joinedTasks = new Map<string, number>()
@@ -89,6 +98,8 @@ class RealtimeClient {
   /** Open the connection (idempotent). Call once the user is authenticated. */
   async start(): Promise<void> {
     this.wantConnected = true
+    // A real connect attempt supersedes any pending backoff retry.
+    this.clearRetry()
 
     // A connection already exists and is up or coming up (initial connect or an automatic
     // reconnect). Never build a second socket — accessTokenFactory re-reads the token on each
@@ -111,13 +122,16 @@ class RealtimeClient {
       .then(() => {
         // A logout may have raced the handshake — honor the latest intent.
         if (!this.wantConnected) return connection.stop()
+        this.retryAttempt = 0
         return this.rejoinAll()
       })
       .catch((error) => {
-        // Leave it to the caller's lifecycle effect to retry on the next auth tick.
         if (process.env.NODE_ENV !== "production") {
           console.warn("[realtime] connection failed to start:", error)
         }
+        // Self-heal a transient connect failure with backoff instead of waiting for the next
+        // auth tick. The lifecycle still owns teardown, so a logout cancels pending retries.
+        this.scheduleRetry()
       })
       .finally(() => {
         this.startPromise = null
@@ -129,6 +143,8 @@ class RealtimeClient {
   /** Close the connection and forget joined rooms (called on logout). */
   async stop(): Promise<void> {
     this.wantConnected = false
+    this.clearRetry()
+    this.retryAttempt = 0
     this.joinedTasks.clear()
     const connection = this.connection
     this.connection = null
@@ -181,6 +197,26 @@ class RealtimeClient {
   }
 
   // ── internals ──────────────────────────────────────────────────────────────
+
+  /** Schedule one backoff retry of the initial connect (no-op if one is already pending). */
+  private scheduleRetry(): void {
+    if (!this.wantConnected || this.retryTimer) return
+    const delays = RealtimeClient.RETRY_DELAYS_MS
+    const delay = delays[Math.min(this.retryAttempt, delays.length - 1)]
+    this.retryAttempt += 1
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null
+      if (this.wantConnected) void this.start()
+    }, delay)
+  }
+
+  /** Cancel a pending backoff retry, if any. */
+  private clearRetry(): void {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer)
+      this.retryTimer = null
+    }
+  }
 
   private build(): signalR.HubConnection {
     const url = `${getApiBaseUrl()}/realtime/hubs/notifications`
