@@ -85,7 +85,7 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
             // consumes NotificationEvent and pushes it over SignalR. The quoted author gets a
             // dedicated "replied to you" instead of the generic line.
             await PublishNotificationsAsync(
-                userId, authorName, access.ParticipantIds, target, cancellationToken);
+                userId, authorName, request.TaskId, access.ParticipantIds, target, cancellationToken);
 
             // Avatar URL comes from the live caller context — this is the author themselves,
             // so their JWT claim is the freshest source available on the write path.
@@ -201,6 +201,7 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
         private async Task PublishNotificationsAsync(
             Guid authorId,
             string authorName,
+            Guid taskId,
             IReadOnlyList<Guid> participantIds,
             ReplyTarget? target,
             CancellationToken cancellationToken)
@@ -214,6 +215,8 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
             {
                 var isQuotedAuthor = target is not null && recipientId == target.AuthorId;
 
+                // TaskId lets the client route the notification to the task's card dot / branch badge;
+                // ActorId is the comment author (already excluded from recipients above).
                 var notification = isQuotedAuthor
                     ? new NotificationEvent(
                         recipientId,
@@ -221,12 +224,16 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.AddCommen
                         target!.Type == ReplyTargetType.Subtask
                             ? $"{authorName} replied to your subtask"
                             : $"{authorName} replied to your message",
-                        "ReplyAdded")
+                        NotificationType.CommentReply,
+                        taskId,
+                        authorId)
                     : new NotificationEvent(
                         recipientId,
                         "New comment",
                         $"{authorName} commented on a task",
-                        "CommentAdded");
+                        NotificationType.CommentAdded,
+                        taskId,
+                        authorId);
 
                 var outboxMessage = new OutboxMessage(
                     notification.GetType().AssemblyQualifiedName ?? notification.GetType().Name,

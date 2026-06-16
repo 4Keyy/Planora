@@ -114,6 +114,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
                         RealtimeSyncAction.TaskUpdated, todoItem.Id, userId,
                         branchTaskId: todoItem.Id, audienceUserIds: audience),
                     cancellationToken);
+
+                // Notify every other participant that someone took the task into work. The actor is
+                // excluded inside the fan-out, so the person who clicked "take" never notifies themselves.
+                await NotificationFanout.EnqueueAsync(
+                    _outboxRepository, audience, actorId: userId, taskId: todoItem.Id,
+                    type: NotificationType.TaskStarted,
+                    title: "Task picked up",
+                    message: $"{userName} took “{NotificationFanout.TitlePreview(todoItem.Title)}” into work",
+                    cancellationToken);
             }
             else if (todoItem.ParentTodoId.HasValue)
             {

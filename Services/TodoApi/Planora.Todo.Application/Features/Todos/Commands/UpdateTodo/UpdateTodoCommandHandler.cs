@@ -122,6 +122,19 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                         todoItem.ParentTodoId.Value, userId, completerName,
                                         TaskActivityType.SubtaskCompleted, todoItem.Title),
                                     cancellationToken);
+
+                                // Notify the other branch participants that a subtask was completed
+                                // (the completer is excluded). The subtask inherits the parent's
+                                // audience, so resolving from it yields the parent's participants.
+                                var subtaskAudience = await RealtimeAudience.ResolveAsync(
+                                    todoItem, _friendshipService, cancellationToken, _logger);
+                                await NotificationFanout.EnqueueAsync(
+                                    _outboxRepository, subtaskAudience, actorId: userId,
+                                    taskId: todoItem.ParentTodoId.Value,
+                                    type: NotificationType.SubtaskCompleted,
+                                    title: "Subtask completed",
+                                    message: $"{completerName} completed a subtask: “{NotificationFanout.TitlePreview(todoItem.Title)}”",
+                                    cancellationToken);
                             }
 
                             // Live: any subtask status toggle (done/in-progress/todo) reconciles in
@@ -361,6 +374,17 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                         todoItem.ParentTodoId.Value, userId, ownerName,
                         TaskActivityType.SubtaskCompleted, todoItem.Title),
                     cancellationToken);
+
+                // Same as the collaborator path: notify the other participants (owner excluded).
+                var ownerSubtaskAudience = await RealtimeAudience.ResolveAsync(
+                    todoItem, _friendshipService, cancellationToken, _logger);
+                await NotificationFanout.EnqueueAsync(
+                    _outboxRepository, ownerSubtaskAudience, actorId: userId,
+                    taskId: todoItem.ParentTodoId.Value,
+                    type: NotificationType.SubtaskCompleted,
+                    title: "Subtask completed",
+                    message: $"{ownerName} completed a subtask: “{NotificationFanout.TitlePreview(todoItem.Title)}”",
+                    cancellationToken);
             }
             else if (ownerStoppedWorking && !todoItem.IsSubtask)
             {
@@ -411,6 +435,19 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                         feedAction, todoItem.Id, userId,
                         branchTaskId: todoItem.Id, audienceUserIds: audienceSet.ToList()),
                     cancellationToken);
+
+                // When the OWNER completes a shared/public task, let the collaborators know
+                // (the owner is excluded). Friend-visible completion is high-signal, so this also
+                // drives an OS notification on the client.
+                if (ownerJustCompleted)
+                {
+                    await NotificationFanout.EnqueueAsync(
+                        _outboxRepository, audienceSet, actorId: userId, taskId: todoItem.Id,
+                        type: NotificationType.TaskCompleted,
+                        title: "Task completed",
+                        message: $"{ownerName} completed “{NotificationFanout.TitlePreview(todoItem.Title)}”",
+                        cancellationToken);
+                }
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);

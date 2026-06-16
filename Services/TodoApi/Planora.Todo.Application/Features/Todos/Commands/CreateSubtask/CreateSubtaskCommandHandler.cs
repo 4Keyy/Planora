@@ -88,6 +88,18 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
                     RealtimeSyncAction.SubtaskChanged, subtask.Id, userId, branchTaskId: parent.Id),
                 cancellationToken);
 
+            // Notify every other participant of the parent task that a subtask was added (the author
+            // of the subtask is excluded). The subtask inherits the parent's audience, so resolving
+            // from the parent gives exactly the people who can see this branch.
+            var actorName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
+            var audience = await RealtimeAudience.ResolveAsync(parent, _friendshipService, cancellationToken, _logger);
+            await NotificationFanout.EnqueueAsync(
+                _outboxRepository, audience, actorId: userId, taskId: parent.Id,
+                type: NotificationType.SubtaskAdded,
+                title: "New subtask",
+                message: $"{actorName} added a subtask: “{NotificationFanout.TitlePreview(request.Title)}”",
+                cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
