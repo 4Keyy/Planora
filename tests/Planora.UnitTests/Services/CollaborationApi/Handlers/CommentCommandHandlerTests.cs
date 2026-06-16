@@ -94,11 +94,12 @@ public sealed class CommentCommandHandlerTests
         Assert.False(dto.ReplyToDeleted);
 
         // Quoted author gets the dedicated reply notification; the other participant the generic one;
-        // plus the live-sync branch event = 3 outbox writes.
+        // plus the live-sync branch event = 3 outbox writes. Qualify by message Type because the
+        // comment notification type and the live-sync action now share the "comment.added" string.
         Assert.Equal(3, fixture.OutboxMessages.Count);
-        Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("ReplyAdded"));
-        Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("CommentAdded"));
-        Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("comment.added"));
+        Assert.Single(fixture.OutboxMessages, m => m.Type.Contains("NotificationEvent") && m.Content.Contains("comment.reply"));
+        Assert.Single(fixture.OutboxMessages, m => m.Type.Contains("NotificationEvent") && m.Content.Contains("comment.added"));
+        Assert.Single(fixture.OutboxMessages, m => m.Type.Contains("RealtimeSyncIntegrationEvent") && m.Content.Contains("comment.added"));
     }
 
     [Fact]
@@ -176,7 +177,7 @@ public sealed class CommentCommandHandlerTests
         Assert.Equal(subtaskId, dto.ReplyToId);
         Assert.Equal(subtaskAuthor, dto.ReplyToAuthorId);
         Assert.Equal("Collect the hiring numbers", dto.ReplyToPreview);
-        Assert.Single(fixture.OutboxMessages, m => m.Content.Contains("ReplyAdded"));
+        Assert.Single(fixture.OutboxMessages, m => m.Type.Contains("NotificationEvent") && m.Content.Contains("comment.reply"));
     }
 
     [Fact]

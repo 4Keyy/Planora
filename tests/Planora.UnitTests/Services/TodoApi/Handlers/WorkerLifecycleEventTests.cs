@@ -44,6 +44,8 @@ public sealed class WorkerLifecycleEventTests
         Assert.True(result.IsSuccess);
         Assert.Contains(todo.Workers, w => w.UserId == joiner);
         fixture.AssertActivityPublished(TaskActivityType.StartedWorking);
+        // The owner is notified that the task was taken into work; the joiner (actor) is not.
+        fixture.AssertNotificationPublished(NotificationType.TaskStarted, recipient: owner);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -94,7 +96,7 @@ public sealed class WorkerLifecycleEventTests
         public Mock<IFriendshipService> Friendship { get; } = new();
         public Mock<IOutboxRepository> Outbox { get; } = new();
         public Mock<IMapper> Mapper { get; } = new();
-        private OutboxMessage? _captured;
+        public List<OutboxMessage> Messages { get; } = new();
 
         public Fixture(Guid userId)
         {
@@ -108,12 +110,9 @@ public sealed class WorkerLifecycleEventTests
             Repository.Setup(x => x.GetActiveWorkerTaskCountAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(1);
             Outbox.Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
-                // Ignore the live-sync envelope so _captured stays the TaskActivity event under test.
-                .Callback<OutboxMessage, CancellationToken>((m, _) =>
-                {
-                    if (!m.Type.Contains(nameof(RealtimeSyncIntegrationEvent)))
-                        _captured = m;
-                })
+                // Capture every enqueued message so assertions can pick out the TaskActivity event,
+                // the live-sync envelope, or the per-recipient NotificationEvent independently.
+                .Callback<OutboxMessage, CancellationToken>((m, _) => Messages.Add(m))
                 .Returns(Task.CompletedTask);
             Mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>()))
                 .Returns(new TodoItemDto
@@ -133,9 +132,18 @@ public sealed class WorkerLifecycleEventTests
 
         public void AssertActivityPublished(string activityType)
         {
-            Assert.NotNull(_captured);
-            Assert.Contains(nameof(TaskActivityIntegrationEvent), _captured!.Type);
-            Assert.Contains(activityType, _captured.Content);
+            Assert.Contains(Messages, m =>
+                m.Type.Contains(nameof(TaskActivityIntegrationEvent)) && m.Content.Contains(activityType));
+        }
+
+        /// <summary>Asserts a per-recipient NotificationEvent of <paramref name="type"/> was enqueued
+        /// addressed to <paramref name="recipient"/> (the recipient appears as the UserId).</summary>
+        public void AssertNotificationPublished(string type, Guid recipient)
+        {
+            Assert.Contains(Messages, m =>
+                m.Type.Contains(nameof(NotificationEvent)) &&
+                m.Content.Contains(type) &&
+                m.Content.Contains(recipient.ToString()));
         }
 
         public JoinTodoCommandHandler JoinHandler() => new(

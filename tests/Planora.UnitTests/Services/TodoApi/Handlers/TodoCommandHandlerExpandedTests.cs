@@ -2,6 +2,8 @@ using AutoMapper;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.Todo.Application.DTOs;
 using Planora.Todo.Application.Features.Todos.Commands.CreateTodo;
 using Planora.Todo.Application.Features.Todos.Commands.DeleteTodo;
@@ -942,9 +944,16 @@ public class TodoCommandHandlerExpandedTests
                     m => m.Type.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.RealtimeSyncIntegrationEvent))),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+        // …and notifies the one other participant (the shared friend) that a subtask was added.
+        fixture.OutboxRepository.Verify(
+            x => x.AddAsync(
+                It.Is<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(
+                    m => m.Type.Contains(nameof(NotificationEvent)) && m.Content.Contains("subtask.added")),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
         fixture.OutboxRepository.Verify(
             x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Exactly(2));
     }
 
     [Fact]
@@ -1190,15 +1199,25 @@ public class TodoCommandHandlerExpandedTests
         fixture.TodoRepository.Verify(x => x.Update(subtask), Times.Once);
         fixture.ViewerPreferences.Verify(
             x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Never);
-        // A "X completed a subtask" system message is enqueued for the parent's branch, plus the
-        // live-sync event that reconciles the subtask in everyone's open branch = 2 outbox writes.
+        // A "X completed a subtask" system message is enqueued for the parent's branch, the live-sync
+        // event that reconciles the subtask in everyone's open branch, and a subtask.completed
+        // notification to the one other participant (the owner) = 3 outbox writes.
         fixture.OutboxRepository.Verify(
             x => x.AddAsync(It.IsAny<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(), It.IsAny<CancellationToken>()),
-            Times.Exactly(2));
+            Times.Exactly(3));
         fixture.OutboxRepository.Verify(
             x => x.AddAsync(
                 It.Is<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(
                     m => m.Type.Contains(nameof(Planora.BuildingBlocks.Application.Messaging.Events.RealtimeSyncIntegrationEvent))),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        // The owner is notified that a subtask was completed (the completing friend is excluded).
+        fixture.OutboxRepository.Verify(
+            x => x.AddAsync(
+                It.Is<Planora.BuildingBlocks.Application.Outbox.OutboxMessage>(
+                    m => m.Type.Contains(nameof(NotificationEvent))
+                         && m.Content.Contains("subtask.completed")
+                         && m.Content.Contains($"\"UserId\":\"{ownerId}\"")),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -1263,6 +1282,85 @@ public class TodoCommandHandlerExpandedTests
         Assert.Equal(parent.Id, result.Value![0].ParentTodoId);
     }
 
+    // ── Review / all-participants-done author signals ────────────────────────────────────────────
+
+    [Theory]
+    [Trait("TestType", "Functional")]
+    [InlineData(true, "task.review")]            // all subtasks done → ready for review
+    [InlineData(false, "task.participants_done")] // subtasks remain → people + check
+    public async Task UpdateTodo_LastCollaboratorCompletion_NotifiesAuthorWithCorrectMilestone(
+        bool allSubtasksDone, string expectedType)
+    {
+        var owner = Guid.NewGuid();
+        var friend = Guid.NewGuid();
+        var task = TodoItem.Create(owner, "Shared task", isPublic: false, sharedWithUserIds: new[] { friend });
+
+        var fixture = new TodoCommandFixture(friend); // the friend is the one completing
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(task.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(task);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(friend, owner, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        fixture.ViewerPreferences
+            .Setup(x => x.GetCompletedViewerIdsForTodoAsync(task.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid>()); // none recorded yet; the handler folds in the actor
+        fixture.TodoRepository
+            .Setup(x => x.AreAllSubtasksCompletedAsync(task.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(allSubtasksDone);
+        var messages = fixture.CaptureOutbox();
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(task.Id, Status: "done"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        // The author (owner) receives exactly the right milestone…
+        Assert.Contains(messages, m =>
+            m.Type.Contains(nameof(NotificationEvent)) &&
+            m.Content.Contains(expectedType) &&
+            m.Content.Contains($"\"UserId\":\"{owner}\""));
+        // …and the actor (the completing friend) is never a recipient (only ever the actor).
+        Assert.DoesNotContain(messages, m =>
+            m.Type.Contains(nameof(NotificationEvent)) &&
+            m.Content.Contains($"\"UserId\":\"{friend}\""));
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task UpdateTodo_PartialCompletion_DoesNotRaiseReviewMilestone()
+    {
+        var owner = Guid.NewGuid();
+        var friendA = Guid.NewGuid();
+        var friendB = Guid.NewGuid();
+        var task = TodoItem.Create(owner, "Shared task", isPublic: false, sharedWithUserIds: new[] { friendA, friendB });
+
+        var fixture = new TodoCommandFixture(friendA); // only friendA completes
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(task.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(task);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(friendA, owner, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        fixture.ViewerPreferences
+            .Setup(x => x.GetCompletedViewerIdsForTodoAsync(task.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HashSet<Guid>()); // friendB has not completed → threshold not crossed
+        var messages = fixture.CaptureOutbox();
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(task.Id, Status: "done"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        // No review / participants-done milestone fires while friendB is still outstanding…
+        Assert.DoesNotContain(messages, m =>
+            m.Type.Contains(nameof(NotificationEvent)) &&
+            (m.Content.Contains("task.review") || m.Content.Contains("task.participants_done")));
+        // …but the owner is still told a collaborator completed it.
+        Assert.Contains(messages, m =>
+            m.Type.Contains(nameof(NotificationEvent)) &&
+            m.Content.Contains("task.completed") &&
+            m.Content.Contains($"\"UserId\":\"{owner}\""));
+    }
+
     private sealed class TodoCommandFixture
     {
         public Mock<IRepository<TodoItem>> GenericRepository { get; } = new();
@@ -1299,6 +1397,22 @@ public class TodoCommandHandlerExpandedTests
             FriendshipService
                 .Setup(x => x.GetFriendIdsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Array.Empty<Guid>());
+            // The review-milestone check reads the completed-viewer set; default to "none recorded"
+            // so completion tests that don't care about the milestone never NRE on a null set.
+            ViewerPreferences
+                .Setup(x => x.GetCompletedViewerIdsForTodoAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new HashSet<Guid>());
+        }
+
+        /// <summary>Captures every OutboxMessage enqueued during a handler run for content assertions.</summary>
+        public List<OutboxMessage> CaptureOutbox()
+        {
+            var messages = new List<OutboxMessage>();
+            OutboxRepository
+                .Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
+                .Callback<OutboxMessage, CancellationToken>((m, _) => messages.Add(m))
+                .Returns(Task.CompletedTask);
+            return messages;
         }
 
         public CreateTodoCommandHandler CreateCreateHandler()
