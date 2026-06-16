@@ -88,17 +88,19 @@ public static class DependencyInjection
             // Realtime — the abstraction lands once here.
             services.AddScoped<IOutboxRepository, OutboxRepository<RealtimeDbContext>>();
 
-            // Durable notification log (write side). Registered only when a database is configured;
-            // the TryAdd fallback below covers the no-DB case.
+            // Durable notification log (write + read sides). Registered only when a database is
+            // configured; the TryAdd fallbacks below cover the no-DB case.
             services.AddScoped<INotificationStore, NotificationStore>();
+            services.AddScoped<INotificationReadStore, NotificationReadStore>();
 
             services.AddHealthChecks()
                 .AddDbContextCheck<RealtimeDbContext>("realtime-dbcontext");
         }
 
-        // No-DB fallback (test hosts / ephemeral local runs): the consumer still pushes ephemerally
-        // rather than failing to resolve the handler's dependency.
+        // No-DB fallbacks (test hosts / ephemeral local runs): the consumer still pushes ephemerally
+        // and the read API degrades to empty rather than failing to resolve.
         services.TryAddScoped<INotificationStore, NullNotificationStore>();
+        services.TryAddScoped<INotificationReadStore, NullNotificationReadStore>();
 
         return services;
     }
