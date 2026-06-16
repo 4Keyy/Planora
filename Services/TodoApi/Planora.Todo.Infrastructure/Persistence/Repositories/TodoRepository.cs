@@ -213,6 +213,16 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                     cancellationToken);
         }
 
+        public async Task<bool> AreAllSubtasksCompletedAsync(Guid parentTodoId, CancellationToken cancellationToken = default)
+        {
+            // No open child remaining ⇒ all done (vacuously true when there are no subtasks).
+            return !await DbSet
+                .AsNoTracking()
+                .AnyAsync(
+                    t => t.ParentTodoId == parentTodoId && !t.IsDeleted && t.Status != TodoStatus.Done,
+                    cancellationToken);
+        }
+
         public async Task RemoveSharesBetweenUsersAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
         {
             // Every share row in either direction between the two users, loaded and

@@ -196,6 +196,72 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                     RealtimeSyncAction.BranchActivity, todoItem.Id, userId,
                                     branchTaskId: todoItem.Id),
                                 cancellationToken);
+
+                            // ── Completion fan-out + the author-only review milestone ──────────────
+                            // Tell the owner + other collaborators a friend completed the task, and
+                            // when THIS completion is the last one needed, raise the review milestone
+                            // for the author. The actor is excluded throughout (no self-notification).
+                            var authorId = todoItem.UserId;
+                            var audience = await RealtimeAudience.ResolveAsync(
+                                todoItem, _friendshipService, cancellationToken, _logger);
+
+                            // Participants whose completion counts toward the milestone = everyone who
+                            // can see the task, except the author.
+                            var participants = audience
+                                .Where(id => id != Guid.Empty && id != authorId)
+                                .ToHashSet();
+
+                            // Decide the milestone only when every participant is now done AND the
+                            // author has not themselves closed the task (reaching this collaborator
+                            // branch means the actor isn't the owner; the status guard covers the
+                            // case where the owner already completed it).
+                            string? milestoneType = null;
+                            if (!todoItem.IsCompleted && participants.Count > 0)
+                            {
+                                var completedViewers = await _viewerPreferenceRepository
+                                    .GetCompletedViewerIdsForTodoAsync(todoItem.Id, cancellationToken);
+                                // Include the just-completed viewer — the upsert above is not flushed yet.
+                                completedViewers.Add(userId);
+
+                                if (participants.IsSubsetOf(completedViewers))
+                                {
+                                    milestoneType =
+                                        await _repository.AreAllSubtasksCompletedAsync(todoItem.Id, cancellationToken)
+                                            ? NotificationType.TaskReview            // all subtasks done → review
+                                            : NotificationType.TaskParticipantsDone; // subtasks remain → people+check
+                                }
+                            }
+
+                            var titlePreview = NotificationFanout.TitlePreview(todoItem.Title);
+
+                            // "X completed the task" to everyone except the actor — and except the
+                            // author when the milestone below already speaks to them on this same
+                            // completion, so the author never gets two notifications at once.
+                            var completionRecipients = milestoneType is null
+                                ? audience
+                                : audience.Where(id => id != authorId);
+                            await NotificationFanout.EnqueueAsync(
+                                _outboxRepository, completionRecipients, actorId: userId, taskId: todoItem.Id,
+                                type: NotificationType.TaskCompleted,
+                                title: "Task completed",
+                                message: $"{userName} completed “{titlePreview}”",
+                                cancellationToken);
+
+                            if (milestoneType is not null)
+                            {
+                                var (mTitle, mMessage) = milestoneType == NotificationType.TaskReview
+                                    ? ("Ready for review",
+                                       $"Everyone finished “{titlePreview}” — it's ready for your review")
+                                    : ("All collaborators done",
+                                       $"All collaborators completed “{titlePreview}” — some subtasks remain");
+
+                                await NotificationFanout.EnqueueAsync(
+                                    _outboxRepository, new[] { authorId }, actorId: userId, taskId: todoItem.Id,
+                                    type: milestoneType,
+                                    title: mTitle,
+                                    message: mMessage,
+                                    cancellationToken);
+                            }
                         }
 
                         await _unitOfWork.SaveChangesAsync(cancellationToken);

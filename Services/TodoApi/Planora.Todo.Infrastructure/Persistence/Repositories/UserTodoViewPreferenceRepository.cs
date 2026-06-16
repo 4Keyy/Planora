@@ -68,6 +68,16 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                     cancellationToken);
         }
 
+        public async Task<HashSet<Guid>> GetCompletedViewerIdsForTodoAsync(Guid todoItemId, CancellationToken cancellationToken = default)
+        {
+            var ids = await _context.UserTodoViewPreferences
+                .AsNoTracking()
+                .Where(p => p.TodoItemId == todoItemId && p.CompletedByViewer)
+                .Select(p => p.ViewerId)
+                .ToListAsync(cancellationToken);
+            return new HashSet<Guid>(ids);
+        }
+
         public async Task UpsertAsync(UserTodoViewPreference preference, CancellationToken cancellationToken = default)
         {
             // Check for a tracked instance first to avoid detached-entity conflicts

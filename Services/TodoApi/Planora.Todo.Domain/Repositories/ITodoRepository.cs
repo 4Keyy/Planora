@@ -47,6 +47,13 @@ namespace Planora.Todo.Domain.Repositories
         Task<IReadOnlyList<TodoItem>> GetSubtasksTrackedAsync(Guid parentTodoId, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// True when the parent task has no subtask still open — i.e. every subtask is done, or there
+        /// are no subtasks at all. Used to decide between the "ready for review" and the
+        /// "all participants done (subtasks remain)" notification. A single EXISTS query, no load.
+        /// </summary>
+        Task<bool> AreAllSubtasksCompletedAsync(Guid parentTodoId, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Removes all TodoItemShare rows that represent sharing between two users whose
         /// friendship has been revoked. Deletes shares in both directions.
         /// </summary>
