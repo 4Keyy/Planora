@@ -258,11 +258,14 @@ If a teammate still cannot open the LAN URL, the cause is almost always **local 
 not the server** (the launcher health-checks prove the server is up):
 
 - **VPN / proxy client (most common).** A TUN-mode VPN (e.g. sing-box / xray / Clash) or a system HTTP
-  proxy (`HKCU:\…\Internet Settings\ProxyEnable=1`) routes traffic to the host's own LAN IP into the
-  tunnel and blackholes it — the URL times out even though the server is healthy. `-Lan` now detects
-  this and prints a warning. Fix: use the VPN's **split-tunnel / LAN-bypass** mode, add
-  `<local>;192.168.*;<laptop-lan-ip>` to the proxy bypass list, or simply disable the VPN/proxy while
-  sharing.
+  proxy (`HKCU:\…\Internet Settings\ProxyEnable=1`) routes traffic to the host's own loopback and LAN
+  IP into the tunnel and blackholes it — the URL times out even though the server is healthy. `-Lan`
+  detects this and warns. **Fix: run with `-FixProxy`** (e.g. `.\Start-Planora-Local.ps1 -Lan -FixProxy`).
+  It adds `<local>`, `127.*`, `10.*`, `172.16-31.*`, `192.168.*` and the detected LAN IP to the WinINET
+  proxy bypass list and refreshes running browsers, so local/LAN traffic goes direct while the VPN
+  stays connected for everything else. The change is idempotent and reversible (the launcher prints the
+  previous value). If your VPN client rewrites the system proxy on every reconnect, re-run `-FixProxy`
+  or enable the client's own **bypass LAN / allow local** setting once for a permanent fix.
 - **Wrong IP.** Open the exact URL `-Lan` prints (the current IP), not an old bookmarked address — the
   DHCP-assigned IP changes between sessions.
 - **Wi-Fi isolation.** Both devices must be on the same non-guest / non-AP-isolated network.

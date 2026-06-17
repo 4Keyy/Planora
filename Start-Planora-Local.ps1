@@ -88,6 +88,16 @@
     client auto-targets the gateway on the same host it was opened from, so a teammate
     just opens that URL in their browser.
 
+.PARAMETER FixProxy
+    Make the app reachable even while a VPN/proxy client (sing-box, xray, Clash, etc.) is connected.
+    Such clients set a Windows system HTTP proxy and route every address - including the host's own
+    loopback and LAN IP - into their tunnel, which blackholes http://localhost:3000 and
+    http://<lan-ip>:3000. This switch adds <local>, 127.*, 10.*, 172.16-31.*, 192.168.* and the
+    detected LAN IP to the WinINET proxy bypass list and refreshes running browsers, so local/LAN
+    traffic goes direct. Idempotent and reversible (the previous value is printed). Note: some VPN
+    clients rewrite the system proxy on every reconnect - if so, re-run -FixProxy, or (better) enable
+    the VPN's own "bypass LAN / allow local" setting once.
+
 .PARAMETER Help
     Print usage and exit without starting anything. No log file is created.
 
@@ -110,6 +120,14 @@
 .EXAMPLE
     .\Start-Planora-Local.ps1 -Lan
     Start the stack and share it on the Wi-Fi/LAN: opens the firewall and prints the URL teammates open.
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -FixProxy
+    Start the stack and route local/LAN around the system proxy, so the app works with a VPN connected.
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -Lan -FixProxy
+    Share on the Wi-Fi/LAN AND bypass the proxy - the most robust setup when you keep a VPN running.
 
 .EXAMPLE
     .\Start-Planora-Local.ps1 -ExitAfterHealthCheck
@@ -141,6 +159,10 @@ param(
     # Open the Windows Firewall for the frontend + gateway ports and print a shareable
     # LAN URL, so another device on the same Wi-Fi can use the app while this runs.
     [switch]$Lan,
+    # Add loopback + RFC1918 private ranges to the Windows system proxy bypass list, so a
+    # VPN/proxy client (sing-box / xray / Clash) never routes local or LAN addresses through
+    # its tunnel. Makes the app reachable on localhost AND the LAN IP regardless of the VPN.
+    [switch]$FixProxy,
     # Print usage and exit.
     [switch]$Help
 )
@@ -265,7 +287,7 @@ function Show-Usage {
     Write-Host ""
     Write-Host "${BOLD}USAGE${RESET}"
     Write-Host "  .\Start-Planora-Local.ps1 [-Clean] [-SkipBuild] [-SkipFrontend] [-NoBrowser]"
-    Write-Host "                            [-Lan] [-ExitAfterHealthCheck] [-Stop] [-Help]"
+    Write-Host "                            [-Lan] [-FixProxy] [-ExitAfterHealthCheck] [-Stop] [-Help]"
     Write-Host ""
     Write-Host "${BOLD}OPTIONS${RESET}"
     Write-Host "  -Clean                 Wipe bin/obj/.next, restore, rebuild infra images (data preserved)."
@@ -273,6 +295,7 @@ function Show-Usage {
     Write-Host "  -SkipFrontend          Start the backend + gateway only; do not start the frontend."
     Write-Host "  -NoBrowser             Do not open the browser when the frontend is ready."
     Write-Host "  -Lan                   Share on the Wi-Fi/LAN: open the firewall + print the share URL."
+    Write-Host "  -FixProxy              Route local/LAN around the system proxy so a VPN never breaks access."
     Write-Host "  -ExitAfterHealthCheck  Start, verify every health endpoint, then shut down (CI / smoke test)."
     Write-Host "  -Stop                  Stop everything this launcher started and free the ports, then exit."
     Write-Host "  -Help                  Show this help and exit (no log file created)."
@@ -286,6 +309,8 @@ function Show-Usage {
     Write-Host "  .\Start-Planora-Local.ps1 -SkipBuild      # fastest restart, reuse existing build"
     Write-Host "  .\Start-Planora-Local.ps1 -Clean          # full clean rebuild"
     Write-Host "  .\Start-Planora-Local.ps1 -Lan            # also share on the Wi-Fi/LAN"
+    Write-Host "  .\Start-Planora-Local.ps1 -FixProxy       # make it work with a VPN/proxy turned on"
+    Write-Host "  .\Start-Planora-Local.ps1 -Lan -FixProxy  # share on LAN AND bypass the proxy"
     Write-Host "  .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser"
     Write-Host "  .\Start-Planora-Local.ps1 -Stop           # stop everything this launcher started"
     Write-Host "  Get-Help .\Start-Planora-Local.ps1 -Full  # full annotated help"
@@ -493,6 +518,72 @@ function Test-LanProxyInterference {
             Write-Info "  use the VPN's split-tunnel/LAN-bypass mode, or disable it while sharing on the LAN."
         }
     } catch { }
+
+    Write-Info "Tip: re-run with -FixProxy to route local/LAN around the proxy so the app works with the VPN on."
+}
+
+# Notify already-running WinINET apps (Edge/Chrome/IE) that proxy settings changed, so a
+# new bypass list takes effect immediately without restarting the browser.
+function Update-WinInetSettings {
+    try {
+        if (-not ([System.Management.Automation.PSTypeName]'Planora.WinInet').Type) {
+            Add-Type -Namespace Planora -Name WinInet -MemberDefinition '[System.Runtime.InteropServices.DllImport("wininet.dll", SetLastError=true)] public static extern bool InternetSetOption(System.IntPtr h, int opt, System.IntPtr buf, int len);'
+        }
+        # 39 = INTERNET_OPTION_SETTINGS_CHANGED, 37 = INTERNET_OPTION_REFRESH
+        [void][Planora.WinInet]::InternetSetOption([System.IntPtr]::Zero, 39, [System.IntPtr]::Zero, 0)
+        [void][Planora.WinInet]::InternetSetOption([System.IntPtr]::Zero, 37, [System.IntPtr]::Zero, 0)
+    } catch { }
+}
+
+# Ensure loopback + every RFC1918 private range (and the detected LAN IP) are in the WinINET
+# proxy bypass list. With these present a VPN/proxy client never sends local or LAN traffic to
+# its upstream proxy, so the app loads on http://localhost:3000 AND http://<lan-ip>:3000 even
+# while the VPN is connected. Idempotent and reversible (the previous value is printed).
+function Set-LocalProxyBypass {
+    $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
+    try { $reg = Get-ItemProperty $key -ErrorAction Stop } catch { $reg = $null }
+
+    $proxyOn = $reg -and $reg.ProxyEnable -eq 1 -and -not [string]::IsNullOrWhiteSpace($reg.ProxyServer)
+
+    # <local> covers dotless hostnames (localhost, the machine name); the wildcards cover the
+    # loopback and the three private IPv4 ranges; the LAN IP is added explicitly for good measure.
+    $needed = [System.Collections.Generic.List[string]]::new()
+    @('<local>', 'localhost', '127.*', '10.*', '192.168.*') | ForEach-Object { $needed.Add($_) }
+    16..31 | ForEach-Object { $needed.Add("172.$_.*") }
+    if (-not $script:LanShareIp) { $script:LanShareIp = Get-LanIPv4 }
+    if ($script:LanShareIp) { $needed.Add($script:LanShareIp) }
+
+    $previous = if ($reg) { "$($reg.ProxyOverride)" } else { "" }
+    $existing = @()
+    if (-not [string]::IsNullOrWhiteSpace($previous)) {
+        $existing = @($previous -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+
+    $merged = [System.Collections.Generic.List[string]]::new()
+    $existing | ForEach-Object { $merged.Add($_) }
+    $added = [System.Collections.Generic.List[string]]::new()
+    foreach ($n in $needed) {
+        if ($merged -notcontains $n) { $merged.Add($n); $added.Add($n) }
+    }
+
+    if ($added.Count -eq 0) {
+        Write-OK "Proxy bypass already covers local/LAN (ProxyOverride unchanged)."
+    } else {
+        $newValue = ($merged -join ';')
+        try {
+            Set-ItemProperty -Path $key -Name ProxyOverride -Value $newValue -ErrorAction Stop
+            Update-WinInetSettings
+            Write-OK "Proxy bypass updated - local/LAN no longer routes through the proxy."
+            Write-Info "  Added: $($added -join ', ')"
+            Write-Info "  Revert: set ProxyOverride back to '$previous' under HKCU\...\Internet Settings."
+        } catch {
+            Write-Warn "Could not update the proxy bypass list: $($_.Exception.Message)"
+        }
+    }
+
+    if (-not $proxyOn) {
+        Write-Info "No system proxy is enabled right now; this bypass simply pre-arms for when your VPN turns one on."
+    }
 }
 
 # Open an inbound TCP allow rule for the given ports, scoped to the local subnet only
@@ -1192,6 +1283,13 @@ if (-not $preOk) {
     Write-Fail "Preflight checks failed - resolve the issues above and retry."
     try { Stop-Transcript | Out-Null } catch {}
     exit 1
+}
+
+# -- Step 1a: proxy bypass for VPN-independent local/LAN access (-FixProxy) ---
+if ($FixProxy) {
+    Write-Host ""
+    Write-Step "Routing local/LAN around the system proxy (VPN-independent access)..."
+    Set-LocalProxyBypass
 }
 
 # -- Step 1b: LAN sharing setup (-Lan) ---------------------------------------

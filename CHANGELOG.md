@@ -14,6 +14,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   so a background-only failure can never crash the app. Implemented in
   `frontend/src/components/backgrounds/color-bends-layer.tsx`.
 
+### feat(launcher): -FixProxy makes the app usable with a VPN/proxy connected (2026-06-17)
+
+- New `-FixProxy` switch. A TUN-mode VPN / system proxy (sing-box, xray, Clash) routes the host's own
+  loopback and LAN IP into its tunnel and blackholes them, so `http://localhost:3000` and the LAN URL
+  time out even though the server is healthy. `-FixProxy` adds `<local>`, `127.*`, `10.*`,
+  `172.16-31.*`, `192.168.*` and the detected LAN IP to the WinINET proxy bypass list and refreshes
+  running browsers (`InternetSetOption`), so local/LAN traffic goes direct while the VPN stays
+  connected for everything else. Idempotent and reversible (prints the previous value). Verified: with
+  the VPN proxy active, `localhost:3000`, `localhost:5132` and `http://<lan-ip>:3000/5132` all return
+  HTTP 200 from a fresh client after applying it.
+
 ### fix(launcher): -Lan self-heals to the current IP and warns about VPN/proxy interference (2026-06-17)
 
 - `-Lan` now overrides `Frontend__BaseUrl`, `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_API_GATEWAY_URL` in
@@ -21,7 +32,8 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   no longer leaves email links / the client API origin pinned to a stale address in `.env`.
 - Added `Test-LanProxyInterference`: when sharing on the LAN, the launcher now warns if a system HTTP
   proxy does not bypass LAN addresses, or if a virtual/VPN (TUN) adapter holds a default route — the
-  most common reason a teammate cannot open the shared URL while the server is actually healthy.
+  most common reason a teammate cannot open the shared URL while the server is actually healthy — and
+  points the user at `-FixProxy`.
 - Docs: `docs/configuration.md` and `docs/troubleshooting.md` updated with the proxy/VPN blackhole
   diagnosis and remediation.
 
