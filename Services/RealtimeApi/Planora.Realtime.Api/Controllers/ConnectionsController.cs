@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Planora.Realtime.Application.Response;
 using Planora.Realtime.Infrastructure.Services;
 using ConnectionInfo = Planora.Realtime.Application.Response.ConnectionInfo;
@@ -25,7 +26,11 @@ namespace Planora.Realtime.Api.Controllers
         [ProducesResponseType(typeof(ActiveConnectionsResponse), StatusCodes.Status200OK)]
         public IActionResult GetActiveConnections()
         {
-            var userId = User.FindFirst("sub")?.Value;
+            // The default inbound claim mapping remaps the JWT "sub" to ClaimTypes.NameIdentifier,
+            // so check both — reading only "sub" returns null against a real token and 401s. Mirrors
+            // the fallback in CurrentUserContext / CurrentUserService used across the codebase.
+            var userId = User.FindFirst("sub")?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(userId))
             {

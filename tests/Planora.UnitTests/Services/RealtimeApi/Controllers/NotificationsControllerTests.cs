@@ -76,6 +76,30 @@ public class NotificationsControllerTests
         readStore.Verify(x => x.GetSummaryAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    // REGRESSION: the real JWT pipeline remaps the token's "sub" to ClaimTypes.NameIdentifier
+    // (MapInboundClaims defaults to true), so the controller must resolve the id from
+    // NameIdentifier too. Reading only "sub" 401'd every notification REST call in production,
+    // which the other tests missed by injecting a raw "sub" claim that bypasses the remapping.
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task GetSummary_AcceptsSubjectRemappedToNameIdentifier()
+    {
+        var userId = Guid.NewGuid();
+        var readStore = new Mock<INotificationReadStore>();
+        var summary = NotificationSummary.Empty;
+        readStore.Setup(x => x.GetSummaryAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(summary);
+
+        var controller = CreateController(
+            new Mock<INotificationService>(), userId.ToString(), readStore, claimType: ClaimTypes.NameIdentifier);
+
+        var response = await controller.GetSummary(CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(response);
+        Assert.Same(summary, ok.Value);
+        readStore.Verify(x => x.GetSummaryAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     [Fact]
     [Trait("TestType", "Security")]
     public async Task GetSummary_RejectsNonGuidSubject()
@@ -130,11 +154,12 @@ public class NotificationsControllerTests
     private static NotificationsController CreateController(
         Mock<INotificationService> notificationService,
         string? userId,
-        Mock<INotificationReadStore>? readStore = null)
+        Mock<INotificationReadStore>? readStore = null,
+        string claimType = "sub")
     {
         var identity = userId is null
             ? new ClaimsIdentity()
-            : new ClaimsIdentity(new[] { new Claim("sub", userId) }, "test");
+            : new ClaimsIdentity(new[] { new Claim(claimType, userId) }, "test");
 
         return new NotificationsController(
             notificationService.Object,

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Planora.Realtime.Application.Requests;
 using Planora.Realtime.Application.Interfaces;
 using Planora.Realtime.Application.Response;
@@ -90,11 +91,22 @@ namespace Planora.Realtime.Api.Controllers
             return Ok(summary);
         }
 
+        /// <summary>
+        /// Resolves the caller's subject id from the JWT. The default inbound claim mapping
+        /// (<c>JwtBearerOptions.MapInboundClaims</c> = true) remaps the token's <c>sub</c> to
+        /// <see cref="ClaimTypes.NameIdentifier"/>, so BOTH must be checked — this is the same
+        /// fallback every other Planora consumer uses (<c>CurrentUserContext</c>,
+        /// <c>CurrentUserService</c>, the rate-limit <c>PartitionKey</c>). Reading only <c>sub</c>
+        /// returns null against a real token and 401s every notification call.
+        /// </summary>
+        private string? GetUserSubject() =>
+            User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
         /// <summary>Extracts the authenticated user id from the JWT subject claim.</summary>
         private bool TryGetUserId(out Guid userId)
         {
             userId = Guid.Empty;
-            var sub = User.FindFirst("sub")?.Value;
+            var sub = GetUserSubject();
             return !string.IsNullOrEmpty(sub) && Guid.TryParse(sub, out userId);
         }
 
@@ -104,7 +116,7 @@ namespace Planora.Realtime.Api.Controllers
         public async Task<IActionResult> SendNotification(
             [FromBody] SendNotificationRequest request)
         {
-            var userId = User.FindFirst("sub")?.Value;
+            var userId = GetUserSubject();
 
             if (string.IsNullOrEmpty(userId))
             {

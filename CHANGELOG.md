@@ -4,6 +4,27 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(realtime): notification REST endpoints 401'd because they read the raw `sub` claim (2026-06-18)
+
+- **Root cause of the persistent `GET /realtime/api/v1/notifications/summary` 401:** the realtime REST
+  controllers resolved the caller via `User.FindFirst("sub")` with **no fallback**. The default JWT
+  inbound claim mapping (`JwtBearerOptions.MapInboundClaims = true`) remaps the token's `sub` to
+  `ClaimTypes.NameIdentifier`, so against a real token `FindFirst("sub")` returns null and the
+  controller returned `401 USER_NOT_AUTHENTICATED` on **every** call — deterministically, not a race.
+  Every other consumer in the codebase already reads the id defensively (`CurrentUserContext`,
+  `CurrentUserService`, the rate-limit `PartitionKey`), and the SignalR hub worked because
+  `Context.UserIdentifier` derives from `NameIdentifier` — so live pushes succeeded while the REST
+  summary/list/mark-read calls (and the poll fallback) silently 401'd. The unit tests missed it by
+  injecting a raw `sub` claim, which bypasses the handler's remapping.
+- **Fix:** `NotificationsController` and `ConnectionsController` now resolve the subject as
+  `sub ?? ClaimTypes.NameIdentifier`, matching the rest of the codebase. Added regression tests that
+  build the principal with `ClaimTypes.NameIdentifier` (the production shape) for both controllers.
+- Verified: solution compiles clean; full unit suite green (784 tests), including the two new
+  regression tests.
+
+Security: no auth weakening — the fix only recognizes the same authenticated subject the rest of the
+platform already trusts; unauthenticated requests still return 401.
+
 ### fix(frontend): stop a refresh storm that logged users out when the WebSocket is down (2026-06-17)
 
 - **Root cause:** once the notification-summary poll fallback shipped (see the entry below), a

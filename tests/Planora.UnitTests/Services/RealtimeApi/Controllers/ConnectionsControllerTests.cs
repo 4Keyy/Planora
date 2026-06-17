@@ -30,6 +30,26 @@ public class ConnectionsControllerTests
         Assert.Equal(new[] { "conn-1", "conn-2" }, payload.Connections.Select(x => x.ConnectionId));
     }
 
+    // REGRESSION: the real JWT pipeline remaps "sub" to ClaimTypes.NameIdentifier, so the
+    // controller must resolve the id from NameIdentifier too — reading only "sub" 401'd in prod.
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public void GetActiveConnections_ShouldAcceptSubjectRemappedToNameIdentifier()
+    {
+        var connectionManager = new Mock<IConnectionManager>();
+        connectionManager
+            .Setup(x => x.GetUserConnections("user-123"))
+            .Returns(new List<string> { "conn-1" });
+        var controller = CreateController(connectionManager.Object, "user-123", ClaimTypes.NameIdentifier);
+
+        var response = Assert.IsType<OkObjectResult>(controller.GetActiveConnections());
+        var payload = Assert.IsType<ActiveConnectionsResponse>(response.Value);
+
+        Assert.Equal("user-123", payload.UserId);
+        Assert.Equal(1, payload.ConnectionCount);
+    }
+
     [Fact]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
@@ -58,7 +78,8 @@ public class ConnectionsControllerTests
         Assert.True(payload.Timestamp <= DateTime.UtcNow);
     }
 
-    private static ConnectionsController CreateController(IConnectionManager connectionManager, string? userId)
+    private static ConnectionsController CreateController(
+        IConnectionManager connectionManager, string? userId, string claimType = "sub")
     {
         var controller = new ConnectionsController(
             connectionManager,
@@ -66,7 +87,7 @@ public class ConnectionsControllerTests
 
         var identity = userId is null
             ? new ClaimsIdentity()
-            : new ClaimsIdentity(new[] { new Claim("sub", userId) }, "test");
+            : new ClaimsIdentity(new[] { new Claim(claimType, userId) }, "test");
 
         controller.ControllerContext = new ControllerContext
         {
