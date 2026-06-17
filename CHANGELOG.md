@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### chore(frontend): drop unused dependencies (−253 transitive packages) (2026-06-17)
+
+- Removed four declared-but-unused frontend dependencies: `shadcn` (a scaffolding **CLI** that does not
+  belong in runtime `dependencies` — it is still usable via `npx shadcn`), `radix-ui` (the meta-package;
+  the app imports the scoped `@radix-ui/*` packages directly), `react-bits` and `date-fns` (no imports;
+  dates are formatted natively via `toLocaleDateString`). `npm install` pruned **253 transitive
+  packages**, cutting install time and the supply-chain / CVE surface (follow-up to the recent
+  transitive-CVE patch). `@tanstack/react-query` is currently unused too but kept as a deliberate
+  data-fetching stack choice — flagged for a future decision.
+- README dependency table corrected to match reality (also fixed stale `next 15.5` → `16.2`).
+
+Performance: smaller `node_modules` and faster `npm ci`. Security: 253 fewer packages in the dependency graph.
+
 ### fix(frontend): decorative WebGL background no longer crashes the app (2026-06-17)
 
 - The live `ColorBends` background lazy-loads the three.js chunk and was mounted in the root layout

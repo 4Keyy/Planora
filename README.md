@@ -162,12 +162,11 @@ Backend package versions are managed centrally in
 
 | Purpose | Packages |
 |---|---|
-| **Framework** | [next `15.5`](https://www.npmjs.com/package/next) · [react `18.3`](https://www.npmjs.com/package/react) · [react-dom `18.3`](https://www.npmjs.com/package/react-dom) · [typescript `5.7`](https://www.npmjs.com/package/typescript) |
-| **State / data** | [zustand `5`](https://www.npmjs.com/package/zustand) · [@tanstack/react-query `5`](https://www.npmjs.com/package/@tanstack/react-query) · [axios `1.16`](https://www.npmjs.com/package/axios) |
-| **Forms / validation** | [react-hook-form `7.76`](https://www.npmjs.com/package/react-hook-form) · [zod `3.24`](https://www.npmjs.com/package/zod) · [@hookform/resolvers](https://www.npmjs.com/package/@hookform/resolvers) |
-| **UI / styling** | [tailwindcss `3.4`](https://www.npmjs.com/package/tailwindcss) · [Radix UI](https://www.npmjs.com/package/radix-ui) primitives · [shadcn](https://www.npmjs.com/package/shadcn) · [lucide-react](https://www.npmjs.com/package/lucide-react) · [class-variance-authority](https://www.npmjs.com/package/class-variance-authority) · [tailwind-merge](https://www.npmjs.com/package/tailwind-merge) · [clsx](https://www.npmjs.com/package/clsx) · [Plus Jakarta Sans](https://www.npmjs.com/package/@fontsource/plus-jakarta-sans) |
-| **Motion / 3D** | [framer-motion `11`](https://www.npmjs.com/package/framer-motion) · [three `0.184`](https://www.npmjs.com/package/three) · [ogl](https://www.npmjs.com/package/ogl) · [react-bits](https://www.npmjs.com/package/react-bits) |
-| **Utilities** | [date-fns `4`](https://www.npmjs.com/package/date-fns) |
+| **Framework** | [next `16.2`](https://www.npmjs.com/package/next) · [react `18.3`](https://www.npmjs.com/package/react) · [react-dom `18.3`](https://www.npmjs.com/package/react-dom) · [typescript `5.7`](https://www.npmjs.com/package/typescript) |
+| **State / data** | [zustand `5`](https://www.npmjs.com/package/zustand) · [@tanstack/react-query `5`](https://www.npmjs.com/package/@tanstack/react-query) · [axios `1.17`](https://www.npmjs.com/package/axios) |
+| **Forms / validation** | [react-hook-form `7.78`](https://www.npmjs.com/package/react-hook-form) · [zod `3.24`](https://www.npmjs.com/package/zod) · [@hookform/resolvers](https://www.npmjs.com/package/@hookform/resolvers) |
+| **UI / styling** | [tailwindcss `3.4`](https://www.npmjs.com/package/tailwindcss) · [@radix-ui/*](https://www.npmjs.com/package/@radix-ui/react-dialog) primitives (shadcn-generated, scaffolded with the `shadcn` CLI via `npx`) · [lucide-react](https://www.npmjs.com/package/lucide-react) · [class-variance-authority](https://www.npmjs.com/package/class-variance-authority) · [tailwind-merge](https://www.npmjs.com/package/tailwind-merge) · [clsx](https://www.npmjs.com/package/clsx) · [Plus Jakarta Sans](https://www.npmjs.com/package/@fontsource/plus-jakarta-sans) |
+| **Motion / 3D** | [framer-motion `11`](https://www.npmjs.com/package/framer-motion) · [three `0.184`](https://www.npmjs.com/package/three) |
 | **Testing** | [vitest `4`](https://www.npmjs.com/package/vitest) · [@testing-library/react](https://www.npmjs.com/package/@testing-library/react) · [@playwright/test `1.57`](https://www.npmjs.com/package/@playwright/test) |
 
 ### Infrastructure & delivery
