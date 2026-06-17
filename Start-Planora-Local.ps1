@@ -456,6 +456,45 @@ function Test-IsAdministrator {
         ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+# A running proxy/VPN client (e.g. a sing-box / xray TUN that sets a system HTTP proxy
+# and grabs the default route) is the single most common reason a teammate cannot open
+# the shared LAN URL even though the server, firewall and binding are all correct: the
+# host routes traffic to its own LAN IP into the tunnel and blackholes it. This is purely
+# diagnostic - it warns with a remediation hint and never changes the user's VPN/proxy.
+function Test-LanProxyInterference {
+    param([string]$LanIp)
+
+    # 1. WinINET system proxy that does not bypass LAN/private addresses.
+    try {
+        $reg = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction Stop
+        if ($reg.ProxyEnable -eq 1 -and -not [string]::IsNullOrWhiteSpace($reg.ProxyServer)) {
+            $override = "$($reg.ProxyOverride)"
+            $bypassesLan = $override -match '<local>' -or $override -match '192\.168\.\*' -or
+                           $override -match '10\.\*' -or ($LanIp -and $override -match [regex]::Escape($LanIp))
+            if (-not $bypassesLan) {
+                Write-Warn "A system HTTP proxy is enabled ($($reg.ProxyServer)) and does NOT bypass LAN addresses."
+                Write-Info "  It routes http://$LanIp through the proxy and can blackhole it - the app then appears unreachable."
+                Write-Info "  Fix: add '<local>;192.168.*;$LanIp' to the proxy bypass list, or disable the proxy/VPN while sharing."
+            }
+        }
+    } catch { }
+
+    # 2. A non-physical (VPN/TUN) adapter that holds a default route - it can capture the
+    #    reply traffic to LAN peers. Compare default-route interfaces against the physical NICs.
+    try {
+        $physicalAliases = @(Get-NetAdapter -Physical -ErrorAction Stop |
+            Where-Object { $_.Status -eq 'Up' } | Select-Object -ExpandProperty InterfaceAlias)
+        $defaultRouteAliases = @(Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty InterfaceAlias -Unique)
+        $tunnelDefaults = @($defaultRouteAliases | Where-Object { $physicalAliases -notcontains $_ })
+        if ($tunnelDefaults.Count -gt 0) {
+            Write-Warn "A virtual/VPN adapter holds a default route: $($tunnelDefaults -join ', ')."
+            Write-Info "  A TUN-mode VPN can reroute LAN replies into the tunnel. If teammates cannot connect,"
+            Write-Info "  use the VPN's split-tunnel/LAN-bypass mode, or disable it while sharing on the LAN."
+        }
+    } catch { }
+}
+
 # Open an inbound TCP allow rule for the given ports, scoped to the local subnet only
 # (so it is reachable by Wi-Fi peers but never from the wider internet) and on every
 # firewall profile (a VPN often flips the active adapter to the Public profile). Idempotent:
@@ -1167,6 +1206,23 @@ if ($Lan) {
     } else {
         Write-OK "Host LAN address: $($script:LanShareIp)"
         $null = Enable-LanFirewall -Ports @($FrontendPort, $GatewayPort)
+
+        # Keep every LAN-IP-dependent setting in lock-step with the freshly detected IP.
+        # The .env values are pinned to whatever IP the machine had when they were written;
+        # a changed DHCP lease then leaves email links and the client's API origin pointing
+        # at a dead address. Overriding them in this process's environment (inherited by the
+        # backend services and the Next.js dev server) means -Lan always self-heals to the
+        # current IP - no manual .env editing after every reconnect. Set AFTER Import-EnvFile
+        # so these win over the file values.
+        $lanGatewayUrl  = "http://$($script:LanShareIp):$GatewayPort"
+        $lanFrontendUrl = "http://$($script:LanShareIp):$FrontendPort"
+        [System.Environment]::SetEnvironmentVariable("Frontend__BaseUrl",           $lanFrontendUrl, "Process")
+        [System.Environment]::SetEnvironmentVariable("NEXT_PUBLIC_API_URL",         $lanGatewayUrl,  "Process")
+        [System.Environment]::SetEnvironmentVariable("NEXT_PUBLIC_API_GATEWAY_URL", $lanGatewayUrl,  "Process")
+        Write-OK "Synced LAN URLs to current IP (Frontend__BaseUrl -> $lanFrontendUrl)"
+
+        # Warn about a running proxy/VPN that would blackhole the LAN URL despite a healthy server.
+        Test-LanProxyInterference -LanIp $script:LanShareIp
     }
 }
 

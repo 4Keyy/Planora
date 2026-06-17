@@ -247,18 +247,28 @@ what used to be manual is now automatic:
   `upgrade-insecure-requests` in dev so the browser does not rewrite the `http://…:5132` API calls
   to HTTPS, which the local gateway does not serve.
 
-The one thing that is **not** auto-derived is **email links** (verification / password reset),
-which Auth generates server-side from `Frontend__BaseUrl` (default `http://localhost:3000`). If a
-LAN peer must click an emailed link, set the LAN base URL in `.env` and restart the launcher:
+- **Email links** — auto-synced. Auth generates verification / password-reset links server-side from
+  `Frontend__BaseUrl`. `-Lan` now overrides `Frontend__BaseUrl` (and `NEXT_PUBLIC_API_URL` /
+  `NEXT_PUBLIC_API_GATEWAY_URL`) in the child process environment with the **freshly detected** LAN IP
+  on every run, so a changed DHCP lease never leaves these pinned to a stale address. A hardcoded
+  `Frontend__BaseUrl=http://192.168.x.y:3000` in `.env` is no longer needed for LAN sharing; if one is
+  present, `-Lan` supersedes it for that run.
 
-```env
-Frontend__BaseUrl=http://<laptop-lan-ip>:3000
-```
+If a teammate still cannot open the LAN URL, the cause is almost always **local network interference,
+not the server** (the launcher health-checks prove the server is up):
 
-If a teammate still cannot open the LAN URL: confirm both devices are on the same (non-guest /
-non-isolated) Wi-Fi, and that a VPN — if active — is in split-tunnel mode with local/LAN access
-allowed. `-Lan` already creates the firewall rule across all profiles, so a `Public` Wi-Fi profile
-no longer blocks it.
+- **VPN / proxy client (most common).** A TUN-mode VPN (e.g. sing-box / xray / Clash) or a system HTTP
+  proxy (`HKCU:\…\Internet Settings\ProxyEnable=1`) routes traffic to the host's own LAN IP into the
+  tunnel and blackholes it — the URL times out even though the server is healthy. `-Lan` now detects
+  this and prints a warning. Fix: use the VPN's **split-tunnel / LAN-bypass** mode, add
+  `<local>;192.168.*;<laptop-lan-ip>` to the proxy bypass list, or simply disable the VPN/proxy while
+  sharing.
+- **Wrong IP.** Open the exact URL `-Lan` prints (the current IP), not an old bookmarked address — the
+  DHCP-assigned IP changes between sessions.
+- **Wi-Fi isolation.** Both devices must be on the same non-guest / non-AP-isolated network.
+
+`-Lan` already creates the firewall rule across all profiles, so a `Public` Wi-Fi profile no longer
+blocks it.
 
 Code:
 

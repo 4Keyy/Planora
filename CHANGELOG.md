@@ -4,6 +4,27 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): decorative WebGL background no longer crashes the app (2026-06-17)
+
+- The live `ColorBends` background lazy-loads the three.js chunk and was mounted in the root layout
+  **before** the page-level `ErrorBoundary`. A failed chunk load (stale `.next` cache after a dev
+  restart, a flaky network, or an HTTP proxy mangling the `/_next/*` request) therefore surfaced as a
+  fatal `Runtime ChunkLoadError` that took down every page. `ColorBendsLayer` now wraps the lazy
+  background in its own `ErrorBoundary` that degrades to the same static gradient mobile already uses,
+  so a background-only failure can never crash the app. Implemented in
+  `frontend/src/components/backgrounds/color-bends-layer.tsx`.
+
+### fix(launcher): -Lan self-heals to the current IP and warns about VPN/proxy interference (2026-06-17)
+
+- `-Lan` now overrides `Frontend__BaseUrl`, `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_API_GATEWAY_URL` in
+  the child process environment with the freshly detected LAN IP on every run, so a changed DHCP lease
+  no longer leaves email links / the client API origin pinned to a stale address in `.env`.
+- Added `Test-LanProxyInterference`: when sharing on the LAN, the launcher now warns if a system HTTP
+  proxy does not bypass LAN addresses, or if a virtual/VPN (TUN) adapter holds a default route — the
+  most common reason a teammate cannot open the shared URL while the server is actually healthy.
+- Docs: `docs/configuration.md` and `docs/troubleshooting.md` updated with the proxy/VPN blackhole
+  diagnosis and remediation.
+
 ### feat(notifications): durable real-time notification system (2026-06-16)
 
 - **Every branch event notifies the other participants — never the actor.** A new message, a subtask,

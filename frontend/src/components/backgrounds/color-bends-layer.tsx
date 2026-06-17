@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, lazy, useState } from "react"
+import { ErrorBoundary } from "@/components/error-boundary"
 
 const ColorBends = lazy(() =>
   import("./color-bends").then(m => ({ default: m.ColorBends }))
@@ -68,6 +69,11 @@ const STATIC_BACKGROUND =
   "radial-gradient(110% 90% at 100% 100%, rgba(97,97,97,0.10), transparent 55%)," +
   "linear-gradient(158deg, rgba(212,212,212,0.14), rgba(255,255,255,0) 70%)"
 
+/** Static gradient fallback element — visually equivalent to the live shader's palette. */
+const StaticBackground = (
+  <div className="w-full h-full" style={{ background: STATIC_BACKGROUND }} aria-hidden="true" />
+)
+
 /** Drop once into the root layout — gives every page the ColorBends background. */
 export function ColorBendsLayer() {
   const [iterations] = useState(detectIterations)
@@ -76,25 +82,34 @@ export function ColorBendsLayer() {
   return (
     <div className="fixed inset-0 -z-10 pointer-events-none">
       {lightweight ? (
-        <div className="w-full h-full" style={{ background: STATIC_BACKGROUND }} aria-hidden="true" />
+        StaticBackground
       ) : (
-        <Suspense fallback={null}>
-          <ColorBends
-            colors={["#d4d4d4", "#9e9e9e", "#616161"]}
-            rotation={-65}
-            speed={0.36}
-            scale={1.4}
-            frequency={1}
-            warpStrength={1}
-            mouseInfluence={0.8}
-            noise={0}
-            parallax={0.65}
-            iterations={iterations}
-            intensity={1.2}
-            bandWidth={6}
-            transparent
-          />
-        </Suspense>
+        // RESILIENCE: the live background lazy-loads the three.js chunk. If that
+        // chunk fails to load (stale .next cache after a dev-server restart, a
+        // flaky network, or an HTTP proxy mangling the `/_next/*` request), the
+        // thrown ChunkLoadError must NOT take down the whole app — this layer
+        // renders before the layout's main ErrorBoundary, so without a local
+        // boundary the failure crashes every page (see layout.tsx). The decorative
+        // background degrades to the same static gradient mobile already uses.
+        <ErrorBoundary fallback={StaticBackground}>
+          <Suspense fallback={null}>
+            <ColorBends
+              colors={["#d4d4d4", "#9e9e9e", "#616161"]}
+              rotation={-65}
+              speed={0.36}
+              scale={1.4}
+              frequency={1}
+              warpStrength={1}
+              mouseInfluence={0.8}
+              noise={0}
+              parallax={0.65}
+              iterations={iterations}
+              intensity={1.2}
+              bandWidth={6}
+              transparent
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
     </div>
   )
