@@ -1,3 +1,5 @@
+using System.Security.Claims;
+
 namespace Planora.Realtime.Api.Hubs
 {
     [Authorize]
@@ -10,9 +12,18 @@ namespace Planora.Realtime.Api.Hubs
             _logger = logger;
         }
 
+        /// <summary>
+        /// Resolves the caller's id from the JWT. The default inbound claim mapping remaps the
+        /// token's <c>sub</c> to <see cref="ClaimTypes.NameIdentifier"/>, so both must be checked —
+        /// reading only <c>sub</c> yields null and silently disables every presence broadcast.
+        /// </summary>
+        private string? GetUserId() =>
+            Context.User?.FindFirst("sub")?.Value
+            ?? Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
         public override async Task OnConnectedAsync()
         {
-            var userId = Context.User?.FindFirst("sub")?.Value;
+            var userId = GetUserId();
             if (!string.IsNullOrEmpty(userId))
             {
                 await Clients.Others.SendAsync("UserConnected", userId);
@@ -24,7 +35,7 @@ namespace Planora.Realtime.Api.Hubs
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            var userId = Context.User?.FindFirst("sub")?.Value;
+            var userId = GetUserId();
             if (!string.IsNullOrEmpty(userId))
             {
                 await Clients.Others.SendAsync("UserDisconnected", userId);
@@ -41,7 +52,7 @@ namespace Planora.Realtime.Api.Hubs
 
         public async Task UpdateStatus(string status)
         {
-            var userId = Context.User?.FindFirst("sub")?.Value;
+            var userId = GetUserId();
             if (string.IsNullOrEmpty(userId))
                 return;
 

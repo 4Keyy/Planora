@@ -16,11 +16,12 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   `Context.UserIdentifier` derives from `NameIdentifier` — so live pushes succeeded while the REST
   summary/list/mark-read calls (and the poll fallback) silently 401'd. The unit tests missed it by
   injecting a raw `sub` claim, which bypasses the handler's remapping.
-- **Fix:** `NotificationsController` and `ConnectionsController` now resolve the subject as
-  `sub ?? ClaimTypes.NameIdentifier`, matching the rest of the codebase. Added regression tests that
-  build the principal with `ClaimTypes.NameIdentifier` (the production shape) for both controllers.
-- Verified: solution compiles clean; full unit suite green (784 tests), including the two new
-  regression tests.
+- **Fix:** `NotificationsController`, `ConnectionsController`, and `PresenceHub` now resolve the
+  subject as `sub ?? ClaimTypes.NameIdentifier`, matching the rest of the codebase. `PresenceHub` had
+  the same latent bug in all three handlers (`OnConnectedAsync` / `OnDisconnectedAsync` /
+  `UpdateStatus`), so every presence broadcast silently no-op'd. Added regression tests that build the
+  principal with `ClaimTypes.NameIdentifier` (the production shape) for all three.
+- Verified: solution compiles clean; full unit suite green, including the three new regression tests.
 
 Security: no auth weakening — the fix only recognizes the same authenticated subject the rest of the
 platform already trusts; unauthenticated requests still return 401.

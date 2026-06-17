@@ -32,6 +32,32 @@ public sealed class PresenceHubTests
         VerifySend(others, "UserDisconnected", "user-1");
     }
 
+    // REGRESSION: the real JWT pipeline remaps the token's "sub" to ClaimTypes.NameIdentifier, so
+    // the hub must resolve the id from NameIdentifier too — reading only "sub" silently disabled
+    // every presence broadcast in production.
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task PresenceHub_ShouldBroadcastWhenSubjectIsRemappedToNameIdentifier()
+    {
+        var others = new Mock<IClientProxy>();
+        var clients = new Mock<IHubCallerClients>();
+        clients.SetupGet(x => x.Others).Returns(others.Object);
+        var hub = new PresenceHub(Mock.Of<ILogger<PresenceHub>>())
+        {
+            Context = CreateContext("user-1", ClaimTypes.NameIdentifier),
+            Clients = clients.Object
+        };
+
+        await hub.OnConnectedAsync();
+        await hub.UpdateStatus("busy");
+        await hub.OnDisconnectedAsync(null);
+
+        VerifySend(others, "UserConnected", "user-1");
+        VerifySend(others, "UserStatusChanged", "user-1", "busy");
+        VerifySend(others, "UserDisconnected", "user-1");
+    }
+
     [Fact]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
@@ -53,12 +79,12 @@ public sealed class PresenceHubTests
         others.VerifyNoOtherCalls();
     }
 
-    private static HubCallerContext CreateContext(string? userId)
+    private static HubCallerContext CreateContext(string? userId, string claimType = "sub")
     {
         var context = new Mock<HubCallerContext>();
         var identity = userId is null
             ? new ClaimsIdentity()
-            : new ClaimsIdentity(new[] { new Claim("sub", userId) }, "test");
+            : new ClaimsIdentity(new[] { new Claim(claimType, userId) }, "test");
         context.SetupGet(x => x.User).Returns(new ClaimsPrincipal(identity));
         return context.Object;
     }
