@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): notifications survive a dead WebSocket via a summary poll fallback (2026-06-17)
+
+- When the live SignalR WebSocket cannot establish (a VPN/system proxy blocks the upgrade, a flaky
+  network, the realtime service restarting), the push channel is dead and the bell previously only
+  caught up on tab focus — a long-lived foreground tab could stay stale indefinitely. Added a 20s
+  fallback poll of the persisted unread summary that runs **only while the socket is down and the tab
+  is visible** (a no-op once the WebSocket is connected, and paused while hidden to save
+  battery/requests). Notifications now arrive regardless of WebSocket availability. Added
+  `RealtimeClient.isConnected`; implemented in `useNotificationsLifecycle`
+  (`frontend/src/lib/realtime/hooks.ts`). Verified: type-check clean, 62 realtime/store tests green.
+
 ### fix(gateway): route the notification REST API through Ocelot (notifications now arrive) (2026-06-17)
 
 - **Root cause of "notifications never arrive":** the only `/realtime/*` Ocelot route was the

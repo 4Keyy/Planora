@@ -70,8 +70,22 @@ export function useNotificationsLifecycle(): void {
     document.addEventListener("visibilitychange", onFocus)
     window.addEventListener("focus", onFocus)
 
+    // RESILIENCE: when the live WebSocket cannot establish (a VPN / system proxy blocks the upgrade,
+    // a flaky network, the realtime service restarting), the push channel is dead and focus-only
+    // catch-up can leave the bell stale for a long-lived foreground tab. Poll the persisted summary
+    // on an interval *only while the socket is down and the tab is visible* — a no-op once the
+    // WebSocket is connected (live pushes already keep the store current) and while hidden (saves
+    // battery/requests). This makes notifications arrive regardless of WebSocket availability.
+    const POLL_MS = 20_000
+    const poll = setInterval(() => {
+      if (realtime.isConnected) return
+      if (document.visibilityState !== "visible") return
+      void useNotificationStore.getState().hydrate()
+    }, POLL_MS)
+
     return () => {
       off()
+      clearInterval(poll)
       document.removeEventListener("visibilitychange", onFocus)
       window.removeEventListener("focus", onFocus)
     }

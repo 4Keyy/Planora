@@ -157,6 +157,11 @@ class RealtimeClient {
     }
   }
 
+  /** Whether the live connection is currently established (the WebSocket is up and handshook). */
+  get isConnected(): boolean {
+    return this.connection?.state === signalR.HubConnectionState.Connected
+  }
+
   /** Subscribe to a server event. Returns an unsubscribe function. */
   on<E extends ServerEvent>(event: E, listener: Listener<E>): () => void {
     let set = this.listeners.get(event)
