@@ -244,6 +244,14 @@ public class Program
 
             app.UseSecurityHeaders();
 
+            // SECURITY: apply the global per-IP rate limiter (100 req/min, configured above) to every
+            // gateway request, before authentication and Ocelot. A flood is then rejected cheaply with
+            // a 429 + Retry-After before any JWT validation or downstream proxying happens. Without this
+            // UseRateLimiter() call the registered GlobalLimiter was inert — only Ocelot's per-route
+            // RateLimitOptions were ever enforced, leaving unthrottled routes (and the gateway itself)
+            // exposed to request floods.
+            app.UseRateLimiter();
+
             // Required for Ocelot to proxy the SignalR WebSocket upgrade through to RealtimeApi
             // (the /realtime route uses the ws downstream scheme). Without this the upgrade request
             // is treated as a plain HTTP GET and the hub handshake never completes.

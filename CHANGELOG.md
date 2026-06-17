@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(gateway): actually apply the global rate limiter (it was registered but inert) (2026-06-17)
+
+- The API gateway registered an ASP.NET Core global rate limiter (100 req/min/IP, fixed window, with a
+  proper `429` + `Retry-After` response) but never called `app.UseRateLimiter()`, so the middleware
+  was dead — only Ocelot's per-route `RateLimitOptions` (configured on a subset of routes) were ever
+  enforced, leaving the gateway and every unthrottled route open to request floods. Added
+  `app.UseRateLimiter()` before authentication and Ocelot so floods are rejected cheaply, before any
+  JWT validation or downstream proxying. Verified: gateway builds clean (0 warnings/errors).
+
+Security: closes a gateway-wide rate-limiting gap (DoS / brute-force hardening).
+
 ### fix(frontend): notifications survive a dead WebSocket via a summary poll fallback (2026-06-17)
 
 - When the live SignalR WebSocket cannot establish (a VPN/system proxy blocks the upgrade, a flaky
