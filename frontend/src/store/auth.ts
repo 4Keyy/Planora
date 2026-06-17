@@ -284,9 +284,19 @@ export const useAuthStore = create(
           const refreshed = await refreshAccessToken()
           get().applyRefresh(refreshed)
           trackProductEvent(PRODUCT_EVENTS.sessionRestored, { method: "refresh" }, refreshed.accessToken)
-        } catch {
-          trackProductEvent(PRODUCT_EVENTS.tokenRefreshFailed, { surface: "restore_session" }, state.accessToken)
-          get().clearAuth()
+        } catch (error) {
+          // A 429 means the refresh endpoint is rate-limited right now, NOT that the session is
+          // gone — the httpOnly refresh cookie may still be valid. Clearing auth here would hard-
+          // log-out (and broadcast logout to every open tab) over a transient limit and feed a
+          // reload → refresh → 429 loop. Leave the session untouched; the scheduled refresh or the
+          // next foreground request renews the token once the window clears.
+          const status = (error as { response?: { status?: number } })?.response?.status
+          if (status === 429) {
+            trackProductEvent(PRODUCT_EVENTS.tokenRefreshFailed, { surface: "restore_session_rate_limited" }, state.accessToken)
+          } else {
+            trackProductEvent(PRODUCT_EVENTS.tokenRefreshFailed, { surface: "restore_session" }, state.accessToken)
+            get().clearAuth()
+          }
         } finally {
           set({ hasRestoredSession: true })
         }

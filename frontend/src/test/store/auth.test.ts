@@ -295,6 +295,22 @@ describe("auth store", () => {
     expect(useAuthStore.getState().hasRestoredSession).toBe(true)
   })
 
+  it("preserves the session when silent refresh is rate-limited (429)", async () => {
+    useAuthStore.getState().setAuth({
+      accessToken: authToken({ exp: pastEpoch() }),
+      refreshTokenExpiresAt: "2099-01-01T00:00:00.000Z",
+    })
+    // A 429 on /auth/refresh is a transient per-IP rate limit, not an invalid session — the
+    // httpOnly refresh cookie is still good. Hard-logging-out here (and broadcasting logout to
+    // every tab) would feed a reload → refresh → 429 loop, so the session must be preserved.
+    vi.mocked(refreshAccessToken).mockRejectedValue({ response: { status: 429 } })
+
+    await useAuthStore.getState().restoreSession()
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(useAuthStore.getState().hasRestoredSession).toBe(true)
+  })
+
   it("reports token validity with access-token and refresh-cookie expiry windows", () => {
     useAuthStore.getState().setAuth({
       accessToken: authToken({ exp: pastEpoch() }),

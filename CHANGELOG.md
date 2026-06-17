@@ -4,6 +4,33 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): stop a refresh storm that logged users out when the WebSocket is down (2026-06-17)
+
+- **Root cause:** once the notification-summary poll fallback shipped (see the entry below), a
+  long-lived tab with a dead WebSocket polled `GET /realtime/api/v1/notifications/summary` every 20s.
+  When the access token expired, that best-effort poll hit a gateway `401`, and the axios response
+  interceptor escalated it into a token refresh — even though the poll already swallows its own
+  failures. Combined with `restoreSession`, the scheduled refresh, and retries, `/auth/refresh` was
+  called more than the `auth` policy's `10/min/IP` allows and started returning `429`. The interceptor
+  then treated that transient `429` as an invalid session: `clearAuth()` + cross-tab logout broadcast
+  + redirect to `/auth/login` — which triggered more refreshes and looped. Each failure also fired a
+  `TOKEN_REFRESH_FAILED` analytics POST that `403`'d on the cleared CSRF token (the visible
+  `429`/`401`/`403` console cascade).
+- **Fix (two rules in `frontend/src/lib/api.ts`):**
+  1. **Best-effort background calls never drive refresh/logout.** A request marked `suppressErrorLog`
+     (the notification/subtask/comment polls) that gets a `401` now rejects silently — the caller keeps
+     its last-known value and the next foreground request (or the scheduled refresh) renews the token.
+  2. **A `429` on refresh is transient, not an invalid session.** The interceptor no longer logs the
+     user out on a rate-limited refresh; it backs off for the `Retry-After` window (default 60s,
+     clamped 1–300s) and preserves the session. `restoreSession` in `frontend/src/store/auth.ts` got
+     the same treatment so a startup `429` cannot hard-log-out every tab.
+- Verified: type-check clean, lint clean, full frontend suite green (497 tests), coverage gate held
+  (global branches 85.4% ≥ 85). Added interceptor + store tests covering the silent-401, refresh-429,
+  and back-off-window paths.
+
+Security: a transient per-IP rate limit no longer destroys a valid session; the client also stops
+self-inflicting the `429` by hammering `/auth/refresh` from background polls.
+
 ### fix(gateway): actually apply the global rate limiter (it was registered but inert) (2026-06-17)
 
 - The API gateway registered an ASP.NET Core global rate limiter (100 req/min/IP, fixed window, with a

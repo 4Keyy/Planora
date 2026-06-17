@@ -10,6 +10,27 @@ import type { AuthTokenDto } from "@/types/auth"
 
 const BASE_URL = getApiBaseUrl()
 let refreshPromise: Promise<AuthTokenDto> | null = null
+/**
+ * Epoch-ms until which token refresh is backed off after a 429. A 429 on /auth/refresh is a
+ * transient per-IP rate-limit ("retry later"), NOT a sign the session is invalid — so while this
+ * window is open we must NOT re-initiate a refresh (that is exactly what tripped the limit) and must
+ * NOT log the user out (the httpOnly refresh cookie is still good). The session is preserved; the
+ * triggering request just fails once.
+ */
+let refreshBlockedUntil = 0
+
+/**
+ * Back-off duration after a 429 on refresh, taken from the Retry-After header (seconds) and
+ * defaulting to 60s to match the gateway's 1-minute fixed window. Clamped to [1s, 300s] so a
+ * malformed/hostile header cannot freeze refresh indefinitely.
+ */
+const refreshBackoffMs = (error: AxiosError): number => {
+  const header = error.response?.headers?.["retry-after"]
+  const seconds = typeof header === "string" ? Number.parseInt(header, 10) : NaN
+  const clamped = Number.isFinite(seconds) ? Math.min(Math.max(seconds, 1), 300) : 60
+  return clamped * 1000
+}
+
 type RetriableRequestConfig = NonNullable<AxiosError["config"]> & {
   _retry?: boolean
   _csrfRetry?: boolean
@@ -219,6 +240,23 @@ api.interceptors.response.use(
         }
 
         if (!originalRequest._retry) {
+          // RESILIENCE: best-effort background calls (notification-summary polling while the
+          // WebSocket is down, subtask/comment polling) must NOT drive the global refresh/logout
+          // flow. A transient 401 on a 20s poll would otherwise stampede /auth/refresh, trip the
+          // per-IP "auth" rate limit (429), and log the user out mid-session. Let them reject — the
+          // caller already swallows the failure and keeps the last-known value, and the scheduled
+          // refresh / next foreground request renews the token.
+          if (originalRequest.suppressErrorLog) {
+            return Promise.reject(error)
+          }
+
+          // Honor a prior 429 back-off: while rate-limited, do not re-initiate a refresh (that is
+          // exactly what tripped the limit). The session is still valid — surface the error so the
+          // caller can retry once the window clears.
+          if (Date.now() < refreshBlockedUntil) {
+            return Promise.reject(error)
+          }
+
           originalRequest._retry = true
           try {
             // No token arg - httpOnly cookie is sent automatically via withCredentials.
@@ -239,7 +277,16 @@ api.interceptors.response.use(
               ? traceparentForExistingTrace(traceId)
               : newTraceparent()
             return api(originalRequest)
-          } catch {
+          } catch (refreshError) {
+            // A 429 on refresh is a transient rate-limit, not an invalid session. Logging the user
+            // out here is wrong (the httpOnly refresh cookie is still good) and feeds a re-login
+            // loop that keeps the limit tripped. Back off for the Retry-After window and preserve
+            // the session; only the triggering request fails this once.
+            if (axios.isAxiosError(refreshError) && refreshError.response?.status === 429) {
+              refreshBlockedUntil = Date.now() + refreshBackoffMs(refreshError)
+              console.warn("[API] Token refresh rate-limited (429) — backing off, session preserved")
+              return Promise.reject(error)
+            }
             console.warn("[API] Token refresh failed, clearing auth")
             trackProductEvent(
               PRODUCT_EVENTS.tokenRefreshFailed,

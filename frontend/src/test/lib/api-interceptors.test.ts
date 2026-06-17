@@ -264,4 +264,62 @@ describe("api interceptors", () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
     expect(clearCsrfToken).toHaveBeenCalledOnce()
   })
+
+  // A best-effort background poll (notification summary while the WebSocket is down) is marked
+  // suppressErrorLog. A 401 on it must NOT drive the global refresh/logout flow — otherwise the
+  // 20s poll stampedes /auth/refresh into the per-IP rate limit and logs the user out mid-session.
+  it("does not refresh or log out on a 401 from a best-effort background request", async () => {
+    useAuthStore.setState({ accessToken: "expired-token", isAuthenticated: true, roles: ["User"] })
+
+    const error = {
+      response: { status: 401 },
+      config: {
+        url: "/realtime/api/v1/notifications/summary",
+        method: "get",
+        headers: {},
+        suppressErrorLog: true,
+      },
+    }
+
+    await expect(responseRejected()(error)).rejects.toBe(error)
+
+    expect(refreshAccessToken).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(clearCsrfToken).not.toHaveBeenCalled()
+  })
+
+  // NOTE: this test intentionally runs last — the 429 path opens a module-level back-off window
+  // (refreshBlockedUntil) that suppresses subsequent refreshes for up to 60s. Keeping it at the end
+  // prevents that leaked state from starving the refresh-expecting tests above.
+  //
+  // A 429 on /auth/refresh is a transient per-IP rate limit, not an invalid session: the user must
+  // stay logged in (the httpOnly refresh cookie is still good), and the client must back off rather
+  // than re-hammer /auth/refresh (which is what tripped the limit in the first place).
+  it("preserves the session on a 429 and backs off further refreshes", async () => {
+    useAuthStore.setState({ accessToken: "expired-token", isAuthenticated: true, roles: ["User"] })
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+    vi.mocked(refreshAccessToken).mockRejectedValueOnce({
+      isAxiosError: true,
+      response: { status: 429, headers: { "retry-after": "60" } },
+    })
+
+    const makeError = () => ({
+      response: { status: 401 },
+      config: { url: "/todos/api/v1/todos", method: "get", headers: {} },
+    })
+
+    // First 401 → refresh → 429: session preserved, back-off window opened.
+    await expect(responseRejected()(makeError())).rejects.toBeDefined()
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(clearCsrfToken).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[API] Token refresh rate-limited (429) — backing off, session preserved",
+    )
+
+    // Second 401 within the window must short-circuit without calling refresh again.
+    await expect(responseRejected()(makeError())).rejects.toBeDefined()
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
 })

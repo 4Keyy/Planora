@@ -40,6 +40,11 @@ State-changing browser requests to Auth API require the double-submit token:
 
 Frontend startup uses `getCsrfToken()` instead of unconditional token fetch so reloads reuse an existing `XSRF-TOKEN` cookie. The CSRF helper also shares concurrent token fetches, and the public auth client retries one CSRF `403` after clearing the readable cookie. Silent refresh calls are serialized in `auth-public.ts` so one browser reload cannot send competing refresh-token rotation requests.
 
+**Client-side refresh discipline (anti-storm).** The axios interceptor in `api.ts` enforces two rules so background traffic cannot stampede `/auth/refresh` into its `10/min` rate limit (which would otherwise cascade into spurious logouts):
+
+1. **Best-effort background calls never drive refresh or logout.** A request marked `suppressErrorLog` (the notification-summary poll that runs while the WebSocket is down, and the subtask/comment polls) that receives a `401` rejects silently. The caller already keeps its last-known value; the access token is renewed by the scheduled refresh or the next foreground request — never by a background tick.
+2. **A `429` on refresh is transient, not an invalid session.** A rate-limited refresh does **not** clear auth or redirect (the httpOnly refresh cookie is still valid). The interceptor backs off for the `Retry-After` window (default 60s, clamped to 1–300s) before any further refresh, and `restoreSession` applies the same rule at startup so a `429` cannot hard-log-out every open tab. Genuine `401`/cookie-expiry failures still clear auth and redirect as before.
+
 Code:
 
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`
