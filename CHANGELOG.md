@@ -4,6 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(gateway): route the notification REST API through Ocelot (notifications now arrive) (2026-06-17)
+
+- **Root cause of "notifications never arrive":** the only `/realtime/*` Ocelot route was the
+  WebSocket route (`DownstreamScheme: ws`, `GET` only). So the frontend's notification read calls —
+  `GET /realtime/api/v1/notifications/summary`, `GET /realtime/api/v1/notifications`,
+  `POST /realtime/api/v1/notifications/read` — were being matched by the **ws** route: GETs were
+  proxied as a (failing) WebSocket upgrade and returned `503`, and the `POST` had no matching route at
+  all. The calls are marked best-effort (`SILENT`), so they failed invisibly and the bell / unread
+  summary stayed empty even though RealtimeApi was healthy and the endpoints were documented.
+- **Fix:** added an HTTP route `/realtime/api/v1/{everything}` → `http://…/api/v1/{everything}`
+  (RealtimeApi, GET/POST/PUT/DELETE/PATCH, Bearer auth) ahead of the ws catch-all in both `ocelot.json`
+  and `ocelot.Docker.json`. The ws route still serves the SignalR hub `/realtime/hubs/notifications`.
+  Verified live: after the change (hot-reloaded via `reloadOnChange`) the gateway proxies
+  `GET /realtime/api/v1/notifications/summary` to RealtimeApi (503 → 401-without-token, then 200 with a
+  valid session) instead of mishandling it as a WebSocket. `docs/API.md` route table updated to match.
+- The realtime **WebSocket** itself (live push) additionally requires the browser to reach the hub
+  directly — a VPN/system proxy blocks the WS upgrade (the "WebSocket failed to connect … proxy
+  blocking WebSockets" error). Use `-FixProxy` (see launcher) so the WS goes direct. With the REST
+  route fixed, the bell still catches up via the summary on load/focus even when the WS is unavailable.
+
 ### chore(frontend): drop unused dependencies (−253 transitive packages) (2026-06-17)
 
 - Removed four declared-but-unused frontend dependencies: `shadcn` (a scaffolding **CLI** that does not

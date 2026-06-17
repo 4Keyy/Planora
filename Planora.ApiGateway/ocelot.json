@@ -234,6 +234,22 @@
       "RateLimitOptions": { "EnableRateLimiting": false }
     },
     {
+      "DownstreamPathTemplate": "/api/v1/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5032 } ],
+      "UpstreamPathTemplate": "/realtime/api/v1/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
       "DownstreamPathTemplate": "/{everything}",
       "DownstreamScheme": "ws",
       "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5032 } ],

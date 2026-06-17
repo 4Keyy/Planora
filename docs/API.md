@@ -93,7 +93,8 @@ Ocelot route files leave most routes unthrottled, but the realtime route enables
 | `/categories/api/v1/{everything}` | Category API | bearer |
 | `/messaging/api/v1/{everything}` | Messaging API | bearer |
 | `/collaboration/api/v1/{everything}` | Collaboration API (task comment timeline) | bearer |
-| `/realtime/{everything}` | Realtime API, websocket route | route-dependent |
+| `/realtime/api/v1/{everything}` | Realtime API HTTP route (notifications + connections REST) | bearer |
+| `/realtime/{everything}` | Realtime API websocket route (SignalR hub `/hubs/notifications`) | route-dependent |
 
 ## Authentication
 
