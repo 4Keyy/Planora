@@ -229,6 +229,44 @@ public class RuntimeContractTests
         Assert.Contains("{Escape}", combined, StringComparison.Ordinal);
     }
 
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public void ControllersAndHubs_ReadingSubClaim_MustFallBackToNameIdentifier()
+    {
+        // The default JWT inbound claim mapping remaps the token's "sub" to ClaimTypes.NameIdentifier,
+        // so any controller/hub that reads FindFirst("sub") WITHOUT the NameIdentifier fallback
+        // resolves null against a real token and 401s/403s every call. This footgun shipped four times
+        // (realtime NotificationsController / ConnectionsController / PresenceHub, Auth
+        // FriendshipsController). This guard fails CI if a new handler reintroduces a raw "sub" read.
+        var root = FindRepositoryRoot();
+        var handlerSources = Directory
+            .EnumerateFiles(Path.Combine(root, "Services"), "*.cs", SearchOption.AllDirectories)
+            .Where(path => !IsBuildArtifact(path))
+            .Where(path =>
+            {
+                var dir = Path.GetDirectoryName(path) ?? string.Empty;
+                return dir.Contains($"{Path.DirectorySeparatorChar}Controllers", StringComparison.Ordinal)
+                    || dir.Contains($"{Path.DirectorySeparatorChar}Hubs", StringComparison.Ordinal);
+            })
+            .Select(path => (Name: Path.GetFileName(path), Text: File.ReadAllText(path)))
+            .ToArray();
+
+        Assert.NotEmpty(handlerSources);
+
+        var offenders = handlerSources
+            .Where(file => file.Text.Contains("FindFirst(\"sub\")", StringComparison.Ordinal)
+                && !file.Text.Contains("NameIdentifier", StringComparison.Ordinal))
+            .Select(file => file.Name)
+            .ToArray();
+
+        Assert.True(
+            offenders.Length == 0,
+            "Controllers/Hubs that read the JWT \"sub\" claim must fall back to "
+            + "ClaimTypes.NameIdentifier (the default inbound claim mapping remaps \"sub\"). Offenders: "
+            + string.Join(", ", offenders));
+    }
+
     private static string FindRepositoryRoot()
     {
         var current = AppContext.BaseDirectory;

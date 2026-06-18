@@ -19,7 +19,11 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   the rate-limit `PartitionKey`. Added a regression test that drives both friendship endpoints with a
   `ClaimTypes.NameIdentifier`-only principal (the real post-mapping shape) and asserts they succeed —
   the existing tests passed only because they injected a raw `sub` claim that bypasses remapping.
-- Verified: solution compiles clean; full unit suite green (786 tests), including the new regression.
+- **Recurrence guard:** added a `RuntimeContractTests` source scan that fails CI if any controller or
+  hub under `Services/**` reads `FindFirst("sub")` without a `NameIdentifier` fallback — this exact
+  footgun shipped four times across the realtime and auth services.
+- Verified: solution compiles clean; full unit suite green (787 tests), including the new regression
+  and the recurrence guard.
 
 Security: restores the self-scoped authorization guard (the endpoints were fail-closed at 403, so this
 is a correctness fix, not a privilege widening — unauthenticated/mismatched callers still get 403).
