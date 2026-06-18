@@ -650,9 +650,10 @@ The HTTP controller overwrites sender from the current user context by sending `
 
 A durable, per-user, per-task notification system: when anything happens in a task's branch (a new
 message, a subtask, someone taking the task into work, a completion) every **other** participant —
-never the actor — gets a notification in real time, shown as an unread mark on the task card, an
-unread count by the branch composer, a header bell, an in-app toast, and (for high-signal events) a
-native OS notification.
+never the actor — gets a notification in real time, shown as a labeled pill on the task card (a
+tinted icon chip carrying a people/branch motif glyph, the human label, and the unread count — so a
+glance reads *what happened and who/where*), an unread count by the branch composer, a header bell,
+an in-app toast, and (for high-signal events) a native OS notification.
 
 ### Implementation
 
@@ -664,9 +665,10 @@ native OS notification.
   (`ReceiveNotification`). Read API: `NotificationReadStore` + `NotificationsController`
   (`summary` / list / `read`).
 - Frontend: `store/notifications.ts` (read-model + optimistic mark-read), `lib/notifications/types.ts`
-  (type → icon/tint/OS flag), `components/notifications/notification-badge.tsx` (card dot + branch
-  badge), `notification-bell.tsx` (header center), `lib/notifications/web-notifications.ts` (OS), and
-  the `useNotificationsLifecycle` hook in `lib/realtime/hooks.ts`.
+  (type → icon/tint/label/OS flag + people·branch·chat motif), `components/notifications/notification-badge.tsx`
+  (`variant="pill"` — the labeled plate on the card; `variant="mark"` — the compact tinted disc on the
+  branch composer), `notification-bell.tsx` (header center), `lib/notifications/web-notifications.ts` (OS),
+  and the `useNotificationsLifecycle` hook in `lib/realtime/hooks.ts`.
 
 ### Key Rules
 

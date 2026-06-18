@@ -371,16 +371,21 @@ function TodoCardComponent({
           isCompleted ? "opacity-60 hover:opacity-70" : "z-10"
         )}
       >
-      {/* Unread notification mark — top-right, above the card surface (the Card clips its own
-          overflow). Hidden while the delete affordance is active so the two never collide. */}
+      {/* Unread notification plate — top-right, above the card surface (the Card clips its own
+          overflow). A labeled pill so a glance reads what happened and who/where (people/branch
+          motif + human label + count), not just a colored dot. Hidden while the delete affordance
+          is active so the two never collide. */}
       <AnimatePresence>
         {unread && unread.count > 0 && !isDeleteZoneHovered && (
           <NotificationBadge
             key="unread-mark"
             type={unread.latestType}
-            size={20}
+            variant="pill"
+            count={unread.count}
+            showCount
+            size={22}
             pulse={!isCompleted}
-            className="absolute top-1.5 right-1.5 z-40 pointer-events-none"
+            className="absolute -top-2 right-2 z-40 pointer-events-none"
           />
         )}
       </AnimatePresence>

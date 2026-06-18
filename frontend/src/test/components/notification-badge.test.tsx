@@ -60,4 +60,30 @@ describe("NotificationBadge", () => {
     render(<NotificationBadge type="comment.added" count={3} showCount />)
     expect(screen.getByText("3")).toBeInTheDocument()
   })
+
+  describe("pill variant", () => {
+    it("shows the human label as visible text", () => {
+      render(<NotificationBadge type="task.review" variant="pill" count={1} showCount />)
+      expect(screen.getByText("Ready for review")).toBeInTheDocument()
+      expect(screen.getByRole("status")).toHaveAttribute("aria-label", "Ready for review")
+    })
+
+    it("renders the count plate and a count-aware aria-label when count > 1", () => {
+      render(<NotificationBadge type="comment.added" variant="pill" count={4} showCount />)
+      expect(screen.getByText("New message")).toBeInTheDocument()
+      expect(screen.getByText("4")).toBeInTheDocument()
+      expect(screen.getByRole("status")).toHaveAttribute("aria-label", "4 unread · New message")
+    })
+
+    it("caps the pill count at 99+", () => {
+      render(<NotificationBadge type="task.completed" variant="pill" count={150} showCount />)
+      expect(screen.getByText("99+")).toBeInTheDocument()
+    })
+
+    it("renders a motif glyph beside the kind icon for a people/branch event", () => {
+      // task.completed → people motif: kind icon (Check) + motif disc (Users) = ≥2 svgs.
+      const { container } = render(<NotificationBadge type="subtask.added" variant="pill" count={1} showCount />)
+      expect(container.querySelectorAll("svg").length).toBeGreaterThanOrEqual(2)
+    })
+  })
 })
