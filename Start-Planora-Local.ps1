@@ -261,6 +261,13 @@ function Set-LocalPostgresConnectionEnvironment {
         "TodoDatabase"          = "planora_todo"
         "MessagingDatabase"     = "planora_messaging"
         "CollaborationDatabase" = "planora_collaboration"
+        # RealtimeDatabase is REQUIRED for the durable notification log: AddRealtimeInfrastructure
+        # only registers the real NotificationStore / NotificationReadStore when this connection
+        # string is present, otherwise it falls back to the no-op Null stores — live SignalR pushes
+        # still fire, but nothing is persisted, so the unread summary the bell/card/branch badges
+        # read is permanently empty. Omitting it here (while docker-compose sets it) made notifications
+        # invisible in host-process mode only.
+        "RealtimeDatabase"      = "planora_realtime"
     }
     foreach ($entry in $databases.GetEnumerator()) {
         $conn = "Host=localhost;Port=5433;Database=$($entry.Value);Username=$pgUser;Password=$pgPassword;Maximum Pool Size=100;Minimum Pool Size=5;"

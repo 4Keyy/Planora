@@ -305,7 +305,7 @@ public class DependencyInjectionContractTests
     [Fact]
     [Trait("TestType", "Integration")]
     [Trait("TestType", "Module")]
-    public void AddRealtimeInfrastructure_ShouldRegisterConnectionNotificationAndEventBusSingletons()
+    public void AddRealtimeInfrastructure_ShouldRegisterConnectionNotificationEventBusAndConcreteHandlers()
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -325,6 +325,15 @@ public class DependencyInjectionContractTests
             && descriptor.Lifetime == ServiceLifetime.Singleton);
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IEventBus)
             && descriptor.Lifetime == ServiceLifetime.Singleton);
+
+        // Regression (notifications silently dropped): integration-event handlers MUST be registered
+        // by their CONCRETE type, because RabbitMqEventBus resolves them via GetService(typeof(THandler)).
+        // An interface-only registration made GetService(concreteType) return null, so the bus skipped
+        // the handler and ACKed the message — nothing was ever persisted or pushed.
+        AssertScoped<Planora.Realtime.Application.Handlers.NotificationEventHandler,
+            Planora.Realtime.Application.Handlers.NotificationEventHandler>(services);
+        AssertScoped<Planora.Realtime.Application.Handlers.RealtimeSyncEventHandler,
+            Planora.Realtime.Application.Handlers.RealtimeSyncEventHandler>(services);
 
         using var provider = services.BuildServiceProvider();
         Assert.IsType<RabbitMqConnectionManager>(provider.GetRequiredService<IRabbitMqConnectionManager>());

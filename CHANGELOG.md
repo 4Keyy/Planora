@@ -4,6 +4,43 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(realtime): notifications never persisted — event handlers registered by interface, resolved by concrete type (2026-06-18)
+
+- **The actual reason no notification ever appeared anywhere** (empty bell, no card/branch badges, no
+  live toast), independent of the REST/auth fixes below. RealtimeApi registered its integration-event
+  handlers by their interface — `AddTransient<IIntegrationEventHandler<NotificationEvent>, NotificationEventHandler>()`
+  — but `RabbitMqEventBus.ProcessEventAsync` resolves the handler by its **concrete** type captured at
+  `SubscribeAsync<TEvent, THandler>`, i.e. `GetService(typeof(NotificationEventHandler))`. With only the
+  interface mapping registered, that returns `null`, so the bus logged `Handler ... could not be resolved`,
+  **skipped the handler and still ACKed the message**. Every `NotificationEvent` was therefore consumed and
+  silently discarded — nothing was written to the durable notification log and nothing was pushed over
+  SignalR. The same defect hit `RealtimeSyncEventHandler`, so live data-sync (TaskFeedChanged / BranchChanged)
+  was broken too.
+- **Evidence:** TodoApi's outbox showed 7 `NotificationEvent` rows all `Processed` (published to RabbitMQ),
+  the `NotificationEvent.NotificationEventHandler` queue had a live consumer and 0 backlog (messages were
+  consumed + acked), yet `planora_realtime.Notifications` had 0 rows. A test publish reproduced the exact
+  `Handler NotificationEventHandler could not be resolved` warning in the realtime log.
+- **Fix:** register both handlers by their concrete type, Scoped, in `AddRealtimeInfrastructure`
+  (`AddScoped<NotificationEventHandler>()`, `AddScoped<RealtimeSyncEventHandler>()`) — exactly how every
+  sibling service registers its consumers (e.g. `AddScoped<UserDeletedEventConsumer>()`). Scoped because the
+  handlers depend on the scoped `INotificationStore` and the bus opens a scope per delivery.
+- **Recurrence guard:** extended the `AddRealtimeInfrastructure` DI-contract test to assert both handlers are
+  registered by their concrete type with Scoped lifetime — before the fix the descriptor's `ServiceType` was
+  the interface, so the assertion fails.
+- **Second, independent root cause (host-process mode only):** the local launcher's
+  `Set-LocalPostgresConnectionEnvironment` (`Start-Planora-Local.ps1`) injected `ConnectionStrings__<X>Database`
+  for Auth/Category/Todo/Messaging/Collaboration but **omitted `RealtimeDatabase`**. RealtimeApi carries no
+  connection string in its `appsettings*.json`, so `AddRealtimeInfrastructure` saw an empty
+  `GetConnectionString("RealtimeDatabase")` and fell back to the no-op `NullNotificationStore` /
+  `NullNotificationReadStore`: even with the handler resolving and pushing live over SignalR, **nothing was
+  persisted**, so the unread summary the bell/card/branch badges read stayed empty. Added `RealtimeDatabase
+  = planora_realtime` to the launcher map (docker-compose already set it, so this only affected `Start-Planora-Local`).
+- Verified end-to-end after both fixes + restart: publishing a `NotificationEvent` to RabbitMQ now logs
+  `📬 Handling NotificationEvent … delivered to user` and persists a row in `planora_realtime.Notifications`
+  (count `0 → 1`); the regression DI-contract test is green; RealtimeApi builds clean (0 warnings).
+- Note: requires a RealtimeApi restart to take effect; notifications produced before the fix were acked and
+  dropped and are not recoverable.
+
 ### fix(auth): friendship lookup endpoints 403'd because they read the raw `sub` claim (2026-06-18)
 
 - **Same root cause as the realtime fix below, in the Auth service.** `FriendshipsController.GetFriendIds`

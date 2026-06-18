@@ -114,10 +114,9 @@ public class Program
             // Rate Limiting
             builder.Services.AddConfiguredRateLimiting(builder.Configuration);
 
-            // Event Handlers
-            builder.Services.AddTransient<IIntegrationEventHandler<NotificationEvent>, NotificationEventHandler>();
-            // Live data sync — TaskFeedChanged (lists/dashboard) + BranchChanged (open branches).
-            builder.Services.AddTransient<IIntegrationEventHandler<RealtimeSyncIntegrationEvent>, RealtimeSyncEventHandler>();
+            // Integration-event handlers (NotificationEventHandler, RealtimeSyncEventHandler) are
+            // registered by their CONCRETE type inside AddRealtimeInfrastructure — see the comment
+            // there for why interface-only registration silently breaks consumption.
 
             // Health Checks
             builder.Services.AddHealthChecks();

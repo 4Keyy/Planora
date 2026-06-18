@@ -5,6 +5,7 @@ using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
+using Planora.Realtime.Application.Handlers;
 using Planora.Realtime.Application.Interfaces;
 using Planora.Realtime.Infrastructure.Grpc;
 using Planora.Realtime.Infrastructure.Persistence;
@@ -50,6 +51,18 @@ public static class DependencyInjection
 
             return new RabbitMqEventBus(connectionManager, logger, serviceProvider);
         });
+
+        // Integration-event handlers, registered by their CONCRETE type. This is load-bearing:
+        // RabbitMqEventBus resolves the handler via GetService(typeof(THandler)) — the concrete type
+        // captured at SubscribeAsync<TEvent, THandler> — NOT via its IIntegrationEventHandler<T>
+        // interface. An interface-only registration leaves GetService(concreteType) returning null,
+        // so the bus logs "Handler ... could not be resolved", skips it and STILL ACKs the message:
+        // every NotificationEvent / RealtimeSyncIntegrationEvent is then silently dropped — nothing is
+        // persisted to the notification log and nothing is pushed over SignalR. Scoped because the
+        // handlers depend on the scoped INotificationStore and the bus opens a scope per delivery.
+        // Mirrors how every sibling service registers its consumers (e.g. AddScoped<UserDeletedEventConsumer>()).
+        services.AddScoped<NotificationEventHandler>();
+        services.AddScoped<RealtimeSyncEventHandler>();
 
         // T2.5 — durable notification log. Wired conditionally on a configured
         // connection string so test hosts and ephemeral local runs (which don't
