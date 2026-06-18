@@ -118,6 +118,36 @@ public class FriendshipsControllerTests
         Assert.Contains("False", Assert.IsType<OkObjectResult>(exceptionCheck.Result).Value!.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 
+    // REGRESSION: the real JWT pipeline remaps the token's "sub" to ClaimTypes.NameIdentifier, so
+    // the self-scoped guards in GetFriendIds / AreFriends must resolve the caller from
+    // NameIdentifier too. Reading only "sub" returned null and made both endpoints 403 for every
+    // real request — the other tests miss it by injecting a raw "sub" claim that bypasses remapping.
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task InternalFriendshipEndpoints_AcceptSubjectRemappedToNameIdentifier()
+    {
+        var userId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var mediator = new Mock<IMediator>();
+        mediator.Setup(x => x.Send(It.IsAny<GetFriendIdsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new List<Guid> { friendId }));
+
+        var friendIds = await CreateControllerWithUser(mediator, userId, ClaimTypes.NameIdentifier)
+            .GetFriendIds(userId, CancellationToken.None);
+        Assert.Contains(
+            friendId.ToString(),
+            JsonSerializer.Serialize(Assert.IsType<OkObjectResult>(friendIds.Result).Value),
+            StringComparison.OrdinalIgnoreCase);
+
+        var areFriends = await CreateControllerWithUser(mediator, userId, ClaimTypes.NameIdentifier)
+            .AreFriends(userId, friendId, CancellationToken.None);
+        Assert.Contains(
+            "True",
+            Assert.IsType<OkObjectResult>(areFriends.Result).Value!.ToString(),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task<IActionResult> SendRequestWith(Result result)
     {
         var mediator = new Mock<IMediator>();
@@ -228,12 +258,13 @@ public class FriendshipsControllerTests
             mediator.Object,
             Mock.Of<ILogger<FriendshipsController>>());
 
-    private static FriendshipsController CreateControllerWithUser(Mock<IMediator> mediator, Guid userId)
+    private static FriendshipsController CreateControllerWithUser(
+        Mock<IMediator> mediator, Guid userId, string claimType = "sub")
     {
         var controller = new FriendshipsController(
             mediator.Object,
             Mock.Of<ILogger<FriendshipsController>>());
-        var claims = new[] { new Claim("sub", userId.ToString()) };
+        var claims = new[] { new Claim(claimType, userId.ToString()) };
         var identity = new ClaimsIdentity(claims, "TestAuth");
         controller.ControllerContext = new ControllerContext
         {

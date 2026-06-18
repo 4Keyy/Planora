@@ -18,7 +18,7 @@ The frontend persists user metadata and expiry timestamps in session storage, bu
 
 The access token carries the user id in the JWT `sub` claim, but every service's JWT handler runs with the default inbound claim mapping (`JwtBearerOptions.MapInboundClaims = true`), which **remaps `sub` to `ClaimTypes.NameIdentifier`** on the validated principal. Server code must therefore resolve the subject as `User.FindFirst("sub") ?? User.FindFirst(ClaimTypes.NameIdentifier)` (the SignalR hub is unaffected — `Context.UserIdentifier` already derives from `NameIdentifier`). Reading only the raw `"sub"` claim returns null against a real token and 401s every call.
 
-This fallback is the standing convention — `CurrentUserContext`, `CurrentUserService`, and the rate-limit `PartitionKey` all use it. A controller that reads only `"sub"` is a latent `401` bug (this is exactly what broke the realtime notification REST endpoints; see `NotificationsController`/`ConnectionsController`).
+This fallback is the standing convention — `CurrentUserContext`, `CurrentUserService`, and the rate-limit `PartitionKey` all use it. A handler that reads only `"sub"` is a latent bug: it returns `401`/`403` where the id is required (it broke the realtime notification REST endpoints with `401` — `NotificationsController`/`ConnectionsController`/`PresenceHub` — and the Auth friendship lookups `GetFriendIds`/`AreFriends` with `403`, since the null id fails their self-scoped guard).
 
 ## Login / Register Cookie Contract
 

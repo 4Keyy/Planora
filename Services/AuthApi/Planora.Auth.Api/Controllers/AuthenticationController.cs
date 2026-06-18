@@ -4,6 +4,7 @@ using Planora.Auth.Application.Features.Authentication.Response;
 using Planora.Auth.Application.Features.Authentication.Response.Login;
 using Planora.Auth.Application.Features.Authentication.Response.Register;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Security.Claims;
 
 namespace Planora.Auth.Api.Controllers
 {
@@ -203,7 +204,9 @@ namespace Planora.Auth.Api.Controllers
             [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] LogoutCommand? command,
             CancellationToken cancellationToken)
         {
-            var userId = User.FindFirst("sub")?.Value;
+            // The default inbound claim mapping remaps the JWT "sub" to ClaimTypes.NameIdentifier,
+            // so check both — reading only "sub" logs an empty UserId for every logout.
+            var userId = User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             _logger.LogInformation("Logout: UserId={UserId}", userId);
 
             Request.Cookies.TryGetValue("refresh_token", out var cookieRefreshToken);

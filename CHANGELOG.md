@@ -4,6 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(auth): friendship lookup endpoints 403'd because they read the raw `sub` claim (2026-06-18)
+
+- **Same root cause as the realtime fix below, in the Auth service.** `FriendshipsController.GetFriendIds`
+  and `AreFriends` enforce "callers may only query their own data" by comparing the route's `userId`
+  against `User.FindFirst("sub")?.Value`. The Auth API's request-validation handler does not disable
+  the default inbound claim mapping, so the token's `sub` is remapped to `ClaimTypes.NameIdentifier`
+  and the raw `"sub"` lookup returns null — `Guid.TryParse(null)` fails and **both endpoints returned
+  `403` for every real caller** (these are the internal lookups the Todo API uses to resolve a user's
+  friends, so friend-scoped task sharing silently broke). `AuthenticationController.Logout` had the
+  same raw read, but only for a log line, so it logged an empty `UserId` rather than failing.
+- **Fix:** resolve the subject as `sub ?? ClaimTypes.NameIdentifier` (a `CallerSubject` helper on the
+  friendships controller; inline on logout), matching `CurrentUserContext` / `CurrentUserService` /
+  the rate-limit `PartitionKey`. Added a regression test that drives both friendship endpoints with a
+  `ClaimTypes.NameIdentifier`-only principal (the real post-mapping shape) and asserts they succeed —
+  the existing tests passed only because they injected a raw `sub` claim that bypasses remapping.
+- Verified: solution compiles clean; full unit suite green (786 tests), including the new regression.
+
+Security: restores the self-scoped authorization guard (the endpoints were fail-closed at 403, so this
+is a correctness fix, not a privilege widening — unauthenticated/mismatched callers still get 403).
+
 ### fix(realtime): notification REST endpoints 401'd because they read the raw `sub` claim (2026-06-18)
 
 - **Root cause of the persistent `GET /realtime/api/v1/notifications/summary` 401:** the realtime REST

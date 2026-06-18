@@ -7,6 +7,7 @@ using Planora.Auth.Application.Features.Friendships.Queries.GetFriendRequests;
 using Planora.Auth.Application.Features.Friendships.Queries.GetFriends;
 using Planora.Auth.Application.Features.Friendships.Queries.GetFriendIds;
 using Planora.BuildingBlocks.Application.Pagination;
+using System.Security.Claims;
 
 namespace Planora.Auth.Api.Controllers
 {
@@ -25,6 +26,16 @@ namespace Planora.Auth.Api.Controllers
             _mediator = mediator;
             _logger = logger;
         }
+
+        /// <summary>
+        /// The authenticated caller's subject id. The default inbound claim mapping
+        /// (<c>JwtBearerOptions.MapInboundClaims</c> = true) remaps the token's <c>sub</c> to
+        /// <see cref="ClaimTypes.NameIdentifier"/>, so BOTH must be checked — reading only <c>sub</c>
+        /// returns null against a real token and makes the self-scoped guards below reject every
+        /// request with 403. Mirrors <c>CurrentUserContext</c> / <c>CurrentUserService</c>.
+        /// </summary>
+        private string? CallerSubject =>
+            User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
         [HttpPost("requests")]
         [ProducesResponseType(StatusCodes.Status201Created)]
@@ -143,7 +154,7 @@ namespace Planora.Auth.Api.Controllers
             CancellationToken cancellationToken = default)
         {
             // SECURITY: enforce that callers can only query their own friend list.
-            var callerIdRaw = User.FindFirst("sub")?.Value;
+            var callerIdRaw = CallerSubject;
             if (!Guid.TryParse(callerIdRaw, out var callerId) || callerId != userId)
                 return Forbid();
 
@@ -176,7 +187,7 @@ namespace Planora.Auth.Api.Controllers
             CancellationToken cancellationToken = default)
         {
             // SECURITY: only the authenticated user may check their own friendship status.
-            var callerIdRaw = User.FindFirst("sub")?.Value;
+            var callerIdRaw = CallerSubject;
             if (!Guid.TryParse(callerIdRaw, out var callerId) || callerId != userId1)
                 return Forbid();
 
