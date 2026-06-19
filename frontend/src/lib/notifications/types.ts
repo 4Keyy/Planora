@@ -52,9 +52,13 @@ export interface NotificationKind {
   composite?: "people-check"
 }
 
+// Semantic, glanceable color system — three families so the hue itself reads the
+// category before the glyph does: blues = communication / new, greens = completion,
+// ambers = needs-your-attention. Keeps the palette vivid but on-brand (Planora is a
+// neutral UI with one functional accent per state), without the old indigo/violet glut.
 const DEFAULT_KIND: NotificationKind = {
   icon: Bell,
-  tint: "#6366f1",
+  tint: "#64748b", // slate — neutral, matches the app's grayscale chrome
   label: "Notification",
   isSystem: false,
   motif: "people",
@@ -62,28 +66,28 @@ const DEFAULT_KIND: NotificationKind = {
 
 const KINDS: Record<string, NotificationKind> = {
   [NOTIFICATION_TYPES.CommentAdded]: {
-    icon: MessageCircle, tint: "#6366f1", label: "New message", isSystem: false, motif: "chat",
+    icon: MessageCircle, tint: "#3b82f6", label: "New message", isSystem: false, motif: "chat",
   },
   [NOTIFICATION_TYPES.CommentReply]: {
-    icon: Reply, tint: "#8b5cf6", label: "Reply to you", isSystem: true, motif: "chat",
+    icon: Reply, tint: "#0ea5e9", label: "Reply to you", isSystem: true, motif: "chat",
   },
   [NOTIFICATION_TYPES.SubtaskAdded]: {
-    icon: ListPlus, tint: "#0ea5e9", label: "New subtask", isSystem: false, motif: "branch",
+    icon: ListPlus, tint: "#6366f1", label: "New subtask", isSystem: false, motif: "branch",
   },
   [NOTIFICATION_TYPES.SubtaskCompleted]: {
     icon: CheckCheck, tint: "#10b981", label: "Subtask done", isSystem: false, motif: "branch",
   },
   [NOTIFICATION_TYPES.TaskStarted]: {
-    icon: Zap, tint: "#6366f1", label: "Picked up", isSystem: false, motif: "people",
+    icon: Zap, tint: "#f59e0b", label: "Picked up", isSystem: false, motif: "people",
   },
   [NOTIFICATION_TYPES.TaskCompleted]: {
-    icon: Check, tint: "#059669", label: "Task done", isSystem: true, motif: "people",
+    icon: Check, tint: "#16a34a", label: "Task done", isSystem: true, motif: "people",
   },
   [NOTIFICATION_TYPES.TaskReview]: {
-    icon: ClipboardCheck, tint: "#f59e0b", label: "Ready for review", isSystem: true, motif: "people",
+    icon: ClipboardCheck, tint: "#f97316", label: "Ready for review", isSystem: true, motif: "people",
   },
   [NOTIFICATION_TYPES.TaskParticipantsDone]: {
-    icon: Users, tint: "#14b8a6", label: "Everyone's done", isSystem: true, motif: "people", composite: "people-check",
+    icon: Users, tint: "#0d9488", label: "Everyone's done", isSystem: true, motif: "people", composite: "people-check",
   },
 }
 

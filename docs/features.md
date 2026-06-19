@@ -688,6 +688,11 @@ an in-app toast, and (for high-signal events) a native OS notification.
   user already has the toast). Permission is requested from a user gesture (first bell open).
 - **Durable + idempotent:** persisted before fan-out (offline recipients are caught up on reconnect /
   tab focus); a redelivered event is stored and pushed at most once (unique `SourceEventId`).
+- **Visual language:** the header dropdown is an **opaque** `bg-white` panel (no translucency), and the
+  chrome stays in the app's grayscale (the "Mark all read" action and the bell's unread-count bubble are
+  neutral `gray-500`/`gray-900`, the unread-row highlight is `gray-50`, not indigo). Per-kind icon tints
+  follow a **semantic three-family scheme** — blues = communication/new, greens = completion, ambers =
+  needs-attention — with a neutral slate fallback for unknown types (`lib/notifications/types.ts`).
 - **Security:** every read/mark-read query is scoped to the JWT subject (no IDOR); live-sync signals
   remain content-free (the client refetches through authorized endpoints).
 - `/api/v1/connections/active` returns only the current user's connections;

@@ -91,7 +91,7 @@ export function NotificationBell({ className }: { className?: string }) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
               transition={{ type: "spring", stiffness: 620, damping: 24 }}
-              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-[1.5px] border-white bg-indigo-500 px-1 text-[9px] font-black tabular-nums text-white shadow-sm"
+              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-[1.5px] border-white bg-gray-900 px-1 text-[9px] font-black tabular-nums text-white shadow-sm"
             >
               {badge}
             </motion.span>
@@ -106,7 +106,7 @@ export function NotificationBell({ className }: { className?: string }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
-            className="absolute right-0 top-full z-[1100] mt-3 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-gray-100 bg-white/97 shadow-[0_8px_32px_rgba(0,0,0,0.10)] backdrop-blur-xl"
+            className="absolute right-0 top-full z-[1100] mt-3 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)]"
             role="menu"
             aria-label="Notifications"
           >
@@ -116,7 +116,7 @@ export function NotificationBell({ className }: { className?: string }) {
                 <button
                   type="button"
                   onClick={() => void markAllRead()}
-                  className="flex items-center gap-1 text-xs font-semibold text-indigo-500 transition-colors hover:text-indigo-600"
+                  className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
                 >
                   <CheckCheck className="h-3.5 w-3.5" />
                   Mark all read
@@ -139,7 +139,7 @@ export function NotificationBell({ className }: { className?: string }) {
                       role="menuitem"
                       className={cn(
                         "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50",
-                        !n.isRead && "bg-indigo-50/40",
+                        !n.isRead && "bg-gray-50/80",
                       )}
                     >
                       <span

@@ -4,6 +4,24 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### style(notifications): solid header panel + a semantic, less-purple color system (2026-06-19)
+
+- **The header notification dropdown is no longer translucent.** It rendered on `bg-white/97` with a
+  backdrop blur, so page content bled through and made the list hard to read; it is now a solid
+  `bg-white` surface with a slightly deeper shadow and a `gray-200/90` hairline border, matching the
+  account dropdown's weight.
+- **Purple removed from the chrome.** The "Mark all read" action dropped its `indigo-500` text for the
+  app's neutral `gray-500 → gray-900` hover (now a subtle pill), the unread-row highlight changed from
+  `indigo-50/40` to a neutral `gray-50/80`, and the bell's unread-count bubble moved from `indigo-500`
+  to the brand `gray-900` — the same near-black used by the logo dot and the create button.
+- **Notification icons got a clearer, semantic palette.** The old set leaned on indigo/violet for three
+  different kinds. Tints are now organized into three glanceable families so the hue reads the category
+  before the glyph does: **blues = communication / new** (new message `#3b82f6`, reply `#0ea5e9`, new
+  subtask `#6366f1`), **greens = completion** (subtask done `#10b981`, task done `#16a34a`, everyone
+  done `#0d9488`), **ambers = needs attention** (picked up `#f59e0b`, ready for review `#f97316`); the
+  unknown-type fallback is now neutral slate `#64748b` instead of indigo. These tints drive the bell
+  rows, the card pills and the branch-composer mark, so the whole notification surface stays consistent.
+
 ### feat(branch): subtasks show WHO is working — a shared, global "in work" presence (2026-06-19)
 
 - **"In work" on a subtask is now the same for every viewer and shows the actual people.** Before, the
