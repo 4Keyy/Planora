@@ -43,6 +43,13 @@ namespace Planora.Todo.Application.DTOs
         public int WorkerCount { get; init; }
         public bool IsWorking { get; init; }
         public IReadOnlyList<Guid> WorkerUserIds { get; init; } = Array.Empty<Guid>();
+        /// <summary>
+        /// Live display identity of everyone currently working on this item (subtask reads only —
+        /// resolved from Auth at query time, never stored). Surfaced so the branch shows *who* took a
+        /// subtask into work — the same shared, global "in work" state for every viewer — rather than
+        /// an anonymous count. Empty on endpoints that skip the enrichment.
+        /// </summary>
+        public IReadOnlyList<TodoWorkerDto> Workers { get; init; } = Array.Empty<TodoWorkerDto>();
         public bool? IsCompletedByViewer { get; init; }
 
         /// <summary>When set, this item is a subtask (child) of the given parent task.</summary>
@@ -54,6 +61,17 @@ namespace Planora.Todo.Application.DTOs
         /// </summary>
         public string? AuthorName { get; init; }
         public string? AuthorAvatarUrl { get; init; }
+    }
+
+    /// <summary>
+    /// A single worker's live display identity (id + name + avatar) for a subtask's shared "in work"
+    /// presence. Name/avatar are resolved from Auth at query time and may be null when unknown.
+    /// </summary>
+    public sealed record TodoWorkerDto
+    {
+        public required Guid UserId { get; init; }
+        public string? Name { get; init; }
+        public string? AvatarUrl { get; init; }
     }
 
     public class TodoItemMappingProfile : Profile
@@ -85,6 +103,9 @@ namespace Planora.Todo.Application.DTOs
                     opt => opt.MapFrom(src => src.Workers.Count))
                 .ForMember(dst => dst.WorkerUserIds,
                     opt => opt.MapFrom(src => src.Workers.Select(w => w.UserId).ToList()))
+                // Worker display identities are resolved live from Auth by the handler that needs
+                // them (GetSubtasks), exactly like AuthorName — never auto-mapped from the entity.
+                .ForMember(dst => dst.Workers, opt => opt.Ignore())
                 .ForMember(dst => dst.IsWorking,
                     opt => opt.MapFrom(src => false))
                 // Author identity is resolved live from Auth by the handlers that need it.

@@ -9,7 +9,7 @@ import {
   joinTodo, leaveTodo,
   getApiErrorMessage,
 } from "@/lib/api"
-import { sameUserId, type TodoComment, type Todo, type ReplyTargetType } from "@/types/todo"
+import { sameUserId, type TodoComment, type Todo, type TodoWorker, type ReplyTargetType } from "@/types/todo"
 import { SPRING_STANDARD } from "@/lib/animations"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
@@ -76,11 +76,33 @@ function isSubtaskDone(s: Todo): boolean {
   const st = String(s.status).toLowerCase()
   return st === "done" || st === "completed"
 }
-// "In work" is per-user — derived from worker rows, not status:
-//  • workerCount = how many people are working on it (shown to everyone, anonymously);
-//  • isWorking   = whether THIS viewer is one of them (drives their own toggle).
+// "In work" is GLOBAL and identical for every viewer — derived from the worker rows, not status:
+//  • workers     = WHO took the subtask into work (live identity), shown to everyone;
+//  • workerCount = how many (kept in lock-step with `workers`, used as a count fallback);
+//  • isWorking   = whether THIS viewer is one of them (drives only their own take/leave toggle).
 function subtaskWorkerCount(s: Todo): number {
-  return s.workerCount ?? 0
+  return s.workerCount ?? (s.workers?.length ?? 0)
+}
+function subtaskWorkers(s: Todo): TodoWorker[] {
+  return s.workers ?? []
+}
+/** Stable identity fingerprint of a subtask's workers, so polling re-renders on a real change
+ *  (someone joined/left) but not on identical data — even when the worker count is unchanged. */
+function workersSignature(s: Todo): string {
+  return (s.workers ?? []).map((w) => w.userId).sort().join("|")
+}
+/** First name (or a graceful fallback) for a worker chip. */
+function workerFirstName(w: TodoWorker): string {
+  const n = (w.name ?? "").trim()
+  return n ? n.split(/\s+/)[0] : "Someone"
+}
+/** "Anna" · "Anna, Ivan" · "Anna, Ivan +2" — who is working, compactly. */
+function workersLabel(workers: TodoWorker[], count: number): string {
+  if (workers.length === 0) return `${count} working`
+  const names = workers.map(workerFirstName)
+  if (names.length === 1) return names[0]
+  if (names.length === 2) return `${names[0]}, ${names[1]}`
+  return `${names[0]}, ${names[1]} +${names.length - 2}`
 }
 
 interface BranchFeedProps {
@@ -343,7 +365,10 @@ export function BranchFeed({
   const [flashKey, setFlashKey] = useState<string | null>(null)
 
   // Live presence: who else is typing in this branch right now, and a notifier to call on keystroke.
-  const viewerId = useAuthStore((s) => s.user?.userId)
+  // The full viewer profile (name + avatar) feeds the optimistic "in work" presence when the viewer
+  // takes a subtask into work, so their chip appears instantly before the server reload confirms it.
+  const viewerUser = useAuthStore((s) => s.user)
+  const viewerId = viewerUser?.userId
   const { typingNames, notifyTyping } = useTyping(todoId, true)
 
   // Unread notifications for this branch — shown by the composer, then marked read once the viewer
@@ -421,10 +446,12 @@ export function BranchFeed({
           const existing = prevById.get(s.id)
           // Keep the optimistic copy for rows we're still writing.
           if (existing && pending.has(s.id)) { byId.set(s.id, existing); continue }
-          // Refresh on any change a viewer must see — including another participant's worker count
-          // (so "N working" updates live) and the viewer's own membership.
+          // Refresh on any change a viewer must see — including another participant joining/leaving
+          // (so the live "who's working" presence updates) and the viewer's own membership. Compare
+          // the worker identity set, not just the count, so a same-count swap still re-renders.
           if (!existing || existing.status !== s.status || existing.title !== s.title ||
-              (existing.workerCount ?? 0) !== (s.workerCount ?? 0) || !!existing.isWorking !== !!s.isWorking) {
+              (existing.workerCount ?? 0) !== (s.workerCount ?? 0) || !!existing.isWorking !== !!s.isWorking ||
+              workersSignature(existing) !== workersSignature(s)) {
             changed = true
           }
           byId.set(s.id, s)
@@ -667,22 +694,32 @@ export function BranchFeed({
     }
   }
 
-  // Take a subtask into work / step back out. This is **per-user**: each viewer joins or leaves
-  // independently (server-side worker rows), so one person working never flips it "in work" for
-  // another — everyone just sees an anonymous "N working" count. The viewer's own membership is
-  // `isWorking`; the count is `workerCount`.
+  // Take a subtask into work / step back out. "In work" is a GLOBAL, shared state: the worker rows
+  // are the single source of truth and every viewer sees the same people on the card. Each viewer
+  // joins/leaves only their OWN row (the owner included); `isWorking` is just whether the viewer
+  // holds one, and drives only their personal take/leave control.
   const toggleSubtaskWork = async (s: Todo) => {
-    if (subtaskPendingRef.current.has(s.id)) return
+    if (subtaskPendingRef.current.has(s.id) || !viewerId) return
     const amWorking = !!s.isWorking
     setSubtaskBusy(s.id, true)
-    // Optimistic: flip my own membership and nudge the shared count.
-    setSubtasks((prev) => prev.map((it) => it.id === s.id
-      ? { ...it, isWorking: !amWorking, workerCount: Math.max(0, (it.workerCount ?? 0) + (amWorking ? -1 : 1)) }
-      : it))
+    // Optimistic: add/remove MY own chip so the shared presence updates instantly (the live reload
+    // and RealTime SubtaskChanged push then reconcile everyone to the authoritative worker list).
+    const myChip: TodoWorker = {
+      userId: viewerId,
+      name: [viewerUser?.firstName, viewerUser?.lastName].filter(Boolean).join(" ").trim()
+        || viewerUser?.email || null,
+      avatarUrl: viewerUser?.profilePictureUrl ?? null,
+    }
+    setSubtasks((prev) => prev.map((it) => {
+      if (it.id !== s.id) return it
+      const others = (it.workers ?? []).filter((w) => !sameUserId(w.userId, viewerId))
+      const nextWorkers = amWorking ? others : [...others, myChip]
+      return { ...it, isWorking: !amWorking, workerCount: nextWorkers.length, workers: nextWorkers }
+    }))
     try {
       if (amWorking) await leaveTodo(s.id)
       else await joinTodo(s.id)
-      // Pull fresh worker counts so other participants' numbers settle quickly.
+      // Pull the fresh, authoritative worker list so other participants settle quickly.
       retryTimers.current.push(setTimeout(() => { void loadSubtasks() }, 500))
     } catch (e) {
       setSubtasks((prev) => prev.map((it) => it.id === s.id ? s : it)) // revert
@@ -1224,6 +1261,7 @@ export function BranchFeed({
                       isOwner={isOwner || sameUserId(s.createdByUserId, viewerId)}
                       done={isSubtaskDone(s)}
                       workerCount={subtaskWorkerCount(s)}
+                      workers={subtaskWorkers(s)}
                       viewerWorking={!!s.isWorking}
                       pending={subtaskPending.has(s.id)}
                       flash={flashKey === `s-${s.id}`}
@@ -1954,13 +1992,117 @@ const RAIL_X = RAIL_CENTER - RAIL_GUTTER
 // completion reply is just another (icon-less) reply on that sub-branch.
 const SUBTASK_OFFSET = 28    // card / reply content left edge (the sub-branch column)
 const SUB_TOGGLE_X = 4       // the toggle's centre x — the subtask's sole marker, on the sub-branch
+/**
+ * Shared "in work" presence chip for a subtask — the avatars + names of everyone who took it into
+ * work, shown identically to EVERY viewer (the global, single-source-of-truth presence). When the
+ * viewer is one of the workers the chip doubles as their Leave control: hovering cross-fades the
+ * amber chip to a red "Leave" and a click steps only them out. Non-workers see it read-only and
+ * keep the separate "Take into work" button.
+ */
+function SubtaskWorkPresence({
+  workers, workerCount, viewerWorking, pending, hovered, onHoverChange, onLeave,
+}: {
+  workers: TodoWorker[]
+  workerCount: number
+  viewerWorking: boolean
+  pending: boolean
+  hovered: boolean
+  onHoverChange: (v: boolean) => void
+  onLeave: () => void
+}) {
+  const canLeave = viewerWorking && !pending
+  const leaving = canLeave && hovered            // viewer hovering their own chip → show "Leave"
+  const shown = workers.slice(0, 3)
+  const extra = Math.max(workerCount, workers.length) - shown.length
+  const label = workersLabel(workers, workerCount)
+  const fullList = workers.map((w) => (w.name ?? "").trim() || "Someone").join(", ")
+  const ringColor = leaving ? "#fee2e2" : "#fff8e6"
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.7 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.7 }}
+      transition={{ type: "spring", stiffness: 480, damping: 26 }}
+      onMouseEnter={() => { if (canLeave) onHoverChange(true) }}
+      onMouseLeave={() => onHoverChange(false)}
+      onClick={(e) => { if (canLeave) { e.stopPropagation(); onLeave() } }}
+      title={canLeave ? "You're working on this — click to leave" : `In work · ${fullList || label}`}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0, maxWidth: 188,
+        background: leaving ? "linear-gradient(180deg,#fff1f2,#fee2e2)" : "linear-gradient(180deg,#fff8e6,#fef0c7)",
+        border: `1px solid ${leaving ? "#fecaca" : "#fce4a6"}`,
+        padding: "2px 9px 2px 4px", borderRadius: 999,
+        boxShadow: "0 1px 3px -1px rgba(245,158,11,0.3)",
+        cursor: canLeave ? "pointer" : "default",
+        transition: "background 200ms ease, border-color 200ms ease",
+      }}
+    >
+      {/* Avatar stack — WHO is working (overlapping, oldest-join first) */}
+      {shown.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+          {shown.map((w, i) => (
+            <FriendAvatar
+              key={w.userId}
+              friend={{
+                id: w.userId,
+                firstName: w.name?.split(/\s+/)[0],
+                lastName: w.name?.split(/\s+/)[1],
+                profilePictureUrl: w.avatarUrl,
+              }}
+              size={18}
+              ringColor={ringColor}
+              style={{ marginLeft: i === 0 ? 0 : -7, position: "relative", zIndex: shown.length - i }}
+            />
+          ))}
+          {extra > 0 && (
+            <span style={{
+              marginLeft: -5, position: "relative", zIndex: 0,
+              width: 18, height: 18, borderRadius: "50%",
+              background: "#fde68a", boxShadow: `0 0 0 2px ${ringColor}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 8.5, fontWeight: 900, color: "#92400e", letterSpacing: "-0.02em",
+            }}>
+              +{extra}
+            </span>
+          )}
+        </div>
+      )}
+      {/* Names / Leave — crossfade in a single slot (viewer-as-worker only) */}
+      <span style={{ position: "relative", display: "inline-block", minWidth: 0 }}>
+        <span style={{
+          display: "block",
+          fontSize: 9.5, fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 116,
+          color: "#b45309", opacity: leaving ? 0 : 1, transition: "opacity 160ms ease", userSelect: "none",
+        }}>
+          {label}
+        </span>
+        {canLeave && (
+          <span style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#b91c1c", fontSize: 9.5, fontWeight: 900, letterSpacing: "0.05em",
+            textTransform: "uppercase", opacity: hovered ? 1 : 0,
+            transition: "opacity 160ms ease", userSelect: "none",
+          }}>
+            Leave
+          </span>
+        )}
+      </span>
+    </motion.div>
+  )
+}
+
 interface SubtaskCardProps {
   subtask: Todo
   meta: SubtaskMeta
   isOwner: boolean
   done: boolean
-  /** How many people are working on this subtask (per-user; shown anonymously to everyone). */
+  /** How many people are working on this subtask — the shared, global count (count fallback). */
   workerCount: number
+  /** WHO is working — live identities shown to everyone as the shared "in work" presence. */
+  workers: TodoWorker[]
   /** Whether THIS viewer is one of them (drives their own take-into-work / step-out toggle). */
   viewerWorking: boolean
   pending: boolean
@@ -1979,7 +2121,7 @@ interface SubtaskCardProps {
 }
 
 function SubtaskCard({
-  subtask, meta, isOwner, done, workerCount, viewerWorking, pending, flash, nodeRef, hasReplies,
+  subtask, meta, isOwner, done, workerCount, workers, viewerWorking, pending, flash, nodeRef, hasReplies,
   onToggleComplete, onToggleWork, onDelete, onSaveTitle, onReply,
 }: SubtaskCardProps) {
   const [hovered, setHovered] = useState(false)
@@ -2018,7 +2160,7 @@ function SubtaskCard({
   const completedName = meta.completedBy?.trim()
   const completedAt = meta.completedAt
   // Someone (anyone) is working on it → amber accents; the viewer's own membership drives the toggle.
-  const someoneWorking = workerCount > 0
+  const someoneWorking = workerCount > 0 || workers.length > 0
   // Sub-branch accent — the little branch the subtask hangs from, tinted to its state.
   const branchColor = done ? "#a7f3d0" : someoneWorking ? "#fcd98c" : "#e1e1e6"
 
@@ -2253,78 +2395,21 @@ function SubtaskCard({
               </button>
 
               <AnimatePresence initial={false}>
-                {/* In-work presence pill — per-user, shown to EVERY viewer. For the viewer who
-                    is working it doubles as the Leave control: on hover it cross-fades
-                    amber→red into "Leave" (mirroring the parent task's In Progress pill at the
-                    modal top), so there is no separate exit button. Other viewers see an
-                    anonymous "N working" count. */}
+                {/* In-work presence — a GLOBAL, shared chip shown identically to EVERY viewer:
+                    the avatars + names of who took this subtask into work. For the viewer who is
+                    one of them it doubles as the Leave control (hover cross-fades amber→red into
+                    "Leave"), so there is no separate exit button. */}
                 {someoneWorking && !done && (
-                  <motion.div
+                  <SubtaskWorkPresence
                     key="work-pill"
-                    initial={{ opacity: 0, scale: 0.7 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.7 }}
-                    transition={{ type: "spring", stiffness: 480, damping: 26 }}
-                    onMouseEnter={() => { if (viewerWorking) setWorkPillHovered(true) }}
-                    onMouseLeave={() => setWorkPillHovered(false)}
-                    onClick={(e) => { if (viewerWorking && !pending) { e.stopPropagation(); onToggleWork() } }}
-                    title={viewerWorking
-                      ? "You're working on this — click to leave"
-                      : `${workerCount} ${workerCount === 1 ? "person is" : "people are"} working on this`}
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
-                      background: viewerWorking && workPillHovered
-                        ? "linear-gradient(180deg,#fff1f2,#fee2e2)"
-                        : "linear-gradient(180deg,#fff8e6,#fef0c7)",
-                      border: `1px solid ${viewerWorking && workPillHovered ? "#fecaca" : "#fce4a6"}`,
-                      padding: "3px 8px", borderRadius: 999,
-                      boxShadow: "0 1px 3px -1px rgba(245,158,11,0.3)",
-                      cursor: viewerWorking ? (pending ? "default" : "pointer") : "default",
-                      transition: "background 200ms ease, border-color 200ms ease",
-                    }}
-                  >
-                    {/* Pulsing dot — amber idle, red when a click would leave */}
-                    <span style={{ position: "relative", width: 6, height: 6, flexShrink: 0 }}>
-                      <span className="animate-ping" style={{
-                        position: "absolute", inset: 0, borderRadius: "50%",
-                        background: viewerWorking && workPillHovered ? "#ef4444" : "#f59e0b",
-                        opacity: 0.55, transition: "background 200ms ease",
-                      }} />
-                      <span style={{
-                        position: "absolute", inset: 1, borderRadius: "50%",
-                        background: viewerWorking && workPillHovered ? "#ef4444" : "#f59e0b",
-                        transition: "background 200ms ease",
-                      }} />
-                    </span>
-                    {/* Label / Leave — same slot, crossfade on hover (viewer only) */}
-                    <span style={{
-                      position: "relative", display: "inline-block",
-                      fontSize: 9.5, fontWeight: 900, letterSpacing: "0.05em",
-                      textTransform: "uppercase", whiteSpace: "nowrap", lineHeight: 1,
-                    }}>
-                      {/* Idle label keeps the slot width even when "Leave" is overlaid */}
-                      <span style={{
-                        display: "block", color: "#b45309",
-                        opacity: viewerWorking && workPillHovered ? 0 : 1,
-                        transition: "opacity 160ms ease", userSelect: "none",
-                      }}>
-                        {viewerWorking
-                          ? (workerCount > 1 ? `You +${workerCount - 1}` : "Working")
-                          : `${workerCount} working`}
-                      </span>
-                      {viewerWorking && (
-                        <span style={{
-                          position: "absolute", inset: 0,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: "#b91c1c",
-                          opacity: workPillHovered ? 1 : 0,
-                          transition: "opacity 160ms ease", userSelect: "none",
-                        }}>
-                          Leave
-                        </span>
-                      )}
-                    </span>
-                  </motion.div>
+                    workers={workers}
+                    workerCount={workerCount}
+                    viewerWorking={viewerWorking}
+                    pending={pending}
+                    hovered={workPillHovered}
+                    onHoverChange={setWorkPillHovered}
+                    onLeave={onToggleWork}
+                  />
                 )}
 
                 {/* Take into work — explicit footer button mirroring the screenshot's

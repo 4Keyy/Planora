@@ -4,6 +4,28 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(branch): subtasks show WHO is working — a shared, global "in work" presence (2026-06-19)
+
+- **"In work" on a subtask is now the same for every viewer and shows the actual people.** Before, the
+  card showed only an anonymous "N working" count and the in-work state read as per-viewer; now the
+  card lists WHO took the subtask into work (overlapping avatars + names, e.g. "Anna, Ivan +2"),
+  identically for everyone with access. Completion was already global; the in-work presence now matches.
+- **Backend:** `TodoItemDto` gains a `Workers` list (`TodoWorkerDto { UserId, Name, AvatarUrl }`), and
+  `GetSubtasksQueryHandler` resolves each worker's live display identity from Auth. Author + worker
+  profiles are fetched in a **single batched** `IUserProfileService.GetProfilesAsync` round-trip (ids
+  de-duplicated), so adding names costs no extra Auth call. Workers are ordered by `JoinedAt` for a
+  stable avatar order. AutoMapper ignores `Workers` (resolved in the handler, like `AuthorName`).
+- **Security:** worker identities are only ever returned to a caller who already passes the subtask's
+  parent access check (owner, or a friend of a shared/public parent) — the same gate that already
+  exposes author identity — so no new audience can see who is working.
+- **RealTime:** unchanged transport — join/leave on a subtask already enqueues a `SubtaskChanged`
+  realtime event to the parent's branch room; every open branch now re-fetches the authoritative
+  worker list and re-renders the presence live. The viewer's own take/leave is applied optimistically
+  (their chip appears/disappears instantly) and reconciled by the push + a short catch-up reload.
+- **Frontend:** new `SubtaskWorkPresence` chip (avatars + names) replaces the anonymous count; for a
+  viewer who is one of the workers it doubles as the Leave control (hover cross-fades amber→red into
+  "Leave"). Polling re-renders on a real worker-set change, not just a count change (`workersSignature`).
+
 ### style(branch): align the task title with the branch column, not its settings (2026-06-19)
 
 - On the standalone branch page the editable task title now sits horizontally where the branch content

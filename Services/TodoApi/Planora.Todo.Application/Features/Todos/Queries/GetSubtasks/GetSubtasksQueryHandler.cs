@@ -85,14 +85,35 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
                 }
             }
 
-            // Resolve the subtask authors' live identity (name + avatar) in one Auth batch call.
-            // Failure-tolerant: a lookup failure just leaves the author labels empty.
-            var authorProfiles = await _userProfileService.GetProfilesAsync(
-                subtasks.Select(s => s.UserId), cancellationToken);
+            // Resolve every author AND every worker's live identity (name + avatar) in ONE Auth
+            // batch call — both feed the branch card, so batching them keeps it a single round-trip.
+            // Failure-tolerant: a lookup failure just leaves the labels empty.
+            var profileIds = subtasks.Select(s => s.UserId)
+                .Concat(subtasks.SelectMany(s => s.Workers.Select(w => w.UserId)))
+                .Distinct();
+            var profiles = await _userProfileService.GetProfilesAsync(profileIds, cancellationToken);
 
             var dtos = subtasks.Select(s =>
             {
-                authorProfiles.TryGetValue(s.UserId, out var author);
+                profiles.TryGetValue(s.UserId, out var author);
+                // "In work" is GLOBAL and the same for every viewer: anyone who took the subtask into
+                // work is listed here (oldest join first, for a stable avatar order), so the branch
+                // shows WHO is working rather than an anonymous count. The viewer's own membership
+                // (IsWorking) only drives their personal take/leave toggle.
+                var workers = s.Workers
+                    .OrderBy(w => w.JoinedAt)
+                    .Select(w =>
+                    {
+                        profiles.TryGetValue(w.UserId, out var wp);
+                        return new TodoWorkerDto
+                        {
+                            UserId = w.UserId,
+                            Name = string.IsNullOrWhiteSpace(wp?.DisplayName) ? null : wp.DisplayName,
+                            AvatarUrl = wp?.AvatarUrl,
+                        };
+                    })
+                    .ToList();
+
                 var dto = _mapper.Map<TodoItemDto>(s) with
                 {
                     CategoryName = categoryInfo?.Name,
@@ -100,6 +121,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
                     CategoryIcon = categoryInfo?.Icon,
                     WorkerCount = s.Workers.Count,
                     WorkerUserIds = s.Workers.Select(w => w.UserId).ToList(),
+                    Workers = workers,
                     // Subtask in-work is per-user and counted for everyone (owner included), so the
                     // viewer "is working" iff they hold a worker row — no owner exclusion here.
                     IsWorking = s.Workers.Any(w => w.UserId == userId),

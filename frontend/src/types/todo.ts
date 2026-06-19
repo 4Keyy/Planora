@@ -69,6 +69,13 @@ export const TodoPriorityOrder: Record<string, number> = {
   "1": 1, "2": 2, "3": 3, "4": 4, "5": 5,
 }
 
+/** A single worker's live display identity for a subtask's shared "in work" presence. */
+export type TodoWorker = {
+  userId: string
+  name?: string | null
+  avatarUrl?: string | null
+}
+
 export type Todo = {
   id: string
   userId: string
@@ -106,6 +113,9 @@ export type Todo = {
   workerCount?: number
   isWorking?: boolean
   workerUserIds?: string[] | null
+  /** Live display identity of everyone working on this item (subtask reads). Drives the branch's
+   *  shared "in work" presence — who took it into work — for every viewer, not an anonymous count. */
+  workers?: TodoWorker[] | null
   isCompletedByViewer?: boolean | null
   /** When set, this todo is a subtask (child) of the given parent task. */
   parentTodoId?: string | null
