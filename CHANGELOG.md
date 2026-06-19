@@ -4,6 +4,41 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(todo): estimated-completion date can now be an interval, not just one day (2026-06-19)
+
+- **The due date became an optional interval.** A task's estimated-completion date can now be a single
+  target day **or** a planned interval. The model is additive and fully backward-compatible: the
+  existing `DueDate` is kept as the single date / **later** bound (the deadline), and a new nullable
+  `DueDateStart` holds the optional **earlier** bound (null for a single date). Existing rows keep
+  their single `DueDate` untouched.
+- **Two-click selection, exactly as specced.** The first click on the calendar sets a single target
+  date. Clicking that same day again clears it. Clicking a **different** day turns the selection into a
+  sorted interval — the later day is always the deadline, the earlier becomes the start — so clicking an
+  earlier day extends the interval backwards and a later day extends it forwards. Once a full interval
+  exists, the next click starts over with a fresh single date. The selection state machine lives in a
+  pure, unit-tested `computeNextDueRange` so the behavior is verifiable in isolation.
+- **Calendar UX & motion.** `DateCalendar` was rebuilt as a range picker: a live **hover preview**
+  (soft dashed band) shows the interval a second click would create before committing; the committed
+  interval renders as solid black bound caps joined by a filled band; months cross-fade/slide on
+  navigation and the caps spring in — all via framer-motion, respecting `prefers-reduced-motion`. The
+  popover/inline calendars close only on terminal selections (quick-pick, completed interval, or clear)
+  and stay open after the first pick so an interval can be built in one go. Task cards render an
+  interval as `start → deadline`; the always-open branch sidebar shows a "N days" span.
+- **Backend.** `TodoItem.SetDueRange(start, end)` enforces the invariants (a start requires an end; the
+  start can never be after the end) and `Create` accepts an optional `dueDateStart`. The create/update
+  commands gain `DueDateStart`, and update gains an explicit `ClearDueDate` flag — needed because the
+  full-payload autosave always sends `dueDate`, so a bare null could not previously distinguish "clear"
+  from "unchanged" (this also fixes that latent inability to clear a due date). FluentValidation rejects
+  a start without an end and a start after the end. The column is added to existing databases
+  idempotently at TodoApi startup (`ADD COLUMN IF NOT EXISTS`), mirroring the `CreatedByUserId` pattern.
+- **Tests.** Added domain tests (interval set / collapse-to-single / clear / invariant violations),
+  validator tests (start-without-end, start-after-end, valid interval), and frontend tests for
+  `computeNextDueRange`, `formatDueRange`/`dueRangeDays`, and the card's range rendering. Full backend
+  TodoApi suite (154) and frontend suite (515, 85% coverage gate) green.
+- **Security:** the non-owner and subtask edit guards reject `DueDateStart`/`ClearDueDate` just like the
+  other owner-only date fields, so a friend-visible viewer still cannot change a task's dates and a
+  subtask continues to inherit them from its parent.
+
 ### style(todo-card): the completed-task strike now dissolves on hover and draws back (2026-06-19)
 
 - Hovering a completed task card used to keep the title's strikethrough fully visible, only shifting

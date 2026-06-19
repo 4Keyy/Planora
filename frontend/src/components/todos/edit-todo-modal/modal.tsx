@@ -31,6 +31,8 @@ function samePayloadExceptDescription(a: UpdateTodoPayload, b: UpdateTodoPayload
     a.title === b.title &&
     a.priority === b.priority &&
     a.dueDate === b.dueDate &&
+    a.dueDateStart === b.dueDateStart &&
+    a.clearDueDate === b.clearDueDate &&
     a.categoryId === b.categoryId &&
     a.isPublic === b.isPublic &&
     a.requiredWorkers === b.requiredWorkers &&
@@ -50,11 +52,16 @@ function todoToOwnerPayload(todo: Todo): UpdateTodoPayload {
   const dueDate = todo.dueDate
     ? new Date(new Date(todo.dueDate).toISOString().split("T")[0]).toISOString()
     : null
+  const dueDateStart = todo.dueDateStart
+    ? new Date(new Date(todo.dueDateStart).toISOString().split("T")[0]).toISOString()
+    : null
   return {
     title: todo.title.trim(),
     description: (todo.description ?? "").trim() || null,
     priority: getPriorityNumber(getPriorityString(todo.priority)),
     dueDate,
+    dueDateStart,
+    clearDueDate: !todo.dueDate,
     categoryId: todo.categoryId || null,
     isPublic: false,
     sharedWithUserIds: visFriends ? shared : [],
@@ -126,6 +133,10 @@ export function TodoEditor({
   const [dueDate,      setDueDate]      = useState(
     todo.dueDate ? new Date(todo.dueDate).toISOString().split("T")[0] : ""
   )
+  // The optional START bound of the estimated-completion interval (empty for a single date).
+  const [dueDateStart, setDueDateStart] = useState(
+    todo.dueDateStart ? new Date(todo.dueDateStart).toISOString().split("T")[0] : ""
+  )
   const [categoryId,   setCategoryId]   = useState<string | null>(todo.categoryId ?? null)
   const [openPopover,  setOpenPopover]  = useState<OpenPopover>(null)
   const [editingTitle, setEditingTitle] = useState(false)
@@ -170,6 +181,7 @@ export function TodoEditor({
     setTitleDraft(todo.title)
     setPriority(getPriorityString(todo.priority))
     setDueDate(todo.dueDate ? new Date(todo.dueDate).toISOString().split("T")[0] : "")
+    setDueDateStart(todo.dueDateStart ? new Date(todo.dueDateStart).toISOString().split("T")[0] : "")
     setCategoryId(todo.categoryId ?? null)
     setVisMode((todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) ? "friends" : "private")
     setSharedIds(todo.isPublic ? [] : (todo.sharedWithUserIds ?? []))
@@ -229,12 +241,16 @@ export function TodoEditor({
     description: descOverride !== undefined ? descOverride : (description.trim() || null),
     priority: getPriorityNumber(priority),
     dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+    dueDateStart: dueDateStart ? new Date(dueDateStart).toISOString() : null,
+    // No end bound → no date at all: signal an explicit clear (a null dueDate alone reads as
+    // "unchanged" server-side). When an end is present this is false and the interval is set.
+    clearDueDate: !dueDate,
     categoryId: categoryId || null,
     isPublic: false,
     sharedWithUserIds: visMode === "private" ? [] : sharedIds,
     requiredWorkers: visMode === "private" ? null : 1 + sharedIds.length,
     clearRequiredWorkers: visMode === "private",
-  }), [title, description, priority, dueDate, categoryId, visMode, sharedIds])
+  }), [title, description, priority, dueDate, dueDateStart, categoryId, visMode, sharedIds])
 
   const ownerPayload = useMemo(() => buildOwnerPayload(), [buildOwnerPayload])
 
@@ -390,7 +406,11 @@ export function TodoEditor({
 
   const metaProps = {
     priority, onPriorityChange: setPriority,
-    dueDate, onDueDateChange: (v: string | null) => setDueDate(v ?? ""),
+    dueDate, dueDateStart,
+    onDueRangeChange: (start: string | null, end: string | null) => {
+      setDueDateStart(start ?? "")
+      setDueDate(end ?? "")
+    },
     categoryId, onCategoryChange: setCategoryId,
     categories, onCreateCategory, canEditCategory,
     authorCategoryName: todo.authorCategoryName,

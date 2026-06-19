@@ -12,8 +12,9 @@ import { FriendDto }         from "@/types/auth"
 import {
   getPriorityColor,
   getPriorityLabel,
-  formatDatePretty,
+  formatDueRange,
   formatRelativeRu,
+  dueRangeDays,
 } from "./utils"
 
 type OpenPopover = "priority" | "date" | "category" | "visibility" | null
@@ -22,7 +23,8 @@ interface PageMetaPanelProps {
   priority: string
   onPriorityChange: (v: string) => void
   dueDate: string
-  onDueDateChange: (v: string | null) => void
+  dueDateStart: string
+  onDueRangeChange: (start: string | null, end: string | null) => void
   categoryId: string | null
   onCategoryChange: (v: string | null) => void
   categories: Category[]
@@ -102,7 +104,7 @@ function MetaButton({ onClick, isOpen, muted, label, popover, containerRef }: Me
  */
 export function PageMetaPanel({
   priority, onPriorityChange,
-  dueDate, onDueDateChange,
+  dueDate, dueDateStart, onDueRangeChange,
   categoryId, onCategoryChange, categories, onCreateCategory, canEditCategory,
   authorCategoryName, authorCategoryColor, authorCategoryIcon,
   isOwner,
@@ -126,7 +128,9 @@ export function PageMetaPanel({
   const AuthorCatIcon  = authorCategoryIcon ? (ICON_MAP[authorCategoryIcon] ?? null) : null
   const showAuthorHint = !activeCat && !isOwner && !!authorCategoryName
 
-  const dateClearable = !!dueDate && !ownerLocked
+  const dateClearable = (!!dueDate || !!dueDateStart) && !ownerLocked
+  const isRange = !!dueDate && !!dueDateStart && dueDateStart !== dueDate
+  const rangeDays = isRange ? dueRangeDays(dueDateStart, dueDate) : 0
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -240,7 +244,7 @@ export function PageMetaPanel({
         <SectionLabel
           action={dateClearable ? (
             <button
-              onClick={() => onDueDateChange(null)}
+              onClick={() => onDueRangeChange(null, null)}
               style={{ background: "none", border: "none", cursor: "pointer", fontSize: 9, fontWeight: 900, letterSpacing: "0.1em", textTransform: "uppercase", color: "#a3a3a3", padding: 0 }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#525252" }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3" }}
@@ -257,15 +261,17 @@ export function PageMetaPanel({
           <Calendar size={14} strokeWidth={1.8} />
           {dueDate ? (
             <>
-              {formatDatePretty(dueDate)}
-              <span style={{ color: "#a3a3a3", fontWeight: 600 }}>· {formatRelativeRu(dueDate)}</span>
+              {formatDueRange(dueDateStart, dueDate)}
+              <span style={{ color: "#a3a3a3", fontWeight: 600 }}>
+                · {isRange ? `${rangeDays} days` : formatRelativeRu(dueDate)}
+              </span>
             </>
           ) : "No due date"}
         </div>
 
         {/* The calendar itself — always visible. */}
         <div style={{ border: "1px solid #f0f0f0", borderRadius: 14, overflow: "hidden", background: "white" }}>
-          <DateCalendar value={dueDate} onChange={onDueDateChange} readOnly={ownerLocked} headless hideQuickPicks />
+          <DateCalendar start={dueDateStart} end={dueDate} onChange={onDueRangeChange} readOnly={ownerLocked} headless hideQuickPicks />
         </div>
       </div>
     </div>

@@ -86,7 +86,12 @@ export type Todo = {
   description?: string | null
   status: TodoStatus | string
   categoryId?: string | null
+  /** Estimated-completion date — a single target date, or the END (later bound) of an interval
+   *  when {@link dueDateStart} is set. The deadline bound used by overdue/sort logic. */
   dueDate?: string | null
+  /** Optional START (earlier bound) of the estimated-completion interval. Null for a single-date
+   *  or no-date task; when set it is always ≤ {@link dueDate}. */
+  dueDateStart?: string | null
   expectedDate?: string | null
   actualDate?: string | null
   priority: TodoPriority | string
@@ -162,7 +167,10 @@ export type CreateTodoPayload = {
   title: string
   description?: string | null
   categoryId?: string | null
+  /** END / single target date (ISO). */
   dueDate?: string | null
+  /** Optional START of the estimated-completion interval (ISO). Requires dueDate to be set. */
+  dueDateStart?: string | null
   priority?: number
   isPublic?: boolean
   sharedWithUserIds?: string[]
@@ -174,7 +182,12 @@ export type UpdateTodoPayload = {
   title?: string
   description?: string | null
   categoryId?: string | null
+  /** END / single target date (ISO). Use clearDueDate to remove the date entirely. */
   dueDate?: string | null
+  /** Optional START of the estimated-completion interval (ISO). Requires dueDate to be set. */
+  dueDateStart?: string | null
+  /** Explicitly clears the due date/interval — a bare null dueDate reads as "unchanged" server-side. */
+  clearDueDate?: boolean
   priority?: number
   isPublic?: boolean
   sharedWithUserIds?: string[]

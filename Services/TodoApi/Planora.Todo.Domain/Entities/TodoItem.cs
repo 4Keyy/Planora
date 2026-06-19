@@ -22,7 +22,18 @@ namespace Planora.Todo.Domain.Entities
         /// </summary>
         public Guid? CreatedByUserId { get; private set; }
         public Guid? CategoryId { get; private set; }
+        /// <summary>
+        /// The task's estimated-completion date. When <see cref="DueDateStart"/> is null this is a
+        /// single target date; when it is set, this is the END (later bound) of a planned interval.
+        /// Always the later of the two bounds for a range — see <see cref="SetDueRange"/>.
+        /// </summary>
         public DateTime? DueDate { get; private set; }
+        /// <summary>
+        /// Optional START (earlier bound) of the estimated-completion interval. Null when the task
+        /// has no date or only a single target date. When set, it is always ≤ <see cref="DueDate"/>
+        /// and <see cref="DueDate"/> is guaranteed non-null (invariant enforced by <see cref="SetDueRange"/>).
+        /// </summary>
+        public DateTime? DueDateStart { get; private set; }
         public DateTime? ExpectedDate { get; private set; }
         public DateTime? ActualDate { get; private set; }
         public TodoPriority Priority { get; private set; } = TodoPriority.Medium;
@@ -59,10 +70,18 @@ namespace Planora.Todo.Domain.Entities
             TodoPriority priority = TodoPriority.Medium,
             bool isPublic = false,
             IEnumerable<Guid>? sharedWithUserIds = null,
-            int? requiredWorkers = null)
+            int? requiredWorkers = null,
+            DateTime? dueDateStart = null)
         {
             if (string.IsNullOrWhiteSpace(title))
                 throw new InvalidValueObjectException(nameof(TodoItem), "Title cannot be empty");
+
+            // Estimated-completion interval invariants (mirror SetDueRange): a start requires an
+            // end, and the start can never be after the end. A bare end is a single target date.
+            if (dueDateStart.HasValue && !dueDate.HasValue)
+                throw new InvalidValueObjectException(nameof(TodoItem), "A due-date range must have an end date");
+            if (dueDateStart.HasValue && dueDate!.Value < dueDateStart.Value)
+                throw new InvalidValueObjectException(nameof(TodoItem), "Due-date range start cannot be after its end");
 
             // Removed: Allow past dates for historical todos
             // if (dueDate.HasValue && dueDate.Value < DateTime.UtcNow)
@@ -79,6 +98,7 @@ namespace Planora.Todo.Domain.Entities
                 Description = description?.Trim(),
                 CategoryId = categoryId,
                 DueDate = dueDate,
+                DueDateStart = dueDateStart,
                 ExpectedDate = expectedDate,
                 Priority = priority,
                 IsPublic = isPublic
@@ -264,7 +284,25 @@ namespace Planora.Todo.Domain.Entities
 
         public void UpdateDueDate(DateTime? dueDate, Guid userId)
         {
-            DueDate = dueDate;
+            // A single target date (or a clear) — collapses any existing interval to one bound.
+            SetDueRange(null, dueDate, userId);
+        }
+
+        /// <summary>
+        /// Sets the estimated-completion interval. Pass <c>(null, end)</c> for a single target date,
+        /// <c>(start, end)</c> for an interval, or <c>(null, null)</c> to clear it entirely. Enforces
+        /// the invariants that a start always has an end and is never later than that end — the caller
+        /// (UI two-click selection) is expected to pre-sort, but the domain guarantees them regardless.
+        /// </summary>
+        public void SetDueRange(DateTime? start, DateTime? end, Guid userId)
+        {
+            if (start.HasValue && !end.HasValue)
+                throw new InvalidValueObjectException(nameof(TodoItem), "A due-date range must have an end date");
+            if (start.HasValue && end!.Value < start.Value)
+                throw new InvalidValueObjectException(nameof(TodoItem), "Due-date range start cannot be after its end");
+
+            DueDateStart = start;
+            DueDate = end;
             MarkAsModified(userId);
         }
 

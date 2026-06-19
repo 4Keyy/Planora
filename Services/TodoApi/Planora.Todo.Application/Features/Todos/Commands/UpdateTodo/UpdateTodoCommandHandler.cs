@@ -83,7 +83,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             {
                 // Check if trying to modify anything other than status
                 if (request.Title != null || request.Description != null || request.CategoryId != null ||
-                    request.DueDate != null || request.ExpectedDate != null || request.ActualDate != null ||
+                    request.DueDate != null || request.DueDateStart != null || request.ClearDueDate ||
+                    request.ExpectedDate != null || request.ActualDate != null ||
                     request.Priority.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null ||
                     request.RequiredWorkers.HasValue || request.ClearRequiredWorkers)
                 {
@@ -303,7 +304,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             // title, description, priority and status. (Defense in depth: the UI never sends these.)
             if (todoItem.IsSubtask &&
                 (request.CategoryId.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null ||
-                 request.DueDate != null || request.ExpectedDate != null ||
+                 request.DueDate != null || request.DueDateStart != null || request.ClearDueDate ||
+                 request.ExpectedDate != null ||
                  request.RequiredWorkers.HasValue || request.ClearRequiredWorkers))
             {
                 throw new ForbiddenException("A subtask inherits category, visibility and dates from its parent");
@@ -336,8 +338,14 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 todoItem.UpdateCategory(requestedCategoryId, userId);
             }
 
-            if (request.DueDate != null)
-                todoItem.UpdateDueDate(request.DueDate, userId);
+            // Due date / estimated-completion interval. ClearDueDate is the explicit "remove it"
+            // signal (a plain null DueDate means "unchanged" on the full-payload autosave path).
+            // Otherwise a non-null DueDate sets the interval: DueDateStart is the optional earlier
+            // bound, DueDate the later one — the domain re-validates the ordering invariant.
+            if (request.ClearDueDate)
+                todoItem.SetDueRange(null, null, userId);
+            else if (request.DueDate != null)
+                todoItem.SetDueRange(request.DueDateStart, request.DueDate, userId);
 
             if (request.ExpectedDate != null)
                 todoItem.UpdateExpectedDate(request.ExpectedDate, userId);

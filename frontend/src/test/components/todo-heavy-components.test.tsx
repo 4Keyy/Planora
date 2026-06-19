@@ -383,6 +383,7 @@ describe("CreateTodoPanel", () => {
       description: "Regression coverage",
       categoryId: null,
       dueDate: todayDueIso,
+      dueDateStart: null,
       priority: 4,
       isPublic: true,
       sharedWithUserIds: [],
@@ -390,7 +391,9 @@ describe("CreateTodoPanel", () => {
       requiredWorkers: null,
     })
     await waitFor(() => expect(screen.getByPlaceholderText("What needs to be done?")).toHaveValue(""))
-  })
+    // Heavier headroom: this flow drives many userEvent interactions plus the animation-rich
+    // range calendar, which tips past the 5s default under v8 coverage instrumentation.
+  }, 15000)
 
   it("shows task text counters and red warning state near input limits", () => {
     render(
@@ -634,6 +637,8 @@ describe("EditTodoModal", () => {
       description: "Cover every important branch with focused behavior tests.",
       priority: 4,
       dueDate: new Date("2026-05-01").toISOString(),
+      dueDateStart: null,
+      clearDueDate: false,
       categoryId: "cat-1",
       isPublic: false,
       sharedWithUserIds: [],
@@ -758,6 +763,8 @@ describe("EditTodoModal", () => {
       description: null,
       priority: 3,
       dueDate: null,
+      dueDateStart: null,
+      clearDueDate: true,
       categoryId: "cat-new",
       isPublic: false,
       sharedWithUserIds: [],

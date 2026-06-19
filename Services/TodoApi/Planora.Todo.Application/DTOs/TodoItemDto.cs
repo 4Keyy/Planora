@@ -17,7 +17,12 @@ namespace Planora.Todo.Application.DTOs
         public string? Description { get; init; }
         public required string Status { get; init; }
         public Guid? CategoryId { get; init; }
+        /// <summary>The estimated-completion date — a single target date, or the END (later bound)
+        /// of an interval when <see cref="DueDateStart"/> is set.</summary>
         public DateTime? DueDate { get; init; }
+        /// <summary>Optional START (earlier bound) of the estimated-completion interval. Null for a
+        /// single-date or no-date task; when set it is always ≤ <see cref="DueDate"/>.</summary>
+        public DateTime? DueDateStart { get; init; }
         public DateTime? ExpectedDate { get; init; }
         public DateTime? ActualDate { get; init; }
         public required string Priority { get; init; }

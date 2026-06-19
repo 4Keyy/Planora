@@ -52,6 +52,62 @@ export function formatDatePretty(isoDate: string): string {
   return `${day} ${month} ${year}`
 }
 
+/**
+ * The estimated-completion date model. A task can have no date (both null), a single target
+ * date (`end` set, `start` null), or a planned interval (`start` ≤ `end`). `end` is always the
+ * later bound — the deadline — so it stays the field card/overdue logic reads. ISO `YYYY-MM-DD`.
+ */
+export type DueRange = { start: string | null; end: string | null }
+
+/**
+ * The two-click selection state machine for the date calendar. Pure and total so it can be unit
+ * tested in isolation:
+ *  - empty            + click d → single date d (stored as `end`)
+ *  - single (end set) + click same day → cleared
+ *  - single (end set) + click other day → interval, sorted so the later day is `end`
+ *  - complete interval + click d → restart as a fresh single date d
+ * The later of the two picks is always the deadline (`end`); the earlier becomes `start`, exactly
+ * matching the spec ("click an earlier day and it becomes the left edge, the standing date the right").
+ */
+export function computeNextDueRange(current: DueRange, clicked: string): DueRange {
+  const { start, end } = current
+
+  // A complete interval already exists → start over with a single anchor on the clicked day.
+  if (start && end) return { start: null, end: clicked }
+
+  // A single date exists (held in `end`).
+  if (end) {
+    if (clicked === end) return { start: null, end: null }            // same day → clear
+    return clicked < end                                              // ISO strings sort chronologically
+      ? { start: clicked, end }                                       // earlier click → it's the left edge
+      : { start: end, end: clicked }                                  // later click → standing date is the left edge
+  }
+
+  // Nothing set → a single target date.
+  return { start: null, end: clicked }
+}
+
+/** Whole-day span of an interval, inclusive of both ends (1 for a single day). */
+export function dueRangeDays(start: string | null | undefined, end: string | null | undefined): number {
+  if (!end) return 0
+  if (!start || start === end) return 1
+  const ms = new Date(end).getTime() - new Date(start).getTime()
+  return Math.round(ms / 86_400_000) + 1
+}
+
+/** Pretty one-line label: "25 Jun" for a single date, "20 – 25 Jun" / "20 Jun – 2 Jul" for an interval. */
+export function formatDueRange(start: string | null | undefined, end: string | null | undefined): string {
+  if (!end) return ""
+  if (!start || start === end) return formatDatePretty(end)
+
+  const s = new Date(start)
+  const e = new Date(end)
+  // Collapse the shared month/year: "20 – 25 Jun" reads cleaner than "20 Jun – 25 Jun".
+  const sameMonth = s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()
+  if (sameMonth) return `${s.getDate()} – ${formatDatePretty(end)}`
+  return `${formatDatePretty(start)} – ${formatDatePretty(end)}`
+}
+
 export function formatRelativeRu(isoDate: string): string {
   const diff = new Date(isoDate).getTime() - Date.now()
   const days = Math.round(diff / 86_400_000)

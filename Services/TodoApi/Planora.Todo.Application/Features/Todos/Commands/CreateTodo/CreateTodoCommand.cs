@@ -14,5 +14,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
         TodoPriority Priority = TodoPriority.Medium,
         bool IsPublic = false,
         IReadOnlyList<Guid>? SharedWithUserIds = null,
-        int? RequiredWorkers = null) : ICommand<Result<TodoItemDto>>;
+        int? RequiredWorkers = null,
+        // Optional START of the estimated-completion interval. When set, DueDate is its END bound.
+        // Null means a single target date (DueDate) or no date at all.
+        DateTime? DueDateStart = null) : ICommand<Result<TodoItemDto>>;
 }

@@ -78,6 +78,53 @@ public class TodoValidatorTests
     }
 
     [Fact]
+    public void CreateTodoValidator_ShouldRejectDueRangeStartWithoutEnd_AndStartAfterEnd()
+    {
+        var validator = new CreateTodoCommandValidator();
+
+        var noEnd = validator.Validate(new CreateTodoCommand(
+            UserId: Guid.NewGuid(), Title: "Plan", Description: null, CategoryId: null,
+            DueDate: null, ExpectedDate: null,
+            DueDateStart: new DateTime(2026, 6, 20)));
+        Assert.False(noEnd.IsValid);
+        Assert.Contains(noEnd.Errors, e => e.ErrorMessage == "A due-date range start requires an end date");
+
+        var startAfterEnd = validator.Validate(new CreateTodoCommand(
+            UserId: Guid.NewGuid(), Title: "Plan", Description: null, CategoryId: null,
+            DueDate: new DateTime(2026, 6, 20), ExpectedDate: null,
+            DueDateStart: new DateTime(2026, 6, 25)));
+        Assert.False(startAfterEnd.IsValid);
+        Assert.Contains(startAfterEnd.Errors, e => e.ErrorMessage == "Due-date range start cannot be after the end date");
+    }
+
+    [Fact]
+    public void CreateTodoValidator_ShouldAcceptValidDueInterval()
+    {
+        var validator = new CreateTodoCommandValidator();
+
+        var result = validator.Validate(new CreateTodoCommand(
+            UserId: Guid.NewGuid(), Title: "Plan", Description: null, CategoryId: null,
+            DueDate: new DateTime(2026, 6, 25), ExpectedDate: null,
+            DueDateStart: new DateTime(2026, 6, 20)));
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void UpdateTodoValidator_ShouldRejectDueRangeStartAfterEnd()
+    {
+        var validator = new UpdateTodoCommandValidator();
+
+        var result = validator.Validate(new UpdateTodoCommand(
+            TodoId: Guid.NewGuid(),
+            DueDate: new DateTime(2026, 6, 20),
+            DueDateStart: new DateTime(2026, 6, 25)));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.ErrorMessage == "Due-date range start cannot be after the end date");
+    }
+
+    [Fact]
     public void CreateSubtaskValidator_AcceptsUpTo1500CharTitle_AndRejectsBeyond()
     {
         var validator = new CreateSubtaskCommandValidator();

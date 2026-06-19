@@ -12,7 +12,7 @@ import { FriendDto }         from "@/types/auth"
 import {
   getPriorityColor,
   getPriorityLabel,
-  formatDatePretty,
+  formatDueRange,
   formatRelativeRu,
 } from "./utils"
 
@@ -22,7 +22,8 @@ interface InlineTokenStripProps {
   priority: string
   onPriorityChange: (v: string) => void
   dueDate: string
-  onDueDateChange: (v: string | null) => void
+  dueDateStart: string
+  onDueRangeChange: (start: string | null, end: string | null) => void
   categoryId: string | null
   onCategoryChange: (v: string | null) => void
   categories: Category[]
@@ -95,7 +96,7 @@ function InlineToken({ onClick, isOpen, label, popover, containerRef, muted }: I
 
 export function InlineTokenStrip({
   priority, onPriorityChange,
-  dueDate, onDueDateChange,
+  dueDate, dueDateStart, onDueRangeChange,
   categoryId, onCategoryChange, categories, onCreateCategory, canEditCategory,
   authorCategoryName, authorCategoryColor, authorCategoryIcon,
   isOwner,
@@ -172,7 +173,7 @@ export function InlineTokenStrip({
             <Calendar size={14} strokeWidth={1.4} />
             {dueDate ? (
               <>
-                {formatDatePretty(dueDate)}
+                {formatDueRange(dueDateStart, dueDate)}
                 <span style={{ color: "#a3a3a3", fontWeight: 600, marginLeft: 2 }}>
                   · {formatRelativeRu(dueDate)}
                 </span>
@@ -186,8 +187,9 @@ export function InlineTokenStrip({
           <DatePopover
             open={openPopover === "date"}
             onClose={close}
-            value={dueDate}
-            onChange={(v) => { onDueDateChange(v); close() }}
+            start={dueDateStart}
+            end={dueDate}
+            onChange={onDueRangeChange}
             containerRef={dateRef as RefObject<HTMLElement | null>}
             readOnly={ownerLocked}
           />

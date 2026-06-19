@@ -45,4 +45,26 @@ describe("TodoCard notification mark", () => {
     render(<TodoCard todo={todo} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
   })
+
+  it("renders an estimated-completion interval as a start → deadline range", () => {
+    const rangeTodo = {
+      ...todo,
+      id: "todo-range",
+      dueDateStart: "2026-12-20T00:00:00.000Z",
+      dueDate: "2026-12-25T00:00:00.000Z",
+    } as unknown as Todo
+    render(<TodoCard todo={rangeTodo} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
+    // The arrow separator is unique to the range branch — a single date renders without it.
+    expect(screen.getByText("→")).toBeInTheDocument()
+  })
+
+  it("renders a single due date without a range arrow", () => {
+    const singleTodo = {
+      ...todo,
+      id: "todo-single",
+      dueDate: "2026-12-25T00:00:00.000Z",
+    } as unknown as Todo
+    render(<TodoCard todo={singleTodo} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
+    expect(screen.queryByText("→")).not.toBeInTheDocument()
+  })
 })

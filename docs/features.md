@@ -179,6 +179,7 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 | Status | backend statuses are `Todo`, `InProgress`, `Done`; parser accepts legacy aliases such as `pending` and `completed` |
 | Priority | `VeryLow`, `Low`, `Medium`, `High`, `Urgent`; EF stores integer value |
 | Expected/due dates | expected date cannot be after due date when both are present |
+| Due-date interval | the estimated-completion date can be a single day **or** an interval: `dueDate` is the single date / later bound (deadline), `dueDateStart` the optional earlier bound. When set, `dueDateStart ≤ dueDate` (enforced by the domain `SetDueRange` and the create/update validators); a lone `dueDateStart` without `dueDate` is rejected. Clearing on update requires `clearDueDate: true` (a bare null `dueDate` reads as "unchanged" on the full-payload autosave) |
 | Category | Todo validates category ownership through Category service |
 | Sharing | direct `sharedWithUserIds` must be accepted friends; the task form exposes public all-friends visibility inside `Share With`; `IsPublic` is independent from direct shares and makes the task visible to all accepted friends |
 | Non-owner updates | friend-visible viewer can only change status |
@@ -379,6 +380,19 @@ The two variants share the title editor, In Progress pill and branch but lay the
 place the calendar stays open; the modal's date token opens a popover, and the create panel uses a
 collapsible inline calendar (hidden until clicked) — so the calendar is never shown unprompted
 except on the dedicated branch page.
+
+**The date calendar is a two-click range picker** (`DateCalendar`, logic in the pure, unit-tested
+`computeNextDueRange`). The first click sets a single target date (the deadline). Clicking that same
+day again clears it. Clicking a **different** day turns the selection into a sorted interval — the
+later day is always the deadline (`dueDate`), the earlier becomes the start (`dueDateStart`) — so
+picking an earlier day extends the interval backwards and a later day extends it forwards. Once a
+full interval exists, the next click starts over with a fresh single date. While a single date is
+set, hovering another day previews the interval it would create (a soft dashed band) before commit;
+the committed interval renders as solid black bound caps joined by a filled band, animated with
+framer-motion. Quick-picks (Today/Tomorrow/…) always set a single date. The popover/inline calendar
+closes on terminal selections (a quick-pick, a completed interval, or a clear) but stays open after
+the first single pick so the interval can be built in one go. Task cards render an interval as
+`start → deadline`; overdue is judged on the deadline either way.
 
 The editor seeds its local fields from the task **once per task** (`todo.id`), not on every prop
 update — so on the page (where the parent feeds the saved task back after autosave) the controls

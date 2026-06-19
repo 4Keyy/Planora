@@ -26,7 +26,7 @@ import { ICON_MAP } from "@/lib/icon-map"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { FriendMultiSelect } from "@/components/todos/friend-multi-select"
 import { DateCalendar } from "@/components/todos/edit-todo-modal/popovers/date"
-import { formatDatePretty } from "@/components/todos/edit-todo-modal/utils"
+import { formatDueRange } from "@/components/todos/edit-todo-modal/utils"
 import { useFriends } from "@/hooks/use-friends"
 import { cn } from "@/lib/utils"
 import { TWEEN_FAST, SPRING_RESPONSIVE, EASE_OUT_EXPO } from "@/lib/animations"
@@ -130,6 +130,7 @@ export function CreateTodoPanel({
   const [description, setDescription] = useState("")
   const [priority, setPriority] = useState("Medium")
   const [dueDate, setDueDate] = useState("")
+  const [dueDateStart, setDueDateStart] = useState("")
   const [dateOpen, setDateOpen] = useState(false)
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined)
   const [creating, setCreating] = useState(false)
@@ -153,6 +154,7 @@ export function CreateTodoPanel({
     setDescription("")
     setPriority("Medium")
     setDueDate("")
+    setDueDateStart("")
     setDateOpen(false)
     setCategoryId(undefined)
     setFormError(null)
@@ -203,6 +205,7 @@ export function CreateTodoPanel({
         description: description.trim() || null,
         categoryId: finalCategoryId || null,
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+        dueDateStart: dueDateStart ? new Date(dueDateStart).toISOString() : null,
         priority: getPriorityNumber(priority),
         isPublic,
         sharedWithUserIds: selectedFriendIds,
@@ -234,7 +237,7 @@ export function CreateTodoPanel({
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, title, description, priority, dueDate, categoryId, isPublic, selectedFriendIds, newCatName, newCatColor, newCatIcon, creating])
+  }, [isOpen, title, description, priority, dueDate, dueDateStart, categoryId, isPublic, selectedFriendIds, newCatName, newCatColor, newCatIcon, creating])
 
   const fieldMotion = (delay = 0) => ({
     initial: { opacity: 0, y: prefersReducedMotion ? 0 : 8, scale: prefersReducedMotion ? 1 : 0.99 },
@@ -555,13 +558,13 @@ export function CreateTodoPanel({
                     className="flex w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
                   >
                     <Calendar className="h-3.5 w-3.5" strokeWidth={1.8} />
-                    {dueDate ? formatDatePretty(dueDate) : <span className="text-gray-400">Select a date</span>}
+                    {dueDate ? formatDueRange(dueDateStart, dueDate) : <span className="text-gray-400">Select a date</span>}
                     {dueDate && (
                       <span
                         role="button"
                         tabIndex={0}
-                        onClick={e => { e.stopPropagation(); setDueDate("") }}
-                        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setDueDate("") } }}
+                        onClick={e => { e.stopPropagation(); setDueDate(""); setDueDateStart("") }}
+                        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setDueDate(""); setDueDateStart("") } }}
                         className="ml-auto cursor-pointer text-[10px] font-black uppercase tracking-wider text-gray-400 hover:text-gray-700"
                       >
                         Clear
@@ -579,7 +582,20 @@ export function CreateTodoPanel({
                         className="overflow-hidden"
                       >
                         <div className="mt-2 overflow-hidden rounded-2xl border border-gray-100 bg-white">
-                          <DateCalendar value={dueDate} onChange={v => { setDueDate(v ?? ""); setDateOpen(false) }} headless />
+                          {/* Range-capable: a first click sets the target date; clicking another day
+                              forms the interval. autoClose fires only on terminal selections (a
+                              quick-pick, a completed interval, or a clear), so the panel stays open
+                              after a first single pick — letting an interval be built inline. */}
+                          <DateCalendar
+                            start={dueDateStart}
+                            end={dueDate}
+                            onChange={(s, e) => {
+                              setDueDateStart(s ?? "")
+                              setDueDate(e ?? "")
+                            }}
+                            autoClose={() => setDateOpen(false)}
+                            headless
+                          />
                         </div>
                       </motion.div>
                     )}

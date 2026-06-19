@@ -37,6 +37,18 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 .Must(x => !x.ExpectedDate.HasValue || !x.DueDate.HasValue || x.ExpectedDate.Value <= x.DueDate.Value)
                 .WithMessage("Expected date cannot be after due date")
                 .When(x => x.ExpectedDate.HasValue && x.DueDate.HasValue);
+
+            // Estimated-completion interval: a start bound requires an end bound (DueDate)…
+            RuleFor(x => x)
+                .Must(x => x.DueDate.HasValue)
+                .WithMessage("A due-date range start requires an end date")
+                .When(x => x.DueDateStart.HasValue);
+
+            // …and the start can never be later than the end.
+            RuleFor(x => x)
+                .Must(x => !x.DueDate.HasValue || x.DueDateStart!.Value <= x.DueDate.Value)
+                .WithMessage("Due-date range start cannot be after the end date")
+                .When(x => x.DueDateStart.HasValue);
         }
     }
 }

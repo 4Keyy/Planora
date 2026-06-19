@@ -125,6 +125,59 @@ public class TodoItemDomainTests
     }
 
     [Fact]
+    public void SetDueRange_ShouldStoreIntervalCollapseToSingleDateAndClear()
+    {
+        var ownerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Task");
+        var start = new DateTime(2026, 6, 20, 0, 0, 0, DateTimeKind.Utc);
+        var end   = new DateTime(2026, 6, 25, 0, 0, 0, DateTimeKind.Utc);
+
+        // (start, end) → a planned interval with both bounds.
+        todo.SetDueRange(start, end, ownerId);
+        Assert.Equal(start, todo.DueDateStart);
+        Assert.Equal(end, todo.DueDate);
+
+        // A single target date collapses the interval: the start bound is dropped, end kept.
+        todo.UpdateDueDate(end, ownerId);
+        Assert.Null(todo.DueDateStart);
+        Assert.Equal(end, todo.DueDate);
+
+        // (null, null) clears the date entirely.
+        todo.SetDueRange(null, null, ownerId);
+        Assert.Null(todo.DueDateStart);
+        Assert.Null(todo.DueDate);
+    }
+
+    [Fact]
+    public void SetDueRange_ShouldRejectStartWithoutEnd_AndStartAfterEnd()
+    {
+        var ownerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Task");
+        var earlier = new DateTime(2026, 6, 20, 0, 0, 0, DateTimeKind.Utc);
+        var later   = new DateTime(2026, 6, 25, 0, 0, 0, DateTimeKind.Utc);
+
+        Assert.Throws<InvalidValueObjectException>(() => todo.SetDueRange(earlier, null, ownerId));
+        Assert.Throws<InvalidValueObjectException>(() => todo.SetDueRange(later, earlier, ownerId));
+    }
+
+    [Fact]
+    public void Create_ShouldAcceptDueInterval_AndRejectInvalidBounds()
+    {
+        var ownerId = Guid.NewGuid();
+        var start = new DateTime(2026, 6, 20, 0, 0, 0, DateTimeKind.Utc);
+        var end   = new DateTime(2026, 6, 25, 0, 0, 0, DateTimeKind.Utc);
+
+        var todo = TodoItem.Create(ownerId, "Task", dueDate: end, dueDateStart: start);
+        Assert.Equal(start, todo.DueDateStart);
+        Assert.Equal(end, todo.DueDate);
+
+        Assert.Throws<InvalidValueObjectException>(() =>
+            TodoItem.Create(ownerId, "Task", dueDateStart: start));               // start without end
+        Assert.Throws<InvalidValueObjectException>(() =>
+            TodoItem.Create(ownerId, "Task", dueDate: start, dueDateStart: end));  // start after end
+    }
+
+    [Fact]
     public void TagMethods_ShouldValidateDuplicatesMissingTagsAndClear()
     {
         var ownerId = Guid.NewGuid();

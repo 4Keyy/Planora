@@ -487,6 +487,7 @@ Create body:
   "description": "Electricity and internet",
   "categoryId": "00000000-0000-0000-0000-000000000000",
   "dueDate": "2026-05-10T12:00:00Z",
+  "dueDateStart": "2026-05-08T12:00:00Z",
   "expectedDate": "2026-05-09T12:00:00Z",
   "priority": "Medium",
   "isPublic": false,
@@ -495,6 +496,8 @@ Create body:
 }
 ```
 
+`dueDate` is the estimated-completion date — a single target date, or the **later** bound (deadline) of an interval. `dueDateStart` is the optional **earlier** bound: omit it (or send `null`) for a single date; when present it must be `≤ dueDate`.
+
 Update body fields are optional:
 
 ```json
@@ -502,7 +505,9 @@ Update body fields are optional:
   "title": "Updated title",
   "description": "Updated description",
   "categoryId": null,
-  "dueDate": null,
+  "dueDate": "2026-05-10T12:00:00Z",
+  "dueDateStart": "2026-05-08T12:00:00Z",
+  "clearDueDate": false,
   "expectedDate": null,
   "actualDate": null,
   "priority": "High",
@@ -519,6 +524,7 @@ Rules:
 - title required on create, max 200 for a regular task; **subtask titles allow up to 1500** (a subtask's whole content lives in its title — see `POST /todos/{id}/subtasks`). The shared update endpoint (`PUT /todos/{id}`) also accepts up to 1500 because subtask renames go through it;
 - description optional, max 2000 (validators and the EF column agree);
 - expected date cannot be after due date;
+- `dueDateStart` (interval start) requires `dueDate` to be set and must be `≤ dueDate`; the later bound is always the deadline. On update, a bare `dueDate: null` means **unchanged** (the full-payload autosave always sends it) — send `clearDueDate: true` to actually remove the date/interval, mirroring `clearRequiredWorkers`;
 - category must belong to current user;
 - shared users must be accepted friends;
 - `isPublic` is independent from `sharedWithUserIds`; public tasks are visible to all accepted friends, direct shares are visible to the selected accepted friends;

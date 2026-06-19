@@ -204,6 +204,22 @@ END $$;", app.Lifetime.ApplicationStopping);
                         logger.LogWarning(ex, "Could not ensure TodoItems.CreatedByUserId column (non-fatal)");
                     }
 
+                    // DueDateStart is the optional START bound of a task's estimated-completion
+                    // interval (the existing DueDate column is its END / single target date). Additive
+                    // nullable column; add it on existing migration-built databases. Idempotent
+                    // (IF NOT EXISTS) and metadata-only. Fresh installs already get it from the EF model.
+                    try
+                    {
+                        await db.Database.ExecuteSqlRawAsync(
+                            @"ALTER TABLE todo.""TodoItems"" ADD COLUMN IF NOT EXISTS ""DueDateStart"" timestamp with time zone;",
+                            app.Lifetime.ApplicationStopping);
+                        logger.LogInformation("✅ Ensured TodoItems.DueDateStart column exists");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Could not ensure TodoItems.DueDateStart column (non-fatal)");
+                    }
+
                     // Subscribe to Integration Events
                     logger.LogInformation("🔄 Subscribing to integration events...");
                     var eventBus = provider.GetRequiredService<IEventBus>();
