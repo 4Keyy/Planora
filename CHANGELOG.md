@@ -134,8 +134,8 @@ platform already trusts; unauthenticated requests still return 401.
   interceptor escalated it into a token refresh — even though the poll already swallows its own
   failures. Combined with `restoreSession`, the scheduled refresh, and retries, `/auth/refresh` was
   called more than the `auth` policy's `10/min/IP` allows and started returning `429`. The interceptor
-  then treated that transient `429` as an invalid session: `clearAuth()` + cross-tab logout broadcast
-  + redirect to `/auth/login` — which triggered more refreshes and looped. Each failure also fired a
+  then treated that transient `429` as an invalid session: `clearAuth()` + cross-tab logout broadcast +
+  redirect to `/auth/login` — which triggered more refreshes and looped. Each failure also fired a
   `TOKEN_REFRESH_FAILED` analytics POST that `403`'d on the cleared CSRF token (the visible
   `429`/`401`/`403` console cascade).
 - **Fix (two rules in `frontend/src/lib/api.ts`):**
