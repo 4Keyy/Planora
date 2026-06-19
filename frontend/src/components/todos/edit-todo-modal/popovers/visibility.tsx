@@ -6,6 +6,11 @@ import { Popover, PopoverHeader } from "../popover"
 import { FriendAvatar } from "../friend-avatar"
 import type { FriendDto } from "@/types/auth"
 
+// Both visibility modes (Private / Public) render their body at this CONSTANT height, so switching
+// modes never resizes the panel. That stops the meta sidebar from gaining/losing a scrollbar — which
+// would otherwise reflow the calendar below it — and makes the two states equally tall, as required.
+const VIS_BODY_HEIGHT = 200
+
 interface VisibilityPopoverProps {
   open: boolean
   onClose: () => void
@@ -113,11 +118,14 @@ export function VisibilityPanel({
         })}
       </div>
 
-      {/* Body */}
+      {/* Body — a CONSTANT height across modes (see VIS_BODY_HEIGHT) so toggling Private/Public
+          never changes the panel's size; the friend list scrolls *inside* this fixed area. */}
+      <div style={{ height: VIS_BODY_HEIGHT }}>
       {mode === "private" ? (
         <div style={{
-          display: "flex", flexDirection: "column", alignItems: "center",
-          padding: "20px 20px 24px", gap: 8, textAlign: "center",
+          height: "100%",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: "0 20px", gap: 8, textAlign: "center",
         }}>
           <div style={{
             width: 44, height: 44, borderRadius: "50%",
@@ -132,37 +140,39 @@ export function VisibilityPanel({
             None of your friends have access
           </p>
         </div>
+      ) : friends.length === 0 ? (
+        <div style={{
+          height: "100%",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "12px 14px", fontSize: 12, color: "#a3a3a3", textAlign: "center",
+        }}>
+          You have no friends yet
+        </div>
       ) : (
-        /* Friends list */
-        <div>
-          {friends.length === 0 ? (
-            <div style={{ padding: "12px 14px", fontSize: 12, color: "#a3a3a3", textAlign: "center" }}>
-              You have no friends yet
-            </div>
-          ) : (
-            <>
-              {/* Header row inside body */}
-              <div style={{
-                padding: "6px 14px 4px",
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-              }}>
-                <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3" }}>
-                  Shared with
-                </span>
-                <button
-                  onClick={toggleAll}
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    fontSize: 10, fontWeight: 900, letterSpacing: "0.04em",
-                    textTransform: "uppercase", color: "#0a0a0a", padding: 0,
-                  }}
-                >
-                  {allSelected ? "NONE" : "ALL"}
-                </button>
-              </div>
+        /* Friends list — header pinned, rows scroll within the fixed body height */
+        <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}>
+          {/* Header row inside body */}
+          <div style={{
+            padding: "6px 14px 4px", flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3" }}>
+              Shared with
+            </span>
+            <button
+              onClick={toggleAll}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: 10, fontWeight: 900, letterSpacing: "0.04em",
+                textTransform: "uppercase", color: "#0a0a0a", padding: 0,
+              }}
+            >
+              {allSelected ? "NONE" : "ALL"}
+            </button>
+          </div>
 
-              <div style={{ maxHeight: 240, overflowY: "auto", scrollbarGutter: "stable", padding: "0 6px 6px" }}>
-                {friends.map((f) => {
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarGutter: "stable", padding: "0 6px 6px" }}>
+            {friends.map((f) => {
                   const isSelected = sharedIds.includes(f.id)
                   return (
                     <button
@@ -202,10 +212,9 @@ export function VisibilityPanel({
                   )
                 })}
               </div>
-            </>
+            </div>
           )}
-        </div>
-      )}
+      </div>
       </div>
     </>
   )

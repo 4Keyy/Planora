@@ -4,6 +4,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(branch): privacy panel no longer resizes between Private/Public — calendar stops reflowing (2026-06-19)
+
+- The task-visibility panel on the branch page rendered its Private and Public states at different
+  heights. Toggling modes changed the sidebar's content height, which added/removed the sidebar
+  scrollbar and reflowed everything below it — most visibly the due-date calendar, which visibly
+  changed shape. The panel body now renders at a **constant height** (`VIS_BODY_HEIGHT`) in both modes
+  (the friend list scrolls within that fixed area), so the panel is equally tall either way, the
+  scrollbar never toggles, and nothing below it shifts.
+
 ### fix(realtime): notifications never persisted — event handlers registered by interface, resolved by concrete type (2026-06-18)
 
 - **The actual reason no notification ever appeared anywhere** (empty bell, no card/branch badges, no
