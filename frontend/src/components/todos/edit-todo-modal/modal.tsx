@@ -407,22 +407,34 @@ export function TodoEditor({
   if (isPage) {
     return (
       <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-        {/* Header: TASK BRANCH label · Title · In Progress (right) */}
-        <div style={{ padding: "16px 26px 0", display: "flex", alignItems: "flex-start", gap: 14 }}>
-          <Link
-            href="/tasks"
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 9,
-              fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase",
-              color: "#a3a3a3", textDecoration: "none",
-            }}
-          >
-            <ArrowLeft size={13} strokeWidth={2.4} /> Task Branch
-          </Link>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {renderTitle(20, 12, 6)}
+        {/* Header — mirrors the body's two columns so the editable title lines up with the BRANCH
+            (right column), not its settings. The "Task Branch" back-link sits over the settings
+            sidebar (left); the title + pill align with the branch content via the same lg:pl-6. */}
+        <div
+          style={{ padding: "16px 26px 0" }}
+          className="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-0"
+        >
+          {/* Left — spans the settings sidebar (389px) + the 1px divider */}
+          <div className="flex-shrink-0 lg:w-[390px]">
+            <Link
+              href="/tasks"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6,
+                fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase",
+                color: "#a3a3a3", textDecoration: "none",
+              }}
+            >
+              <ArrowLeft size={13} strokeWidth={2.4} /> Task Branch
+            </Link>
           </div>
-          {pillNode && <div style={{ marginTop: 6 }}>{pillNode}</div>}
+
+          {/* Right — aligned with the branch content (same lg:pl-6 as the body's branch column) */}
+          <div className="flex min-w-0 flex-1 items-start gap-3 lg:pl-6">
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {renderTitle(20, 12, 6)}
+            </div>
+            {pillNode && <div style={{ marginTop: 6, flexShrink: 0 }}>{pillNode}</div>}
+          </div>
         </div>
 
         {/* Body: meta sidebar | branch — stacks vertically on phones, two columns on lg+ so the

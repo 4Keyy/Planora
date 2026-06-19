@@ -4,6 +4,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### style(branch): align the task title with the branch column, not its settings (2026-06-19)
+
+- On the standalone branch page the editable task title now sits horizontally where the branch content
+  begins (the right column), instead of above the left-hand settings sidebar. The header mirrors the
+  body's two-column grid — the "Task Branch" back-link spans the 389px settings sidebar (+1px divider)
+  on the left, and the title + In-Progress pill share the branch column's `lg:pl-6`, so the title lines
+  up exactly with the timeline beneath it. Stacks cleanly to a single column on narrow screens.
+
 ### fix(branch): privacy panel no longer resizes between Private/Public — calendar stops reflowing (2026-06-19)
 
 - The task-visibility panel on the branch page rendered its Private and Public states at different
