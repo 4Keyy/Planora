@@ -126,7 +126,7 @@ export function NotificationBell({ className }: { className?: string }) {
 
             <div className="max-h-[60vh] overflow-y-auto overscroll-contain">
               {items.length === 0 ? (
-                <p className="px-4 py-10 text-center text-sm text-gray-400">You&apos;re all caught up ✨</p>
+                <p className="px-4 py-10 text-center text-sm text-gray-400">You&apos;re all caught up</p>
               ) : (
                 items.map((n) => {
                   const kind = getNotificationKind(n.type)
