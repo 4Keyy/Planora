@@ -103,6 +103,9 @@ function TodoCardComponent({
   const priorityKey = String(todo.priority)
   const priorityConfig = PRIORITY_CONFIG[priorityKey] ?? PRIORITY_CONFIG.Medium
   const isUrgent = priorityKey === "5" || priorityKey === "Urgent" || priorityKey === "Critical"
+  // An estimated-completion interval (start ≠ end) renders as a "start → deadline" range; a single
+  // date renders alone. Overdue is judged on the deadline (dueDate / the later bound) either way.
+  const hasDueRange = !!todo.dueDateStart && !!todo.dueDate && todo.dueDateStart !== todo.dueDate
   const isDueOverdue = !isCompleted && todo.dueDate && isPastDate(todo.dueDate)
   const isDueToday = !isCompleted && todo.dueDate
     ? (() => {
@@ -757,13 +760,18 @@ function TodoCardComponent({
                     >
                       <h3
                         className={cn(
+                          // `transition-colors` animates text-decoration-color too, so the strike
+                          // line can dissolve/return smoothly — see the completed state below.
                           "font-black tracking-tight leading-snug break-words transition-colors duration-300 ease-out",
                           isCompleting
                             ? "text-lg md:text-xl text-gray-500 line-through decoration-emerald-500/70 decoration-2"
                             : isCompleted
                               ? isReopening
                                 ? "text-sm text-gray-700"
-                                : "text-sm line-through text-gray-400 group-hover/card:text-gray-700"
+                                // Resting: strike visible. On card hover the line fades out (decoration-
+                                // color → transparent) and the text brightens, so the title becomes
+                                // cleanly readable; leaving the card draws the strike back in.
+                                : "text-sm line-through decoration-2 decoration-gray-300 text-gray-400 group-hover/card:text-gray-700 group-hover/card:decoration-transparent"
                               : "text-lg md:text-xl text-gray-950 group-hover/card:text-black"
                         )}
                       >
@@ -864,7 +872,16 @@ function TodoCardComponent({
                       className="flex items-center gap-1.5 text-[11px] font-medium mt-2.5"
                     >
                       <Calendar className="h-3 w-3 flex-shrink-0 text-gray-400" />
-                      <span className="text-gray-950">{formatDate(todo.dueDate || "")}</span>
+                      {hasDueRange ? (
+                        // hasDueRange guarantees both bounds are set, so the assertions are safe.
+                        <span className="flex items-center gap-1 text-gray-950">
+                          <span>{formatDate(todo.dueDateStart!)}</span>
+                          <span className="text-gray-400">→</span>
+                          <span>{formatDate(todo.dueDate!)}</span>
+                        </span>
+                      ) : (
+                        <span className="text-gray-950">{formatDate(todo.dueDate || "")}</span>
+                      )}
                       {isDueOverdue && (
                         <span className="font-black uppercase text-[9px] tracking-wider ml-1 text-red-600 self-center leading-none">
                           · Overdue

@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### style(todo-card): the completed-task strike now dissolves on hover and draws back (2026-06-19)
+
+- Hovering a completed task card used to keep the title's strikethrough fully visible, only shifting
+  its color. The strike line now **fades out smoothly on hover** so the title becomes cleanly readable,
+  and **returns just as smoothly when the pointer leaves**. The line and the brightening text animate
+  together over the card's existing 300ms ease-out.
+- Implemented without any new markup or JS: the title keeps a real `line-through` (so the strike stays
+  geometrically correct even when a long title wraps to two lines) and animates `text-decoration-color`
+  from `gray-300` to `transparent` on `group-hover/card`. Tailwind's `transition-colors` already
+  includes `text-decoration-color`, so the element's existing transition drives it — no overlay element,
+  no per-line math, no layout shift.
+
 ### style(notifications): solid header panel + a semantic, less-purple color system (2026-06-19)
 
 - **The header notification dropdown is no longer translucent.** It rendered on `bg-white/97` with a
