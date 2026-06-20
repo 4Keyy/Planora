@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### a11y(completed): accessible completion-date search control + extracted, tested window helper (2026-06-21)
+
+- **Fixed nested interactive controls.** The completion-date search trigger previously embedded a
+  `role="button"` clear affordance **inside** the toggle `<button>` — invalid HTML and hostile to
+  screen readers and keyboard users. The toggle and the clear control are now siblings in a focusable
+  container; only genuine `<button>`s are interactive.
+- **Proper expand/collapse semantics.** The toggle now exposes `aria-expanded` and `aria-controls`
+  pointing at the calendar region (which carries a matching `id`, `role="region"`, and an
+  `aria-label`), so assistive tech announces the control as expandable and can jump to the revealed
+  calendar. Decorative icons are `aria-hidden`; both controls gained visible `focus-visible` rings.
+- **Extracted + unit-tested the window logic.** The "selected day(s) → inclusive `completedFrom`/
+  `completedTo` UTC window" translation moved out of the page into a pure `buildCompletionWindow`
+  helper (`utils/completion-window.ts`), mirroring how the calendar's `computeNextDueRange` is kept
+  pure and tested. Four timezone-robust unit tests cover the empty, single-day, and interval cases.
+- Files: `frontend/src/app/tasks/completed/page.tsx`, `frontend/src/utils/completion-window.ts`,
+  `frontend/src/test/utils/completion-window.test.ts`.
+
 ### perf(todo): index the completed-archive date-range search on CompletedAt (2026-06-21)
 
 - **Backs yesterday's completion-date search with the matching index.** The completed archive filters

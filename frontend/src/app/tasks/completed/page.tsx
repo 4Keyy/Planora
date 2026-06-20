@@ -31,6 +31,7 @@ import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
 import { DateCalendar } from "@/components/todos/edit-todo-modal/popovers/date"
 import { formatDueRange } from "@/components/todos/edit-todo-modal/utils"
+import { buildCompletionWindow } from "@/utils/completion-window"
 
 const PAGE_SIZE = 20
 const COMPLETED_MASONRY_BREAKPOINTS = [
@@ -180,18 +181,16 @@ export default function CompletedTasksPage() {
     setError(null)
 
     try {
-      // Translate the selected day(s) into an inclusive UTC instant window. A single pick lives in
-      // `searchEnd`; an interval fills both. The bounds are widened to the user's local day edges so
-      // "20 Jun" matches everything finished on the 20th regardless of the stored UTC time-of-day.
-      const fromDay = searchStart || searchEnd
-      const toDay = searchEnd
+      // Translate the selected day(s) into an inclusive UTC instant window (pure + unit-tested in
+      // utils/completion-window): a single pick lives in `searchEnd`, an interval fills both, and the
+      // bounds are widened to the user's local day edges so "20 Jun" matches everything finished that
+      // day regardless of the stored UTC time-of-day.
       const params: Record<string, string | number | boolean> = {
         pageNumber: page,
         pageSize: PAGE_SIZE,
         isCompleted: true,
+        ...buildCompletionWindow(searchStart, searchEnd),
       }
-      if (fromDay) params.completedFrom = new Date(`${fromDay}T00:00:00.000`).toISOString()
-      if (toDay) params.completedTo = new Date(`${toDay}T23:59:59.999`).toISOString()
 
       const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", { params })
 
@@ -425,34 +424,42 @@ export default function CompletedTasksPage() {
           into an interval. Shown whenever there is something to search (or a window is already set). */}
       {!loading && (totalCount > 0 || hasDateFilter) && (
         <div className="w-full max-w-sm">
-          <button
-            type="button"
-            onClick={() => setDateOpen((o) => !o)}
-            className="flex w-full items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs font-bold shadow-sm transition-colors hover:bg-gray-50"
-          >
-            <CalendarSearch className="h-4 w-4 flex-shrink-0 text-gray-500" strokeWidth={1.8} />
-            {hasDateFilter ? (
-              <span className="text-gray-900">Completed {formatDueRange(searchStart, searchEnd)}</span>
-            ) : (
-              <span className="text-gray-400">Search by completion date</span>
-            )}
+          {/* a11y: the toggle and the clear control are SIBLINGS — never a clickable element nested
+              inside a <button> (invalid, and screen-reader/keyboard-hostile). The toggle owns
+              aria-expanded + aria-controls pointing at the collapsible calendar region. */}
+          <div className="flex w-full items-center gap-1 rounded-2xl border border-gray-200 bg-white px-2 py-1 shadow-sm transition-colors focus-within:border-gray-300">
+            <button
+              type="button"
+              onClick={() => setDateOpen((o) => !o)}
+              aria-expanded={dateOpen}
+              aria-controls="completion-date-search"
+              className="flex flex-1 items-center gap-2 rounded-xl px-2 py-2 text-left text-xs font-bold transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
+            >
+              <CalendarSearch className="h-4 w-4 flex-shrink-0 text-gray-500" strokeWidth={1.8} aria-hidden="true" />
+              {hasDateFilter ? (
+                <span className="text-gray-900">Completed {formatDueRange(searchStart, searchEnd)}</span>
+              ) : (
+                <span className="text-gray-400">Search by completion date</span>
+              )}
+              <ChevronDown className={cn("ml-auto h-4 w-4 flex-shrink-0 text-gray-400 transition-transform", dateOpen && "rotate-180")} aria-hidden="true" />
+            </button>
             {hasDateFilter && (
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label="Clear date filter"
-                onClick={(e) => { e.stopPropagation(); clearDateFilter() }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); clearDateFilter() } }}
-                className="ml-auto flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              <button
+                type="button"
+                onClick={clearDateFilter}
+                aria-label="Clear completion-date filter"
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
               >
-                <X className="h-3.5 w-3.5" />
-              </span>
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
             )}
-            <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform", hasDateFilter ? "ml-2" : "ml-auto", dateOpen && "rotate-180")} />
-          </button>
+          </div>
           <AnimatePresence initial={false}>
             {dateOpen && (
               <motion.div
+                id="completion-date-search"
+                role="region"
+                aria-label="Search completed tasks by completion date"
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}

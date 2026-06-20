@@ -432,7 +432,11 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
   instants), and the server filters on `CompletedAt` — so the search spans the **whole archive**, not
   just the current page. Picking a window resets paging to page 1; an empty result shows a dedicated
   "nothing finished in this period" state with a one-click clear. The control is shown whenever there
-  is something to search or a window is already applied.
+  is something to search or a window is already applied. The day(s) → inclusive `completedFrom`/
+  `completedTo` translation is the pure, unit-tested `buildCompletionWindow` (`utils/completion-window.ts`).
+  The control is keyboard-accessible: the toggle and clear are sibling `<button>`s (never nested), the
+  toggle carries `aria-expanded` + `aria-controls`, the calendar is a labelled `role="region"`, and
+  both controls show `focus-visible` rings.
 - **Completed-card title strike animation** (`TodoCard`): a resting completed task shows its title
   struck through; on card hover the strike **wipes away left→right** while the title brightens to
   fully readable, and leaving the card draws it back the same way. The line is painted as a gradient
