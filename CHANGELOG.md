@@ -4,6 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(launcher): remove -FixProxy; -Lan now self-tests and gives a decisive verdict (2026-06-21)
+
+- **Removed `-FixProxy` entirely.** It only patched THIS machine's own outbound WinINET proxy, which
+  never affected whether another device could reach the app — it set false expectations. The flag, its
+  proxy helpers (`Set-LocalProxyBypass` / `Update-WinInetSettings` / `Test-LanProxyInterference`), and its
+  help, usage and every doc reference are gone.
+- **`-Lan` is now self-proving.** After the stack is healthy it actively opens a real TCP connection to
+  the detected LAN IP on both ports (`Test-TcpConnect`), on top of verifying the firewall and that the
+  frontend + gateway are bound to all interfaces. It then prints ONE decisive verdict: **READY** (open the
+  URL on the other device), **firewall CLOSED** (with the exact elevated `New-NetFirewallRule` command),
+  servers **not bound yet**, or **the VPN is intercepting the LAN** — in which case it names the offending
+  TUN adapter (`Get-TunDefaultRouteAdapters`) and the one fix.
+- **Honest about the one unbeatable case.** A strict-route TUN VPN (sing-box / xray / Clash / Happ) can
+  blackhole the LAN subnet at the kernel filter layer; no host-side script can override it. The verdict
+  detects exactly this — the LAN IP fails its TCP self-test while the firewall is open and the ports are
+  bound — and tells the user to enable the VPN's **Allow LAN / Bypass LAN** or stop it while sharing.
+- **Docs:** `README.md`, `docs/configuration.md`, `docs/troubleshooting.md` updated; the `-FixProxy` rows
+  were removed and the LAN guidance rewritten around the new verdict.
+- Files: `Start-Planora-Local.ps1`, `README.md`, `docs/configuration.md`, `docs/troubleshooting.md`.
+
 ### a11y(completed): accessible completion-date search control + extracted, tested window helper (2026-06-21)
 
 - **Fixed nested interactive controls.** The completion-date search trigger previously embedded a
@@ -68,7 +88,6 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   `frontend/src/components/todos/todo-card.tsx`,
   `tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoQueryHandlerTests.cs`,
   `docs/API.md`, `docs/features.md`.
-
 ### fix(launcher): -Lan now verifies the firewall and reports honest LAN reachability (2026-06-20)
 
 - **Root cause of "I can't open the app from another device, VPN or not".** `-Lan` opened the Windows

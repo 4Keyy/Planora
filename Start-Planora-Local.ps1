@@ -80,31 +80,19 @@
     containers and all data volumes are left untouched.
 
 .PARAMETER Lan
-    Share the running app on the local Wi-Fi/LAN. Detects the host's physical LAN
-    IPv4 (ignoring any VPN virtual adapter, so a split-tunnel VPN does not interfere),
-    opens the Windows Firewall for the frontend (3000) and API gateway (5132) ports
-    (inbound, LocalSubnet only - one UAC prompt if not already elevated) and VERIFIES
-    the rule was actually created, then prints the shareable http://<lan-ip>:3000 URL.
-    The frontend already binds 0.0.0.0 and the client auto-targets the gateway on the
-    same host it was opened from, so a teammate just opens that URL in their browser.
-    The closing summary reports the verified firewall + listening state, and - if a
-    TUN-mode VPN is capturing LAN traffic - the exact remedy. It never claims "shared"
-    unless inbound is genuinely open.
-
-.PARAMETER FixProxy
-    Fix LOCAL access from THIS machine's own browser when a VPN/proxy client (sing-box, xray, Clash,
-    Happ, etc.) sets a Windows system HTTP proxy that funnels every address - including the host's
-    own loopback and LAN IP - through its upstream, blackholing http://localhost:3000. This switch
-    adds <local>, 127.*, 10.*, 172.16-31.*, 192.168.* and the detected LAN IP to the WinINET proxy
-    bypass list and refreshes running browsers, so this PC's local/LAN traffic goes direct.
-    Idempotent and reversible (the previous value is printed).
-
-    SCOPE - read this: -FixProxy only affects outbound requests made BY this PC. It does NOT make a
-    REMOTE device on the Wi-Fi able to reach you. Inbound access from other devices is governed by
-    -Lan (which opens + verifies the firewall) and, if a TUN-mode VPN is capturing LAN traffic, by
-    that VPN's own "allow LAN / bypass LAN" setting. Use -Lan to share to other devices; reach for
-    -FixProxy only when this machine's own browser cannot open the app while a proxy VPN is on.
-    Note: some VPN clients rewrite the system proxy on every reconnect - re-run -FixProxy if so.
+    Share the running app on the local Wi-Fi/LAN - and PROVE it works before claiming success.
+    Detects the host's physical LAN IPv4 (ignoring any VPN virtual adapter), opens AND verifies the
+    Windows Firewall for the frontend (3000) and API gateway (5132) ports (inbound, LocalSubnet only;
+    one UAC prompt if not elevated), and pins the client + email-link URLs to the current IP so a
+    changed DHCP lease never strands them. Once the stack is healthy it actively checks that both
+    ports are bound to all interfaces AND that the LAN IP answers a real TCP connection, then prints
+    one decisive verdict:
+      * READY  - open http://<lan-ip>:3000 on the other device (the client auto-targets the gateway
+                 on the same host, so there is nothing to configure there); or
+      * the single thing to fix - a closed firewall (it prints the exact elevated command), or a
+        strict-route VPN/TUN on the host intercepting the LAN (it names the adapter and the toggle).
+    The only thing -Lan cannot do from the host is override a VPN that filters the LAN subnet; in
+    that one case it tells you precisely to enable the VPN's "Allow LAN" or stop it while sharing.
 
 .PARAMETER Help
     Print usage and exit without starting anything. No log file is created.
@@ -127,17 +115,8 @@
 
 .EXAMPLE
     .\Start-Planora-Local.ps1 -Lan
-    Start the stack and share it on the Wi-Fi/LAN: opens the firewall and prints the URL teammates open.
-
-.EXAMPLE
-    .\Start-Planora-Local.ps1 -FixProxy
-    Start the stack and free THIS PC's browser from a VPN system proxy, so localhost opens normally.
-    (This does not, by itself, let other devices connect - use -Lan for that.)
-
-.EXAMPLE
-    .\Start-Planora-Local.ps1 -Lan -FixProxy
-    Share on the Wi-Fi/LAN (open + verify the firewall) AND free this PC's browser from the proxy -
-    the most robust setup when you keep a VPN running on the host.
+    Start the stack and share it on the Wi-Fi/LAN: opens + verifies the firewall, then prints a
+    READY verdict with the URL teammates open (or the one thing to fix).
 
 .EXAMPLE
     .\Start-Planora-Local.ps1 -ExitAfterHealthCheck
@@ -169,11 +148,6 @@ param(
     # Open the Windows Firewall for the frontend + gateway ports and print a shareable
     # LAN URL, so another device on the same Wi-Fi can use the app while this runs.
     [switch]$Lan,
-    # Add loopback + RFC1918 private ranges to THIS machine's system proxy bypass list, so a
-    # VPN/proxy client (sing-box / xray / Clash / Happ) never routes this PC's own local/LAN
-    # requests through its tunnel. Fixes localhost access from this machine only - it does NOT
-    # affect inbound access from other devices (that is -Lan plus the VPN's own LAN-bypass).
-    [switch]$FixProxy,
     # Print usage and exit.
     [switch]$Help
 )
@@ -305,15 +279,14 @@ function Show-Usage {
     Write-Host ""
     Write-Host "${BOLD}USAGE${RESET}"
     Write-Host "  .\Start-Planora-Local.ps1 [-Clean] [-SkipBuild] [-SkipFrontend] [-NoBrowser]"
-    Write-Host "                            [-Lan] [-FixProxy] [-ExitAfterHealthCheck] [-Stop] [-Help]"
+    Write-Host "                            [-Lan] [-ExitAfterHealthCheck] [-Stop] [-Help]"
     Write-Host ""
     Write-Host "${BOLD}OPTIONS${RESET}"
     Write-Host "  -Clean                 Wipe bin/obj/.next, restore, rebuild infra images (data preserved)."
     Write-Host "  -SkipBuild             Reuse existing build output - skip 'dotnet build' (fastest restart)."
     Write-Host "  -SkipFrontend          Start the backend + gateway only; do not start the frontend."
     Write-Host "  -NoBrowser             Do not open the browser when the frontend is ready."
-    Write-Host "  -Lan                   Share on the Wi-Fi/LAN: open the firewall + print the share URL."
-    Write-Host "  -FixProxy              Free THIS PC's browser from a VPN system proxy (local access only)."
+    Write-Host "  -Lan                   Share on the Wi-Fi/LAN: open + verify the firewall, then a READY verdict."
     Write-Host "  -ExitAfterHealthCheck  Start, verify every health endpoint, then shut down (CI / smoke test)."
     Write-Host "  -Stop                  Stop everything this launcher started and free the ports, then exit."
     Write-Host "  -Help                  Show this help and exit (no log file created)."
@@ -326,9 +299,7 @@ function Show-Usage {
     Write-Host "  .\Start-Planora-Local.ps1                 # fresh restart (rebuild), data preserved"
     Write-Host "  .\Start-Planora-Local.ps1 -SkipBuild      # fastest restart, reuse existing build"
     Write-Host "  .\Start-Planora-Local.ps1 -Clean          # full clean rebuild"
-    Write-Host "  .\Start-Planora-Local.ps1 -Lan            # also share on the Wi-Fi/LAN"
-    Write-Host "  .\Start-Planora-Local.ps1 -FixProxy       # fix THIS PC's browser when a proxy VPN is on"
-    Write-Host "  .\Start-Planora-Local.ps1 -Lan -FixProxy  # share on LAN (verified) AND free this PC's browser"
+    Write-Host "  .\Start-Planora-Local.ps1 -Lan            # also share on the Wi-Fi/LAN (verified + verdict)"
     Write-Host "  .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser"
     Write-Host "  .\Start-Planora-Local.ps1 -Stop           # stop everything this launcher started"
     Write-Host "  Get-Help .\Start-Planora-Local.ps1 -Full  # full annotated help"
@@ -502,108 +473,39 @@ function Test-IsAdministrator {
         ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-# A running proxy/VPN client (e.g. a sing-box / xray TUN that sets a system HTTP proxy
-# and grabs the default route) is the single most common reason a teammate cannot open
-# the shared LAN URL even though the server, firewall and binding are all correct: the
-# host routes traffic to its own LAN IP into the tunnel and blackholes it. This is purely
-# diagnostic - it warns with a remediation hint and never changes the user's VPN/proxy.
-function Test-LanProxyInterference {
-    param([string]$LanIp)
-
-    # 1. WinINET system proxy that does not bypass LAN/private addresses.
+# Detect VPN/TUN virtual adapters that currently hold a default route. A "route-everything" TUN
+# client (sing-box / xray / Clash / Happ) is the one thing -Lan cannot override from the host: in
+# strict-route mode it can capture even inbound LAN replies via the kernel filtering layer. Returns
+# the offending adapter aliases (empty when only physical NICs route) so the verdict can name the
+# exact culprit instead of guessing.
+function Get-TunDefaultRouteAdapters {
     try {
-        $reg = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction Stop
-        if ($reg.ProxyEnable -eq 1 -and -not [string]::IsNullOrWhiteSpace($reg.ProxyServer)) {
-            $override = "$($reg.ProxyOverride)"
-            $bypassesLan = $override -match '<local>' -or $override -match '192\.168\.\*' -or
-                           $override -match '10\.\*' -or ($LanIp -and $override -match [regex]::Escape($LanIp))
-            if (-not $bypassesLan) {
-                Write-Warn "A system HTTP proxy is enabled ($($reg.ProxyServer)) and does NOT bypass LAN addresses."
-                Write-Info "  It routes http://$LanIp through the proxy and can blackhole it - the app then appears unreachable."
-                Write-Info "  Fix: add '<local>;192.168.*;$LanIp' to the proxy bypass list, or disable the proxy/VPN while sharing."
-            }
-        }
-    } catch { }
-
-    # 2. A non-physical (VPN/TUN) adapter that holds a default route - it can capture the
-    #    reply traffic to LAN peers. Compare default-route interfaces against the physical NICs.
-    try {
-        $physicalAliases = @(Get-NetAdapter -Physical -ErrorAction Stop |
+        $physical = @(Get-NetAdapter -Physical -ErrorAction Stop |
             Where-Object { $_.Status -eq 'Up' } | Select-Object -ExpandProperty InterfaceAlias)
-        $defaultRouteAliases = @(Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty InterfaceAlias -Unique)
-        $tunnelDefaults = @($defaultRouteAliases | Where-Object { $physicalAliases -notcontains $_ })
-        if ($tunnelDefaults.Count -gt 0) {
-            Write-Warn "A virtual/VPN adapter holds a default route: $($tunnelDefaults -join ', ')."
-            Write-Info "  A TUN-mode VPN can reroute LAN replies into the tunnel. If teammates cannot connect,"
-            Write-Info "  use the VPN's split-tunnel/LAN-bypass mode, or disable it while sharing on the LAN."
-        }
-    } catch { }
-
-    Write-Info "Tip: re-run with -FixProxy to route local/LAN around the proxy so the app works with the VPN on."
+        return @(Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty InterfaceAlias -Unique |
+            Where-Object { $physical -notcontains $_ })
+    } catch {
+        return @()
+    }
 }
 
-# Notify already-running WinINET apps (Edge/Chrome/IE) that proxy settings changed, so a
-# new bypass list takes effect immediately without restarting the browser.
-function Update-WinInetSettings {
+# Active end-to-end probe: can a TCP connection actually be opened to host:port right now? Run
+# against the LAN IP after startup to PROVE the stack answers on that address - not just that a
+# socket is bound. If a strict-route VPN blackholes the LAN subnet, even this host-local probe
+# fails, which is exactly how the verdict tells "ready" apart from "the VPN is eating the LAN".
+function Test-TcpConnect {
+    param([string]$ComputerName, [int]$Port, [int]$TimeoutMs = 2500)
+    $client = [System.Net.Sockets.TcpClient]::new()
     try {
-        if (-not ([System.Management.Automation.PSTypeName]'Planora.WinInet').Type) {
-            Add-Type -Namespace Planora -Name WinInet -MemberDefinition '[System.Runtime.InteropServices.DllImport("wininet.dll", SetLastError=true)] public static extern bool InternetSetOption(System.IntPtr h, int opt, System.IntPtr buf, int len);'
-        }
-        # 39 = INTERNET_OPTION_SETTINGS_CHANGED, 37 = INTERNET_OPTION_REFRESH
-        [void][Planora.WinInet]::InternetSetOption([System.IntPtr]::Zero, 39, [System.IntPtr]::Zero, 0)
-        [void][Planora.WinInet]::InternetSetOption([System.IntPtr]::Zero, 37, [System.IntPtr]::Zero, 0)
-    } catch { }
-}
-
-# Ensure loopback + every RFC1918 private range (and the detected LAN IP) are in the WinINET
-# proxy bypass list. With these present a VPN/proxy client never sends local or LAN traffic to
-# its upstream proxy, so the app loads on http://localhost:3000 AND http://<lan-ip>:3000 even
-# while the VPN is connected. Idempotent and reversible (the previous value is printed).
-function Set-LocalProxyBypass {
-    $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
-    try { $reg = Get-ItemProperty $key -ErrorAction Stop } catch { $reg = $null }
-
-    $proxyOn = $reg -and $reg.ProxyEnable -eq 1 -and -not [string]::IsNullOrWhiteSpace($reg.ProxyServer)
-
-    # <local> covers dotless hostnames (localhost, the machine name); the wildcards cover the
-    # loopback and the three private IPv4 ranges; the LAN IP is added explicitly for good measure.
-    $needed = [System.Collections.Generic.List[string]]::new()
-    @('<local>', 'localhost', '127.*', '10.*', '192.168.*') | ForEach-Object { $needed.Add($_) }
-    16..31 | ForEach-Object { $needed.Add("172.$_.*") }
-    if (-not $script:LanShareIp) { $script:LanShareIp = Get-LanIPv4 }
-    if ($script:LanShareIp) { $needed.Add($script:LanShareIp) }
-
-    $previous = if ($reg) { "$($reg.ProxyOverride)" } else { "" }
-    $existing = @()
-    if (-not [string]::IsNullOrWhiteSpace($previous)) {
-        $existing = @($previous -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-    }
-
-    $merged = [System.Collections.Generic.List[string]]::new()
-    $existing | ForEach-Object { $merged.Add($_) }
-    $added = [System.Collections.Generic.List[string]]::new()
-    foreach ($n in $needed) {
-        if ($merged -notcontains $n) { $merged.Add($n); $added.Add($n) }
-    }
-
-    if ($added.Count -eq 0) {
-        Write-OK "Proxy bypass already covers local/LAN (ProxyOverride unchanged)."
-    } else {
-        $newValue = ($merged -join ';')
-        try {
-            Set-ItemProperty -Path $key -Name ProxyOverride -Value $newValue -ErrorAction Stop
-            Update-WinInetSettings
-            Write-OK "Proxy bypass updated - local/LAN no longer routes through the proxy."
-            Write-Info "  Added: $($added -join ', ')"
-            Write-Info "  Revert: set ProxyOverride back to '$previous' under HKCU\...\Internet Settings."
-        } catch {
-            Write-Warn "Could not update the proxy bypass list: $($_.Exception.Message)"
-        }
-    }
-
-    if (-not $proxyOn) {
-        Write-Info "No system proxy is enabled right now; this bypass simply pre-arms for when your VPN turns one on."
+        $iar = $client.BeginConnect($ComputerName, $Port, $null, $null)
+        if (-not $iar.AsyncWaitHandle.WaitOne($TimeoutMs)) { return $false }
+        $client.EndConnect($iar)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $client.Dispose()
     }
 }
 
@@ -1361,14 +1263,7 @@ if (-not $preOk) {
     exit 1
 }
 
-# -- Step 1a: proxy bypass for VPN-independent local/LAN access (-FixProxy) ---
-if ($FixProxy) {
-    Write-Host ""
-    Write-Step "Routing local/LAN around the system proxy (VPN-independent access)..."
-    Set-LocalProxyBypass
-}
-
-# -- Step 1b: LAN sharing setup (-Lan) ---------------------------------------
+# -- Step 1: LAN sharing setup (-Lan) ----------------------------------------
 if ($Lan) {
     Write-Host ""
     Write-Step "Configuring LAN sharing..."
@@ -1381,22 +1276,17 @@ if ($Lan) {
         Write-OK "Host LAN address: $($script:LanShareIp)"
         $script:LanFirewallOpen = Enable-LanFirewall -Ports @($FrontendPort, $GatewayPort)
 
-        # Keep every LAN-IP-dependent setting in lock-step with the freshly detected IP.
-        # The .env values are pinned to whatever IP the machine had when they were written;
-        # a changed DHCP lease then leaves email links and the client's API origin pointing
-        # at a dead address. Overriding them in this process's environment (inherited by the
-        # backend services and the Next.js dev server) means -Lan always self-heals to the
-        # current IP - no manual .env editing after every reconnect. Set AFTER Import-EnvFile
-        # so these win over the file values.
+        # Keep every LAN-IP-dependent setting in lock-step with the freshly detected IP. The .env
+        # values are pinned to whatever IP the machine had when written; a changed DHCP lease then
+        # strands email links and the client's API origin at a dead address. Overriding them in this
+        # process's environment (inherited by the backend services and the Next.js dev server) means
+        # -Lan always self-heals to the current IP - no manual .env editing after a reconnect.
         $lanGatewayUrl  = "http://$($script:LanShareIp):$GatewayPort"
         $lanFrontendUrl = "http://$($script:LanShareIp):$FrontendPort"
         [System.Environment]::SetEnvironmentVariable("Frontend__BaseUrl",           $lanFrontendUrl, "Process")
         [System.Environment]::SetEnvironmentVariable("NEXT_PUBLIC_API_URL",         $lanGatewayUrl,  "Process")
         [System.Environment]::SetEnvironmentVariable("NEXT_PUBLIC_API_GATEWAY_URL", $lanGatewayUrl,  "Process")
         Write-OK "Synced LAN URLs to current IP (Frontend__BaseUrl -> $lanFrontendUrl)"
-
-        # Warn about a running proxy/VPN that would blackhole the LAN URL despite a healthy server.
-        Test-LanProxyInterference -LanIp $script:LanShareIp
     }
 }
 
@@ -1492,63 +1382,76 @@ if ($frontendHealthy -and -not $ExitAfterHealthCheck -and -not $NoBrowser -and -
 $totalSecs = $totalTimer.Elapsed.TotalSeconds
 Show-Summary -HealthResults $healthResults -TotalSeconds $totalSecs
 
-# -- Step 10b: LAN share banner ----------------------------------------------
-# Reports the VERIFIED state of every prerequisite a remote device needs - inbound firewall open,
-# frontend + gateway actually bound to all interfaces - rather than assuming the share worked.
+# -- Step 10b: LAN share verdict ---------------------------------------------
+# After the stack is healthy, actively PROVE what a remote device needs and print one trustworthy
+# verdict: firewall open (verified), both servers bound to all interfaces, and the LAN IP itself
+# answering a real TCP connection. The only blocker outside the script's reach is a strict-route VPN
+# on the host - and the verdict names it precisely (and the one toggle) when it is what's in the way.
 if ($Lan -and $script:LanShareIp) {
-    $GatewayPort   = $ServiceDefs["api-gateway"].Port
-    $shareUrl      = "http://$($script:LanShareIp):$FrontendPort"
-    $frontendOnLan = Test-PortListensOnLan -Port $FrontendPort
-    $gatewayOnLan  = Test-PortListensOnLan -Port $GatewayPort
-    $reachable     = $script:LanFirewallOpen -and $frontendOnLan -and $gatewayOnLan
-    $bannerColor   = if ($reachable) { $GREEN } else { $YELLOW }
+    $GatewayPort = $ServiceDefs["api-gateway"].Port
+    $shareUrl    = "http://$($script:LanShareIp):$FrontendPort"
+    $feBind      = Test-PortListensOnLan -Port $FrontendPort
+    $gwBind      = Test-PortListensOnLan -Port $GatewayPort
+    $feReach     = Test-TcpConnect -ComputerName $script:LanShareIp -Port $FrontendPort
+    $gwReach     = Test-TcpConnect -ComputerName $script:LanShareIp -Port $GatewayPort
+    $tunAdapters = Get-TunDefaultRouteAdapters
 
+    $ready = $script:LanFirewallOpen -and $feBind -and $gwBind -and $feReach -and $gwReach
+    $color = if ($ready) { $GREEN } else { $YELLOW }
     $border = "=" * 58
+
     Write-Host ""
-    Write-Host "${bannerColor}  +${border}+${RESET}"
-    $title = if ($reachable) { "  Shared on your Wi-Fi / LAN" } else { "  LAN share - action needed" }
-    Write-Host "${bannerColor}  |${BOLD}$($title.PadRight(58))${RESET}${bannerColor}|${RESET}"
-    Write-Host "${bannerColor}  +${border}+${RESET}"
-    Write-Host "${bannerColor}  |${RESET}$(("  Other devices on the same Wi-Fi open:").PadRight(58))${bannerColor}|${RESET}"
-    Write-Host "${bannerColor}  |${BOLD}$("    $shareUrl".PadRight(58))${RESET}${bannerColor}|${RESET}"
-    Write-Host "${bannerColor}  +${border}+${RESET}"
+    Write-Host "${color}  +${border}+${RESET}"
+    $title = if ($ready) { "  READY - share on your Wi-Fi / LAN" } else { "  LAN share - one thing to fix" }
+    Write-Host "${color}  |${BOLD}$($title.PadRight(58))${RESET}${color}|${RESET}"
+    Write-Host "${color}  +${border}+${RESET}"
+    Write-Host "${color}  |${RESET}$(("  Open this on the other device:").PadRight(58))${color}|${RESET}"
+    Write-Host "${color}  |${BOLD}$("    $shareUrl".PadRight(58))${RESET}${color}|${RESET}"
+    Write-Host "${color}  +${border}+${RESET}"
     Write-Host ""
 
-    # Truthful, individually-verified status of each connect prerequisite.
-    if ($script:LanFirewallOpen) {
-        Write-OK "Inbound firewall open + verified (TCP $FrontendPort, $GatewayPort, LocalSubnet only)"
-    } else {
-        Write-Fail "Inbound firewall is CLOSED - other devices are refused before they reach the app."
+    # Per-check evidence - each line is an independently verified fact, never an assumption.
+    if ($script:LanFirewallOpen) { Write-OK "Firewall open + verified (inbound TCP $FrontendPort, $GatewayPort, LocalSubnet)" }
+    else { Write-Fail "Firewall CLOSED (inbound $FrontendPort/$GatewayPort)" }
+    if ($feBind -and $gwBind) { Write-OK "Frontend + gateway bound to all interfaces ($FrontendPort, $GatewayPort)" }
+    else { Write-Warn "Not bound on the LAN yet (frontend ${FrontendPort}: $feBind, gateway ${GatewayPort}: $gwBind)" }
+    if ($feReach -and $gwReach) { Write-OK "LAN address answers a real TCP connection on both ports" }
+    else { Write-Warn "LAN address did NOT answer (frontend reach: $feReach, gateway reach: $gwReach)" }
+    if ($tunAdapters.Count -gt 0) { Write-Info "VPN/TUN holding the default route: $($tunAdapters -join ', ')" }
+
+    Write-Host ""
+
+    # One decisive, actionable verdict.
+    if ($ready) {
+        Write-OK "Everything on THIS machine is verified working. Open the URL above on the other device."
+        Write-Info "The page auto-targets the gateway on the same host - nothing to set up on their end."
+        if ($tunAdapters.Count -gt 0) {
+            Write-Info "A VPN/TUN ($($tunAdapters -join ', ')) is active but the LAN IP answers locally. If the other"
+            Write-Info "device still cannot connect, the VPN is filtering LAN traffic: turn on its 'Allow LAN /"
+            Write-Info "Bypass LAN' setting, or stop it while sharing."
+        }
+        Write-Info "Still nothing? The router may isolate clients (guest / AP isolation) - use a normal Wi-Fi,"
+        Write-Info "ensure the other device has no VPN of its own, and open the EXACT URL above (the IP changes)."
+    }
+    elseif (-not $script:LanFirewallOpen) {
+        Write-Fail "Blocked by the Windows Firewall - other devices are refused before reaching the app."
         $manualCmd = "New-NetFirewallRule -DisplayName '$($script:LanFirewallRuleName)' -Direction Inbound -Action Allow -Protocol TCP -LocalPort $FrontendPort,$GatewayPort -Profile Any -RemoteAddress LocalSubnet"
         Write-Info "Open an elevated PowerShell (Win+X -> 'Terminal (Admin)'), run this once, then re-run -Lan:"
         Write-Info "  $manualCmd"
     }
-    if ($frontendOnLan) { Write-OK "Frontend listening on all interfaces (port $FrontendPort)" }
-    else { Write-Warn "Frontend is not on the LAN yet (port $FrontendPort) - it may still be starting; re-check in a moment." }
-    if ($gatewayOnLan) { Write-OK "API gateway listening on all interfaces (port $GatewayPort)" }
-    else { Write-Warn "API gateway is not on the LAN yet (port $GatewayPort)." }
-
-    Write-Host ""
-    Write-Info "The browser auto-targets the API gateway on the same host - nothing to configure on their end."
-
-    # A TUN-mode VPN (sing-box / xray / Clash / Happ) can still capture inbound LAN replies even with
-    # the firewall open. This is the one thing -Lan cannot fix from the host, so name the real remedy.
-    $tunDefault = @()
-    try {
-        $physicalAliases = @(Get-NetAdapter -Physical -ErrorAction Stop |
-            Where-Object { $_.Status -eq 'Up' } | Select-Object -ExpandProperty InterfaceAlias)
-        $tunDefault = @(Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
-            Select-Object -ExpandProperty InterfaceAlias -Unique |
-            Where-Object { $physicalAliases -notcontains $_ })
-    } catch { }
-    if ($tunDefault.Count -gt 0) {
-        Write-Warn "A VPN/TUN adapter holds the default route: $($tunDefault -join ', ')."
-        Write-Info "If a device still cannot connect, the VPN is capturing LAN traffic. Reliable fixes:"
-        Write-Info "  - turn ON 'Allow LAN' / 'Bypass LAN' (split-tunnel) in your VPN client, or"
-        Write-Info "  - stop the VPN while sharing - inbound then reaches your Wi-Fi adapter directly."
-        Write-Info "(-FixProxy only frees THIS PC's own browser; it does NOT affect inbound from other devices.)"
+    elseif (-not ($feBind -and $gwBind)) {
+        Write-Warn "The servers are not bound to the LAN yet - they may still be finishing startup."
+        Write-Info "Give it a few seconds and refresh, or re-run -Lan; if it persists, check .\logs."
     }
-    Write-Info "Both devices must be on the same Wi-Fi (not a 'guest' / AP-isolated network)."
+    else {
+        # Firewall open + bound, but the LAN IP itself does not answer on this host: a strict-route
+        # VPN is capturing the LAN subnet. This is the only blocker -Lan cannot remove from the host.
+        Write-Fail "Your VPN is intercepting the LAN address - the app is healthy but the LAN IP is blackholed."
+        if ($tunAdapters.Count -gt 0) { Write-Info "Culprit: the VPN/TUN adapter '$($tunAdapters -join ', ')' on this PC." }
+        Write-Info "Fix (either one makes it work immediately):"
+        Write-Info "  - turn ON 'Allow LAN' / 'Bypass LAN' (split-tunnel) in your VPN client, or"
+        Write-Info "  - stop the VPN while you share - inbound then reaches your Wi-Fi adapter directly."
+    }
     Write-Host ""
 }
 

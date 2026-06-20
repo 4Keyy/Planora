@@ -263,18 +263,13 @@ server** (the launcher health-checks prove the server is up). In rough order of 
   the rule after creating it, and the closing banner states per port whether inbound is genuinely open.
   If it reports the firewall CLOSED, open an elevated PowerShell (Win+X → "Terminal (Admin)") and run
   the `New-NetFirewallRule` command it prints, then re-run `-Lan`.
-- **TUN-mode VPN on the host.** A "route-everything" VPN (sing-box / xray / Clash / Happ in TUN mode)
-  can capture inbound LAN replies even with the firewall open. `-Lan` detects a VPN/TUN default route
-  and prints the remedy: turn on the VPN client's **allow LAN / bypass LAN** (split-tunnel) setting, or
-  stop the VPN while sharing. `-FixProxy` does **not** help here — it only frees this PC's own browser,
-  never inbound traffic from another device.
-- **System HTTP proxy blocking *this* PC's browser.** If only the host's *own* browser cannot open
-  localhost / the LAN IP while a proxy VPN is on, run `-FixProxy` (combine with `-Lan`). It adds
-  `<local>`, `127.*`, `10.*`, `172.16-31.*`, `192.168.*` and the detected LAN IP to the WinINET proxy
-  bypass list and refreshes running browsers, so this machine's local/LAN traffic goes direct while the
-  VPN stays connected for everything else. Idempotent and reversible (the launcher prints the previous
-  value). Re-run it if your VPN rewrites the system proxy on reconnect, or enable the client's own
-  **bypass LAN / allow local** once.
+- **TUN-mode VPN on the host (the one thing the launcher cannot override).** A "route-everything" VPN
+  (sing-box / xray / Clash / Happ in TUN / strict-route mode) can blackhole the LAN subnet even with the
+  firewall open — so the LAN IP stops answering, both from other devices and from this host itself. `-Lan`
+  now *proves* this: after startup it opens a real TCP connection to the LAN IP, and if that fails while
+  the firewall is open and the ports are bound, the verdict names the VPN/TUN adapter as the culprit. Fix:
+  turn on the VPN client's **Allow LAN / Bypass LAN** (split-tunnel) setting, or stop the VPN while you
+  share — either makes it work immediately. No host-side script can lift a VPN's own kernel-level filter.
 - **Wrong IP.** Open the exact URL `-Lan` prints (the current IP), not an old bookmarked address — the
   DHCP-assigned IP changes between sessions.
 - **Wi-Fi isolation.** Both devices must be on the same non-guest / non-AP-isolated network.

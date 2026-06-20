@@ -251,8 +251,7 @@ across every run, including `-Clean`.
 | `-SkipBuild` | Skip `dotnet build`; start from existing output (`--no-build`). |
 | `-SkipFrontend` | Start the backend + gateway only. |
 | `-NoBrowser` | Do not open the browser when the frontend is ready. |
-| `-Lan` | Open **and verify** the firewall for ports `3000` + `5132`, then print the LAN share URL (see below). |
-| `-FixProxy` | Free *this PC's* own browser from a VPN system proxy (local access only — not for remote devices). |
+| `-Lan` | Open **and verify** the firewall for `3000` + `5132`, actively self-test reachability, and print a **READY** verdict (see below). |
 | `-ExitAfterHealthCheck` | Start, verify every `/health`, then shut down (CI / smoke test). |
 | `-Stop` | Stop everything this launcher started and free the ports. Infra/volumes untouched. |
 
@@ -267,10 +266,11 @@ adapter, so a split-tunnel VPN doesn't interfere), opens the Windows Firewall fo
 created**, and prints a `http://<your-lan-ip>:3000` URL. Anyone on the same Wi-Fi just opens that URL —
 the client auto-targets the gateway on the same host it was opened from, and in development the gateway
 CORS and the app CSP already accept same-LAN origins, so there's nothing to configure on their device.
-The closing banner reports, per port, whether inbound is genuinely open; if it says the firewall is
-CLOSED, run the elevated command it prints and re-run `-Lan`. If a teammate still can't connect while
-your VPN is on, turn on the VPN's **allow LAN / bypass LAN** (split-tunnel) setting or stop it while
-sharing — `-FixProxy` only frees *this* PC's own browser, not a remote device.
+After startup the launcher actively self-tests that both ports are bound **and** that the LAN IP answers
+a real TCP connection, then prints one verdict: **READY** (open the URL on the other device), or the
+single thing to fix — a closed firewall (it prints the exact elevated command) or a strict-route VPN/TUN
+on the host intercepting the LAN (it names the adapter; turn on the VPN's **Allow LAN / Bypass LAN**, or
+stop it while sharing). That VPN toggle is the one thing no host-side script can do for you.
 
 ---
 
