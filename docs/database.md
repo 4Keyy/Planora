@@ -123,7 +123,7 @@ Default schema: `todo`
 | `user_todo_view_preferences` | viewer-specific hidden/category preferences |
 | `OutboxMessages` | task-lifecycle integration events shipped to RabbitMQ (drives the Collaboration timeline) |
 
-> The comment thread ("ветки") no longer lives in the Todo database. It moved to the
+> The comment thread no longer lives in the Todo database. It moved to the
 > **Collaboration** service (`planora_collaboration.collaboration.comments`). Todo only
 > publishes task-lifecycle facts (`TaskCreated` / `TaskActivity` / `TaskDeleted`) via its
 > outbox; Collaboration consumes them and materialises system/genesis comments. See the
@@ -235,7 +235,7 @@ DbContext: `Services/CollaborationApi/Planora.Collaboration.Infrastructure/Persi
 
 Default schema: `collaboration`
 
-Owns the task **comment timeline** ("ветки") — regular user comments and auto-generated system
+Owns the task **comment timeline** — regular user comments and auto-generated system
 comments (created / completed / started / left). The pinned "Author's Note" (the task description)
 is **not** stored here: it is the single source of truth on the task (Todo) and is synthesised on
 read from `TodoService.CheckTaskCommentAccess` (which now also returns the live `description` +

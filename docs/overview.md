@@ -24,7 +24,7 @@ The core workflow is:
 | Category CRUD | implemented | `Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs` |
 | Todo CRUD and filtering | implemented | `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs` |
 | Shared todo hidden/viewer preferences | implemented | `Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs`, `TodoViewerStateResolver.cs` |
-| Task comment timeline ("ветки") | implemented | `Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs` |
+| Task comment timeline | implemented | `Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs` |
 | Direct messages | implemented | `Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs` |
 | Realtime notification primitives | implemented | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Api/Hubs` |
 | Product analytics event intake | implemented as structured business logging, not third-party analytics | `Services/AuthApi/Planora.Auth.Api/Controllers/AnalyticsController.cs`, `BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs` |

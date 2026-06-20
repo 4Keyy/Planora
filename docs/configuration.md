@@ -254,24 +254,33 @@ what used to be manual is now automatic:
   `Frontend__BaseUrl=http://192.168.x.y:3000` in `.env` is no longer needed for LAN sharing; if one is
   present, `-Lan` supersedes it for that run.
 
-If a teammate still cannot open the LAN URL, the cause is almost always **local network interference,
-not the server** (the launcher health-checks prove the server is up):
+If a teammate still cannot open the LAN URL, the cause is **local network interference, not the
+server** (the launcher health-checks prove the server is up). In rough order of likelihood:
 
-- **VPN / proxy client (most common).** A TUN-mode VPN (e.g. sing-box / xray / Clash) or a system HTTP
-  proxy (`HKCU:\…\Internet Settings\ProxyEnable=1`) routes traffic to the host's own loopback and LAN
-  IP into the tunnel and blackholes it — the URL times out even though the server is healthy. `-Lan`
-  detects this and warns. **Fix: run with `-FixProxy`** (e.g. `.\Start-Planora-Local.ps1 -Lan -FixProxy`).
-  It adds `<local>`, `127.*`, `10.*`, `172.16-31.*`, `192.168.*` and the detected LAN IP to the WinINET
-  proxy bypass list and refreshes running browsers, so local/LAN traffic goes direct while the VPN
-  stays connected for everything else. The change is idempotent and reversible (the launcher prints the
-  previous value). If your VPN client rewrites the system proxy on every reconnect, re-run `-FixProxy`
-  or enable the client's own **bypass LAN / allow local** setting once for a permanent fix.
+- **Firewall rule not created (most common).** Opening the firewall needs administrator rights, so
+  `-Lan` raises one UAC prompt — **approve it**. If it is declined or missed, no inbound rule exists
+  and Windows refuses every remote device before the app is even reached. The launcher now **verifies**
+  the rule after creating it, and the closing banner states per port whether inbound is genuinely open.
+  If it reports the firewall CLOSED, open an elevated PowerShell (Win+X → "Terminal (Admin)") and run
+  the `New-NetFirewallRule` command it prints, then re-run `-Lan`.
+- **TUN-mode VPN on the host.** A "route-everything" VPN (sing-box / xray / Clash / Happ in TUN mode)
+  can capture inbound LAN replies even with the firewall open. `-Lan` detects a VPN/TUN default route
+  and prints the remedy: turn on the VPN client's **allow LAN / bypass LAN** (split-tunnel) setting, or
+  stop the VPN while sharing. `-FixProxy` does **not** help here — it only frees this PC's own browser,
+  never inbound traffic from another device.
+- **System HTTP proxy blocking *this* PC's browser.** If only the host's *own* browser cannot open
+  localhost / the LAN IP while a proxy VPN is on, run `-FixProxy` (combine with `-Lan`). It adds
+  `<local>`, `127.*`, `10.*`, `172.16-31.*`, `192.168.*` and the detected LAN IP to the WinINET proxy
+  bypass list and refreshes running browsers, so this machine's local/LAN traffic goes direct while the
+  VPN stays connected for everything else. Idempotent and reversible (the launcher prints the previous
+  value). Re-run it if your VPN rewrites the system proxy on reconnect, or enable the client's own
+  **bypass LAN / allow local** once.
 - **Wrong IP.** Open the exact URL `-Lan` prints (the current IP), not an old bookmarked address — the
   DHCP-assigned IP changes between sessions.
 - **Wi-Fi isolation.** Both devices must be on the same non-guest / non-AP-isolated network.
 
-`-Lan` already creates the firewall rule across all profiles, so a `Public` Wi-Fi profile no longer
-blocks it.
+`-Lan` creates the firewall rule across all profiles, so a `Public` Wi-Fi profile does not block it
+once the rule exists.
 
 Code:
 

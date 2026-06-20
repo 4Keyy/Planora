@@ -468,7 +468,7 @@ All routes require bearer auth.
 | `GET` | `/{id}/subtasks` | list a task's subtasks (anyone with parent access) |
 | `POST` | `/{id}/subtasks` | create a subtask (owner only; category/visibility inherited) |
 
-> **Comments (the task timeline / "ветки") moved to the Collaboration service** — see the
+> **Comments (the task timeline) moved to the Collaboration service** — see the
 > [Collaboration](#collaboration) section. The old `/{id}/comments*` and `/{id}/genesis`
 > routes under `/todos/api/v1/todos` no longer exist.
 
@@ -608,7 +608,7 @@ Hidden shared/public todos may return a redacted `TodoItemDto`; see [`features.m
 
 Gateway prefix: `/collaboration/api/v1/comments`. All routes require bearer auth.
 
-The Collaboration service owns the task **comment timeline** ("ветки"). It does not own tasks:
+The Collaboration service owns the task **comment timeline**. It does not own tasks:
 every route authorises against the task via the `TodoService.CheckTaskCommentAccess` gRPC call,
 which applies the same owner / shared / public + friendship rule the Todo handlers used to.
 

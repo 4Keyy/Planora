@@ -29,7 +29,7 @@
       8.  Health checks   - polls every /health endpoint (and the frontend) until healthy.
       9.  Browser         - opens http://localhost:3000 (unless -NoBrowser / -SkipFrontend /
                             -ExitAfterHealthCheck).
-      10. Summary         - prints a status table (and, with -Lan, the shareable URL).
+      10. Summary         - prints a status table (and, with -Lan, the verified share status + URL).
 
     Database schema: each service creates/ensures its own schema on first startup - this
     launcher does NOT run a separate migration step. Application data in the Docker volumes
@@ -83,20 +83,28 @@
     Share the running app on the local Wi-Fi/LAN. Detects the host's physical LAN
     IPv4 (ignoring any VPN virtual adapter, so a split-tunnel VPN does not interfere),
     opens the Windows Firewall for the frontend (3000) and API gateway (5132) ports
-    (inbound, LocalSubnet only - one UAC prompt if not already elevated), and prints
-    the shareable http://<lan-ip>:3000 URL. The frontend already binds 0.0.0.0 and the
-    client auto-targets the gateway on the same host it was opened from, so a teammate
-    just opens that URL in their browser.
+    (inbound, LocalSubnet only - one UAC prompt if not already elevated) and VERIFIES
+    the rule was actually created, then prints the shareable http://<lan-ip>:3000 URL.
+    The frontend already binds 0.0.0.0 and the client auto-targets the gateway on the
+    same host it was opened from, so a teammate just opens that URL in their browser.
+    The closing summary reports the verified firewall + listening state, and - if a
+    TUN-mode VPN is capturing LAN traffic - the exact remedy. It never claims "shared"
+    unless inbound is genuinely open.
 
 .PARAMETER FixProxy
-    Make the app reachable even while a VPN/proxy client (sing-box, xray, Clash, etc.) is connected.
-    Such clients set a Windows system HTTP proxy and route every address - including the host's own
-    loopback and LAN IP - into their tunnel, which blackholes http://localhost:3000 and
-    http://<lan-ip>:3000. This switch adds <local>, 127.*, 10.*, 172.16-31.*, 192.168.* and the
-    detected LAN IP to the WinINET proxy bypass list and refreshes running browsers, so local/LAN
-    traffic goes direct. Idempotent and reversible (the previous value is printed). Note: some VPN
-    clients rewrite the system proxy on every reconnect - if so, re-run -FixProxy, or (better) enable
-    the VPN's own "bypass LAN / allow local" setting once.
+    Fix LOCAL access from THIS machine's own browser when a VPN/proxy client (sing-box, xray, Clash,
+    Happ, etc.) sets a Windows system HTTP proxy that funnels every address - including the host's
+    own loopback and LAN IP - through its upstream, blackholing http://localhost:3000. This switch
+    adds <local>, 127.*, 10.*, 172.16-31.*, 192.168.* and the detected LAN IP to the WinINET proxy
+    bypass list and refreshes running browsers, so this PC's local/LAN traffic goes direct.
+    Idempotent and reversible (the previous value is printed).
+
+    SCOPE - read this: -FixProxy only affects outbound requests made BY this PC. It does NOT make a
+    REMOTE device on the Wi-Fi able to reach you. Inbound access from other devices is governed by
+    -Lan (which opens + verifies the firewall) and, if a TUN-mode VPN is capturing LAN traffic, by
+    that VPN's own "allow LAN / bypass LAN" setting. Use -Lan to share to other devices; reach for
+    -FixProxy only when this machine's own browser cannot open the app while a proxy VPN is on.
+    Note: some VPN clients rewrite the system proxy on every reconnect - re-run -FixProxy if so.
 
 .PARAMETER Help
     Print usage and exit without starting anything. No log file is created.
@@ -123,11 +131,13 @@
 
 .EXAMPLE
     .\Start-Planora-Local.ps1 -FixProxy
-    Start the stack and route local/LAN around the system proxy, so the app works with a VPN connected.
+    Start the stack and free THIS PC's browser from a VPN system proxy, so localhost opens normally.
+    (This does not, by itself, let other devices connect - use -Lan for that.)
 
 .EXAMPLE
     .\Start-Planora-Local.ps1 -Lan -FixProxy
-    Share on the Wi-Fi/LAN AND bypass the proxy - the most robust setup when you keep a VPN running.
+    Share on the Wi-Fi/LAN (open + verify the firewall) AND free this PC's browser from the proxy -
+    the most robust setup when you keep a VPN running on the host.
 
 .EXAMPLE
     .\Start-Planora-Local.ps1 -ExitAfterHealthCheck
@@ -159,9 +169,10 @@ param(
     # Open the Windows Firewall for the frontend + gateway ports and print a shareable
     # LAN URL, so another device on the same Wi-Fi can use the app while this runs.
     [switch]$Lan,
-    # Add loopback + RFC1918 private ranges to the Windows system proxy bypass list, so a
-    # VPN/proxy client (sing-box / xray / Clash) never routes local or LAN addresses through
-    # its tunnel. Makes the app reachable on localhost AND the LAN IP regardless of the VPN.
+    # Add loopback + RFC1918 private ranges to THIS machine's system proxy bypass list, so a
+    # VPN/proxy client (sing-box / xray / Clash / Happ) never routes this PC's own local/LAN
+    # requests through its tunnel. Fixes localhost access from this machine only - it does NOT
+    # affect inbound access from other devices (that is -Lan plus the VPN's own LAN-bypass).
     [switch]$FixProxy,
     # Print usage and exit.
     [switch]$Help
@@ -302,7 +313,7 @@ function Show-Usage {
     Write-Host "  -SkipFrontend          Start the backend + gateway only; do not start the frontend."
     Write-Host "  -NoBrowser             Do not open the browser when the frontend is ready."
     Write-Host "  -Lan                   Share on the Wi-Fi/LAN: open the firewall + print the share URL."
-    Write-Host "  -FixProxy              Route local/LAN around the system proxy so a VPN never breaks access."
+    Write-Host "  -FixProxy              Free THIS PC's browser from a VPN system proxy (local access only)."
     Write-Host "  -ExitAfterHealthCheck  Start, verify every health endpoint, then shut down (CI / smoke test)."
     Write-Host "  -Stop                  Stop everything this launcher started and free the ports, then exit."
     Write-Host "  -Help                  Show this help and exit (no log file created)."
@@ -316,8 +327,8 @@ function Show-Usage {
     Write-Host "  .\Start-Planora-Local.ps1 -SkipBuild      # fastest restart, reuse existing build"
     Write-Host "  .\Start-Planora-Local.ps1 -Clean          # full clean rebuild"
     Write-Host "  .\Start-Planora-Local.ps1 -Lan            # also share on the Wi-Fi/LAN"
-    Write-Host "  .\Start-Planora-Local.ps1 -FixProxy       # make it work with a VPN/proxy turned on"
-    Write-Host "  .\Start-Planora-Local.ps1 -Lan -FixProxy  # share on LAN AND bypass the proxy"
+    Write-Host "  .\Start-Planora-Local.ps1 -FixProxy       # fix THIS PC's browser when a proxy VPN is on"
+    Write-Host "  .\Start-Planora-Local.ps1 -Lan -FixProxy  # share on LAN (verified) AND free this PC's browser"
     Write-Host "  .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser"
     Write-Host "  .\Start-Planora-Local.ps1 -Stop           # stop everything this launcher started"
     Write-Host "  Get-Help .\Start-Planora-Local.ps1 -Full  # full annotated help"
@@ -337,6 +348,9 @@ $Failures    = [System.Collections.Generic.List[string]]::new()
 $totalTimer  = [System.Diagnostics.Stopwatch]::StartNew()
 # Host LAN IPv4 resolved when -Lan is used; shown in the summary as the shareable URL.
 $script:LanShareIp = $null
+# Whether the inbound LAN firewall rule was actually created AND verified this run. Drives a
+# truthful share banner - the launcher never tells the user "shared" unless inbound is really open.
+$script:LanFirewallOpen = $false
 
 # Service definitions in dependency/startup order - name => project path (relative),
 # REST Port, optional gRPC sidecar port (GrpcPort), and health path.
@@ -593,15 +607,65 @@ function Set-LocalProxyBypass {
     }
 }
 
-# Open an inbound TCP allow rule for the given ports, scoped to the local subnet only
-# (so it is reachable by Wi-Fi peers but never from the wider internet) and on every
-# firewall profile (a VPN often flips the active adapter to the Public profile). Idempotent:
-# the rule is removed then recreated. Self-elevates a single time if not already admin.
+$script:LanFirewallRuleName = "Planora LAN (local dev)"
+
+# Read-only check (NO admin required) that the inbound LAN allow rule really exists, is enabled,
+# and actually covers every required port. This is the single source of truth for "is inbound
+# open?" - the launcher verifies the rule instead of assuming a create command succeeded, so a
+# declined UAC prompt or a silently-failed elevation can never masquerade as a working share.
+function Test-LanFirewallRule {
+    param([int[]]$Ports, [string]$RuleName = $script:LanFirewallRuleName)
+
+    try {
+        $rules = @(Get-NetFirewallRule -DisplayName $RuleName -ErrorAction Stop |
+            Where-Object { "$($_.Enabled)" -eq 'True' -and $_.Direction -eq 'Inbound' -and $_.Action -eq 'Allow' })
+    } catch {
+        return $false
+    }
+    if ($rules.Count -eq 0) { return $false }
+
+    # Collect every LocalPort the matching rules expose (a port may be 'Any', a number, or a range).
+    $allowed = [System.Collections.Generic.List[string]]::new()
+    foreach ($rule in $rules) {
+        try {
+            $pf = $rule | Get-NetFirewallPortFilter -ErrorAction Stop
+        } catch { continue }
+        foreach ($lp in @($pf.LocalPort)) { $allowed.Add("$lp") }
+    }
+    if ($allowed -contains 'Any') { return $true }
+
+    foreach ($p in $Ports) {
+        if ($allowed -notcontains "$p") { return $false }
+    }
+    return $true
+}
+
+# True when the given TCP port is listening on an all-interfaces address (0.0.0.0 / [::]) and is
+# therefore reachable from another device. A socket bound only to 127.0.0.1 answers the host but
+# refuses every LAN peer, so the share banner must tell these two states apart truthfully.
+function Test-PortListensOnLan {
+    param([int]$Port)
+    $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if (-not $conns) { return $false }
+    return [bool]($conns | Where-Object { $_.LocalAddress -in '0.0.0.0', '::' })
+}
+
+# Open an inbound TCP allow rule for the given ports, scoped to the local subnet only (reachable by
+# Wi-Fi peers, never from the wider internet) and on every firewall profile (a VPN often flips the
+# active adapter to the Public profile). Idempotent. Self-elevates ONCE if not admin, then VERIFIES
+# the rule for real and returns an honest boolean - it never reports success it did not confirm.
 function Enable-LanFirewall {
     param([int[]]$Ports)
 
-    $ruleName = "Planora LAN (local dev)"
+    $ruleName = $script:LanFirewallRuleName
     $portCsv  = ($Ports -join ',')
+    $manualCmd = "New-NetFirewallRule -DisplayName '$ruleName' -Direction Inbound -Action Allow -Protocol TCP -LocalPort $portCsv -Profile Any -RemoteAddress LocalSubnet"
+
+    # Already open and verified? Nothing to do - no UAC, fully idempotent across restarts.
+    if (Test-LanFirewallRule -Ports $Ports -RuleName $ruleName) {
+        Write-OK "Firewall already open (inbound TCP $portCsv, verified)"
+        return $true
+    }
 
     if (Test-IsAdministrator) {
         try {
@@ -609,31 +673,36 @@ function Enable-LanFirewall {
             New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Action Allow `
                 -Protocol TCP -LocalPort $Ports -Profile Any -RemoteAddress LocalSubnet `
                 -ErrorAction Stop | Out-Null
-            Write-OK "Firewall opened (inbound TCP $portCsv, LocalSubnet only)"
-            return $true
         } catch {
             Write-Warn "Could not create the firewall rule: $($_.Exception.Message)"
-            return $false
+        }
+    } else {
+        Write-Warn "A Windows security (UAC) prompt will appear - click YES to let other devices reach the app."
+        Write-Info "Requesting administrator rights to open the firewall for ports $portCsv..."
+        $inner = "Remove-NetFirewallRule -DisplayName '$ruleName' -ErrorAction SilentlyContinue; " +
+                 "New-NetFirewallRule -DisplayName '$ruleName' -Direction Inbound -Action Allow " +
+                 "-Protocol TCP -LocalPort $portCsv -Profile Any -RemoteAddress LocalSubnet | Out-Null"
+        try {
+            $p = Start-Process powershell -Verb RunAs -WindowStyle Hidden -PassThru -Wait `
+                -ArgumentList @("-NoProfile", "-NonInteractive", "-Command", $inner) -ErrorAction Stop
+            if ($p.ExitCode -ne 0) {
+                Write-Warn "Elevated firewall command exited with code $($p.ExitCode)."
+            }
+        } catch {
+            Write-Warn "Elevation was declined or blocked - the firewall rule was not created."
         }
     }
 
-    Write-Info "Requesting administrator rights to open the firewall (one UAC prompt)..."
-    $inner = "Remove-NetFirewallRule -DisplayName '$ruleName' -ErrorAction SilentlyContinue; " +
-             "New-NetFirewallRule -DisplayName '$ruleName' -Direction Inbound -Action Allow " +
-             "-Protocol TCP -LocalPort $portCsv -Profile Any -RemoteAddress LocalSubnet | Out-Null"
-    try {
-        $p = Start-Process powershell -Verb RunAs -WindowStyle Hidden -PassThru -Wait `
-            -ArgumentList @("-NoProfile", "-NonInteractive", "-Command", $inner) -ErrorAction Stop
-        if ($p.ExitCode -eq 0) {
-            Write-OK "Firewall opened (inbound TCP $portCsv, LocalSubnet only)"
-            return $true
-        }
-        Write-Warn "Firewall rule command exited with code $($p.ExitCode)"
-    } catch {
-        Write-Warn "Firewall rule was not created (UAC declined or blocked)."
-        Write-Info "Run this once in an elevated PowerShell, then retry -Lan:"
-        Write-Info "  New-NetFirewallRule -DisplayName '$ruleName' -Direction Inbound -Action Allow -Protocol TCP -LocalPort $portCsv -Profile Any -RemoteAddress LocalSubnet"
+    # VERIFY for real (reading rules needs no admin). Never claim success on faith.
+    if (Test-LanFirewallRule -Ports $Ports -RuleName $ruleName) {
+        Write-OK "Firewall opened (inbound TCP $portCsv, LocalSubnet only, verified)"
+        return $true
     }
+
+    Write-Fail "Firewall is NOT open for $portCsv - other devices will be refused before the app is even reached."
+    Write-Info "Fix it once: open an elevated PowerShell (Win+X -> 'Terminal (Admin)') and run:"
+    Write-Info "  $manualCmd"
+    Write-Info "Then re-run:  .\Start-Planora-Local.ps1 -Lan"
     return $false
 }
 
@@ -1310,7 +1379,7 @@ if ($Lan) {
         Write-Info "Continuing without LAN sharing; the app will still work on localhost."
     } else {
         Write-OK "Host LAN address: $($script:LanShareIp)"
-        $null = Enable-LanFirewall -Ports @($FrontendPort, $GatewayPort)
+        $script:LanFirewallOpen = Enable-LanFirewall -Ports @($FrontendPort, $GatewayPort)
 
         # Keep every LAN-IP-dependent setting in lock-step with the freshly detected IP.
         # The .env values are pinned to whatever IP the machine had when they were written;
@@ -1424,22 +1493,62 @@ $totalSecs = $totalTimer.Elapsed.TotalSeconds
 Show-Summary -HealthResults $healthResults -TotalSeconds $totalSecs
 
 # -- Step 10b: LAN share banner ----------------------------------------------
+# Reports the VERIFIED state of every prerequisite a remote device needs - inbound firewall open,
+# frontend + gateway actually bound to all interfaces - rather than assuming the share worked.
 if ($Lan -and $script:LanShareIp) {
+    $GatewayPort   = $ServiceDefs["api-gateway"].Port
+    $shareUrl      = "http://$($script:LanShareIp):$FrontendPort"
+    $frontendOnLan = Test-PortListensOnLan -Port $FrontendPort
+    $gatewayOnLan  = Test-PortListensOnLan -Port $GatewayPort
+    $reachable     = $script:LanFirewallOpen -and $frontendOnLan -and $gatewayOnLan
+    $bannerColor   = if ($reachable) { $GREEN } else { $YELLOW }
+
     $border = "=" * 58
     Write-Host ""
-    Write-Host "${GREEN}  +${border}+${RESET}"
-    Write-Host "${GREEN}  |${BOLD}$(("  Share on your Wi-Fi / LAN").PadRight(58))${RESET}${GREEN}|${RESET}"
-    Write-Host "${GREEN}  +${border}+${RESET}"
-    $shareUrl = "http://$($script:LanShareIp):$FrontendPort"
-    Write-Host "${GREEN}  |${RESET}$(("  Anyone on the same network opens:").PadRight(58))${GREEN}|${RESET}"
-    Write-Host "${GREEN}  |${BOLD}$("    $shareUrl".PadRight(58))${RESET}${GREEN}|${RESET}"
-    Write-Host "${GREEN}  +${border}+${RESET}"
+    Write-Host "${bannerColor}  +${border}+${RESET}"
+    $title = if ($reachable) { "  Shared on your Wi-Fi / LAN" } else { "  LAN share - action needed" }
+    Write-Host "${bannerColor}  |${BOLD}$($title.PadRight(58))${RESET}${bannerColor}|${RESET}"
+    Write-Host "${bannerColor}  +${border}+${RESET}"
+    Write-Host "${bannerColor}  |${RESET}$(("  Other devices on the same Wi-Fi open:").PadRight(58))${bannerColor}|${RESET}"
+    Write-Host "${bannerColor}  |${BOLD}$("    $shareUrl".PadRight(58))${RESET}${bannerColor}|${RESET}"
+    Write-Host "${bannerColor}  +${border}+${RESET}"
+    Write-Host ""
+
+    # Truthful, individually-verified status of each connect prerequisite.
+    if ($script:LanFirewallOpen) {
+        Write-OK "Inbound firewall open + verified (TCP $FrontendPort, $GatewayPort, LocalSubnet only)"
+    } else {
+        Write-Fail "Inbound firewall is CLOSED - other devices are refused before they reach the app."
+        $manualCmd = "New-NetFirewallRule -DisplayName '$($script:LanFirewallRuleName)' -Direction Inbound -Action Allow -Protocol TCP -LocalPort $FrontendPort,$GatewayPort -Profile Any -RemoteAddress LocalSubnet"
+        Write-Info "Open an elevated PowerShell (Win+X -> 'Terminal (Admin)'), run this once, then re-run -Lan:"
+        Write-Info "  $manualCmd"
+    }
+    if ($frontendOnLan) { Write-OK "Frontend listening on all interfaces (port $FrontendPort)" }
+    else { Write-Warn "Frontend is not on the LAN yet (port $FrontendPort) - it may still be starting; re-check in a moment." }
+    if ($gatewayOnLan) { Write-OK "API gateway listening on all interfaces (port $GatewayPort)" }
+    else { Write-Warn "API gateway is not on the LAN yet (port $GatewayPort)." }
+
     Write-Host ""
     Write-Info "The browser auto-targets the API gateway on the same host - nothing to configure on their end."
-    Write-Info "If a teammate cannot connect while your VPN is on:"
-    Write-Info "  - keep the VPN in split-tunnel mode and allow local/LAN traffic, or"
-    Write-Info "  - briefly disable the VPN; inbound LAN reaches your physical Wi-Fi adapter directly."
-    Write-Info "Both devices must be on the same Wi-Fi (not a 'guest'/isolated network)."
+
+    # A TUN-mode VPN (sing-box / xray / Clash / Happ) can still capture inbound LAN replies even with
+    # the firewall open. This is the one thing -Lan cannot fix from the host, so name the real remedy.
+    $tunDefault = @()
+    try {
+        $physicalAliases = @(Get-NetAdapter -Physical -ErrorAction Stop |
+            Where-Object { $_.Status -eq 'Up' } | Select-Object -ExpandProperty InterfaceAlias)
+        $tunDefault = @(Get-NetRoute -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty InterfaceAlias -Unique |
+            Where-Object { $physicalAliases -notcontains $_ })
+    } catch { }
+    if ($tunDefault.Count -gt 0) {
+        Write-Warn "A VPN/TUN adapter holds the default route: $($tunDefault -join ', ')."
+        Write-Info "If a device still cannot connect, the VPN is capturing LAN traffic. Reliable fixes:"
+        Write-Info "  - turn ON 'Allow LAN' / 'Bypass LAN' (split-tunnel) in your VPN client, or"
+        Write-Info "  - stop the VPN while sharing - inbound then reaches your Wi-Fi adapter directly."
+        Write-Info "(-FixProxy only frees THIS PC's own browser; it does NOT affect inbound from other devices.)"
+    }
+    Write-Info "Both devices must be on the same Wi-Fi (not a 'guest' / AP-isolated network)."
     Write-Host ""
 }
 

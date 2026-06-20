@@ -111,7 +111,7 @@ Critical files:
 - `Persistence/Configurations/TodoItemWorkerConfiguration.cs`
 - `Persistence/Configurations/OutboxMessageConfiguration.cs`
 
-> The comment timeline ("ветки") is no longer in Todo — it lives in the **Collaboration Service** below.
+> The comment timeline is no longer in Todo — it lives in the **Collaboration Service** below.
 
 ## Collaboration Service
 

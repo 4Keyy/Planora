@@ -4,6 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(launcher): -Lan now verifies the firewall and reports honest LAN reachability (2026-06-20)
+
+- **Root cause of "I can't open the app from another device, VPN or not".** `-Lan` opened the Windows
+  Firewall through a one-time UAC self-elevation, but when that prompt was declined or missed it only
+  printed a warning and continued — leaving **no inbound rule**, so Windows silently refused every
+  remote device on ports `3000`/`5132`. The launcher still printed the share URL as if it had worked.
+- **Fix:** `Enable-LanFirewall` now **verifies** the rule actually exists (enabled, inbound, allow,
+  covering both ports) via a read-only `Get-NetFirewallRule` check that needs no admin, and returns an
+  honest boolean. A new `-Lan` banner reports, per port, whether inbound is genuinely open and whether
+  the frontend/gateway are bound to all interfaces (`Test-PortListensOnLan`); when the firewall is not
+  open it prints the exact elevated `New-NetFirewallRule` command. The launcher never claims "shared"
+  unless inbound is confirmed open. The rule is idempotent across restarts (verified, not recreated).
+- **`-FixProxy` reframed honestly.** Its help, usage text, and docs now state that it only frees *this*
+  machine's own browser from a system HTTP proxy — it does nothing for an inbound connection from a
+  remote device. The remote+VPN remedy (the VPN client's "allow LAN / bypass LAN", or stopping the VPN
+  while sharing) is surfaced in the banner when a TUN-mode default route is detected on the host.
+- **Docs:** `docs/troubleshooting.md`, `docs/configuration.md`, and `README.md` updated to lead with the
+  firewall/UAC cause, order the remaining causes by real likelihood, and correct the `-FixProxy` scope.
+- Files: `Start-Planora-Local.ps1`, `docs/troubleshooting.md`, `docs/configuration.md`, `README.md`.
+
 ### feat(todo): estimated-completion date can now be an interval, not just one day (2026-06-19)
 
 - **The due date became an optional interval.** A task's estimated-completion date can now be a single
@@ -403,8 +423,8 @@ is now author-only; duplication is the non-owner's sanctioned alternative).
   an authorization-gated room (`task:{id}`, verified against TodoApi's ownership/sharing rules over
   gRPC). New messages, edits, deletes, subtask create/complete/delete and status changes are pushed
   to everyone in the room the moment they happen; the previous 9-second poll is now only a backstop.
-- **"Имя Фамилия печатает…".** While someone types in a branch, their name shows above the compose
-  box (multi-user aware: "X и ещё 2 печатают…"). Presence is ephemeral — relayed through the hub,
+- **"&lt;First Last&gt; is typing…".** While someone types in a branch, their name shows above the compose
+  box (multi-user aware: "X and 2 others are typing…"). Presence is ephemeral — relayed through the hub,
   never stored — throttled on send, idle-cleared, and TTL-swept so it can never get stuck.
 - **One socket, secure by construction.** The whole app shares a single SignalR connection
   (WebSockets, JWT via `?access_token=` since browsers can't header-auth a socket). The gateway
@@ -566,7 +586,7 @@ Security: duplicate is owner-only with server-side category/friendship re-valida
 
 ### feat(branch): nest replies into sub-branches under their root (2026-06-12)
 
-Reworked how replies are laid out in the branch ("ветка") so they read as nested conversations
+Reworked how replies are laid out in the branch so they read as nested conversations
 instead of one flat stream — the backend reply model is unchanged.
 
 - **Threaded sub-branches.** A reply no longer sits inline on the main rail; it now hangs in a
@@ -584,7 +604,7 @@ instead of one flat stream — the backend reply model is unchanged.
 
 ### feat(branch): replies to messages, replies & subtasks + subtask card byline (2026-06-12)
 
-The branch ("ветка") timeline gains a full **reply system** and the subtask card gets the
+The branch timeline gains a full **reply system** and the subtask card gets the
 author byline + footer work controls, with the existing branch visuals untouched.
 
 - **Replies (Collaboration).** A comment can now quote another comment, another reply (chains),
@@ -1205,7 +1225,7 @@ tests pass on net10.0.
 Two user-reported bugs.
 
 - **"No messages yet" on a task that has a description.** A newly created task's
-  Collaboration timeline ("ветка") is materialised asynchronously: TodoApi publishes
+  Collaboration timeline is materialised asynchronously: TodoApi publishes
   `TaskCreatedIntegrationEvent` through its outbox, and Collaboration's consumer writes the
   "created the task" system comment and the genesis (description) comment. The shared
   `OutboxProcessor` (and Messaging's `OutboxProcessorJob`) polled every **30 s**, so opening
@@ -1258,7 +1278,7 @@ swaps the obsolete API for its supported static equivalent.
 
 ### feat — extract task comment timeline into the Collaboration microservice (2026-05-29)
 
-The task comment timeline ("ветки") — user, genesis, and system comments — moved out of TodoApi
+The task comment timeline — user, genesis, and system comments — moved out of TodoApi
 into a new **Collaboration** service (`Services/CollaborationApi`, database `planora_collaboration`,
 gateway prefix `/collaboration/api/v1/comments`). The new service follows the exact platform
 template: clean architecture, BuildingBlocks wiring, Serilog + OpenTelemetry, the shared global

@@ -441,7 +441,7 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
 - When the user removes a category during task edit, `applyCategoryPatch` (`frontend/src/utils/todo-utils.ts`) zeroes all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) in local state after the PUT — necessary because the backend treats `categoryId: null` as a no-op and echoes back the old values.
 - Todo, dashboard, and completed-task pages enrich author names for public friend tasks as well as direct shared tasks.
 
-## Task Workers ("В работе")
+## Task Workers ("In Progress")
 
 ### Purpose
 
@@ -483,7 +483,7 @@ Allow friends to claim participation slots on public or shared tasks. The task o
 
 ### Purpose
 
-Provide a persistent discussion timeline ("ветки") on public and shared tasks: user comments, the
+Provide a persistent discussion timeline on public and shared tasks: user comments, the
 pinned "Author's Note" (the task's description), and auto-generated system comments for lifecycle
 events. The timeline is owned by the dedicated **Collaboration** service, decoupled from the Todo
 aggregate. The Author's Note is **not** stored as a comment — the description is a single source of
@@ -737,7 +737,7 @@ typing presence.
 - **Branch rooms** (`task:{id}`) require authorization via TodoApi's `CheckTaskCommentAccess` gRPC;
   joins fail closed. Membership is reference-counted client-side and re-joined on reconnect.
 - **Typing** is ephemeral (never persisted), relayed only to rooms the caller joined, throttled on
-  send, idle-cleared, and TTL-swept; the indicator reads "Имя Фамилия печатает…" (multi-user aware).
+  send, idle-cleared, and TTL-swept; the indicator reads "&lt;First Last&gt; is typing…" (multi-user aware).
 - **Signals carry no content** — only ids + an action string. The client refetches through the
   normal authorized endpoints, so a stale or forged signal can never leak data a user may not read.
 - A client **ignores its own echoes** so optimistic updates are never clobbered.

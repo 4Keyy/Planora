@@ -8,8 +8,8 @@
 | CSRF | Cross-site request forgery protection using double-submit cookie/header | `CsrfProtectionMiddleware.cs`, `frontend/src/lib/csrf.ts` |
 | Category | User-owned label for todos with color/icon/order | `Services/CategoryApi` |
 | Category gRPC | Internal service contract used to validate/enrich todo categories | `GrpcContracts/Protos/category.proto` |
-| Collaboration API | Service that owns the task comment timeline ("ветки") and comment notifications; authorises every operation against Todo via gRPC | `Services/CollaborationApi` |
-| Comment timeline ("ветки") | Per-task chronological thread of user, genesis, and system comments | `Services/CollaborationApi/.../Comment.cs` |
+| Collaboration API | Service that owns the task comment timeline and comment notifications; authorises every operation against Todo via gRPC | `Services/CollaborationApi` |
+| Comment timeline | Per-task chronological thread of user, genesis, and system comments | `Services/CollaborationApi/.../Comment.cs` |
 | Genesis comment | The task's initial description rendered as the first timeline entry; system comment owned by the task owner, one per task | `Comment.CreateGenesis` |
 | System comment | Auto-generated timeline entry for task lifecycle (created/completed/started/left); no user author | `Comment.CreateSystem`, Collaboration Inbox consumers |
 | CheckTaskCommentAccess | Todo gRPC call returning task existence, comment access, owner, and participants for Collaboration | `GrpcContracts/Protos/todo.proto`, `TodoGrpcService.cs` |

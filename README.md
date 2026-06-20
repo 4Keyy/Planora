@@ -71,8 +71,8 @@ throwaway UI. **Planora refuses to compromise on either.**
 | **Friendships** | Send / accept / decline friend requests; sharing is friends-only by design. |
 | **Tasks** | Create, prioritise, schedule, and categorise tasks with colour- and icon-coded categories and custom ordering. |
 | **Sharing & privacy** | Make a task public or share it with specific friends — with **per-viewer state**: each participant has their own *hidden* and *completed* flags that never leak onto the owner. |
-| **"Take it into work" (В работе)** | Collaborators can join a shared task as a worker, with worker counts and capacity — or leave at any time. |
-| **Branch timeline (ветки)** | Every task has a beautiful, continuous activity rail: a pinned Author's Note, threaded comments, and auto-generated system events (created / started / left / completed) — all materialised reliably via the outbox/inbox pattern and updated live. |
+| **"Take it into work" (In Progress)** | Collaborators can join a shared task as a worker, with worker counts and capacity — or leave at any time. |
+| **Branch timeline** | Every task has a beautiful, continuous activity rail: a pinned Author's Note, threaded comments, and auto-generated system events (created / started / left / completed) — all materialised reliably via the outbox/inbox pattern and updated live. |
 | **Direct messaging** | One-to-one messages between friends. |
 | **Real-time notifications** | SignalR push with a Redis backplane keeps every device in sync. |
 | **Polish** | A Framer Motion design language, an animated WebGL background, keyboard shortcuts, optimistic UI, and accessibility-minded forms. |
@@ -109,7 +109,7 @@ the `BuildingBlocks` projects.
 | **Todo API** | Tasks, sharing, hidden/viewer state, workers; publishes task-lifecycle events | `planora_todo` | `5100` (gRPC `5101`) |
 | **Category API** | User categories with colour, icon, and ordering | `planora_category` | `5281` (gRPC `5282`) |
 | **Messaging API** | Direct user-to-user messages | `planora_messaging` | `5058` |
-| **Collaboration API** | Task comment timeline ("ветки"): user / genesis / system comments + notifications | `planora_collaboration` | `5060` |
+| **Collaboration API** | Task comment timeline: user / genesis / system comments + notifications | `planora_collaboration` | `5060` |
 | **Realtime API** | SignalR notifications with a Redis backplane | Redis only | `5032` |
 | **Frontend** | Next.js 16 App Router, Zustand state, Axios API client | — | `3000` |
 
@@ -251,7 +251,8 @@ across every run, including `-Clean`.
 | `-SkipBuild` | Skip `dotnet build`; start from existing output (`--no-build`). |
 | `-SkipFrontend` | Start the backend + gateway only. |
 | `-NoBrowser` | Do not open the browser when the frontend is ready. |
-| `-Lan` | Open the firewall for ports `3000` + `5132` and print the LAN share URL (see below). |
+| `-Lan` | Open **and verify** the firewall for ports `3000` + `5132`, then print the LAN share URL (see below). |
+| `-FixProxy` | Free *this PC's* own browser from a VPN system proxy (local access only — not for remote devices). |
 | `-ExitAfterHealthCheck` | Start, verify every `/health`, then shut down (CI / smoke test). |
 | `-Stop` | Stop everything this launcher started and free the ports. Infra/volumes untouched. |
 
@@ -262,11 +263,14 @@ Logs land in `.\logs` (a transcript plus a file per service). The companion
 
 Run with `-Lan` and the launcher detects your host's physical LAN IPv4 (ignoring any VPN virtual
 adapter, so a split-tunnel VPN doesn't interfere), opens the Windows Firewall for ports `3000` and
-`5132` (inbound, **LocalSubnet only**, one UAC prompt), and prints a `http://<your-lan-ip>:3000` URL.
-Anyone on the same Wi-Fi just opens that URL — the client auto-targets the gateway on the same host it
-was opened from, and in development the gateway CORS and the app CSP already accept same-LAN origins,
-so there's nothing to configure on their device. If a teammate can't connect while your VPN is on,
-keep it in split-tunnel mode with local/LAN access allowed.
+`5132` (inbound, **LocalSubnet only**, one UAC prompt — **approve it**), **verifies the rule was
+created**, and prints a `http://<your-lan-ip>:3000` URL. Anyone on the same Wi-Fi just opens that URL —
+the client auto-targets the gateway on the same host it was opened from, and in development the gateway
+CORS and the app CSP already accept same-LAN origins, so there's nothing to configure on their device.
+The closing banner reports, per port, whether inbound is genuinely open; if it says the firewall is
+CLOSED, run the elevated command it prints and re-run `-Lan`. If a teammate still can't connect while
+your VPN is on, turn on the VPN's **allow LAN / bypass LAN** (split-tunnel) setting or stop it while
+sharing — `-FixProxy` only frees *this* PC's own browser, not a remote device.
 
 ---
 
