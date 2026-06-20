@@ -306,8 +306,8 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                           borderBottomLeftRadius: roundLeft  ? 8 : 0,
                           borderTopRightRadius:    roundRight ? 8 : 0,
                           borderBottomRightRadius: roundRight ? 8 : 0,
-                          background: inSolid ? "#f1f1f4" : "rgba(99,102,241,0.10)",
-                          border: inPreview && !inSolid ? "1px dashed rgba(99,102,241,0.45)" : "none",
+                          background: inSolid ? "#f1f1f4" : "rgba(82,82,82,0.10)",
+                          border: inPreview && !inSolid ? "1px dashed rgba(82,82,82,0.40)" : "none",
                           borderLeft:  inPreview && !inSolid && !roundLeft  ? "none" : undefined,
                           borderRight: inPreview && !inSolid && !roundRight ? "none" : undefined,
                         }}
@@ -341,8 +341,8 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                     {isPreviewCap && !isCap && (
                       <span aria-hidden style={{
                         position: "absolute", inset: 2, borderRadius: 8,
-                        border: "1.5px solid rgba(99,102,241,0.65)",
-                        background: "rgba(99,102,241,0.06)",
+                        border: "1.5px solid rgba(82,82,82,0.55)",
+                        background: "rgba(82,82,82,0.06)",
                       }} />
                     )}
 
@@ -350,7 +350,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                       position: "relative", zIndex: 1,
                       fontSize: 12,
                       fontWeight: isCap || isToday ? 800 : 500,
-                      color: isCap ? "white" : (inSolid || isPreviewCap) ? "#312e81" : "#262626",
+                      color: isCap ? "white" : (inSolid || isPreviewCap) ? "#404040" : "#262626",
                       transition: "color 120ms",
                     }}>
                       {day}

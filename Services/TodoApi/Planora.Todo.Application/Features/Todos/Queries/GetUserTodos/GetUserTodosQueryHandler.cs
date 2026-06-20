@@ -77,13 +77,21 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             // Build predicate: own todos OR friend-visible todos.
             // Viewer category filters can be pushed into the shared-task branch using
             // the viewer preference IDs, so the database can count/page before enrichment.
+            // Normalize the completion-date window to UTC instants. The client sends ISO timestamps
+            // with an explicit offset; ToUniversalTime() yields a Kind=Utc value so the EF Core
+            // comparison against the (UTC) CompletedAt column is unambiguous for Npgsql.
+            var completedFrom = request.CompletedFrom?.ToUniversalTime();
+            var completedTo = request.CompletedTo?.ToUniversalTime();
+
             var predicate = BuildPredicateWithFriends(
                 userId,
                 friendIds,
                 request,
                 requestedStatuses,
                 viewerCategoryTodoIds,
-                viewerCompletedIds);
+                viewerCompletedIds,
+                completedFrom,
+                completedTo);
 
             var sortCompletedByCompletionTime =
                 request.IsCompleted == true ||
@@ -262,7 +270,9 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             GetUserTodosQuery request,
             List<TodoStatus>? requestedStatuses,
             List<Guid> viewerCategoryTodoIds,
-            List<Guid> viewerCompletedIds)
+            List<Guid> viewerCompletedIds,
+            DateTime? completedFrom,
+            DateTime? completedTo)
         {
             var hasCategoryFilter = request.CategoryId.HasValue;
             var categoryId = request.CategoryId.GetValueOrDefault();
@@ -281,6 +291,12 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                        // Subtasks live only inside their parent's branch — never in task lists.
                        (includeSubtasks || x.ParentTodoId == null) &&
                        (requestedStatuses == null || requestedStatuses.Contains(x.Status)) &&
+
+                       // Completion-date window (inclusive). A task with no CompletedAt is excluded
+                       // the moment either bound is set, which is correct — an unfinished task has no
+                       // completion date to match against.
+                       (!completedFrom.HasValue || (x.CompletedAt.HasValue && x.CompletedAt.Value >= completedFrom.Value)) &&
+                       (!completedTo.HasValue || (x.CompletedAt.HasValue && x.CompletedAt.Value <= completedTo.Value)) &&
 
                        // Filter by viewer completion state:
                        // 1. If asking for completed: show globally Done OR viewer-completed

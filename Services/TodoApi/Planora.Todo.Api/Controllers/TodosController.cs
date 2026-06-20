@@ -45,9 +45,13 @@ namespace Planora.Todo.Api.Controllers
             // Subtasks are excluded from lists by default; the dashboard stats fetch opts in so
             // completed subtasks still count toward weekly statistics.
             [FromQuery] bool includeSubtasks = false,
+            // Inclusive completion-date window for the completed archive's date-range search.
+            [FromQuery] DateTime? completedFrom = null,
+            [FromQuery] DateTime? completedTo = null,
             CancellationToken cancellationToken = default)
         {
-            var query = new GetUserTodosQuery(null, pageNumber, pageSize, status, categoryId, isCompleted, includeSubtasks);
+            var query = new GetUserTodosQuery(
+                null, pageNumber, pageSize, status, categoryId, isCompleted, includeSubtasks, completedFrom, completedTo);
             var result = await _mediator.Send(query, cancellationToken);
 
             return Ok(result);

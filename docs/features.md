@@ -389,7 +389,9 @@ picking an earlier day extends the interval backwards and a later day extends it
 full interval exists, the next click starts over with a fresh single date. While a single date is
 set, hovering another day previews the interval it would create (a soft dashed band) before commit;
 the committed interval renders as solid black bound caps joined by a filled band, animated with
-framer-motion. Quick-picks (Today/Tomorrow/…) always set a single date. The popover/inline calendar
+framer-motion. The range highlight is intentionally **neutral gray** — the preview band, the hovered
+ghost cap, and the in-range day labels are all gray, so the calendar stays monochrome instead of
+using a colored (previously indigo) accent. Quick-picks (Today/Tomorrow/…) always set a single date. The popover/inline calendar
 closes on terminal selections (a quick-pick, a completed interval, or a clear) but stays open after
 the first single pick so the interval can be built in one go. Task cards render an interval as
 `start → deadline`; overdue is judged on the deadline either way.
@@ -422,6 +424,21 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
   no layout jump.
 - Active todo page loads active tasks in pages of 200.
 - Completed preview uses page size 20.
+- **Completed archive — search by completion date** (`frontend/src/app/tasks/completed/page.tsx`):
+  a calendar control lets you find a task by roughly when it was finished. It reuses the same
+  two-click `DateCalendar` (headless, quick-picks hidden) as the estimated-completion date, so a
+  first click picks a single day and a second click turns it into a range. The selected day(s) are
+  sent to the API as an inclusive `completedFrom`/`completedTo` window (local day edges → UTC
+  instants), and the server filters on `CompletedAt` — so the search spans the **whole archive**, not
+  just the current page. Picking a window resets paging to page 1; an empty result shows a dedicated
+  "nothing finished in this period" state with a one-click clear. The control is shown whenever there
+  is something to search or a window is already applied.
+- **Completed-card title strike animation** (`TodoCard`): a resting completed task shows its title
+  struck through; on card hover the strike **wipes away left→right** while the title brightens to
+  fully readable, and leaving the card draws it back the same way. The line is painted as a gradient
+  on the text with `box-decoration-break: clone` (so it follows wrapped lines) and animated by
+  shrinking its `background-size` width — smoother than fading `text-decoration-color`. Honors
+  `prefers-reduced-motion` (the transition is dropped).
 - Sorting groups active tasks by date urgency and priority in `frontend/src/utils/sort-tasks.ts`.
 - Category filter state is stored in local storage by `frontend/src/utils/category-filter.ts`, scoped per user under the key `todos-cat-filter:<userId>`. Each account's filter survives a hard refresh (including Ctrl+F5), and switching accounts never leaks one user's filter onto another. The `/tasks` and `/tasks/completed` pages re-read the filter whenever the active user changes; an unknown/logged-out user resolves to an empty filter.
 - Keyboard shortcuts confirmed in `frontend/src/app/todos/page.tsx`: `F` opens category filter and `C` opens create panel when focus is not inside form controls.

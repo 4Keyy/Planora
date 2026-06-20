@@ -320,6 +320,47 @@ public class TodoQueryHandlerTests
     }
 
     [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task GetUserTodos_ShouldFilterByCompletionDateWindow()
+    {
+        var userId = Guid.NewGuid();
+        var fixture = new TodoQueryFixture(userId);
+        var completed = TodoItem.Create(userId, "Done task");
+        completed.MarkAsDone(userId); // CompletedAt = UtcNow
+        var active = TodoItem.Create(userId, "Active task"); // CompletedAt = null
+        var now = DateTime.UtcNow;
+
+        fixture.FriendshipService
+            .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Guid>());
+        fixture.Repository
+            .Setup(x => x.GetPagedWithIncludesAsync(
+                It.IsAny<Expression<Func<TodoItem, bool>>>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, CancellationToken _) =>
+            {
+                var items = new[] { completed, active }.Where(predicate.Compile()).ToList();
+                return (items, items.Count);
+            });
+
+        // A window straddling "now" keeps the finished task; the active one has no CompletedAt to match.
+        var inWindow = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId, IsCompleted: true, CompletedFrom: now.AddDays(-1), CompletedTo: now.AddDays(1)),
+            CancellationToken.None);
+        var dto = Assert.Single(inWindow.Items);
+        Assert.Equal(completed.Id, dto.Id);
+
+        // A future-only window finds nothing — the task was completed before it.
+        var future = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId, IsCompleted: true, CompletedFrom: now.AddDays(1), CompletedTo: now.AddDays(2)),
+            CancellationToken.None);
+        Assert.Empty(future.Items);
+    }
+
+    [Fact]
     public async Task GetTodoById_ShouldReturnOwnerTodoWithCategoryEnrichment()
     {
         var userId = Guid.NewGuid();

@@ -4,6 +4,36 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(completed): search the archive by completion date + monochrome calendar + strike animation (2026-06-20)
+
+- **Find a completed task by roughly when it was finished.** The completed archive
+  (`/tasks/completed`) gained a calendar control that filters the list by a completion-date window. It
+  reuses the same two-click `DateCalendar` as the estimated-completion date, so a first click picks a
+  single day and a second click turns it into a range — exactly the interaction users already know
+  from setting a due date.
+- **Server-side filtering across the whole archive.** `GET /todos/api/v1/todos` now accepts an
+  optional inclusive `completedFrom`/`completedTo` window. Both bounds are normalized to UTC and
+  compared against `CompletedAt` in the query predicate, so the search spans every page — not just the
+  20 currently loaded. The frontend sends the user's local day edges (start-of-day → end-of-day) so a
+  single calendar day matches everything finished that day regardless of the stored time-of-day.
+  Picking a window resets paging to page 1, and an empty result shows a dedicated "nothing finished in
+  this period" state with a one-click clear.
+- **Calendars are now monochrome.** The date-range highlight (the hover-preview band, the ghost cap,
+  and the in-range day labels) switched from an indigo accent to **neutral gray**, so every calendar
+  in the app stays black-and-gray.
+- **Completed-card strike animation.** Hovering a completed task now **wipes the strike-through away
+  left→right** (and draws it back on leave) while the title brightens to fully readable. The line is a
+  gradient painted on the text with `box-decoration-break: clone` (so it survives wrapped titles) and
+  animated via `background-size` — smoother than the previous `text-decoration-color` fade. Honors
+  `prefers-reduced-motion`.
+- Files: `Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetUserTodos/GetUserTodosQuery.cs`,
+  `…/GetUserTodosQueryHandler.cs`, `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`,
+  `frontend/src/app/tasks/completed/page.tsx`,
+  `frontend/src/components/todos/edit-todo-modal/popovers/date.tsx`,
+  `frontend/src/components/todos/todo-card.tsx`,
+  `tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoQueryHandlerTests.cs`,
+  `docs/API.md`, `docs/features.md`.
+
 ### fix(launcher): -Lan now verifies the firewall and reports honest LAN reachability (2026-06-20)
 
 - **Root cause of "I can't open the app from another device, VPN or not".** `-Lan` opened the Windows

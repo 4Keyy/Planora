@@ -3,8 +3,8 @@
 import Link from "next/link"
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
-import { ArrowLeft, CheckCircle2, History } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { ArrowLeft, CheckCircle2, History, CalendarSearch, ChevronDown, X } from "lucide-react"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
@@ -29,6 +29,8 @@ import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { readFilter, writeFilter, readHintSeen, writeHintSeen } from "@/utils/category-filter"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
+import { DateCalendar } from "@/components/todos/edit-todo-modal/popovers/date"
+import { formatDueRange } from "@/components/todos/edit-todo-modal/utils"
 
 const PAGE_SIZE = 20
 const COMPLETED_MASONRY_BREAKPOINTS = [
@@ -57,6 +59,13 @@ export default function CompletedTasksPage() {
   // Category filter — same mechanism + shared persistence as the /tasks page.
   const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([])
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  // Completion-date search — a single day or an interval ("when was it roughly finished?"). The
+  // shape mirrors the estimated-completion date model (DueRange): a lone target day lives in `end`,
+  // an interval fills both bounds with `start` ≤ `end`. Empty strings mean "no date filter".
+  const [searchStart, setSearchStart] = useState("")
+  const [searchEnd, setSearchEnd] = useState("")
+  const [dateOpen, setDateOpen] = useState(false)
+  const hasDateFilter = !!(searchStart || searchEnd)
   const [hintDismissed, setHintDismissed] = useState(false)
   const hintDismissedRef = useRef<boolean>(false)
   const friendNameCache = useRef<Map<string, string>>(new Map())
@@ -113,6 +122,21 @@ export default function CompletedTasksPage() {
     writeFilter(user?.userId, ids)
   }, [user?.userId])
 
+  // Picking a completion-date window restarts paging at 1 so results aren't stranded on an
+  // out-of-range page; the fetch then re-runs because the window is a fetchCompletedTodos dep.
+  const handleDateRangeChange = useCallback((start: string | null, end: string | null) => {
+    setSearchStart(start ?? "")
+    setSearchEnd(end ?? "")
+    setCurrentPage(1)
+  }, [])
+
+  const clearDateFilter = useCallback(() => {
+    setSearchStart("")
+    setSearchEnd("")
+    setDateOpen(false)
+    setCurrentPage(1)
+  }, [])
+
   const fetchCategories = useCallback(async () => {
     try {
       const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories")
@@ -156,13 +180,20 @@ export default function CompletedTasksPage() {
     setError(null)
 
     try {
-      const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", {
-        params: {
-          pageNumber: page,
-          pageSize: PAGE_SIZE,
-          isCompleted: true,
-        },
-      })
+      // Translate the selected day(s) into an inclusive UTC instant window. A single pick lives in
+      // `searchEnd`; an interval fills both. The bounds are widened to the user's local day edges so
+      // "20 Jun" matches everything finished on the 20th regardless of the stored UTC time-of-day.
+      const fromDay = searchStart || searchEnd
+      const toDay = searchEnd
+      const params: Record<string, string | number | boolean> = {
+        pageNumber: page,
+        pageSize: PAGE_SIZE,
+        isCompleted: true,
+      }
+      if (fromDay) params.completedFrom = new Date(`${fromDay}T00:00:00.000`).toISOString()
+      if (toDay) params.completedTo = new Date(`${toDay}T23:59:59.999`).toISOString()
+
+      const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", { params })
 
       const items = res.data.items ?? []
       const enriched = await enrichTodosWithAuthorNames(items)
@@ -176,7 +207,7 @@ export default function CompletedTasksPage() {
     } finally {
       setLoading(false)
     }
-  }, [currentPage, enrichTodosWithAuthorNames])
+  }, [currentPage, enrichTodosWithAuthorNames, searchStart, searchEnd])
 
   useEffect(() => {
     if (!hasHydrated) return
@@ -389,6 +420,61 @@ export default function CompletedTasksPage() {
         </div>
       </div>
 
+      {/* Completion-date search — find a task by roughly when it was finished. Reuses the project
+          calendar (DateCalendar) in range mode: the first click picks a day, a second click turns it
+          into an interval. Shown whenever there is something to search (or a window is already set). */}
+      {!loading && (totalCount > 0 || hasDateFilter) && (
+        <div className="w-full max-w-sm">
+          <button
+            type="button"
+            onClick={() => setDateOpen((o) => !o)}
+            className="flex w-full items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs font-bold shadow-sm transition-colors hover:bg-gray-50"
+          >
+            <CalendarSearch className="h-4 w-4 flex-shrink-0 text-gray-500" strokeWidth={1.8} />
+            {hasDateFilter ? (
+              <span className="text-gray-900">Completed {formatDueRange(searchStart, searchEnd)}</span>
+            ) : (
+              <span className="text-gray-400">Search by completion date</span>
+            )}
+            {hasDateFilter && (
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label="Clear date filter"
+                onClick={(e) => { e.stopPropagation(); clearDateFilter() }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); clearDateFilter() } }}
+                className="ml-auto flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              >
+                <X className="h-3.5 w-3.5" />
+              </span>
+            )}
+            <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform", hasDateFilter ? "ml-2" : "ml-auto", dateOpen && "rotate-180")} />
+          </button>
+          <AnimatePresence initial={false}>
+            {dateOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="mt-2 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                  <DateCalendar
+                    start={searchStart}
+                    end={searchEnd}
+                    onChange={handleDateRangeChange}
+                    autoClose={() => setDateOpen(false)}
+                    headless
+                    hideQuickPicks
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
       {/* Quick Filter plate — the applied-filter summary lives inside it (shared with /tasks) */}
       {!loading && categories.length > 0 && (
         <QuickFilterBar
@@ -418,15 +504,31 @@ export default function CompletedTasksPage() {
           className="rounded-[2rem] border border-dashed border-gray-200 bg-white p-16 text-center shadow-sm"
         >
           <div className="mx-auto h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
-            <CheckCircle2 className="h-8 w-8 text-gray-200" />
+            {hasDateFilter ? (
+              <CalendarSearch className="h-8 w-8 text-gray-200" />
+            ) : (
+              <CheckCircle2 className="h-8 w-8 text-gray-200" />
+            )}
           </div>
-          <h2 className="text-lg font-black text-gray-900 mb-1">No completed tasks yet</h2>
-          <p className="text-sm text-gray-400 font-medium mb-6">
-            Finish a task and it will appear here.
-          </p>
-          <Button asChild>
-            <Link href="/tasks">Go to active tasks</Link>
-          </Button>
+          {hasDateFilter ? (
+            <>
+              <h2 className="text-lg font-black text-gray-900 mb-1">No tasks finished in this period</h2>
+              <p className="text-sm text-gray-400 font-medium mb-6">
+                Nothing was completed {formatDueRange(searchStart, searchEnd)}. Try a wider range.
+              </p>
+              <Button variant="outline" onClick={clearDateFilter}>Clear date filter</Button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-black text-gray-900 mb-1">No completed tasks yet</h2>
+              <p className="text-sm text-gray-400 font-medium mb-6">
+                Finish a task and it will appear here.
+              </p>
+              <Button asChild>
+                <Link href="/tasks">Go to active tasks</Link>
+              </Button>
+            </>
+          )}
         </motion.div>
       ) : (
         <>

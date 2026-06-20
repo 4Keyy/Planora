@@ -760,22 +760,37 @@ function TodoCardComponent({
                     >
                       <h3
                         className={cn(
-                          // `transition-colors` animates text-decoration-color too, so the strike
-                          // line can dissolve/return smoothly — see the completed state below.
                           "font-black tracking-tight leading-snug break-words transition-colors duration-300 ease-out",
                           isCompleting
                             ? "text-lg md:text-xl text-gray-500 line-through decoration-emerald-500/70 decoration-2"
                             : isCompleted
                               ? isReopening
                                 ? "text-sm text-gray-700"
-                                // Resting: strike visible. On card hover the line fades out (decoration-
-                                // color → transparent) and the text brightens, so the title becomes
-                                // cleanly readable; leaving the card draws the strike back in.
-                                : "text-sm line-through decoration-2 decoration-gray-300 text-gray-400 group-hover/card:text-gray-700 group-hover/card:decoration-transparent"
+                                : "text-sm text-gray-400 group-hover/card:text-gray-700"
                               : "text-lg md:text-xl text-gray-950 group-hover/card:text-black"
                         )}
                       >
-                        {truncateText(todo.title, 40)}
+                        {isCompleted && !isCompleting && !isReopening ? (
+                          // Resting completed title. The strike is painted as a gradient "line" on the
+                          // text itself (box-decoration-break: clone, so it follows every wrapped line)
+                          // and animated by shrinking its background-size width: on card hover the line
+                          // wipes away left→right while the title brightens to fully readable; leaving
+                          // the card draws it back the same way. Smoother and more deliberate than
+                          // fading text-decoration-color, and it survives multi-line titles.
+                          <span
+                            className={cn(
+                              "bg-no-repeat [background-image:linear-gradient(#d1d5db,#d1d5db)]",
+                              "[background-position:0_53%] [background-size:100%_2px]",
+                              "[-webkit-box-decoration-break:clone] [box-decoration-break:clone]",
+                              "transition-[background-size] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
+                              "group-hover/card:[background-size:0%_2px] motion-reduce:transition-none",
+                            )}
+                          >
+                            {truncateText(todo.title, 40)}
+                          </span>
+                        ) : (
+                          truncateText(todo.title, 40)
+                        )}
                       </h3>
                     </motion.div>
                     <motion.div

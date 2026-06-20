@@ -454,7 +454,7 @@ All routes require bearer auth.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `GET` | `?pageNumber=1&pageSize=10&status=&categoryId=&isCompleted=` | list own and friend-visible todos |
+| `GET` | `?pageNumber=1&pageSize=10&status=&categoryId=&isCompleted=&completedFrom=&completedTo=` | list own and friend-visible todos |
 | `GET` | `/public?pageNumber=1&pageSize=10&friendId=` | list public or directly shared friend todos |
 | `GET` | `/{id}` | get one todo |
 | `POST` | `/` | create todo |
@@ -471,6 +471,14 @@ All routes require bearer auth.
 > **Comments (the task timeline) moved to the Collaboration service** — see the
 > [Collaboration](#collaboration) section. The old `/{id}/comments*` and `/{id}/genesis`
 > routes under `/todos/api/v1/todos` no longer exist.
+
+`completedFrom` / `completedTo` are an **optional, inclusive completion-date window** (ISO 8601
+instants) used by the completed archive's "find a task by roughly when it was finished" search. Each
+bound is normalized to UTC server-side and compared against `CompletedAt`; either may stand alone
+(open-ended on the missing side). A task with no `CompletedAt` is excluded the moment either bound is
+set. The bounds combine with `isCompleted=true` and the other filters. The frontend sends the local
+day edges (start-of-day → end-of-day) so a single calendar day matches every task finished that day
+regardless of the stored time-of-day.
 
 Subtask reads are enriched with the author's **live identity**: `GET /{id}/subtasks` resolves
 `authorName` + `authorAvatarUrl` for each subtask from Auth (`GetUserProfilesBatch`, one batch call
