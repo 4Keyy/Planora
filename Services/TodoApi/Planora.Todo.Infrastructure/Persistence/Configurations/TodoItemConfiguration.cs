@@ -80,6 +80,15 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
             builder.HasIndex(x => new { x.UserId, x.Status, x.IsDeleted, x.CreatedAt })
                 .HasDatabaseName("ix_todo_items_user_status_deleted_created");
 
+            // Completed-archive date-range search ("find a task by roughly when it was finished")
+            // filters by UserId + Status=Done + IsDeleted=false + a CompletedAt window. All three
+            // leading columns are equality predicates and CompletedAt is the range bound, so this
+            // covering index turns the search into an index range scan instead of scanning every one
+            // of a user's done tasks — the win grows with archive size. Added on existing databases at
+            // startup via idempotent DDL (see TodoApi Program.cs), mirroring the DueDateStart pattern.
+            builder.HasIndex(x => new { x.UserId, x.Status, x.IsDeleted, x.CompletedAt })
+                .HasDatabaseName("ix_todo_items_user_status_deleted_completed");
+
             builder.OwnsMany(x => x.Tags, navigation =>
             {
                 navigation.HasKey(x => x.Id);

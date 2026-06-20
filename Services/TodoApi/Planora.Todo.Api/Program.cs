@@ -220,6 +220,25 @@ END $$;", app.Lifetime.ApplicationStopping);
                         logger.LogWarning(ex, "Could not ensure TodoItems.DueDateStart column (non-fatal)");
                     }
 
+                    // Completion-date index — powers the completed archive's "find a task by roughly
+                    // when it was finished" date-range search (filter on UserId + Status + IsDeleted +
+                    // a CompletedAt window). Additive, idempotent (IF NOT EXISTS) and matches the EF
+                    // model (TodoItemConfiguration) so fresh installs get it from the model. A plain
+                    // (non-CONCURRENT) build is fine: IF NOT EXISTS means it runs once, and the table
+                    // is modest; a very large production table would prefer a one-off CONCURRENT build.
+                    try
+                    {
+                        await db.Database.ExecuteSqlRawAsync(
+                            @"CREATE INDEX IF NOT EXISTS ix_todo_items_user_status_deleted_completed
+                              ON todo.""TodoItems"" (""UserId"", ""Status"", ""IsDeleted"", ""CompletedAt"");",
+                            app.Lifetime.ApplicationStopping);
+                        logger.LogInformation("✅ Ensured completion-date index (ix_todo_items_user_status_deleted_completed) exists");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Could not ensure completion-date index (non-fatal)");
+                    }
+
                     // Subscribe to Integration Events
                     logger.LogInformation("🔄 Subscribing to integration events...");
                     var eventBus = provider.GetRequiredService<IEventBus>();

@@ -4,6 +4,24 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### perf(todo): index the completed-archive date-range search on CompletedAt (2026-06-21)
+
+- **Backs yesterday's completion-date search with the matching index.** The completed archive filters
+  `TodoItems` by `UserId + Status=Done + IsDeleted=false` and a `CompletedAt` window; without an index
+  on `CompletedAt` that meant scanning every one of a user's done tasks on each search.
+- Added the `(UserId, Status, IsDeleted, CompletedAt)` covering index
+  `ix_todo_items_user_status_deleted_completed`. The three leading columns are equality predicates and
+  `CompletedAt` is the range bound, so the search collapses to an index range scan — the win grows
+  with archive size.
+- Follows the project's established additive-schema convention: the index is declared in the EF model
+  (`TodoItemConfiguration`, for fresh installs) **and** ensured idempotently at TodoApi startup
+  (`CREATE INDEX IF NOT EXISTS`, for existing databases), so no formal EF migration is needed. A very
+  large production table would prefer a one-off `CREATE INDEX CONCURRENTLY` to avoid the brief write
+  lock.
+- Files: `Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Configurations/TodoItemConfiguration.cs`,
+  `Services/TodoApi/Planora.Todo.Api/Program.cs`, `docs/database.md`.
+- Performance: completed-archive date search becomes an index range scan instead of a per-user done-task scan.
+
 ### feat(completed): search the archive by completion date + monochrome calendar + strike animation (2026-06-20)
 
 - **Find a completed task by roughly when it was finished.** The completed archive
