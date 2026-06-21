@@ -12,6 +12,17 @@
   html {
     scroll-behavior: smooth;
     font-size: 16px;
+    /* Planora is a light-only design that renders its content on transparent
+       surfaces over the decorative ColorBends gradient. Without an explicit
+       light base, a phone (or browser) set to OS dark mode shows the UA's DARK
+       canvas behind those transparent areas while the text stays near-black
+       (#171717) — i.e. dark-on-dark, unreadable. Pin the colour scheme to light
+       and paint a white base so the gradient (semi-transparent greys designed
+       for white) and every transparent surface read correctly regardless of the
+       device theme. Form controls (inputs, checkboxes, scrollbars) also render
+       in their light variant. */
+    color-scheme: light;
+    background-color: #ffffff;
     /* overflow-y: scroll keeps scrollbar always visible — prevents Radix UI from
        causing horizontal page shift when it locks body scroll on dropdown open */
     overflow-y: scroll;

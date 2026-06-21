@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ui): force light colour scheme so dark-mode phones stay readable (2026-06-22)
+
+- **On a device set to OS dark mode the whole app rendered dark-on-dark.** Planora is a
+  light-only design whose content sits on transparent surfaces over the decorative ColorBends
+  gradient, but `html`/`body` never declared a colour scheme or a solid base colour. A browser
+  (or phone) in dark mode therefore painted its dark UA canvas behind every transparent area
+  while the text stayed near-black (`#171717`) — unreadable. Verified by emulating
+  `prefers-color-scheme: dark` at 390px: the computed `html` background was transparent and the
+  canvas dark.
+- `html` now sets `color-scheme: light` and `background-color: #ffffff`, so the gradient (which
+  is made of semi-transparent greys tuned for white) and all transparent surfaces read correctly
+  on any device theme, and form controls/scrollbars render in their light variant. After the fix
+  the computed `html` background is `rgb(255,255,255)` and `color-scheme` is `light` even under
+  emulated dark mode.
+- Files: `frontend/src/app/globals.css`.
+
 ### fix(ui): eliminate page-wide horizontal overflow on mobile (2026-06-22)
 
 - **The whole page scrolled sideways on phones**, which made the fixed navbar and the branch
