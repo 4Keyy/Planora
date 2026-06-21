@@ -481,8 +481,8 @@ export function TodoEditor({
       style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}
       className="branch-scroll"
     >
-      {/* ── (1) Top chrome bar ── */}
-      <div style={{ padding: "16px 26px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+      {/* ── (1) Top chrome bar ── (tighter side padding on phones for more content width) */}
+      <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-[26px]">
         <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3" }}>
           Task Branch
         </span>
@@ -532,20 +532,20 @@ export function TodoEditor({
       </div>
 
       {/* ── (2) Title heading ── */}
-      <div style={{ padding: "22px 26px 12px" }}>
+      <div className="px-4 pt-[22px] pb-3 sm:px-[26px]">
         {renderTitle(22, 12, 8)}
       </div>
 
       {/* ── (3) Inline token meta strip ── */}
-      <div style={{ padding: "0 22px 18px 22px" }}>
+      <div className="px-4 pb-[18px] sm:px-[22px]">
         <InlineTokenStrip {...metaProps} />
       </div>
 
       {/* Divider */}
-      <div style={{ height: 1, background: "#f5f5f5", margin: "0 26px" }} />
+      <div className="mx-4 sm:mx-[26px]" style={{ height: 1, background: "#f5f5f5" }} />
 
       {/* ── (4) Branch panel ── (flex-fills the container; scrolls internally) */}
-      <div style={{ padding: "18px 26px 20px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <div className="flex flex-1 flex-col px-4 pb-5 pt-[18px] sm:px-[26px]" style={{ minHeight: 0 }}>
         {branchNode}
       </div>
     </div>

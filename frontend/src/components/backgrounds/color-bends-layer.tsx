@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, lazy, useState } from "react"
+import { Suspense, lazy, useEffect, useState } from "react"
 import { ErrorBoundary } from "@/components/error-boundary"
 
 const ColorBends = lazy(() =>
@@ -13,13 +13,9 @@ const ColorBends = lazy(() =>
  * cores) gets 1 iteration; a typical laptop (4–7) gets 2; desktop/workstation
  * (≥8) gets 3 for the richer ribboning.
  *
- * The detection runs in `useState`'s initializer so the first render gets the
- * final value — a `useEffect`-driven update would rebuild the WebGL scene
- * twice on mount (the renderer is in the child's effect deps). SSR has no
- * `navigator`, so the SSR path falls through to the conservative 1; the
- * client hydrates with its actual core count, but Next.js does not flag this
- * mismatch because the value is consumed as a prop on the lazy child, not
- * rendered into the markup directly.
+ * Read once, after mount, inside the same effect that flips the layer to the
+ * live shader (see ColorBendsLayer). The shader is only mounted with this value
+ * already known, so the renderer never rebuilds for an iteration change.
  */
 function detectIterations(): number {
   if (typeof navigator === "undefined") return 1
@@ -36,13 +32,13 @@ function detectIterations(): number {
  * continuous full-screen WebGL render loop. On phones/tablets that is pure cost
  * — there is no mouse to drive the parallax, and the constant GPU work drains
  * battery and causes scroll jank. Touch / small-viewport / Save-Data clients
- * therefore get a static CSS gradient in the same palette instead: the lazy
- * three.js chunk is never fetched and no animation frame ever runs. Desktops
- * (fine pointer, wide viewport) keep the full live shader.
+ * therefore keep the static CSS gradient in the same palette: the lazy three.js
+ * chunk is never fetched and no animation frame ever runs. Desktops (fine
+ * pointer, wide viewport) upgrade to the full live shader after mount.
  *
- * Runs in the `useState` initializer for the same reason as detectIterations —
- * the client computes the real value on mount; SSR falls through to the live
- * path but renders nothing (the lazy child is behind a null Suspense fallback).
+ * Read once, after mount (see ColorBendsLayer) — never during render, so the
+ * server and the first client paint always agree (both show the static
+ * gradient) and React never reports a hydration mismatch.
  */
 function prefersLightweightBackground(): boolean {
   if (typeof window === "undefined" || typeof navigator === "undefined") return false
@@ -76,12 +72,25 @@ const StaticBackground = (
 
 /** Drop once into the root layout — gives every page the ColorBends background. */
 export function ColorBendsLayer() {
-  const [iterations] = useState(detectIterations)
-  const [lightweight] = useState(prefersLightweightBackground)
+  // HYDRATION: the server has no `navigator`/`window`, so it can only ever render
+  // the static gradient. To guarantee the first client paint matches that markup
+  // byte-for-byte, this component ALSO starts in the static state on every client
+  // — `live` is false until the post-mount effect below decides the device is a
+  // capable, non-touch desktop. Branching on device capabilities during render
+  // (the previous approach) made the server emit <Suspense> while a mobile client
+  // emitted the static <div>, which is exactly the mismatch React was flagging.
+  const [live, setLive] = useState(false)
+  const [iterations, setIterations] = useState(1)
+
+  useEffect(() => {
+    if (prefersLightweightBackground()) return // phones/tablets/save-data stay static
+    setIterations(detectIterations())
+    setLive(true)
+  }, [])
 
   return (
     <div className="fixed inset-0 -z-10 pointer-events-none">
-      {lightweight ? (
+      {!live ? (
         StaticBackground
       ) : (
         // RESILIENCE: the live background lazy-loads the three.js chunk. If that
@@ -92,7 +101,7 @@ export function ColorBendsLayer() {
         // boundary the failure crashes every page (see layout.tsx). The decorative
         // background degrades to the same static gradient mobile already uses.
         <ErrorBoundary fallback={StaticBackground}>
-          <Suspense fallback={null}>
+          <Suspense fallback={StaticBackground}>
             <ColorBends
               colors={["#d4d4d4", "#9e9e9e", "#616161"]}
               rotation={-65}

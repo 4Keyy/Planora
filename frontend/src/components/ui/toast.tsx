@@ -59,8 +59,13 @@ Toast.displayName = "Toast"
 export function Toaster() {
   const toasts = useToastStore((state) => state.toasts)
 
+  // MOBILE OVERFLOW: a `w-full` (100vw) box pinned with `right-6` (and no `left`)
+  // pushes its own left edge to -1.5rem, which widened the whole document and let
+  // every page scroll sideways on phones. On mobile we anchor with `inset-x-0`
+  // (width is derived from the insets, never 100vw); from `sm` up we restore the
+  // right-anchored, max-360px stack. Top honours the notch via the safe-area inset.
   return (
-    <div className="pointer-events-none fixed top-[72px] right-6 z-toast flex max-h-[calc(100vh-72px)] w-full flex-col-reverse gap-2.5 px-4 pb-4 sm:flex-col sm:max-w-[360px]">
+    <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+72px)] z-toast flex max-h-[calc(100vh-72px)] flex-col-reverse gap-2.5 px-4 pb-4 sm:inset-x-auto sm:right-6 sm:top-[72px] sm:w-full sm:max-w-[360px] sm:flex-col">
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
           <Toast key={toast.id} {...toast} />

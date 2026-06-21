@@ -4,6 +4,38 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ui): eliminate page-wide horizontal overflow on mobile (2026-06-22)
+
+- **The whole page scrolled sideways on phones**, which made the fixed navbar and the branch
+  modal appear to "stretch" the layout. Two root causes, both fixed:
+  - The global `Toaster` container was `fixed … right-6 w-full`: a 100vw-wide box pinned to the
+    right with no `left` resolves its own left edge to `-1.5rem`, widening the document on every
+    page. On mobile it now anchors with `inset-x-0` (width derived from the insets, never 100vw)
+    and only restores the right-anchored, max-360px stack from `sm` up; the top also honours the
+    notch via `env(safe-area-inset-top)`.
+  - The branch modal's `InlineTokenStrip` was a single non-wrapping row of `white-space:nowrap`
+    tokens that could not fit a ~280px phone line, so the visibility token was pushed off the
+    right edge and clipped. It now **wraps** below `sm` (the desktop single-row, right-aligned
+    layout is unchanged), and the modal's fixed 26px side padding shrinks to 16px on phones.
+- Added a hard guard at the scroll root: `html { overflow-x: hidden }`. No stray element can ever
+  introduce a horizontal scrollbar again; vertical scroll and descendant `position: sticky` are
+  unaffected, and genuinely horizontal regions keep their own local `overflow-x-auto`.
+- Files: `frontend/src/components/ui/toast.tsx`, `frontend/src/app/globals.css`,
+  `frontend/src/components/todos/edit-todo-modal/inline-token-strip.tsx`,
+  `frontend/src/components/todos/edit-todo-modal/modal.tsx`.
+
+### fix(ui): resolve root hydration mismatch from the device-branched background (2026-06-22)
+
+- **Every page logged a React hydration error on phones.** `ColorBendsLayer` chose between the
+  static CSS gradient and the live WebGL shader *during render* using `navigator`/`window`. The
+  server (no `navigator`) always rendered the live branch (`<Suspense>`), while a mobile client
+  rendered the static `<div>` — divergent trees, so React discarded and re-rendered the subtree.
+- The layer now always renders the static gradient on the server and the first client paint
+  (identical markup → no mismatch), then a post-mount `useEffect` upgrades capable, non-touch
+  desktops to the live shader. The `Suspense` fallback is the same gradient, so upgrading never
+  flashes an empty background while three.js loads.
+- Files: `frontend/src/components/backgrounds/color-bends-layer.tsx`.
+
 ### perf(auth): AsNoTracking on read-only friendship queries (2026-06-21)
 
 - `FriendshipRepository.GetFriendshipsForUserAsync` and `GetFriendIdsAsync` are consumed only by the

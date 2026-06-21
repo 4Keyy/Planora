@@ -131,10 +131,14 @@ export function InlineTokenStrip({
     : `public · ${sharedIds.length}`
 
   return (
-    // Single non-wrapping row. Wrapping caused the whole strip to reflow as the
-    // right-anchored visibility token changed width between "private" and
-    // "public · N" — the visibility label below is fixed-width so nothing shifts.
-    <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 0 }}>
+    // From `sm` up this is a single non-wrapping row: the right-anchored visibility
+    // token is fixed-width (private ⇄ public · N) so nothing reflows. On phones the
+    // four tokens cannot fit one ~280px line, so the row WRAPS instead of overflowing
+    // the modal and clipping the visibility token off the right edge.
+    <div
+      className="flex flex-wrap items-center gap-x-0 gap-y-1.5 sm:flex-nowrap sm:gap-y-0"
+      style={{ minWidth: 0 }}
+    >
 
       {/* ── Priority token ── */}
       <InlineToken
@@ -252,8 +256,8 @@ export function InlineTokenStrip({
         }
       />
 
-      {/* ── Visibility token (pushed right) ── */}
-      <div style={{ marginLeft: "auto" }}>
+      {/* ── Visibility token (pushed right on sm+, inline on phones) ── */}
+      <div className="sm:ml-auto">
         <InlineToken
           onClick={() => toggle("visibility")}
           muted={ownerLocked}

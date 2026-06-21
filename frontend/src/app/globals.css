@@ -15,6 +15,15 @@
     /* overflow-y: scroll keeps scrollbar always visible — prevents Radix UI from
        causing horizontal page shift when it locks body scroll on dropdown open */
     overflow-y: scroll;
+    /* Hard guard against page-wide horizontal scroll on phones. A single stray
+       element (a non-wrapping row, a fixed box pinned with right+width, a wide
+       token strip) used to widen the whole document, which made the fixed navbar
+       and modals appear to "stretch" sideways. Clipping X at the scroll root means
+       no element can ever introduce a horizontal scrollbar; vertical scrolling and
+       descendant `position: sticky` (which references this same root) are
+       unaffected. Genuinely horizontal regions (e.g. the profile tab strip) opt in
+       locally with their own `overflow-x-auto` and are unaffected. */
+    overflow-x: hidden;
     scrollbar-gutter: stable;
     @apply font-sans;
   }
