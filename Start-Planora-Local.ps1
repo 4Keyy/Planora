@@ -1394,7 +1394,7 @@ if ($Lan -and $script:LanShareIp) {
     $gwBind      = Test-PortListensOnLan -Port $GatewayPort
     $feReach     = Test-TcpConnect -ComputerName $script:LanShareIp -Port $FrontendPort
     $gwReach     = Test-TcpConnect -ComputerName $script:LanShareIp -Port $GatewayPort
-    $tunAdapters = Get-TunDefaultRouteAdapters
+    $tunAdapters = @(Get-TunDefaultRouteAdapters)
 
     $ready = $script:LanFirewallOpen -and $feBind -and $gwBind -and $feReach -and $gwReach
     $color = if ($ready) { $GREEN } else { $YELLOW }
