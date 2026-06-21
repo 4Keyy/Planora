@@ -765,8 +765,8 @@ function TodoCardComponent({
                             ? "text-lg md:text-xl text-gray-500 line-through decoration-emerald-500/70 decoration-2"
                             : isCompleted
                               ? isReopening
-                                ? "text-sm text-gray-700"
-                                : "text-sm text-gray-400 group-hover/card:text-gray-700"
+                                ? "text-base md:text-lg text-gray-700"
+                                : "text-base md:text-lg text-gray-400 group-hover/card:text-gray-700"
                               : "text-lg md:text-xl text-gray-950 group-hover/card:text-black"
                         )}
                       >

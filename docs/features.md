@@ -424,19 +424,28 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
   no layout jump.
 - Active todo page loads active tasks in pages of 200.
 - Completed preview uses page size 20.
-- **Completed archive — search by completion date** (`frontend/src/app/tasks/completed/page.tsx`):
-  a calendar control lets you find a task by roughly when it was finished. It reuses the same
-  two-click `DateCalendar` (headless, quick-picks hidden) as the estimated-completion date, so a
-  first click picks a single day and a second click turns it into a range. The selected day(s) are
-  sent to the API as an inclusive `completedFrom`/`completedTo` window (local day edges → UTC
-  instants), and the server filters on `CompletedAt` — so the search spans the **whole archive**, not
-  just the current page. Picking a window resets paging to page 1; an empty result shows a dedicated
-  "nothing finished in this period" state with a one-click clear. The control is shown whenever there
-  is something to search or a window is already applied. The day(s) → inclusive `completedFrom`/
-  `completedTo` translation is the pure, unit-tested `buildCompletionWindow` (`utils/completion-window.ts`).
-  The control is keyboard-accessible: the toggle and clear are sibling `<button>`s (never nested), the
-  toggle carries `aria-expanded` + `aria-controls`, the calendar is a labelled `role="region"`, and
-  both controls show `focus-visible` rings.
+- **Completed archive — search by completion date** (`frontend/src/app/tasks/completed/page.tsx`,
+  `components/todos/date-filter-popover.tsx`): the completion-date filter is embedded **inside the
+  QuickFilter plate** via its `dateControl` slot (`DateFilterPopover`) rather than sitting as a
+  separate block. A compact trigger (same height as the plate's other controls, so the plate never
+  grows) opens the calendar as a **floating popover** — it is absolutely positioned and overlays the
+  task grid below, so opening it never reflows the page or stretches the plate. The popover scales out
+  of its top-right corner (origin-aware), closes on outside-click / `Escape`, and honors
+  `prefers-reduced-motion`. It reuses the same two-click `DateCalendar` (headless, quick-picks hidden)
+  as the estimated-completion date, so a first click picks a single day and a second click turns it
+  into a range. The selected day(s) are sent to the API as an inclusive `completedFrom`/`completedTo`
+  window (local day edges → UTC instants), and the server filters on `CompletedAt` — so the search
+  spans the **whole archive**, not just the current page. Picking a window resets paging to page 1; an
+  empty result shows a dedicated "nothing finished in this period" state with a one-click clear. The
+  control is shown whenever there is something to search or a window is already applied. The day(s) →
+  inclusive `completedFrom`/`completedTo` translation is the pure, unit-tested `buildCompletionWindow`
+  (`utils/completion-window.ts`). It is keyboard-accessible: the trigger carries `aria-expanded` +
+  `aria-haspopup="dialog"` + `aria-controls`, the popover is a labelled `role="dialog"`, and both the
+  trigger and clear controls show `focus-visible` rings.
+- **Completed-card title** (`TodoCard`): a resting completed task title renders at `text-base md:text-lg`
+  (up from `text-sm`) so it stays readable in the otherwise-sparse completed card. The size is shared
+  with the reopening state so it never jumps during the reopen transition, and stays just below the
+  active-task title (`text-lg md:text-xl`) to keep completed tasks visually de-emphasised.
 - **Completed-card title strike animation** (`TodoCard`): a resting completed task shows its title
   struck through; on card hover the strike **wipes away left→right** while the title brightens to
   fully readable, and leaving the card draws it back the same way. The line is painted as a gradient

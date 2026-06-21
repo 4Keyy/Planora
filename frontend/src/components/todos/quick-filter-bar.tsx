@@ -14,6 +14,12 @@ interface QuickFilterBarProps {
   onOpen: () => void
   /** Clear all selected categories. */
   onClear: () => void
+  /**
+   * Optional control rendered inside the plate's right-hand cluster — used by /tasks/completed to
+   * embed the completion-date filter so it lives *in* the filter bar instead of as a separate block.
+   * Anything passed here must manage its own popover/overlay so the plate keeps its height.
+   */
+  dateControl?: React.ReactNode
 }
 
 /**
@@ -21,7 +27,7 @@ interface QuickFilterBarProps {
  * lives *inside* this same plate (not as a separate block) and swaps in via a crossfade in a
  * fixed-height subtitle row, so turning a filter on/off never grows or jolts the plate.
  */
-export function QuickFilterBar({ categories, selectedIds, onOpen, onClear }: QuickFilterBarProps) {
+export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateControl }: QuickFilterBarProps) {
   const active = selectedIds.length > 0
   const selectedCats = selectedIds
     .map((id) => categories.find((c) => c.id === id))
@@ -36,7 +42,9 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear }: Qui
       initial={{ y: -10, scale: 0.98, opacity: 0 }}
       animate={{ y: 0, scale: 1, opacity: 1 }}
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-      className="bg-white/50 backdrop-blur-sm border border-gray-100 rounded-[2rem] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm w-full"
+      // relative + z-30: the optional dateControl opens a floating popover whose absolute child must
+      // paint above the task grid that follows this plate in the DOM (a later non-positioned sibling).
+      className="relative z-30 bg-white/50 backdrop-blur-sm border border-gray-100 rounded-[2rem] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm w-full"
     >
       <div className="flex items-center gap-4 min-w-0">
         <div className="h-10 w-10 rounded-2xl bg-black text-white flex items-center justify-center shadow-lg shadow-black/10 flex-shrink-0">
@@ -107,8 +115,9 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear }: Qui
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-4 flex-shrink-0">
-        <div className="flex items-center gap-2 px-3 py-2 bg-gray-100/80 rounded-xl border border-gray-200/50">
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {dateControl}
+        <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-gray-100/80 rounded-xl border border-gray-200/50">
           <kbd className="font-mono bg-white px-2 py-0.5 rounded text-[10px] font-black border border-gray-200 shadow-sm text-gray-600">F</kbd>
           <span className="text-[11px] font-bold text-gray-600 ml-1">to filter</span>
         </div>

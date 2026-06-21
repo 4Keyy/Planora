@@ -3,8 +3,8 @@
 import Link from "next/link"
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, CheckCircle2, History, CalendarSearch, ChevronDown, X } from "lucide-react"
+import { motion } from "framer-motion"
+import { ArrowLeft, CheckCircle2, History, CalendarSearch } from "lucide-react"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
@@ -29,7 +29,7 @@ import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { readFilter, writeFilter, readHintSeen, writeHintSeen } from "@/utils/category-filter"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
-import { DateCalendar } from "@/components/todos/edit-todo-modal/popovers/date"
+import { DateFilterPopover } from "@/components/todos/date-filter-popover"
 import { formatDueRange } from "@/components/todos/edit-todo-modal/utils"
 import { buildCompletionWindow } from "@/utils/completion-window"
 
@@ -65,7 +65,6 @@ export default function CompletedTasksPage() {
   // an interval fills both bounds with `start` ≤ `end`. Empty strings mean "no date filter".
   const [searchStart, setSearchStart] = useState("")
   const [searchEnd, setSearchEnd] = useState("")
-  const [dateOpen, setDateOpen] = useState(false)
   const hasDateFilter = !!(searchStart || searchEnd)
   const [hintDismissed, setHintDismissed] = useState(false)
   const hintDismissedRef = useRef<boolean>(false)
@@ -134,7 +133,6 @@ export default function CompletedTasksPage() {
   const clearDateFilter = useCallback(() => {
     setSearchStart("")
     setSearchEnd("")
-    setDateOpen(false)
     setCurrentPage(1)
   }, [])
 
@@ -419,76 +417,26 @@ export default function CompletedTasksPage() {
         </div>
       </div>
 
-      {/* Completion-date search — find a task by roughly when it was finished. Reuses the project
-          calendar (DateCalendar) in range mode: the first click picks a day, a second click turns it
-          into an interval. Shown whenever there is something to search (or a window is already set). */}
-      {!loading && (totalCount > 0 || hasDateFilter) && (
-        <div className="w-full max-w-sm">
-          {/* a11y: the toggle and the clear control are SIBLINGS — never a clickable element nested
-              inside a <button> (invalid, and screen-reader/keyboard-hostile). The toggle owns
-              aria-expanded + aria-controls pointing at the collapsible calendar region. */}
-          <div className="flex w-full items-center gap-1 rounded-2xl border border-gray-200 bg-white px-2 py-1 shadow-sm transition-colors focus-within:border-gray-300">
-            <button
-              type="button"
-              onClick={() => setDateOpen((o) => !o)}
-              aria-expanded={dateOpen}
-              aria-controls="completion-date-search"
-              className="flex flex-1 items-center gap-2 rounded-xl px-2 py-2 text-left text-xs font-bold transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
-            >
-              <CalendarSearch className="h-4 w-4 flex-shrink-0 text-gray-500" strokeWidth={1.8} aria-hidden="true" />
-              {hasDateFilter ? (
-                <span className="text-gray-900">Completed {formatDueRange(searchStart, searchEnd)}</span>
-              ) : (
-                <span className="text-gray-400">Search by completion date</span>
-              )}
-              <ChevronDown className={cn("ml-auto h-4 w-4 flex-shrink-0 text-gray-400 transition-transform", dateOpen && "rotate-180")} aria-hidden="true" />
-            </button>
-            {hasDateFilter && (
-              <button
-                type="button"
-                onClick={clearDateFilter}
-                aria-label="Clear completion-date filter"
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300"
-              >
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            )}
-          </div>
-          <AnimatePresence initial={false}>
-            {dateOpen && (
-              <motion.div
-                id="completion-date-search"
-                role="region"
-                aria-label="Search completed tasks by completion date"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="overflow-hidden"
-              >
-                <div className="mt-2 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-                  <DateCalendar
-                    start={searchStart}
-                    end={searchEnd}
-                    onChange={handleDateRangeChange}
-                    autoClose={() => setDateOpen(false)}
-                    headless
-                    hideQuickPicks
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* Quick Filter plate — the applied-filter summary lives inside it (shared with /tasks) */}
+      {/* Quick Filter plate — the applied-filter summary lives inside it (shared with /tasks). The
+          completion-date filter is embedded *into* the plate via the dateControl slot: it opens as a
+          floating popover, so it never grows the plate or pushes the page down. Shown only when there
+          is something to search (any completed task, or a window already applied). */}
       {!loading && categories.length > 0 && (
         <QuickFilterBar
           categories={categories}
           selectedIds={filterCategoryIds}
           onOpen={() => setIsCategoryModalOpen(true)}
           onClear={() => handleFilterChange([])}
+          dateControl={
+            totalCount > 0 || hasDateFilter ? (
+              <DateFilterPopover
+                start={searchStart}
+                end={searchEnd}
+                onChange={handleDateRangeChange}
+                onClear={clearDateFilter}
+              />
+            ) : undefined
+          }
         />
       )}
 
