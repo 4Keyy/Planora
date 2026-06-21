@@ -4,6 +4,25 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(gateway): rate-limit the auth routes at the edge (2026-06-21)
+
+- **Login/register/refresh are now throttled.** The Ocelot route that proxies the whole Auth
+  controller (`/auth/api/v1/auth/{everything}` → login, register, refresh, logout, forgot/reset
+  password, csrf) had `EnableRateLimiting: false`, so credential-stuffing and registration-spam hit
+  the auth service unthrottled at the edge. Both `ocelot.json` and `ocelot.Docker.json` now enforce a
+  per-client 30 requests/minute window on that route (matching the realtime route's existing
+  pattern), layered on top of the per-account lockout already in the Auth service.
+- **Partitioning context (already in place).** The edge limiter partitions by `RemoteIpAddress`,
+  which only reflects the real client when forwarded headers are trusted; the gateway already enables
+  `ForwardedHeaders` opt-in via `ForwardedHeaders:KnownProxies` and calls `UseForwardedHeaders()` +
+  `UseRateLimiter()`. Production must set `ForwardedHeaders__KnownProxies` to the edge proxy range (Fly)
+  so both the global and per-route limiters bucket per client rather than collapsing to the proxy IP.
+- **Host filtering.** `AllowedHosts` stays `"*"` for development but is environment-overridable;
+  production should set `AllowedHosts` (or the `AllowedHosts` env var) to the deployed hostname. Not
+  hardcoded here because the value is deployment-specific and a wrong value rejects all traffic.
+- Files: `Planora.ApiGateway/ocelot.json`, `Planora.ApiGateway/ocelot.Docker.json`.
+- Security: edge throttling of authentication endpoints; documents the forwarded-header + host config production must set.
+
 ### fix(security): harden the Category gRPC surface against IDOR and ownerless writes (2026-06-21)
 
 - **No more ownerless categories.** Over gRPC there is no `HttpContext.User`, so `CreateCategory`
