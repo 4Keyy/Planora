@@ -90,26 +90,29 @@ public class RuntimeContractTests
     [InlineData("ocelot.Docker.json")]
     [Trait("TestType", "System")]
     [Trait("TestType", "Regression")]
-    public void OcelotRateLimitedRoutes_ShouldDeclarePeriodAndLimit(string fileName)
+    public void OcelotRoutes_ShouldNotUseTheOcelotRateLimiter(string fileName)
     {
+        // Edge rate limiting is enforced by the gateway's ASP.NET Core limiter (keyed on the client
+        // IP), NOT Ocelot's per-route limiter: Ocelot 24.x partitions that limiter by a ClientId
+        // request header that browser traffic never sends and then fail-closes with 503, which
+        // rejected every login/refresh/negotiate at the edge. So no route may enable Ocelot rate
+        // limiting; re-enabling it would reintroduce that outage.
         var root = FindRepositoryRoot();
         using var document = JsonDocument.Parse(
             File.ReadAllText(Path.Combine(root, "Planora.ApiGateway", fileName)),
             JsonDocumentOptions);
         var routes = document.RootElement.GetProperty("Routes").EnumerateArray().ToArray();
 
-        var rateLimitedRoutes = routes
-            .Where(route => route.TryGetProperty("RateLimitOptions", out var options)
-                && options.TryGetProperty("EnableRateLimiting", out var enabled)
-                && enabled.GetBoolean())
-            .ToArray();
-
-        Assert.NotEmpty(rateLimitedRoutes);
-        Assert.All(rateLimitedRoutes, route =>
+        Assert.NotEmpty(routes);
+        Assert.All(routes, route =>
         {
-            var options = route.GetProperty("RateLimitOptions");
-            Assert.Matches(@"^\d+(ms|s|m|h|d)$", options.GetProperty("Period").GetString() ?? string.Empty);
-            Assert.True(options.GetProperty("Limit").GetInt32() > 0);
+            if (route.TryGetProperty("RateLimitOptions", out var options)
+                && options.TryGetProperty("EnableRateLimiting", out var enabled))
+            {
+                Assert.False(
+                    enabled.GetBoolean(),
+                    "Ocelot per-route rate limiting must stay disabled; throttling is handled by the ASP.NET gateway limiter.");
+            }
         });
     }
 
