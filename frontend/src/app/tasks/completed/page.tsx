@@ -420,8 +420,14 @@ export default function CompletedTasksPage() {
       {/* Quick Filter plate — the applied-filter summary lives inside it (shared with /tasks). The
           completion-date filter is embedded *into* the plate via the dateControl slot: it opens as a
           floating popover, so it never grows the plate or pushes the page down. Shown only when there
-          is something to search (any completed task, or a window already applied). */}
-      {!loading && categories.length > 0 && (
+          is something to search (any completed task, or a window already applied).
+
+          NOT gated on `!loading`: the bar is a control surface, not results. Gating it on loading
+          unmounted it on every refetch — including the one a date pick triggers — which destroyed the
+          date popover's open state, so the calendar snapped shut after the first pick instead of
+          waiting for the second. Keeping it mounted lets the popover stay open across the refetch (the
+          skeleton below still swaps for the results). */}
+      {categories.length > 0 && (
         <QuickFilterBar
           categories={categories}
           selectedIds={filterCategoryIds}

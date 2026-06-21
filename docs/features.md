@@ -433,11 +433,17 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
   of its top-right corner (origin-aware), closes on outside-click / `Escape`, and honors
   `prefers-reduced-motion`. It reuses the same two-click `DateCalendar` (headless, quick-picks hidden)
   as the estimated-completion date, so a first click picks a single day and a second click turns it
-  into a range. The selected day(s) are sent to the API as an inclusive `completedFrom`/`completedTo`
-  window (local day edges → UTC instants), and the server filters on `CompletedAt` — so the search
-  spans the **whole archive**, not just the current page. Picking a window resets paging to page 1; an
-  empty result shows a dedicated "nothing finished in this period" state with a one-click clear. The
-  control is shown whenever there is something to search or a window is already applied. The day(s) →
+  into a range. **The popover stays open after the first pick** so the day can be extended into a
+  range; it closes only when the range completes (the second pick) or the user dismisses it
+  (outside-click / `Escape`). This is why the filter bar is rendered whenever `categories.length > 0`
+  and **not** gated on `!loading`: a date pick triggers a refetch (`setLoading(true)`), and gating the
+  bar on loading unmounted it mid-pick, which destroyed the popover's open state and snapped the
+  calendar shut after the first click. The selected day(s) are sent to the API as an inclusive
+  `completedFrom`/`completedTo` window (local day edges → UTC instants), and the server filters on
+  `CompletedAt` — so the search spans the **whole archive**, not just the current page. Picking a
+  window resets paging to page 1; an empty result shows a dedicated "nothing finished in this period"
+  state with a one-click clear. The control is shown whenever there is something to search or a window
+  is already applied. The day(s) →
   inclusive `completedFrom`/`completedTo` translation is the pure, unit-tested `buildCompletionWindow`
   (`utils/completion-window.ts`). It is keyboard-accessible: the trigger carries `aria-expanded` +
   `aria-haspopup="dialog"` + `aria-controls`, the popover is a labelled `role="dialog"`, and both the
