@@ -54,12 +54,7 @@
       "DownstreamHostAndPorts": [ { "Host": "auth-api", "Port": 80 } ],
       "UpstreamPathTemplate": "/auth/api/v1/auth/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS" ],
-      "RateLimitOptions": {
-        "EnableRateLimiting": true,
-        "Period": "1m",
-        "PeriodTimespan": 60,
-        "Limit": 30
-      }
+      "RateLimitOptions": { "EnableRateLimiting": false }
     },
     {
       "DownstreamPathTemplate": "/api/v1/Users/verify-email",
@@ -256,11 +251,7 @@
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
       },
-      "RateLimitOptions": {
-        "EnableRateLimiting": true,
-        "Period": "1m",
-        "Limit": 100
-      }
+      "RateLimitOptions": { "EnableRateLimiting": false }
     }
   ],
   "GlobalConfiguration": {

@@ -4,6 +4,24 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(gateway): stop the broken Ocelot rate limiter from 503-ing all auth and realtime traffic (2026-06-21)
+
+- **Login, refresh, and SignalR negotiate were returning `503 Service Unavailable` through the gateway.**
+  A prior change enabled Ocelot's per-route `RateLimitOptions` on `/auth/api/v1/auth/*` (and the realtime
+  WebSocket route already had it). Ocelot 24.x partitions that limiter by a `ClientId` request header and
+  fail-closes with `503` when the header is absent — which it always is for browser traffic — so every
+  login/refresh/negotiate was rejected at the edge before reaching a service. `/auth/health` worked only
+  because it had rate limiting disabled, which is what masked the regression.
+- **Fix.** `EnableRateLimiting` is now `false` on every route in both `ocelot.json` and `ocelot.Docker.json`.
+  Edge throttling moves entirely into the gateway's ASP.NET Core rate limiter, which partitions by
+  `RemoteIpAddress`: the existing 100/min global window now chains with a stricter 30/min window scoped to
+  `/auth/api/v1/auth/*` (CORS `OPTIONS` preflights bypass it). This preserves the intended brute-force
+  throttling — on top of the Auth service's own per-operation limits (login 5/min, register 3/min,
+  refresh 10/min) — with the mechanism that actually keys off the client IP.
+- Files: `Planora.ApiGateway/Program.cs`, `Planora.ApiGateway/ocelot.json`,
+  `Planora.ApiGateway/ocelot.Docker.json`, `docs/auth-security.md`.
+- Security: edge throttling of authentication endpoints is restored without blocking legitimate traffic.
+
 ### fix(category): exclude soft-deleted rows from repository reads (2026-06-21)
 
 - **A soft-deleted category can no longer be resurrected.** `CategoryRepository` has no global query

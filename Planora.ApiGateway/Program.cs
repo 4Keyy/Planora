@@ -84,17 +84,54 @@ public class Program
             builder.Services.AddPlanoraTelemetry(builder.Configuration, defaultServiceName: "ApiGateway");
 
             // Rate Limiting
+            //
+            // SECURITY: edge throttling lives HERE (ASP.NET Core rate limiter), not in
+            // Ocelot's per-route RateLimitOptions. Ocelot 24.x partitions by a ClientId
+            // request header and fail-closes with 503 when that header is absent — which it
+            // always is for browser traffic — so any route with EnableRateLimiting:true was
+            // rejecting every request (login/refresh/SignalR negotiate). The limiters below
+            // partition by RemoteIpAddress, which is what edge throttling actually needs.
             builder.Services.AddRateLimiter(options =>
             {
-                options.GlobalLimiter = (PartitionedRateLimiter<HttpContext>)PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                static string ClientIp(HttpContext context) =>
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                // Per-IP ceiling for EVERY gateway request (100 req/min).
+                var globalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
                     RateLimitPartition.GetFixedWindowLimiter(
-                        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        partitionKey: ClientIp(context),
                         factory: _ => new FixedWindowRateLimiterOptions
                         {
                             AutoReplenishment = true,
                             PermitLimit = 100,
                             Window = TimeSpan.FromMinutes(1)
                         }));
+
+                // Stricter per-IP window for the authentication endpoints (30 req/min) to
+                // throttle credential stuffing and registration spam, layered on top of the
+                // per-account lockout the Auth service already applies. CORS preflights and
+                // every non-auth path bypass this limiter (the global ceiling still applies).
+                var authLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                {
+                    if (HttpMethods.IsOptions(context.Request.Method) ||
+                        !context.Request.Path.StartsWithSegments("/auth/api/v1/auth", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return RateLimitPartition.GetNoLimiter("auth:bypass");
+                    }
+
+                    return RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: "auth:" + ClientIp(context),
+                        factory: _ => new FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 30,
+                            Window = TimeSpan.FromMinutes(1)
+                        });
+                });
+
+                // Chained: a request must satisfy every applicable window. Auth traffic is
+                // bound by both 30/min (auth) and 100/min (global); everything else by 100/min.
+                options.GlobalLimiter = PartitionedRateLimiter.CreateChained(globalLimiter, authLimiter);
 
                 options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
                 options.OnRejected = async (context, _) =>

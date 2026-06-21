@@ -262,6 +262,24 @@ Code:
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ServiceCollectionExtensions.cs`
 - `Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs`
 
+### Gateway edge rate limiting
+
+The API Gateway throttles at the edge with the ASP.NET Core rate limiter (`AddRateLimiter` / `UseRateLimiter`), **not** with Ocelot's per-route `RateLimitOptions`. Two chained per-IP fixed windows apply, both partitioned by `RemoteIpAddress`:
+
+| Scope | Limit | Applies to |
+|---|---:|---|
+| global | 100/minute/IP | every gateway request |
+| auth | 30/minute/IP | `POST/GET/... /auth/api/v1/auth/*` (CORS `OPTIONS` preflights bypass it) |
+
+Auth traffic must satisfy both windows; this is a coarse edge layer on top of the stricter per-operation limits the Auth service enforces (`login` 5/min, `register` 3/min, `auth` 10/min).
+
+**Why Ocelot route rate limiting is disabled (`EnableRateLimiting: false` on every route).** Ocelot 24.x partitions its per-route limiter by a `ClientId` request header and fail-closes with `503 Service Unavailable` when that header is absent — which it always is for browser traffic. Enabling it on the auth and realtime routes therefore rejected *every* login, refresh, and SignalR negotiate with a 503. Edge throttling must stay in the ASP.NET Core limiter (keyed by IP), so `RateLimitOptions` is left disabled in both `ocelot.json` and `ocelot.Docker.json`.
+
+Code:
+
+- `Planora.ApiGateway/Program.cs` (`AddRateLimiter`)
+- `Planora.ApiGateway/ocelot.json`, `Planora.ApiGateway/ocelot.Docker.json`
+
 ## SignalR Topic Subscription
 
 `NotificationHub.Subscribe()` validates the requested topic against a static allowlist before adding the connection to a group. Only `system`, `announcements`, and `todos` are permitted. Requests for any other topic are silently rejected and logged as warnings.
