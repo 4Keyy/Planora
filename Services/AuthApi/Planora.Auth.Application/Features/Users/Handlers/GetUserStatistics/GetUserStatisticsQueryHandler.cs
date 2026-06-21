@@ -1,5 +1,4 @@
 using Planora.Auth.Application.Features.Users.Queries.GetUserStatistics;
-using Planora.Auth.Domain.Enums;
 
 namespace Planora.Auth.Application.Features.Users.Handlers.GetUserStatistics
 {
@@ -22,23 +21,24 @@ namespace Planora.Auth.Application.Features.Users.Handlers.GetUserStatistics
         {
             try
             {
-                var allUsers = await _userRepository.GetAllAsync(cancellationToken);
-
                 var now = DateTime.UtcNow;
-                var today = now.Date;
-                var weekAgo = now.AddDays(-7);
-                var monthAgo = now.AddMonths(-1);
+
+                var snapshot = await _userRepository.GetStatisticsAsync(
+                    now.Date,
+                    now.AddDays(-7),
+                    now.AddMonths(-1),
+                    cancellationToken);
 
                 var stats = new UserStatisticsDto
                 {
-                    TotalUsers = allUsers.Count,
-                    ActiveUsers = allUsers.Count(u => u.Status == UserStatus.Active),
-                    InactiveUsers = allUsers.Count(u => u.Status == UserStatus.Inactive),
-                    LockedUsers = allUsers.Count(u => u.Status == UserStatus.Locked),
-                    UsersWithTwoFactor = allUsers.Count(u => u.TwoFactorEnabled),
-                    NewUsersToday = allUsers.Count(u => u.CreatedAt >= today),
-                    NewUsersThisWeek = allUsers.Count(u => u.CreatedAt >= weekAgo),
-                    NewUsersThisMonth = allUsers.Count(u => u.CreatedAt >= monthAgo),
+                    TotalUsers = snapshot.TotalUsers,
+                    ActiveUsers = snapshot.ActiveUsers,
+                    InactiveUsers = snapshot.InactiveUsers,
+                    LockedUsers = snapshot.LockedUsers,
+                    UsersWithTwoFactor = snapshot.UsersWithTwoFactor,
+                    NewUsersToday = snapshot.NewUsersToday,
+                    NewUsersThisWeek = snapshot.NewUsersThisWeek,
+                    NewUsersThisMonth = snapshot.NewUsersThisMonth,
                     LastUpdated = now
                 };
 

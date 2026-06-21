@@ -26,58 +26,28 @@ namespace Planora.Auth.Application.Features.Users.Handlers.GetUsers
         {
             try
             {
-                var users = await _userRepository.GetAllAsync(cancellationToken);
-
-                var filteredUsers = users.AsQueryable();
-
+                UserStatus? statusFilter = null;
                 if (!string.IsNullOrEmpty(query.Status) &&
-                    Enum.TryParse<UserStatus>(query.Status, out var status))
+                    Enum.TryParse<UserStatus>(query.Status, out var parsedStatus))
                 {
-                    filteredUsers = filteredUsers.Where(u => u.Status == status);
+                    statusFilter = parsedStatus;
                 }
 
-                if (!string.IsNullOrEmpty(query.SearchTerm))
+                var filter = new UserListFilter
                 {
-                    var searchLower = query.SearchTerm.ToLower();
-                    filteredUsers = filteredUsers.Where(u =>
-                        u.Email.Value.Contains(searchLower) ||
-                        u.FirstName.ToLower().Contains(searchLower) ||
-                        u.LastName.ToLower().Contains(searchLower));
-                }
-
-                if (query.CreatedFrom.HasValue)
-                {
-                    filteredUsers = filteredUsers.Where(u => u.CreatedAt >= query.CreatedFrom.Value);
-                }
-
-                if (query.CreatedTo.HasValue)
-                {
-                    filteredUsers = filteredUsers.Where(u => u.CreatedAt <= query.CreatedTo.Value);
-                }
-
-                filteredUsers = query.OrderBy?.ToLower() switch
-                {
-                    "email" => query.Ascending
-                        ? filteredUsers.OrderBy(u => u.Email.Value)
-                        : filteredUsers.OrderByDescending(u => u.Email.Value),
-                    "firstname" => query.Ascending
-                        ? filteredUsers.OrderBy(u => u.FirstName)
-                        : filteredUsers.OrderByDescending(u => u.FirstName),
-                    "lastname" => query.Ascending
-                        ? filteredUsers.OrderBy(u => u.LastName)
-                        : filteredUsers.OrderByDescending(u => u.LastName),
-                    _ => query.Ascending
-                        ? filteredUsers.OrderBy(u => u.CreatedAt)
-                        : filteredUsers.OrderByDescending(u => u.CreatedAt)
+                    Status = statusFilter,
+                    SearchTerm = query.SearchTerm,
+                    CreatedFrom = query.CreatedFrom,
+                    CreatedTo = query.CreatedTo,
+                    OrderBy = query.OrderBy,
+                    Ascending = query.Ascending,
+                    PageNumber = query.PageNumber,
+                    PageSize = query.PageSize
                 };
 
-                var totalCount = filteredUsers.Count();
-                var pagedUsers = filteredUsers
-                    .Skip((query.PageNumber - 1) * query.PageSize)
-                    .Take(query.PageSize)
-                    .ToList();
+                var (users, totalCount) = await _userRepository.GetPagedAsync(filter, cancellationToken);
 
-                var userDtos = _mapper.Map<List<UserListDto>>(pagedUsers);
+                var userDtos = _mapper.Map<List<UserListDto>>(users.ToList());
 
                 var result = new PagedResult<UserListDto>(
                     userDtos,

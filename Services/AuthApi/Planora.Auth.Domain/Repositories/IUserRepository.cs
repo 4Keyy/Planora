@@ -22,5 +22,23 @@ namespace Planora.Auth.Domain.Repositories
         Task HandleFailedLoginAsync(Guid userId, CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<User>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Computes aggregate user statistics in the database (single grouped query) instead
+        /// of loading the whole table. The window boundaries are caller-supplied for testability.
+        /// </summary>
+        Task<UserStatisticsSnapshot> GetStatisticsAsync(
+            DateTime todayUtc,
+            DateTime weekAgoUtc,
+            DateTime monthAgoUtc,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns one page of users with filtering, search, date range, and ordering applied
+        /// by the database, plus the total matching count.
+        /// </summary>
+        Task<(IReadOnlyList<User> Items, int TotalCount)> GetPagedAsync(
+            UserListFilter filter,
+            CancellationToken cancellationToken = default);
     }
 }

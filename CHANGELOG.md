@@ -4,6 +4,30 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### perf(auth): push user statistics and listing queries to the database (2026-06-21)
+
+- **Eliminated two full-table-scan-into-memory admin queries.** `GetUserStatisticsQueryHandler` called
+  `GetAllAsync()` and then ran eight in-memory `Count(predicate)` passes; `GetUsersQueryHandler` loaded
+  every user, then did all filtering, search, ordering, paging, and the total count with LINQ-to-Objects
+  — so the requested `PageSize` had no effect on database load and both endpoints degraded linearly with
+  the users table (a DoS class as the table grows).
+- **Statistics is now a single grouped aggregate.** New `IUserRepository.GetStatisticsAsync(today,
+  weekAgo, monthAgo)` issues one `GROUP BY` query returning all eight counts; the time-window boundaries
+  are passed in so "now" stays deterministic and testable. The handler just maps the snapshot to the DTO.
+- **Listing now filters/sorts/pages in PostgreSQL.** New `IUserRepository.GetPagedAsync(UserListFilter)`
+  applies status, case-insensitive search, created-date range, ordering, and `OFFSET/LIMIT` as SQL, plus a
+  separate `COUNT` for the total — `AsNoTracking` throughout. The handler maps the query to the filter and
+  maps the page to DTOs. The external response shape is unchanged.
+- Behaviour relocation: the filter/sort/page/aggregation correctness now lives in (and is verified by) new
+  EF-InMemory repository tests; the handler unit tests were refocused on delegation, filter construction,
+  mapping, and error handling.
+- Files: `Services/AuthApi/Planora.Auth.Domain/Repositories/IUserRepository.cs`,
+  `.../Repositories/UserListFilter.cs`, `.../Repositories/UserStatisticsSnapshot.cs`,
+  `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/UserRepository.cs`,
+  `.../Features/Users/Handlers/GetUsers/GetUsersQueryHandler.cs`,
+  `.../Features/Users/Handlers/GetUserStatistics/GetUserStatisticsQueryHandler.cs`, and the corresponding tests.
+- Performance: admin user-stats and user-list endpoints no longer load the entire users table per request.
+
 ### fix(messaging): dead-letter poison events, thread-safe bus, pooled publish channel (2026-06-21)
 
 - **Stopped the infinite poison-message requeue loop.** `RabbitMqEventBus` previously answered

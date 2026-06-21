@@ -1,5 +1,6 @@
 using Planora.Auth.Domain.Entities;
 using Planora.Auth.Domain.Enums;
+using Planora.Auth.Domain.Repositories;
 using Planora.Auth.Domain.ValueObjects;
 using Planora.Auth.Infrastructure.Persistence;
 using Planora.Auth.Infrastructure.Persistence.Repositories;
@@ -352,6 +353,113 @@ public sealed class AuthRepositoryPersistenceTests
         Assert.False(await repository.ExistsAsync(oldProcessed.Id));
         Assert.True(await repository.ExistsAsync(recentProcessed.Id));
         Assert.True(await repository.ExistsAsync(pending.Id));
+    }
+
+    [Fact]
+    [Trait("TestType", "Module")]
+    [Trait("TestType", "Integration")]
+    [Trait("TestType", "Regression")]
+    public async Task UserRepository_GetPagedAsync_ShouldFilterSearchSortAndPageInDatabase()
+    {
+        using var context = CreateContext();
+        var repository = new UserRepository(context);
+
+        var alice = CreateUser("alice@example.com", "Alice", "Zephyr");
+        alice.VerifyEmail();              // Active
+        var bob = CreateUser("bob@example.com", "Bob", "Yellow");   // PendingVerification
+        var alex = CreateUser("alex@example.com", "Alex", "Anderson");
+        alex.VerifyEmail();              // Active
+        await repository.AddRangeAsync(new[] { alice, bob, alex });
+        await repository.SaveChangesAsync();
+
+        var filter = new UserListFilter
+        {
+            Status = UserStatus.Active,
+            SearchTerm = "al",
+            OrderBy = "email",
+            Ascending = true,
+            PageNumber = 2,
+            PageSize = 1
+        };
+
+        var (items, totalCount) = await repository.GetPagedAsync(filter);
+
+        // Active + "al" match = {alex, alice}; ordered by email asc = [alex, alice];
+        // page 2 (size 1) = [alice].
+        Assert.Equal(2, totalCount);
+        Assert.Equal("alice@example.com", Assert.Single(items).Email.Value);
+    }
+
+    [Theory]
+    [Trait("TestType", "Module")]
+    [Trait("TestType", "Integration")]
+    [InlineData("email", true, "amy@example.com")]
+    [InlineData("firstname", false, "zoe@example.com")]
+    [InlineData("lastname", true, "amy@example.com")]
+    [InlineData(null, false, "amy@example.com")]
+    public async Task UserRepository_GetPagedAsync_ShouldSupportAllOrderingModes(
+        string? orderBy, bool ascending, string expectedFirstEmail)
+    {
+        using var context = CreateContext();
+        var repository = new UserRepository(context);
+
+        var zoe = CreateUser("zoe@example.com", "Zoe", "Zimmer");
+        SetProperty(zoe, "CreatedAt", DateTime.UtcNow.AddMinutes(-10));   // older
+        var amy = CreateUser("amy@example.com", "Amy", "Alpha");
+        SetProperty(amy, "CreatedAt", DateTime.UtcNow);                   // newer
+        await repository.AddRangeAsync(new[] { zoe, amy });
+        await repository.SaveChangesAsync();
+
+        var (items, _) = await repository.GetPagedAsync(new UserListFilter
+        {
+            OrderBy = orderBy,
+            Ascending = ascending,
+            PageNumber = 1,
+            PageSize = 10
+        });
+
+        Assert.Equal(expectedFirstEmail, items.First().Email.Value);
+    }
+
+    [Fact]
+    [Trait("TestType", "Module")]
+    [Trait("TestType", "Integration")]
+    [Trait("TestType", "Regression")]
+    public async Task UserRepository_GetStatisticsAsync_ShouldAggregateBucketsInDatabase()
+    {
+        using var context = CreateContext();
+        var repository = new UserRepository(context);
+        var now = DateTime.UtcNow;
+
+        var activeToday = CreateUser("active@example.com", "Active", "Today");
+        activeToday.VerifyEmail();
+        activeToday.EnableTwoFactor("secret");
+        SetProperty(activeToday, "CreatedAt", now);
+
+        var inactiveThisWeek = CreateUser("inactive@example.com", "Inactive", "Week");
+        inactiveThisWeek.Deactivate(inactiveThisWeek.Id);
+        SetProperty(inactiveThisWeek, "CreatedAt", now.AddDays(-3));
+
+        var lockedThisMonth = CreateUser("locked@example.com", "Locked", "Month");
+        lockedThisMonth.Lock(lockedThisMonth.Id);
+        SetProperty(lockedThisMonth, "CreatedAt", now.AddDays(-10));
+
+        var oldPending = CreateUser("pending@example.com", "Pending", "Old");
+        SetProperty(oldPending, "CreatedAt", now.AddMonths(-2));
+
+        await repository.AddRangeAsync(new[] { activeToday, inactiveThisWeek, lockedThisMonth, oldPending });
+        await repository.SaveChangesAsync();
+
+        var stats = await repository.GetStatisticsAsync(now.Date, now.AddDays(-7), now.AddMonths(-1));
+
+        Assert.Equal(4, stats.TotalUsers);
+        Assert.Equal(1, stats.ActiveUsers);
+        Assert.Equal(1, stats.InactiveUsers);
+        Assert.Equal(1, stats.LockedUsers);
+        Assert.Equal(1, stats.UsersWithTwoFactor);
+        Assert.Equal(1, stats.NewUsersToday);
+        Assert.Equal(2, stats.NewUsersThisWeek);
+        Assert.Equal(3, stats.NewUsersThisMonth);
     }
 
     private static AuthDbContext CreateContext()

@@ -166,22 +166,28 @@ public sealed class UserQueryHandlerTests
     [Fact]
     [Trait("TestType", "Functional")]
     [Trait("TestType", "Regression")]
-    public async Task GetUserStatistics_ShouldAggregateStatusSecurityAndCreatedDateBuckets()
+    public async Task GetUserStatistics_ShouldMapSnapshotToDtoAndComputeWindowBoundaries()
     {
-        var activeToday = CreateUser("active@example.com", "Active", "Today");
-        activeToday.EnableTwoFactor("secret");
-        var inactiveThisWeek = CreateUser("inactive@example.com", "Inactive", "Week");
-        inactiveThisWeek.Deactivate(inactiveThisWeek.Id);
-        SetCreatedAt(inactiveThisWeek, DateTime.UtcNow.AddDays(-3));
-        var lockedThisMonth = CreateUser("locked@example.com", "Locked", "Month");
-        lockedThisMonth.Lock(lockedThisMonth.Id);
-        SetCreatedAt(lockedThisMonth, DateTime.UtcNow.AddDays(-10));
-        var oldPending = User.Create(AuthEmail.Create("pending@example.com"), "hash", "Pending", "Old");
-        oldPending.ClearDomainEvents();
-        SetCreatedAt(oldPending, DateTime.UtcNow.AddMonths(-2));
+        // The database now does the aggregation (see AuthRepositoryPersistenceTests); the handler
+        // only supplies the time windows and maps the snapshot onto the DTO.
+        var snapshot = new UserStatisticsSnapshot(
+            TotalUsers: 4,
+            ActiveUsers: 1,
+            InactiveUsers: 1,
+            LockedUsers: 1,
+            UsersWithTwoFactor: 1,
+            NewUsersToday: 1,
+            NewUsersThisWeek: 2,
+            NewUsersThisMonth: 3);
+        DateTime today = default, weekAgo = default, monthAgo = default;
         var users = new Mock<IUserRepository>();
-        users.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { activeToday, inactiveThisWeek, lockedThisMonth, oldPending });
+        users.Setup(x => x.GetStatisticsAsync(
+                It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .Callback<DateTime, DateTime, DateTime, CancellationToken>((t, w, m, _) =>
+            {
+                today = t; weekAgo = w; monthAgo = m;
+            })
+            .ReturnsAsync(snapshot);
         var handler = new GetUserStatisticsQueryHandler(
             users.Object,
             Mock.Of<ILogger<GetUserStatisticsQueryHandler>>());
@@ -198,6 +204,9 @@ public sealed class UserQueryHandlerTests
         Assert.Equal(2, result.Value.NewUsersThisWeek);
         Assert.Equal(3, result.Value.NewUsersThisMonth);
         Assert.True(result.Value.LastUpdated <= DateTime.UtcNow);
+        // Windows are ordered oldest → newest, anchored on "now".
+        Assert.True(monthAgo < weekAgo);
+        Assert.True(weekAgo < today);
     }
 
     [Fact]
@@ -206,7 +215,8 @@ public sealed class UserQueryHandlerTests
     public async Task GetUserStatistics_ShouldReturnInternalFailureWhenRepositoryThrows()
     {
         var users = new Mock<IUserRepository>();
-        users.Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
+        users.Setup(x => x.GetStatisticsAsync(
+                It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("statistics unavailable"));
         var handler = new GetUserStatisticsQueryHandler(
             users.Object,
@@ -224,12 +234,5 @@ public sealed class UserQueryHandlerTests
         user.VerifyEmail();
         user.ClearDomainEvents();
         return user;
-    }
-
-    private static void SetCreatedAt(User user, DateTime createdAt)
-    {
-        typeof(BaseEntity)
-            .GetProperty(nameof(BaseEntity.CreatedAt))!
-            .SetValue(user, createdAt);
     }
 }

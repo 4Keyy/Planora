@@ -16,66 +16,67 @@ public class GetUsersQueryHandlerTests
     [Fact]
     [Trait("TestType", "Functional")]
     [Trait("TestType", "Regression")]
-    public async Task Handle_ShouldFilterSearchDateSortAndPageUsers()
+    public async Task Handle_ShouldTranslateQueryIntoFilterAndPageResult()
     {
+        UserListFilter? captured = null;
         var users = new[]
         {
-            CreateUser("alice@example.com", "Alice", "Zephyr", active: true),
-            CreateUser("bob@example.com", "Bob", "Yellow", active: false),
-            CreateUser("alex@example.com", "Alex", "Anderson", active: true)
+            CreateUser("alice@example.com", "Alice", "Zephyr"),
+            CreateUser("alex@example.com", "Alex", "Anderson")
         };
-        var handler = CreateHandler(users);
+        var repository = new Mock<IUserRepository>();
+        repository
+            .Setup(x => x.GetPagedAsync(It.IsAny<UserListFilter>(), It.IsAny<CancellationToken>()))
+            .Callback<UserListFilter, CancellationToken>((f, _) => captured = f)
+            .ReturnsAsync(((IReadOnlyList<User>)users.ToList(), 5));
+
+        var handler = new GetUsersQueryHandler(repository.Object, CreateMapper(), Mock.Of<ILogger<GetUsersQueryHandler>>());
 
         var result = await handler.Handle(
             new GetUsersQuery
             {
                 Status = "Active",
                 SearchTerm = "al",
-                CreatedFrom = DateTime.UtcNow.AddMinutes(-10),
-                CreatedTo = DateTime.UtcNow.AddMinutes(10),
                 OrderBy = "email",
                 Ascending = true,
                 PageNumber = 2,
-                PageSize = 1
+                PageSize = 2
             },
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Value!.TotalCount);
-        Assert.Equal(2, result.Value.PageNumber);
-        Assert.Equal(1, result.Value.PageSize);
-        Assert.Single(result.Value.Items);
-        Assert.Equal("alice@example.com", result.Value.Items.Single().Email);
+        // The filter handed to the repository mirrors the query (DB does the work now).
+        Assert.NotNull(captured);
+        Assert.Equal(UserStatus.Active, captured!.Status);
+        Assert.Equal("al", captured.SearchTerm);
+        Assert.Equal("email", captured.OrderBy);
+        Assert.True(captured.Ascending);
+        Assert.Equal(2, captured.PageNumber);
+        Assert.Equal(2, captured.PageSize);
+        // The repository's TotalCount is surfaced, and items are mapped to DTOs.
+        Assert.Equal(5, result.Value!.TotalCount);
+        Assert.Equal(2, result.Value.Items.Count);
+        Assert.Equal("alice@example.com", result.Value.Items.First().Email);
     }
 
-    [Theory]
+    [Fact]
     [Trait("TestType", "Functional")]
     [Trait("TestType", "Module")]
-    [InlineData("email", true, "amy@example.com")]
-    [InlineData("firstname", false, "zoe@example.com")]
-    [InlineData("lastname", true, "amy@example.com")]
-    [InlineData(null, false, "amy@example.com")]
-    public async Task Handle_ShouldSupportAllOrderingModes(string? orderBy, bool ascending, string expectedFirstEmail)
+    public async Task Handle_ShouldLeaveStatusNullWhenUnparseable()
     {
-        var users = new[]
-        {
-            CreateUser("zoe@example.com", "Zoe", "Zimmer", active: true),
-            CreateUser("amy@example.com", "Amy", "Alpha", active: true)
-        };
-        var handler = CreateHandler(users);
+        UserListFilter? captured = null;
+        var repository = new Mock<IUserRepository>();
+        repository
+            .Setup(x => x.GetPagedAsync(It.IsAny<UserListFilter>(), It.IsAny<CancellationToken>()))
+            .Callback<UserListFilter, CancellationToken>((f, _) => captured = f)
+            .ReturnsAsync(((IReadOnlyList<User>)new List<User>(), 0));
+        var handler = new GetUsersQueryHandler(repository.Object, CreateMapper(), Mock.Of<ILogger<GetUsersQueryHandler>>());
 
-        var result = await handler.Handle(
-            new GetUsersQuery
-            {
-                OrderBy = orderBy,
-                Ascending = ascending,
-                PageNumber = 1,
-                PageSize = 10
-            },
-            CancellationToken.None);
+        var result = await handler.Handle(new GetUsersQuery { Status = "not-a-status" }, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(expectedFirstEmail, result.Value!.Items.First().Email);
+        Assert.NotNull(captured);
+        Assert.Null(captured!.Status);
     }
 
     [Fact]
@@ -85,7 +86,7 @@ public class GetUsersQueryHandlerTests
     {
         var repository = new Mock<IUserRepository>();
         repository
-            .Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetPagedAsync(It.IsAny<UserListFilter>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("database unavailable"));
         var handler = new GetUsersQueryHandler(
             repository.Object,
@@ -96,19 +97,6 @@ public class GetUsersQueryHandlerTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("GET_USERS_ERROR", result.Error!.Code);
-    }
-
-    private static GetUsersQueryHandler CreateHandler(IEnumerable<User> users)
-    {
-        var repository = new Mock<IUserRepository>();
-        repository
-            .Setup(x => x.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(users.ToList());
-
-        return new GetUsersQueryHandler(
-            repository.Object,
-            CreateMapper(),
-            Mock.Of<ILogger<GetUsersQueryHandler>>());
     }
 
     private static IMapper CreateMapper()
@@ -130,17 +118,10 @@ public class GetUsersQueryHandlerTests
         return mapper.Object;
     }
 
-    private static User CreateUser(string email, string firstName, string lastName, bool active)
+    private static User CreateUser(string email, string firstName, string lastName)
     {
         var user = User.Create(Email.Create(email), "hashed-password", firstName, lastName);
         user.ClearDomainEvents();
-
-        if (active)
-        {
-            user.VerifyEmail();
-            user.ClearDomainEvents();
-        }
-
         return user;
     }
 }
