@@ -4,6 +4,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### perf(auth): AsNoTracking on read-only friendship queries (2026-06-21)
+
+- `FriendshipRepository.GetFriendshipsForUserAsync` and `GetFriendIdsAsync` are consumed only by the
+  read query handlers (GetFriends / GetFriendRequests / GetFriendIds), which project to DTOs and never
+  mutate, but they loaded entities into the change tracker. Both now use `AsNoTracking`. The
+  mutation-path lookups (`GetFriendshipAsync`, `GetByIdAsync`) stay tracked.
+- Files: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/Repositories/FriendshipRepository.cs`.
+- Performance: drops change-tracking overhead from the friends/requests read paths.
+
 ### fix(todo): preserve viewer prefs on shared completion and guard worker capacity (2026-06-21)
 
 - **Completing a shared task no longer wipes the viewer's hide/category preferences.** When a

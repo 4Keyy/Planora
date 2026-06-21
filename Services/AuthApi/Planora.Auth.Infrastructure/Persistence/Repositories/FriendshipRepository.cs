@@ -22,7 +22,11 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             FriendshipStatus? status = null,
             CancellationToken cancellationToken = default)
         {
+            // Read-only: consumed by the GetFriends / GetFriendRequests query handlers, which only
+            // project to DTOs. AsNoTracking avoids needless change-tracking. (Mutations load the
+            // single row via GetFriendshipAsync / GetByIdAsync, which stay tracked.)
             var query = _context.Friendships
+                .AsNoTracking()
                 .Where(f => f.RequesterId == userId || f.AddresseeId == userId);
 
             if (status.HasValue)
@@ -46,6 +50,7 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
         public async Task<IReadOnlyList<Guid>> GetFriendIdsAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             var friendships = await _context.Friendships
+                .AsNoTracking()
                 .Where(f =>
                     (f.RequesterId == userId || f.AddresseeId == userId) &&
                     f.Status == FriendshipStatus.Accepted)
