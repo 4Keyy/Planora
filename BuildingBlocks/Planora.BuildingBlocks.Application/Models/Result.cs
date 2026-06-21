@@ -46,7 +46,11 @@ public class Result<TValue> : Result
         _value = value;
     }
 
-    public static implicit operator Result<TValue>(TValue value) => Success(value);
+    // A null value is never a meaningful success: returning `repo.Find(id)` (which may be null)
+    // would otherwise become Success(null) and surface a null Value to callers that checked
+    // IsSuccess. Treat null as a failure (Error.NullValue) so the absence is explicit.
+    public static implicit operator Result<TValue>(TValue value)
+        => value is null ? Failure<TValue>(Error.NullValue) : Success(value);
 
     public Result<TNewValue> Map<TNewValue>(Func<TValue, TNewValue> mapper)
     {

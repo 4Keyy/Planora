@@ -85,15 +85,18 @@ public static class ResultExtensions
                 error.Message,
                 error.Code ?? ErrorCode.Validation.InvalidInput),
             
-            ErrorType.NotFound => new EntityNotFoundException(
-                "Resource",
-                "Unknown"),
-            
-            ErrorType.Conflict => new DuplicateEntityException(
-                "Resource",
-                "field",
-                "value"),
-            
+            // Preserve the actual error code + message instead of placeholder ("Resource"/"Unknown"
+            // / "field"/"value") so the client and logs keep the real diagnostic detail.
+            ErrorType.NotFound => new MappedDomainException(
+                error.Message,
+                string.IsNullOrEmpty(error.Code) ? "NOT_FOUND.RESOURCE" : error.Code,
+                ErrorCategory.NotFound),
+
+            ErrorType.Conflict => new MappedDomainException(
+                error.Message,
+                string.IsNullOrEmpty(error.Code) ? "BUSINESS.DUPLICATE_ENTITY" : error.Code,
+                ErrorCategory.Conflict),
+
             ErrorType.Unauthorized => new UnauthorizedAccessException(error.Message),
             
             ErrorType.Forbidden => new ForbiddenException(error.Message),

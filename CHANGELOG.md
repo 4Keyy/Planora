@@ -4,6 +4,25 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(result): null is a failure, and mapped NotFound/Conflict keep their detail (2026-06-21)
+
+- **A null value is no longer a "successful" result.** `Application.Models.Result<TValue>`'s implicit
+  `TValue → Result<TValue>` conversion called `Success(value)` unconditionally, so `return repo.Find(id)`
+  (which can be null) produced `Success(null)` — `IsSuccess` was true while `Value` was null, surfacing
+  silent nulls / NREs to callers that had checked `IsSuccess`. The conversion now returns
+  `Failure(Error.NullValue)` for null (the `Error.NullValue` factory that already existed for exactly
+  this), making the absence explicit. The full 822-test suite passes unchanged, confirming no caller
+  relied on success-with-null.
+- **Mapped NotFound/Conflict errors keep their real code and message.** `ResultExtensions.MapErrorToException`
+  turned every `NotFound` into `EntityNotFoundException("Resource","Unknown")` and every `Conflict` into
+  `DuplicateEntityException("Resource","field","value")`, discarding the actual `Error.Code`/`Error.Message`
+  so clients and logs saw placeholders. A new `MappedDomainException` now carries the error's exact code,
+  message, and category through to the global exception middleware.
+- Files: `BuildingBlocks/Planora.BuildingBlocks.Application/Models/Result.cs`,
+  `BuildingBlocks/Planora.BuildingBlocks.Domain/Exceptions/MappedDomainException.cs`,
+  `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/ResultExtensions.cs`,
+  `tests/Planora.UnitTests/BuildingBlocks/ResultGuardTests.cs`.
+
 ### fix(consumers): soft-delete user content with a tracked load so cleanup actually runs (2026-06-21)
 
 - **Deleted-user cleanup never worked and now does.** All three `UserDeletedEventConsumer`s (Todo,
