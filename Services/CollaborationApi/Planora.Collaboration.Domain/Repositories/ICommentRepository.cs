@@ -10,6 +10,13 @@ namespace Planora.Collaboration.Domain.Repositories
         Task SoftDeleteByTaskIdAsync(Guid taskId, Guid deletedBy, CancellationToken ct = default);
 
         /// <summary>
+        /// Soft-deletes every comment authored by a user (used when that user's account is deleted)
+        /// and returns how many were affected. Loads tracked so the xmin concurrency token is
+        /// captured; changes are flushed by the caller's unit of work.
+        /// </summary>
+        Task<int> SoftDeleteByAuthorAsync(Guid authorId, Guid deletedBy, CancellationToken ct = default);
+
+        /// <summary>
         /// Soft-deletes the subtask announcement system comments ("… added a subtask: {title}" /
         /// "… completed a subtask: {title}") within a parent task's branch, used when that subtask
         /// is deleted. Matches the deterministic sentence suffix produced by the activity consumer.

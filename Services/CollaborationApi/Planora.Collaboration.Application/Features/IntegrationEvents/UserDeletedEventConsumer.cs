@@ -28,9 +28,14 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
 
         public async Task HandleAsync(UserDeletedIntegrationEvent @event, CancellationToken cancellationToken)
         {
-            var comments = await _commentRepository.FindAsync(c => c.AuthorId == @event.UserId, cancellationToken);
+            // Delegate to the tracked-load soft-delete so the xmin concurrency token is captured;
+            // the previous AsNoTracking FindAsync + Update issued `WHERE xmin = 0` and the cleanup
+            // failed with a spurious DbUpdateConcurrencyException, so deleted users' comments were
+            // never actually removed.
+            var affected = await _commentRepository.SoftDeleteByAuthorAsync(
+                @event.UserId, @event.UserId, cancellationToken);
 
-            if (comments.Count == 0)
+            if (affected == 0)
             {
                 _logger.LogInformation(
                     "No comments authored by deleted user {UserId} — nothing to clean up",
@@ -38,17 +43,11 @@ namespace Planora.Collaboration.Application.Features.IntegrationEvents
                 return;
             }
 
-            foreach (var comment in comments)
-            {
-                comment.MarkAsDeleted(@event.UserId);
-                _commentRepository.Update(comment);
-            }
-
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation(
                 "Soft-deleted {Count} comments authored by deleted user {UserId}",
-                comments.Count, @event.UserId);
+                affected, @event.UserId);
         }
     }
 }

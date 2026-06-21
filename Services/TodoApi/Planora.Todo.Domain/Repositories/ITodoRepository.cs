@@ -6,6 +6,13 @@ namespace Planora.Todo.Domain.Repositories
     public interface ITodoRepository : IRepository<TodoItem>
     {
         Task<IReadOnlyList<TodoItem>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Soft-deletes every todo owned by a user (used when that user's account is deleted) and
+        /// returns how many were affected. Loads tracked so the xmin concurrency token is captured;
+        /// changes are flushed by the caller's unit of work.
+        /// </summary>
+        Task<int> SoftDeleteByUserIdAsync(Guid userId, Guid deletedBy, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<TodoItem>> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<TodoItem>> GetCompletedByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<TodoItem>> GetByUserIdAndCategoryIdAsync(Guid userId, Guid categoryId, CancellationToken cancellationToken = default);

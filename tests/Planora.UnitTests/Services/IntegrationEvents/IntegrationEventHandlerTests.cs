@@ -69,17 +69,14 @@ public sealed class IntegrationEventHandlerTests
     public async Task CategoryUserDeletedConsumer_ShouldSoftDeleteCategoriesAndSkipEmptyUsers()
     {
         var userId = Guid.NewGuid();
-        var categories = new List<CategoryEntity>
-        {
-            CategoryEntity.Create(userId, "Home", null, "#112233", null, 0),
-            CategoryEntity.Create(userId, "Work", null, "#445566", null, 1)
-        };
         var repository = new Mock<ICategoryRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
+        // The tracked, xmin-safe soft-delete reports how many rows it affected: 0 (nothing to do)
+        // then 2. SaveChanges must run only when something was actually deleted.
         repository
-            .SetupSequence(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Array.Empty<CategoryEntity>())
-            .ReturnsAsync(categories);
+            .SetupSequence(x => x.SoftDeleteByUserIdAsync(userId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0)
+            .ReturnsAsync(2);
         unitOfWork
             .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(2);
@@ -89,17 +86,11 @@ public sealed class IntegrationEventHandlerTests
             Mock.Of<ILogger<CategoryUserDeletedEventConsumer>>());
 
         await consumer.HandleAsync(new UserDeletedIntegrationEvent(userId, "user@example.com"), CancellationToken.None);
-        repository.Verify(x => x.Update(It.IsAny<CategoryEntity>()), Times.Never);
         unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
 
         await consumer.HandleAsync(new UserDeletedIntegrationEvent(userId, "user@example.com"), CancellationToken.None);
 
-        Assert.All(categories, category =>
-        {
-            Assert.True(category.IsDeleted);
-            Assert.Equal(userId, category.DeletedBy);
-        });
-        repository.Verify(x => x.Update(It.IsAny<CategoryEntity>()), Times.Exactly(2));
+        repository.Verify(x => x.SoftDeleteByUserIdAsync(userId, userId, It.IsAny<CancellationToken>()), Times.Exactly(2));
         unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -111,7 +102,7 @@ public sealed class IntegrationEventHandlerTests
         var userId = Guid.NewGuid();
         var repository = new Mock<ICategoryRepository>();
         repository
-            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .Setup(x => x.SoftDeleteByUserIdAsync(userId, userId, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("category repository unavailable"));
         var consumer = new CategoryUserDeletedEventConsumer(
             repository.Object,
@@ -128,17 +119,12 @@ public sealed class IntegrationEventHandlerTests
     public async Task TodoUserDeletedConsumer_ShouldSoftDeleteTodosAndRethrowRepositoryFailures()
     {
         var userId = Guid.NewGuid();
-        var todos = new List<TodoItem>
-        {
-            TodoItem.Create(userId, "First"),
-            TodoItem.Create(userId, "Second")
-        };
         var repository = new Mock<ITodoRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         repository
-            .SetupSequence(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
+            .SetupSequence(x => x.SoftDeleteByUserIdAsync(userId, userId, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("todo repository unavailable"))
-            .ReturnsAsync(todos);
+            .ReturnsAsync(2);
         unitOfWork
             .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(2);
@@ -152,12 +138,7 @@ public sealed class IntegrationEventHandlerTests
 
         await consumer.HandleAsync(new UserDeletedIntegrationEvent(userId, "user@example.com"), CancellationToken.None);
 
-        Assert.All(todos, todo =>
-        {
-            Assert.True(todo.IsDeleted);
-            Assert.Equal(userId, todo.DeletedBy);
-        });
-        repository.Verify(x => x.Update(It.IsAny<TodoItem>()), Times.Exactly(2));
+        repository.Verify(x => x.SoftDeleteByUserIdAsync(userId, userId, It.IsAny<CancellationToken>()), Times.Exactly(2));
         unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -170,8 +151,8 @@ public sealed class IntegrationEventHandlerTests
         var repository = new Mock<ITodoRepository>();
         var unitOfWork = new Mock<IUnitOfWork>();
         repository
-            .Setup(x => x.GetByUserIdAsync(userId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Array.Empty<TodoItem>());
+            .Setup(x => x.SoftDeleteByUserIdAsync(userId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
         var consumer = new TodoUserDeletedEventConsumer(
             repository.Object,
             unitOfWork.Object,
@@ -179,7 +160,7 @@ public sealed class IntegrationEventHandlerTests
 
         await consumer.HandleAsync(new UserDeletedIntegrationEvent(userId, "user@example.com"), CancellationToken.None);
 
-        repository.Verify(x => x.Update(It.IsAny<TodoItem>()), Times.Never);
+        repository.Verify(x => x.SoftDeleteByUserIdAsync(userId, userId, It.IsAny<CancellationToken>()), Times.Once);
         unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 

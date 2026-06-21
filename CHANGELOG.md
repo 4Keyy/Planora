@@ -4,6 +4,27 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(consumers): soft-delete user content with a tracked load so cleanup actually runs (2026-06-21)
+
+- **Deleted-user cleanup never worked and now does.** All three `UserDeletedEventConsumer`s (Todo,
+  Category, Collaboration comments) loaded the owner's rows with `AsNoTracking` and then called
+  `Update` + `SaveChanges`. Because every one of those entities uses PostgreSQL's `xmin` as an
+  optimistic-concurrency token — a shadow property captured only on a *tracked* read — the detached
+  load dropped it, so the UPDATE went out as `WHERE xmin = 0`, matched no rows, and threw a spurious
+  `DbUpdateConcurrencyException`. The net effect: a deleted user's todos, categories, and authored
+  comments were never cleaned up, accumulating forever.
+- **Fix mirrors the existing `SoftDeleteByTaskIdAsync` idiom.** Each repository gains a
+  `SoftDeleteByUserIdAsync` / `SoftDeleteByAuthorAsync` that loads **tracked** (so `xmin` is
+  captured), calls `MarkAsDeleted`, returns the affected count, and lets the caller's unit of work
+  flush. The consumers now delegate to it and only `SaveChanges` when something was actually deleted.
+- Note: the existing consumer unit tests mock the repository, so this bug was invisible to them (it
+  only manifests against real PostgreSQL); the tests were updated to the new repository method and a
+  tracked load is now the contract.
+- Files: `Services/{TodoApi,CategoryApi}/...Repositories/{Todo,Category}Repository.cs` + their
+  `I{Todo,Category}Repository.cs`, `Services/CollaborationApi/...CommentRepository.cs` +
+  `ICommentRepository.cs`, the three `UserDeletedEventConsumer.cs`, and the consumer tests.
+- Performance/correctness: account deletion reliably cascades soft-deletes instead of silently failing every time.
+
 ### fix(security): refuse messaging over gRPC to close IDOR and sender spoofing (2026-06-21)
 
 - **No more reading or sending other people's messages over gRPC.** `MessagingGrpcService.GetMessages`

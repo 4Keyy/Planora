@@ -28,9 +28,12 @@ namespace Planora.Todo.Application.Features.IntegrationEvents
         {
             try
             {
-                var todos = await _todoRepository.GetByUserIdAsync(@event.UserId, cancellationToken);
+                // Tracked soft-delete so the xmin concurrency token is captured; the previous
+                // AsNoTracking load + Update issued `WHERE xmin = 0` and silently cleaned up nothing.
+                var affected = await _todoRepository.SoftDeleteByUserIdAsync(
+                    @event.UserId, @event.UserId, cancellationToken);
 
-                if (todos.Count == 0)
+                if (affected == 0)
                 {
                     _logger.LogInformation(
                         "No todos found for deleted user {UserId} — nothing to clean up",
@@ -38,17 +41,11 @@ namespace Planora.Todo.Application.Features.IntegrationEvents
                     return;
                 }
 
-                foreach (var todo in todos)
-                {
-                    todo.MarkAsDeleted(@event.UserId);
-                    _todoRepository.Update(todo);
-                }
-
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation(
                     "Soft-deleted {Count} todos for deleted user {UserId}",
-                    todos.Count,
+                    affected,
                     @event.UserId);
             }
             catch (Exception ex)

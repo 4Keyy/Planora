@@ -28,9 +28,14 @@ namespace Planora.Category.Application.Features.IntegrationEvents
         {
             try
             {
-                var categories = await _categoryRepository.GetByUserIdAsync(@event.UserId, cancellationToken);
+                // Tracked soft-delete so the xmin concurrency token is captured; the previous
+                // AsNoTracking load + Update issued `WHERE xmin = 0` and silently cleaned up nothing.
+                // (The repository calls MarkAsDeleted directly — Category.Delete() enforces
+                // UserId == deletedBy, which would throw for a system-level cleanup.)
+                var affected = await _categoryRepository.SoftDeleteByUserIdAsync(
+                    @event.UserId, @event.UserId, cancellationToken);
 
-                if (categories.Count == 0)
+                if (affected == 0)
                 {
                     _logger.LogInformation(
                         "No categories found for deleted user {UserId} — nothing to clean up",
@@ -38,19 +43,11 @@ namespace Planora.Category.Application.Features.IntegrationEvents
                     return;
                 }
 
-                foreach (var category in categories)
-                {
-                    // Call MarkAsDeleted directly — Category.Delete() enforces ownership via
-                    // UserId == deletedBy, which would throw for a system-level cleanup operation.
-                    category.MarkAsDeleted(@event.UserId);
-                    _categoryRepository.Update(category);
-                }
-
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation(
                     "Soft-deleted {Count} categories for deleted user {UserId}",
-                    categories.Count,
+                    affected,
                     @event.UserId);
             }
             catch (Exception ex)

@@ -102,6 +102,21 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<int> SoftDeleteByUserIdAsync(Guid userId, Guid deletedBy, CancellationToken cancellationToken = default)
+        {
+            // Tracked load (NOT AsNoTracking) so the xmin concurrency token is captured — otherwise
+            // the UPDATE issues `WHERE xmin = 0`, matches no rows, and the cleanup fails with a
+            // spurious DbUpdateConcurrencyException. Caller flushes via UnitOfWork.SaveChangesAsync.
+            var categories = await _context.Categories
+                .Where(c => c.UserId == userId && !c.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            foreach (var category in categories)
+                category.MarkAsDeleted(deletedBy);
+
+            return categories.Count;
+        }
+
         public async Task<IReadOnlyList<Domain.Entities.Category>> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             return await _context.Categories

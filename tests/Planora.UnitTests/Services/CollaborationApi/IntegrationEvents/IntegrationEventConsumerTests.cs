@@ -168,15 +168,10 @@ public sealed class IntegrationEventConsumerTests
     public async Task UserDeleted_SoftDeletesAuthoredComments()
     {
         var userId = Guid.NewGuid();
-        var taskId = Guid.NewGuid();
-        var authored = new List<Comment>
-        {
-            Comment.Create(taskId, userId, "U", "one"),
-            Comment.Create(taskId, userId, "U", "two"),
-        };
         var comments = new Mock<ICommentRepository>();
-        comments.Setup(x => x.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Comment, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(authored);
+        // Tracked soft-delete (xmin-safe) reports how many comments it removed.
+        comments.Setup(x => x.SoftDeleteByAuthorAsync(userId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(2);
         var uow = new Mock<IUnitOfWork>();
 
         var consumer = new UserDeletedEventConsumer(comments.Object, uow.Object,
@@ -184,7 +179,7 @@ public sealed class IntegrationEventConsumerTests
 
         await consumer.HandleAsync(new UserDeletedIntegrationEvent(userId, "u@planora.dev"), CancellationToken.None);
 
-        Assert.All(authored, c => Assert.True(c.IsDeleted));
+        comments.Verify(x => x.SoftDeleteByAuthorAsync(userId, userId, It.IsAny<CancellationToken>()), Times.Once);
         uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -193,8 +188,8 @@ public sealed class IntegrationEventConsumerTests
     public async Task UserDeleted_NoComments_IsNoOp()
     {
         var comments = new Mock<ICommentRepository>();
-        comments.Setup(x => x.FindAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Comment, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Comment>());
+        comments.Setup(x => x.SoftDeleteByAuthorAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
         var uow = new Mock<IUnitOfWork>();
 
         var consumer = new UserDeletedEventConsumer(comments.Object, uow.Object,

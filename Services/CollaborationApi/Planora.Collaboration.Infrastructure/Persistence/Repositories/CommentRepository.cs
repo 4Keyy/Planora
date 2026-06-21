@@ -53,6 +53,22 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Repositories
                 comment.MarkAsDeleted(deletedBy);
         }
 
+        public async Task<int> SoftDeleteByAuthorAsync(Guid authorId, Guid deletedBy, CancellationToken ct = default)
+        {
+            // Tracked load (NOT AsNoTracking) so the xmin concurrency token is captured — otherwise
+            // the UPDATE issues `WHERE xmin = 0`, matches no rows, and the cleanup fails with a
+            // spurious DbUpdateConcurrencyException. Mirrors SoftDeleteByTaskIdAsync; the caller's
+            // UnitOfWork.SaveChangesAsync flushes the changes.
+            var comments = await DbSet
+                .Where(c => c.AuthorId == authorId && !c.IsDeleted)
+                .ToListAsync(ct);
+
+            foreach (var comment in comments)
+                comment.MarkAsDeleted(deletedBy);
+
+            return comments.Count;
+        }
+
         public async Task SoftDeleteSubtaskActivityAsync(
             Guid parentTaskId, string subtaskTitle, Guid deletedBy, CancellationToken ct = default)
         {

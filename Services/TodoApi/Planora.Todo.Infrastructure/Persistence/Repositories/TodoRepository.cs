@@ -21,6 +21,21 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<int> SoftDeleteByUserIdAsync(Guid userId, Guid deletedBy, CancellationToken cancellationToken = default)
+        {
+            // Tracked load (NOT AsNoTracking) so the xmin concurrency token is captured — otherwise
+            // the UPDATE issues `WHERE xmin = 0`, matches no rows, and the cleanup fails with a
+            // spurious DbUpdateConcurrencyException. Caller flushes via UnitOfWork.SaveChangesAsync.
+            var todos = await DbSet
+                .Where(t => t.UserId == userId && !t.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            foreach (var todo in todos)
+                todo.MarkAsDeleted(deletedBy);
+
+            return todos.Count;
+        }
+
         public async Task<IReadOnlyList<TodoItem>> GetActiveByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             return await DbSet
