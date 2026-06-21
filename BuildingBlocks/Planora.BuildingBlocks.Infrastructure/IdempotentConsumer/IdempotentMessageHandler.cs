@@ -28,13 +28,29 @@ public sealed class IdempotentMessageHandler<TEvent> : IIntegrationEventHandler<
             return;
         }
 
+        // Use the Guid constructor so the inbox row's PRIMARY KEY is the event id. The previous
+        // string constructor stored a random PK, so the ExistsAsync(eventId) check above could never
+        // match and dedup did nothing. With PK == eventId, the check works AND a concurrent duplicate
+        // delivery that slips past it fails the unique-key insert below — which we catch and treat as
+        // "already being processed", so the decorated handler never runs twice (closes the
+        // check-then-insert race).
         var inboxMessage = new InboxMessage(
-            eventId.ToString(),
+            eventId,
             eventType,
             System.Text.Json.JsonSerializer.Serialize(@event),
             DateTime.UtcNow);
 
-        await _inboxRepository.AddAsync(inboxMessage, cancellationToken);
+        try
+        {
+            await _inboxRepository.AddAsync(inboxMessage, cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            _logger.LogInformation(
+                "Event {EventType} with ID {EventId} is already being processed by a concurrent delivery; skipping",
+                eventType, eventId);
+            return;
+        }
 
         try
         {

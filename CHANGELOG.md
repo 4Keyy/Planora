@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(inbox): make the idempotent message decorator actually dedup, and race-safe (2026-06-21)
+
+- **The decorator's dedup never worked, and had a check-then-insert race.** `IdempotentMessageHandler`
+  stored the inbox row via the *string* `InboxMessage` constructor, which assigns a random primary
+  key, while `ExistsAsync(eventId)` checks by primary key — so the existence check could never match
+  and every delivery ran the decorated handler. It now uses the Guid constructor (PK == event id), so
+  the check works; and the `AddAsync` is wrapped so a concurrent duplicate that slips past the check
+  fails the unique-key insert and is caught and skipped instead of double-processing.
+- Note: this decorator is not currently wired into any service (live consumer dedup is done inline by
+  `RabbitMqEventBus`, which already keyed the inbox PK on the event id), so the bug was dormant; this
+  hardens it for correct future use. Covered by 3 new unit tests.
+- Files: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs`,
+  `tests/Planora.UnitTests/BuildingBlocks/IdempotentConsumer/IdempotentMessageHandlerTests.cs`.
+
 ### fix(realtime): close the ConnectionManager add/remove race that orphaned connections (2026-06-21)
 
 - **A reconnecting user could lose their live connection.** `RemoveConnectionAsync` checked
