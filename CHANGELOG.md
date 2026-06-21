@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(security): refuse messaging over gRPC to close IDOR and sender spoofing (2026-06-21)
+
+- **No more reading or sending other people's messages over gRPC.** `MessagingGrpcService.GetMessages`
+  took both `user_id` and `other_user_id` straight from the request body with no authorization, letting
+  any caller read any two users' private conversation (IDOR); `SendMessage` trusted the request's
+  `sender_id` (the HTTP path's "sender must be the authenticated user" guard only fires when a user
+  context is present, which it never is over gRPC), allowing messages to be sent as anyone. The gRPC
+  contract carries no verified caller identity and there is no internal gRPC caller — messaging runs
+  through the authenticated HTTP API — so both methods now fail closed with `PermissionDenied`.
+- Files: `Services/MessagingApi/Planora.Messaging.Api/Grpc/MessagingGrpcService.cs`,
+  `tests/Planora.UnitTests/Services/MessagingApi/Grpc/MessagingGrpcServiceTests.cs`,
+  `tests/Planora.UnitTests/Planora.UnitTests.csproj` (now references Messaging.Api, matching the other services).
+- Security: closes the messaging gRPC IDOR and sender-spoofing surface (defense-in-depth atop the service key).
+
 ### perf(auth): batch friend lookups to remove the friends/requests N+1 (2026-06-21)
 
 - **One query instead of N+1.** `GetFriendsQueryHandler` and `GetFriendRequestsQueryHandler` issued
