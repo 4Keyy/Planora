@@ -99,13 +99,14 @@ public class UserDomainTests
         var user = CreateUser();
         var token = user.AddRefreshToken("refresh-token", "127.0.0.1", DateTime.UtcNow.AddDays(1));
 
-        user.RevokeRefreshToken(token.Token, "127.0.0.1", "logout");
+        // Revocation takes the RAW token; the entity stores only its hash and matches via Matches().
+        user.RevokeRefreshToken("refresh-token", "127.0.0.1", "logout");
 
         Assert.False(token.IsActive);
         Assert.Throws<AuthDomainException>(() =>
             user.RevokeRefreshToken("missing-token", "127.0.0.1", "logout"));
         Assert.Throws<AuthDomainException>(() =>
-            user.RevokeRefreshToken(token.Token, "127.0.0.1", "logout-again"));
+            user.RevokeRefreshToken("refresh-token", "127.0.0.1", "logout-again"));
     }
 
     [Fact]

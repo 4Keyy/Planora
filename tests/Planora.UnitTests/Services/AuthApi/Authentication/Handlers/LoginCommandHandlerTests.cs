@@ -189,7 +189,7 @@ public sealed class LoginCommandHandlerTests
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("new-refresh", existingToken.Token);
+        Assert.True(existingToken.Matches("new-refresh"));
         Assert.True(existingToken.RememberMe);
         Assert.Equal("10.0.0.2", existingToken.CreatedByIp);
         Assert.True(result.Value!.ExpiresAt > DateTime.UtcNow.AddDays(29));

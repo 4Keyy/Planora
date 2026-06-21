@@ -114,7 +114,8 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Register
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 AccessToken = accessToken,
-                RefreshToken = refreshToken.Token,
+                // Return the RAW token to the client; only its hash is stored on the entity.
+                RefreshToken = refreshTokenValue,
                 ExpiresAt = refreshTokenExpiry
             };
 

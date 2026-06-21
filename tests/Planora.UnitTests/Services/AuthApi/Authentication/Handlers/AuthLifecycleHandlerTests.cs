@@ -287,7 +287,7 @@ public class AuthLifecycleHandlerTests
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("new-token", existing.Token);
+        Assert.True(existing.Matches("new-token"));
         Assert.False(existing.RememberMe);
         Assert.Equal(2, existing.LoginCount);
         fixture.RefreshTokens.Verify(x => x.Update(existing), Times.Once);

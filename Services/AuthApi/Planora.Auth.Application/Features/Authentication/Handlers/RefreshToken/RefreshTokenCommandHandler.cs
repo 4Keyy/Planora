@@ -51,8 +51,9 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
                         Error.NotFound("INVALID_REFRESH_TOKEN", "Refresh token not found or expired"));
                 }
 
-                // Get the refresh token from user's collection (properly tracked)
-                var refreshToken = user.RefreshTokens.FirstOrDefault(rt => rt.Token == command.RefreshToken);
+                // Get the refresh token from user's collection (properly tracked). Tokens are stored
+                // hashed, so match the presented raw value against the stored hash via Matches().
+                var refreshToken = user.RefreshTokens.FirstOrDefault(rt => rt.Matches(command.RefreshToken));
 
                 if (refreshToken == null)
                 {
@@ -135,7 +136,8 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.RefreshToken
                 var response = new TokenDto
                 {
                     AccessToken = newAccessToken,
-                    RefreshToken = newRefreshToken.Token,
+                    // Return the RAW token to the client; only its hash is stored on the entity.
+                    RefreshToken = newRefreshTokenValue,
                     ExpiresAt = newRefreshTokenExpiry,
                     RememberMe = newRefreshToken.RememberMe
                 };

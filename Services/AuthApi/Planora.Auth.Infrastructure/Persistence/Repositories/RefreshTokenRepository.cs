@@ -1,3 +1,5 @@
+using Planora.Auth.Domain.Security;
+
 namespace Planora.Auth.Infrastructure.Persistence.Repositories
 {
     public sealed class RefreshTokenRepository : BaseRepository<RefreshToken>, IRefreshTokenRepository
@@ -8,8 +10,10 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
 
         public async Task<RefreshToken?> GetByTokenAsync(string token, CancellationToken cancellationToken = default)
         {
+            // Tokens are stored hashed; look up by the hash of the presented raw token.
+            var tokenHash = RefreshTokenHash.Of(token);
             return await _context.RefreshTokens
-                .FirstOrDefaultAsync(rt => rt.Token == token, cancellationToken);
+                .FirstOrDefaultAsync(rt => rt.Token == tokenHash, cancellationToken);
         }
 
         public async Task<IReadOnlyList<RefreshToken>> GetActiveTokensByUserIdAsync(

@@ -1,10 +1,18 @@
 using Planora.Auth.Domain.Exceptions;
+using Planora.Auth.Domain.Security;
 
 namespace Planora.Auth.Domain.Entities;
 
 public sealed class RefreshToken : BaseEntity
 {
     public Guid UserId { get; private set; }
+
+    /// <summary>
+    /// SHA-256 hash of the raw refresh token — never the raw value. Set via the constructor /
+    /// <see cref="UpdateForReLogin"/> from a raw token; compare a presented raw token with
+    /// <see cref="Matches"/>. The raw value exists only transiently in the issuing handler, which
+    /// returns it to the client.
+    /// </summary>
     public string Token { get; private set; }
     public DateTime ExpiresAt { get; private set; }
     public string CreatedByIp { get; private set; }
@@ -57,7 +65,7 @@ public sealed class RefreshToken : BaseEntity
         if (expiresAt <= DateTime.UtcNow) throw new AuthDomainException("Expiration date must be in the future");
 
         UserId = userId;
-        Token = token;
+        Token = RefreshTokenHash.Of(token);
         CreatedByIp = createdByIp;
         ExpiresAt = expiresAt;
         RememberMe = rememberMe;
@@ -67,6 +75,13 @@ public sealed class RefreshToken : BaseEntity
         LoginCount = 1;
         // CreatedAt is set by BaseEntity
     }
+
+    /// <summary>
+    /// True when <paramref name="rawToken"/> is the raw value this record was issued for, compared
+    /// against the stored hash. Used everywhere a presented token must be located in memory.
+    /// </summary>
+    public bool Matches(string rawToken) =>
+        !string.IsNullOrWhiteSpace(rawToken) && Token == RefreshTokenHash.Of(rawToken);
 
     public void Revoke(string revokedByIp, string reason, string? replacedByToken = null)
     {
@@ -89,7 +104,7 @@ public sealed class RefreshToken : BaseEntity
         if (string.IsNullOrWhiteSpace(ipAddress)) throw new AuthDomainException("IP address cannot be empty");
         if (newExpiresAt <= DateTime.UtcNow) throw new AuthDomainException("Expiration date must be in the future");
 
-        Token = newToken;
+        Token = RefreshTokenHash.Of(newToken);
         ExpiresAt = newExpiresAt;
         RememberMe = rememberMe;
         CreatedByIp = ipAddress;

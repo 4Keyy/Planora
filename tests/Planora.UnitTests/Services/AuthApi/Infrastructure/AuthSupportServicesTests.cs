@@ -264,7 +264,8 @@ public sealed class AuthSupportServicesTests
         Assert.Empty(userDetail.RecentLogins);
         Assert.True(userDetail.IsEmailVerified);
         Assert.Equal("Map User", userList.FullName);
-        Assert.Equal("refresh-token", refreshDto.Token);
+        // The entity stores only the token hash; the mapper copies that stored value faithfully.
+        Assert.Equal(refreshToken.Token, refreshDto.Token);
         Assert.True(refreshDto.IsActive);
         Assert.False(refreshDetail.IsRevoked);
         Assert.Equal("Chrome", loginDto.UserAgent);

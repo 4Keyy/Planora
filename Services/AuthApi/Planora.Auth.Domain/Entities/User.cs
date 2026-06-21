@@ -193,7 +193,7 @@ public sealed class User : BaseEntity, IAggregateRoot
 
     public void RevokeRefreshToken(string token, string ipAddress, string reason)
     {
-        var refreshToken = _refreshTokens.FirstOrDefault(t => t.Token == token);
+        var refreshToken = _refreshTokens.FirstOrDefault(t => t.Matches(token));
         if (refreshToken == null)
             throw new AuthDomainException("Refresh token not found");
         if (!refreshToken.IsActive)

@@ -4,6 +4,33 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(security): store refresh tokens hashed at rest (2026-06-21)
+
+- **Refresh tokens are no longer persisted in plaintext.** Unlike the reset/verification tokens
+  (already hashed via `OpaqueToken.Hash`), the refresh token — the longest-lived credential, up to
+  30 days — was written to and looked up by its raw value, so any read access to the database (a
+  backup, a replica, SQLi in a neighbouring table) handed an attacker ready-to-use sessions for every
+  user. The `RefreshToken` entity now stores only `SHA-256(token)`: hashing happens inside the entity
+  constructor and `UpdateForReLogin`, a new `Matches(rawToken)` compares a presented raw value against
+  the stored hash, and the two repository lookups (`UserRepository.GetByRefreshTokenAsync`,
+  `RefreshTokenRepository.GetByTokenAsync`) hash the presented value before querying.
+- **The raw token still reaches the client; only the hash is stored.** Login already returned the raw
+  generated value; Register and the refresh-rotation handler were corrected to return the raw value
+  rather than the entity's (now hashed) `Token`. Rotation and reuse-detection are unchanged in
+  behaviour — the presented token is located by hash, and the existing revoke-reason chain still
+  invalidates a replayed token. No schema change: the existing `Token` column (max length 500, unique
+  index) already accommodates the 64-char hex hash.
+- New `RefreshTokenHash` domain helper mirrors `OpaqueToken.Hash`. A persistence test asserts the
+  stored value is not the raw token yet is still found by it; all 339 Auth tests pass.
+- **Operational note:** on deploy, existing plaintext refresh tokens stop matching (their stored value
+  isn't a hash), so currently-issued refresh tokens are invalidated and users re-authenticate once.
+- Files: `Services/AuthApi/Planora.Auth.Domain/Security/RefreshTokenHash.cs`,
+  `.../Domain/Entities/RefreshToken.cs`, `.../Domain/Entities/User.cs`,
+  `.../Infrastructure/Persistence/Repositories/UserRepository.cs`,
+  `.../Infrastructure/Persistence/Repositories/RefreshTokenRepository.cs`,
+  `.../Application/Features/Authentication/Handlers/{RefreshToken,Register}/*Handler.cs`, and tests.
+- Security: database read access no longer yields usable refresh-token sessions.
+
 ### fix(security): harden token-revocation iat handling and prove it end-to-end (2026-06-21)
 
 - **Verified the cross-service revocation mechanism actually works.** The concern that the consumer

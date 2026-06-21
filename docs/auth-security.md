@@ -9,7 +9,7 @@ Planora uses JWT access tokens and server-side refresh tokens.
 | Credential | Storage | Lifetime | Code |
 |---|---|---|---|
 | Access token | frontend memory only | configured in `JwtSettings:AccessTokenExpirationMinutes` | `frontend/src/store/auth.ts`, `AuthenticationController.cs` |
-| Refresh token | httpOnly `refresh_token` cookie plus server-side DB row | configured in `JwtSettings:RefreshTokenExpirationDays` | `AuthenticationController.cs`, `RefreshToken` entity/config |
+| Refresh token | httpOnly `refresh_token` cookie; server-side DB row stores only the **SHA-256 hash** of the token (`RefreshTokenHash`), never the raw value | configured in `JwtSettings:RefreshTokenExpirationDays` | `AuthenticationController.cs`, `RefreshToken` entity/config |
 | CSRF token | readable `XSRF-TOKEN` cookie and `X-CSRF-Token` header | 1 hour | `AuthenticationController.GetCsrfToken`, `CsrfProtectionMiddleware.cs` |
 
 The frontend persists user metadata and expiry timestamps in session storage, but not raw access or refresh tokens.

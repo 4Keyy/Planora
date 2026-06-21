@@ -2,6 +2,7 @@ using Planora.Auth.Domain.Entities;
 using Planora.Auth.Domain.Enums;
 using Planora.Auth.Domain.Events;
 using Planora.Auth.Domain.Repositories;
+using Planora.Auth.Domain.Security;
 using Planora.BuildingBlocks.Infrastructure.Configuration;
 
 namespace Planora.Auth.Infrastructure.Persistence.Repositories
@@ -33,9 +34,11 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
 
         public async Task<User?> GetByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
         {
+            // Tokens are stored hashed; look up by the hash of the presented raw token.
+            var tokenHash = RefreshTokenHash.Of(refreshToken);
             return await _context.Users
                 .Include(u => u.RefreshTokens)
-                .FirstOrDefaultAsync(u => u.RefreshTokens.Any(rt => rt.Token == refreshToken), cancellationToken);
+                .FirstOrDefaultAsync(u => u.RefreshTokens.Any(rt => rt.Token == tokenHash), cancellationToken);
         }
 
         public async Task<User?> GetByPasswordResetTokenAsync(string tokenHash, CancellationToken cancellationToken = default)

@@ -149,7 +149,9 @@ public sealed class AuthRepositoryPersistenceTests
 
         Assert.Equal(active.Id, (await tokenRepository.GetByTokenAsync("active-token"))?.Id);
         Assert.Null(await tokenRepository.GetByTokenAsync("missing-token"));
-        Assert.Equal("active-token", Assert.Single(await tokenRepository.GetActiveTokensByUserIdAsync(user.Id)).Token);
+        // Tokens are persisted hashed, never as the raw bearer value, but are still found by raw value.
+        Assert.NotEqual("active-token", active.Token);
+        Assert.True(Assert.Single(await tokenRepository.GetActiveTokensByUserIdAsync(user.Id)).Matches("active-token"));
         Assert.Equal(active.Id, (await tokenRepository.FindActiveByUserAndDeviceAsync(user.Id, "device-a"))?.Id);
         Assert.Null(await tokenRepository.FindActiveByUserAndDeviceAsync(user.Id, "device-b"));
 
