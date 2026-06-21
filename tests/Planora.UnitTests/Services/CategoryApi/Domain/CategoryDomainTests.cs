@@ -44,6 +44,14 @@ public class CategoryDomainTests
     }
 
     [Fact]
+    public void Create_ShouldRejectEmptyOwner()
+    {
+        // Guards against ownerless categories (e.g. a gRPC create with no resolved user context).
+        Assert.Throws<ArgumentException>(() =>
+            CategoryEntity.Create(Guid.Empty, "Work", null, "#007BFF", null, 0));
+    }
+
+    [Fact]
     public void Create_ShouldRejectLongNamesAndInvalidColors()
     {
         Assert.Throws<ArgumentException>(() =>

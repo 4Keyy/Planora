@@ -114,7 +114,18 @@ public class CategoryGrpcServiceTests
     }
 
     [Fact]
-    public async Task CreateUpdateDelete_ShouldMapSuccessAndInternalFailures()
+    public async Task GetUserCategories_ShouldRejectMissingUser()
+    {
+        var service = CreateService(new Mock<IMediator>());
+
+        var ex = await Assert.ThrowsAsync<RpcException>(() =>
+            service.GetUserCategories(new GetUserCategoriesRequest { UserId = "" }, CreateContext()));
+
+        Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateCategory_ShouldMapSuccess_RejectMissingUser_AndMapFailure()
     {
         var mediator = new Mock<IMediator>();
         var service = CreateService(mediator);
@@ -123,26 +134,16 @@ public class CategoryGrpcServiceTests
         mediator
             .Setup(x => x.Send(It.IsAny<CreateCategoryCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ApplicationResult.Success(CategoryDto(userId, "Created", "#111111", "plus", categoryId)));
-        mediator
-            .Setup(x => x.Send(It.IsAny<UpdateCategoryCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ApplicationResult.Success(CategoryDto(userId, "Updated", "#222222", "edit", categoryId)));
-        mediator
-            .Setup(x => x.Send(It.IsAny<DeleteCategoryCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ApplicationResult.Success());
 
         var create = await service.CreateCategory(
             new CreateCategoryRequest { UserId = userId.ToString(), Name = "Created" },
             CreateContext());
-        var update = await service.UpdateCategory(
-            new UpdateCategoryRequest { Id = categoryId.ToString(), Name = "Updated" },
-            CreateContext());
-        var delete = await service.DeleteCategory(
-            new DeleteCategoryRequest { Id = categoryId.ToString() },
-            CreateContext());
-
         Assert.Equal(categoryId.ToString(), create.Id);
-        Assert.True(update.Success);
-        Assert.True(delete.Success);
+
+        // An empty/invalid owner is rejected before the handler runs (no orphan category).
+        var missingUser = await Assert.ThrowsAsync<RpcException>(() =>
+            service.CreateCategory(new CreateCategoryRequest { UserId = "", Name = "x" }, CreateContext()));
+        Assert.Equal(StatusCode.Unauthenticated, missingUser.StatusCode);
 
         mediator
             .Setup(x => x.Send(It.IsAny<CreateCategoryCommand>(), It.IsAny<CancellationToken>()))
@@ -150,20 +151,26 @@ public class CategoryGrpcServiceTests
         var createFailed = await Assert.ThrowsAsync<RpcException>(() =>
             service.CreateCategory(new CreateCategoryRequest { UserId = userId.ToString(), Name = "Bad" }, CreateContext()));
         Assert.Equal(StatusCode.Internal, createFailed.StatusCode);
+    }
 
-        mediator
-            .Setup(x => x.Send(It.IsAny<UpdateCategoryCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ApplicationResult.Failure<CategoryDto>("UPDATE_FAILED", "update failed"));
-        var updateFailed = await Assert.ThrowsAsync<RpcException>(() =>
-            service.UpdateCategory(new UpdateCategoryRequest { Id = categoryId.ToString(), Name = "Bad" }, CreateContext()));
-        Assert.Equal(StatusCode.Internal, updateFailed.StatusCode);
+    [Fact]
+    public async Task UpdateAndDeleteCategory_ShouldBeRefusedOverGrpc()
+    {
+        var mediator = new Mock<IMediator>();
+        var service = CreateService(mediator);
 
-        mediator
-            .Setup(x => x.Send(It.IsAny<DeleteCategoryCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ApplicationResult.Failure("DELETE_FAILED", "delete failed"));
-        var deleteFailed = await Assert.ThrowsAsync<RpcException>(() =>
-            service.DeleteCategory(new DeleteCategoryRequest { Id = categoryId.ToString() }, CreateContext()));
-        Assert.Equal(StatusCode.Internal, deleteFailed.StatusCode);
+        // Mutations carry no owner identity over gRPC, so the surface refuses them outright.
+        var update = await Assert.ThrowsAsync<RpcException>(() =>
+            service.UpdateCategory(new UpdateCategoryRequest { Id = Guid.NewGuid().ToString(), Name = "x" }, CreateContext()));
+        Assert.Equal(StatusCode.PermissionDenied, update.StatusCode);
+
+        var delete = await Assert.ThrowsAsync<RpcException>(() =>
+            service.DeleteCategory(new DeleteCategoryRequest { Id = Guid.NewGuid().ToString() }, CreateContext()));
+        Assert.Equal(StatusCode.PermissionDenied, delete.StatusCode);
+
+        // The refused mutations must never reach the handler.
+        mediator.Verify(x => x.Send(It.IsAny<UpdateCategoryCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+        mediator.Verify(x => x.Send(It.IsAny<DeleteCategoryCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static CategoryGrpcService CreateService(Mock<IMediator> mediator)

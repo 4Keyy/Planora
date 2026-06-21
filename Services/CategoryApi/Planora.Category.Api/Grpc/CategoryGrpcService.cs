@@ -22,7 +22,10 @@ public class CategoryGrpcService : CategoryService.CategoryServiceBase
 
     public override async Task<GetUserCategoriesResponse> GetUserCategories(GetUserCategoriesRequest request, ServerCallContext context)
     {
-        var query = new GetUserCategoriesQuery(string.IsNullOrEmpty(request.UserId) ? null : Guid.Parse(request.UserId));
+        // The gRPC surface carries no end-user identity, so the caller MUST scope the read to a
+        // specific user; never fall back to a null/empty user that would widen the query.
+        var userId = RequireUserId(request.UserId);
+        var query = new GetUserCategoriesQuery(userId);
         var result = await _mediator.Send(query);
 
         if (result.IsFailure)
@@ -109,8 +112,12 @@ public class CategoryGrpcService : CategoryService.CategoryServiceBase
 
     public override async Task<CreateCategoryResponse> CreateCategory(CreateCategoryRequest request, ServerCallContext context)
     {
+        // Require an explicit owner: without it the command would resolve Guid.Empty over gRPC
+        // (no HttpContext.User) and create an ownerless category. The domain Category.Create now
+        // also rejects an empty owner as a second line of defence.
+        var userId = RequireUserId(request.UserId);
         var command = new CreateCategoryCommand(
-            string.IsNullOrEmpty(request.UserId) ? null : Guid.Parse(request.UserId),
+            userId,
             request.Name,
             null, // Description
             null, // Color
@@ -130,35 +137,29 @@ public class CategoryGrpcService : CategoryService.CategoryServiceBase
         };
     }
 
-    public override async Task<UpdateCategoryResponse> UpdateCategory(UpdateCategoryRequest request, ServerCallContext context)
+    // Mutations carry no owner identity over the gRPC contract (UpdateCategoryRequest /
+    // DeleteCategoryRequest have no user_id) and have no internal gRPC caller — the only client,
+    // TodoApi, calls GetCategoryById only. Rather than mutate from an unauthenticated Guid.Empty
+    // context (which would write/delete without ownership scoping), the gRPC surface refuses
+    // mutations. Category create/update/delete is performed through the authenticated HTTP API.
+    public override Task<UpdateCategoryResponse> UpdateCategory(UpdateCategoryRequest request, ServerCallContext context)
+        => throw new RpcException(new global::Grpc.Core.Status(
+            global::Grpc.Core.StatusCode.PermissionDenied,
+            "Category updates are not available over gRPC; use the authenticated HTTP API."));
+
+    public override Task<DeleteCategoryResponse> DeleteCategory(DeleteCategoryRequest request, ServerCallContext context)
+        => throw new RpcException(new global::Grpc.Core.Status(
+            global::Grpc.Core.StatusCode.PermissionDenied,
+            "Category deletes are not available over gRPC; use the authenticated HTTP API."));
+
+    // A valid, non-empty user id is mandatory on the user-scoped gRPC methods.
+    private static Guid RequireUserId(string rawUserId)
     {
-        var command = new UpdateCategoryCommand(Guid.Parse(request.Id), request.Name);
-        var result = await _mediator.Send(command);
-
-        if (result.IsFailure)
+        if (!Guid.TryParse(rawUserId, out var userId) || userId == Guid.Empty)
         {
-            throw new RpcException(new global::Grpc.Core.Status(global::Grpc.Core.StatusCode.Internal, result.Error?.Message ?? "Unknown Error"));
+            throw new RpcException(new global::Grpc.Core.Status(
+                global::Grpc.Core.StatusCode.Unauthenticated, "A valid user id is required"));
         }
-
-        return new UpdateCategoryResponse
-        {
-            Success = true
-        };
-    }
-
-    public override async Task<DeleteCategoryResponse> DeleteCategory(DeleteCategoryRequest request, ServerCallContext context)
-    {
-        var command = new DeleteCategoryCommand(Guid.Parse(request.Id));
-        var result = await _mediator.Send(command);
-
-        if (result.IsFailure)
-        {
-            throw new RpcException(new global::Grpc.Core.Status(global::Grpc.Core.StatusCode.Internal, result.Error?.Message ?? "Unknown Error"));
-        }
-
-        return new DeleteCategoryResponse
-        {
-            Success = true
-        };
+        return userId;
     }
 }

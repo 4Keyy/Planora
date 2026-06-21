@@ -4,6 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(security): harden the Category gRPC surface against IDOR and ownerless writes (2026-06-21)
+
+- **No more ownerless categories.** Over gRPC there is no `HttpContext.User`, so `CreateCategory`
+  resolved an empty owner and `Category.Create` had no guard — a create with a missing/empty
+  `user_id` produced an ownerless row. `Category.Create` now rejects `Guid.Empty` as a domain
+  invariant, and the gRPC `CreateCategory`/`GetUserCategories` methods require a valid, non-empty
+  `user_id` (reject with `Unauthenticated`) instead of falling back to a null/empty user that would
+  orphan a write or widen a read.
+- **Unauthorizable mutations are refused.** The gRPC contract carries no owner identity for
+  `UpdateCategory`/`DeleteCategory` (their request messages have no `user_id`), and the only gRPC
+  client — TodoApi — calls `GetCategoryById` exclusively. Rather than mutate from an unauthenticated
+  `Guid.Empty` context (an IDOR/authz gap), those two methods now fail closed with `PermissionDenied`;
+  category create/update/delete is done through the authenticated HTTP API. `GetCategoryById` already
+  enforced a valid user and is unchanged.
+- Files: `Services/CategoryApi/Planora.Category.Domain/Entities/Category.cs`,
+  `Services/CategoryApi/Planora.Category.Api/Grpc/CategoryGrpcService.cs`,
+  `tests/Planora.UnitTests/Services/CategoryApi/Grpc/CategoryGrpcServiceTests.cs`,
+  `tests/Planora.UnitTests/Services/CategoryApi/Domain/CategoryDomainTests.cs`.
+- Security: closes the gRPC IDOR/ownerless-write surface on the Category service (defense-in-depth atop the service key).
+
 ### fix(cache): align L1/L2 TTLs and evict L1 on pattern invalidation (2026-06-21)
 
 - **L1 no longer serves data past its intended lifetime.** The in-process (L1) cache was written with

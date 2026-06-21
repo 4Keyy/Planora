@@ -27,6 +27,8 @@ public sealed class Category : BaseEntity, IAggregateRoot
         int order,
         Guid? parentCategoryId = null)
     {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("Category owner (userId) cannot be empty", nameof(userId));
         ValidateName(name);
         ValidateColor(color);
 
