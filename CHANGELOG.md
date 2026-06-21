@@ -4,6 +4,31 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(messaging): dead-letter poison events, thread-safe bus, pooled publish channel (2026-06-21)
+
+- **Stopped the infinite poison-message requeue loop.** `RabbitMqEventBus` previously answered
+  *every* consume failure with `BasicNack(requeue: true)`, so a message that could never be processed
+  (e.g. an undeserialisable payload) was redelivered and re-failed forever at ~100% CPU, blocking the
+  whole queue behind `prefetch=1` and bypassing the declared dead-letter exchange. Failures are now
+  **classified**: a `JsonException` (poison) is dead-lettered immediately, any other (transient) failure
+  is requeued exactly once and dead-lettered on the redelivery. An event with no resolvable handler is
+  dead-lettered rather than requeued. The decision is an extracted, unit-tested
+  `ClassifyFailure(exception, redelivered)` helper (4 tests, via `InternalsVisibleTo`).
+- **Made the singleton bus thread-safe.** `_eventHandlers` and `_consumerChannels` were plain
+  `Dictionary`s mutated by `Subscribe`/`Unsubscribe` while async consumer callbacks read them — a torn
+  read / `InvalidOperationException` waiting to happen. They are now `ConcurrentDictionary`, and handler
+  lists are copy-on-write (replaced, never mutated in place) so a consumer enumerating a snapshot is
+  never disturbed by a concurrent subscription change.
+- **Reused the confirm channel for publishing.** Each publish used to create a channel, declare the
+  exchange, and dispose — ~3 extra AMQP round-trips per message, which dominated when the outbox drains
+  in batches. Publishing now reuses a single confirm-tracking channel (serialised by a `SemaphoreSlim`,
+  rebuilt on fault), declaring the exchange once, while preserving the publisher-confirms + `mandatory`
+  durability guarantee the outbox relies on.
+- Files: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs`,
+  `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Planora.BuildingBlocks.Infrastructure.csproj`,
+  `tests/Planora.UnitTests/BuildingBlocks/Messaging/RabbitMqEventBusFailureTests.cs`.
+- Performance: removes ~3 AMQP round-trips per published event; eliminates the poison-message CPU spin.
+
 ### fix(idempotency): atomic reservation + guaranteed response-stream restore (2026-06-21)
 
 - **Closed a check-then-act race that allowed double execution.** `IdempotencyMiddleware`

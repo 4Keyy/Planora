@@ -63,4 +63,8 @@
     <ProjectReference Include="..\Planora.BuildingBlocks.Domain\Planora.BuildingBlocks.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Planora.UnitTests" />
+  </ItemGroup>
+
 </Project>
