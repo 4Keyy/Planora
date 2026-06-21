@@ -283,8 +283,9 @@ public class FriendshipHandlerTests
         fixture.Friendships
             .Setup(x => x.GetFriendshipsForUserAsync(userId, FriendshipStatus.Accepted, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { accepted1, accepted2 });
-        fixture.Users.Setup(x => x.GetByIdAsync(friend1.Id, It.IsAny<CancellationToken>())).ReturnsAsync(friend1);
-        fixture.Users.Setup(x => x.GetByIdAsync(friend2.Id, It.IsAny<CancellationToken>())).ReturnsAsync(friend2);
+        fixture.Users
+            .Setup(x => x.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { friend1, friend2 });
 
         var result = await fixture.CreateGetFriendsHandler().Handle(
             new GetFriendsQuery(PageNumber: 2, PageSize: 1),
@@ -310,8 +311,9 @@ public class FriendshipHandlerTests
         fixture.Friendships
             .Setup(x => x.GetFriendshipsForUserAsync(userId, FriendshipStatus.Pending, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { incoming, outgoing });
-        fixture.Users.Setup(x => x.GetByIdAsync(requester.Id, It.IsAny<CancellationToken>())).ReturnsAsync(requester);
-        fixture.Users.Setup(x => x.GetByIdAsync(addressee.Id, It.IsAny<CancellationToken>())).ReturnsAsync(addressee);
+        fixture.Users
+            .Setup(x => x.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { requester, addressee });
 
         var incomingResult = await fixture.CreateGetFriendRequestsHandler().Handle(
             new GetFriendRequestsQuery(Incoming: true),

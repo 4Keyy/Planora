@@ -35,39 +35,44 @@ namespace Planora.Auth.Application.Features.Friendships.Queries.GetFriendRequest
                     Domain.Enums.FriendshipStatus.Pending,
                     cancellationToken);
 
-                var requests = new List<FriendRequestDto>();
-
+                // Resolve the "other party" for each pending request in the requested direction,
+                // then batch-load those users in one AsNoTracking query instead of a per-request
+                // GetByIdAsync (was N+1).
+                var pending = new List<(Domain.Entities.Friendship Friendship, Guid OtherUserId)>();
                 foreach (var friendship in friendships)
                 {
-                    Guid otherUserId;
                     if (request.Incoming && friendship.AddresseeId == userId)
                     {
-                        otherUserId = friendship.RequesterId;
+                        pending.Add((friendship, friendship.RequesterId));
                     }
                     else if (!request.Incoming && friendship.RequesterId == userId)
                     {
-                        otherUserId = friendship.AddresseeId;
+                        pending.Add((friendship, friendship.AddresseeId));
                     }
-                    else
-                    {
-                        continue;
-                    }
+                }
 
-                    var user = await _userRepository.GetByIdAsync(otherUserId, cancellationToken);
-                    if (user != null)
+                var users = await _userRepository.GetByIdsAsync(
+                    pending.Select(p => p.OtherUserId),
+                    cancellationToken);
+                var usersById = users.ToDictionary(u => u.Id);
+
+                var requests = new List<FriendRequestDto>();
+                foreach (var (friendship, otherUserId) in pending)
+                {
+                    if (!usersById.TryGetValue(otherUserId, out var user))
+                        continue;
+
+                    requests.Add(new FriendRequestDto
                     {
-                        requests.Add(new FriendRequestDto
-                        {
-                            FriendshipId = friendship.Id,
-                            UserId = user.Id,
-                            Email = user.Email.Value,
-                            FirstName = user.FirstName,
-                            LastName = user.LastName,
-                            ProfilePictureUrl = user.ProfilePictureUrl,
-                            RequestedAt = friendship.RequestedAt ?? friendship.CreatedAt,
-                            Status = friendship.Status.ToString()
-                        });
-                    }
+                        FriendshipId = friendship.Id,
+                        UserId = user.Id,
+                        Email = user.Email.Value,
+                        FirstName = user.FirstName,
+                        LastName = user.LastName,
+                        ProfilePictureUrl = user.ProfilePictureUrl,
+                        RequestedAt = friendship.RequestedAt ?? friendship.CreatedAt,
+                        Status = friendship.Status.ToString()
+                    });
                 }
 
                 return Result.Success((IReadOnlyList<FriendRequestDto>)requests);

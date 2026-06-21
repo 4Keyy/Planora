@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### perf(auth): batch friend lookups to remove the friends/requests N+1 (2026-06-21)
+
+- **One query instead of N+1.** `GetFriendsQueryHandler` and `GetFriendRequestsQueryHandler` issued
+  one tracking `GetByIdAsync` per friend/request (501 round-trips for 500 friends, plus needless
+  change-tracking). Both now collect the counterpart user ids and resolve them in a single
+  `GetByIdsAsync` batch (which is `AsNoTracking`), then map from an in-memory dictionary — two queries
+  total regardless of friend count.
+- Files: `Services/AuthApi/Planora.Auth.Application/Features/Friendships/Queries/GetFriends/GetFriendsQueryHandler.cs`,
+  `.../Queries/GetFriendRequests/GetFriendRequestsQueryHandler.cs`,
+  `tests/Planora.UnitTests/Services/AuthApi/Friendships/FriendshipHandlerTests.cs`.
+- Performance: friends list and friend-requests endpoints go from O(friends) queries to O(1).
+
 ### fix(gateway): rate-limit the auth routes at the edge (2026-06-21)
 
 - **Login/register/refresh are now throttled.** The Ocelot route that proxies the whole Auth

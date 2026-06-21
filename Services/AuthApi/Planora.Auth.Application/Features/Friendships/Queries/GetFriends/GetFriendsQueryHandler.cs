@@ -40,26 +40,30 @@ namespace Planora.Auth.Application.Features.Friendships.Queries.GetFriends
                     .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId)
                     .ToList();
 
+                // Batch-load the friend users in a single AsNoTracking query instead of one
+                // tracking GetByIdAsync per friend (was N+1 — 501 queries for 500 friends).
+                var users = await _userRepository.GetByIdsAsync(friendIds, cancellationToken);
+                var usersById = users.ToDictionary(u => u.Id);
+
                 var friends = new List<FriendDto>();
                 foreach (var friendId in friendIds)
                 {
-                    var friend = await _userRepository.GetByIdAsync(friendId, cancellationToken);
-                    if (friend != null)
-                    {
-                        var friendship = friendships.First(f =>
-                            (f.RequesterId == userId && f.AddresseeId == friendId) ||
-                            (f.RequesterId == friendId && f.AddresseeId == userId));
+                    if (!usersById.TryGetValue(friendId, out var friend))
+                        continue;
 
-                        friends.Add(new FriendDto
-                        {
-                            Id = friend.Id,
-                            Email = friend.Email.Value,
-                            FirstName = friend.FirstName,
-                            LastName = friend.LastName,
-                            ProfilePictureUrl = friend.ProfilePictureUrl,
-                            FriendsSince = friendship.AcceptedAt ?? friendship.CreatedAt
-                        });
-                    }
+                    var friendship = friendships.First(f =>
+                        (f.RequesterId == userId && f.AddresseeId == friendId) ||
+                        (f.RequesterId == friendId && f.AddresseeId == userId));
+
+                    friends.Add(new FriendDto
+                    {
+                        Id = friend.Id,
+                        Email = friend.Email.Value,
+                        FirstName = friend.FirstName,
+                        LastName = friend.LastName,
+                        ProfilePictureUrl = friend.ProfilePictureUrl,
+                        FriendsSince = friendship.AcceptedAt ?? friendship.CreatedAt
+                    });
                 }
 
                 var totalCount = friends.Count;
