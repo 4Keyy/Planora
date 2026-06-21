@@ -88,6 +88,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   `frontend/src/components/todos/todo-card.tsx`,
   `tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoQueryHandlerTests.cs`,
   `docs/API.md`, `docs/features.md`.
+
 ### fix(launcher): -Lan now verifies the firewall and reports honest LAN reachability (2026-06-20)
 
 - **Root cause of "I can't open the app from another device, VPN or not".** `-Lan` opened the Windows
