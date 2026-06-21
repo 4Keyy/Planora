@@ -90,6 +90,30 @@ public sealed class CacheServiceMetricsTests
         Assert.Equal("miss", records[0].Outcome);
     }
 
+    [Fact]
+    [Trait("TestType", "Module")]
+    [Trait("TestType", "Regression")]
+    public async Task RemoveByPatternAsync_EvictsL1_SoNextReadFallsThroughToL2()
+    {
+        var records = new List<(string Outcome, string Prefix)>();
+        using var listener = SubscribeToCacheCounter(records);
+
+        var service = CreateService(localCacheEnabled: true);
+
+        await service.SetAsync("Todo:abc", "value", TimeSpan.FromMinutes(5));
+
+        // Before removal the value is served from the in-process L1 cache.
+        Assert.Equal("value", await service.GetAsync<string>("Todo:abc"));
+        Assert.Equal(("hit_l1", "Todo"), records[0]);
+
+        // Pattern removal must evict the L1 "Todo" prefix even though the in-memory L2 still holds
+        // the entry (no raw multiplexer here), so the next read falls through to L2 instead of L1.
+        await service.RemoveByPatternAsync("Todo:*");
+
+        Assert.Equal("value", await service.GetAsync<string>("Todo:abc"));
+        Assert.Equal(("hit_l2", "Todo"), records[^1]);
+    }
+
     private static CacheService CreateService(bool localCacheEnabled)
     {
         // In-memory IDistributedCache (Microsoft.Extensions.Caching.Memory.MemoryDistributedCache)

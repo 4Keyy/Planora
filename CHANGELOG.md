@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(cache): align L1/L2 TTLs and evict L1 on pattern invalidation (2026-06-21)
+
+- **L1 no longer serves data past its intended lifetime.** The in-process (L1) cache was written with
+  a flat 5-minute TTL regardless of the requested L2 expiration, so `SetAsync(key, val, 30s)` could
+  still be served from L1 for up to 5 minutes. L1 now uses `min(requested TTL, L1MaxTtl=5min)` on
+  writes, and on a read-through populate it caps by the L2 entry's *remaining* TTL (read via the raw
+  multiplexer when available) so an L1 copy can never outlive its L2 source.
+- **`RemoveByPatternAsync` now evicts L1.** Previously it was a no-op for L1 (and returned early when
+  no raw multiplexer was registered), so even an explicit invalidation left stale entries in process
+  memory for up to 5 minutes. Each L1 entry now carries a prefix-scoped `CancellationChangeToken`;
+  pattern removal cancels the prefix's token, evicting the whole first-segment prefix from L1 at once.
+  Over-eviction of L1 is intentional and safe — it only forces a reload from L2, never a stale read —
+  and it now runs even when Redis SCAN is unavailable.
+- Files: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheService.cs`,
+  `tests/Planora.UnitTests/BuildingBlocks/Caching/CacheServiceMetricsTests.cs`.
+
 ### fix(security): store refresh tokens hashed at rest (2026-06-21)
 
 - **Refresh tokens are no longer persisted in plaintext.** Unlike the reset/verification tokens

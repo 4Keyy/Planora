@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using Microsoft.Extensions.Primitives;
+
 namespace Planora.BuildingBlocks.Infrastructure.Caching
 {
     public sealed class CacheService : ICacheService
@@ -16,6 +19,18 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
         // this length is collapsed to "_long_" so the metric stays useful.
         private const int MaxPrefixLength = 48;
         private const string PrefixFallback = "_other_";
+
+        // Upper bound on how long an entry may live in the in-process L1 cache. The actual L1 TTL
+        // is min(requested L2 TTL, this) so a short-lived L2 entry can never be served stale from L1
+        // for longer than it was meant to live (previously L1 used a flat 5 min regardless of the
+        // requested expiration).
+        private static readonly TimeSpan L1MaxTtl = TimeSpan.FromMinutes(5);
+
+        // One cancellation source per key prefix (entity name), wired as an expiration token onto
+        // every L1 entry of that prefix. RemoveByPatternAsync cancels it to evict the whole prefix
+        // from L1 in one shot — IMemoryCache cannot be enumerated, and over-eviction of L1 is safe
+        // (it only causes a reload from L2, never a stale read).
+        private readonly ConcurrentDictionary<string, CancellationTokenSource> _l1PrefixTokens = new();
 
         private readonly IDistributedCache _distributedCache;
         private readonly IMemoryCache _memoryCache;
@@ -61,12 +76,10 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
 
                 if (_options.UseLocalCache && value is not null)
                 {
-                    var memoryCacheOptions = new MemoryCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5),
-                        Size = 1
-                    };
-                    _memoryCache.Set(key, value, memoryCacheOptions);
+                    // Don't let L1 outlive the L2 entry: cap by the remaining L2 TTL when we can
+                    // read it, otherwise by L1MaxTtl. BuildL1Options caps at L1MaxTtl regardless.
+                    var remaining = await GetRemainingL2TtlAsync(key) ?? L1MaxTtl;
+                    _memoryCache.Set(key, value, BuildL1Options(prefix, remaining));
                 }
 
                 _logger.LogDebug("Cache hit (L2 Redis) for key: {Key}", key);
@@ -102,6 +115,40 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
             return first;
         }
 
+        // Build the L1 entry options: TTL capped at L1MaxTtl, plus a prefix-scoped expiration token
+        // so RemoveByPatternAsync can evict the whole prefix from L1 at once.
+        private MemoryCacheEntryOptions BuildL1Options(string prefix, TimeSpan requestedTtl)
+        {
+            var ttl = requestedTtl < L1MaxTtl ? requestedTtl : L1MaxTtl;
+            if (ttl <= TimeSpan.Zero) ttl = L1MaxTtl;
+
+            var options = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = ttl,
+                Size = 1
+            };
+            options.AddExpirationToken(new CancellationChangeToken(GetPrefixCts(prefix).Token));
+            return options;
+        }
+
+        private CancellationTokenSource GetPrefixCts(string prefix) =>
+            _l1PrefixTokens.GetOrAdd(prefix, _ => new CancellationTokenSource());
+
+        // Remaining TTL of the L2 entry, used to bound the L1 copy so it cannot outlive L2.
+        // Returns null when the raw multiplexer is unavailable or the key has no expiry.
+        private async Task<TimeSpan?> GetRemainingL2TtlAsync(string key)
+        {
+            if (_redis is null) return null;
+            try
+            {
+                return await _redis.GetDatabase().KeyTimeToLiveAsync(RedisInstanceName + key);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public async Task SetAsync<T>(
             string key,
             T value,
@@ -110,6 +157,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
         {
             try
             {
+                var prefix = ExtractPrefix(key);
                 var serializedValue = JsonSerializer.Serialize(value);
                 var expirationTime = expiration ?? _options.DefaultExpiration;
 
@@ -122,12 +170,9 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
 
                 if (_options.UseLocalCache)
                 {
-                    var memoryCacheOptions = new MemoryCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5),
-                        Size = 1
-                    };
-                    _memoryCache.Set(key, value, memoryCacheOptions);
+                    // L1 honours the requested TTL (capped at L1MaxTtl) instead of a flat 5 min,
+                    // so a SetAsync(key, val, 30s) is never served from L1 for longer than 30s.
+                    _memoryCache.Set(key, value, BuildL1Options(prefix, expirationTime));
                 }
 
                 _logger.LogDebug("Cache set for key: {Key}, Expiration: {Expiration}", key, expirationTime);
@@ -164,9 +209,23 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
                 return;
             }
 
-            // L1 (in-process) cache cannot be enumerated; the only contract we can honour is
-            // L2 (Redis) invalidation. Consumers must rely on the L1 absolute-expiration window
-            // (currently 5 minutes) for the in-process layer.
+            // L1: evict the entire first-segment prefix by cancelling its change token. IMemoryCache
+            // cannot be enumerated, so we over-evict the prefix — safe, because L1 over-eviction only
+            // forces a reload from L2 and never serves stale data. Done first so it happens even when
+            // the raw multiplexer is unavailable (the Redis SCAN below is skipped in that case).
+            if (_options.UseLocalCache)
+            {
+                var l1Prefix = ExtractPrefix(
+                    pattern.StartsWith(RedisInstanceName, StringComparison.Ordinal)
+                        ? pattern[RedisInstanceName.Length..]
+                        : pattern);
+                if (_l1PrefixTokens.TryRemove(l1Prefix, out var prefixCts))
+                {
+                    prefixCts.Cancel();
+                    prefixCts.Dispose();
+                }
+            }
+
             if (_redis is null)
             {
                 _logger.LogWarning(
@@ -215,16 +274,8 @@ namespace Planora.BuildingBlocks.Infrastructure.Caching
                     }
                 }
 
-                if (_options.UseLocalCache)
-                {
-                    // Best-effort: IMemoryCache does not expose its key set, so a pattern-wide
-                    // L1 wipe is impossible. Document the contract: L1 entries naturally expire
-                    // within 5 minutes; callers that need immediate L1 invalidation must call
-                    // RemoveAsync with each concrete key.
-                }
-
                 _logger.LogInformation(
-                    "Cache pattern-remove for {Pattern}: {Count} keys unlinked.",
+                    "Cache pattern-remove for {Pattern}: {Count} keys unlinked (L1 prefix evicted).",
                     pattern, deleted);
             }
             catch (OperationCanceledException)
