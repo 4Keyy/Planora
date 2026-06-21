@@ -74,6 +74,20 @@ public class SecurityStampValidatorTests
     }
 
     [Fact]
+    public async Task IsTokenRevokedAsync_ReturnsTrue_WhenStampExistsButIatMissing()
+    {
+        // A revocation event is recorded for the user, but the token carries no iat — we cannot
+        // prove it was issued after the password change, so fail closed and force re-auth.
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString())
+        }));
+        var redis = BuildRedis(DateTime.UtcNow.ToString("O"));
+
+        Assert.True(await SecurityStampValidator.IsTokenRevokedAsync(redis, principal));
+    }
+
+    [Fact]
     public async Task IsTokenRevokedAsync_FailsOpen_WhenRedisThrows()
     {
         var principal = BuildPrincipal(Guid.NewGuid(), DateTimeOffset.UtcNow.AddHours(-1));

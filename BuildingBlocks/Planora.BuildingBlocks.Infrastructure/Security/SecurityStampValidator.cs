@@ -17,10 +17,13 @@ public static class SecurityStampValidator
     public const string StampKeyPrefix = "security:stamp:";
 
     /// <summary>
-    /// Returns <c>true</c> when the authenticated principal's token predates the
-    /// stored security stamp and must be rejected. Fails open (returns
-    /// <c>false</c>) when Redis is unavailable so a cache outage cannot lock out
-    /// every user; fails closed only on a confirmed stale token.
+    /// Returns <c>true</c> when the authenticated principal's token predates the stored security
+    /// stamp and must be rejected. Fails <b>open</b> (returns <c>false</c>) when Redis is
+    /// unavailable so a cache outage cannot lock out every user, and when no stamp exists for the
+    /// user (no security event to enforce). When a stamp <b>does</b> exist, it fails <b>closed</b>:
+    /// a token issued before the stamp is rejected, and so is a token whose <c>iat</c> cannot be
+    /// read — because the revocation event is proven and the token cannot be shown to postdate it.
+    /// (<c>iat</c> is reliably present on real tokens; see SecurityStampJwtClaimTests.)
     /// </summary>
     public static async Task<bool> IsTokenRevokedAsync(
         IConnectionMultiplexer? redis,
@@ -36,10 +39,6 @@ public static class SecurityStampValidator
             if (sub is null || !Guid.TryParse(sub, out var userId))
                 return false;
 
-            var iat = principal.FindFirst("iat")?.Value;
-            if (iat is null || !long.TryParse(iat, out var iatSeconds))
-                return false;
-
             var raw = await redis.GetDatabase().StringGetAsync(StampKeyPrefix + userId);
             if (raw.IsNullOrEmpty)
                 return false;
@@ -47,6 +46,12 @@ public static class SecurityStampValidator
             if (!DateTime.TryParse(raw.ToString(), CultureInfo.InvariantCulture,
                     DateTimeStyles.RoundtripKind, out var stamp))
                 return false;
+
+            // A revocation event exists for this user. We must prove the token was issued after it;
+            // if iat is absent or unparseable we cannot, so fail closed and force re-authentication.
+            var iat = principal.FindFirst("iat")?.Value;
+            if (iat is null || !long.TryParse(iat, out var iatSeconds))
+                return true;
 
             var issuedAt = DateTimeOffset.FromUnixTimeSeconds(iatSeconds).UtcDateTime;
             return issuedAt < stamp;

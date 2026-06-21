@@ -4,6 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(security): harden token-revocation iat handling and prove it end-to-end (2026-06-21)
+
+- **Verified the cross-service revocation mechanism actually works.** The concern that the consumer
+  JWT pipeline's default `MapInboundClaims=true` drops/remaps `iat` (which would make
+  `SecurityStampValidator` silently fail open, so a password change never revokes issued access
+  tokens) was investigated empirically: a real token from the Auth `TokenService`, validated the way
+  the consumer pipeline validates (`JsonWebTokenHandler`), exposes a parseable `iat` under **both**
+  `MapInboundClaims` settings. New `SecurityStampJwtClaimTests` lock this guarantee so a future
+  identity-stack upgrade that changed it would fail CI.
+- **Closed the latent fail-open.** `SecurityStampValidator` now checks the stamp first and, when a
+  revocation event *does* exist for the user but the token's `iat` is absent/unparseable, fails
+  **closed** (treats the token as revoked) instead of returning "not revoked" — we have positive
+  evidence of a security event and cannot prove the token postdates it. It still fails **open** for a
+  Redis outage or when no stamp exists, so availability is preserved; and because `iat` is reliably
+  present (guarded by the test above) this branch never triggers for legitimate tokens.
+- Files: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Security/SecurityStampValidator.cs`,
+  `tests/Planora.UnitTests/BuildingBlocks/Security/SecurityStampValidatorTests.cs`,
+  `tests/Planora.UnitTests/BuildingBlocks/Security/SecurityStampJwtClaimTests.cs`.
+- Security: password change/reset now provably revokes outstanding access tokens; ambiguous tokens fail closed.
+
 ### perf(auth): push user statistics and listing queries to the database (2026-06-21)
 
 - **Eliminated two full-table-scan-into-memory admin queries.** `GetUserStatisticsQueryHandler` called
