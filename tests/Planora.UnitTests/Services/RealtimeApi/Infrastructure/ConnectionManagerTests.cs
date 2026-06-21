@@ -68,4 +68,31 @@ public class ConnectionManagerTests
         Assert.Equal(0, manager.GetTotalConnections());
         Assert.Empty(manager.GetUserConnections("user-0"));
     }
+
+    [Fact]
+    [Trait("TestType", "Load")]
+    [Trait("TestType", "Regression")]
+    public async Task ConnectionManager_ConcurrentLastRemoveAndNewAdd_DoesNotOrphanTheNewConnection()
+    {
+        // Repeatedly drives the exact TOCTOU window: removing a user's last connection (which empties
+        // and removes the bucket) at the same instant a new connection is added for that user. The
+        // new connection must always survive — the previous check-then-remove could delete the bucket
+        // the racing add had just populated, orphaning a live connection.
+        var manager = new ConnectionManager(Mock.Of<ILogger<ConnectionManager>>());
+        const string user = "race-user";
+
+        for (var i = 0; i < 500; i++)
+        {
+            await manager.AddConnectionAsync(user, "seed");
+
+            await Task.WhenAll(
+                manager.RemoveConnectionAsync(user, "seed"),
+                manager.AddConnectionAsync(user, $"new-{i}"));
+
+            var connections = manager.GetUserConnections(user);
+            Assert.Contains($"new-{i}", connections);
+
+            await manager.RemoveConnectionAsync(user, $"new-{i}"); // reset for the next iteration
+        }
+    }
 }

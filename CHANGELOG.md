@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(realtime): close the ConnectionManager add/remove race that orphaned connections (2026-06-21)
+
+- **A reconnecting user could lose their live connection.** `RemoveConnectionAsync` checked
+  `connections.Any()` and then removed the user's bucket as two separate steps; a concurrent
+  `AddConnectionAsync` (e.g. a new browser tab) that added to that same bucket in between had its
+  connection removed along with the bucket — orphaned out of the map, so the user appeared offline.
+  The per-user bucket lifecycle (create-on-first-add / remove-when-empty) is now serialized under a
+  single lock, so the emptiness check and the key removal are atomic and a racing add can never be
+  dropped. Reads (`GetUserConnections`, `GetTotalConnections`) stay lock-free on the concurrent map.
+- Files: `Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/ConnectionManager.cs`,
+  `tests/Planora.UnitTests/Services/RealtimeApi/Infrastructure/ConnectionManagerTests.cs` (new
+  interleaved last-remove/new-add regression test).
+
 ### fix(gateway): stop the broken Ocelot rate limiter from 503-ing all auth and realtime traffic (2026-06-21)
 
 - **Login, refresh, and SignalR negotiate were returning `503 Service Unavailable` through the gateway.**

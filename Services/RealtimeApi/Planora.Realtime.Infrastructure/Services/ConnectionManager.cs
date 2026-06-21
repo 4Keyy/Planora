@@ -3,6 +3,12 @@ namespace Planora.Realtime.Infrastructure.Services
     public sealed class ConnectionManager : IConnectionManager
     {
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _userConnections = new();
+
+        // Serialises the per-user bucket lifecycle (create on first add / remove when empty). Without
+        // it, RemoveConnection could observe an empty bucket and remove the user key while a racing
+        // AddConnection added a connection to that same bucket — orphaning the live connection. The
+        // section is tiny and add/remove are not a hot path, so a single gate is simplest and correct.
+        private readonly object _gate = new();
         private readonly ILogger<ConnectionManager> _logger;
 
         public ConnectionManager(ILogger<ConnectionManager> logger)
@@ -12,41 +18,58 @@ namespace Planora.Realtime.Infrastructure.Services
 
         public Task AddConnectionAsync(string userId, string connectionId)
         {
-            _userConnections.AddOrUpdate(
-                userId,
-                _ =>
+            bool firstConnection;
+            lock (_gate)
+            {
+                if (!_userConnections.TryGetValue(userId, out var connections))
                 {
-                    var set = new ConcurrentDictionary<string, byte>();
-                    set.TryAdd(connectionId, 0);
-                    _logger.LogInformation("User {UserId} connected: {ConnectionId}", userId, connectionId);
-                    return set;
-                },
-                (_, existing) =>
+                    connections = new ConcurrentDictionary<string, byte>();
+                    _userConnections[userId] = connections;
+                    firstConnection = true;
+                }
+                else
                 {
-                    existing.TryAdd(connectionId, 0);
-                    _logger.LogInformation("User {UserId} added connection: {ConnectionId}", userId, connectionId);
-                    return existing;
-                });
+                    firstConnection = false;
+                }
+
+                connections.TryAdd(connectionId, 0);
+            }
+
+            _logger.LogInformation(
+                firstConnection
+                    ? "User {UserId} connected: {ConnectionId}"
+                    : "User {UserId} added connection: {ConnectionId}",
+                userId, connectionId);
 
             return Task.CompletedTask;
         }
 
         public Task RemoveConnectionAsync(string userId, string connectionId)
         {
-            if (_userConnections.TryGetValue(userId, out var connections))
-            {
-                connections.TryRemove(connectionId, out _);
+            bool fullyDisconnected = false;
+            bool removed = false;
 
-                if (!connections.Any())
+            lock (_gate)
+            {
+                if (_userConnections.TryGetValue(userId, out var connections))
                 {
-                    _userConnections.TryRemove(userId, out _);
-                    _logger.LogInformation("User {UserId} fully disconnected", userId);
-                }
-                else
-                {
-                    _logger.LogInformation("User {UserId} removed connection: {ConnectionId}", userId, connectionId);
+                    removed = true;
+                    connections.TryRemove(connectionId, out _);
+
+                    // Inside the lock no AddConnection can repopulate the bucket between the
+                    // emptiness check and the key removal, so a live connection is never orphaned.
+                    if (connections.IsEmpty)
+                    {
+                        _userConnections.TryRemove(userId, out _);
+                        fullyDisconnected = true;
+                    }
                 }
             }
+
+            if (fullyDisconnected)
+                _logger.LogInformation("User {UserId} fully disconnected", userId);
+            else if (removed)
+                _logger.LogInformation("User {UserId} removed connection: {ConnectionId}", userId, connectionId);
 
             return Task.CompletedTask;
         }
