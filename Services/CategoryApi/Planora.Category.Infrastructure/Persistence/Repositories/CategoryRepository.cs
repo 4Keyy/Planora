@@ -12,10 +12,12 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
         }
 
         // No AsNoTracking: the Update/Delete command handlers load via GetByIdAsync then mutate,
-        // so the returned entity must be change-tracked (INV-DATA-3).
+        // so the returned entity must be change-tracked (INV-DATA-3). The !IsDeleted predicate
+        // (this repository has no global query filter) stops a soft-deleted category from being
+        // re-fetched and resurrected by a subsequent Update/Delete.
         public async Task<Domain.Entities.Category?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            return await _context.Categories.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+            return await _context.Categories.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);
         }
 
         public async Task<IReadOnlyList<Domain.Entities.Category>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -29,28 +31,28 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
             Expression<Func<Domain.Entities.Category, bool>> predicate,
             CancellationToken cancellationToken = default)
         {
-            return await _context.Categories.Where(predicate).ToListAsync(cancellationToken);
+            return await _context.Categories.Where(predicate).Where(c => !c.IsDeleted).ToListAsync(cancellationToken);
         }
 
         public async Task<Domain.Entities.Category?> FindFirstAsync(
             Expression<Func<Domain.Entities.Category, bool>> predicate,
             CancellationToken cancellationToken = default)
         {
-            return await _context.Categories.AsNoTracking().FirstOrDefaultAsync(predicate, cancellationToken);
+            return await _context.Categories.AsNoTracking().Where(c => !c.IsDeleted).FirstOrDefaultAsync(predicate, cancellationToken);
         }
 
         public async Task<bool> ExistsAsync(
             Expression<Func<Domain.Entities.Category, bool>> predicate,
             CancellationToken cancellationToken = default)
         {
-            return await _context.Categories.AnyAsync(predicate, cancellationToken);
+            return await _context.Categories.Where(c => !c.IsDeleted).AnyAsync(predicate, cancellationToken);
         }
 
         public async Task<int> CountAsync(
             Expression<Func<Domain.Entities.Category, bool>>? predicate = null,
             CancellationToken cancellationToken = default)
         {
-            var query = _context.Categories.AsQueryable();
+            var query = _context.Categories.Where(c => !c.IsDeleted);
             if (predicate != null)
                 query = query.Where(predicate);
 

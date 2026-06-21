@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(category): exclude soft-deleted rows from repository reads (2026-06-21)
+
+- **A soft-deleted category can no longer be resurrected.** `CategoryRepository` has no global query
+  filter, and only `GetAllAsync` filtered `!IsDeleted`; `GetByIdAsync`, `FindAsync`, `FindFirstAsync`,
+  `ExistsAsync`, and `CountAsync` returned soft-deleted rows. Because the Update/Delete command
+  handlers load via `GetByIdAsync`, a deleted category could be re-fetched and mutated back into use,
+  and existence/count checks double-counted deleted rows. All those reads now apply `!IsDeleted`,
+  matching `GetAllAsync`.
+- Files: `Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Repositories/CategoryRepository.cs`.
+- Security/correctness: soft-deleted categories stay deleted across id lookups, searches, and counts.
+
 ### fix(result): null is a failure, and mapped NotFound/Conflict keep their detail (2026-06-21)
 
 - **A null value is no longer a "successful" result.** `Application.Models.Result<TValue>`'s implicit
