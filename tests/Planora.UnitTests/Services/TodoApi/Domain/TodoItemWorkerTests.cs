@@ -23,6 +23,22 @@ public class TodoItemWorkerTests
     }
 
     [Fact]
+    public void AddWorker_ShouldMarkParentModified_SoCapacityIsGuardedByConcurrencyToken()
+    {
+        var ownerId = Guid.NewGuid();
+        var workerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Task", isPublic: true);
+
+        todo.AddWorker(workerId);
+
+        // The parent row must be touched so EF issues an UPDATE whose xmin check serializes
+        // simultaneous joins — without it two joins both pass IsCapacityFull and both insert,
+        // exceeding RequiredWorkers.
+        Assert.NotNull(todo.UpdatedAt);
+        Assert.Equal(workerId, todo.UpdatedBy);
+    }
+
+    [Fact]
     public void AddWorker_WhenOwner_ShouldThrow()
     {
         var ownerId = Guid.NewGuid();

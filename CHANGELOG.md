@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(todo): preserve viewer prefs on shared completion and guard worker capacity (2026-06-21)
+
+- **Completing a shared task no longer wipes the viewer's hide/category preferences.** When a
+  collaborator marked a shared task Done, `UpdateTodoCommandHandler` built a fresh
+  `UserTodoViewPreference` with only the completion fields set and called `UpsertAsync`, which persists
+  *all* preference columns — silently resetting that viewer's `HiddenByViewer` and `ViewerCategoryId`
+  to defaults. It now load-merges the existing preference (the same pattern `SetTodoHidden` and
+  `SetViewerPreference` already use), changing only the completion fields and keeping the rest.
+- **Worker capacity is now guarded by the parent's concurrency token.** `TodoItem.AddWorker` added a
+  child worker row without touching the parent row, so two simultaneous joins both passed
+  `IsCapacityFull` and both inserted, exceeding `RequiredWorkers`. `AddWorker` now marks the parent
+  modified, forcing an UPDATE whose `xmin` check makes the second concurrent join fail optimistic
+  concurrency instead of overfilling the task. New domain test covers the parent-modified guard.
+- Files: `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs`,
+  `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs`,
+  `tests/Planora.UnitTests/Services/TodoApi/Domain/TodoItemWorkerTests.cs`.
+
 ### fix(inbox): make the idempotent message decorator actually dedup, and race-safe (2026-06-21)
 
 - **The decorator's dedup never worked, and had a check-then-insert race.** `IdempotentMessageHandler`

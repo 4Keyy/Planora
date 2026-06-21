@@ -442,6 +442,13 @@ namespace Planora.Todo.Domain.Entities
                 JoinedAt = DateTime.UtcNow,
             });
 
+            // Touch the parent row so the capacity check is guarded by its xmin concurrency token:
+            // adding a child worker row alone does not update this row, so two simultaneous joins
+            // would both pass IsCapacityFull and both insert, exceeding RequiredWorkers. Forcing a
+            // parent UPDATE makes the second concurrent SaveChanges fail the optimistic-concurrency
+            // check instead of overfilling the task.
+            MarkAsModified(workerUserId);
+
             AddDomainEvent(new TodoWorkerJoinedDomainEvent(Id, workerUserId));
         }
 

@@ -170,15 +170,19 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                     if (targetStatus.HasValue)
                     {
                         var completedByViewer = targetStatus == TodoStatus.Done;
-                        await _viewerPreferenceRepository.UpsertAsync(
-                            new UserTodoViewPreference
+                        // Load-merge (like SetTodoHidden / SetViewerPreference) instead of writing a
+                        // fresh partial row: UpsertAsync persists ALL preference columns, so building a
+                        // new UserTodoViewPreference with only the completion fields set would silently
+                        // reset this viewer's HiddenByViewer / ViewerCategoryId back to defaults.
+                        var preference = await _viewerPreferenceRepository.GetAsync(userId, todoItem.Id, cancellationToken)
+                            ?? new UserTodoViewPreference
                             {
                                 ViewerId = userId,
                                 TodoItemId = todoItem.Id,
-                                CompletedByViewer = completedByViewer,
-                                CompletedByViewerAt = completedByViewer ? DateTime.UtcNow : null,
-                            },
-                            cancellationToken);
+                            };
+                        preference.CompletedByViewer = completedByViewer;
+                        preference.CompletedByViewerAt = completedByViewer ? DateTime.UtcNow : null;
+                        await _viewerPreferenceRepository.UpsertAsync(preference, cancellationToken);
 
                         if (completedByViewer)
                         {
