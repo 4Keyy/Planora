@@ -59,6 +59,8 @@ x86/
 **/.qwen/
 **/.crush/
 **/.amp/
+.design-sync/
+**/.design-sync/
 .mcp.json
 .cursorrules
 .cursorignore
