@@ -4,6 +4,28 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(idempotency): atomic reservation + guaranteed response-stream restore (2026-06-21)
+
+- **Closed a check-then-act race that allowed double execution.** `IdempotencyMiddleware`
+  previously read the cache, ran the request, then wrote the result — so two concurrent requests
+  with the same `X-Idempotency-Key` both missed the cache and both performed the side effect. The
+  middleware now does an **atomic Redis `SET key value NX`** reservation: the first request wins,
+  every concurrent one observes the reservation and gets `409 Conflict` (then replays the cached
+  response on retry). Moved off `IDistributedCache` (whose StackExchange backend stores a hash
+  envelope incompatible with raw `SET NX`) onto `IConnectionMultiplexer`.
+- **Failures no longer poison the key, and never corrupt the response.** A request that throws or
+  returns a non-2xx status now *releases* its reservation so a retry can succeed; only a successful
+  (2xx) response is cached. The reservation carries a short self-healing TTL so a crashed request
+  cannot wedge a key forever. The original response stream is restored in a `finally` (and on the
+  exception path) so an exception mid-pipeline can no longer write `ProblemDetails` into a disposed
+  capture buffer. A corrupted/non-JSON cache entry is tolerated instead of surfacing as a 500.
+  Redis being unavailable fails *open* — the request proceeds without idempotency.
+- Note: the middleware is currently not mounted in any service pipeline, so the race was dormant;
+  this hardens it for safe future use. Covered by 8 new unit tests.
+- Files: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/IdempotencyMiddleware.cs`,
+  `tests/Planora.UnitTests/BuildingBlocks/Middleware/IdempotencyMiddlewareTests.cs`.
+- Security: eliminates duplicate side effects from concurrent idempotency-key retries.
+
 ### feat(launcher): remove -FixProxy; -Lan now self-tests and gives a decisive verdict (2026-06-21)
 
 - **Removed `-FixProxy` entirely.** It only patched THIS machine's own outbound WinINET proxy, which
