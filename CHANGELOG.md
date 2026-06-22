@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(dashboard): wrap the pagination so it can't widen the page on phones (2026-06-22)
+
+- Found the real source of the "navbar/page stretches sideways" report on mobile: the dashboard
+  pagination row (`← Previous` + numbered pages + `Next →`) was a single non-wrapping, non-clipped
+  flex row that measured ~450px at a 360px viewport — but only renders when the user has more than
+  one page of tasks, which is why it reproduced only when logged in with real data, navigating to
+  the dashboard. The fixed navbar was innocent (measured ≤ viewport at 360/390px even with the
+  overflow guards disabled); a page-level horizontal scroll just made the fixed bar look stretched.
+- The row now `flex-wrap`s (so it can never exceed the viewport width) and is compact on phones:
+  the prev/next buttons drop their labels for `←` / `→` glyphs below `sm` and use tighter padding.
+  Confirmed in an isolated probe at 360px with the overflow guards turned OFF: `scrollWidth ===
+  innerWidth`, zero overflowing elements.
+- Files: `frontend/src/app/dashboard/page.tsx`.
+
 ### fix(ui): contain horizontal overflow on real mobile browsers (2026-06-22)
 
 - The earlier `html { overflow-x: hidden }` guard held in a desktop emulator (measured

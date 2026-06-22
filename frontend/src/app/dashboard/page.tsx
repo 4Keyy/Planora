@@ -897,7 +897,7 @@ export default function DashboardPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center justify-center gap-2 pt-8 pb-4"
+                  className="flex flex-wrap items-center justify-center gap-2 pt-8 pb-4"
                 >
                   <motion.div whileHover={{ scale: 1.05 }}>
                     <Button
@@ -905,13 +905,15 @@ export default function DashboardPage() {
                       size="sm"
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="rounded-xl border-gray-300 font-bold px-5 hover:border-gray-400 hover:shadow-md"
+                      className="rounded-xl border-gray-300 font-bold px-3 sm:px-5 hover:border-gray-400 hover:shadow-md"
+                      aria-label="Previous page"
                     >
-                      ← Previous
+                      <span className="sm:hidden">←</span>
+                      <span className="hidden sm:inline">← Previous</span>
                     </Button>
                   </motion.div>
 
-                  <div className="flex items-center gap-1.5 mx-2">
+                  <div className="flex items-center gap-1.5 mx-1 sm:mx-2">
                     {[...Array(totalPages)].map((_, i) => {
                       const pageNum = i + 1;
                       if (
@@ -958,9 +960,11 @@ export default function DashboardPage() {
                       size="sm"
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage >= totalPages}
-                      className="rounded-xl border-gray-300 font-bold px-5 hover:border-gray-400 hover:shadow-md"
+                      className="rounded-xl border-gray-300 font-bold px-3 sm:px-5 hover:border-gray-400 hover:shadow-md"
+                      aria-label="Next page"
                     >
-                      Next →
+                      <span className="sm:hidden">→</span>
+                      <span className="hidden sm:inline">Next →</span>
                     </Button>
                   </motion.div>
                 </motion.div>
