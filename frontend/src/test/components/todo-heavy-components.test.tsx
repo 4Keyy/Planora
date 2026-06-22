@@ -10,6 +10,11 @@ import { useAuthStore } from "@/store/auth"
 import type { FriendDto } from "@/types/auth"
 import type { Category } from "@/types/category"
 import { TodoPriority, TodoStatus, type Todo } from "@/types/todo"
+import {
+  getBoolPreference,
+  setBoolPreference,
+  SUPPRESS_INCOMPLETE_SUBTASK_WARNING,
+} from "@/lib/ui-preferences"
 
 vi.mock("@/hooks/use-friends", () => ({
   useFriends: () => [
@@ -179,6 +184,52 @@ describe("TodoCard", () => {
     expect(deleteButton).not.toBeNull()
     fireEvent.click(deleteButton as HTMLButtonElement)
     expect(onDelete).toHaveBeenCalledOnce()
+  })
+
+  it("warns before completing a task that still has open subtasks, then persists opt-out", async () => {
+    window.localStorage.clear()
+    const onComplete = vi.fn()
+
+    render(
+      <TodoCard
+        todo={baseTodo({ openSubtaskCount: 2 })}
+        onComplete={onComplete}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+      />,
+    )
+
+    // Clicking complete surfaces the warning instead of finishing immediately.
+    fireEvent.click(screen.getByRole("button", { name: "Mark as complete" }))
+    expect(await screen.findByText("Остались невыполненные под-задачи")).toBeInTheDocument()
+    expect(onComplete).not.toHaveBeenCalled()
+
+    // Tick "don't show again" then confirm → completes AND records the opt-out preference.
+    fireEvent.click(screen.getByRole("checkbox"))
+    fireEvent.click(screen.getByRole("button", { name: "Выполнить" }))
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+    expect(getBoolPreference(SUPPRESS_INCOMPLETE_SUBTASK_WARNING)).toBe(true)
+  })
+
+  it("skips the subtask warning when the viewer has opted out", async () => {
+    window.localStorage.clear()
+    setBoolPreference(SUPPRESS_INCOMPLETE_SUBTASK_WARNING, true)
+    const onComplete = vi.fn()
+
+    render(
+      <TodoCard
+        todo={baseTodo({ openSubtaskCount: 3 })}
+        onComplete={onComplete}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark as complete" }))
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+    expect(screen.queryByText("Остались невыполненные под-задачи")).not.toBeInTheDocument()
   })
 
   it("exercises desktop hover controls and neutral priority styling", async () => {

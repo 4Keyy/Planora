@@ -251,6 +251,27 @@ comments and folds the matched completion into `meta`) — completion is global 
 into work is per-user** (worker rows via `joinTodo`/`leaveTodo`, shown as an anonymous "N working"
 count to all), inline title edit + delete are owner-only, and there is no priority control.
 
+#### Finishing a task with unfinished subtasks
+
+Completing a task that still has **open subtasks** raises a confirmation **before** the task is
+finished — for **every** participant who can complete it (owner or collaborator), not just the
+author. The dialog offers two choices — **«Выполнить»** (finish anyway) and **«Продолжить работу»**
+(keep working, dismiss) — plus a **«Больше не показывать это окно»** checkbox that, when ticked,
+persists the opt-out so the warning is skipped from then on.
+
+| Aspect | Rule |
+|---|---|
+| Trigger | shown only when **finishing** a task (never on reopen) that has at least one open subtask, and only if the viewer has not opted out |
+| Open count | `TodoItemDto.openSubtaskCount` — subtasks not `Done` and not deleted; computed server-side via a single grouped query and surfaced by `GET /todos` (lists) and `GET /todos/{id}` (branch). The branch modal also re-derives the count from its **live, loaded** subtask list |
+| Entry points | both completion gestures are covered — the card's **quick-complete** check button (the warning fires **before** the completion animation, so "keep working" never leaves the card mid-animation) and the branch modal's **"Complete task"** action |
+| Opt-out | the checkbox writes a local, client-only preference (`localStorage` key `planora:pref:suppressIncompleteSubtaskWarning`); it never leaves the device and degrades to "show the warning" if storage is unavailable |
+
+Frontend: `ConfirmDialog` (extended with an optional `dontAskAgainLabel` checkbox whose state is
+passed to `onConfirm`), the shared copy/helpers in `lib/subtask-warning.ts`, the preference store in
+`lib/ui-preferences.ts`, and the guards in `todo-card.tsx` (`shouldWarnBeforeComplete`) and
+`edit-todo-modal/branch-feed.tsx` (`requestComplete`). Backend: `OpenSubtaskCount` on `TodoItemDto`,
+`ITodoRepository.GetOpenSubtaskCountsAsync` (grouped count over `ix_todo_items_parent_deleted_created`).
+
 ### Branch Replies
 
 Any branch message can be answered with a **reply** that quotes its target. Replies work on

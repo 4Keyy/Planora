@@ -61,6 +61,14 @@ namespace Planora.Todo.Application.DTOs
         public Guid? ParentTodoId { get; init; }
 
         /// <summary>
+        /// Number of this task's subtasks that are still open (not done, not deleted). Zero when the
+        /// task has no subtasks or every subtask is finished. Drives the "finish a task that still has
+        /// unfinished subtasks?" confirmation in the UI. Always 0 for a subtask (subtasks have no
+        /// children) and on list endpoints that skip the enrichment.
+        /// </summary>
+        public int OpenSubtaskCount { get; init; }
+
+        /// <summary>
         /// Live display identity of the item's author (subtask reads only — resolved from Auth
         /// at query time, never stored). Null on list endpoints that skip the enrichment.
         /// </summary>
@@ -115,7 +123,10 @@ namespace Planora.Todo.Application.DTOs
                     opt => opt.MapFrom(src => false))
                 // Author identity is resolved live from Auth by the handlers that need it.
                 .ForMember(dst => dst.AuthorName, opt => opt.Ignore())
-                .ForMember(dst => dst.AuthorAvatarUrl, opt => opt.Ignore());
+                .ForMember(dst => dst.AuthorAvatarUrl, opt => opt.Ignore())
+                // Open-subtask count is a per-task aggregate set by the list/detail handlers that
+                // need it — never auto-mapped from the entity (a task does not load its children).
+                .ForMember(dst => dst.OpenSubtaskCount, opt => opt.Ignore());
         }
     }
 }

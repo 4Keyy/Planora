@@ -61,6 +61,16 @@ namespace Planora.Todo.Domain.Repositories
         Task<bool> AreAllSubtasksCompletedAsync(Guid parentTodoId, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// For each given parent task, the number of its subtasks that are still open (not done, not
+        /// deleted). A single grouped query over the parent index. Parents with no open subtask are
+        /// omitted from the result (callers treat a missing key as 0). Subtask ids passed in simply
+        /// yield no children. Empty input returns an empty map without hitting the database.
+        /// </summary>
+        Task<IReadOnlyDictionary<Guid, int>> GetOpenSubtaskCountsAsync(
+            IReadOnlyCollection<Guid> parentTodoIds,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Removes all TodoItemShare rows that represent sharing between two users whose
         /// friendship has been revoked. Deletes shares in both directions.
         /// </summary>

@@ -11,12 +11,15 @@ import { SPRING_STANDARD, TWEEN_BACKDROP } from "@/lib/animations"
 interface ConfirmDialogProps {
     isOpen: boolean
     onClose: () => void
-    onConfirm: () => void
+    /** Receives whether the "don't ask again" box was ticked (always false when no checkbox is shown). */
+    onConfirm: (dontAskAgain: boolean) => void
     title: string
     description: string
     confirmText?: string
     cancelText?: string
     variant?: "danger" | "warning" | "info"
+    /** When provided, renders a "don't show again" checkbox whose state is passed to onConfirm. */
+    dontAskAgainLabel?: string
 }
 
 export function ConfirmDialog({
@@ -28,7 +31,15 @@ export function ConfirmDialog({
     confirmText = "Confirm",
     cancelText = "Cancel",
     variant = "danger",
+    dontAskAgainLabel,
 }: ConfirmDialogProps) {
+
+    // Local "don't ask again" state, reset every time the dialog (re)opens so a prior tick never leaks
+    // into the next prompt.
+    const [dontAskAgain, setDontAskAgain] = React.useState(false)
+    React.useEffect(() => {
+        if (isOpen) setDontAskAgain(false)
+    }, [isOpen])
 
     const stylesByVariant: Record<NonNullable<ConfirmDialogProps["variant"]>, {
         bg: string
@@ -99,7 +110,19 @@ export function ConfirmDialog({
                                 </button>
                             </div>
 
-                            <div className="flex gap-3 mt-8">
+                            {dontAskAgainLabel && (
+                                <label className="flex items-center gap-2.5 mt-6 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={dontAskAgain}
+                                        onChange={(e) => setDontAskAgain(e.target.checked)}
+                                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-400 cursor-pointer"
+                                    />
+                                    <span className="text-sm text-gray-600">{dontAskAgainLabel}</span>
+                                </label>
+                            )}
+
+                            <div className={`flex gap-3 ${dontAskAgainLabel ? "mt-4" : "mt-8"}`}>
                                 <Button variant="secondary" className="flex-1 rounded-2xl" onClick={onClose}>
                                     {cancelText}
                                 </Button>
@@ -107,7 +130,7 @@ export function ConfirmDialog({
                                     variant={variantStyles.button}
                                     className="flex-1 rounded-2xl font-bold"
                                     onClick={() => {
-                                        onConfirm()
+                                        onConfirm(dontAskAgain)
                                         onClose()
                                     }}
                                 >

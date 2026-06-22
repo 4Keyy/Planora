@@ -160,6 +160,49 @@ public class RepositoryBehaviorTests
     [Trait("TestType", "Module")]
     [Trait("TestType", "Integration")]
     [Trait("TestType", "Regression")]
+    public async Task TodoRepository_GetOpenSubtaskCounts_CountsOnlyOpenChildrenPerParent()
+    {
+        await using var context = CreateTodoContext();
+        var userId = Guid.NewGuid();
+
+        // Parent A: two open subtasks + one done + one deleted → expect 2.
+        var parentA = TodoItem.Create(userId, "Parent A", categoryId: Guid.NewGuid());
+        // Parent B: every subtask done → absent from the map (treated as 0 by callers).
+        var parentB = TodoItem.Create(userId, "Parent B", categoryId: Guid.NewGuid());
+        // Parent C: no subtasks at all → absent from the map.
+        var parentC = TodoItem.Create(userId, "Parent C", categoryId: Guid.NewGuid());
+        await context.TodoItems.AddRangeAsync(parentA, parentB, parentC);
+        await context.SaveChangesAsync();
+
+        var openA1 = TodoItem.CreateSubtask(parentA, userId, "A open 1", null);
+        var openA2 = TodoItem.CreateSubtask(parentA, userId, "A open 2", null);
+        var doneA = TodoItem.CreateSubtask(parentA, userId, "A done", null);
+        doneA.MarkAsDone(userId);
+        var deletedA = TodoItem.CreateSubtask(parentA, userId, "A deleted", null);
+        deletedA.MarkAsDeleted(userId);
+        var doneB = TodoItem.CreateSubtask(parentB, userId, "B done", null);
+        doneB.MarkAsDone(userId);
+        await context.TodoItems.AddRangeAsync(openA1, openA2, doneA, deletedA, doneB);
+        await context.SaveChangesAsync();
+
+        var repository = new TodoRepository(context);
+
+        var counts = await repository.GetOpenSubtaskCountsAsync(
+            new[] { parentA.Id, parentB.Id, parentC.Id });
+
+        Assert.Equal(2, counts[parentA.Id]);
+        // Parents whose every subtask is done (B) or who have none (C) drop out of the grouping.
+        Assert.False(counts.ContainsKey(parentB.Id));
+        Assert.False(counts.ContainsKey(parentC.Id));
+
+        // Empty input short-circuits without touching the database.
+        Assert.Empty(await repository.GetOpenSubtaskCountsAsync(Array.Empty<Guid>()));
+    }
+
+    [Fact]
+    [Trait("TestType", "Module")]
+    [Trait("TestType", "Integration")]
+    [Trait("TestType", "Regression")]
     public async Task TodoRepository_RemoveSharesBetweenUsers_RemovesBothDirectionsAndKeepsOthers()
     {
         await using var context = CreateTodoContext();

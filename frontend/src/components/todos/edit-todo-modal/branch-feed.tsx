@@ -15,6 +15,9 @@ import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import { useBranchRoom, useTyping } from "@/lib/realtime/hooks"
 import { NotificationBadge } from "@/components/notifications/notification-badge"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNING } from "@/lib/ui-preferences"
+import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
 import { FriendAvatar } from "./friend-avatar"
 import {
   formatDayLabel,
@@ -363,6 +366,8 @@ export function BranchFeed({
   const [replyDraft, setReplyDraft] = useState<ReplyDraft | null>(null)
   // Feed node currently pulsing after a quote-jump ("c-{id}" / "s-{id}").
   const [flashKey, setFlashKey] = useState<string | null>(null)
+  // Whether the "finish a task that still has unfinished subtasks?" confirmation is open.
+  const [completeWarnOpen, setCompleteWarnOpen] = useState(false)
 
   // Live presence: who else is typing in this branch right now, and a notifier to call on keystroke.
   // The full viewer profile (name + avatar) feeds the optimistic "in work" presence when the viewer
@@ -666,6 +671,22 @@ export function BranchFeed({
       setActionPending(null)
       setPlusMenuOpen(false)
     }
+  }
+
+  // Subtasks of this branch still open — drives the "finish anyway?" confirmation. Uses the live,
+  // loaded subtask list (the authoritative in-modal source) rather than the parent's cached count.
+  const openSubtaskCount = subtasks.filter((s) => !isSubtaskDone(s)).length
+
+  // Complete the task, but first warn when it still has unfinished subtasks (unless the viewer opted
+  // out). Confirming runs the normal complete action; "Продолжить работу" just dismisses.
+  const requestComplete = () => {
+    if (!onCompleteTask || actionPending) return
+    if (openSubtaskCount > 0 && !getBoolPreference(SUPPRESS_INCOMPLETE_SUBTASK_WARNING)) {
+      setPlusMenuOpen(false)
+      setCompleteWarnOpen(true)
+      return
+    }
+    void runAction("complete", onCompleteTask)
   }
 
   const showWorkAction     = !!(inProgress ? onStopWork : onStartWork)
@@ -1699,7 +1720,7 @@ export function BranchFeed({
                       subtitle={isCompleted ? "Move back to active" : "Mark this task done"}
                       pending={actionPending === "complete"}
                       disabled={actionPending !== null}
-                      onClick={() => runAction("complete", onCompleteTask)}
+                      onClick={requestComplete}
                     />
                   )}
                 </>
@@ -1830,6 +1851,23 @@ export function BranchFeed({
           </button>
         </div>
       </div>
+
+      {/* Warn before finishing a task that still has unfinished subtasks. Confirming runs the normal
+          complete action; "Продолжить работу" just dismisses. */}
+      <ConfirmDialog
+        isOpen={completeWarnOpen}
+        onClose={() => setCompleteWarnOpen(false)}
+        onConfirm={(dontAskAgain) => {
+          if (dontAskAgain) setBoolPreference(SUPPRESS_INCOMPLETE_SUBTASK_WARNING, true)
+          if (onCompleteTask) void runAction("complete", onCompleteTask)
+        }}
+        variant="warning"
+        title={INCOMPLETE_SUBTASK_DIALOG.title}
+        description={incompleteSubtaskDescription(openSubtaskCount)}
+        confirmText={INCOMPLETE_SUBTASK_DIALOG.confirmText}
+        cancelText={INCOMPLETE_SUBTASK_DIALOG.cancelText}
+        dontAskAgainLabel={INCOMPLETE_SUBTASK_DIALOG.dontAskAgainLabel}
+      />
     </div>
   )
 }

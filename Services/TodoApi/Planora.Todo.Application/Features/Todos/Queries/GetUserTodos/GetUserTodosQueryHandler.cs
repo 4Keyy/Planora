@@ -110,6 +110,13 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                 pageTodoIds,
                 cancellationToken);
 
+            // How many subtasks are still open per task on this page — drives the "finish a task that
+            // still has unfinished subtasks?" confirmation in the UI. One grouped query for the whole
+            // page; a missing key means zero open subtasks. (Coalesced for the unit-test mock, whose
+            // unconfigured async method yields a null map.)
+            var openSubtaskCounts = await _repository.GetOpenSubtaskCountsAsync(pageTodoIds, cancellationToken)
+                ?? new Dictionary<Guid, int>();
+
             var dtos = new List<TodoItemDto>(paginatedItems.Count);
 
             _logger.LogInformation("Enriching {Count} todos with category data via gRPC", paginatedItems.Count);
@@ -233,6 +240,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                     IsCompletedByViewer = !isViewerOwner ? completedByViewer : null,
                     Status = completedByViewer ? "Done" : item.Status.Display(),
                     IsCompleted = completedByViewer || item.IsCompleted,
+                    OpenSubtaskCount = openSubtaskCounts.GetValueOrDefault(item.Id),
                 };
 
                 if (effectiveCategoryId.HasValue && categoryCache.TryGetValue(effectiveCategoryId.Value, out var cat))

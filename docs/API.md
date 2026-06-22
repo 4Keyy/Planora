@@ -552,6 +552,21 @@ Rules:
 }
 ```
 
+`TodoItemDto` subtask aggregate:
+
+```json
+{
+  "openSubtaskCount": 2
+}
+```
+
+- `openSubtaskCount` is the number of this task's subtasks that are still **open** (not `Done`, not
+  deleted). `0` when the task has no subtasks or every subtask is finished. It is computed with a
+  single grouped query and surfaced by the list endpoint (`GET /todos`) and the detail endpoint
+  (`GET /todos/{id}`); other list endpoints that skip the enrichment return `0`. Always `0` for a
+  subtask (subtasks have no children). The frontend uses it to warn before finishing a task that
+  still has unfinished subtasks.
+
 Hidden toggle body:
 
 ```json

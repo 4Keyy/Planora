@@ -94,6 +94,47 @@ describe("portal and confirm dialog", () => {
 
     expect(onClose).toHaveBeenCalledOnce()
   })
+
+  it("renders a 'don't ask again' checkbox and reports its state on confirm", async () => {
+    const user = userEvent.setup()
+    const onConfirm = vi.fn()
+
+    render(
+      <ConfirmDialog
+        isOpen
+        onClose={vi.fn()}
+        onConfirm={onConfirm}
+        title="Finish task"
+        description="Still has open subtasks"
+        confirmText="Finish"
+        dontAskAgainLabel="Don't show again"
+      />,
+    )
+
+    expect(await screen.findByText("Don't show again")).toBeInTheDocument()
+    const checkbox = screen.getByRole("checkbox")
+    expect(checkbox).not.toBeChecked()
+
+    await user.click(checkbox)
+    await user.click(screen.getByRole("button", { name: "Finish" }))
+
+    expect(onConfirm).toHaveBeenCalledWith(true)
+  })
+
+  it("omits the checkbox when no dontAskAgainLabel is given", async () => {
+    render(
+      <ConfirmDialog
+        isOpen
+        onClose={vi.fn()}
+        onConfirm={vi.fn()}
+        title="Plain"
+        description="No checkbox here"
+      />,
+    )
+
+    await screen.findByText("Plain")
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument()
+  })
 })
 
 describe("MasonryColumns", () => {

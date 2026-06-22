@@ -384,6 +384,62 @@ public class TodoQueryHandlerTests
     }
 
     [Fact]
+    public async Task GetTodoById_ShouldSurfaceOpenSubtaskCount()
+    {
+        var userId = Guid.NewGuid();
+        var fixture = new TodoQueryFixture(userId);
+        var todo = TodoItem.Create(userId, "Owner task");
+        fixture.Repository.Setup(x => x.GetByIdWithIncludesAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        fixture.ViewerPreferences.Setup(x => x.GetAsync(userId, todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync((UserTodoViewPreference?)null);
+        fixture.Repository
+            .Setup(x => x.GetOpenSubtaskCountsAsync(
+                It.Is<IReadOnlyCollection<Guid>>(ids => ids.Contains(todo.Id)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, int> { [todo.Id] = 3 });
+
+        var result = await fixture.CreateGetTodoByIdHandler().Handle(
+            new GetTodoByIdQuery(todo.Id),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(3, result.Value!.OpenSubtaskCount);
+    }
+
+    [Fact]
+    public async Task GetUserTodos_ShouldSurfaceOpenSubtaskCountPerTask()
+    {
+        var userId = Guid.NewGuid();
+        var fixture = new TodoQueryFixture(userId);
+        var withOpen = TodoItem.Create(userId, "Has open subtasks");
+        var allDone = TodoItem.Create(userId, "All subtasks done");
+
+        fixture.FriendshipService
+            .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<Guid>());
+        fixture.Repository
+            .Setup(x => x.GetPagedWithIncludesAsync(
+                It.IsAny<Expression<Func<TodoItem, bool>>>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new[] { withOpen, allDone }, 2));
+        // Only the first task has open subtasks; the second is absent from the map → reads as 0.
+        fixture.Repository
+            .Setup(x => x.GetOpenSubtaskCountsAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, int> { [withOpen.Id] = 2 });
+
+        var result = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId),
+            CancellationToken.None);
+
+        Assert.Equal(2, result.Items.Single(i => i.Id == withOpen.Id).OpenSubtaskCount);
+        Assert.Equal(0, result.Items.Single(i => i.Id == allDone.Id).OpenSubtaskCount);
+    }
+
+    [Fact]
     public async Task GetTodoById_ShouldReturnHiddenSharedTodoWithMinimalData()
     {
         var ownerId = Guid.NewGuid();

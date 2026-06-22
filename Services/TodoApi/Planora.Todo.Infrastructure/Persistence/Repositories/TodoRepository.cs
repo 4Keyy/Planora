@@ -238,6 +238,29 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                     cancellationToken);
         }
 
+        public async Task<IReadOnlyDictionary<Guid, int>> GetOpenSubtaskCountsAsync(
+            IReadOnlyCollection<Guid> parentTodoIds,
+            CancellationToken cancellationToken = default)
+        {
+            if (parentTodoIds.Count == 0)
+                return new Dictionary<Guid, int>();
+
+            // One grouped count over ix_todo_items_parent_deleted_created. Only open children are
+            // counted; parents whose every subtask is done (or who have none) drop out of the GROUP BY
+            // and are absent from the map — callers read a missing key as 0.
+            var grouped = await DbSet
+                .AsNoTracking()
+                .Where(t => t.ParentTodoId != null
+                    && parentTodoIds.Contains(t.ParentTodoId.Value)
+                    && !t.IsDeleted
+                    && t.Status != TodoStatus.Done)
+                .GroupBy(t => t.ParentTodoId!.Value)
+                .Select(g => new { ParentId = g.Key, Count = g.Count() })
+                .ToListAsync(cancellationToken);
+
+            return grouped.ToDictionary(x => x.ParentId, x => x.Count);
+        }
+
         public async Task RemoveSharesBetweenUsersAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
         {
             // Every share row in either direction between the two users, loaded and

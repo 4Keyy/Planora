@@ -4,6 +4,28 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(tasks): warn before finishing a task with unfinished subtasks (2026-06-22)
+
+- **Completing a task that still has open subtasks now raises a confirmation first** — for every
+  participant who can complete it (owner or collaborator), not only the author. The dialog offers
+  **«Выполнить»** (finish anyway) and **«Продолжить работу»** (keep working), plus a **«Больше не
+  показывать это окно»** checkbox that persists the opt-out (client-only `localStorage`). The warning
+  fires only when *finishing* (never on reopen) and only when at least one subtask is still open.
+- Covers **both** completion entry points: the card's quick-complete check button — where the prompt
+  is shown **before** the completion animation so a "keep working" choice never leaves the card
+  mid-animation — and the branch modal's "Complete task" action (which re-derives the count from its
+  live, loaded subtask list).
+- Backend surfaces the open count as `TodoItemDto.openSubtaskCount` (subtasks not `Done`, not
+  deleted), computed with a single grouped query (`ITodoRepository.GetOpenSubtaskCountsAsync` over the
+  existing `ix_todo_items_parent_deleted_created` index) and populated by `GetUserTodos` (lists) and
+  `GetTodoById` (branch). No schema change.
+- Files: `Services/TodoApi/.../DTOs/TodoItemDto.cs`, `.../Repositories/{ITodoRepository,TodoRepository}.cs`,
+  `.../Queries/{GetUserTodos,GetTodoById}/*Handler.cs`; `frontend/src/components/ui/confirm-dialog.tsx`,
+  `frontend/src/lib/{ui-preferences,subtask-warning}.ts`, `frontend/src/components/todos/todo-card.tsx`,
+  `frontend/src/components/todos/edit-todo-modal/branch-feed.tsx`, `frontend/src/types/todo.ts`.
+  Tests: `RepositoryBehaviorTests`, `TodoQueryHandlerTests`, `ui-preferences`/`subtask-warning`/
+  `ui-wrappers`/`todo-heavy-components` specs.
+
 ### style(landing): stack hero CTAs full-width on phones (2026-06-22)
 
 - The landing hero's two CTAs (`Start for free` / `Create account`) sat side-by-side and were

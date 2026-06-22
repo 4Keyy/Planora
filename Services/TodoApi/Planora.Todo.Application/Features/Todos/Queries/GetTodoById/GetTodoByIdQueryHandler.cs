@@ -90,6 +90,13 @@ public sealed class GetTodoByIdQueryHandler : IQueryHandler<GetTodoByIdQuery, Re
                 HiddenTodoDtoFactory.CreateMasked(todoItem, userId, effectiveCategoryId, categoryInfo));
         }
 
+        // Open-subtask count for the branch's "finish a task that still has unfinished subtasks?"
+        // confirmation. A single grouped query; a subtask (no children) naturally yields 0.
+        // Coalesced for the unit-test mock, whose unconfigured async method yields a null map.
+        var openSubtaskCount =
+            (await _repository.GetOpenSubtaskCountsAsync(new[] { todoItem.Id }, cancellationToken))
+                ?.GetValueOrDefault(todoItem.Id) ?? 0;
+
         var dto = _mapper.Map<TodoItemDto>(todoItem) with
         {
             Hidden = effectiveHidden,
@@ -101,6 +108,7 @@ public sealed class GetTodoByIdQueryHandler : IQueryHandler<GetTodoByIdQuery, Re
             WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
             RequiredWorkers = todoItem.RequiredWorkers,
             IsWorking = todoItem.UserId != userId && todoItem.Workers.Any(w => w.UserId == userId),
+            OpenSubtaskCount = openSubtaskCount,
         };
 
         // Enrich with category data via gRPC so the full DTO always includes CategoryName/Color/Icon

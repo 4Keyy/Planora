@@ -124,6 +124,9 @@ export type Todo = {
   isCompletedByViewer?: boolean | null
   /** When set, this todo is a subtask (child) of the given parent task. */
   parentTodoId?: string | null
+  /** Number of this task's subtasks still open (not done). Drives the "finish a task that still has
+   *  unfinished subtasks?" warning. 0/undefined when there are none or the surface skips the count. */
+  openSubtaskCount?: number
   /** Live author avatar (subtask reads — resolved from Auth server-side, never stored). */
   authorAvatarUrl?: string | null
 }

@@ -15,6 +15,9 @@ import { EASE_OUT_EXPO, SPRING_RESPONSIVE, VARIANTS_CARD, TAP_CARD } from "@/lib
 import { haptic } from "@/lib/haptics"
 import { CompletionCelebration } from "@/components/animated/celebration"
 import { NotificationBadge } from "@/components/notifications/notification-badge"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNING } from "@/lib/ui-preferences"
+import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
 
 const PRIORITY_CONFIG: Record<string, { color: string; num: number }> = {
   "1": { color: "#9ca3af", num: 1 },
@@ -86,6 +89,8 @@ function TodoCardComponent({
   const [isCardHovered, setIsCardHovered] = useState(false)
   const [isDeleteZoneHovered, setIsDeleteZoneHovered] = useState(false)
   const [isButtonHovered, setIsButtonHovered] = useState(false)
+  // Whether the "finish a task that still has unfinished subtasks?" confirmation is open.
+  const [subtaskWarnOpen, setSubtaskWarnOpen] = useState(false)
   const mountedRef = useRef(true)
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const viewerId = useAuthStore((s) => s.user?.userId)
@@ -179,7 +184,28 @@ function TodoCardComponent({
     }
   }
 
+  // Whether finishing this task should first warn about still-open subtasks. Only on completion
+  // (never reopening), only when the task actually has open subtasks, and only if the viewer hasn't
+  // opted out of the warning. Checked BEFORE any completion animation so a "keep working" choice
+  // never leaves the card mid-animation.
+  const shouldWarnBeforeComplete = () =>
+    !isCompleted &&
+    (todo.openSubtaskCount ?? 0) > 0 &&
+    !getBoolPreference(SUPPRESS_INCOMPLETE_SUBTASK_WARNING)
+
   const handleCompletionToggle = async () => {
+    if (isCompletionPending || isVisibilityPending) return
+
+    // Gate completion behind the unfinished-subtask warning before the animation commits.
+    if (shouldWarnBeforeComplete()) {
+      setSubtaskWarnOpen(true)
+      return
+    }
+
+    await runCompletionToggle()
+  }
+
+  const runCompletionToggle = async () => {
     if (isCompletionPending || isVisibilityPending) return
 
     // Reopening a completed task is author-only. For a non-owner, skip the reopen animation and just
@@ -934,6 +960,23 @@ function TodoCardComponent({
         </CardContent>
       </Card>
       </motion.div>
+
+      {/* Warn before finishing a task that still has unfinished subtasks. Confirming runs the normal
+          completion flow (animation + commit); "Продолжить работу" simply dismisses. */}
+      <ConfirmDialog
+        isOpen={subtaskWarnOpen}
+        onClose={() => setSubtaskWarnOpen(false)}
+        onConfirm={(dontAskAgain) => {
+          if (dontAskAgain) setBoolPreference(SUPPRESS_INCOMPLETE_SUBTASK_WARNING, true)
+          void runCompletionToggle()
+        }}
+        variant="warning"
+        title={INCOMPLETE_SUBTASK_DIALOG.title}
+        description={incompleteSubtaskDescription(todo.openSubtaskCount ?? 0)}
+        confirmText={INCOMPLETE_SUBTASK_DIALOG.confirmText}
+        cancelText={INCOMPLETE_SUBTASK_DIALOG.cancelText}
+        dontAskAgainLabel={INCOMPLETE_SUBTASK_DIALOG.dontAskAgainLabel}
+      />
     </>
   )
 }
