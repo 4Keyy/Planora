@@ -171,11 +171,30 @@ const nextConfig = {
     ]
   },
   async rewrites() {
+    // Same-origin API proxy. When the dev server is reached through a tunnel /
+    // single-forwarded-port (e.g. a phone that can hit :3000 but not the gateway's
+    // :5132), getApiBaseUrl() (src/lib/config.ts) routes API calls at the frontend's
+    // own origin; these rewrites forward those paths to the API gateway so one port
+    // is enough. They are scoped to the gateway's `/api` (and /realtime, /avatars)
+    // sub-paths so they never shadow the frontend's own /auth/* or /categories pages,
+    // and they are inert for localhost / LAN-IP access (which call the gateway
+    // directly with an absolute URL and never hit these frontend paths).
+    const gatewayProxies = [
+      '/auth/api/:path*',
+      '/todos/api/:path*',
+      '/categories/api/:path*',
+      '/collaboration/api/:path*',
+      '/messaging/api/:path*',
+      '/realtime/:path*',
+      '/avatars/:path*',
+    ].map((source) => ({ source, destination: `${safeApiUrl}${source}` }))
+
     return [
       {
         source: '/favicon.ico',
         destination: '/favicon.svg',
       },
+      ...gatewayProxies,
     ]
   },
 }

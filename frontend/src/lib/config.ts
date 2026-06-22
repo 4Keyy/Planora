@@ -53,6 +53,22 @@ export function getApiBaseUrl(): string {
   const configured = normalizeApiBaseUrl(configuredApiBaseUrl)
   const browserSameHost = getBrowserSameHostApiBaseUrl(configured)
   if (browserSameHost) return browserSameHost
+
+  // Tunnel / single-forwarded-port access. When the dev server is opened from a
+  // non-local host (a tunnel domain, or a phone reaching only :3000) but the API is
+  // still configured for localhost (or unset), the gateway's own port isn't reachable
+  // from that client. Route API + realtime through the frontend's OWN origin instead;
+  // the Next rewrites in next.config.js proxy those paths to the gateway, so a single
+  // exposed port is enough. Deliberately scoped: it triggers only for a non-local
+  // browser host paired with a local/absent API config, so localhost, LAN-IP (handled
+  // above) and production (a public, non-local API host) are all left untouched.
+  if (typeof window !== "undefined" && configured) {
+    const configuredIsLocal = isLocalNetworkHost(new URL(configured).hostname)
+    if (configuredIsLocal && !isLocalNetworkHost(window.location.hostname)) {
+      return window.location.origin
+    }
+  }
+
   if (configured) return configured
 
   if (typeof window !== "undefined") {

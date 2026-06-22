@@ -74,6 +74,39 @@ describe("config", () => {
     expect(getApiBaseUrl()).toBe("http://192.168.42.15:5132")
   })
 
+  it("routes API through the frontend origin when a tunnel host opens a localhost-configured bundle", async () => {
+    // Phone / tunnel: the page is reached at a public host that can't see the gateway's
+    // own :5132, but the API is still pinned to localhost. The base URL becomes the
+    // frontend's own origin so the Next rewrites proxy it through the single exposed port.
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "https:",
+        hostname: "abc123.trycloudflare.com",
+        origin: "https://abc123.trycloudflare.com",
+      },
+    })
+
+    const { getApiBaseUrl } = await loadConfig("http://localhost:5132")
+
+    expect(getApiBaseUrl()).toBe("https://abc123.trycloudflare.com")
+  })
+
+  it("does not hijack a production public API host for the frontend origin", async () => {
+    // Browser on a public host AND API configured on a different public host (prod): keep
+    // calling the configured API directly — the tunnel rewrite must not steal this case.
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "https:",
+        hostname: "app.planora.com",
+        origin: "https://app.planora.com",
+      },
+    })
+
+    const { getApiBaseUrl } = await loadConfig("https://api.planora.com")
+
+    expect(getApiBaseUrl()).toBe("https://api.planora.com")
+  })
+
   it("rejects configured URLs with paths, queries, hashes, bad protocols, or invalid syntax", async () => {
     for (const value of [
       "https://api.example.com/v1",

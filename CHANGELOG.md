@@ -4,6 +4,28 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(net): reach the API through the frontend origin when opened via a tunnel (2026-06-22)
+
+- On a phone the app called `ws://localhost:5132` and `/auth/refresh` failed (400), breaking realtime
+  and token refresh — because `localhost` on the phone is the phone itself. `getApiBaseUrl()` already
+  rewrites a localhost-configured API to the **LAN IP** when the page is opened at a LAN IP, but a
+  tunnel / single-forwarded-port setup (the page reachable at a public host that can't see the
+  gateway's own `:5132`) fell back to the hard-coded `localhost:5132`.
+- Now, when the page is opened from a non-local host **and** the API is configured for a local host
+  (localhost or LAN), `getApiBaseUrl()` returns the frontend's **own origin**, and new Next `rewrites()`
+  proxy the gateway sub-paths (`/auth/api/*`, `/todos/api/*`, `/categories/api/*`, `/collaboration/api/*`,
+  `/messaging/api/*`, `/realtime/*`, `/avatars/*`) to the gateway. A single exposed port now serves the
+  whole app; SignalR falls back from WebSocket to SSE/long-polling over the same proxied origin.
+- Scoped to avoid regressions: localhost and LAN-IP access (which call the gateway directly with an
+  absolute URL) and production (a public, non-local API host) are all unchanged — verified by two new
+  `config` tests and the existing suite. The rewrites are `/api`-scoped so they never shadow the
+  frontend's own `/auth/*` or `/categories` pages (confirmed: `/auth/login` still serves the page,
+  `/auth/api/...` proxies).
+- Note: this routes API through the dev server, so the host running it must be able to reach the
+  gateway; for a pure LAN phone the simplest path remains `.\Start-Planora-Local.ps1 -Lan` (opens the
+  firewall and pins the LAN IP).
+- Files: `frontend/next.config.js`, `frontend/src/lib/config.ts`, `frontend/src/test/lib/config.test.ts`.
+
 ### fix(dashboard): wrap the pagination so it can't widen the page on phones (2026-06-22)
 
 - Found the real source of the "navbar/page stretches sideways" report on mobile: the dashboard
