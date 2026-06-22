@@ -57,6 +57,16 @@
   body {
     background-color: transparent;
     color: #111;
+    /* Mobile-robust horizontal-overflow guard. `overflow-x: hidden` on <html>
+       alone is famously ignored by iOS Safari / Android Chrome when a descendant
+       overflows, so the page could still pan sideways on a real phone even though
+       it never did in a desktop emulator. Clipping on <body> too reliably contains
+       normal-flow overflow on mobile; `clip` (not `hidden`) does NOT create a
+       scroll container, so descendant `position: sticky` keeps working. Fixed
+       elements escape this (they clip against the viewport), so the floating
+       navbar additionally clips its own overflow — see layout/navbar.tsx. */
+    overflow-x: clip;
+    max-width: 100%;
     font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1, "kern" 1;
     text-rendering: optimizeLegibility;

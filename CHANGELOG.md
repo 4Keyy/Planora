@@ -4,6 +4,21 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ui): contain horizontal overflow on real mobile browsers (2026-06-22)
+
+- The earlier `html { overflow-x: hidden }` guard held in a desktop emulator (measured
+  `scrollWidth === innerWidth`) but real iOS Safari / Android Chrome still let the dashboard pan
+  sideways — they famously ignore root-level `overflow-x: hidden` when a descendant overflows, and
+  `position: fixed` elements clip against the viewport rather than the guarded root, so the floating
+  navbar could widen the page on a phone even though it never did in the emulator.
+- Hardened on two levels: (1) `body` now uses `overflow-x: clip` + `max-width: 100%` — `clip`
+  reliably contains normal-flow overflow on mobile and, unlike `hidden`, creates no scroll container
+  so descendant `position: sticky` keeps working; (2) the floating navbar wrapper clips its own
+  horizontal overflow (`overflow-x: clip` + `max-w-[100vw]` + `min-w-0` children), since a fixed
+  element escapes the body guard. The dropdown sheet/menu open downward, so the X-only clip never
+  touches them.
+- Files: `frontend/src/app/globals.css`, `frontend/src/components/layout/navbar.tsx`.
+
 ### feat(tasks): warn before finishing a task with unfinished subtasks (2026-06-22)
 
 - **Completing a task that still has open subtasks now raises a confirmation first** — for every

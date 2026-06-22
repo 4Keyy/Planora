@@ -168,7 +168,14 @@ export function Navbar() {
 
   return (
     <div
-      className="fixed inset-x-0 z-[1000] flex justify-center px-3 pointer-events-none"
+      // `position: fixed` elements clip against the viewport, not against the
+      // <body> overflow guard — so a real mobile browser could still pan the page
+      // sideways if anything inside this bar exceeded the device width. `overflow-x:
+      // clip` + `max-w-[100vw]` make the navbar physically incapable of widening the
+      // page; the dropdown sheet/menu open DOWNWARD (top-full), so the X-only clip
+      // never touches them. min-w-0 lets the flex children shrink instead of forcing
+      // an intrinsic min-content width wider than the screen.
+      className="fixed inset-x-0 z-[1000] flex max-w-[100vw] justify-center overflow-x-clip px-3 pointer-events-none [&>*]:min-w-0"
       style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
     >
       {/* Desktop pill (pointer devices, sm and up). Hidden on phones, which can't
