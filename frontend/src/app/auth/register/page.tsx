@@ -42,7 +42,9 @@ function InputField({ label, error, children }: { label: string; error?: string;
   )
 }
 
-const inputClass = "w-full px-3.5 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-[border-color,box-shadow] placeholder:text-gray-400"
+// text-[15px] is bumped to 16px on phones by globals.css (no iOS focus-zoom); py-3.5
+// gives a ~52px touch target. Matches the login screen's field styling.
+const inputClass = "w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-[15px] text-gray-900 placeholder:text-gray-400 transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -145,18 +147,23 @@ export default function RegisterPage() {
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
+      <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-6 lg:px-4 lg:py-12">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={TWEEN_DELIBERATE}
-          className="w-full max-w-sm space-y-7"
+          className="w-full max-w-sm space-y-7 rounded-3xl border border-gray-200/70 bg-white/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none"
         >
           <div className="space-y-1.5">
-            <div className="lg:hidden mb-6">
-              <span className="text-base font-bold text-gray-900">Planora</span>
+            {/* Mobile brand lockup — matches the login screen (phones drop the left panel). */}
+            <div className="mb-7 flex flex-col items-center gap-2.5 text-center lg:hidden">
+              <span className="flex items-center gap-1.5">
+                <span className="h-[7px] w-[7px] rounded-full bg-gray-900" />
+                <span className="text-lg font-black tracking-tight text-gray-900">Planora</span>
+              </span>
+              <p className="text-[13px] font-medium text-gray-400">Real coordination for real life.</p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Create account</h1>
+            <h1 className="text-2xl font-black tracking-tight text-gray-900 lg:font-bold">Create account</h1>
             <p className="text-sm text-gray-500">Free, forever. No credit card required.</p>
           </div>
 
@@ -181,11 +188,11 @@ export default function RegisterPage() {
                   type={showPass ? "text" : "password"}
                   placeholder="Create a strong password"
                   autoComplete="new-password"
-                  className={inputClass + " pr-10"}
+                  className={inputClass + " pr-12"}
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} tabIndex={-1}
                   aria-label={showPass ? "Hide password" : "Show password"}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -210,11 +217,11 @@ export default function RegisterPage() {
                   type={showConfirm ? "text" : "password"}
                   placeholder="••••••••"
                   autoComplete="new-password"
-                  className={inputClass + " pr-10"}
+                  className={inputClass + " pr-12"}
                 />
                 <button type="button" onClick={() => setShowConfirm(!showConfirm)} tabIndex={-1}
                   aria-label={showConfirm ? "Hide password" : "Show password"}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -234,7 +241,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed transition-[background-color,opacity] duration-200 mt-2"
+              className="group mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-4 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-gray-900/10 transition-[background-color,opacity,transform] duration-200 hover:bg-gray-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
@@ -242,7 +249,7 @@ export default function RegisterPage() {
                   Creating account...
                 </span>
               ) : (
-                <>Create account <ArrowRight className="h-4 w-4" /></>
+                <>Create account <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></>
               )}
             </button>
           </form>

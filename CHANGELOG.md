@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(auth): mobile-first redesign of the auth screens (2026-06-22)
+
+- Reworked all five auth screens (login, register, forgot-password, reset-password, verify-email)
+  for phones while leaving the desktop split-panel layout intact. Each now presents the form in a
+  premium rounded-3xl glass card (`bg-white/75` + backdrop-blur + soft shadow) on mobile, with the
+  card chrome stripped back to the bare form from `lg` up so the desktop dark side-panel still reads
+  as the hero.
+- Phones lost the desktop left panel's branding, so login/register gain a centered brand lockup
+  (the navbar's dot + "Planora" wordmark + a one-line value prop); the single-column screens get the
+  same dot lockup. Fields are now `rounded-2xl`, `py-3.5` (~52px touch target) at `text-[15px]`
+  (rendered 16px on phones to suppress iOS focus-zoom) with a softer 4px focus ring; primary buttons
+  are taller `rounded-2xl` with a subtle shadow, press-scale and an arrow nudge on hover. Password
+  reveal toggles became 36px tap targets with a hover surface.
+- No behavioural change — auth flows, validation and submit handlers are untouched. Verified at 390px:
+  zero horizontal overflow on every screen.
+- Files: `frontend/src/app/auth/{login,register,forgot-password,reset-password,verify-email}/page.tsx`.
+
 ### fix(ui): force light colour scheme so dark-mode phones stay readable (2026-06-22)
 
 - **On a device set to OS dark mode the whole app rendered dark-on-dark.** Planora is a

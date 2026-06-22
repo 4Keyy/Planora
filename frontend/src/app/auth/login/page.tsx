@@ -21,6 +21,13 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
+// Shared auth-field styling. text-[15px] reads as 15px on desktop but is bumped to
+// 16px on phones by globals.css (kills iOS focus-zoom); py-3.5 gives a ~52px touch
+// target. rounded-2xl + a soft focus ring match the rest of the mobile redesign.
+const FIELD_CLS =
+  "w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-[15px] text-gray-900 placeholder:text-gray-400 transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
+const LABEL_CLS = "text-xs font-semibold uppercase tracking-wider text-gray-700"
+
 export default function LoginPage() {
   const router = useRouter()
   const setAuth = useAuthStore(s => s.setAuth)
@@ -132,39 +139,45 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
+      <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-6 lg:px-4 lg:py-12">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={TWEEN_DELIBERATE}
-          className="w-full max-w-sm space-y-8"
+          className="w-full max-w-sm space-y-7 rounded-3xl border border-gray-200/70 bg-white/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8 lg:space-y-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none"
         >
           {/* Header */}
           <div className="space-y-1.5">
-            <div className="lg:hidden mb-6">
-              <span className="text-base font-bold text-gray-900">Planora</span>
+            {/* Mobile brand lockup — phones drop the desktop's left panel, so re-introduce
+                the wordmark + a one-line value prop here. Matches the navbar's dot lockup. */}
+            <div className="mb-7 flex flex-col items-center gap-2.5 text-center lg:hidden">
+              <span className="flex items-center gap-1.5">
+                <span className="h-[7px] w-[7px] rounded-full bg-gray-900" />
+                <span className="text-lg font-black tracking-tight text-gray-900">Planora</span>
+              </span>
+              <p className="text-[13px] font-medium text-gray-400">Real coordination for real life.</p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Sign in</h1>
+            <h1 className="text-2xl font-black tracking-tight text-gray-900 lg:font-bold">Sign in</h1>
             <p className="text-sm text-gray-500">Enter your credentials to continue</p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <label htmlFor="login-email" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</label>
+              <label htmlFor="login-email" className={LABEL_CLS}>Email</label>
               <input
                 {...register("email")}
                 id="login-email"
                 type="email"
                 placeholder="you@example.com"
                 autoComplete="email"
-                className="w-full px-3.5 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-[border-color,box-shadow] placeholder:text-gray-400"
+                className={FIELD_CLS}
               />
               {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="login-password" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Password</label>
+              <label htmlFor="login-password" className={LABEL_CLS}>Password</label>
               <div className="relative">
                 <input
                   {...register("password")}
@@ -172,14 +185,14 @@ export default function LoginPage() {
                   type={showPass ? "text" : "password"}
                   placeholder="••••••••"
                   autoComplete="current-password"
-                  className="w-full px-3.5 py-3 pr-10 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-[border-color,box-shadow] placeholder:text-gray-400"
+                  className={`${FIELD_CLS} pr-12`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
                   tabIndex={-1}
                   aria-label={showPass ? "Hide password" : "Show password"}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
                 >
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -189,14 +202,14 @@ export default function LoginPage() {
 
             {requiresTwoFactor && (
               <div className="space-y-1.5">
-                <label htmlFor="login-2fa" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">2FA Code</label>
+                <label htmlFor="login-2fa" className={LABEL_CLS}>2FA Code</label>
                 <input
                   value={twoFactorCode}
                   onChange={(e) => setTwoFactorCode(e.target.value)}
                   id="login-2fa"
                   inputMode="numeric"
                   placeholder="123456"
-                  className="w-full px-3.5 py-3 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900/10 focus:border-gray-400 transition-[border-color,box-shadow] placeholder:text-gray-400"
+                  className={FIELD_CLS}
                 />
               </div>
             )}
@@ -231,7 +244,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed transition-[background-color,opacity] duration-200 mt-2"
+              className="group mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-4 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-gray-900/10 transition-[background-color,opacity,transform] duration-200 hover:bg-gray-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
@@ -239,7 +252,7 @@ export default function LoginPage() {
                   Signing in...
                 </span>
               ) : (
-                <>Sign in <ArrowRight className="h-4 w-4" /></>
+                <>Sign in <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></>
               )}
             </button>
           </form>
