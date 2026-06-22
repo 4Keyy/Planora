@@ -81,18 +81,18 @@ export default function HomePage() {
             Planora is a private task workspace for people who matter to you — share selectively, coordinate without noise, stay secure across every session.
           </p>
 
-          <div className="flex items-center justify-center gap-3 pt-2">
+          <div className="flex w-full flex-col items-stretch justify-center gap-3 pt-2 sm:w-auto sm:flex-row sm:items-center">
             <button
               onClick={handleCta}
-              className="inline-flex items-center gap-2 bg-gray-900 text-white px-7 py-3.5 rounded-2xl text-sm font-semibold hover:bg-gray-700 transition-all duration-200 shadow-lg shadow-gray-900/10"
+              className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-gray-900 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-gray-900/10 transition-[background-color,transform] duration-200 hover:bg-gray-800 active:scale-[0.99]"
               suppressHydrationWarning
             >
               {ctaText}
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </button>
             <Link
               href="/auth/register"
-              className="inline-flex items-center gap-2 text-gray-600 px-7 py-3.5 rounded-2xl text-sm font-medium border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-7 py-3.5 text-sm font-medium text-gray-600 transition-[background-color,border-color] duration-200 hover:border-gray-300 hover:bg-gray-50"
             >
               Create account
             </Link>

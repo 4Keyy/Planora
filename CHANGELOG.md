@@ -4,6 +4,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### style(landing): stack hero CTAs full-width on phones (2026-06-22)
+
+- The landing hero's two CTAs (`Start for free` / `Create account`) sat side-by-side and were
+  narrow and cramped on a phone. They now stack full-width in a column below `sm` (primary on top)
+  and restore the inline row from `sm` up — bigger, easier tap targets and a cleaner mobile hero.
+  Buttons also pick up the same press-scale + arrow-nudge polish as the auth screens.
+- Files: `frontend/src/app/page.tsx`.
+
 ### feat(auth): mobile-first redesign of the auth screens (2026-06-22)
 
 - Reworked all five auth screens (login, register, forgot-password, reset-password, verify-email)
