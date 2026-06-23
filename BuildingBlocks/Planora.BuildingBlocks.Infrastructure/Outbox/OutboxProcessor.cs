@@ -77,6 +77,14 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
             // of this method regardless of how many messages are in the batch.
             var batchStopwatch = Stopwatch.StartNew();
 
+            // Delivery semantics: AT-LEAST-ONCE. A message can be re-published if the process crashes
+            // after the broker publish but before the row is marked Processed, so every consumer MUST
+            // be idempotent (the inbox de-duplicates by event id). This claim-free SELECT assumes a
+            // SINGLE active processor instance per service (the default deployment): two instances would
+            // both pick up the same Pending rows and double-publish. To scale the processor horizontally,
+            // claim a batch atomically first — e.g. `SELECT ... FOR UPDATE SKIP LOCKED` (raw SQL) or a
+            // guarded `UPDATE ... SET Status = Processing ... RETURNING` — so each row is owned by exactly
+            // one worker. See docs/architecture.md (Outbox) for the rationale.
             var messages = await dbContext.Set<OutboxMessage>()
                 .Where(m => m.Status == OutboxMessageStatus.Pending ||
                            (m.Status == OutboxMessageStatus.Failed && m.NextRetryUtc <= DateTime.UtcNow))

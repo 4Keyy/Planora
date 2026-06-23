@@ -192,6 +192,24 @@ Publishers via outbox:
 - Collaboration publishes `NotificationEvent` per participant when a comment is added; Realtime delivers it over SignalR.
 - Todo and Collaboration publish `RealtimeSyncIntegrationEvent` on every task/comment mutation; Realtime fans it out over SignalR for live UI sync (see below).
 
+### Outbox delivery semantics
+
+Each service writes integration events to its own `outbox` table inside the same transaction as the
+domain change (transactional outbox), and a background `OutboxProcessor` polls that table and publishes
+to RabbitMQ. The guarantee is **at-least-once**: a process can crash after the broker publish but before
+the row is marked `Processed`, so the event is re-published on the next pass. Consumers therefore **must
+be idempotent** — the persistent inbox de-duplicates by event id (Auth, Messaging and Collaboration keep
+an `inbox` table; Realtime de-dups against its read-model, see the notification-consumer row under
+[Known Architectural Risks](#known-architectural-risks)).
+
+The processor's `SELECT` of pending/failed rows is **claim-free**, which assumes **one active
+`OutboxProcessor` instance per service** — the default deployment. Running two instances of the same
+service would have both drain the same `Pending` rows and double-publish (still safe for consumers
+because of idempotency, but wasteful). To scale a service horizontally while keeping a single logical
+drainer, claim each batch atomically before processing — e.g. `SELECT … FOR UPDATE SKIP LOCKED` or a
+guarded `UPDATE … SET Status = Processing … RETURNING` — so every row is owned by exactly one worker.
+This is called out in `OutboxProcessor.ProcessOutboxMessagesAsync`.
+
 ### Live UI sync (SignalR)
 
 Every client holds one SignalR connection to the unified hub (`/hubs/notifications`, reached as
