@@ -190,6 +190,7 @@ Publishers via outbox:
 
 - Todo publishes `TaskCreated` / `TaskActivity` / `TaskDeleted` on task lifecycle (create, complete/start/leave, delete) — these drive the Collaboration timeline instead of the old in-transaction comment writes.
 - Collaboration publishes `NotificationEvent` per participant when a comment is added; Realtime delivers it over SignalR.
+- Messaging publishes `NotificationEvent` to the recipient when a message is sent; the row is written to the Messaging outbox in the same transaction as the message (it does not publish straight to the broker), and the shared `OutboxProcessor` ships it to Realtime.
 - Todo and Collaboration publish `RealtimeSyncIntegrationEvent` on every task/comment mutation; Realtime fans it out over SignalR for live UI sync (see below).
 
 ### Outbox delivery semantics

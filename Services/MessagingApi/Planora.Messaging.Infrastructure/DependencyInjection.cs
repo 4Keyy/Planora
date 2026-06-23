@@ -1,5 +1,6 @@
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.GrpcContracts;
@@ -29,9 +30,17 @@ namespace Planora.Messaging.Infrastructure
                 })
                     .EnableSensitiveDataLogging(false));
 
+            // Register MessagingDbContext as DbContext for the shared OutboxProcessor.
+            services.AddScoped<DbContext>(sp => sp.GetRequiredService<MessagingDbContext>());
+
             // Repositories & Unit of Work
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IMessageRepository, MessageRepository>();
+            services.AddScoped<IOutboxRepository, OutboxRepository<MessagingDbContext>>();
+
+            // Outbox Processor — ships the message NotificationEvent to RabbitMQ (INV-COMM-3) instead of
+            // SendMessageHandler publishing straight to the broker, so a notification survives a broker blip.
+            services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();
 
             // Services
             services.AddHttpContextAccessor();

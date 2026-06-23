@@ -1,6 +1,6 @@
 using Planora.BuildingBlocks.Domain.Exceptions;
-using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Application.Persistence;
 using Planora.Messaging.Application.Features.Messages.Commands.SendMessage;
 using Planora.Messaging.Application.Services;
@@ -17,7 +17,7 @@ public class SendMessageHandlerTests
     private readonly Mock<IMessageRepository> _messageRepositoryMock = new();
     private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
     private readonly Mock<IFriendshipService> _friendshipServiceMock = new();
-    private readonly Mock<IEventBus> _eventBusMock = new();
+    private readonly Mock<IOutboxRepository> _outboxMock = new();
     private readonly SendMessageHandler _handler;
 
     public SendMessageHandlerTests()
@@ -25,11 +25,8 @@ public class SendMessageHandlerTests
         _messageRepositoryMock
             .Setup(x => x.AddAsync(It.IsAny<Message>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Message message, CancellationToken _) => message);
-        _messageRepositoryMock
-            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-        _eventBusMock
-            .Setup(x => x.PublishAsync(It.IsAny<NotificationEvent>(), It.IsAny<CancellationToken>()))
+        _outboxMock
+            .Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         _handler = new SendMessageHandler(
@@ -37,11 +34,11 @@ public class SendMessageHandlerTests
             Mock.Of<ILogger<SendMessageHandler>>(),
             _currentUserServiceMock.Object,
             _friendshipServiceMock.Object,
-            _eventBusMock.Object);
+            _outboxMock.Object);
     }
 
     [Fact]
-    public async Task Handle_ShouldSaveAndPublishNotification_WhenUsersAreFriends()
+    public async Task Handle_ShouldSaveAndEnqueueNotificationToOutbox_WhenUsersAreFriends()
     {
         var senderId = Guid.NewGuid();
         var recipientId = Guid.NewGuid();
@@ -64,14 +61,15 @@ public class SendMessageHandlerTests
                     m.Body == command.Body),
                 It.IsAny<CancellationToken>()),
             Times.Once);
-        _messageRepositoryMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _eventBusMock.Verify(
-            x => x.PublishAsync(
-                It.Is<NotificationEvent>(e =>
-                    e.UserId == recipientId &&
-                    e.Title == "New message" &&
-                    e.Message == "New message: Planning" &&
-                    e.Type == "MessageReceived"),
+        // The handler no longer publishes straight to the broker nor calls SaveChanges itself: the
+        // notification is enqueued into the outbox, whose AddAsync commits the message + outbox row.
+        _messageRepositoryMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _outboxMock.Verify(
+            x => x.AddAsync(
+                It.Is<OutboxMessage>(m =>
+                    m.Type.Contains("NotificationEvent") &&
+                    m.Content.Contains(recipientId.ToString()) &&
+                    m.Content.Contains("MessageReceived")),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -94,8 +92,8 @@ public class SendMessageHandlerTests
             x => x.AddAsync(It.IsAny<Message>(), It.IsAny<CancellationToken>()),
             Times.Never);
         _messageRepositoryMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _eventBusMock.Verify(
-            x => x.PublishAsync(It.IsAny<NotificationEvent>(), It.IsAny<CancellationToken>()),
+        _outboxMock.Verify(
+            x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -117,8 +115,8 @@ public class SendMessageHandlerTests
         _messageRepositoryMock.Verify(
             x => x.AddAsync(It.IsAny<Message>(), It.IsAny<CancellationToken>()),
             Times.Never);
-        _eventBusMock.Verify(
-            x => x.PublishAsync(It.IsAny<NotificationEvent>(), It.IsAny<CancellationToken>()),
+        _outboxMock.Verify(
+            x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 }
