@@ -71,7 +71,6 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.8" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
     <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.18.0" />
-    <PackageVersion Include="BCrypt.Net-Next" Version="4.1.0" />
     <PackageVersion Include="Otp.NET" Version="1.4.1" />
     <PackageVersion Include="QRCoder" Version="1.8.0" />
     <PackageVersion Include="OpenTelemetry" Version="1.15.3" />
@@ -91,8 +90,6 @@
     <PackageVersion Include="Swashbuckle.AspNetCore.Annotations" Version="6.9.0" />
     <PackageVersion Include="Ocelot" Version="24.1.0" />
     <PackageVersion Include="Ocelot.Provider.Polly" Version="24.1.0" />
-    <PackageVersion Include="Ocelot.Provider.Consul" Version="24.1.0" />
-    <PackageVersion Include="Paket.Core" Version="9.0.2" />
     <!-- Testing -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
