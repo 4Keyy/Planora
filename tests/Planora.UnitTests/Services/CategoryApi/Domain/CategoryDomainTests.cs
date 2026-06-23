@@ -147,5 +147,11 @@ public class CategoryDomainTests
         Assert.False(CategoryColors.IsValid(""));
         Assert.False(CategoryColors.IsValid("blue"));
         Assert.False(CategoryColors.IsValid("#12345"));
+        // Non-hex letters must be rejected (the old char.IsLetter check accepted these).
+        Assert.False(CategoryColors.IsValid("#ZZZZZZ"));
+        Assert.False(CategoryColors.IsValid("#GGGGGG"));
+        Assert.False(CategoryColors.IsValid("#12345G"));
+        // Too long.
+        Assert.False(CategoryColors.IsValid("#0011223"));
     }
 }

@@ -19,10 +19,14 @@ namespace Planora.Category.Domain.Enums
             if (string.IsNullOrWhiteSpace(color))
                 return false;
 
-            return Predefined.Contains(color) ||
-                   (color.StartsWith('#') && color.Length == 7 &&
-                    color.Skip(1).All(c => char.IsDigit(c) ||
-                                      char.IsLetter(c)));
+            if (Predefined.Contains(color))
+                return true;
+
+            // A valid hex colour is '#' followed by exactly six hex digits (0-9, A-F, a-f). The old
+            // check accepted any letter, so non-hex strings like "#ZZZZZZ" or "#GGGGGG" passed.
+            return color.Length == 7
+                && color[0] == '#'
+                && color.Skip(1).All(Uri.IsHexDigit);
         }
     }
 }
