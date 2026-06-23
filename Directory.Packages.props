@@ -76,9 +76,17 @@
     <PackageVersion Include="OpenTelemetry" Version="1.15.3" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <!-- PRE-RELEASE pin. OpenTelemetry.Instrumentation.EntityFrameworkCore has no stable GA yet;
+         it ships only as 1.x-beta upstream. Migration plan: when a stable (non-beta) version is
+         published, bump to it and drop this note. Until then this version is pinned deliberately —
+         do not let a restore float it to a newer, untested beta. -->
     <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.10.0-beta.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+    <!-- PRE-RELEASE pin. OpenTelemetry.Instrumentation.Process is still 0.x-beta upstream. Migration
+         plan: prefer folding process-level metrics into the already-stable Instrumentation.Runtime
+         (above) where they overlap; otherwise bump to the first stable Process GA when it ships and
+         drop this note. Pinned deliberately so a restore cannot float it to a newer beta. -->
     <PackageVersion Include="OpenTelemetry.Instrumentation.Process" Version="0.5.0-beta.7" />
     <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.15.3" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
