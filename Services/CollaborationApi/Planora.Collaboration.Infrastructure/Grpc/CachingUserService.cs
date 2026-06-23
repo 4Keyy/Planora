@@ -42,12 +42,9 @@ namespace Planora.Collaboration.Infrastructure.Grpc
 
             foreach (var id in ids)
             {
-                if (_cache.TryGetValue(Key(id), out CacheEntry? entry) && entry is not null)
+                if (_cache.TryGetValue(Key(id), out UserProfile? profile) && profile is not null)
                 {
-                    if (entry.Profile is not null)
-                    {
-                        result[id] = entry.Profile;
-                    }
+                    result[id] = profile;
                 }
                 else
                 {
@@ -64,14 +61,17 @@ namespace Planora.Collaboration.Infrastructure.Grpc
 
             foreach (var id in missing)
             {
-                fresh.TryGetValue(id, out var profile);
-                _cache.Set(Key(id), new CacheEntry(profile), new MemoryCacheEntryOptions
+                // Only POSITIVE results are cached. A missing id is NOT cached as a negative: when the
+                // Auth gRPC call fails the inner service returns no entry for these ids, and caching that
+                // emptiness would blank names/avatars for the full TTL even after Auth recovers. Re-fetching
+                // an occasional genuinely-absent user is cheap; serving stale-empty profiles is not.
+                if (fresh.TryGetValue(id, out var profile) && profile is not null)
                 {
-                    AbsoluteExpirationRelativeToNow = Ttl,
-                    Size = 1,
-                });
-                if (profile is not null)
-                {
+                    _cache.Set(Key(id), profile, new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = Ttl,
+                        Size = 1,
+                    });
                     result[id] = profile;
                 }
             }
@@ -84,7 +84,5 @@ namespace Planora.Collaboration.Infrastructure.Grpc
         }
 
         private static string Key(Guid id) => KeyPrefix + id.ToString("N");
-
-        private sealed record CacheEntry(UserProfile? Profile);
     }
 }
