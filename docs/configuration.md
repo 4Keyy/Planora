@@ -100,12 +100,9 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 | `JWT_AUDIENCE` | informational in `.env.example` | Compose injects fixed `JwtSettings__Audience: Planora.Clients`; services also default to this in appsettings. |
 | `JWT_ACCESS_TOKEN_EXPIRATION_MINUTES` | informational | Not directly injected by current Compose. Auth local appsettings uses 15 minutes; Docker auth appsettings/Compose context uses 60 minutes where configured. |
 | `JWT_REFRESH_TOKEN_EXPIRATION_DAYS` | informational | Appsettings default is 7 days. |
-| `RABBIT_USER` / `RABBIT_PASS` | legacy/documented | Not used by `docker-compose.yml`; use `RABBITMQ_USER` / `RABBITMQ_PASSWORD` for Compose. |
-| `RABBITMQ_USER` | required | RabbitMQ default user and service username. |
-| `RABBITMQ_PASSWORD` | required | RabbitMQ default password and service password. |
-| `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_VIRTUAL_HOST` | informational | Compose injects service-specific RabbitMQ keys directly. |
-| `REDIS_CONNECTION` | optional for some services/scripts | Gateway/realtime use Redis connection strings; local scripts also set Redis connection env values. Compose injects explicit Redis strings for most services. |
-| `REDIS_PASSWORD` | required | Redis `requirepass` and password-bearing service connection strings. |
+| `RABBITMQ_USER` | required | RabbitMQ default user; Compose feeds it into every service's `RabbitMq__UserName`. |
+| `RABBITMQ_PASSWORD` | required | RabbitMQ default password; Compose feeds it into every service's `RabbitMq__Password`. |
+| `REDIS_PASSWORD` | required | Redis `requirepass`; Compose builds each service's `ConnectionStrings__Redis` from it. |
 | `NEXT_PUBLIC_API_URL` | optional | Frontend API Gateway base URL; default is `http://localhost:5132`. |
 | `NEXT_PUBLIC_API_GATEWAY_URL` | optional alias | Read by `frontend/next.config.js` if `NEXT_PUBLIC_API_URL` is absent. |
 | `NEXT_PUBLIC_ENVIRONMENT` | optional | Environment label; no direct behavior found in core API client. |

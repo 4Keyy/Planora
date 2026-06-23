@@ -6,7 +6,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD env var must be set}
-      POSTGRES_INITDB_ARGS: "-c shared_preload_libraries=uuid-ossp"
+      # NOTE: no shared_preload_libraries here. uuid-ossp is a SQL extension
+      # (CREATE EXTENSION), not a preloadable shared library — listing it as a
+      # preload makes Postgres fail to start. Primary keys are GUIDs generated
+      # application-side (Guid.NewGuid in the .NET domain), so the database needs
+      # no UUID-generation extension at all.
     # T4.5 — kill transactions stuck idle past 30 s so a leaked DbContext or a
     # client crash mid-transaction cannot indefinitely hold a connection
     # (which would otherwise starve the per-service pool — see T4.4 pool sizing).
@@ -22,7 +26,6 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -101,11 +104,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
-      REDIS_CONNECTION: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set},abortConnect=false"
-      RABBITMQ_HOST: "rabbitmq"
-      RABBITMQ_PORT: "5672"
-      RABBITMQ_USER: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+      # NOTE: the gateway is a pure Ocelot reverse proxy — it uses an in-memory
+      # rate limiter and no event bus, so it connects to neither Redis nor
+      # RabbitMQ. No ConnectionStrings__Redis / RabbitMq__* keys are set here.
       JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
       JwtSettings__Issuer: "Planora.Auth"
       JwtSettings__Audience: "Planora.Clients"
@@ -129,6 +130,8 @@ services:
       category-api:
         condition: service_healthy
       todo-api:
+        condition: service_healthy
+      collaboration-api:
         condition: service_healthy
       messaging-api:
         condition: service_healthy
@@ -324,12 +327,11 @@ services:
       # the service persists notifications and serves the read API; when absent it falls back to
       # ephemeral SignalR pushes only. Pool sizing matches sister services (T4.4): 10 max, 60s reaper.
       ConnectionStrings__RealtimeDatabase: "Host=postgres;Port=5432;Database=planora_realtime;Username=postgres;Password=${POSTGRES_PASSWORD};Maximum Pool Size=10;Connection Idle Lifetime=60;"
-      REDIS_CONNECTION: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set},abortConnect=false"
+      ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set},abortConnect=false"
       RateLimiting__Backend: Redis
-      RABBITMQ_HOST: "rabbitmq"
-      RABBITMQ_PORT: "5672"
-      RABBITMQ_USER: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
+      RabbitMq__HostName: "rabbitmq"
+      RabbitMq__UserName: ${RABBITMQ_USER:?RABBITMQ_USER env var must be set}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD env var must be set}
       JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
       JwtSettings__Issuer: "Planora.Auth"
       JwtSettings__Audience: "Planora.Clients"

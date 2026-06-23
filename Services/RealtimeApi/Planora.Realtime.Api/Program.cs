@@ -92,8 +92,12 @@ public class Program
                 });
             builder.Services.AddAuthorization();
 
-            // SignalR with Redis backplane (required for multi-instance horizontal scaling)
-            var signalrRedisConnection = Environment.GetEnvironmentVariable("REDIS_CONNECTION")
+            // SignalR with Redis backplane (required for multi-instance horizontal scaling).
+            // Redis is read from the unified ConnectionStrings:Redis key (ConnectionStrings__Redis
+            // env var) like every other service; REDIS_CONNECTION and Redis:Configuration are kept
+            // as backward-compatible fallbacks so existing local/compose overrides keep working.
+            var signalrRedisConnection = builder.Configuration.GetConnectionString("Redis")
+                ?? Environment.GetEnvironmentVariable("REDIS_CONNECTION")
                 ?? builder.Configuration["Redis:Configuration"]
                 ?? "localhost:6379";
             builder.Services.AddSignalR()
@@ -132,7 +136,7 @@ public class Program
                 await DependencyWaiter.WaitForRedisAsync(
                     async () =>
                     {
-                        var redisConnection = Environment.GetEnvironmentVariable("REDIS_CONNECTION") ?? builder.Configuration["Redis:Configuration"] ?? "redis:6379";
+                        var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? Environment.GetEnvironmentVariable("REDIS_CONNECTION") ?? builder.Configuration["Redis:Configuration"] ?? "redis:6379";
                         var redis = await ConnectionMultiplexer.ConnectAsync(redisConnection);
                         await redis.GetDatabase().PingAsync();
                     },
