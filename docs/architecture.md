@@ -202,6 +202,13 @@ be idempotent** — the persistent inbox de-duplicates by event id (Auth, Messag
 an `inbox` table; Realtime de-dups against its read-model, see the notification-consumer row under
 [Known Architectural Risks](#known-architectural-risks)).
 
+Because delivery is at-least-once, the processor also runs a **crash-recovery sweep** at the start of
+every pass: a worker that dies between `MarkAsProcessing` and `MarkAsProcessed` strands a row in
+`Processing`, which the main query never re-selects. `ReclaimStuckProcessingAsync` returns any row that
+has been `Processing` longer than a 5-minute lease back to `Pending` (consuming the retry budget, so a
+message that crashes the worker on every attempt is eventually dead-lettered rather than looping). Without
+this sweep a single crash silently drops the event.
+
 The processor's `SELECT` of pending/failed rows is **claim-free**, which assumes **one active
 `OutboxProcessor` instance per service** — the default deployment. Running two instances of the same
 service would have both drain the same `Pending` rows and double-publish (still safe for consumers
@@ -310,7 +317,7 @@ Observability is a first-class, cross-cutting concern wired identically in every
 - **Custom Planora instruments** (`PlanoraMetrics.cs`):
   - `planora.csrf.rejections{reason}` — populated by `CsrfProtectionMiddleware`. Reasons: `missing_header`, `missing_cookie`, `mismatch`.
   - `planora.grpc.unauthenticated{reason}` — populated by `ServiceKeyServerInterceptor`. Reasons: `missing_key`, `short_key`, `mismatch`.
-  - `planora.outbox.messages{outcome}` — populated by `OutboxProcessor`. Outcomes: `processed`, `failed`, `type_not_found`, `deserialize_failed`, `retry_exhausted`.
+  - `planora.outbox.messages{outcome}` — populated by `OutboxProcessor`. Outcomes: `processed`, `failed`, `type_not_found`, `deserialize_failed`, `retry_exhausted`, `reclaimed_stuck` (rows recovered from a stranded `Processing` state by the crash-recovery sweep).
   - `planora.outbox.batch.duration` (histogram, seconds) — wall-clock per outbox pass.
   - `planora.outbox.message.age` (histogram, seconds) — `now - OccurredOnUtc` at the moment the processor picks the row up; the canonical backpressure signal.
 - **Resource attributes** — every span and metric carries `service.name`, `service.version` (from the entry-assembly version), `service.instance.id` (machine hostname), `service.namespace=planora`, and `deployment.environment` (from `ASPNETCORE_ENVIRONMENT`).

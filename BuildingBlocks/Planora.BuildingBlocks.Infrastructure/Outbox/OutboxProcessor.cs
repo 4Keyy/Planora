@@ -16,6 +16,11 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
         private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
         private const int BatchSize = 20;
 
+        // A row that has been Processing longer than this is treated as orphaned by a crashed worker
+        // and reclaimed to Pending. Comfortably longer than the worst-case time to publish one batch
+        // so an in-flight row on a slow broker is never reclaimed out from under the active worker.
+        private static readonly TimeSpan ProcessingLease = TimeSpan.FromMinutes(5);
+
         // Optional: present in services that wired immediate dispatch. Null elsewhere → pure poll.
         private readonly OutboxSignal? _signal;
 
@@ -60,6 +65,38 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
             _logger.LogInformation("Outbox Processor stopped");
         }
 
+        /// <summary>
+        /// Crash recovery: returns rows stranded in <see cref="OutboxMessageStatus.Processing"/> past the
+        /// <see cref="ProcessingLease"/> back to Pending. A worker that died between MarkAsProcessing and
+        /// MarkAsProcessed would otherwise leave the row invisible forever (the main query only selects
+        /// Pending/Failed), silently dropping the event and breaking at-least-once delivery (INV-COMM-3a).
+        /// </summary>
+        private async Task ReclaimStuckProcessingAsync(DbContext dbContext, CancellationToken cancellationToken)
+        {
+            var leaseExpiryUtc = DateTime.UtcNow - ProcessingLease;
+
+            var stuck = await dbContext.Set<OutboxMessage>()
+                .Where(m => m.Status == OutboxMessageStatus.Processing
+                            && (m.UpdatedAt ?? m.CreatedAt) < leaseExpiryUtc)
+                .OrderBy(m => m.OccurredOnUtc)
+                .Take(BatchSize)
+                .ToListAsync(cancellationToken);
+
+            if (stuck.Count == 0)
+                return;
+
+            foreach (var message in stuck)
+                message.ReclaimForRetry();
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            _logger.LogWarning(
+                "Reclaimed {Count} outbox message(s) stuck in Processing past the {LeaseSeconds}s lease",
+                stuck.Count, (int)ProcessingLease.TotalSeconds);
+            PlanoraMetrics.OutboxMessagesProcessed.Add(stuck.Count,
+                new KeyValuePair<string, object?>("outcome", "reclaimed_stuck"));
+        }
+
         private async Task<int> ProcessOutboxMessagesAsync(CancellationToken cancellationToken)
         {
             using var scope = _serviceProvider.CreateScope();
@@ -76,6 +113,8 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
             // Observability: capture wall-clock duration of one outbox pass; emitted at the end
             // of this method regardless of how many messages are in the batch.
             var batchStopwatch = Stopwatch.StartNew();
+
+            await ReclaimStuckProcessingAsync(dbContext, cancellationToken);
 
             // Delivery semantics: AT-LEAST-ONCE. A message can be re-published if the process crashes
             // after the broker publish but before the row is marked Processed, so every consumer MUST

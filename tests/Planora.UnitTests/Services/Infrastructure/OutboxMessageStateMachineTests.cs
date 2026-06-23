@@ -175,6 +175,52 @@ public sealed class OutboxMessageStateMachineTests
         Assert.False(msg.CanRetry);
     }
 
+    [Fact]
+    [Trait("TestType", "Outbox")]
+    [Trait("TestType", "Regression")]
+    public void ReclaimForRetry_FromStuckProcessing_GoesBackToPendingImmediately()
+    {
+        // Reproduces a crash between MarkAsProcessing+Save and MarkAsProcessed: the row is left in
+        // Processing, which the polling query never selects. The sweep reclaims it to Pending with no
+        // back-off delay so it is re-published on the next pass (at-least-once, INV-COMM-3a).
+        var msg = NewMessage();
+        msg.MarkAsProcessing();
+        Assert.Equal(OutboxMessageStatus.Processing, msg.Status);
+
+        msg.ReclaimForRetry();
+
+        Assert.Equal(OutboxMessageStatus.Pending, msg.Status);
+        Assert.Null(msg.NextRetryUtc);
+        Assert.Equal(1, msg.RetryCount);
+        Assert.True(msg.CanRetry);
+        Assert.False(msg.IsDeadLettered);
+        // The reclaimed row now satisfies the processor's polling predicate again.
+        Assert.True(msg.Status == OutboxMessageStatus.Pending);
+    }
+
+    [Fact]
+    [Trait("TestType", "Outbox")]
+    [Trait("TestType", "Regression")]
+    public void ReclaimForRetry_RepeatedlyCrashing_EventuallyDeadLetters()
+    {
+        // A message that crashes the worker on every attempt must not wedge the loop forever; the
+        // reclaim consumes the retry budget and dead-letters once it is exhausted.
+        var msg = NewMessage();
+
+        msg.MarkAsProcessing();
+        msg.ReclaimForRetry(); // 1
+        msg.MarkAsProcessing();
+        msg.ReclaimForRetry(); // 2
+        msg.MarkAsProcessing();
+        msg.ReclaimForRetry(); // 3 — budget exhausted
+
+        Assert.Equal(OutboxMessageStatus.DeadLettered, msg.Status);
+        Assert.Null(msg.NextRetryUtc);
+        Assert.Equal(MaxRetries, msg.RetryCount);
+        Assert.False(msg.CanRetry);
+        Assert.True(msg.IsDeadLettered);
+    }
+
     private static OutboxMessage NewMessage() =>
         new(type: "Planora.Tests.SomeEvent", content: "{}", occurredOnUtc: DateTime.UtcNow);
 }

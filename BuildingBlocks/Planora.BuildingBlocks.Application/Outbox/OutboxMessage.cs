@@ -84,6 +84,35 @@ public sealed class OutboxMessage : BaseEntity
     }
 
     /// <summary>
+    /// Reclaims a row that has been stranded in <see cref="OutboxMessageStatus.Processing"/> — the
+    /// processor crashed (or the host was killed) after <see cref="MarkAsProcessing"/> committed but
+    /// before <see cref="MarkAsProcessed"/>. Left alone the row is invisible forever, because the
+    /// polling query only selects Pending/Failed, which silently drops the event and breaks the
+    /// at-least-once guarantee (INV-COMM-3a). The reclaim sends it straight back to Pending (no
+    /// back-off delay — it was never actually a failure) so it is re-published on the next pass.
+    ///
+    /// It still consumes the retry budget so a genuinely poisonous message that crashes the processor
+    /// on every attempt cannot wedge the loop forever: once the budget is exhausted it is dead-lettered
+    /// like any other terminal failure.
+    /// </summary>
+    public void ReclaimForRetry()
+    {
+        RetryCount++;
+
+        if (RetryCount < MaxRetries)
+        {
+            Status = OutboxMessageStatus.Pending;
+            NextRetryUtc = null;
+        }
+        else
+        {
+            Status = OutboxMessageStatus.DeadLettered;
+            NextRetryUtc = null;
+            Error = "Reclaimed from stuck Processing state too many times; dead-lettered.";
+        }
+    }
+
+    /// <summary>
     /// Hard dead-letter for failures that are not worth retrying — type
     /// resolution failure, deserialization failure, or any other shape error
     /// that will fail identically on every replay. Skips the retry budget
