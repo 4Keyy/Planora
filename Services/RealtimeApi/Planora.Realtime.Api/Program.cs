@@ -6,7 +6,6 @@ using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Security;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Planora.Realtime.Api.Grpc;
-using Planora.Realtime.Api.Hubs;
 using Planora.Realtime.Infrastructure.Hubs;
 using Planora.Realtime.Application.Handlers;
 using Planora.BuildingBlocks.Application.Messaging.Events;
