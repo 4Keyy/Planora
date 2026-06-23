@@ -55,6 +55,14 @@ The resource adds two static attributes: `deployment.environment` (from
 `ASPNETCORE_ENVIRONMENT`) and `service.namespace=planora`. The
 `service.instance.id` attribute is set to the container/machine hostname.
 
+> **Production note.** Per-service `appsettings.Production.json` files are
+> `.gitignore`d and are **not** part of the deployed image, so production
+> deployments must supply the collector endpoint through the
+> `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable (a Fly secret / container
+> env), not through `OpenTelemetry:OtlpEndpoint`. The `appsettings.json` config
+> key exists for local/self-hosted runs that do commit a config file. The env
+> var is the single source of truth for traces/metrics export in production.
+
 ## Centralized Logs (Grafana Loki)
 
 `SerilogConfiguration.TryAddLokiSink` adds a Grafana Loki sink to every
