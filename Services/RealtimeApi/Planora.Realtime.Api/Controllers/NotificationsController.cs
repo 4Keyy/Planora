@@ -18,15 +18,17 @@ namespace Planora.Realtime.Api.Controllers
         private readonly INotificationReadStore _readStore;
         private readonly ILogger<NotificationsController> _logger;
 
-        // SECURITY: only server-defined notification types are allowed to prevent
-        // client-controlled strings from being injected into connected sessions.
+        // SECURITY: only server-defined notification types are allowed to prevent client-controlled
+        // strings from being injected into connected sessions. Security-sensitive types
+        // (PasswordChanged, AccountLocked, NewLogin, ForceLogout, SuspiciousActivity) are deliberately
+        // NOT in this set: they must only ever originate server-side (Auth -> gRPC/bus), never from a
+        // client call, so a user cannot spoof a fake security alert into their own session.
         private static readonly IReadOnlySet<string> AllowedNotificationTypes =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "info", "success", "warning", "error",
                 "TodoCreated", "TodoUpdated", "TodoDeleted",
                 "FriendRequest", "FriendAccepted",
-                "PasswordChanged", "AccountLocked",
             };
 
         public NotificationsController(
@@ -110,7 +112,12 @@ namespace Planora.Realtime.Api.Controllers
             return !string.IsNullOrEmpty(sub) && Guid.TryParse(sub, out userId);
         }
 
+        // Admin-only: the production notification path is the server-to-server gRPC channel
+        // (RealtimeGrpcService) and the integration-event bus. This manual REST trigger is an
+        // operator/diagnostic tool, not a client capability, so it is locked to the Admin role and
+        // cannot send security-sensitive types (see AllowedNotificationTypes).
         [HttpPost("send")]
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> SendNotification(

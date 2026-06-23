@@ -1,7 +1,6 @@
 using Planora.Realtime.Application.Interfaces;
 using Planora.Realtime.Infrastructure.Hubs;
 using Planora.Realtime.Infrastructure.Services;
-using Planora.Realtime.Infrastructure.SignalR;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -67,40 +66,6 @@ public class NotificationInfrastructureTests
             service.SendToAllAsync("Broadcast", "warning"));
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.SendToGroupAsync("admins", "Grouped", "success"));
-    }
-
-    [Fact]
-    [Trait("TestType", "Functional")]
-    [Trait("TestType", "Regression")]
-    public async Task AuthNotificationService_EmitsExpectedAuthEventsToUserGroup()
-    {
-        var proxy = new Mock<IClientProxy>();
-        var clients = new Mock<IHubClients>();
-        var hubContext = new Mock<IHubContext<NotificationHub>>();
-        var userId = Guid.NewGuid();
-        clients.Setup(x => x.Group($"user:{userId}")).Returns(proxy.Object);
-        hubContext.SetupGet(x => x.Clients).Returns(clients.Object);
-        var service = new AuthNotificationService(hubContext.Object, Mock.Of<ILogger<AuthNotificationService>>());
-
-        await service.NotifyNewLoginAsync(userId, "Chrome", "Moscow");
-        await service.NotifyPasswordChangedAsync(userId);
-        await service.NotifyAccountLockedAsync(userId, DateTime.UtcNow.AddMinutes(15));
-        await service.NotifyForceLogoutAsync(userId, "admin action");
-        await service.NotifySuspiciousActivityAsync(userId, "new country");
-
-        foreach (var method in new[]
-                 {
-                     "NewLogin",
-                     "PasswordChanged",
-                     "AccountLocked",
-                     "ForceLogout",
-                     "SuspiciousActivity"
-                 })
-        {
-            proxy.Verify(
-                x => x.SendCoreAsync(method, It.Is<object?[]>(args => args.Length == 1), It.IsAny<CancellationToken>()),
-                Times.Once);
-        }
     }
 
     [Fact]

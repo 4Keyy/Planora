@@ -812,7 +812,7 @@ Service-local protected routes:
 | `GET` | `/api/v1/notifications/summary` | `/realtime/api/v1/notifications/summary` | bearer | unread total + per-task breakdown (card dots, branch badges, bell count) |
 | `GET` | `/api/v1/notifications` | `/realtime/api/v1/notifications` | bearer | paged notification list, newest first (bell dropdown); `?take=&before=` |
 | `POST` | `/api/v1/notifications/read` | `/realtime/api/v1/notifications/read` | bearer | mark read by `{ all }`, `{ taskId }`, or `{ ids }`; returns fresh summary |
-| `POST` | `/api/v1/notifications/send` | `/realtime/api/v1/notifications/send` | bearer | send notification to current user |
+| `POST` | `/api/v1/notifications/send` | `/realtime/api/v1/notifications/send` | admin | operator/diagnostic self-notify; admin-only, non-security types only |
 | `POST` | `/api/v1/notifications/broadcast` | `/realtime/api/v1/notifications/broadcast` | admin | broadcast notification |
 
 Every notification endpoint is scoped to the JWT subject server-side — a user can only ever read or
@@ -835,7 +835,11 @@ mark read **their own** notifications (no IDOR surface), and all reads are `AsNo
 { "taskId": "11111111-1111-1111-1111-111111111111" }
 ```
 
-Legacy `POST /notifications/send` body:
+`POST /notifications/send` body (admin-only operator tool — the production path is the gRPC/bus
+channel). `type` must be a non-security UI type (`info`, `success`, `warning`, `error`,
+`TodoCreated`/`TodoUpdated`/`TodoDeleted`, `FriendRequest`, `FriendAccepted`); security types such as
+`PasswordChanged` and `AccountLocked` are rejected with `400 INVALID_NOTIFICATION_TYPE` so a client can
+never spoof a security alert into a session:
 
 ```json
 { "message": "Saved", "type": "info" }

@@ -28,6 +28,28 @@ public class NotificationsControllerTests
         service.Verify(x => x.SendNotificationAsync("user-123", "Hello", "success", It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Theory]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    [InlineData("PasswordChanged")]
+    [InlineData("AccountLocked")]
+    public async Task SendNotification_RejectsSecuritySpoofTypes(string spoofType)
+    {
+        // A client must not be able to self-spoof a security toast: PasswordChanged / AccountLocked
+        // can only originate server-side, so they are no longer in the client allowlist.
+        var service = new Mock<INotificationService>();
+        var controller = CreateController(service, userId: "user-123");
+
+        var response = await controller.SendNotification(
+            new SendNotificationRequest { Message = "Your password changed", Type = spoofType });
+
+        var bad = Assert.IsType<BadRequestObjectResult>(response);
+        Assert.Contains("INVALID_NOTIFICATION_TYPE", bad.Value!.ToString(), StringComparison.Ordinal);
+        service.Verify(
+            x => x.SendNotificationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     [Fact]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
