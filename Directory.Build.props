@@ -5,19 +5,29 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Audit transitive packages too, not just direct references, so a vulnerable
+         deep dependency is still flagged. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
     <!--
-      Keep advisories visible without blocking ordinary restore/build.
-        NU190x — vulnerable transitive NuGet packages (surfaced by dotnet-vuln CI job).
+      Vulnerability advisories are gated by severity:
+        NU1901 (low) / NU1902 (moderate) — kept as visible warnings, not errors, so a freshly
+          published low/moderate advisory does not block an unrelated change.
+        NU1903 (high) / NU1904 (critical) — NOT excluded, so they inherit TreatWarningsAsErrors
+          and FAIL the build/CI. A high or critical CVE in any (transitive) package must be fixed
+          or explicitly pinned away before the change can merge.
+
+      Non-vulnerability warnings kept visible-but-non-fatal:
         NU1510 — .NET 10 package pruning: a referenced package is already supplied by the
-        shared framework, so the reference is redundant. Kept as a visible warning rather
-        than an error so the build is not broken by framework-provided packages that we
-        still reference explicitly for clarity/transitive pinning.
+          shared framework, so the reference is redundant. Kept as a visible warning rather
+          than an error so the build is not broken by framework-provided packages that we
+          still reference explicitly for clarity/transitive pinning.
         CS0612 / CS0618 — [Obsolete] usage. Deprecation cycles must show up in the
-        compiler output so reviewers see them, but they must not break CI between the
-        commit that *adds* the [Obsolete] and the commit that *removes* the last caller
-        (typically one release apart per the T2.3 / T2.4 consolidation plan).
+          compiler output so reviewers see them, but they must not break CI between the
+          commit that *adds* the [Obsolete] and the commit that *removes* the last caller
+          (typically one release apart per the T2.3 / T2.4 consolidation plan).
     -->
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1510;NU1901;NU1902;NU1903;NU1904;CS0612;CS0618</WarningsNotAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1510;NU1901;NU1902;CS0612;CS0618</WarningsNotAsErrors>
     <NoWarn>$(NoWarn);NU1604</NoWarn>
   </PropertyGroup>
 

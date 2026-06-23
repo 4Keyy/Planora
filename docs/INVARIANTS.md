@@ -226,7 +226,7 @@ The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Pla
 
 ## CI Quality Gates
 
-**INV-CI-1.** `dotnet build -warnaserror` and `npm run lint` + `npm run type-check` must be green on every PR. `Directory.Build.props` sets `TreatWarningsAsErrors=true` for backend.
+**INV-CI-1.** `dotnet build -warnaserror` and `npm run lint` + `npm run type-check` must be green on every PR. `Directory.Build.props` sets `TreatWarningsAsErrors=true` for backend, with NuGet auditing enabled across transitive packages (`NuGetAuditMode=all`): **high/critical advisories (`NU1903`/`NU1904`) break the build**, while low/moderate (`NU1901`/`NU1902`) stay non-fatal warnings. This is a build-time complement to the CI `dotnet list package --vulnerable` job in INV-CI-3.
 
 **INV-CI-2.** `dotnet test` (unit + integration + ErrorHandling tests) and `npm run test:coverage` must be green on every PR.
 
