@@ -4,6 +4,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### ci(openapi): target net10.0 so the OpenAPI export job stops failing (2026-06-23)
+
+- The `openapi.yml` workflow builds with the `10.0.x` SDK in Release but then fed
+  `bin/Release/net9.0/<dll>` to `dotnet swagger tofile` — a path that no longer exists after the
+  .NET 10 migration — so the job failed on every run. Pointed it at `bin/Release/net10.0/`.
+- Files: `.github/workflows/openapi.yml`.
+
 ### fix(net): reach the API through the frontend origin when opened via a tunnel (2026-06-22)
 
 - On a phone the app called `ws://localhost:5132` and `/auth/refresh` failed (400), breaking realtime

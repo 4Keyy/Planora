@@ -157,7 +157,7 @@ jobs:
           fi
           dotnet swagger tofile \
             --output openapi/${{ matrix.service }}.json \
-            ${{ matrix.project }}/bin/Release/net9.0/${{ matrix.dll }} \
+            ${{ matrix.project }}/bin/Release/net10.0/${{ matrix.dll }} \
             v1
 
       - name: Validate the document is non-empty and well-formed
