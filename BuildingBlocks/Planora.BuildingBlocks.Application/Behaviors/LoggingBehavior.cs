@@ -42,10 +42,19 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
             _httpContextAccessor.HttpContext.Items["Operation"] = requestName;
         }
 
-        // Log request start with structured data
+        // Started/Completed lines stay at Information for operational visibility, but the full
+        // request/response PAYLOAD is logged only at Debug: even after redaction it can contain PII
+        // (emails, names, message bodies) that should not sit in Information-level logs by default.
         _logger.LogInformation(
-            "🎯 {RequestType} Started | Name: {RequestName} | UserId: {UserId} | CorrelationId: {CorrelationId} | Request: {@Request}",
-            requestType, requestName, userId, correlationId, SanitizeRequest(request));
+            "🎯 {RequestType} Started | Name: {RequestName} | UserId: {UserId} | CorrelationId: {CorrelationId}",
+            requestType, requestName, userId, correlationId);
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+        {
+            _logger.LogDebug(
+                "{RequestType} request payload | Name: {RequestName} | CorrelationId: {CorrelationId} | Request: {@Request}",
+                requestType, requestName, correlationId, SanitizeRequest(request));
+        }
 
         var stopwatch = Stopwatch.StartNew();
         TResponse? response = default;
@@ -62,8 +71,15 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
 
             _logger.Log(
                 logLevel,
-                "{Emoji} {RequestType} Completed | Name: {RequestName} | ElapsedMs: {ElapsedMs} | UserId: {UserId} | CorrelationId: {CorrelationId} | Response: {@Response}",
-                emoji, requestType, requestName, stopwatch.ElapsedMilliseconds, userId, correlationId, SanitizeResponse(response));
+                "{Emoji} {RequestType} Completed | Name: {RequestName} | ElapsedMs: {ElapsedMs} | UserId: {UserId} | CorrelationId: {CorrelationId}",
+                emoji, requestType, requestName, stopwatch.ElapsedMilliseconds, userId, correlationId);
+
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug(
+                    "{RequestType} response payload | Name: {RequestName} | CorrelationId: {CorrelationId} | Response: {@Response}",
+                    requestType, requestName, correlationId, SanitizeResponse(response));
+            }
 
             // Performance SLA warnings
             if (stopwatch.ElapsedMilliseconds > 5000)
@@ -160,5 +176,10 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
         propertyName.Contains("password", StringComparison.OrdinalIgnoreCase) ||
         propertyName.Contains("token", StringComparison.OrdinalIgnoreCase) ||
         propertyName.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
-        propertyName.Contains("apiKey", StringComparison.OrdinalIgnoreCase);
+        propertyName.Contains("apiKey", StringComparison.OrdinalIgnoreCase) ||
+        // PII — redacted so personal data never lands in logs even at Debug.
+        propertyName.Contains("email", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.Contains("phone", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.Contains("recoveryCode", StringComparison.OrdinalIgnoreCase) ||
+        propertyName.Equals("code", StringComparison.OrdinalIgnoreCase);
 }
