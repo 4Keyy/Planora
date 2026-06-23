@@ -44,7 +44,7 @@ This file is short by design. If a rule belongs here, it belongs forever. Condit
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/OutboxMessage.cs`, `OutboxMessageStatus.cs`, `tests/Planora.UnitTests/Services/Infrastructure/OutboxMessageStateMachineTests.cs`.
 - Rationale: a previous implementation re-failed exhausted messages on every cycle forever because `Status == Failed && NextRetryUtc <= now` stayed true with a stale timestamp. The terminal `DeadLettered` state — never picked by the polling predicate — eliminates the cycle. Replay after a fix is an operator action (manual SQL update from `DeadLettered` back to `Pending` after the root cause is corrected); the processor never resurrects dead-lettered rows on its own.
 
-**INV-COMM-4.** Every integration-event consumer uses the Inbox pattern (`IIdempotentMessageHandler`) to deduplicate messages by `messageId`. Handlers must be idempotent under replay.
+**INV-COMM-4.** Every integration-event consumer uses the Inbox pattern to deduplicate replayed messages, keyed per **(event id, handler type)** — not the event id alone — so an event fanned out to several handlers runs once *per handler* rather than being suppressed after the first. The bus derives the inbox primary key with `RabbitMqEventBus.DeriveInboxKey(eventId, handlerType)`. Handlers must be idempotent under replay.
 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs`.
 

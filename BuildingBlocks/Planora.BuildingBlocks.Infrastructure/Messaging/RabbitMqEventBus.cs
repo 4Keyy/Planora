@@ -269,18 +269,21 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
                     continue;
 
                 // Consumer idempotency (INV-COMM-4). Delivery is at-least-once, so a redelivered
-                // or restart-replayed event must not run the handler twice. We dedup on the stable
-                // event Id via the service's inbox. This is graceful and defensive: if the service
-                // registers no IInboxRepository (or it errors), we process without dedup — exactly
-                // the previous behaviour, never worse.
+                // or restart-replayed event must not run the SAME handler twice. We dedup on a key
+                // derived from BOTH the stable event Id AND the handler type: a single event fanned
+                // out to several handlers must run once PER HANDLER, so keying the inbox on the event
+                // id alone would let the first handler's record suppress every other handler. This is
+                // graceful and defensive: if the service registers no IInboxRepository (or it errors),
+                // we process without dedup — exactly the previous behaviour, never worse.
                 var inbox = scope.ServiceProvider.GetService<IInboxRepository>();
                 var eventId = (@event as IntegrationEvent)?.Id ?? Guid.Empty;
+                var inboxKey = eventId == Guid.Empty ? Guid.Empty : DeriveInboxKey(eventId, handlerType);
 
-                if (inbox != null && eventId != Guid.Empty)
+                if (inbox != null && inboxKey != Guid.Empty)
                 {
                     try
                     {
-                        if (await inbox.ExistsAsync(eventId, CancellationToken.None))
+                        if (await inbox.ExistsAsync(inboxKey, CancellationToken.None))
                         {
                             _logger.LogInformation(
                                 "Skipping already-processed event {EventName} {EventId} for handler {Handler}",
@@ -301,11 +304,11 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
                 if (result is Task t)
                     await t;
 
-                if (inbox != null && eventId != Guid.Empty)
+                if (inbox != null && inboxKey != Guid.Empty)
                 {
                     try
                     {
-                        var record = new InboxMessage(eventId, eventName, message, DateTime.UtcNow);
+                        var record = new InboxMessage(inboxKey, eventId.ToString(), eventName, message, DateTime.UtcNow);
                         record.MarkAsProcessed();
                         await inbox.AddAsync(record, CancellationToken.None);
                     }
@@ -337,6 +340,19 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
                 await channel.BasicNackAsync(eventArgs.DeliveryTag, multiple: false, requeue: false);
             }
         }
+    }
+
+    /// <summary>
+    /// Derives the per-handler inbox idempotency key from the event id and the handler type, so the
+    /// same event delivered to N handlers dedups independently (once per handler). Deterministic:
+    /// SHA-256 of "<c>{eventId:N}:{handler full name}</c>" truncated to a GUID. SHA-256 (not MD5) is
+    /// used only to avoid the CA5351 analyzer — the value is an idempotency key, not a security token.
+    /// </summary>
+    internal static Guid DeriveInboxKey(Guid eventId, Type handlerType)
+    {
+        var seed = $"{eventId:N}:{handlerType.FullName ?? handlerType.Name}";
+        var hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(seed));
+        return new Guid(hash.AsSpan(0, 16));
     }
 
     internal enum DeliveryFailureAction

@@ -38,6 +38,22 @@ public sealed class InboxMessage : BaseEntity
         Status = InboxMessageStatus.Pending;
     }
 
+    /// <summary>
+    /// Creates an inbox record whose primary key is a caller-supplied idempotency key that may differ
+    /// from the raw event id — used to dedup per (event id, handler) so an event fanned out to several
+    /// handlers is processed once per handler rather than once overall. <paramref name="messageId"/>
+    /// keeps the human-readable real event id for diagnostics.
+    /// </summary>
+    public InboxMessage(Guid primaryKey, string messageId, string type, string content, DateTime receivedOn)
+        : base(primaryKey)
+    {
+        MessageId = messageId;
+        Type = type;
+        Content = content;
+        ReceivedOn = receivedOn;
+        Status = InboxMessageStatus.Pending;
+    }
+
     public void MarkAsProcessing()
     {
         Status = InboxMessageStatus.Processing;
