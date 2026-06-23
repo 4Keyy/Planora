@@ -1,5 +1,5 @@
 using Planora.BuildingBlocks.Domain;
-using Planora.BuildingBlocks.Domain.Exceptions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -41,10 +41,11 @@ public sealed class ResultToActionResultFilter : IActionFilter
                     }
                     else
                     {
-                        // Success - extract Value and wrap in ApiResponse
+                        // Success - extract Value and wrap in ApiResponse, preserving the controller's
+                        // original success status code and Location (e.g. 201 CreatedAtAction).
                         var value = valueProperty.GetValue(objectResult.Value);
                         var response = ApiResponse<object>.Successful(value!, correlationId);
-                        context.Result = new OkObjectResult(response);
+                        context.Result = BuildSuccessResult(objectResult, response);
                     }
                 }
             }
@@ -66,9 +67,9 @@ public sealed class ResultToActionResultFilter : IActionFilter
                     }
                     else
                     {
-                        // Success without value - return wrapped success
+                        // Success without value - return wrapped success, preserving the original status.
                         var response = ApiResponse<object>.Successful(new { Message = "Operation completed successfully" }, correlationId);
-                        context.Result = new OkObjectResult(response);
+                        context.Result = BuildSuccessResult(objectResult, response);
                     }
                 }
             }
@@ -88,31 +89,62 @@ public sealed class ResultToActionResultFilter : IActionFilter
         };
     }
 
-    private static int DetermineStatusCode(Error error)
+    /// <summary>
+    /// Rebuilds a success result that preserves the controller's intended status code and Location
+    /// header (so a <c>CreatedAtAction</c> stays a 201 with a Location) while swapping the raw
+    /// <c>Result&lt;T&gt;</c> payload for the wrapped <see cref="ApiResponse{T}"/>.
+    /// </summary>
+    private static IActionResult BuildSuccessResult(ObjectResult original, object response) => original switch
     {
-        // Map error codes to HTTP status codes
-        if (error.Code.StartsWith("VALIDATION", StringComparison.OrdinalIgnoreCase))
-            return 400;
+        CreatedAtActionResult c => new CreatedAtActionResult(c.ActionName, c.ControllerName, c.RouteValues, response),
+        CreatedAtRouteResult c => new CreatedAtRouteResult(c.RouteName, c.RouteValues, response),
+        CreatedResult c => new CreatedResult(c.Location ?? string.Empty, response),
+        AcceptedAtActionResult a => new AcceptedAtActionResult(a.ActionName, a.ControllerName, a.RouteValues, response),
+        AcceptedResult a => new AcceptedResult(a.Location, response),
+        _ => new ObjectResult(response) { StatusCode = original.StatusCode ?? StatusCodes.Status200OK }
+    };
 
-        if (error.Code.StartsWith("AUTH", StringComparison.OrdinalIgnoreCase) ||
-            error.Code.Contains("UNAUTHORIZED", StringComparison.OrdinalIgnoreCase))
-            return 401;
+    /// <summary>
+    /// Maps a domain <see cref="Error"/> to an HTTP status code by its semantic <see cref="ErrorType"/>
+    /// — never by parsing the machine-readable <see cref="Error.Code"/>, which is only an identifier in
+    /// the response body. Untyped errors (<see cref="ErrorType.Failure"/>/<see cref="ErrorType.None"/>)
+    /// fall back to the legacy code-prefix heuristic for backwards compatibility until every producer
+    /// uses the typed <c>Error.Validation/NotFound/Conflict/Unauthorized/Forbidden</c> factories.
+    /// </summary>
+    private static int DetermineStatusCode(Error error) => error.Type switch
+    {
+        ErrorType.Validation => StatusCodes.Status400BadRequest,
+        ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+        ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+        ErrorType.NotFound => StatusCodes.Status404NotFound,
+        ErrorType.Conflict => StatusCodes.Status409Conflict,
+        _ => DetermineStatusCodeFromCode(error.Code)
+    };
 
-        if (error.Code.StartsWith("AUTHORIZATION", StringComparison.OrdinalIgnoreCase) ||
-            error.Code.Contains("FORBIDDEN", StringComparison.OrdinalIgnoreCase))
-            return 403;
+    private static int DetermineStatusCodeFromCode(string code)
+    {
+        if (code.StartsWith("VALIDATION", StringComparison.OrdinalIgnoreCase))
+            return StatusCodes.Status400BadRequest;
 
-        if (error.Code.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
-            error.Code.Contains("NOTFOUND", StringComparison.OrdinalIgnoreCase))
-            return 404;
+        if (code.StartsWith("AUTH", StringComparison.OrdinalIgnoreCase) ||
+            code.Contains("UNAUTHORIZED", StringComparison.OrdinalIgnoreCase))
+            return StatusCodes.Status401Unauthorized;
 
-        if (error.Code.StartsWith("CONCURRENCY", StringComparison.OrdinalIgnoreCase) ||
-            error.Code.StartsWith("BUSINESS", StringComparison.OrdinalIgnoreCase))
-            return 409;
+        if (code.StartsWith("AUTHORIZATION", StringComparison.OrdinalIgnoreCase) ||
+            code.Contains("FORBIDDEN", StringComparison.OrdinalIgnoreCase))
+            return StatusCodes.Status403Forbidden;
 
-        if (error.Code.StartsWith("INFRASTRUCTURE", StringComparison.OrdinalIgnoreCase))
-            return 503;
+        if (code.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
+            code.Contains("NOTFOUND", StringComparison.OrdinalIgnoreCase))
+            return StatusCodes.Status404NotFound;
 
-        return 500; // Default for unexpected errors
+        if (code.StartsWith("CONCURRENCY", StringComparison.OrdinalIgnoreCase) ||
+            code.StartsWith("BUSINESS", StringComparison.OrdinalIgnoreCase))
+            return StatusCodes.Status409Conflict;
+
+        if (code.StartsWith("INFRASTRUCTURE", StringComparison.OrdinalIgnoreCase))
+            return StatusCodes.Status503ServiceUnavailable;
+
+        return StatusCodes.Status500InternalServerError;
     }
 }
