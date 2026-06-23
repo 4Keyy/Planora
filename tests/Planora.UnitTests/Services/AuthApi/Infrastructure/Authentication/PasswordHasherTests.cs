@@ -17,6 +17,18 @@ public class PasswordHasherTests
     }
 
     [Fact]
+    public void HashPassword_ShouldEmitVersionedFormat_With210kIterations()
+    {
+        var hasher = new PasswordHasher();
+
+        var hash = hasher.HashPassword("SamePassword123!");
+
+        // Self-describing PHC-style format: $pbkdf2-sha512$v=1$i=210000$<salt>$<key>
+        Assert.StartsWith("$pbkdf2-sha512$v=1$i=210000$", hash, StringComparison.Ordinal);
+        Assert.Equal(6, hash.Split('$').Length);
+    }
+
+    [Fact]
     public void HashPassword_ShouldUseUniqueSaltForSamePassword()
     {
         var hasher = new PasswordHasher();
@@ -25,8 +37,8 @@ public class PasswordHasherTests
         var second = hasher.HashPassword("SamePassword123!");
 
         Assert.NotEqual(first, second);
-        Assert.Equal(48, Convert.FromBase64String(first).Length);
-        Assert.Equal(48, Convert.FromBase64String(second).Length);
+        Assert.True(hasher.VerifyPassword("SamePassword123!", first));
+        Assert.True(hasher.VerifyPassword("SamePassword123!", second));
     }
 
     [Theory]
@@ -42,17 +54,35 @@ public class PasswordHasherTests
     [Fact]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
-    public void VerifyPassword_AcceptsGoldenVector_LockingTheOnDiskFormat()
+    public void VerifyPassword_AcceptsLegacyVector_AndFlagsItForRehash()
     {
-        // PBKDF2-SHA512, 100_000 iterations, 16-byte salt + 32-byte hash, UTF-8 password,
-        // base64(salt || hash). This vector was produced independently of HashPassword and
-        // pins the exact stored format. It guards the .NET 9 -> 10 migration (Rfc2898DeriveBytes
-        // ctor -> static Pbkdf2 is byte-identical) and any future drift in salt/hash size,
-        // iteration count, or algorithm — a hash stored by an older build must still verify.
+        // Pre-versioning format: PBKDF2-SHA512, 100_000 iterations, 16-byte salt + 32-byte hash,
+        // UTF-8 password, base64(salt || hash). This vector was produced independently of
+        // HashPassword and pins backward compatibility: a hash stored by an older build must
+        // still verify, AND must be reported as needing an upgrade to the current work factor.
         var hasher = new PasswordHasher();
-        const string goldenHash = "AQIDBAUGBwgJCgsMDQ4PEPXqZCX5InQz+aA/vDveKqFCThkoJGchmrM/xe9GgqqF";
+        const string legacyHash = "AQIDBAUGBwgJCgsMDQ4PEPXqZCX5InQz+aA/vDveKqFCThkoJGchmrM/xe9GgqqF";
 
-        Assert.True(hasher.VerifyPassword("GoldenVector!23", goldenHash));
-        Assert.False(hasher.VerifyPassword("wrong", goldenHash));
+        Assert.True(hasher.VerifyPassword("GoldenVector!23", legacyHash));
+        Assert.False(hasher.VerifyPassword("wrong", legacyHash));
+        Assert.True(hasher.NeedsRehash(legacyHash));
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public void NeedsRehash_ShouldFlagVersionedHashWithLowerIterationCount()
+    {
+        var hasher = new PasswordHasher();
+
+        // A versioned hash produced with an older (lower) work factor must be flagged for rehash,
+        // while still verifying correctly so the upgrade can happen on the next successful login.
+        var salt = new byte[16];
+        var key = System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(
+            "Legacyish!23", salt, 100_000, System.Security.Cryptography.HashAlgorithmName.SHA512, 32);
+        var olderVersioned =
+            $"$pbkdf2-sha512$v=1$i=100000${Convert.ToBase64String(salt)}${Convert.ToBase64String(key)}";
+
+        Assert.True(hasher.VerifyPassword("Legacyish!23", olderVersioned));
+        Assert.True(hasher.NeedsRehash(olderVersioned));
     }
 }

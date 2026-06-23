@@ -150,6 +150,10 @@ Code:
 
 HIBP lookup failures are logged and do not block the password operation.
 
+### Password Hashing
+
+Passwords are hashed with **PBKDF2** (`Rfc2898DeriveBytes`, HMAC-SHA512, 210,000 iterations, 16-byte random salt, 32-byte derived key) in `PasswordHasher`. Each hash is stored as a self-describing string carrying its algorithm version, iteration count and salt, so the iteration count can be raised over time without breaking existing hashes. Verification is constant-time (`CryptographicOperations.FixedTimeEquals`). On a successful login the handler calls `IPasswordHasher.NeedsRehash`; any hash produced with an older iteration count is transparently re-hashed with the current parameters. The same hasher protects 2FA recovery codes.
+
 ## Two-Factor Authentication
 
 TOTP 2FA is exposed through `UsersController`:
@@ -173,7 +177,7 @@ Code:
 
 ### 2FA Recovery Codes
 
-When 2FA is confirmed, the server generates 10 single-use recovery codes formatted `XXXXX-XXXXX` using a cryptographically secure alphabet (`A-Z0-9`). Codes are hashed with BCrypt before storage and can be used in place of a TOTP code at login. Using a code marks it as consumed. New codes are generated on every re-confirmation, replacing all previous codes.
+When 2FA is confirmed, the server generates 10 single-use recovery codes formatted `XXXXX-XXXXX` using a cryptographically secure alphabet (`A-Z0-9`). Codes are hashed with PBKDF2 (HMAC-SHA512, 210,000 iterations) before storage and can be used in place of a TOTP code at login. Using a code marks it as consumed. New codes are generated on every re-confirmation, replacing all previous codes.
 
 Code:
 

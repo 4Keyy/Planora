@@ -81,7 +81,7 @@ DbContext: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbConte
 | `Friendships` | requester/addressee friendship state |
 | `AuditLogs` | auth audit trail |
 | `PasswordHistory` | previous password hashes for reuse checks |
-| `UserRecoveryCodes` | single-use 2FA recovery codes (BCrypt-hashed) |
+| `UserRecoveryCodes` | single-use 2FA recovery codes (PBKDF2-hashed) |
 | `InboxMessages` | integration inbox |
 | `OutboxMessages` | integration outbox |
 
@@ -96,7 +96,7 @@ DbContext: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbConte
 | `Friendship` | requester/addressee/status/date fields; indexes for both sides and status | `Persistence/Configurations/FriendshipConfiguration.cs` |
 | `LoginHistory` | IP/user agent/failure reason, indexes by user/login/success/delete | `Persistence/Configurations/LoginHistoryConfiguration.cs` |
 | `PasswordHistory` | user id, password hash max 500, changed date | `Persistence/Configurations/PasswordHistoryConfiguration.cs` |
-| `UserRecoveryCodes` | user id (FK), BCrypt code hash max 500, `IsUsed` flag, `UsedAt` nullable; composite index on `(UserId, IsUsed)` | `Persistence/Configurations/UserRecoveryCodeConfiguration.cs` |
+| `UserRecoveryCodes` | user id (FK), PBKDF2 code hash max 500, `IsUsed` flag, `UsedAt` nullable; composite index on `(UserId, IsUsed)` | `Persistence/Configurations/UserRecoveryCodeConfiguration.cs` |
 
 ### Auth Schema Bootstrap
 

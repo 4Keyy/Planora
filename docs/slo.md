@@ -65,8 +65,8 @@ The 95th-percentile latency for the user-visible login operation
 | Owner | Auth API |
 | Source | OpenTelemetry ASP.NET Core request metric (gateway side) |
 
-The login path runs BCrypt password verification (deliberately slow);
-the budget includes its cost.
+The login path runs PBKDF2 (HMAC-SHA512, 210,000 iterations) password verification
+(deliberately slow); the budget includes its cost.
 
 ## SLO-04 — Outbox processing freshness
 

@@ -279,7 +279,7 @@ Security is split across frontend, gateway, and services:
 - gateway validates bearer tokens for protected routes;
 - CORS uses explicit origins with credentials;
 - security headers are set by backend middleware and frontend `next.config.js`;
-- passwords are hashed through BCrypt and checked with configurable strength rules.
+- passwords are hashed through PBKDF2 (HMAC-SHA512, 210,000 iterations) and checked with configurable strength rules.
 
 Detailed security documentation: [`auth-security.md`](auth-security.md).
 

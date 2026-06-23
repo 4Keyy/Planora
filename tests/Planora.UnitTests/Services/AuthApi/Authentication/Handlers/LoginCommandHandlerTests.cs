@@ -198,6 +198,48 @@ public sealed class LoginCommandHandlerTests
     }
 
     [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task Handle_ShouldTransparentlyUpgradePasswordHash_WhenStoredHashNeedsRehash()
+    {
+        var user = CreateUser("login-rehash@example.com");
+        var fixture = CreateFixture();
+        ConfigureSuccessfulCredentialAndTokenFlow(fixture, user);
+        fixture.PasswordHasher.Setup(x => x.NeedsRehash("password-hash")).Returns(true);
+        fixture.PasswordHasher.Setup(x => x.HashPassword("Password123!")).Returns("upgraded-hash");
+
+        var result = await fixture.Handler.Handle(
+            new LoginCommand { Email = user.Email.Value, Password = "Password123!" },
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        // The hash is re-stored with the current work factor, silently (the security stamp is
+        // untouched, so existing sessions remain valid — the password itself did not change).
+        Assert.Equal("upgraded-hash", user.PasswordHash);
+        fixture.PasswordHasher.Verify(x => x.HashPassword("Password123!"), Times.Once);
+        Assert.Empty(user.DomainEvents);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task Handle_ShouldNotRehash_WhenStoredHashIsCurrent()
+    {
+        var user = CreateUser("login-no-rehash@example.com");
+        var fixture = CreateFixture();
+        ConfigureSuccessfulCredentialAndTokenFlow(fixture, user);
+        fixture.PasswordHasher.Setup(x => x.NeedsRehash(It.IsAny<string>())).Returns(false);
+
+        var result = await fixture.Handler.Handle(
+            new LoginCommand { Email = user.Email.Value, Password = "Password123!" },
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("password-hash", user.PasswordHash);
+        fixture.PasswordHasher.Verify(x => x.HashPassword(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
     [Trait("TestType", "Resilience")]
     [Trait("TestType", "Regression")]
     public async Task Handle_ShouldRethrowConcurrencyErrorsDuringPrimaryLoginCommit()

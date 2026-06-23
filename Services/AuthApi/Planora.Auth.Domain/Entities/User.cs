@@ -228,6 +228,20 @@ public sealed class User : BaseEntity, IAggregateRoot
         AddDomainEvent(new PasswordChangedEvent(Id, Email.Value));
     }
 
+    /// <summary>
+    /// Silently re-stores the password hash in the current hashing format/work factor after a
+    /// successful credential check. This is a storage-format upgrade, not a credential change:
+    /// it does NOT rotate the security stamp, revoke sessions, or raise <see cref="PasswordChangedEvent"/>,
+    /// because the secret itself is unchanged.
+    /// </summary>
+    public void UpgradePasswordHash(string newPasswordHash)
+    {
+        if (string.IsNullOrWhiteSpace(newPasswordHash))
+            throw new AuthDomainException("Password hash cannot be empty");
+
+        PasswordHash = newPasswordHash;
+    }
+
     public void SetPasswordResetToken(string tokenHash, DateTime expiresAt)
     {
         if (string.IsNullOrWhiteSpace(tokenHash))

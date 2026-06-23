@@ -155,7 +155,16 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
             {
                 user.UpdateLastLogin();
                 user.ResetFailedLoginAttempts();
-                
+
+                // Transparent credential upgrade: if the stored hash predates the current PBKDF2
+                // work factor/format, re-hash with today's policy now that the plaintext has been
+                // verified. This is silent — it neither rotates the security stamp nor revokes
+                // sessions, because the password itself has not changed.
+                if (_passwordHasher.NeedsRehash(user.PasswordHash))
+                {
+                    user.UpgradePasswordHash(_passwordHasher.HashPassword(command.Password));
+                }
+
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
             catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)

@@ -40,7 +40,7 @@ throwaway UI. **Planora refuses to compromise on either.**
   *fails the build* if anyone tries.
 - **🔒 Security taken seriously, end to end.** Rotating refresh tokens, in-memory access tokens,
   httpOnly cookies, CSRF double-submit, per-service JWT validation with security-stamp
-  revocation, an `x-service-key` on every internal hop, BCrypt password hashing, and optional
+  revocation, an `x-service-key` on every internal hop, PBKDF2 password hashing (HMAC-SHA512), and optional
   TOTP two-factor auth with QR enrolment.
 - **👀 Observable by default.** Structured, correlation-enriched Serilog logging and end-to-end
   OpenTelemetry traces & metrics across every service — so you can actually *see* a request
@@ -151,7 +151,7 @@ Backend package versions are managed centrally in
 | **Internal RPC** | [Grpc.AspNetCore `2.80.0`](https://www.nuget.org/packages/Grpc.AspNetCore) · [Google.Protobuf `3.34.1`](https://www.nuget.org/packages/Google.Protobuf) |
 | **Caching / rate-limiting** | [StackExchange.Redis `2.12.14`](https://www.nuget.org/packages/StackExchange.Redis) · [Microsoft.Extensions.Caching.StackExchangeRedis `10.0.8`](https://www.nuget.org/packages/Microsoft.Extensions.Caching.StackExchangeRedis) · [RedisRateLimiting.AspNetCore `1.2.1`](https://www.nuget.org/packages/RedisRateLimiting.AspNetCore) |
 | **Resilience** | [Polly `8.6.6`](https://www.nuget.org/packages/Polly) · [Microsoft.Extensions.Http.Resilience `10.5.0`](https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience) |
-| **Auth / crypto** | [Microsoft.AspNetCore.Authentication.JwtBearer `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.Authentication.JwtBearer) · [System.IdentityModel.Tokens.Jwt `8.18.0`](https://www.nuget.org/packages/System.IdentityModel.Tokens.Jwt) · [BCrypt.Net-Next `4.1.0`](https://www.nuget.org/packages/BCrypt.Net-Next) · [Otp.NET `1.4.1`](https://www.nuget.org/packages/Otp.NET) · [QRCoder `1.8.0`](https://www.nuget.org/packages/QRCoder) · [DataProtection `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection) |
+| **Auth / crypto** | [Microsoft.AspNetCore.Authentication.JwtBearer `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.Authentication.JwtBearer) · [System.IdentityModel.Tokens.Jwt `8.18.0`](https://www.nuget.org/packages/System.IdentityModel.Tokens.Jwt) · PBKDF2 via `System.Security.Cryptography.Rfc2898DeriveBytes` (BCL) · [Otp.NET `1.4.1`](https://www.nuget.org/packages/Otp.NET) · [QRCoder `1.8.0`](https://www.nuget.org/packages/QRCoder) · [DataProtection `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.DataProtection) |
 | **Real-time** | [SignalR.StackExchangeRedis `10.0.8`](https://www.nuget.org/packages/Microsoft.AspNetCore.SignalR.StackExchangeRedis) |
 | **Images** | [SixLabors.ImageSharp `3.1.11`](https://www.nuget.org/packages/SixLabors.ImageSharp) |
 | **Observability** | [OpenTelemetry `1.15.3`](https://www.nuget.org/packages/OpenTelemetry) (+ ASP.NET Core / HTTP / EF Core / Runtime instrumentation & OTLP exporter) · [Serilog `4.3.1`](https://www.nuget.org/packages/Serilog) (+ [Console](https://www.nuget.org/packages/Serilog.Sinks.Console), [File](https://www.nuget.org/packages/Serilog.Sinks.File), [Seq](https://www.nuget.org/packages/Serilog.Sinks.Seq), [Grafana Loki](https://www.nuget.org/packages/Serilog.Sinks.Grafana.Loki) sinks) |
