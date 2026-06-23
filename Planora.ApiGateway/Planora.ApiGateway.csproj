@@ -10,18 +10,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.Http.Polly" />
 		<PackageReference Include="Ocelot" />
 		<PackageReference Include="Ocelot.Provider.Polly" />
-		<PackageReference Include="Ocelot.Provider.Consul" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-		<PackageReference Include="Grpc.AspNetCore" />
-		<PackageReference Include="Grpc.AspNetCore.Web" />
-		<PackageReference Include="Grpc.Net.Client" />
-		<PackageReference Include="Grpc.Net.ClientFactory" />
-		<PackageReference Include="Microsoft.Extensions.Http.Resilience" />
-		<PackageReference Include="Polly" />
-		<PackageReference Include="Polly.Extensions.Http" />
 		<PackageReference Include="AspNetCore.HealthChecks.UI.Client" />
 		<!-- Microsoft.Extensions.Diagnostics.HealthChecks is part of the Microsoft.AspNetCore.App
 		     shared framework on net10.0 (NU1510); the explicit reference is redundant. -->
@@ -37,7 +28,6 @@
 		<ProjectReference Include="..\BuildingBlocks\Planora.BuildingBlocks.Application\Planora.BuildingBlocks.Application.csproj" />
 		<ProjectReference Include="..\BuildingBlocks\Planora.BuildingBlocks.Domain\Planora.BuildingBlocks.Domain.csproj" />
 		<ProjectReference Include="..\BuildingBlocks\Planora.BuildingBlocks.Infrastructure\Planora.BuildingBlocks.Infrastructure.csproj" />
-		<ProjectReference Include="..\GrpcContracts\GrpcContracts.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

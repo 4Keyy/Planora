@@ -1,4 +1,3 @@
-using Ocelot.Provider.Consul;
 using Ocelot.Provider.Polly;
 
 namespace Planora.ApiGateway.Configuration;

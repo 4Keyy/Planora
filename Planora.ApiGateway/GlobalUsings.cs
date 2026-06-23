@@ -18,10 +18,6 @@ global using Microsoft.Extensions.Logging;
 global using Ocelot.DependencyInjection;
 global using Ocelot.Middleware;
 
-// Grpc
-global using Grpc.Net.Client;
-global using Grpc.Core;
-
 // Health Checks
 global using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
