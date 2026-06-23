@@ -121,6 +121,11 @@ interface BranchFeedProps {
   inProgress?: boolean
   // Whether the task is already completed (toggles the complete action into a "reopen").
   isCompleted?: boolean
+  // Server-fetched open-subtask count from the parent task DTO. Serves as a safe fallback for
+  // the "still has unfinished subtasks?" guard before the live subtask list has finished its
+  // first async load — prevents the race condition where the guard reads 0 from the empty
+  // initial state and lets a completion through silently. Authoritative once subtasks are loaded.
+  openSubtaskCount?: number
   // Take the task into work (owner → In Progress, viewer → join). Hidden when undefined.
   onStartWork?: () => Promise<void>
   // Stop working / leave the task. Hidden when undefined.
@@ -339,6 +344,7 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
 export function BranchFeed({
   todoId, isOwner, refreshKey, onSaveDescription,
   inProgress = false, isCompleted = false,
+  openSubtaskCount: seedOpenSubtaskCount = 0,
   onStartWork, onStopWork, onCompleteTask, onDuplicate,
 }: BranchFeedProps) {
   const [comments,   setComments]   = useState<TodoComment[]>([])
@@ -409,6 +415,11 @@ export function BranchFeed({
   // Feed item DOM nodes by key ("c-{commentId}" / "s-{subtaskId}") for quote-jump scrolling.
   const itemNodes         = useRef(new Map<string, HTMLDivElement>())
   const flashTimers       = useRef<ReturnType<typeof setTimeout>[]>([])
+  // True after the first successful fetchSubtasks response. Before that, the live subtask list
+  // is empty (initial state) and cannot be trusted for the completion guard — we fall back to
+  // the seed count from the parent DTO to avoid a race condition where plain (Todo-status)
+  // subtasks are silently ignored because the guard ran before the list loaded.
+  const subtasksLoadedRef = useRef(false)
 
   const setSubtaskBusy = (id: string, on: boolean) => {
     setSubtaskPending((prev) => {
@@ -469,6 +480,10 @@ export function BranchFeed({
         if (!changed && byId.size === prev.length) return prev
         return Array.from(byId.values()).sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
       })
+      // Mark the list as having loaded at least once so requestComplete can trust the live count
+      // instead of falling back to the parent DTO seed. Set after setSubtasks so any subsequent
+      // synchronous read of openSubtaskCount already reflects the fetched data.
+      subtasksLoadedRef.current = true
     } catch {
       /* a missing/forbidden parent simply yields no subtasks */
     }
@@ -673,9 +688,16 @@ export function BranchFeed({
     }
   }
 
-  // Subtasks of this branch still open — drives the "finish anyway?" confirmation. Uses the live,
-  // loaded subtask list (the authoritative in-modal source) rather than the parent's cached count.
-  const openSubtaskCount = subtasks.filter((s) => !isSubtaskDone(s)).length
+  // Subtasks of this branch still open — drives the "finish anyway?" confirmation.
+  // Uses the live subtask list once it has been fetched (authoritative); falls back to the
+  // seed count from the parent DTO while the first async load is still in-flight.  Without
+  // the fallback a race condition silently clears the guard: subtasks starts as [] so the
+  // filter always returns 0 until fetchSubtasks resolves, causing plain (Todo-status)
+  // subtasks to be ignored when the user clicks "Complete task" quickly after opening the modal.
+  const liveOpenSubtaskCount = subtasks.filter((s) => !isSubtaskDone(s)).length
+  const openSubtaskCount = subtasksLoadedRef.current
+    ? liveOpenSubtaskCount
+    : Math.max(liveOpenSubtaskCount, seedOpenSubtaskCount)
 
   // Complete the task, but first warn when it still has unfinished subtasks (unless the viewer opted
   // out). Confirming runs the normal complete action; "Продолжить работу" just dismisses.

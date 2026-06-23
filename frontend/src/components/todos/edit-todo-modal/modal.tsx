@@ -396,6 +396,7 @@ export function TodoEditor({
       onSaveDescription={isOwner ? handleSaveDescription : undefined}
       inProgress={effectiveInProgress}
       isCompleted={isCompleted}
+      openSubtaskCount={todo.openSubtaskCount}
       onStartWork={onStartWork ? async () => { setWorkOverride(true); await onStartWork() } : undefined}
       onStopWork={onLeave ? async () => { setWorkOverride(false); await onLeave() } : undefined}
       // The modal closes after complete/duplicate; the page stays (duplicate navigates itself).
