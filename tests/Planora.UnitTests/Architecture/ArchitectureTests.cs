@@ -123,6 +123,93 @@ public sealed class ArchitectureTests
             string.Join(System.Environment.NewLine, violations));
     }
 
+    // Every assembly belonging to one service's bounded context. Cross-service communication is only
+    // allowed through the shared contracts (Planora.GrpcContracts) and the shared integration-event /
+    // building-block layers (Planora.BuildingBlocks.*) — never by referencing another service directly.
+    private static readonly (string Service, Assembly[] Assemblies)[] ServiceContexts =
+    {
+        ("Auth", new[]
+        {
+            typeof(global::Planora.Auth.Domain.Entities.User).Assembly,
+            typeof(global::Planora.Auth.Application.Common.Mappings.MappingProfile).Assembly,
+            typeof(global::Planora.Auth.Infrastructure.DependencyInjection).Assembly,
+        }),
+        ("Todo", new[]
+        {
+            typeof(global::Planora.Todo.Domain.Entities.TodoItem).Assembly,
+            typeof(global::Planora.Todo.Application.DTOs.TodoItemDto).Assembly,
+            typeof(global::Planora.Todo.Infrastructure.DependencyInjection).Assembly,
+        }),
+        ("Category", new[]
+        {
+            typeof(global::Planora.Category.Domain.Entities.Category).Assembly,
+            typeof(global::Planora.Category.Application.Features.IntegrationEvents.UserDeletedEventConsumer).Assembly,
+            typeof(global::Planora.Category.Infrastructure.DependencyInjection).Assembly,
+        }),
+        ("Messaging", new[]
+        {
+            typeof(global::Planora.Messaging.Domain.Entities.Message).Assembly,
+            typeof(global::Planora.Messaging.Application.Features.Messages.Mappings.MessageMappingProfile).Assembly,
+            typeof(global::Planora.Messaging.Infrastructure.DependencyInjection).Assembly,
+        }),
+        ("Realtime", new[]
+        {
+            typeof(global::Planora.Realtime.Domain.Entities.Notification).Assembly,
+            typeof(global::Planora.Realtime.Application.Handlers.NotificationEventHandler).Assembly,
+            typeof(global::Planora.Realtime.Infrastructure.DependencyInjection).Assembly,
+        }),
+        ("Collaboration", new[]
+        {
+            typeof(global::Planora.Collaboration.Domain.Entities.Comment).Assembly,
+            typeof(global::Planora.Collaboration.Application.DTOs.CommentDto).Assembly,
+            typeof(global::Planora.Collaboration.Infrastructure.DependencyInjection).Assembly,
+        }),
+    };
+
+    private static readonly string[] AllServices =
+        { "Auth", "Todo", "Category", "Messaging", "Realtime", "Collaboration" };
+
+    [Fact]
+    [Trait("TestType", "Architecture")]
+    public void Services_must_not_depend_on_another_services_bounded_context()
+    {
+        var violations = new List<string>();
+
+        foreach (var (service, assemblies) in ServiceContexts)
+        {
+            // Forbid references to every OTHER service's root namespace. NetArchTest matches a
+            // dependency when its full name starts with the search string; the service names do not
+            // prefix-collide (Auth/Todo/Category/Messaging/Realtime/Collaboration), so the bare
+            // "Planora.{Service}" root is unambiguous.
+            var foreignNamespaces = AllServices
+                .Where(other => other != service)
+                .Select(other => $"Planora.{other}")
+                .ToArray();
+
+            foreach (var assembly in assemblies)
+            {
+                var result = Types.InAssembly(assembly)
+                    .Should()
+                    .NotHaveDependencyOnAny(foreignNamespaces)
+                    .GetResult();
+
+                if (!result.IsSuccessful)
+                {
+                    violations.Add(
+                        $"{assembly.GetName().Name}: {string.Join(", ", result.FailingTypeNames ?? Enumerable.Empty<string>())}");
+                }
+            }
+        }
+
+        Assert.True(
+            violations.Count == 0,
+            "Bounded-context isolation violated: a service references another service directly. " +
+            "Cross-service communication must go through Planora.GrpcContracts (synchronous) or shared " +
+            "integration events in Planora.BuildingBlocks (asynchronous). Violations:" +
+            System.Environment.NewLine +
+            string.Join(System.Environment.NewLine, violations));
+    }
+
     [Fact]
     [Trait("TestType", "Architecture")]
     public void BuildingBlocks_Domain_must_not_depend_on_outer_layers()

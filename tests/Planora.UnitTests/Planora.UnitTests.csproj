@@ -35,6 +35,8 @@
     <ProjectReference Include="..\..\Services\MessagingApi\Planora.Messaging.Api\Planora.Messaging.Api.csproj" />
     <ProjectReference Include="..\..\Services\MessagingApi\Planora.Messaging.Application\Planora.Messaging.Application.csproj" />
     <ProjectReference Include="..\..\Services\MessagingApi\Planora.Messaging.Domain\Planora.Messaging.Domain.csproj" />
+    <ProjectReference Include="..\..\Services\MessagingApi\Planora.Messaging.Infrastructure\Planora.Messaging.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\RealtimeApi\Planora.Realtime.Infrastructure\Planora.Realtime.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\CategoryApi\Planora.Category.Application\Planora.Category.Application.csproj" />
     <ProjectReference Include="..\..\Services\CategoryApi\Planora.Category.Domain\Planora.Category.Domain.csproj" />
     <ProjectReference Include="..\..\Services\TodoApi\Planora.Todo.Api\Planora.Todo.Api.csproj" />
