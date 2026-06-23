@@ -61,18 +61,15 @@ public sealed class CsrfProtectionMiddleware
     private static bool IsStateModifyingRequest(string method) =>
         method is "POST" or "PUT" or "DELETE" or "PATCH";
 
-    private static bool IsGrpcRequest(HttpRequest request)
-    {
-        if (request.ContentType?.StartsWith("application/grpc", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // gRPC method paths are generated as "/{package}.{Service}/{Method}".
-        // CSRF protects browser cookie flows; internal gRPC service calls do not use that contract.
-        return request.Path.Value?.Contains(".", StringComparison.Ordinal) == true
-               && request.Protocol.Equals("HTTP/2", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsGrpcRequest(HttpRequest request) =>
+        // gRPC (and gRPC-Web, "application/grpc-web") requests are authoritatively identified by their
+        // Content-Type. Internal gRPC clients (Grpc.Net.Client) always send "application/grpc"; the CSRF
+        // double-submit defense protects browser cookie flows, which never use that content type.
+        //
+        // We deliberately do NOT exempt requests by a path/HTTP-2 heuristic. Browsers speak HTTP/2 and can
+        // issue a request to any dotted path, so the old `path contains "." && HTTP/2` guess let a
+        // cross-site state-changing request skip CSRF validation entirely.
+        request.ContentType?.StartsWith("application/grpc", StringComparison.OrdinalIgnoreCase) == true;
 
     /// <summary>
     /// Returns whether the request carries a valid CSRF double-submit token, along with a

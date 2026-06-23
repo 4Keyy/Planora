@@ -74,6 +74,56 @@ public class EnhancedGlobalExceptionHandlerMiddlewareTests
         httpContext.Response.StatusCode.Should().Be(StatusCodes.Status204NoContent);
     }
 
+    [Fact]
+    public async Task CsrfMiddleware_ShouldStillProtect_Http2RequestToDottedPath_WithoutGrpcContentType()
+    {
+        // Regression: the old gRPC exemption skipped CSRF for any HTTP/2 request whose path contained a
+        // ".". Browsers speak HTTP/2 and can hit a dotted path, so that heuristic was a CSRF bypass. A
+        // request without the application/grpc content type must always be validated.
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(
+            _ =>
+            {
+                nextCalled = true;
+                return Task.CompletedTask;
+            },
+            _serviceProvider.GetRequiredService<ILogger<CsrfProtectionMiddleware>>());
+        var httpContext = CreateHttpContext();
+        httpContext.Request.Protocol = "HTTP/2";
+        httpContext.Request.Path = "/api/v1/files/report.export";
+        httpContext.Request.Method = "POST";
+        httpContext.Request.Headers.Cookie = "XSRF-TOKEN=csrf-token";
+
+        await middleware.InvokeAsync(httpContext);
+
+        nextCalled.Should().BeFalse();
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [Fact]
+    public async Task CsrfMiddleware_ShouldBypass_ForGrpcContentType()
+    {
+        var nextCalled = false;
+        var middleware = new CsrfProtectionMiddleware(
+            context =>
+            {
+                nextCalled = true;
+                context.Response.StatusCode = StatusCodes.Status204NoContent;
+                return Task.CompletedTask;
+            },
+            _serviceProvider.GetRequiredService<ILogger<CsrfProtectionMiddleware>>());
+        var httpContext = CreateHttpContext();
+        httpContext.Request.Protocol = "HTTP/2";
+        httpContext.Request.Path = "/planora.todo.TodoService/GetTask";
+        httpContext.Request.Method = "POST";
+        httpContext.Request.ContentType = "application/grpc";
+
+        await middleware.InvokeAsync(httpContext);
+
+        nextCalled.Should().BeTrue();
+        httpContext.Response.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+    }
+
     private EnhancedGlobalExceptionHandlerMiddleware CreateMiddleware(
         ILogger<EnhancedGlobalExceptionHandlerMiddleware>? logger = null)
     {
