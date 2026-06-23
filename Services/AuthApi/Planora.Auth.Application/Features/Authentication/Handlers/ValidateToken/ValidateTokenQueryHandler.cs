@@ -24,7 +24,7 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.ValidateToke
         {
             try
             {
-                var userId = _tokenService.ValidateAccessToken(query.Token);
+                var userId = await _tokenService.ValidateAccessTokenAsync(query.Token);
 
                 if (!userId.HasValue)
                 {

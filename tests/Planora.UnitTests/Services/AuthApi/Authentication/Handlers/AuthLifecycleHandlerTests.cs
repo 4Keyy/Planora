@@ -485,13 +485,13 @@ public class AuthLifecycleHandlerTests
         var userId = Guid.NewGuid();
         var handler = fixture.CreateValidateTokenHandler();
 
-        fixture.TokenService.Setup(x => x.ValidateAccessToken("bad")).Returns((Guid?)null);
+        fixture.TokenService.Setup(x => x.ValidateAccessTokenAsync("bad")).ReturnsAsync((Guid?)null);
         var invalid = await handler.Handle(new ValidateTokenQuery { Token = "bad" }, CancellationToken.None);
         Assert.True(invalid.IsSuccess);
         Assert.False(invalid.Value!.IsValid);
         Assert.Equal("Token is invalid or expired", invalid.Value.Message);
 
-        fixture.TokenService.Setup(x => x.ValidateAccessToken("missing-user")).Returns(userId);
+        fixture.TokenService.Setup(x => x.ValidateAccessTokenAsync("missing-user")).ReturnsAsync(userId);
         fixture.Users.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync((User?)null);
         var missingUser = await handler.Handle(new ValidateTokenQuery { Token = "missing-user" }, CancellationToken.None);
         Assert.False(missingUser.Value!.IsValid);
@@ -499,7 +499,7 @@ public class AuthLifecycleHandlerTests
 
         var lockedUser = CreateUser();
         lockedUser.LockAccount(30);
-        fixture.TokenService.Setup(x => x.ValidateAccessToken("locked")).Returns(lockedUser.Id);
+        fixture.TokenService.Setup(x => x.ValidateAccessTokenAsync("locked")).ReturnsAsync(lockedUser.Id);
         fixture.Users.Setup(x => x.GetByIdAsync(lockedUser.Id, It.IsAny<CancellationToken>())).ReturnsAsync(lockedUser);
         var locked = await handler.Handle(new ValidateTokenQuery { Token = "locked" }, CancellationToken.None);
         Assert.False(locked.Value!.IsValid);
@@ -511,7 +511,7 @@ public class AuthLifecycleHandlerTests
     {
         var fixture = new AuthFixture();
         var user = CreateUser();
-        fixture.TokenService.Setup(x => x.ValidateAccessToken("valid")).Returns(user.Id);
+        fixture.TokenService.Setup(x => x.ValidateAccessTokenAsync("valid")).ReturnsAsync(user.Id);
         fixture.TokenService.Setup(x => x.GetAccessTokenLifetime()).Returns(TimeSpan.FromMinutes(15));
         fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
@@ -524,7 +524,7 @@ public class AuthLifecycleHandlerTests
         Assert.Equal(user.Email.Value, valid.Value.Email);
         Assert.True(valid.Value.ExpiresAt > DateTime.UtcNow);
 
-        fixture.TokenService.Setup(x => x.ValidateAccessToken("throws")).Throws(new InvalidOperationException("jwt failure"));
+        fixture.TokenService.Setup(x => x.ValidateAccessTokenAsync("throws")).ThrowsAsync(new InvalidOperationException("jwt failure"));
         var failed = await handler.Handle(new ValidateTokenQuery { Token = "throws" }, CancellationToken.None);
 
         Assert.True(failed.IsFailure);

@@ -27,7 +27,7 @@ const token = (overrides: Record<string, unknown> = {}) =>
     lastName: "Last",
     exp: Math.floor(Date.now() / 1000) + 3600,
     roles: ["User"],
-    emailVerified: true,
+    email_verified: "true",
     ...overrides,
   })}.signature`
 

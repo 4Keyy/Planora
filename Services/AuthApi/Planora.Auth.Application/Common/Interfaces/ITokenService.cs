@@ -4,8 +4,8 @@ public interface ITokenService
 {
     string GenerateAccessToken(User user);
     string GenerateRefreshToken();
-    Guid? ValidateAccessToken(string token);
-    ClaimsPrincipal? GetPrincipalFromToken(string token);
+    Task<Guid?> ValidateAccessTokenAsync(string token);
+    Task<ClaimsPrincipal?> GetPrincipalFromTokenAsync(string token);
     TimeSpan GetAccessTokenLifetime();
     TimeSpan GetRefreshTokenLifetime();
 }

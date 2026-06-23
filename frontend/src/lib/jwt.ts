@@ -5,7 +5,7 @@ export type JwtPayload = {
   email?: string
   firstName?: string
   lastName?: string
-  emailVerified?: string | boolean
+  email_verified?: string | boolean
   role?: string | string[]
   roles?: string[] | string
   [key: string]: unknown
@@ -44,10 +44,10 @@ export const getJwtRoles = (payload: JwtPayload | null): string[] => {
 }
 
 export const getJwtEmailVerified = (payload: JwtPayload | null): boolean | undefined => {
-  if (!payload || payload.emailVerified === undefined) return undefined
-  if (typeof payload.emailVerified === "boolean") return payload.emailVerified
-  if (typeof payload.emailVerified === "string") {
-    return payload.emailVerified.toLowerCase() === "true"
+  if (!payload || payload.email_verified === undefined) return undefined
+  if (typeof payload.email_verified === "boolean") return payload.email_verified
+  if (typeof payload.email_verified === "string") {
+    return payload.email_verified.toLowerCase() === "true"
   }
   return undefined
 }

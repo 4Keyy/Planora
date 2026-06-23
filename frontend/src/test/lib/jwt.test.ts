@@ -53,9 +53,9 @@ describe('decodeJwt()', () => {
   it('normalizes email verification claims', () => {
     expect(getJwtEmailVerified(null)).toBeUndefined()
     expect(getJwtEmailVerified({})).toBeUndefined()
-    expect(getJwtEmailVerified({ emailVerified: true })).toBe(true)
-    expect(getJwtEmailVerified({ emailVerified: 'TRUE' })).toBe(true)
-    expect(getJwtEmailVerified({ emailVerified: 'false' })).toBe(false)
-    expect(getJwtEmailVerified({ emailVerified: 1 as never })).toBeUndefined()
+    expect(getJwtEmailVerified({ email_verified: true })).toBe(true)
+    expect(getJwtEmailVerified({ email_verified: 'TRUE' })).toBe(true)
+    expect(getJwtEmailVerified({ email_verified: 'false' })).toBe(false)
+    expect(getJwtEmailVerified({ email_verified: 1 as never })).toBeUndefined()
   })
 })

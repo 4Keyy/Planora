@@ -24,7 +24,7 @@ const authToken = (overrides: Record<string, unknown> = {}) =>
     lastName: "Last",
     exp: futureEpoch(),
     roles: ["User"],
-    emailVerified: true,
+    email_verified: "true",
     ...overrides,
   })
 
@@ -90,7 +90,7 @@ describe("auth store", () => {
         lastName: undefined,
         exp: undefined,
         roles: [],
-        emailVerified: undefined,
+        email_verified: undefined,
       }),
       refreshTokenExpiresAt: "2099-01-01T00:00:00.000Z",
       userId: "payload-user",
@@ -151,7 +151,7 @@ describe("auth store", () => {
         firstName: "New",
         lastName: "Name",
         roles: ["Admin"],
-        emailVerified: false,
+        email_verified: "false",
       }),
       expiresAt: "2099-02-01T00:00:00.000Z",
     })
@@ -188,14 +188,14 @@ describe("auth store", () => {
 
   it("preserves existing metadata when refresh token has partial claims", () => {
     useAuthStore.getState().setAuth({
-      accessToken: authToken({ roles: ["User"], emailVerified: true }),
+      accessToken: authToken({ roles: ["User"], email_verified: "true" }),
       refreshTokenExpiresAt: "2099-01-01T00:00:00.000Z",
     })
 
     useAuthStore.getState().applyRefresh({
       accessToken: authToken({
         roles: undefined,
-        emailVerified: undefined,
+        email_verified: undefined,
         firstName: undefined,
       }),
     })

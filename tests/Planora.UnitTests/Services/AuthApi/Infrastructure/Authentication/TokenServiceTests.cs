@@ -13,7 +13,7 @@ namespace Planora.UnitTests.Services.AuthApi.Infrastructure.Authentication;
 public class TokenServiceTests
 {
     [Fact]
-    public void GenerateAccessToken_ShouldContainExpectedIdentityClaims_AndValidateBackToUserId()
+    public async Task GenerateAccessToken_ShouldContainExpectedIdentityClaims_AndValidateBackToUserId()
     {
         var service = CreateService();
         var user = User.Create(Email.Create("user@example.com"), "hash", "Ada", "Lovelace");
@@ -22,41 +22,41 @@ public class TokenServiceTests
 
         var token = service.GenerateAccessToken(user);
 
-        var principal = service.GetPrincipalFromToken(token);
+        var principal = await service.GetPrincipalFromTokenAsync(token);
         Assert.NotNull(principal);
         Assert.Equal(user.Id.ToString(), principal!.FindFirstValue(JwtRegisteredClaimNames.Sub));
         Assert.Equal("user@example.com", principal.FindFirstValue(JwtRegisteredClaimNames.Email));
         Assert.Equal("Ada", principal.FindFirstValue("firstName"));
         Assert.Equal("Lovelace", principal.FindFirstValue("lastName"));
-        Assert.Equal("True", principal.FindFirstValue("emailVerified"));
         Assert.Equal("true", principal.FindFirstValue("email_verified"));
+        Assert.Null(principal.FindFirstValue("emailVerified"));
         Assert.Contains(principal.Claims, claim => claim.Type == ClaimTypes.Role && claim.Value == "Admin");
-        Assert.Equal(user.Id, service.ValidateAccessToken(token));
+        Assert.Equal(user.Id, await service.ValidateAccessTokenAsync(token));
     }
 
     [Fact]
-    public void ValidateAccessToken_ShouldRejectInvalidExpiredAndWrongIssuerTokens()
+    public async Task ValidateAccessToken_ShouldRejectInvalidExpiredAndWrongIssuerTokens()
     {
         var validSettings = CreateSettings();
         var service = new TokenService(Options.Create(validSettings));
 
-        Assert.Null(service.ValidateAccessToken("not-a-jwt"));
-        Assert.Null(service.GetPrincipalFromToken("not-a-jwt"));
+        Assert.Null(await service.ValidateAccessTokenAsync("not-a-jwt"));
+        Assert.Null(await service.GetPrincipalFromTokenAsync("not-a-jwt"));
 
         var expiredSettings = CreateSettings();
         expiredSettings.AccessTokenExpirationMinutes = -1;
         var expiredToken = new TokenService(Options.Create(expiredSettings))
             .GenerateAccessToken(User.Create(Email.Create("expired@example.com"), "hash", "Expired", "User"));
-        Assert.Null(service.ValidateAccessToken(expiredToken));
+        Assert.Null(await service.ValidateAccessTokenAsync(expiredToken));
 
         var wrongIssuerSettings = CreateSettings();
         wrongIssuerSettings.Issuer = "https://issuer.other.example";
         var wrongIssuerToken = new TokenService(Options.Create(wrongIssuerSettings))
             .GenerateAccessToken(User.Create(Email.Create("issuer@example.com"), "hash", "Issuer", "User"));
-        Assert.Null(service.ValidateAccessToken(wrongIssuerToken));
+        Assert.Null(await service.ValidateAccessTokenAsync(wrongIssuerToken));
 
         var tokenWithoutUserId = CreateSignedTokenWithoutUserId(validSettings);
-        Assert.Null(service.ValidateAccessToken(tokenWithoutUserId));
+        Assert.Null(await service.ValidateAccessTokenAsync(tokenWithoutUserId));
     }
 
     [Fact]

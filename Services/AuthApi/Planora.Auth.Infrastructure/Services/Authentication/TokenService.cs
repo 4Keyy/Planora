@@ -1,3 +1,4 @@
+using JsonWebTokenHandler = Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler;
 using Planora.Auth.Infrastructure.Security;
 using Planora.BuildingBlocks.Infrastructure.Configuration;
 
@@ -6,15 +7,17 @@ namespace Planora.Auth.Infrastructure.Services.Authentication;
 public sealed class TokenService : ITokenService
 {
     private readonly JwtSettings _jwtSettings;
-    private readonly JwtSecurityTokenHandler _tokenHandler;
+    private readonly JsonWebTokenHandler _tokenHandler;
+    private readonly SymmetricSecurityKey _signingKey;
 
     public TokenService(IOptions<JwtSettings> jwtSettings)
     {
         _jwtSettings = jwtSettings.Value;
-        _tokenHandler = new JwtSecurityTokenHandler
-        {
-            MapInboundClaims = false
-        };
+        // JsonWebTokenHandler is the modern, allocation-friendly successor to
+        // JwtSecurityTokenHandler. MapInboundClaims = false keeps short claim
+        // names (e.g. "sub") instead of remapping them to the long WS-* URIs.
+        _tokenHandler = new JsonWebTokenHandler { MapInboundClaims = false };
+        _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
     }
 
     public string GenerateAccessToken(User user)
@@ -24,11 +27,9 @@ public sealed class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email.Value),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
             new("firstName", user.FirstName),
             new("lastName", user.LastName),
             new("profilePictureUrl", user.ProfilePictureUrl ?? string.Empty),
-            new("emailVerified", user.IsEmailVerified.ToString()),
             new("email_verified", user.IsEmailVerified ? "true" : "false")
         };
 
@@ -37,17 +38,17 @@ public sealed class TokenService : ITokenService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var descriptor = new SecurityTokenDescriptor
+        {
+            Subject = new ClaimsIdentity(claims),
+            Issuer = _jwtSettings.Issuer,
+            Audience = _jwtSettings.Audience,
+            IssuedAt = DateTime.UtcNow,
+            Expires = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
+            SigningCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.HmacSha256)
+        };
 
-        var token = new JwtSecurityToken(
-            issuer: _jwtSettings.Issuer,
-            audience: _jwtSettings.Audience,
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
-            signingCredentials: credentials);
-
-        return _tokenHandler.WriteToken(token);
+        return _tokenHandler.CreateToken(descriptor);
     }
 
     public string GenerateRefreshToken()
@@ -58,62 +59,24 @@ public sealed class TokenService : ITokenService
         return Convert.ToBase64String(randomBytes);
     }
 
-    public Guid? ValidateAccessToken(string token)
+    public async Task<Guid?> ValidateAccessTokenAsync(string token)
     {
-        try
-        {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = _jwtSettings.Issuer,
-                ValidAudience = _jwtSettings.Audience,
-                IssuerSigningKey = key,
-                ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds)
-            };
-
-            var principal = _tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
-            var userIdClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub)
-                ?? principal.FindFirst(ClaimTypes.NameIdentifier);
-
-            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                return null;
-
-            return userId;
-        }
-        catch
-        {
+        var result = await _tokenHandler.ValidateTokenAsync(token, CreateValidationParameters(validateLifetime: true));
+        if (!result.IsValid)
             return null;
-        }
+
+        var userIdValue = result.ClaimsIdentity.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+            ?? result.ClaimsIdentity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        return Guid.TryParse(userIdValue, out var userId) ? userId : null;
     }
 
-    public ClaimsPrincipal? GetPrincipalFromToken(string token)
+    public async Task<ClaimsPrincipal?> GetPrincipalFromTokenAsync(string token)
     {
-        try
-        {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = false, // Don't validate lifetime for this method
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = _jwtSettings.Issuer,
-                ValidAudience = _jwtSettings.Audience,
-                IssuerSigningKey = key,
-                ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds)
-            };
-
-            var principal = _tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
-            return principal;
-        }
-        catch
-        {
-            return null;
-        }
+        // Lifetime is intentionally not validated here: this is used to read claims
+        // out of an already-issued (possibly expired) token, e.g. during refresh.
+        var result = await _tokenHandler.ValidateTokenAsync(token, CreateValidationParameters(validateLifetime: false));
+        return result.IsValid ? new ClaimsPrincipal(result.ClaimsIdentity) : null;
     }
 
     public TimeSpan GetAccessTokenLifetime() =>
@@ -121,4 +84,16 @@ public sealed class TokenService : ITokenService
 
     public TimeSpan GetRefreshTokenLifetime() =>
         TimeSpan.FromDays(_jwtSettings.RefreshTokenExpirationDays);
+
+    private TokenValidationParameters CreateValidationParameters(bool validateLifetime) => new()
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = validateLifetime,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = _jwtSettings.Issuer,
+        ValidAudience = _jwtSettings.Audience,
+        IssuerSigningKey = _signingKey,
+        ClockSkew = TimeSpan.FromSeconds(SecurityConstants.SecurityPolicies.TokenClockSkewSeconds)
+    };
 }
