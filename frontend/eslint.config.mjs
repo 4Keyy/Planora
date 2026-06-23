@@ -39,6 +39,7 @@ const config = [
     ignores: [
       '.next/**',
       'node_modules/**',
+      'coverage/**',
       'vitest.config.ts',
       'src/test/**',
     ],

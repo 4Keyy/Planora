@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### build(frontend): consolidate dependency branches and align the Next 16 toolchain (2026-06-23)
+
+- Folded the two outstanding frontend branches into `main` so the repository carries a single line of
+  history: the `npm-patch-minor` group bump (PR #104 — Radix UI, `axios` 1.18, `next` 16.2.9,
+  `react-hook-form` 7.80, Playwright 1.61, `@types/node`, `@vitest/coverage-v8`) and the Next 16 lint
+  toolchain alignment (`eslint` 8→9, `eslint-config-next` 15→16, `critters`→`beasties` for `optimizeCss`).
+  `main` was already on `next ^16`, so the old `eslint-config-next 15` / `critters` were stale; this
+  removes the mismatch.
+- The stale `branch-feed.tsx` edit carried by the toolchain branch was intentionally NOT applied — it
+  predated and would have reverted the `98f29c7` open-subtask race fix. Only the now-unused
+  `react-hooks/exhaustive-deps` disable comment (flagged by the eslint 9 / react-hooks v6 upgrade) was
+  removed, and `coverage/**` was added to the flat-config ignores.
+- Verified green end-to-end on the combined set: `tsc --noEmit`, `eslint .` (0 errors), `next build`
+  (16.2.9, `optimizeCss` via beasties), and `vitest run --coverage` (94.1% statements / 85.2% branches,
+  above the 85% gate). Files: `frontend/package.json`, `frontend/package-lock.json`,
+  `frontend/eslint.config.mjs`, `frontend/src/components/todos/edit-todo-modal/branch-feed.tsx`.
+
 ### ci(openapi): target net10.0 so the OpenAPI export job stops failing (2026-06-23)
 
 - The `openapi.yml` workflow builds with the `10.0.x` SDK in Release but then fed

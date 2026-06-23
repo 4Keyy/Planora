@@ -603,7 +603,6 @@ export function BranchFeed({
     const t2 = setTimeout(scrollToBottom, 360)
     const release = setTimeout(() => { pinBottomRef.current = false }, 600)
     return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2); clearTimeout(release) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comments, subtasks])
 
   // ── Pinned Author's Note: show the condensed header once the full card scrolls past the top ──
