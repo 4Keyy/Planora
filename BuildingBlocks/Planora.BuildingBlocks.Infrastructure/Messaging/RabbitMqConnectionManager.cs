@@ -1,6 +1,6 @@
 namespace Planora.BuildingBlocks.Infrastructure.Messaging;
 
-public sealed class RabbitMqConnectionManager : IRabbitMqConnectionManager, IDisposable
+public sealed class RabbitMqConnectionManager : IRabbitMqConnectionManager, IDisposable, IAsyncDisposable
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<RabbitMqConnectionManager> _logger;
@@ -97,14 +97,28 @@ public sealed class RabbitMqConnectionManager : IRabbitMqConnectionManager, IDis
         await Task.CompletedTask;
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+
+        await CloseAsync();
+        if (_connection is not null)
+            await _connection.DisposeAsync();
+        _semaphore.Dispose();
+    }
+
+    // Synchronous fallback for a synchronously-disposed DI container (e.g. unit tests that build a
+    // provider with `using var`). The async shutdown path runs DisposeAsync instead, which closes the
+    // broker connection gracefully; IConnection still supports a synchronous, non-blocking Dispose.
     public void Dispose()
     {
         if (_disposed)
             return;
+        _disposed = true;
 
-        CloseAsync().GetAwaiter().GetResult();
         _connection?.Dispose();
         _semaphore.Dispose();
-        _disposed = true;
     }
 }

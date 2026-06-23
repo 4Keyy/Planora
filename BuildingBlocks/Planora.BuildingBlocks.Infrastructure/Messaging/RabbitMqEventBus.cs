@@ -4,7 +4,7 @@ using RabbitMQ.Client.Events;
 
 namespace Planora.BuildingBlocks.Infrastructure.Messaging;
 
-public sealed class RabbitMqEventBus : IEventBus, IDisposable
+public sealed class RabbitMqEventBus : IEventBus, IDisposable, IAsyncDisposable
 {
     private readonly IRabbitMqConnectionManager _connectionManager;
     private readonly ILogger<RabbitMqEventBus> _logger;
@@ -358,24 +358,38 @@ public sealed class RabbitMqEventBus : IEventBus, IDisposable
             ? DeliveryFailureAction.DeadLetter
             : DeliveryFailureAction.Requeue;
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (_disposed)
             return;
+        _disposed = true;
 
         foreach (var channel in _consumerChannels.Values)
         {
-            channel?.DisposeAsync().GetAwaiter().GetResult();
+            if (channel is not null)
+                await channel.DisposeAsync();
         }
         _consumerChannels.Clear();
 
         if (_publishChannel is not null)
         {
-            _publishChannel.DisposeAsync().GetAwaiter().GetResult();
+            await _publishChannel.DisposeAsync();
             _publishChannel = null;
         }
 
         _publishLock.Dispose();
+    }
+
+    // Synchronous fallback for a synchronously-disposed DI container (e.g. unit tests). RabbitMQ.Client
+    // channels are async-dispose-only, so the sync path only releases managed primitives; graceful
+    // channel teardown happens via DisposeAsync on the async shutdown path the hosts actually use.
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
         _disposed = true;
+
+        _consumerChannels.Clear();
+        _publishLock.Dispose();
     }
 }
