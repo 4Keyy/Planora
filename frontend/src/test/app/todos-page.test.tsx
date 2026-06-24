@@ -160,6 +160,7 @@ describe("TodosPage hidden shared task privacy", () => {
       hiddenByViewer: false,
       viewerCategoryId: hiddenTodo.categoryId ?? null,
       completedByViewer: null,
+      ownerCompleted: false,
     })
     vi.mocked(fetchTaskById).mockResolvedValue(fullTodo)
   })

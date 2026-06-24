@@ -122,6 +122,10 @@ export type Todo = {
    *  shared "in work" presence — who took it into work — for every viewer, not an anonymous count. */
   workers?: TodoWorker[] | null
   isCompletedByViewer?: boolean | null
+  /** The author's real completion state (global `Status == Done`), independent of any per-viewer
+   *  completion. When true the task is closed for everyone and a viewer reopen is rejected
+   *  server-side with `AUTHOR_ALREADY_COMPLETED`; the UI uses it to gate the reopen affordance. */
+  ownerCompleted?: boolean | null
   /** When set, this todo is a subtask (child) of the given parent task. */
   parentTodoId?: string | null
   /** Number of this task's subtasks still open (not done). Drives the "finish a task that still has

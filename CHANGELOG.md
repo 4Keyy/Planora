@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): wire viewer reopen affordance across every task surface (2026-06-24)
+
+- Consumes the new backend `ownerCompleted` field so the reopen affordance is correct everywhere: a
+  viewer may restore *their own* completion, and only an author-completed task (`ownerCompleted`)
+  blocks it with a warning toast ("Нельзя восстановить — автор завершил задачу") steering them to
+  Duplicate. Replaced the blanket "Only the author can reopen" block on the dashboard, tasks,
+  completed, and branch pages, the branch modal's Restore menu item (`BranchFeed`, now shown to a
+  non-owner while `!ownerCompleted`), and `TodoCard`'s reopen animation (a non-owner now gets the
+  animated reopen when allowed, instead of a silent no-op).
+- Added `ownerCompleted` to the `Todo` type and the `setViewerPreference` response mapping, and a
+  `isAuthorAlreadyCompletedError` helper as the server-side backstop for a stale client.
+- Verified: `tsc`, `eslint` (0 errors), `vitest --coverage` (≥85% gate), `next build`.
+
 ### feat(todos): viewer reopen rules + author-reopen propagation (completion mechanics) (2026-06-24)
 
 - **Backend.** A viewer may now return *their own* completion to active (clear `CompletedByViewer`),

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch } from "lucide-react"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
+import { isAuthorAlreadyCompletedError } from "@/lib/errors"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -242,14 +243,34 @@ export default function CompletedTasksPage() {
     const existing = todosRef.current.find((t) => t.id === todoId)
     if (!existing) return
 
-    // Returning a completed task to work is author-only. A participant viewing a friend's completed
-    // public/shared task can't reopen it — they duplicate it into their own list instead.
+    // A viewer may reopen THEIR OWN completion (clears CompletedByViewer); the owner reopens the task
+    // globally. Either is blocked once the AUTHOR has completed the whole task — then it is closed for
+    // everyone and the only path forward is to duplicate it.
     if (!isTodoOwner(existing, user?.userId)) {
-      addToast({
-        type: "warning",
-        title: "Only the author can reopen this task",
-        description: "Duplicate it to work on your own copy.",
-      })
+      if (existing.ownerCompleted === true) {
+        addToast({
+          type: "warning",
+          title: "Нельзя восстановить — автор завершил задачу",
+          description: "Сделайте копию, чтобы работать над своим вариантом.",
+        })
+        return
+      }
+      try {
+        await setViewerPreference(todoId, { completedByViewer: false })
+        await fetchCompletedTodos(currentPage)
+        addToast({ type: "success", title: "Task reopened!" })
+      } catch (error) {
+        console.error("Failed to reopen viewer completion:", error)
+        if (isAuthorAlreadyCompletedError(error)) {
+          addToast({
+            type: "warning",
+            title: "Нельзя восстановить — автор завершил задачу",
+            description: "Сделайте копию, чтобы работать над своим вариантом.",
+          })
+        } else {
+          addToast({ type: "error", title: "Failed to update task" })
+        }
+      }
       return
     }
 

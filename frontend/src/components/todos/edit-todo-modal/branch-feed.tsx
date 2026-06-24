@@ -121,6 +121,10 @@ interface BranchFeedProps {
   inProgress?: boolean
   // Whether the task is already completed (toggles the complete action into a "reopen").
   isCompleted?: boolean
+  // The author's real completion (global Status == Done). When true, a non-owner may NOT reopen —
+  // the task is closed for everyone — so the Restore action is hidden for them and only Duplicate
+  // remains. A non-owner may still restore their own per-viewer completion while this is false.
+  ownerCompleted?: boolean
   // Server-fetched open-subtask count from the parent task DTO. Serves as a safe fallback for
   // the "still has unfinished subtasks?" guard before the live subtask list has finished its
   // first async load — prevents the race condition where the guard reads 0 from the empty
@@ -343,7 +347,7 @@ function buildFeed(comments: TodoComment[], subtasks: Todo[]): FeedItem[] {
 
 export function BranchFeed({
   todoId, isOwner, refreshKey, onSaveDescription,
-  inProgress = false, isCompleted = false,
+  inProgress = false, isCompleted = false, ownerCompleted = false,
   openSubtaskCount: seedOpenSubtaskCount = 0,
   onStartWork, onStopWork, onCompleteTask, onDuplicate,
 }: BranchFeedProps) {
@@ -1008,14 +1012,17 @@ export function BranchFeed({
 
   // While the task is active the "+" menu offers description / subtask / take-into-work + complete.
   // Once it is completed those are hidden and the menu instead offers the completed-task actions.
-  // Restore (reopen) is author-only — returning a task to work belongs to its owner — so a non-owner
+  // Restore (reopen) is allowed for whoever has a completion to undo — the owner reopens the task
+  // globally, a non-owner clears their own per-viewer completion — UNLESS the author has completed
+  // the whole task globally (ownerCompleted), in which case it is closed for everyone and a non-owner
   // sees only Duplicate, their way to fork a fresh copy instead of reopening the shared task.
+  const canRestore                = showCompleteAction && (isOwner || !ownerCompleted)
   const menuShowsDescription      = showDescription && !isCompleted
   // Any branch participant (owner or a friend the task is shared with) can add a subtask — the
   // backend authorises access; completion/"in work" are already collaborator-capable.
   const menuShowsSubtask          = !isCompleted
   const menuShowsActions          = (showWorkAction || showCompleteAction) && !isCompleted
-  const menuShowsCompletedActions = isCompleted && ((isOwner && showCompleteAction) || showDuplicate)
+  const menuShowsCompletedActions = isCompleted && (canRestore || showDuplicate)
   const hasMenuItems              = menuShowsDescription || menuShowsSubtask || menuShowsActions || menuShowsCompletedActions
 
   return (
@@ -1753,7 +1760,7 @@ export function BranchFeed({
                 <>
                   <MenuSectionLabel>Actions</MenuSectionLabel>
 
-                  {isOwner && showCompleteAction && (
+                  {canRestore && (
                     <MenuActionItem
                       icon={<RotateCcw size={13} color="#059669" strokeWidth={1.9} />}
                       iconBg="#ecfdf5"

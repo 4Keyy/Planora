@@ -7,6 +7,7 @@ import {
   api, fetchTaskById, duplicateTodo, joinTodo, leaveTodo, setViewerPreference,
   parseApiResponse, getApiErrorMessage, type ApiResponse,
 } from "@/lib/api"
+import { isAuthorAlreadyCompletedError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { Todo, type UpdateTodoPayload, isTodoOwner, toApiTodoStatus } from "@/types/todo"
@@ -121,25 +122,35 @@ export default function BranchPage() {
     const completed = isOwner
       ? (statusKey === "done" || statusKey === "completed")
       : (todo.isCompletedByViewer ?? false)
-    // Returning a completed task to work is author-only. A participant can't reopen a shared task —
-    // they duplicate it into their own list instead.
-    if (completed && !isOwner) {
+    // A viewer may reopen THEIR OWN completion — unless the author has completed the whole task
+    // globally, in which case it is closed for everyone and they must duplicate it instead.
+    if (completed && !isOwner && todo.ownerCompleted === true) {
       addToast({
         type: "warning",
-        title: "Only the author can reopen this task",
-        description: "Duplicate it to work on your own copy.",
+        title: "Нельзя восстановить — автор завершил задачу",
+        description: "Сделайте копию, чтобы работать над своим вариантом.",
       })
       return
     }
     try {
       if (!isOwner && isShared) {
         const r = await setViewerPreference(todo.id, { completedByViewer: !completed })
-        setTodo((p) => (p ? { ...p, isCompletedByViewer: r.completedByViewer ?? false } : p))
+        setTodo((p) => (p ? { ...p, isCompletedByViewer: r.completedByViewer ?? false, ownerCompleted: r.ownerCompleted } : p))
       } else {
         await patchStatus(completed ? "todo" : "done")
       }
       addToast({ type: "success", title: completed ? "Task reopened!" : "Task completed!" })
-    } catch (e) { addToast({ type: "error", title: getApiErrorMessage(e, "Could not update task") }) }
+    } catch (e) {
+      if (isAuthorAlreadyCompletedError(e)) {
+        addToast({
+          type: "warning",
+          title: "Нельзя восстановить — автор завершил задачу",
+          description: "Сделайте копию, чтобы работать над своим вариантом.",
+        })
+      } else {
+        addToast({ type: "error", title: getApiErrorMessage(e, "Could not update task") })
+      }
+    }
   }, [todo, isOwner, isShared, statusKey, patchStatus, addToast])
 
   const handleDuplicate = useCallback(async () => {

@@ -39,6 +39,23 @@ function getErrorRecord(err: unknown): Record<string, unknown> | null {
   return err && typeof err === "object" ? err as Record<string, unknown> : null
 }
 
+/**
+ * True when the API rejected a viewer's reopen because the author has already completed the whole
+ * task globally (`AUTHOR_ALREADY_COMPLETED`). The UI normally prevents this proactively via
+ * `ownerCompleted`, so this is the server-side backstop for a stale client.
+ */
+export function isAuthorAlreadyCompletedError(err: unknown): boolean {
+  const e = getErrorRecord(err)
+  const data = e?.response && typeof e.response === "object"
+    ? (e.response as Record<string, unknown>).data as Record<string, unknown> | undefined
+    : undefined
+  const nestedCode = data?.error && typeof data.error === "object"
+    ? (data.error as Record<string, unknown>).code
+    : undefined
+  if (data?.code === "AUTHOR_ALREADY_COMPLETED" || nestedCode === "AUTHOR_ALREADY_COMPLETED") return true
+  return extractErrorMessage(err, "").includes("AUTHOR_ALREADY_COMPLETED")
+}
+
 function getResponseStatus(err: unknown): number | undefined {
   const e = getErrorRecord(err)
   const response = e?.response

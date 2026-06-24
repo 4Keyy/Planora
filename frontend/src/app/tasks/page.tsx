@@ -9,6 +9,7 @@ import { Plus, CheckCircle2, ChevronRight, History, X } from "lucide-react"
 import axios from "axios"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
+import { isAuthorAlreadyCompletedError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
 import { Todo, PagedTodosResponse, type CreateTodoPayload, type UpdateTodoPayload, isCompletedTodoStatus, isTodoOwner, sameUserId, toApiTodoStatus } from "@/types/todo"
@@ -358,19 +359,19 @@ export default function TasksPage() {
 
     if (!isOwner && isShared) {
       const wasCompleted = existingTodo.isCompletedByViewer === true
-      // Returning a completed task to work is author-only; a participant duplicates instead.
-      if (wasCompleted) {
+      // A viewer may reopen THEIR OWN completion — unless the author closed the whole task globally.
+      if (wasCompleted && existingTodo.ownerCompleted === true) {
         addToast({
           type: "warning",
-          title: "Only the author can reopen this task",
-          description: "Duplicate it to work on your own copy.",
+          title: "Нельзя восстановить — автор завершил задачу",
+          description: "Сделайте копию, чтобы работать над своим вариантом.",
         })
         return
       }
       try {
         const result = await setViewerPreference(id, { completedByViewer: !wasCompleted })
         setTodos((prev) => prev.map((t) =>
-          t.id !== id ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false }
+          t.id !== id ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false, ownerCompleted: result.ownerCompleted }
         ))
         if (!wasCompleted) {
           setTodos((prev) => prev.filter((t) => t.id !== id))
@@ -381,7 +382,15 @@ export default function TasksPage() {
         addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
       } catch (error) {
         console.error("Failed to update viewer completion:", error)
-        addToast({ type: "error", title: "Failed to update task" })
+        if (isAuthorAlreadyCompletedError(error)) {
+          addToast({
+            type: "warning",
+            title: "Нельзя восстановить — автор завершил задачу",
+            description: "Сделайте копию, чтобы работать над своим вариантом.",
+          })
+        } else {
+          addToast({ type: "error", title: "Failed to update task" })
+        }
       }
       return
     }

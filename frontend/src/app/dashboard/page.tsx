@@ -8,6 +8,7 @@ import { Plus, CheckCircle2 } from "lucide-react"
 import axios from "axios"
 import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
+import { isAuthorAlreadyCompletedError } from "@/lib/errors"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -436,12 +437,13 @@ export default function DashboardPage() {
     // Non-owner viewing a shared task: toggle per-viewer completion only
     if (!isOwner && isShared) {
       const wasCompleted = existing.isCompletedByViewer === true
-      // Returning a completed task to work is author-only; a participant duplicates instead.
-      if (wasCompleted) {
+      // A viewer may reopen THEIR OWN completion — unless the author closed the whole task globally,
+      // in which case it is done for everyone and they must duplicate it instead.
+      if (wasCompleted && existing.ownerCompleted === true) {
         addToast({
           type: "warning",
-          title: "Only the author can reopen this task",
-          description: "Duplicate it to work on your own copy.",
+          title: "Нельзя восстановить — автор завершил задачу",
+          description: "Сделайте копию, чтобы работать над своим вариантом.",
         })
         return
       }
@@ -454,11 +456,19 @@ export default function DashboardPage() {
           void fetchTodos(undefined, { silent: true })
         }
         setStatsTodos(prev => prev.map(t =>
-          t.id !== todoId ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false }
+          t.id !== todoId ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false, ownerCompleted: result.ownerCompleted }
         ))
         addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
-      } catch {
-        addToast({ type: "error", title: "Failed to update task" })
+      } catch (e) {
+        if (isAuthorAlreadyCompletedError(e)) {
+          addToast({
+            type: "warning",
+            title: "Нельзя восстановить — автор завершил задачу",
+            description: "Сделайте копию, чтобы работать над своим вариантом.",
+          })
+        } else {
+          addToast({ type: "error", title: "Failed to update task" })
+        }
       }
       return
     }

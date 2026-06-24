@@ -208,9 +208,11 @@ function TodoCardComponent({
   const runCompletionToggle = async () => {
     if (isCompletionPending || isVisibilityPending) return
 
-    // Reopening a completed task is author-only. For a non-owner, skip the reopen animation and just
-    // invoke onComplete so the parent's "only the author can reopen" notification fires instantly.
-    if (isCompleted && !isOwner) {
+    // A non-owner may reopen THEIR OWN completion — but NOT once the author has completed the whole
+    // task globally. In that closed-for-everyone case, skip the reopen animation and just invoke
+    // onComplete so the parent's "author already completed" toast fires instantly. When the reopen is
+    // allowed (author not done), fall through to the normal animated reopen below.
+    if (isCompleted && !isOwner && todo.ownerCompleted === true) {
       await Promise.resolve(onComplete())
       return
     }
