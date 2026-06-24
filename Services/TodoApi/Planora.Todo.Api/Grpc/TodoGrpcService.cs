@@ -111,10 +111,23 @@ public class TodoGrpcService : TodoService.TodoServiceBase
         };
     }
 
+    // Input GUID parsing: a malformed id is a CLIENT error (InvalidArgument), never an Internal
+    // fault. Guid.Parse would throw FormatException → surface as a misleading gRPC Internal/Unknown.
+    private static Guid ParseGuid(string value, string field)
+    {
+        if (!Guid.TryParse(value, out var id))
+            throw new RpcException(new global::Grpc.Core.Status(
+                global::Grpc.Core.StatusCode.InvalidArgument, $"{field} must be a valid GUID"));
+        return id;
+    }
+
+    private static Guid? ParseOptionalGuid(string value, string field)
+        => string.IsNullOrEmpty(value) ? null : ParseGuid(value, field);
+
     public override async Task<GetUserTodosResponse> GetUserTodos(GetUserTodosRequest request, ServerCallContext context)
     {
         var query = new GetUserTodosQuery(
-            string.IsNullOrEmpty(request.UserId) ? null : Guid.Parse(request.UserId),
+            ParseOptionalGuid(request.UserId, "user_id"),
             request.Page,
             request.PageSize);
 
@@ -142,8 +155,8 @@ public class TodoGrpcService : TodoService.TodoServiceBase
     public override async Task<GetTodosByCategoryResponse> GetTodosByCategory(GetTodosByCategoryRequest request, ServerCallContext context)
     {
         var query = new GetTodosByCategoryQuery(
-            Guid.Parse(request.CategoryId),
-            string.IsNullOrEmpty(request.UserId) ? null : Guid.Parse(request.UserId),
+            ParseGuid(request.CategoryId, "category_id"),
+            ParseOptionalGuid(request.UserId, "user_id"),
             request.Page,
             request.PageSize);
 
@@ -180,10 +193,10 @@ public class TodoGrpcService : TodoService.TodoServiceBase
             .ToList();
 
         var command = new CreateTodoCommand(
-            string.IsNullOrEmpty(request.UserId) ? null : Guid.Parse(request.UserId),
+            ParseOptionalGuid(request.UserId, "user_id"),
             request.Title,
             null, // Description
-            string.IsNullOrEmpty(request.CategoryId) ? null : Guid.Parse(request.CategoryId),
+            ParseOptionalGuid(request.CategoryId, "category_id"),
             null, // DueDate
             null, // ExpectedDate
             SharedWithUserIds: sharedWith
@@ -210,12 +223,20 @@ public class TodoGrpcService : TodoService.TodoServiceBase
             .ToList();
 
         var command = new UpdateTodoCommand(
-            TodoId: Guid.Parse(request.Id),
+            TodoId: ParseGuid(request.Id, "id"),
             Title: request.Title,
             SharedWithUserIds: sharedWith,
             Status: request.IsCompleted ? "Done" : "Todo");
 
-        await _mediator.Send(command);
+        var result = await _mediator.Send(command);
+
+        // Do not swallow failures: a rejected update (not found / forbidden / validation) must surface
+        // as an RPC error, not a false Success=true that the caller treats as applied.
+        if (result.IsFailure)
+        {
+            throw new RpcException(new global::Grpc.Core.Status(
+                global::Grpc.Core.StatusCode.Internal, result.Error?.Message ?? "Failed to update todo"));
+        }
 
         return new UpdateTodoResponse
         {
@@ -225,8 +246,14 @@ public class TodoGrpcService : TodoService.TodoServiceBase
 
     public override async Task<DeleteTodoResponse> DeleteTodo(DeleteTodoRequest request, ServerCallContext context)
     {
-        var command = new DeleteTodoCommand(Guid.Parse(request.Id));
-        await _mediator.Send(command);
+        var command = new DeleteTodoCommand(ParseGuid(request.Id, "id"));
+        var result = await _mediator.Send(command);
+
+        if (result.IsFailure)
+        {
+            throw new RpcException(new global::Grpc.Core.Status(
+                global::Grpc.Core.StatusCode.Internal, result.Error?.Message ?? "Failed to delete todo"));
+        }
 
         return new DeleteTodoResponse
         {

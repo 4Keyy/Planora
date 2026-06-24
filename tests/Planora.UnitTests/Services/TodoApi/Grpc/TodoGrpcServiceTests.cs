@@ -205,6 +205,51 @@ public class TodoGrpcServiceTests
         Assert.Equal(todoId, sentDelete!.TodoId);
     }
 
+    [Fact]
+    [Trait("TestType", "Regression")]
+    public async Task UpdateAndDelete_SurfaceDomainFailuresAsRpcErrors()
+    {
+        // The bug: these used to ignore the Result and always return Success=true, swallowing
+        // not-found / forbidden / validation failures.
+        var mediator = new Mock<IMediator>();
+        mediator
+            .Setup(x => x.Send(It.IsAny<UpdateTodoCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(global::Planora.BuildingBlocks.Domain.Result<TodoItemDto>.Failure("UPDATE_FAILED", "update rejected"));
+        mediator
+            .Setup(x => x.Send(It.IsAny<DeleteTodoCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(global::Planora.BuildingBlocks.Domain.Result.Failure("DELETE_FAILED", "delete rejected"));
+        var service = CreateService(mediator);
+
+        var updateEx = await Assert.ThrowsAsync<RpcException>(() =>
+            service.UpdateTodo(new UpdateTodoRequest { Id = Guid.NewGuid().ToString() }, CreateContext()));
+        Assert.Equal(StatusCode.Internal, updateEx.StatusCode);
+        Assert.Equal("update rejected", updateEx.Status.Detail);
+
+        var deleteEx = await Assert.ThrowsAsync<RpcException>(() =>
+            service.DeleteTodo(new DeleteTodoRequest { Id = Guid.NewGuid().ToString() }, CreateContext()));
+        Assert.Equal(StatusCode.Internal, deleteEx.StatusCode);
+        Assert.Equal("delete rejected", deleteEx.Status.Detail);
+    }
+
+    [Fact]
+    [Trait("TestType", "Regression")]
+    public async Task MalformedGuidArguments_ThrowInvalidArgument()
+    {
+        var service = CreateService(new Mock<IMediator>());
+
+        var update = await Assert.ThrowsAsync<RpcException>(() =>
+            service.UpdateTodo(new UpdateTodoRequest { Id = "not-a-guid" }, CreateContext()));
+        Assert.Equal(StatusCode.InvalidArgument, update.StatusCode);
+
+        var delete = await Assert.ThrowsAsync<RpcException>(() =>
+            service.DeleteTodo(new DeleteTodoRequest { Id = "not-a-guid" }, CreateContext()));
+        Assert.Equal(StatusCode.InvalidArgument, delete.StatusCode);
+
+        var category = await Assert.ThrowsAsync<RpcException>(() =>
+            service.GetTodosByCategory(new GetTodosByCategoryRequest { CategoryId = "not-a-guid" }, CreateContext()));
+        Assert.Equal(StatusCode.InvalidArgument, category.StatusCode);
+    }
+
     private static TodoGrpcService CreateService(Mock<IMediator> mediator)
         => new(
             mediator.Object,

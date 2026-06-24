@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(todos-grpc): stop swallowing failures and validate GUID arguments (2026-06-24)
+
+- `TodoGrpcService.UpdateTodo` and `DeleteTodo` ignored the MediatR `Result` and always returned
+  `Success = true`, so a rejected update/delete (not-found / forbidden / validation) looked applied to
+  the caller. They now throw an `RpcException` (`Internal`, carrying the error message) on `IsFailure`,
+  matching `CreateTodo` / `GetTodosByCategory`.
+- All inbound id fields are now parsed with `Guid.TryParse` via shared `ParseGuid` / `ParseOptionalGuid`
+  helpers — a malformed id returns `InvalidArgument` (a client error) instead of a `FormatException`
+  surfacing as a misleading `Internal`/`Unknown`. Covers `UpdateTodo`, `DeleteTodo`, `GetUserTodos`,
+  `GetTodosByCategory`, and `CreateTodo`.
+- Tests: domain failures now surface as RPC errors, and malformed GUIDs return `InvalidArgument`.
+
 ### feat(frontend): wire viewer reopen affordance across every task surface (2026-06-24)
 
 - Consumes the new backend `ownerCompleted` field so the reopen affordance is correct everywhere: a
