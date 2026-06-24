@@ -461,7 +461,7 @@ All routes require bearer auth.
 | `PUT` | `/{id}` | update todo |
 | `DELETE` | `/{id}` | delete todo |
 | `PATCH` | `/{id}/hidden` | owner hidden toggle |
-| `PATCH` | `/{id}/viewer-preferences` | non-owner viewer hidden/category/completion preference (reopen blocked — see below) |
+| `PATCH` | `/{id}/viewer-preferences` | non-owner viewer hidden/category/completion preference (viewer reopen allowed unless author completed globally — see below) |
 | `POST` | `/{id}/join` | join task as a worker |
 | `POST` | `/{id}/leave` | leave task (stop being a worker) |
 | `POST` | `/{id}/duplicate` | duplicate a task into a fresh active copy (any participant) |
@@ -586,10 +586,15 @@ Viewer preference body (non-owner only; the owner gets `OWNER_MUST_USE_HIDDEN_EN
 
 - `completedByViewer: true` marks the shared/public task done **for this viewer only** (writes
   `UserTodoViewPreference.CompletedByViewer`; never touches the owner's `TodoItem`).
-- `completedByViewer: false` (reopen) is **rejected for non-owners** — returning a completed task
-  to work is author-only. If the viewer's stored preference is already completed, the request fails
-  with `403 ForbiddenException` ("Only the task author can return a completed task to active.
-  Duplicate it to work on your own copy."). The non-owner's path on a done task is `POST /{id}/duplicate`.
+- `completedByViewer: false` (reopen) is **allowed** — a viewer may return *their own* completion to
+  active — **unless the author has completed the whole task globally** (`Status == Done`). In that
+  case the task is closed for everyone and the request fails with
+  `{ "code": "AUTHOR_ALREADY_COMPLETED" }` ("Автор уже отметил задачу выполненной …"); the viewer's
+  path on an author-closed task is `POST /{id}/duplicate`. The same rule is enforced on the
+  `PUT /todos/{id}` status path (a non-owner sending `status: "todo"`), so neither route can bypass it.
+- The response DTO carries **`ownerCompleted`** — the author's real completion truth (the entity's
+  global `Status == Done`), independent of any per-viewer completion. Clients use it to show the
+  correct reopen affordance and avoid sending a request the server will reject.
 
 ### `POST /{id}/join`
 

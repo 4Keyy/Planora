@@ -106,14 +106,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
 
             if (request.CompletedByViewer.HasValue)
             {
-                // Returning a completed task to active is author-only. A viewer may mark a shared/public
-                // task done for themselves, but cannot reopen it — that transition belongs to the owner
-                // (who never reaches this handler: owners are rejected above with OWNER_MUST_USE_HIDDEN_
-                // ENDPOINT). The UI funnels non-owners to "Duplicate" instead; this is the server-side
-                // guard so a direct API call cannot bypass it.
-                if (!request.CompletedByViewer.Value && preference.CompletedByViewer)
-                    throw new ForbiddenException(
-                        "Only the task author can return a completed task to active. Duplicate it to work on your own copy.");
+                // A viewer may freely return THEIR OWN completion to active — UNLESS the author has
+                // marked the whole task done globally (Status == Done). Once the author closes it, the
+                // task is finished for everyone and a viewer must duplicate it to work on their own copy.
+                // (Owners never reach this handler — they are rejected above with
+                // OWNER_MUST_USE_HIDDEN_ENDPOINT.) This is the server-side guard behind the proactive UI.
+                if (!request.CompletedByViewer.Value && preference.CompletedByViewer && todoItem.IsCompleted)
+                    return Result<ViewerPreferenceResponseDto>.Failure(new Error(
+                        "AUTHOR_ALREADY_COMPLETED",
+                        "Автор уже отметил задачу выполненной — вернуть её в работу нельзя. Сделайте копию."));
 
                 preference.CompletedByViewer = request.CompletedByViewer.Value;
                 preference.CompletedByViewerAt = request.CompletedByViewer.Value ? DateTime.UtcNow : (DateTime?)null;
@@ -141,7 +142,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
                 TodoId = request.TodoId,
                 HiddenByViewer = preference.HiddenByViewer,
                 ViewerCategoryId = preference.ViewerCategoryId,
-                CompletedByViewer = preference.CompletedByViewer
+                CompletedByViewer = preference.CompletedByViewer,
+                OwnerCompleted = todoItem.IsCompleted
             });
         }
     }

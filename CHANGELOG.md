@@ -4,6 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(todos): viewer reopen rules + author-reopen propagation (completion mechanics) (2026-06-24)
+
+- **Backend.** A viewer may now return *their own* completion to active (clear `CompletedByViewer`),
+  not just the author — UNLESS the author has completed the whole task globally (`Status == Done`),
+  in which case the task is closed for everyone and reopen is rejected with `AUTHOR_ALREADY_COMPLETED`.
+  The guard is enforced on **both** the `PATCH …/viewer-preferences` and `PUT /todos/{id}` status
+  paths so neither can bypass it (previously a hard `ForbiddenException` on viewer-preferences only).
+- When the **author** reopens a public/shared task (`Done → Todo`), a new bulk
+  `IUserTodoViewPreferenceRepository.ClearCompletedByViewerForTodoAsync` (single `ExecuteUpdate`)
+  clears every viewer's per-viewer completion so the task becomes active for everyone again; the
+  existing `TaskReopened` feed event refreshes their cards. Private tasks have nothing to clear.
+  Reopen still lands on `Todo` (not `InProgress`), so "in work" is never implied.
+- New DTO field **`ownerCompleted`** (the entity's real `Status == Done`, independent of any
+  per-viewer override) on `TodoItemDto` (via the AutoMapper profile) and `ViewerPreferenceResponseDto`,
+  so the client can render the correct reopen affordance without sending a request the server rejects.
+- Also de-duplicated the `OwnerCompleted` mapping across `GetUserTodos` / `GetPublicTodos`.
+- Tests: viewer reopen allowed vs. blocked on both paths, author-reopen clears all viewers,
+  private-reopen clears nothing, `OwnerCompleted` correctness (161 Todo tests green). No EF migration —
+  the `CompletedByViewer*` columns already exist. `docs/features.md` + `docs/API.md` updated.
+
 ### security(auth): close four login/2FA hardening gaps from the security audit (2026-06-24)
 
 - **2FA self-lockout removed.** Enrolment (`POST .../2fa/enable`) used to activate 2FA immediately, so

@@ -180,6 +180,15 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                 ViewerId = userId,
                                 TodoItemId = todoItem.Id,
                             };
+
+                        // Same rule as SetViewerPreference (this PUT path must not bypass it): a viewer
+                        // may clear their own completion EXCEPT when the author has completed the whole
+                        // task globally — then it is closed for everyone and they must duplicate it.
+                        if (!completedByViewer && preference.CompletedByViewer && todoItem.IsCompleted)
+                            return Result<TodoItemDto>.Failure(new Error(
+                                "AUTHOR_ALREADY_COMPLETED",
+                                "Автор уже отметил задачу выполненной — вернуть её в работу нельзя. Сделайте копию."));
+
                         preference.CompletedByViewer = completedByViewer;
                         preference.CompletedByViewerAt = completedByViewer ? DateTime.UtcNow : null;
                         await _viewerPreferenceRepository.UpsertAsync(preference, cancellationToken);
@@ -415,6 +424,16 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             }
 
             _repository.Update(todoItem);
+
+            // Author reopen of an audience task: when the owner returns a completed public/shared task
+            // to active, clear EVERY viewer's per-viewer completion so it becomes active for everyone
+            // again. The TaskReopened feed event emitted below refreshes their cards. Private tasks
+            // (no audience) have nothing to clear — behaviour unchanged.
+            if (!todoItem.IsSubtask && wasCompleted && !todoItem.IsCompleted &&
+                (todoItem.IsPublic || todoItem.SharedWith.Any()))
+            {
+                await _viewerPreferenceRepository.ClearCompletedByViewerForTodoAsync(todoItem.Id, cancellationToken);
+            }
 
             // Keep subtasks in sync: when the parent's category, public flag or shared audience
             // changes, re-anchor every child so "a subtask is always as visible as its parent"

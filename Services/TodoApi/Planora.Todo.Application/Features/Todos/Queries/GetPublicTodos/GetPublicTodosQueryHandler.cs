@@ -150,6 +150,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                         Description = dto.Description,
                         Status = dto.Status,
                         IsCompleted = dto.IsCompleted,
+                        OwnerCompleted = dto.OwnerCompleted,
                         IsPublic = dto.IsPublic,
                         Hidden = dto.Hidden,
                         Priority = dto.Priority,

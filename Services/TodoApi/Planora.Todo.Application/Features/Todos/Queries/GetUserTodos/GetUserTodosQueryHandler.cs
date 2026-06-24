@@ -209,6 +209,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                         Priority = item.Priority.ToString(),
                         IsPublic = item.IsPublic,
                         IsCompleted = item.IsCompleted,
+                        OwnerCompleted = item.IsCompleted,
                         Tags = Array.Empty<string>(),
                         CreatedAt = item.CreatedAt,
                         SharedWithUserIds = Array.Empty<Guid>(),

@@ -78,6 +78,19 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
             return new HashSet<Guid>(ids);
         }
 
+        public async Task<int> ClearCompletedByViewerForTodoAsync(Guid todoItemId, CancellationToken cancellationToken = default)
+        {
+            // One set-based UPDATE resets all viewers' completion for this task. The owner-reopen path
+            // does not load these preference rows into the tracker, so a bulk ExecuteUpdate is safe and
+            // avoids materialising N rows just to flip a flag.
+            return await _context.UserTodoViewPreferences
+                .Where(p => p.TodoItemId == todoItemId && p.CompletedByViewer)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.CompletedByViewer, false)
+                    .SetProperty(p => p.CompletedByViewerAt, (DateTime?)null),
+                    cancellationToken);
+        }
+
         public async Task UpsertAsync(UserTodoViewPreference preference, CancellationToken cancellationToken = default)
         {
             // Check for a tracked instance first to avoid detached-entity conflicts

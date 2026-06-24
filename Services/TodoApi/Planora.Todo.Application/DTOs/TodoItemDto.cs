@@ -57,6 +57,15 @@ namespace Planora.Todo.Application.DTOs
         public IReadOnlyList<TodoWorkerDto> Workers { get; init; } = Array.Empty<TodoWorkerDto>();
         public bool? IsCompletedByViewer { get; init; }
 
+        /// <summary>
+        /// The author's real completion state (the entity's <c>IsCompleted</c>, i.e. global
+        /// <c>Status == Done</c>) — always the owner's truth, independent of any per-viewer
+        /// completion. Lets the UI tell "the author finished the whole task" apart from "I finished
+        /// it for myself", so it can show the correct reopen affordance and avoid sending a request
+        /// the server will reject with <c>AUTHOR_ALREADY_COMPLETED</c>.
+        /// </summary>
+        public bool OwnerCompleted { get; init; }
+
         /// <summary>When set, this item is a subtask (child) of the given parent task.</summary>
         public Guid? ParentTodoId { get; init; }
 
@@ -108,6 +117,10 @@ namespace Planora.Todo.Application.DTOs
                     opt => opt.MapFrom(src => src.SharedWith.Select(s => s.SharedWithUserId).ToList()))
                 .ForMember(dst => dst.HasSharedAudience,
                     opt => opt.MapFrom(src => src.IsPublic || src.SharedWith.Any()))
+                // The author's real completion truth — independent of any per-viewer override the
+                // handlers layer on top via `with { IsCompleted = ... }`.
+                .ForMember(dst => dst.OwnerCompleted,
+                    opt => opt.MapFrom(src => src.IsCompleted))
                 .ForMember(dst => dst.IsVisuallyUrgent,
                     opt => opt.MapFrom(src => TodoViewerStateResolver.IsVisuallyUrgent(src, null)))
                 .ForMember(dst => dst.RequiredWorkers,

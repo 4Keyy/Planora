@@ -339,14 +339,17 @@ Once a task is **completed**, opening its branch and pressing **"+"** swaps the 
 active-task actions (description / subtask / take-into-work / complete) for the two completed-task
 actions, so a done task is never a dead end:
 
-- **Restore task** — reopens it (the same status flip as un-completing), moving it back to active.
-  **Author-only**: returning a completed task to work belongs to its creator. The Restore action is
-  hidden for non-owners (`isOwner && showCompleteAction` in `BranchFeed`), and every reopen path is
-  guarded — a non-owner who presses the completion button on a done task gets a warning toast
-  ("Only the author can reopen this task — duplicate it to work on your own copy.") instead of the
-  flip. Server-side, the owner's `status → todo` and the viewer's `completedByViewer → false`
-  reopen are both rejected for non-owners (the latter throws `ForbiddenException` in
-  `SetViewerPreferenceCommandHandler`).
+- **Restore task** — reopens it, moving it back to active. **Anyone may restore *their own*
+  completion** (an owner reopening the task globally, or a viewer clearing their per-viewer
+  completion) **as long as the author has not completed the whole task globally**. Once the author
+  marks it `Done`, the task is closed for everyone: a viewer's reopen is rejected with
+  `AUTHOR_ALREADY_COMPLETED` (both `SetViewerPreferenceCommandHandler` and the `PUT /todos/{id}`
+  status path enforce it) and the UI shows a warning toast ("Нельзя восстановить — автор уже
+  отметил задачу выполненной") and steers the viewer to Duplicate. Each DTO carries `ownerCompleted`
+  (the author's real `Status == Done`) so the client can show the right affordance without a
+  round-trip. When the **author** reopens a public/shared task, every viewer's per-viewer completion
+  is bulk-cleared (`ClearCompletedByViewerForTodoAsync`) so it becomes active for everyone again;
+  reopening returns the task to `Todo` (not `InProgress`), so "in work" is not implied.
 - **Duplicate task** — creates a **fresh active copy** owned by the caller. **Open to any
   participant** (the owner, or a friend who can see a public/shared task) — this is the non-owner's
   alternative to reopening. The server (`POST /todos/{id}/duplicate`, `DuplicateTodoCommand`) copies
@@ -358,11 +361,11 @@ actions, so a done task is never a dead end:
 
 | Aspect | Rule |
 |---|---|
-| Restore availability | surfaced only when `isCompleted` **and** the viewer is the owner; non-owner reopen is blocked everywhere (menu hidden + completion-button toast + server guard) |
+| Restore availability | surfaced when the viewer has a completion to undo (`isCompleted` for the owner, `isCompletedByViewer` for a viewer) **and** `ownerCompleted` is not true; once the author closes the task globally the menu hides it and the server rejects reopen with `AUTHOR_ALREADY_COMPLETED` |
 | Duplicate availability | surfaced when `isCompleted` to **any participant**; `onDuplicate` is wired un-gated by every page |
 | Copied by Duplicate | title, description, priority, category (re-validated against the duplicator; dropped if not theirs/deleted), `isPublic`, shared audience (re-validated vs. the duplicator's current friends), tags, `requiredWorkers` |
 | NOT copied | `dueDate`/`expectedDate`, completion state (copy starts active), the branch (comments & subtasks) |
-| Security | duplicate access mirrors the view rule (owner, or friend who can see a public/shared task), re-validated server-side; a subtask cannot be duplicated (no standalone existence); reopen is author-only |
+| Security | duplicate access mirrors the view rule (owner, or friend who can see a public/shared task), re-validated server-side; a subtask cannot be duplicated (no standalone existence); reopen is allowed for one's own completion but blocked once the author has completed globally (`AUTHOR_ALREADY_COMPLETED`) |
 | Notifications | full support — the copy emits `TaskCreated` exactly like a normal create (new branch system comment + participant notifications) |
 
 Backend: `DuplicateTodoCommand` + handler, `POST /todos/api/v1/todos/{id}/duplicate`. Frontend:
