@@ -4,6 +4,21 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### ci(infra): deploy/migrate collaboration, route avatars in Docker, harden Stryker & Fly env (2026-06-24)
+
+- **CD** — added `planora-collaboration` to the Fly deploy matrix in `cd.yml`; the service had a
+  `collaboration.fly.toml` and Dockerfile but was never deployed.
+- **Migrations** — added the `collaboration` entry (CollaborationDbContext) and its
+  `ConnectionStrings__CollaborationDatabase` design-time default to `migrations.yml`, so the
+  Collaboration schema now gets a reviewable SQL artifact like every other service.
+- **Gateway (Docker)** — `ocelot.Docker.json` was missing the `/avatars/{everything}` route, so avatar
+  images 404'd in Docker/prod; added it pointing at `auth-api:80` (mirrors the dev `ocelot.json`).
+- **Stryker** — raised the mutation `break` threshold from `0` to `70` in `stryker-config.json` and
+  `stryker-auth.json`, so a collapse in mutation score now fails CI instead of passing silently.
+- **Fly env** — added the gRPC dependency URLs to `todo.fly.toml` (`GrpcServices__AuthApi`,
+  `__CategoryApi`) and `messaging.fly.toml` (`__AuthApi`) so they don't fall back to localhost in
+  prod; added `ConnectionStrings__CollaborationDatabase` / `__RealtimeDatabase` to `.env.fly.example`.
+
 ### fix(a11y): focus-trap and labelled dialogs for custom modals + live-region toasts (2026-06-24)
 
 - Custom modals were not keyboard/screen-reader safe: focus could tab out to the page behind them and

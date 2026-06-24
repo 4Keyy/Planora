@@ -154,6 +154,9 @@ jobs:
           - app: planora-realtime
             config: deploy/fly/realtime.fly.toml
             dockerfile: Services/RealtimeApi/Planora.Realtime.Api/Dockerfile
+          - app: planora-collaboration
+            config: deploy/fly/collaboration.fly.toml
+            dockerfile: Services/CollaborationApi/Planora.Collaboration.Api/Dockerfile
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

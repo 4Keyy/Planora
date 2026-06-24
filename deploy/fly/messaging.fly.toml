@@ -13,6 +13,8 @@ primary_region = "ams"
   JwtSettings__Issuer = "Planora.Auth"
   JwtSettings__Audience = "Planora.Clients"
   RateLimiting__Backend = "Redis"
+  # gRPC dependency over the Fly private network (friendship checks for DM authorisation).
+  GrpcServices__AuthApi = "https://planora-auth.internal:443"
 
 [http_service]
   internal_port = 8080

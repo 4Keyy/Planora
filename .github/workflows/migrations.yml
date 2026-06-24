@@ -51,6 +51,10 @@ jobs:
             project: Services/MessagingApi/Planora.Messaging.Infrastructure
             startup: Services/MessagingApi/Planora.Messaging.Api
             context: MessagingDbContext
+          - name: collaboration
+            project: Services/CollaborationApi/Planora.Collaboration.Infrastructure
+            startup: Services/CollaborationApi/Planora.Collaboration.Api
+            context: CollaborationDbContext
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -74,6 +78,7 @@ jobs:
           ConnectionStrings__CategoryDatabase: "Host=localhost;Database=planora_category;Username=postgres;Password=postgres"
           ConnectionStrings__TodoDatabase: "Host=localhost;Database=planora_todo;Username=postgres;Password=postgres"
           ConnectionStrings__MessagingDatabase: "Host=localhost;Database=planora_messaging;Username=postgres;Password=postgres"
+          ConnectionStrings__CollaborationDatabase: "Host=localhost;Database=planora_collaboration;Username=postgres;Password=postgres"
           JwtSettings__Secret: "0123456789abcdef0123456789abcdef0123456789abcdef"
           GrpcSettings__ServiceKey: "0123456789abcdef0123456789abcdef"
         run: |

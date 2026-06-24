@@ -49,6 +49,14 @@
       "RateLimitOptions": { "EnableRateLimiting": false }
     },
     {
+      "DownstreamPathTemplate": "/avatars/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "auth-api", "Port": 80 } ],
+      "UpstreamPathTemplate": "/avatars/{everything}",
+      "UpstreamHttpMethod": [ "GET" ],
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/Authentication/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [ { "Host": "auth-api", "Port": 80 } ],
