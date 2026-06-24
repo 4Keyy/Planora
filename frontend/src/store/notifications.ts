@@ -28,15 +28,35 @@ export interface AppNotification {
   isRead: boolean
 }
 
-/** Per-task unread roll-up that drives a card's dot and a branch's badge. */
+/** Per-type unread breakdown within a task — one disc in the card's badge cluster. */
+export interface TaskUnreadGroup {
+  type: string
+  count: number
+  /** ISO timestamp of the newest unread of this type; drives newest-first ordering. */
+  latestOccurredOn: string
+}
+
+/** Per-task unread roll-up that drives a card's badge cluster and a branch's badge. */
 export interface TaskUnread {
   count: number
   latestType: string
+  /** Per-type breakdown, newest type first. `latestType === groups[0]?.type`. */
+  groups: TaskUnreadGroup[]
 }
 
 interface SummaryDto {
   totalUnread: number
-  perTask: Array<{ taskId: string; count: number; latestType: string }>
+  perTask: Array<{
+    taskId: string
+    count: number
+    latestType: string
+    groups?: Array<{ type: string; count: number; latestOccurredOnUtc: string }>
+  }>
+}
+
+/** Sort a task's type-groups newest-first (descending by latest timestamp). Pure; returns a copy. */
+function sortGroups(groups: TaskUnreadGroup[]): TaskUnreadGroup[] {
+  return [...groups].sort((a, b) => (a.latestOccurredOn < b.latestOccurredOn ? 1 : -1))
 }
 
 interface NotificationsState {
@@ -77,7 +97,16 @@ function toPerTask(summary: SummaryDto): Record<string, TaskUnread> {
   const map: Record<string, TaskUnread> = {}
   for (const t of summary.perTask ?? []) {
     if (t.taskId && t.taskId !== EMPTY_GUID) {
-      map[t.taskId] = { count: t.count, latestType: t.latestType }
+      const groups: TaskUnreadGroup[] = (t.groups ?? []).map((g) => ({
+        type: g.type,
+        count: g.count,
+        latestOccurredOn: g.latestOccurredOnUtc,
+      }))
+      // Backward compatibility: an older server without `groups` still yields one synthetic group.
+      const safeGroups = groups.length > 0
+        ? sortGroups(groups)
+        : [{ type: t.latestType, count: t.count, latestOccurredOn: "" }]
+      map[t.taskId] = { count: t.count, latestType: safeGroups[0].type, groups: safeGroups }
     }
   }
   return map
@@ -133,9 +162,17 @@ export const useNotificationStore = create<NotificationsState>((set, get) => ({
       let perTask = state.perTask
       if (n.taskId && n.taskId !== EMPTY_GUID && !n.isRead) {
         const existing = state.perTask[n.taskId]
+        const groups = existing ? existing.groups.map((g) => ({ ...g })) : []
+        const gi = groups.findIndex((g) => g.type === n.type)
+        if (gi >= 0) {
+          groups[gi] = { ...groups[gi], count: groups[gi].count + 1, latestOccurredOn: n.occurredOn }
+        } else {
+          groups.push({ type: n.type, count: 1, latestOccurredOn: n.occurredOn })
+        }
+        const sorted = sortGroups(groups)
         perTask = {
           ...state.perTask,
-          [n.taskId]: { count: (existing?.count ?? 0) + 1, latestType: n.type },
+          [n.taskId]: { count: (existing?.count ?? 0) + 1, latestType: sorted[0].type, groups: sorted },
         }
       }
 
@@ -187,10 +224,22 @@ export const useNotificationStore = create<NotificationsState>((set, get) => ({
       const items = state.items.map((it) => {
         if (idSet.has(it.id) && !it.isRead) {
           removed++
-          if (it.taskId && perTask[it.taskId]) {
-            const next = perTask[it.taskId].count - 1
-            if (next <= 0) delete perTask[it.taskId]
-            else perTask[it.taskId] = { ...perTask[it.taskId], count: next }
+          const tu = it.taskId ? perTask[it.taskId] : undefined
+          if (tu) {
+            const nextCount = tu.count - 1
+            if (nextCount <= 0) {
+              delete perTask[it.taskId]
+            } else {
+              // Drop one from this item's type-group; recompute latestType from what remains.
+              const groups = tu.groups
+                .map((g) => (g.type === it.type ? { ...g, count: g.count - 1 } : g))
+                .filter((g) => g.count > 0)
+              perTask[it.taskId] = {
+                count: nextCount,
+                latestType: groups[0]?.type ?? tu.latestType,
+                groups,
+              }
+            }
           }
           return { ...it, isRead: true }
         }

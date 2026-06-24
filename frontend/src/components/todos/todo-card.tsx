@@ -14,7 +14,7 @@ import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import { EASE_OUT_EXPO, SPRING_RESPONSIVE, VARIANTS_CARD, TAP_CARD } from "@/lib/animations"
 import { haptic } from "@/lib/haptics"
 import { CompletionCelebration } from "@/components/animated/celebration"
-import { NotificationBadge } from "@/components/notifications/notification-badge"
+import { NotificationBadgeCluster } from "@/components/notifications/notification-badge-cluster"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNING } from "@/lib/ui-preferences"
 import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
@@ -408,13 +408,10 @@ function TodoCardComponent({
           is active so the two never collide. */}
       <AnimatePresence>
         {unread && unread.count > 0 && !isDeleteZoneHovered && (
-          <NotificationBadge
-            key="unread-mark"
-            type={unread.latestType}
-            variant="pill"
-            count={unread.count}
-            showCount
-            size={22}
+          <NotificationBadgeCluster
+            key="unread-cluster"
+            groups={unread.groups}
+            total={unread.count}
             pulse={!isCompleted}
             className="absolute -top-2 right-2 z-40 pointer-events-none"
           />

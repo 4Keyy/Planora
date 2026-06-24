@@ -55,7 +55,9 @@ describe("notifications store", () => {
 
       const s = useNotificationStore.getState()
       expect(s.totalUnread).toBe(4)
-      expect(s.perTask[TASK]).toEqual({ count: 2, latestType: "task.review" })
+      // An older server response without `groups` is still normalised to one synthetic group.
+      expect(s.perTask[TASK]).toMatchObject({ count: 2, latestType: "task.review" })
+      expect(s.perTask[TASK].groups).toEqual([{ type: "task.review", count: 2, latestOccurredOn: "" }])
       expect(s.perTask[EMPTY_GUID]).toBeUndefined()
     })
 
@@ -93,7 +95,8 @@ describe("notifications store", () => {
       useNotificationStore.getState().ingest(payload({ id: "a", type: "task.review" }))
       const s = useNotificationStore.getState()
       expect(s.totalUnread).toBe(1)
-      expect(s.perTask[TASK]).toEqual({ count: 1, latestType: "task.review" })
+      expect(s.perTask[TASK]).toMatchObject({ count: 1, latestType: "task.review" })
+      expect(s.perTask[TASK].groups).toEqual([{ type: "task.review", count: 1, latestOccurredOn: s.items[0].occurredOn }])
       expect(s.items[0].id).toBe("a")
       expect(toast).toHaveBeenCalledOnce()
     })
@@ -133,7 +136,23 @@ describe("notifications store", () => {
     it("increments an existing per-task count", () => {
       useNotificationStore.getState().ingest(payload({ id: "x1" }))
       useNotificationStore.getState().ingest(payload({ id: "x2", type: "subtask.added" }))
-      expect(useNotificationStore.getState().perTask[TASK]).toEqual({ count: 2, latestType: "subtask.added" })
+      const tu = useNotificationStore.getState().perTask[TASK]
+      expect(tu).toMatchObject({ count: 2, latestType: "subtask.added" })
+      // Two distinct types → two groups; the newest (subtask.added) leads.
+      expect(tu.groups.map((g) => g.type)).toEqual(["subtask.added", "comment.added"])
+      expect(tu.groups.map((g) => g.count)).toEqual([1, 1])
+    })
+
+    it("increments the matching type-group and keeps it newest-first", () => {
+      useNotificationStore.getState().ingest(payload({ id: "g1", type: "comment.added", occurredOnUtc: "2026-06-24T10:00:00Z" }))
+      useNotificationStore.getState().ingest(payload({ id: "g2", type: "task.review", occurredOnUtc: "2026-06-24T11:00:00Z" }))
+      useNotificationStore.getState().ingest(payload({ id: "g3", type: "comment.added", occurredOnUtc: "2026-06-24T12:00:00Z" }))
+      const tu = useNotificationStore.getState().perTask[TASK]
+      expect(tu.count).toBe(3)
+      // comment.added now has the newest timestamp again → it leads; its count is 2.
+      expect(tu.latestType).toBe("comment.added")
+      expect(tu.groups.find((g) => g.type === "comment.added")!.count).toBe(2)
+      expect(tu.groups[0].type).toBe("comment.added")
     })
   })
 
@@ -144,7 +163,7 @@ describe("notifications store", () => {
           { ...payload({ id: "i1", taskId: TASK }), occurredOn: "x" } as unknown as AppNotification,
           { ...payload({ id: "i2", taskId: TASK2 }), occurredOn: "x" } as unknown as AppNotification,
         ],
-        perTask: { [TASK]: { count: 3, latestType: "comment.added" } },
+        perTask: { [TASK]: { count: 3, latestType: "comment.added", groups: [{ type: "comment.added", count: 3, latestOccurredOn: "x" }] } },
         totalUnread: 3,
       })
       const post = vi.spyOn(api, "post").mockResolvedValue({ data: { totalUnread: 0, perTask: [] } } as never)
@@ -164,7 +183,7 @@ describe("notifications store", () => {
     })
 
     it("keeps the optimistic state when the request fails", async () => {
-      useNotificationStore.setState({ perTask: { [TASK]: { count: 1, latestType: "comment.added" } }, totalUnread: 1 })
+      useNotificationStore.setState({ perTask: { [TASK]: { count: 1, latestType: "comment.added", groups: [{ type: "comment.added", count: 1, latestOccurredOn: "x" }] } }, totalUnread: 1 })
       vi.spyOn(api, "post").mockRejectedValue(new Error("offline"))
       await useNotificationStore.getState().markTaskRead(TASK)
       expect(useNotificationStore.getState().totalUnread).toBe(0)
@@ -178,7 +197,10 @@ describe("notifications store", () => {
           { ...payload({ id: "m1", taskId: TASK }), occurredOn: "x", isRead: false } as AppNotification,
           { ...payload({ id: "m2", taskId: TASK2 }), occurredOn: "x", isRead: false } as AppNotification,
         ],
-        perTask: { [TASK]: { count: 1, latestType: "comment.added" }, [TASK2]: { count: 2, latestType: "comment.added" } },
+        perTask: {
+          [TASK]: { count: 1, latestType: "comment.added", groups: [{ type: "comment.added", count: 1, latestOccurredOn: "x" }] },
+          [TASK2]: { count: 2, latestType: "comment.added", groups: [{ type: "comment.added", count: 2, latestOccurredOn: "x" }] },
+        },
         totalUnread: 3,
       })
       vi.spyOn(api, "post").mockResolvedValue({ data: { totalUnread: 2, perTask: [{ taskId: TASK2, count: 2, latestType: "comment.added" }] } } as never)
@@ -186,7 +208,7 @@ describe("notifications store", () => {
       await useNotificationStore.getState().markRead(["m1"])
 
       const s = useNotificationStore.getState()
-      expect(s.perTask[TASK2]).toEqual({ count: 2, latestType: "comment.added" })
+      expect(s.perTask[TASK2]).toMatchObject({ count: 2, latestType: "comment.added" })
       expect(s.items.find((i) => i.id === "m1")?.isRead).toBe(true)
     })
 
@@ -196,7 +218,7 @@ describe("notifications store", () => {
           { ...payload({ id: "u1", taskId: TASK }), occurredOn: "x", isRead: false } as unknown as AppNotification,
           { ...payload({ id: "u2", taskId: TASK }), occurredOn: "x", isRead: true } as unknown as AppNotification,
         ],
-        perTask: { [TASK]: { count: 2, latestType: "comment.added" } },
+        perTask: { [TASK]: { count: 2, latestType: "comment.added", groups: [{ type: "comment.added", count: 2, latestOccurredOn: "x" }] } },
         totalUnread: 2,
       })
       vi.spyOn(api, "post").mockResolvedValue({
@@ -206,7 +228,7 @@ describe("notifications store", () => {
       // u2 is already read (ignored); u1 drops TASK's count 2 → 1 (the no-delete branch).
       await useNotificationStore.getState().markRead(["u1", "u2"])
 
-      expect(useNotificationStore.getState().perTask[TASK]).toEqual({ count: 1, latestType: "comment.added" })
+      expect(useNotificationStore.getState().perTask[TASK]).toMatchObject({ count: 1, latestType: "comment.added" })
     })
 
     it("no-ops on an empty id list", async () => {
@@ -218,7 +240,7 @@ describe("notifications store", () => {
 
   describe("markAllRead", () => {
     it("clears everything and posts all:true", async () => {
-      useNotificationStore.setState({ perTask: { [TASK]: { count: 2, latestType: "comment.added" } }, totalUnread: 2 })
+      useNotificationStore.setState({ perTask: { [TASK]: { count: 2, latestType: "comment.added", groups: [{ type: "comment.added", count: 2, latestOccurredOn: "x" }] } }, totalUnread: 2 })
       const post = vi.spyOn(api, "post").mockResolvedValue({ data: {} } as never)
       await useNotificationStore.getState().markAllRead()
       expect(post).toHaveBeenCalledWith("/realtime/api/v1/notifications/read", { all: true }, expect.anything())
@@ -241,14 +263,14 @@ describe("notifications store", () => {
 
   describe("useTaskUnread", () => {
     it("returns the per-task entry, or undefined without a task", () => {
-      useNotificationStore.setState({ perTask: { [TASK]: { count: 1, latestType: "comment.added" } } })
-      expect(renderHook(() => useTaskUnread(TASK)).result.current).toEqual({ count: 1, latestType: "comment.added" })
+      useNotificationStore.setState({ perTask: { [TASK]: { count: 1, latestType: "comment.added", groups: [{ type: "comment.added", count: 1, latestOccurredOn: "x" }] } } })
+      expect(renderHook(() => useTaskUnread(TASK)).result.current).toMatchObject({ count: 1, latestType: "comment.added" })
       expect(renderHook(() => useTaskUnread(null)).result.current).toBeUndefined()
     })
   })
 
   it("reset clears the store", () => {
-    useNotificationStore.setState({ totalUnread: 5, perTask: { [TASK]: { count: 5, latestType: "x" } } })
+    useNotificationStore.setState({ totalUnread: 5, perTask: { [TASK]: { count: 5, latestType: "x", groups: [{ type: "x", count: 5, latestOccurredOn: "x" }] } } })
     useNotificationStore.getState().reset()
     expect(useNotificationStore.getState().totalUnread).toBe(0)
     expect(useNotificationStore.getState().items).toHaveLength(0)

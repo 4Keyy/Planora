@@ -4,6 +4,21 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): notification badge cluster on task cards ("Audi rings") (2026-06-24)
+
+- Task cards now render a per-type unread **cluster** instead of a single badge: one type keeps the
+  rich labeled pill (icon + motif + label + count); two or more fan out as overlapping tinted discs,
+  newest at the front-left (highest z-index), each nudged left and scaled/faded for depth, with the
+  total on the front disc and a "+N" pip past four types. New `NotificationBadgeCluster` component,
+  fully reduced-motion aware (no movement when the user prefers it); color is never the only signal.
+- The notification store's `TaskUnread` gained a `groups` breakdown (`{ type, count, latestOccurredOn }`,
+  newest-first): `toPerTask` maps the server's `groups` (synthesising one for an older server),
+  `ingest` increments/creates the matching type-group and re-sorts, and `markRead` decrements the
+  right group. `useTaskUnread` keeps its referential stability.
+- Tests: store grouping (ingest sort, markRead decrement, backward-compat synthesis), the cluster
+  component (single/multi/overflow), and the card rendering. `tsc`, `eslint`, `vitest --coverage`
+  (≥85% gate) and `next build` all green.
+
 ### feat(realtime): per-type unread breakdown in the notification summary (2026-06-24)
 
 - `GET /realtime/api/v1/notifications/summary` now returns a `groups` array per task — one entry per

@@ -28,7 +28,7 @@ describe("TodoCard notification mark", () => {
   afterEach(() => vi.restoreAllMocks())
 
   it("shows the unread mark and clears it when the card opens", () => {
-    useNotificationStore.setState({ perTask: { "todo-1": { count: 2, latestType: "task.review" } }, totalUnread: 2 })
+    useNotificationStore.setState({ perTask: { "todo-1": { count: 2, latestType: "task.review", groups: [{ type: "task.review", count: 2, latestOccurredOn: "2026-05-01T00:00:00Z" }] } }, totalUnread: 2 })
     const markTaskRead = vi.spyOn(useNotificationStore.getState(), "markTaskRead").mockResolvedValue()
     const onEdit = vi.fn()
 
@@ -39,6 +39,27 @@ describe("TodoCard notification mark", () => {
     fireEvent.click(screen.getByText("Notify me"))
     expect(markTaskRead).toHaveBeenCalledWith("todo-1")
     expect(onEdit).toHaveBeenCalled()
+  })
+
+  it("renders the multi-type badge cluster when several event types are unread", () => {
+    useNotificationStore.setState({
+      perTask: {
+        "todo-1": {
+          count: 3,
+          latestType: "task.review",
+          groups: [
+            { type: "task.review", count: 1, latestOccurredOn: "2026-05-01T12:05:00Z" },
+            { type: "comment.added", count: 2, latestOccurredOn: "2026-05-01T12:01:00Z" },
+          ],
+        },
+      },
+      totalUnread: 3,
+    })
+
+    render(<TodoCard todo={todo} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
+
+    // The cluster announces the spread of types it represents.
+    expect(screen.getByRole("status")).toHaveAttribute("aria-label", expect.stringContaining("2 types"))
   })
 
   it("renders no mark when nothing is unread for the task", () => {
