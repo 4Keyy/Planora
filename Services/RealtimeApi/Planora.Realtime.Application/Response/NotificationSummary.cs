@@ -1,7 +1,18 @@
 namespace Planora.Realtime.Application.Response;
 
-/// <summary>Unread notification count for a single task — drives a card's dot and a branch's badge.</summary>
-public sealed record TaskUnread(Guid TaskId, int Count, string LatestType);
+/// <summary>
+/// Per-type unread breakdown within a single task. Drives the card's notification badge cluster
+/// ("Audi rings") — one disc per event type, newest first.
+/// </summary>
+public sealed record TaskUnreadGroup(string Type, int Count, DateTime LatestOccurredOnUtc);
+
+/// <summary>
+/// Unread notification count for a single task — drives a card's badge and a branch's badge.
+/// <see cref="Count"/> and <see cref="LatestType"/> are kept for backward compatibility
+/// (<c>LatestType == Groups[0].Type</c>); <see cref="Groups"/> carries the per-type breakdown,
+/// ordered by <see cref="TaskUnreadGroup.LatestOccurredOnUtc"/> descending (newest first).
+/// </summary>
+public sealed record TaskUnread(Guid TaskId, int Count, string LatestType, IReadOnlyList<TaskUnreadGroup> Groups);
 
 /// <summary>
 /// The compact summary the client loads on startup and after each mark-read: the total unread count

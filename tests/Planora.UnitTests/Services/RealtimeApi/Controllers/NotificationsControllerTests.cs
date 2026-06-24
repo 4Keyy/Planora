@@ -86,7 +86,13 @@ public class NotificationsControllerTests
     {
         var userId = Guid.NewGuid();
         var readStore = new Mock<INotificationReadStore>();
-        var summary = new NotificationSummary(3, new[] { new TaskUnread(Guid.NewGuid(), 2, "comment.added") });
+        var summary = new NotificationSummary(3, new[]
+        {
+            new TaskUnread(Guid.NewGuid(), 2, "comment.added", new[]
+            {
+                new TaskUnreadGroup("comment.added", 2, DateTime.UtcNow),
+            }),
+        });
         readStore.Setup(x => x.GetSummaryAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(summary);
 
         var controller = CreateController(new Mock<INotificationService>(), userId.ToString(), readStore);

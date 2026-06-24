@@ -35,13 +35,23 @@ public sealed class NotificationReadStore : INotificationReadStore
         var unread = await _db.Notifications.AsNoTracking()
             .Where(n => n.UserId == userId && !n.IsRead && n.TaskId != Guid.Empty)
             .OrderByDescending(n => n.OccurredOnUtc)
-            .Select(n => new { n.TaskId, n.Type })
+            .Select(n => new { n.TaskId, n.Type, n.OccurredOnUtc })
             .Take(SummaryScanCap)
             .ToListAsync(cancellationToken);
 
         var perTask = unread
             .GroupBy(x => x.TaskId)
-            .Select(g => new TaskUnread(g.Key, g.Count(), g.First().Type))
+            .Select(g =>
+            {
+                // Per-type breakdown, newest type first — the card renders one disc per type.
+                var groups = g
+                    .GroupBy(x => x.Type)
+                    .Select(tg => new TaskUnreadGroup(tg.Key, tg.Count(), tg.Max(x => x.OccurredOnUtc)))
+                    .OrderByDescending(tg => tg.LatestOccurredOnUtc)
+                    .ToList();
+                // groups is never empty (the task has ≥1 unread); Groups[0].Type is the latest type.
+                return new TaskUnread(g.Key, g.Count(), groups[0].Type, groups);
+            })
             .ToList();
 
         return new NotificationSummary(totalUnread, perTask);

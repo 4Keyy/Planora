@@ -829,10 +829,22 @@ mark read **their own** notifications (no IDOR surface), and all reads are `AsNo
 {
   "totalUnread": 4,
   "perTask": [
-    { "taskId": "11111111-1111-1111-1111-111111111111", "count": 2, "latestType": "task.review" }
+    {
+      "taskId": "11111111-1111-1111-1111-111111111111",
+      "count": 3,
+      "latestType": "task.review",
+      "groups": [
+        { "type": "task.review",  "count": 1, "latestOccurredOnUtc": "2026-06-24T12:05:00Z" },
+        { "type": "comment.added", "count": 2, "latestOccurredOnUtc": "2026-06-24T12:01:00Z" }
+      ]
+    }
   ]
 }
 ```
+
+`groups` is the per-type breakdown that drives the card's notification badge cluster, ordered by
+`latestOccurredOnUtc` descending (newest type first). `count` / `latestType` are retained for
+backward compatibility — `latestType === groups[0].type`.
 
 `POST /notifications/read` request (exactly one selector, priority `all` → `taskId` → `ids`):
 

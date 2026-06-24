@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(realtime): per-type unread breakdown in the notification summary (2026-06-24)
+
+- `GET /realtime/api/v1/notifications/summary` now returns a `groups` array per task — one entry per
+  event `type` with its `count` and `latestOccurredOnUtc`, ordered newest-type-first — backing the
+  card's notification badge cluster ("Audi rings"). `count` and `latestType` are unchanged and remain
+  backward compatible (`latestType === groups[0].type`).
+- `NotificationReadStore.GetSummaryAsync` builds the breakdown from the existing unread scan (adds
+  `OccurredOnUtc` to the projection, sub-groups each task by type); no new query, no schema change.
+- New `TaskUnreadGroup` record on `NotificationSummary`. Tests cover grouping order/counts, the
+  read/other-user/other-task exclusions, and the empty case. Frontend store + UI cluster follow.
+
 ### fix(todos-grpc): stop swallowing failures and validate GUID arguments (2026-06-24)
 
 - `TodoGrpcService.UpdateTodo` and `DeleteTodo` ignored the MediatR `Result` and always returned
