@@ -7,6 +7,7 @@ import { Button } from "./button"
 import type { ButtonProps } from "./button"
 import { ModalPortal } from "./modal-portal"
 import { SPRING_STANDARD, TWEEN_BACKDROP } from "@/lib/animations"
+import { useFocusTrap } from "@/hooks/use-focus-trap"
 
 interface ConfirmDialogProps {
     isOpen: boolean
@@ -40,6 +41,10 @@ export function ConfirmDialog({
     React.useEffect(() => {
         if (isOpen) setDontAskAgain(false)
     }, [isOpen])
+
+    const dialogRef = useFocusTrap<HTMLDivElement>(isOpen)
+    const titleId = React.useId()
+    const descId = React.useId()
 
     const stylesByVariant: Record<NonNullable<ConfirmDialogProps["variant"]>, {
         bg: string
@@ -91,21 +96,27 @@ export function ConfirmDialog({
                             onClick={onClose}
                         />
                         <motion.div
+                            ref={dialogRef}
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby={titleId}
+                            aria-describedby={descId}
+                            tabIndex={-1}
                             initial={{ opacity: 0, scale: 0.95, y: 16 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 16 }}
                             transition={SPRING_STANDARD}
-                            className="relative w-full max-w-sm rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl z-10"
+                            className="relative w-full max-w-sm rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl z-10 outline-none"
                         >
                             <div className="flex items-start gap-4">
                                 <div className={`h-12 w-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${variantStyles.bg} ${variantStyles.border} border`}>
                                     <AlertTriangle className={`h-6 w-6 ${variantStyles.icon}`} />
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="text-xl font-bold text-gray-900 leading-tight mb-2">{title}</h3>
-                                    <p className="text-sm text-gray-500 leading-relaxed">{description}</p>
+                                    <h3 id={titleId} className="text-xl font-bold text-gray-900 leading-tight mb-2">{title}</h3>
+                                    <p id={descId} className="text-sm text-gray-500 leading-relaxed">{description}</p>
                                 </div>
-                                <button onClick={onClose} className="h-8 w-8 rounded-lg hover:bg-gray-50 flex items-center justify-center text-gray-400">
+                                <button onClick={onClose} aria-label="Close" className="h-8 w-8 rounded-lg hover:bg-gray-50 flex items-center justify-center text-gray-400">
                                     <X className="h-4 w-4" />
                                 </button>
                             </div>

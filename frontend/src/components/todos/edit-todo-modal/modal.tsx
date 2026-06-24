@@ -6,6 +6,7 @@ import { motion } from "framer-motion"
 import { X, ExternalLink, ArrowLeft } from "lucide-react"
 import { ModalPortal }      from "@/components/ui/modal-portal"
 import { useAutosave }      from "@/hooks/use-autosave"
+import { useFocusTrap }     from "@/hooks/use-focus-trap"
 import { useAuthStore }     from "@/store/auth"
 import { useFriends }       from "@/hooks/use-friends"
 import { SPRING_STANDARD }  from "@/lib/animations"
@@ -559,6 +560,8 @@ export function TodoEditor({
  * The standalone `/branch/{id}` page renders {@link TodoEditor} directly with `variant="page"`.
  */
 export function EditTodoModal(props: EditTodoModalProps) {
+  // The wrapper is mounted only while the modal is shown, so the trap is always active here.
+  const dialogRef = useFocusTrap<HTMLDivElement>(true)
   return (
     <ModalPortal>
       <div
@@ -575,6 +578,11 @@ export function EditTodoModal(props: EditTodoModalProps) {
 
         {/* Modal card — fixed size; the branch in the middle flex-fills and scrolls internally. */}
         <motion.div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={props.todo?.title ? `Task: ${props.todo.title}` : "Task details"}
+          tabIndex={-1}
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}

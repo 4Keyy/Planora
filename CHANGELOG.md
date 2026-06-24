@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(a11y): focus-trap and labelled dialogs for custom modals + live-region toasts (2026-06-24)
+
+- Custom modals were not keyboard/screen-reader safe: focus could tab out to the page behind them and
+  they were unlabelled. Added a reusable `useFocusTrap` hook (remember trigger → focus into dialog →
+  trap Tab/Shift+Tab → restore focus on close) and applied it with `role="dialog"`, `aria-modal="true"`
+  and an accessible name to the edit-task modal, the confirm dialog (now `aria-labelledby`/
+  `aria-describedby` its title/description), and the category-filter modal. Icon-only close buttons
+  gained `aria-label`s.
+- Toasts are now an `aria-live` region: the `Toaster` container is a polite live region and each toast
+  carries `role="status"` (or `role="alert"` for errors), so a screen reader announces success/error
+  feedback that was previously silent. The dismiss button gained an `aria-label`.
+- Purely additive ARIA/behaviour — no visual change. `tsc`, `eslint`, `vitest --coverage` and
+  `next build` all green.
+
 ### feat(frontend): notification badge cluster on task cards ("Audi rings") (2026-06-24)
 
 - Task cards now render a per-type unread **cluster** instead of a single badge: one type keeps the

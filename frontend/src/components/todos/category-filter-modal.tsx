@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { X, Check, SlidersHorizontal, Tag } from "lucide-react"
 import type { Category } from "@/types/category"
 import { ICON_MAP } from "@/lib/icon-map"
+import { useFocusTrap } from "@/hooks/use-focus-trap"
 
 interface Props {
   isOpen: boolean
@@ -17,6 +18,7 @@ interface Props {
 
 export function CategoryFilterModal({ isOpen, onClose, categories, selected, onChange }: Props) {
   const [mounted, setMounted] = useState(false)
+  const dialogRef = useFocusTrap<HTMLDivElement>(isOpen)
 
   useEffect(() => {
     setMounted(true)
@@ -58,13 +60,16 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
 
           <motion.div
             key="cat-modal"
+            ref={dialogRef}
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative z-10 w-full max-w-sm bg-white rounded-[2rem] shadow-2xl shadow-black/30 border border-gray-100 overflow-hidden"
+            className="relative z-10 w-full max-w-sm bg-white rounded-[2rem] shadow-2xl shadow-black/30 border border-gray-100 overflow-hidden outline-none"
             role="dialog"
             aria-modal="true"
+            aria-label="Filter views by category"
+            tabIndex={-1}
           >
             {/* Header */}
             <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-50">
@@ -78,6 +83,7 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
               </div>
               <button
                 onClick={onClose}
+                aria-label="Close"
                 className="h-8 w-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all"
               >
                 <X className="h-4 w-4" />

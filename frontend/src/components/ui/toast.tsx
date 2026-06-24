@@ -29,6 +29,9 @@ const Toast = React.forwardRef<
   return (
     <motion.div
       ref={ref}
+      // Errors interrupt (assertive); everything else is announced politely. role implies the
+      // matching aria-live, so a screen reader speaks the toast even though it is purely visual.
+      role={type === "error" ? "alert" : "status"}
       initial={VARIANTS_TOAST.hidden}
       animate={VARIANTS_TOAST.visible}
       exit={VARIANTS_TOAST.exit}
@@ -47,6 +50,7 @@ const Toast = React.forwardRef<
       </div>
       <button
         onClick={() => removeToast(id)}
+        aria-label="Dismiss notification"
         className="rounded-lg p-1.5 opacity-60 transition-[opacity,background-color,transform] duration-150 hover:opacity-100 hover:bg-black/5 active:scale-95"
       >
         <X className="h-4 w-4" />
@@ -65,7 +69,13 @@ export function Toaster() {
   // (width is derived from the insets, never 100vw); from `sm` up we restore the
   // right-anchored, max-360px stack. Top honours the notch via the safe-area inset.
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+72px)] z-toast flex max-h-[calc(100vh-72px)] flex-col-reverse gap-2.5 px-4 pb-4 sm:inset-x-auto sm:right-6 sm:top-[72px] sm:w-full sm:max-w-[360px] sm:flex-col">
+    <div
+      role="region"
+      aria-label="Notifications"
+      aria-live="polite"
+      aria-relevant="additions"
+      className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+72px)] z-toast flex max-h-[calc(100vh-72px)] flex-col-reverse gap-2.5 px-4 pb-4 sm:inset-x-auto sm:right-6 sm:top-[72px] sm:w-full sm:max-w-[360px] sm:flex-col"
+    >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
           <Toast key={toast.id} {...toast} />
