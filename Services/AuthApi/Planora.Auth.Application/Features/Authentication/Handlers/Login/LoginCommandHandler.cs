@@ -20,6 +20,13 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
         private readonly IBusinessEventLogger _businessLogger;
         private readonly ILogger<LoginCommandHandler> _logger;
 
+        // Fixed PBKDF2-HMAC-SHA512 hash (current 210k-iteration policy) of a throwaway value, used
+        // ONLY to spend a verify's worth of CPU on the unknown-account login path so its timing
+        // matches a wrong-password attempt on a real account. Not a credential and never matches any
+        // user's password. If the hasher work factor is raised, regenerate this so the cost tracks.
+        private const string DummyPasswordHash =
+            "$pbkdf2-sha512$v=1$i=210000$qSYBjIKiuBDfERgNynMElA==$5FExX2s6HAX30nZqpPxLwSwwYtp79iJCzrgoro2htWM=";
+
         public LoginCommandHandler(
             IAuthUnitOfWork unitOfWork,
             IPasswordHasher passwordHasher,
@@ -50,6 +57,12 @@ namespace Planora.Auth.Application.Features.Authentication.Handlers.Login
             var user = await _unitOfWork.Users.GetByEmailAsync(email, cancellationToken);
             if (user == null)
             {
+                // User-enumeration defence: a wrong password on a *real* account runs a full PBKDF2
+                // verify (hundreds of ms). Returning instantly here would let an attacker tell which
+                // emails exist purely by response time. Burn an equivalent verify against a fixed
+                // dummy hash so the unknown-account path is timing-indistinguishable from a
+                // wrong-password path, then fail with the same generic message.
+                _passwordHasher.VerifyPassword(command.Password, DummyPasswordHash);
                 _logger.LogWarning("Login attempt for unrecognised account");
                 throw new UnauthorizedAccessException("Invalid email or password");
             }

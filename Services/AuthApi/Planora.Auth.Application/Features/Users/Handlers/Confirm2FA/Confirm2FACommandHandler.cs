@@ -46,10 +46,16 @@ namespace Planora.Auth.Application.Features.Users.Handlers.Confirm2FA
                         Error.NotFound("USER_NOT_FOUND", "User not found"));
                 }
 
-                if (!user.TwoFactorEnabled || string.IsNullOrEmpty(user.TwoFactorSecret))
+                if (user.IsTwoFactorEnabled)
                 {
                     return Result.Failure<IReadOnlyList<string>>(
-                        Error.Conflict("2FA_NOT_SETUP", "Two-factor authentication is not set up"));
+                        Error.Conflict("2FA_ALREADY_ENABLED", "Two-factor authentication is already enabled"));
+                }
+
+                if (string.IsNullOrEmpty(user.TwoFactorSecret))
+                {
+                    return Result.Failure<IReadOnlyList<string>>(
+                        Error.Conflict("2FA_NOT_SETUP", "Two-factor authentication setup has not been started"));
                 }
 
                 if (!await _twoFactorService.VerifyCodeAsync(user.TwoFactorSecret, command.Code, user.Id, cancellationToken))
@@ -58,6 +64,11 @@ namespace Planora.Auth.Application.Features.Users.Handlers.Confirm2FA
                     return Result.Failure<IReadOnlyList<string>>(
                         Error.Unauthorized("INVALID_2FA_CODE", "Invalid two-factor authentication code"));
                 }
+
+                // Proof verified against the pending secret — activate 2FA now and persist the flag.
+                user.ConfirmTwoFactor();
+                _unitOfWork.Users.Update(user);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 var recoveryCodes = await _recoveryCodeService.GenerateAndStoreCodesAsync(
                     user.Id,

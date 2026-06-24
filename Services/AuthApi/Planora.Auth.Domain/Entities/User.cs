@@ -35,6 +35,14 @@ public sealed class User : BaseEntity, IAggregateRoot
     public bool TwoFactorEnabled { get; private set; }
     public string? TwoFactorSecret { get; private set; }
 
+    /// <summary>
+    /// True when a 2FA secret has been provisioned (enrolment started via
+    /// <see cref="BeginTwoFactorSetup"/>) but the user has not yet proven possession of the
+    /// authenticator via <see cref="ConfirmTwoFactor"/>. While pending, the login gate does NOT
+    /// require a second factor, so there is no self-lockout window.
+    /// </summary>
+    public bool IsTwoFactorPending => !IsTwoFactorEnabled && !TwoFactorEnabled && !string.IsNullOrEmpty(TwoFactorSecret);
+
     // Password Management
     public DateTime? LastPasswordChangedAt { get; private set; }
     public string? PasswordResetToken { get; private set; }
@@ -311,6 +319,41 @@ public sealed class User : BaseEntity, IAggregateRoot
         TwoFactorEnabled = true;
         IsTwoFactorEnabled = true;
         TwoFactorSecret = secret;
+
+        AddDomainEvent(new TwoFactorEnabledEvent(Id));
+    }
+
+    /// <summary>
+    /// Begins 2FA enrolment: stores the shared <paramref name="secret"/> but leaves 2FA
+    /// <b>inactive</b>. The login gate keys off <see cref="TwoFactorEnabled"/>, which stays
+    /// <c>false</c> until <see cref="ConfirmTwoFactor"/> — so a user who starts enrolment and
+    /// walks away is never locked out of a login that demands a TOTP they have not set up yet.
+    /// Re-enrolling before confirmation simply overwrites the pending secret.
+    /// </summary>
+    public void BeginTwoFactorSetup(string secret)
+    {
+        if (string.IsNullOrWhiteSpace(secret))
+            throw new AuthDomainException("2FA secret cannot be empty");
+        if (TwoFactorEnabled || IsTwoFactorEnabled)
+            throw new AuthDomainException("2FA is already enabled");
+
+        TwoFactorSecret = secret;
+    }
+
+    /// <summary>
+    /// Completes 2FA enrolment after the caller has verified a proof (TOTP / recovery code)
+    /// against the pending secret stored by <see cref="BeginTwoFactorSetup"/>. Only now do the
+    /// enabled flags flip and the login gate begin requiring a second factor.
+    /// </summary>
+    public void ConfirmTwoFactor()
+    {
+        if (TwoFactorEnabled || IsTwoFactorEnabled)
+            throw new AuthDomainException("2FA is already enabled");
+        if (string.IsNullOrWhiteSpace(TwoFactorSecret))
+            throw new AuthDomainException("2FA setup has not been started");
+
+        TwoFactorEnabled = true;
+        IsTwoFactorEnabled = true;
 
         AddDomainEvent(new TwoFactorEnabledEvent(Id));
     }

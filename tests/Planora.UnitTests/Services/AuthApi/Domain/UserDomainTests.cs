@@ -200,6 +200,38 @@ public class UserDomainTests
     }
 
     [Fact]
+    [Trait("TestType", "Security")]
+    public void TwoFactorEnrolment_ShouldStayPendingUntilConfirmed()
+    {
+        var user = CreateUser();
+
+        Assert.Throws<AuthDomainException>(() => user.BeginTwoFactorSetup(""));
+        // Confirming with no pending secret is rejected.
+        Assert.Throws<AuthDomainException>(() => user.ConfirmTwoFactor());
+
+        user.BeginTwoFactorSetup("pending-secret");
+        // Pending: secret stored but the login gate (TwoFactorEnabled) is still off — no self-lockout.
+        Assert.False(user.TwoFactorEnabled);
+        Assert.False(user.IsTwoFactorEnabled);
+        Assert.True(user.IsTwoFactorPending);
+        Assert.Equal("pending-secret", user.TwoFactorSecret);
+
+        // Re-enrolling before confirmation just replaces the pending secret.
+        user.BeginTwoFactorSetup("pending-secret-2");
+        Assert.Equal("pending-secret-2", user.TwoFactorSecret);
+        Assert.True(user.IsTwoFactorPending);
+
+        user.ConfirmTwoFactor();
+        Assert.True(user.TwoFactorEnabled);
+        Assert.True(user.IsTwoFactorEnabled);
+        Assert.False(user.IsTwoFactorPending);
+
+        // Once confirmed, neither re-begin nor re-confirm is allowed.
+        Assert.Throws<AuthDomainException>(() => user.BeginTwoFactorSetup("x"));
+        Assert.Throws<AuthDomainException>(() => user.ConfirmTwoFactor());
+    }
+
+    [Fact]
     public void AccountStateMethods_ShouldLockUnlockDeactivateAndActivate()
     {
         var user = CreateUser();

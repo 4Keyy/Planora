@@ -41,7 +41,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.Enable2FA
                     Error.NotFound("USER_NOT_FOUND", "User not found"));
             }
 
-            if (user.TwoFactorEnabled)
+            if (user.IsTwoFactorEnabled)
             {
                 return Result.Failure<Enable2FAResponse>(
                     Error.Conflict("2FA_ALREADY_ENABLED", "Two-factor authentication is already enabled"));
@@ -50,12 +50,16 @@ namespace Planora.Auth.Application.Features.Users.Handlers.Enable2FA
             var secret = _twoFactorService.GenerateSecret();
             var qrCodeUrl = _twoFactorService.GenerateQrCodeUrl(user.Email.Value, secret);
 
-            user.EnableTwoFactor(secret);
+            // Enrolment only stores the secret (pending). 2FA does not become active — and the login
+            // gate does not start requiring a code — until Confirm2FA verifies the first TOTP. This
+            // closes the self-lockout window where a user who scanned the QR but never confirmed
+            // could be asked for a code they had no way to produce.
+            user.BeginTwoFactorSetup(secret);
 
             _unitOfWork.Users.Update(user);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("2FA secret generated for user: {UserId}", user.Id);
+            _logger.LogInformation("2FA enrolment started (pending confirmation) for user: {UserId}", user.Id);
 
             var response = new Enable2FAResponse
             {

@@ -57,6 +57,33 @@ public sealed class LoginCommandHandlerTests
     [Fact]
     [Trait("TestType", "Security")]
     [Trait("TestType", "Regression")]
+    public async Task Handle_ShouldVerifyAgainstDummyHash_WhenAccountDoesNotExist()
+    {
+        // User-enumeration defence: an unknown account must still spend a password verify so its
+        // response time is indistinguishable from a wrong password on a real account.
+        var fixture = CreateFixture();
+        fixture.Users
+            .Setup(x => x.GetByEmailAsync(Email.Create("ghost@example.com"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            fixture.Handler.Handle(
+                new LoginCommand { Email = "ghost@example.com", Password = "Password123!" },
+                CancellationToken.None));
+
+        // A real (dummy) hash is verified exactly once on the unknown-account path.
+        fixture.PasswordHasher.Verify(
+            x => x.VerifyPassword("Password123!", It.IsAny<string>()),
+            Times.Once);
+        // The non-existent account is never reloaded for refresh tokens.
+        fixture.Users.Verify(
+            x => x.GetWithRefreshTokensAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
     public async Task Handle_ShouldRecordFailedLogin_WhenPasswordIsInvalid()
     {
         var user = CreateUser("bad-password@example.com");

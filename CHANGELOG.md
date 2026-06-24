@@ -4,6 +4,29 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### security(auth): close four login/2FA hardening gaps from the security audit (2026-06-24)
+
+- **2FA self-lockout removed.** Enrolment (`POST .../2fa/enable`) used to activate 2FA immediately, so
+  a user who scanned the QR but never confirmed could be locked into a login that demanded a TOTP they
+  had not finished setting up. Enrolment is now two-phase: `User.BeginTwoFactorSetup` stores the secret
+  in a *pending* state (`IsTwoFactorPending`) with the login gate still off, and `User.ConfirmTwoFactor`
+  activates it only after the first code is verified. `confirm` now persists the flag; confirming with
+  no pending setup returns `2FA_NOT_SETUP`, confirming an active account returns `2FA_ALREADY_ENABLED`.
+- **User-enumeration via login timing removed.** An unknown email returned instantly while a real
+  account ran a full PBKDF2 verify, leaking which emails exist by response time. The unknown-account
+  path now burns one verify against a fixed dummy hash so it is timing-indistinguishable, then fails
+  with the same generic message.
+- **Revoked refresh tokens can no longer be silently revived.** `RefreshToken.UpdateForReLogin` cleared
+  the revocation fields unconditionally; it now refuses (`AuthDomainException`) to reuse a revoked
+  record, preserving the revocation audit trail and forcing a fresh token instead.
+- **Login-history pagination moved into SQL.** The query loaded up to 1000 rows and paged in memory
+  (capping `TotalCount`); a new `ILoginHistoryRepository.GetPagedByUserIdAsync` does `CountAsync` + a
+  `Skip/Take` page in the database, so the total is exact and large histories are never materialised.
+  Session/security reads (`GetActiveTokensByUserIdAsync`) also gained `AsNoTracking`.
+- Tests: pending-2FA domain flow, unknown-account dummy-hash verify, revoked-token reuse rejection, and
+  SQL login-history pagination. Files under `Services/AuthApi/**` and `Tests/Planora.UnitTests/**`;
+  `docs/auth-security.md` updated. No EF migration (no schema change).
+
 ### build(frontend): consolidate dependency branches and align the Next 16 toolchain (2026-06-23)
 
 - Folded the two outstanding frontend branches into `main` so the repository carries a single line of

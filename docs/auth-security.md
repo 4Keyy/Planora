@@ -160,11 +160,13 @@ TOTP 2FA is exposed through `UsersController`:
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /auth/api/v1/users/me/2fa/enable` | generate TOTP setup (secret + QR code URL) |
-| `POST /auth/api/v1/users/me/2fa/confirm` | confirm with TOTP code — returns 10 recovery codes |
+| `POST /auth/api/v1/users/me/2fa/enable` | start TOTP setup (secret + QR code URL) — **pending**, not yet active |
+| `POST /auth/api/v1/users/me/2fa/confirm` | confirm with TOTP code — activates 2FA, returns 10 recovery codes |
 | `POST /auth/api/v1/users/me/2fa/disable` | disable with password |
 
 Packages `Otp.NET` and `QRCoder` are centrally referenced in `Directory.Packages.props`.
+
+**Two-phase enrolment (no self-lockout).** `enable` only *provisions* the secret — `User.BeginTwoFactorSetup` stores it while leaving `TwoFactorEnabled` **false** (`User.IsTwoFactorPending` is then true). The login gate keys off `TwoFactorEnabled`, so a user who scans the QR but never confirms is never asked for a TOTP they cannot yet produce. `confirm` verifies the first code against the pending secret and only then calls `User.ConfirmTwoFactor`, which flips the flag and persists it. Re-calling `enable` before confirmation simply overwrites the pending secret; calling `confirm` with no pending setup returns `2FA_NOT_SETUP`, and confirming an already-active account returns `2FA_ALREADY_ENABLED`.
 
 ### TOTP Secret Encryption
 

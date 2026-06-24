@@ -160,6 +160,15 @@ public sealed class AuthRepositoryPersistenceTests
         Assert.Equal("recent-failed", loginHistory[0].UserAgent);
         Assert.Equal("recent-success", loginHistory[1].UserAgent);
 
+        // SQL pagination: total reflects ALL rows (3), not the page size, and each page is computed
+        // in the database (newest first) rather than by loading-then-slicing in memory.
+        var (firstPage, totalCount) = await historyRepository.GetPagedByUserIdAsync(user.Id, pageNumber: 1, pageSize: 2);
+        Assert.Equal(3, totalCount);
+        Assert.Equal(new[] { "recent-failed", "recent-success" }, firstPage.Select(h => h.UserAgent));
+        var (secondPage, secondTotal) = await historyRepository.GetPagedByUserIdAsync(user.Id, pageNumber: 2, pageSize: 2);
+        Assert.Equal(3, secondTotal);
+        Assert.Equal("old-failed", Assert.Single(secondPage).UserAgent);
+
         var recentFailures = await historyRepository.GetRecentFailedAttemptsAsync(user.Id, TimeSpan.FromMinutes(30));
         Assert.Equal("recent-failed", Assert.Single(recentFailures).UserAgent);
 

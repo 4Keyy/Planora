@@ -20,7 +20,10 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
             Guid userId,
             CancellationToken cancellationToken = default)
         {
+            // Read-only: the only callers (session list / security overview) project these to DTOs
+            // and never mutate them, so change tracking is pure overhead here.
             return await _context.RefreshTokens
+                .AsNoTracking()
                 .Where(rt => rt.UserId == userId && rt.RevokedAt == null && rt.ExpiresAt > DateTime.UtcNow)
                 .OrderByDescending(rt => rt.CreatedAt)
                 .ToListAsync(cancellationToken);

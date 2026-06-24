@@ -21,6 +21,29 @@ namespace Planora.Auth.Infrastructure.Persistence.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<(IReadOnlyList<LoginHistory> Items, int TotalCount)> GetPagedByUserIdAsync(
+            Guid userId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            // Read-only display query: count and page both run in SQL so the total is exact and the
+            // page never materialises more than `pageSize` rows, regardless of history size.
+            var baseQuery = _context.LoginHistory
+                .AsNoTracking()
+                .Where(lh => lh.UserId == userId);
+
+            var totalCount = await baseQuery.CountAsync(cancellationToken);
+
+            var items = await baseQuery
+                .OrderByDescending(lh => lh.LoginAt)
+                .Skip(Math.Max(0, (pageNumber - 1) * pageSize))
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (items, totalCount);
+        }
+
         public async Task<IReadOnlyList<LoginHistory>> GetRecentFailedAttemptsAsync(
             Guid userId,
             TimeSpan timeWindow,

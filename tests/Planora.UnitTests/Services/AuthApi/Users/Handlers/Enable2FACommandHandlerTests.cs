@@ -12,7 +12,7 @@ namespace Planora.UnitTests.Services.AuthApi.Users.Handlers;
 public class Enable2FACommandHandlerTests
 {
     [Fact]
-    public async Task Handle_ShouldEnable2FA_AndReturnSecretAndQrCode()
+    public async Task Handle_ShouldStartPending2FA_AndReturnSecretAndQrCode()
     {
         var unitOfWorkMock = new Mock<IAuthUnitOfWork>();
         var userRepoMock = new Mock<IUserRepository>();
@@ -48,7 +48,11 @@ public class Enable2FACommandHandlerTests
         Assert.NotNull(result.Value);
         Assert.Equal("SECRET123", result.Value.Secret);
         Assert.Equal("data:image/png;base64,AAAA", result.Value.QrCodeUrl);
-        Assert.True(user.TwoFactorEnabled);
+        // Enrolment is pending: the secret is stored but 2FA is NOT yet active, so the login gate
+        // does not demand a code until Confirm2FA — this is the self-lockout fix.
+        Assert.False(user.TwoFactorEnabled);
+        Assert.False(user.IsTwoFactorEnabled);
+        Assert.True(user.IsTwoFactorPending);
         Assert.Equal("SECRET123", user.TwoFactorSecret);
 
         userRepoMock.Verify(x => x.Update(user), Times.Once);

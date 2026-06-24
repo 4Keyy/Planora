@@ -160,9 +160,10 @@ public class AuthSessionHandlerTests
             new LoginHistory(userId, "10.0.0.3", "Edge", true)
         };
         var fixture = new SessionFixture(userId);
+        // Pagination now happens in SQL: the repo returns just the requested page plus the true total.
         fixture.LoginHistory
-            .Setup(x => x.GetByUserIdAsync(userId, 1000, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(history);
+            .Setup(x => x.GetPagedByUserIdAsync(userId, 2, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<LoginHistory> { history[1] }, 3));
 
         var result = await fixture.CreateGetLoginHistoryHandler().Handle(
             new GetLoginHistoryQuery { PageNumber = 2, PageSize = 1 },
@@ -188,7 +189,7 @@ public class AuthSessionHandlerTests
         var userId = Guid.NewGuid();
         var fixture = new SessionFixture(userId);
         fixture.LoginHistory
-            .Setup(x => x.GetByUserIdAsync(userId, 1000, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetPagedByUserIdAsync(userId, It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("history store unavailable"));
 
         var failure = await fixture.CreateGetLoginHistoryHandler().Handle(

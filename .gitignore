@@ -200,3 +200,6 @@ openapi/
 graphify-out/
 .graphify_*
 .graphifyignore
+
+# Redirected build output (dotnet build -p:OutDir, used when running services lock bin/)
+.build-out/

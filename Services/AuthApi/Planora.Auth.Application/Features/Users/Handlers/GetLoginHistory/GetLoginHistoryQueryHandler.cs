@@ -34,16 +34,11 @@ namespace Planora.Auth.Application.Features.Users.Handlers.GetLoginHistory
                         Error.Unauthorized("NOT_AUTHENTICATED", "User not authenticated"));
                 }
 
-                var allHistory = await _loginHistoryRepository.GetByUserIdAsync(
+                var (pagedHistory, totalCount) = await _loginHistoryRepository.GetPagedByUserIdAsync(
                     _currentUserService.UserId.Value,
-                    1000,
+                    query.PageNumber,
+                    query.PageSize,
                     cancellationToken);
-
-                var totalCount = allHistory.Count;
-                var pagedHistory = allHistory
-                    .Skip((query.PageNumber - 1) * query.PageSize)
-                    .Take(query.PageSize)
-                    .ToList();
 
                 var historyDtos = _mapper.Map<List<LoginHistoryPagedDto>>(pagedHistory);
 

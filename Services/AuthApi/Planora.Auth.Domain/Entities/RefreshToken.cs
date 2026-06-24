@@ -104,16 +104,18 @@ public sealed class RefreshToken : BaseEntity
         if (string.IsNullOrWhiteSpace(ipAddress)) throw new AuthDomainException("IP address cannot be empty");
         if (newExpiresAt <= DateTime.UtcNow) throw new AuthDomainException("Expiration date must be in the future");
 
+        // A revoked record must never be silently revived: doing so would resurrect a session that
+        // was killed (logout, user-initiated revoke, reuse detection, password change) and erase the
+        // revocation audit trail. Session dedup only ever targets ACTIVE rows; if a revoked one
+        // reaches here it is a programming error, so fail loudly and let the caller mint a new token.
+        if (IsRevoked)
+            throw new AuthDomainException("Cannot reuse a revoked refresh token; issue a new one instead");
+
         Token = RefreshTokenHash.Of(newToken);
         ExpiresAt = newExpiresAt;
         RememberMe = rememberMe;
         CreatedByIp = ipAddress;
         LastLoginAt = DateTime.UtcNow;
         LoginCount += 1;
-        // Clear any previous revocation state — this is a valid re-login
-        RevokedAt = null;
-        RevokedByIp = null;
-        RevokedReason = null;
-        ReplacedByToken = null;
     }
 }

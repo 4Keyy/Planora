@@ -226,7 +226,8 @@ public sealed class UserCommandHandlerTests
     public async Task Confirm2FA_ShouldRejectInvalidCodeAndAcceptValidCode()
     {
         var user = CreateUser("confirm-2fa@example.com", "Confirm", "User");
-        user.EnableTwoFactor("SECRET");
+        // Pending enrolment: secret provisioned but 2FA not yet active (the self-lockout fix).
+        user.BeginTwoFactorSetup("SECRET");
         var invalid = CreateConfirm2FaFixture(user.Id);
         invalid.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         invalid.TwoFactorService.Setup(x => x.VerifyCodeAsync("SECRET", "000000", It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
@@ -237,9 +238,12 @@ public sealed class UserCommandHandlerTests
 
         Assert.True(invalidResult.IsFailure);
         Assert.Equal("INVALID_2FA_CODE", invalidResult.Error!.Code);
+        // An invalid code must NOT activate 2FA — the user stays pending.
+        Assert.True(user.IsTwoFactorPending);
 
         var valid = CreateConfirm2FaFixture(user.Id);
         valid.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        valid.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
         valid.TwoFactorService.Setup(x => x.VerifyCodeAsync("SECRET", "123456", It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var validResult = await valid.Handler.Handle(
@@ -247,7 +251,9 @@ public sealed class UserCommandHandlerTests
             CancellationToken.None);
 
         Assert.True(validResult.IsSuccess);
-        valid.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        // A valid code activates 2FA and persists the flag.
+        Assert.True(user.IsTwoFactorEnabled);
+        valid.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
