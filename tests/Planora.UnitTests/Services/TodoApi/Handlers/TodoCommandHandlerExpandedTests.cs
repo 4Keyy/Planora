@@ -776,11 +776,11 @@ public class TodoCommandHandlerExpandedTests
 
     [Fact]
     [Trait("TestType", "Security")]
-    public async Task SetViewerPreference_NonOwnerCannotReopenCompletedTask_ButMayStillComplete()
+    public async Task SetViewerPreference_ViewerMayReopenOwnCompletion_UnlessAuthorCompletedGlobally()
     {
-        // Returning a completed task to active is author-only. A viewer who already completed a shared
-        // task for themselves cannot flip it back (done → active) — they must duplicate instead. They
-        // CAN still mark it complete (active → done); only the reopen direction is blocked.
+        // A viewer may freely return THEIR OWN completion to active — UNLESS the author has completed
+        // the whole task globally (Status == Done), in which case it is closed for everyone and the
+        // viewer must duplicate instead (AUTHOR_ALREADY_COMPLETED).
         var ownerId = Guid.NewGuid();
         var viewerId = Guid.NewGuid();
         var todo = TodoItem.Create(ownerId, "Public friend task", isPublic: true);
@@ -796,7 +796,7 @@ public class TodoCommandHandlerExpandedTests
             .Setup(x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        // Already completed for this viewer → reopening (CompletedByViewer: false) is forbidden.
+        // Viewer already completed for themselves; the author has NOT closed the task globally.
         fixture.ViewerPreferences
             .Setup(x => x.GetAsync(viewerId, todo.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserTodoViewPreference
@@ -806,24 +806,122 @@ public class TodoCommandHandlerExpandedTests
                 CompletedByViewer = true,
             });
 
-        await Assert.ThrowsAsync<ForbiddenException>(() =>
-            fixture.CreateSetViewerPreferenceHandler().Handle(
-                new SetViewerPreferenceCommand(todo.Id, CompletedByViewer: false),
-                CancellationToken.None));
-        fixture.ViewerPreferences.Verify(
-            x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Never);
-
-        // Not yet completed → marking it done for themselves is still allowed.
-        fixture.ViewerPreferences
-            .Setup(x => x.GetAsync(viewerId, todo.Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((UserTodoViewPreference?)null);
-
-        var completeResult = await fixture.CreateSetViewerPreferenceHandler().Handle(
-            new SetViewerPreferenceCommand(todo.Id, CompletedByViewer: true),
+        // Reopen is now allowed — the task becomes active again for this viewer.
+        var reopen = await fixture.CreateSetViewerPreferenceHandler().Handle(
+            new SetViewerPreferenceCommand(todo.Id, CompletedByViewer: false),
             CancellationToken.None);
 
-        Assert.True(completeResult.IsSuccess);
-        Assert.True(completeResult.Value!.CompletedByViewer);
+        Assert.True(reopen.IsSuccess);
+        Assert.False(reopen.Value!.CompletedByViewer);
+        Assert.False(reopen.Value.OwnerCompleted);
+        fixture.ViewerPreferences.Verify(
+            x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Once);
+
+        // Now the AUTHOR completes the whole task globally → a viewer reopen is rejected.
+        todo.MarkAsDone(ownerId);
+        fixture.ViewerPreferences
+            .Setup(x => x.GetAsync(viewerId, todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserTodoViewPreference
+            {
+                ViewerId = viewerId,
+                TodoItemId = todo.Id,
+                CompletedByViewer = true,
+            });
+
+        var blocked = await fixture.CreateSetViewerPreferenceHandler().Handle(
+            new SetViewerPreferenceCommand(todo.Id, CompletedByViewer: false),
+            CancellationToken.None);
+
+        Assert.True(blocked.IsFailure);
+        Assert.Equal("AUTHOR_ALREADY_COMPLETED", blocked.Error!.Code);
+        // No further upsert happened on the blocked path (still Times.Once from the allowed reopen).
+        fixture.ViewerPreferences.Verify(
+            x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    [Trait("TestType", "Regression")]
+    public async Task UpdateTodo_OwnerReopenOfAudienceTask_ClearsEveryViewerCompletion()
+    {
+        // When the author reopens a completed PUBLIC/shared task, every viewer's per-viewer completion
+        // is bulk-cleared so the task becomes active for everyone again.
+        var ownerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Public task", isPublic: true);
+        todo.MarkAsDone(ownerId);
+        var fixture = new TodoCommandFixture(ownerId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(todo.Id, Status: "todo"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(TodoStatus.Todo, todo.Status);
+        Assert.False(result.Value!.OwnerCompleted);
+        fixture.ViewerPreferences.Verify(
+            x => x.ClearCompletedByViewerForTodoAsync(todo.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Functional")]
+    [Trait("TestType", "Regression")]
+    public async Task UpdateTodo_OwnerReopenOfPrivateTask_DoesNotClearViewers()
+    {
+        // A private task has no audience — there is nothing to clear, behaviour is unchanged.
+        var ownerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Private task");
+        todo.MarkAsDone(ownerId);
+        var fixture = new TodoCommandFixture(ownerId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(todo.Id, Status: "todo"),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        fixture.ViewerPreferences.Verify(
+            x => x.ClearCompletedByViewerForTodoAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    public async Task UpdateTodo_NonOwnerReopenViaPut_BlockedWhenAuthorCompletedGlobally()
+    {
+        // The PUT /todos/{id} status path must enforce the same guard as SetViewerPreference: a viewer
+        // cannot reopen their completion once the author has closed the whole task globally.
+        var ownerId = Guid.NewGuid();
+        var viewerId = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Public task", isPublic: true);
+        todo.MarkAsDone(ownerId); // author completed globally
+        var fixture = new TodoCommandFixture(viewerId);
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(viewerId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        fixture.ViewerPreferences
+            .Setup(x => x.GetAsync(viewerId, todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserTodoViewPreference
+            {
+                ViewerId = viewerId,
+                TodoItemId = todo.Id,
+                CompletedByViewer = true,
+            });
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(todo.Id, Status: "todo"),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("AUTHOR_ALREADY_COMPLETED", result.Error!.Code);
+        fixture.ViewerPreferences.Verify(
+            x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -1515,6 +1613,7 @@ public class TodoCommandHandlerExpandedTests
             IsPublic = item.IsPublic,
             Hidden = item.Hidden,
             IsCompleted = item.IsCompleted,
+            OwnerCompleted = item.IsCompleted,
             CompletedAt = item.CompletedAt,
             IsOnTime = item.IsOnTime(),
             Delay = item.GetDelay(),
