@@ -419,17 +419,6 @@ public sealed class EnhancedGlobalExceptionHandlerMiddleware
 
         return context.Response.WriteAsJsonAsync(response, options);
     }
-
-    private static string GetProblemTypeUri(int statusCode) => statusCode switch
-    {
-        400 => "https://tools.ietf.org/html/rfc7231#section-6.5.1",
-        401 => "https://tools.ietf.org/html/rfc7235#section-3.1",
-        403 => "https://tools.ietf.org/html/rfc7231#section-6.5.3",
-        404 => "https://tools.ietf.org/html/rfc7231#section-6.5.4",
-        409 => "https://tools.ietf.org/html/rfc7231#section-6.5.8",
-        503 => "https://tools.ietf.org/html/rfc7231#section-6.6.4",
-        _ => "https://tools.ietf.org/html/rfc7231#section-6.6.1"
-    };
 }
 
 public static class EnhancedGlobalExceptionHandlingExtensions
