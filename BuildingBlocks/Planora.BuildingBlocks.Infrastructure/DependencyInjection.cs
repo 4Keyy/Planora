@@ -84,11 +84,8 @@ namespace Planora.BuildingBlocks.Infrastructure
             var dbConn = configuration.GetConnectionString(dbConnectionStringName ?? "DefaultConnection") 
                 ?? configuration.GetConnectionString("DefaultConnection");
 
-            var redisConn = configuration.GetConnectionString("Redis") 
+            var redisConn = configuration.GetConnectionString("Redis")
                 ?? configuration.GetSection("Redis:Configuration").Value;
-
-            var rabbitHost = configuration.GetConnectionString("RabbitMQ") 
-                ?? configuration.GetSection("RabbitMq:HostName").Value;
 
             var hcBuilder = services.AddHealthChecks();
 
@@ -98,15 +95,15 @@ namespace Planora.BuildingBlocks.Infrastructure
             if (!string.IsNullOrEmpty(redisConn))
                 hcBuilder.AddRedis(redisConn, name: "Redis", tags: new[] { "cache", "redis" });
 
-            // TODO: Fix RabbitMQ health check - need proper factory implementation for IConnection
-            // if (!string.IsNullOrEmpty(rabbitHost))
-            // {
-            //     var rabbitUri = rabbitHost.StartsWith("amqp") 
-            //         ? rabbitHost 
-            //         : $"amqp://guest:guest@{rabbitHost}:5672/";
-            //
-            //     hcBuilder.AddRabbitMQ(rabbitUri, name: "RabbitMQ", tags: new[] { "messaging", "rabbitmq" });
-            // }
+            // Broker probe. Reuses the app's own IRabbitMqConnectionManager (registered above) via a
+            // custom IHealthCheck instead of the AspNetCore.HealthChecks.RabbitMQ factory, which wants a
+            // synchronously-resolvable IConnection that our async connection manager cannot supply without
+            // a forbidden blocking wait. Degraded + "messaging" tag: a broker outage surfaces on the
+            // aggregate /health (the outbox buffers events meanwhile) without gating readiness/liveness.
+            hcBuilder.AddCheck<HealthChecks.RabbitMqHealthCheck>(
+                "rabbitmq",
+                failureStatus: HealthStatus.Degraded,
+                tags: new[] { "messaging" });
 
             return services;
         }

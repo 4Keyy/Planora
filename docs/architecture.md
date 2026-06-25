@@ -337,6 +337,8 @@ Every service and the Gateway publish three health-probe endpoints through a sin
 
 Liveness and readiness are deliberately distinct: an aggregate `/health` cannot distinguish "process dead — restart me" from "process alive but Postgres is slow — do not route to me yet". Fly.io's `[[http_service.checks]]` blocks point at the two split endpoints (`deploy/fly/*.fly.toml`).
 
+The shared RabbitMQ broker probe (`BuildingBlocks.Infrastructure.HealthChecks.RabbitMqHealthCheck`, registered once for every service in `AddBuildingBlocksInfrastructure`, plus manually in Realtime which wires messaging by hand) is tagged `messaging` and reports **`Degraded`** rather than `Unhealthy` on an outage: outgoing events buffer durably in the outbox while the broker is down, so a broker blip must surface on the aggregate `/health` for dashboards without pulling the instance out of rotation via `/health/ready`. The probe reuses the application's own `IRabbitMqConnectionManager` (the connection the event bus already holds) instead of opening a throwaway connection.
+
 ## Architecture Decisions
 
 ADRs are stored in [`DECISIONS/`](DECISIONS/):

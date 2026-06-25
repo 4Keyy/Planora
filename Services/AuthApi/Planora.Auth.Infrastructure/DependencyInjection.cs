@@ -9,7 +9,6 @@ using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Application.Messaging;
-using Planora.Auth.Infrastructure.HealthChecks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -213,17 +212,15 @@ public static class DependencyInjection
 
     private static void AddHealthChecks(IServiceCollection services, IConfiguration configuration)
     {
+        // The broker (rabbitmq) check is registered once for every service in
+        // AddBuildingBlocksInfrastructure; Auth must not add a second one under the same name.
         services.AddHealthChecks()
             .AddDbContextCheck<Persistence.AuthDbContext>("auth-dbcontext")
             .AddRedis(
                 configuration.GetConnectionString("Redis")!,
                 name: "redis-blacklist",
                 failureStatus: HealthStatus.Degraded,
-                tags: new[] { "cache", "ready" })
-            .AddCheck<RabbitMqHealthCheck>(
-                "rabbitmq",
-                failureStatus: HealthStatus.Degraded,
-                tags: new[] { "messaging" });
+                tags: new[] { "cache", "ready" });
     }
 
     private static void AddRabbitMqBackground(IServiceCollection services, IConfiguration configuration)

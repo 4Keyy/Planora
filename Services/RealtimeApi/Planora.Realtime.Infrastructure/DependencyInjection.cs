@@ -4,7 +4,9 @@ using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
+using Planora.BuildingBlocks.Infrastructure.HealthChecks;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Planora.Realtime.Application.Handlers;
 using Planora.Realtime.Application.Interfaces;
 using Planora.Realtime.Infrastructure.Grpc;
@@ -51,6 +53,17 @@ public static class DependencyInjection
 
             return new RabbitMqEventBus(connectionManager, logger, serviceProvider);
         });
+
+        // Broker probe. Realtime does not call AddBuildingBlocksInfrastructure (it wires messaging by
+        // hand above), so it registers the same shared RabbitMqHealthCheck itself — Degraded + "messaging"
+        // surfaces a broker outage on the aggregate /health without gating readiness/liveness. As a
+        // consumer of NotificationEvent/RealtimeSyncIntegrationEvent, its broker link is operationally
+        // load-bearing, so this visibility matters.
+        services.AddHealthChecks()
+            .AddCheck<RabbitMqHealthCheck>(
+                "rabbitmq",
+                failureStatus: HealthStatus.Degraded,
+                tags: new[] { "messaging" });
 
         // Integration-event handlers, registered by their CONCRETE type. This is load-bearing:
         // RabbitMqEventBus resolves the handler via GetService(typeof(THandler)) — the concrete type
