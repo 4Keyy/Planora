@@ -359,8 +359,10 @@ export default function TasksPage() {
 
     if (!isOwner && isShared) {
       const wasCompleted = existingTodo.isCompletedByViewer === true
-      // A viewer may reopen THEIR OWN completion — unless the author closed the whole task globally.
-      if (wasCompleted && existingTodo.ownerCompleted === true) {
+      // Once the author closes the whole task globally it is done for EVERYONE: block any non-owner
+      // toggle up-front (regardless of their per-viewer state) so the "can't restore" toast fires
+      // immediately instead of after a premature "Task completed!".
+      if (existingTodo.ownerCompleted === true) {
         addToast({
           type: "warning",
           title: "Нельзя восстановить — автор завершил задачу",

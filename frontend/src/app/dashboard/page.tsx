@@ -437,9 +437,10 @@ export default function DashboardPage() {
     // Non-owner viewing a shared task: toggle per-viewer completion only
     if (!isOwner && isShared) {
       const wasCompleted = existing.isCompletedByViewer === true
-      // A viewer may reopen THEIR OWN completion — unless the author closed the whole task globally,
-      // in which case it is done for everyone and they must duplicate it instead.
-      if (wasCompleted && existing.ownerCompleted === true) {
+      // Once the author closes the whole task globally it is done for EVERYONE: a non-owner can
+      // neither reopen nor re-complete it, so block any toggle up-front (regardless of their own
+      // per-viewer state) and tell them to duplicate instead — no premature "Task completed!" toast.
+      if (existing.ownerCompleted === true) {
         addToast({
           type: "warning",
           title: "Нельзя восстановить — автор завершил задачу",
