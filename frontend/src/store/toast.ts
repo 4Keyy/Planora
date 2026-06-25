@@ -33,7 +33,7 @@ const TOAST_AUTO_DURATION = 5000
 const generateId = (): string =>
   typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID()
-    : `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    : `toast-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
 
 /**
  * Zustand toast store for notifications
