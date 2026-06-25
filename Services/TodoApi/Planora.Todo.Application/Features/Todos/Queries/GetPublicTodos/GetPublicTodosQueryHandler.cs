@@ -42,14 +42,12 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
 
             try
             {
-                _logger.LogInformation("🔍 GetPublicTodos called for userId {UserId}", userId);
-                
                 // Get friend IDs
                 var friendIds = await _friendshipService.GetFriendIdsAsync(userId, cancellationToken);
                 var friendIdsList = friendIds.ToList();
-                
-                _logger.LogInformation("📋 Retrieved {Count} friends for user {UserId}: {FriendIds}", 
-                    friendIdsList.Count, userId, string.Join(", ", friendIdsList));
+
+                // Count only — the friend-id list itself is PII and must not be dumped on this read hot path.
+                _logger.LogInformation("Retrieved {Count} friends for user {UserId}", friendIdsList.Count, userId);
 
                 // Load viewer's hidden-by-me preferences so they are excluded from all branches
                 var hiddenTodoIds = await _viewerPreferenceRepository.GetHiddenTodoIdsAsync(userId, cancellationToken);
@@ -58,11 +56,11 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                 // Otherwise, get todos shared by all friends
                 if (request.FriendId.HasValue)
                 {
-                    _logger.LogInformation("🎯 Filtering for specific friend {FriendId}", request.FriendId.Value);
-                    
+                    _logger.LogDebug("Filtering public todos for specific friend {FriendId}", request.FriendId.Value);
+
                     if (!friendIdsList.Contains(request.FriendId.Value))
                     {
-                        _logger.LogWarning("⚠️ User {UserId} is not friends with {FriendId}", userId, request.FriendId.Value);
+                        _logger.LogWarning("User {UserId} is not friends with {FriendId}", userId, request.FriendId.Value);
                         return Result<PagedResult<TodoItemDto>>.Failure(new Error("NOT_FRIENDS", "User is not a friend"));
                     }
 
