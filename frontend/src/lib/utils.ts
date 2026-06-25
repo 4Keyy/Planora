@@ -5,6 +5,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const NIL_GUID = "00000000-0000-0000-0000-000000000000"
+
+/**
+ * True when `value` is a syntactically valid, non-nil GUID/UUID. The all-zero "nil" GUID
+ * (`Guid.Empty` on the backend) is rejected because it is the canonical "no value" sentinel and
+ * would only ever produce a broken URL. Use this to guard route navigation built from an id
+ * (e.g. `/branch/{id}`) so a missing/empty/nil/malformed id never produces a broken URL.
+ */
+export function isGuid(value: string | null | undefined): value is string {
+  return typeof value === "string" && GUID_RE.test(value) && value !== NIL_GUID
+}
+
 /**
  * Check if a date is in the past
  */

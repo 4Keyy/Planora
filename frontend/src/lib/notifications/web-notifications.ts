@@ -1,4 +1,5 @@
-const EMPTY_GUID = "00000000-0000-0000-0000-000000000000"
+import { isGuid } from "@/lib/utils"
+
 const ICON_URL = "/favicon.svg"
 
 function isSupported(): boolean {
@@ -59,7 +60,7 @@ export function notifySystem(input: SystemNotificationInput): void {
       } catch {
         /* focus may be blocked — navigation below still works */
       }
-      if (input.taskId && input.taskId !== EMPTY_GUID) {
+      if (isGuid(input.taskId)) {
         window.location.href = `/branch/${input.taskId}`
       }
       notification.close()
