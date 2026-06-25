@@ -13,8 +13,6 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="All" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
 		<PackageReference Include="MediatR" />
-		<PackageReference Include="MassTransit" />
-		<PackageReference Include="MassTransit.RabbitMQ" />
 		<PackageReference Include="Grpc.AspNetCore" />
 		<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
 		<PackageReference Include="StackExchange.Redis" />

@@ -13,7 +13,6 @@
 
 // Serilog
 
-// MassTransit & RabbitMQ
 
 // OpenTelemetry
 

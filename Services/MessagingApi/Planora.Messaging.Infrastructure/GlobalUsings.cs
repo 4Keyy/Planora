@@ -14,8 +14,6 @@ global using Planora.Messaging.Infrastructure.Persistence;
 global using Planora.Messaging.Infrastructure.Persistence.Repositories;
 // PostgreSQL
 
-// MassTransit
-global using MassTransit;
 global using Microsoft.EntityFrameworkCore;
 global using Microsoft.EntityFrameworkCore.Design;
 // Redis

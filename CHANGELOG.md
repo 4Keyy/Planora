@@ -33,6 +33,13 @@ passing). The following still-open gaps were closed:
 - **Frontend (PLN-63)** — removed the unused `@tanstack/react-query` dependency and pruned the lockfile.
 - **Cleanup (PLN-37)** — deleted the dead `GetProblemTypeUri` helper from the enhanced exception
   middleware.
+- **Dependencies (PLN-40)** — removed the unused MassTransit / MassTransit.RabbitMQ stack entirely
+  (7 project references, the central `PackageVersion` pins, and three dead `global using MassTransit;`).
+  Messaging actually runs on the custom `RabbitMqEventBus`; MassTransit was never registered or
+  referenced in code, so it was pure dependency weight.
+- **Cleanup (PLN-39)** — removed leftover `// ИСПРАВЛЕНО` debug markers, fixed the `_logger` parameter
+  naming in `IdempotentMessageHandler`, and corrected the stale "no global query filter" comment in
+  `CategoryRepository` (the global soft-delete filter is defined in `CategoryConfiguration`).
 
 ### ci(infra): deploy/migrate collaboration, route avatars in Docker, harden Stryker & Fly env (2026-06-24)
 

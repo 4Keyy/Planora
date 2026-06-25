@@ -3,8 +3,6 @@
 global using Planora.BuildingBlocks.Application.Messaging;
 // MediatR
 
-// MassTransit
-global using MassTransit;
 // SignalR
 global using Microsoft.AspNetCore.SignalR;
 // Redis

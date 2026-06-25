@@ -16,8 +16,6 @@ global using Planora.BuildingBlocks.Application.Messaging;
 global using Planora.BuildingBlocks.Application.Outbox;
 // PostgreSQL
 
-// MassTransit & RabbitMQ
-global using MassTransit;
 // ASP.NET Core
 global using Microsoft.AspNetCore.Http;
 // MediatR

@@ -9,8 +9,6 @@
 
 	<ItemGroup>
 		<PackageReference Include="MediatR" />
-		<PackageReference Include="MassTransit" />
-		<PackageReference Include="MassTransit.RabbitMQ" />
 		<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
 		<PackageReference Include="StackExchange.Redis" />
 		<!-- gRPC client → TodoApi: authorizes branch-room joins against the task's

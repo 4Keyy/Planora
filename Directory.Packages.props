@@ -28,8 +28,6 @@
     <PackageVersion Include="Polly.Extensions.Http" Version="3.0.0" />
     <PackageVersion Include="Polly.RateLimiting" Version="8.6.6" />
     <PackageVersion Include="RabbitMQ.Client" Version="7.2.1" />
-    <PackageVersion Include="MassTransit" Version="8.5.9" />
-    <PackageVersion Include="MassTransit.RabbitMQ" Version="8.5.9" />
     <PackageVersion Include="Grpc.AspNetCore" Version="2.80.0" />
     <PackageVersion Include="Grpc.AspNetCore.Web" Version="2.80.0" />
     <PackageVersion Include="Grpc.Net.Client" Version="2.80.0" />
