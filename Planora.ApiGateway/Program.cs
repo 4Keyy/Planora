@@ -267,8 +267,13 @@ public class Program
                     builder.Environment.EnvironmentName);
             }
 
-            // SECURITY: Redirect HTTP to HTTPS in non-development environments.
-            if (!builder.Environment.IsDevelopment())
+            // SECURITY: Redirect HTTP to HTTPS in non-development environments. A local production-
+            // config run that terminates NO TLS (the -Prod launcher serves plain HTTP on the LAN) sets
+            // Security:RequireHttps=false, so it skips HSTS and the otherwise no-op HTTPS redirect
+            // cleanly; real deployments leave the flag unset and keep the secure default.
+            var requireHttps = builder.Configuration.GetValue<bool?>("Security:RequireHttps")
+                ?? !builder.Environment.IsDevelopment();
+            if (requireHttps)
             {
                 app.UseHsts();
                 app.UseHttpsRedirection();
