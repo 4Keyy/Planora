@@ -60,6 +60,15 @@ export function invalidateFriends(): void {
   inflight = null
 }
 
+/**
+ * Resolve the caller's friend list through the same shared cache {@link useFriends} reads — warm
+ * reads are instant and concurrent callers await one request. For non-React consumers (e.g. name
+ * resolution) so they never open a second, independent /friendships paging loop.
+ */
+export function getCachedFriends(): Promise<FriendDto[]> {
+  return loadFriends()
+}
+
 export function useFriends(enabled: boolean): FriendDto[] {
   const [friends, setFriends] = useState<FriendDto[]>(() => cache?.value ?? [])
 

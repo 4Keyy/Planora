@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ensureFriendNames } from "@/lib/friend-names"
+import { invalidateFriends } from "@/hooks/use-friends"
 import { api } from "@/lib/api"
 import type { FriendDto, PagedResult } from "@/types/auth"
 
@@ -24,6 +25,7 @@ const page = (items: FriendDto[], hasNextPage = false): PagedResult<FriendDto> =
 
 describe("ensureFriendNames", () => {
   afterEach(() => {
+    invalidateFriends() // reset the shared friend cache so tests stay isolated
     vi.restoreAllMocks()
   })
 
@@ -45,15 +47,13 @@ describe("ensureFriendNames", () => {
     expect(get).not.toHaveBeenCalled()
   })
 
-  it("loads friend names and formats full-name and email fallbacks", async () => {
+  it("loads friend names from the shared cache and formats full-name/email fallbacks", async () => {
     vi.spyOn(api, "get").mockResolvedValue({
-      data: {
-        value: page([
-          friend({ id: "friend-1", firstName: "Ada", lastName: "Lovelace" }),
-          friend({ id: "friend-2", email: "grace@example.com", firstName: "", lastName: "" }),
-          friend({ id: "friend-3", email: "", firstName: "", lastName: "" }),
-        ]),
-      },
+      data: page([
+        friend({ id: "friend-1", firstName: "Ada", lastName: "Lovelace" }),
+        friend({ id: "friend-2", email: "grace@example.com", firstName: "", lastName: "" }),
+        friend({ id: "friend-3", email: "", firstName: "", lastName: "" }),
+      ]),
     })
     const cache = new Map<string, string>()
 
@@ -64,33 +64,16 @@ describe("ensureFriendNames", () => {
     expect(cache.get("friend-3")).toBe("Friend")
   })
 
-  it("continues across paged friendship results and stops when remaining ids are found", async () => {
-    const firstPage = Array.from({ length: 200 }, (_, index) =>
-      friend({ id: `other-${index}`, firstName: `Other${index}`, lastName: "" }),
-    )
-    vi.spyOn(api, "get")
-      .mockResolvedValueOnce({ data: page(firstPage, true) })
-      .mockResolvedValueOnce({
-        data: {
-          items: [
-            friend({ id: "friend-1", firstName: "Ada", lastName: "" }),
-            friend({ id: "friend-2", firstName: "", lastName: "", email: "grace@example.com" }),
-          ],
-          pageNumber: 2,
-          pageSize: 200,
-          totalCount: 202,
-          totalPages: 2,
-          hasPreviousPage: true,
-          hasNextPage: false,
-        },
-      })
-    const cache = new Map<string, string>()
+  it("reuses the shared cache instead of re-fetching for a second resolution", async () => {
+    const get = vi.spyOn(api, "get").mockResolvedValue({
+      data: page([friend({ id: "friend-1", firstName: "Ada", lastName: "" })]),
+    })
 
-    await ensureFriendNames(new Set(["friend-1", "friend-2"]), cache)
+    await ensureFriendNames(new Set(["friend-1"]), new Map())
+    await ensureFriendNames(new Set(["friend-1"]), new Map())
 
-    expect(cache.get("friend-1")).toBe("Ada")
-    expect(cache.get("friend-2")).toBe("grace")
-    expect(api.get).toHaveBeenCalledTimes(2)
+    // Both resolutions share the one cached /friendships fetch.
+    expect(get).toHaveBeenCalledTimes(1)
   })
 
   it("keeps the UI resilient when the friendship request fails", async () => {
