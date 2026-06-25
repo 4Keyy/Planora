@@ -168,8 +168,12 @@ namespace Planora.Auth.Api.Controllers
 
                 return Ok(new { value = result.Value });
             }
-            catch
+            catch (Exception ex)
             {
+                // Fail CLOSED (empty list) so a lookup outage can never widen a caller's visibility —
+                // but never SILENTLY: log it so the failure is observable instead of masquerading as
+                // a legitimate "this user has no friends" result.
+                _logger.LogError(ex, "Friend-ids lookup failed for user {UserId}; failing closed to an empty list", userId);
                 return Ok(new { value = new List<Guid>() });
             }
         }
@@ -201,8 +205,11 @@ namespace Planora.Auth.Api.Controllers
                 var areFriends = friendIds.Value.Contains(userId2);
                 return Ok(new { value = areFriends });
             }
-            catch
+            catch (Exception ex)
             {
+                // Fail CLOSED (not friends) on any lookup outage so it can never grant visibility, and
+                // log it so the failure surfaces instead of silently reading as "not friends".
+                _logger.LogError(ex, "Friendship check failed for user {UserId}; failing closed to not-friends", userId1);
                 return Ok(new { value = false });
             }
         }
