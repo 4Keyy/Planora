@@ -835,7 +835,15 @@ export function BranchFeed({
     setError(null)
     try {
       const updated = await updateComment(todoId, id, content)
-      setComments((prev) => prev.map((c) => (c.id === id ? updated : c)))
+      // Patch only what an edit changes — keep the row's existing reply-quote, live author and
+      // ordering fields. The server PUT response can omit the reply-target / resolved-author data
+      // that fetchComments provides, so a wholesale replace made an edited reply flash as a bare,
+      // mis-positioned message until the next poll reconciled it.
+      setComments((prev) => prev.map((c) =>
+        c.id === id
+          ? { ...c, content: updated.content ?? content, isEdited: true, updatedAt: updated.updatedAt ?? c.updatedAt }
+          : c,
+      ))
       setEditingId(null)
     } catch (e) {
       setError(getApiErrorMessage(e))
