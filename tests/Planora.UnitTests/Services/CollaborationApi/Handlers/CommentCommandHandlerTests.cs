@@ -290,6 +290,33 @@ public sealed class CommentCommandHandlerTests
                 new UpdateCommentCommand(fixture.TaskId, comment.Id, "x"), CancellationToken.None));
     }
 
+    [Fact]
+    [Trait("TestType", "Functional")]
+    public async Task UpdateComment_OfAReply_ReturnsTheReplyBlock()
+    {
+        var fixture = new Fixture();
+        fixture.GrantAccess(fixture.UserId);
+        var quotedAuthor = Guid.NewGuid();
+        var reply = Comment.CreateReply(
+            fixture.TaskId, fixture.UserId, "Me", "old reply",
+            Planora.Collaboration.Domain.Enums.ReplyTargetType.Comment,
+            Guid.NewGuid(), quotedAuthor, "Anna M", "Original text");
+        fixture.Comments.Setup(x => x.GetByIdAsync(reply.Id, It.IsAny<CancellationToken>())).ReturnsAsync(reply);
+
+        var result = await fixture.UpdateHandler().Handle(
+            new UpdateCommentCommand(fixture.TaskId, reply.Id, "edited reply"), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var dto = result.Value!;
+        Assert.Equal("edited reply", dto.Content);
+        // The PUT response carries the full reply block, not a bare comment that drops the quote.
+        Assert.Equal("comment", dto.ReplyToType);
+        Assert.Equal(quotedAuthor, dto.ReplyToAuthorId);
+        Assert.Equal("Anna M", dto.ReplyToAuthorName);   // snapshot fallback (no live profile mocked)
+        Assert.Equal("Original text", dto.ReplyToPreview);
+        Assert.False(dto.ReplyToDeleted);
+    }
+
     // ─── Fixture ────────────────────────────────────────────────────────────────
 
     private sealed class Fixture

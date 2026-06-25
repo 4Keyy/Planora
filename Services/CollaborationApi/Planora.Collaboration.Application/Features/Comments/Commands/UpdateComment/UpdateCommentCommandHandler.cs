@@ -7,6 +7,7 @@ using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.Collaboration.Application.Common;
 using Planora.Collaboration.Application.DTOs;
 using Planora.Collaboration.Application.Services;
+using Planora.Collaboration.Domain.Enums;
 using Planora.Collaboration.Domain.Repositories;
 
 namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateComment
@@ -68,17 +69,31 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
                     RealtimeSyncAction.CommentUpdated, comment.Id, userId, branchTaskId: request.TaskId),
                 cancellationToken);
 
-            // Resolve the author's current name + avatar live (never a stored copy).
+            // Resolve the comment author AND (when this is a reply) the quoted author's current
+            // name + avatar live, in ONE batch — so the PUT response is the same complete, enriched
+            // shape AddComment/GetComments return instead of a bare comment missing its reply block.
+            var idsToResolve = new List<Guid> { comment.AuthorId };
+            if (comment.ReplyToAuthorId is { } replyAuthorId && replyAuthorId != Guid.Empty)
+                idsToResolve.Add(replyAuthorId);
+
+            var profiles = await _userService.GetUserProfilesAsync(idsToResolve, cancellationToken);
+
             string authorName = comment.AuthorName;
             string? authorAvatarUrl = null;
-            if (comment.AuthorId != Guid.Empty)
+            if (comment.AuthorId != Guid.Empty && profiles.TryGetValue(comment.AuthorId, out var authorProfile))
             {
-                var profiles = await _userService.GetUserProfilesAsync(new[] { comment.AuthorId }, cancellationToken);
-                if (profiles.TryGetValue(comment.AuthorId, out var profile))
-                {
-                    if (!string.IsNullOrWhiteSpace(profile.DisplayName)) authorName = profile.DisplayName;
-                    authorAvatarUrl = profile.AvatarUrl;
-                }
+                if (!string.IsNullOrWhiteSpace(authorProfile.DisplayName)) authorName = authorProfile.DisplayName;
+                authorAvatarUrl = authorProfile.AvatarUrl;
+            }
+
+            // Reply author name falls back to the snapshot captured at reply time when the user is
+            // gone; the avatar is live-only (never snapshotted), and the preview is the stored snapshot.
+            string? replyAuthorName = comment.ReplyToAuthorName;
+            string? replyAuthorAvatarUrl = null;
+            if (comment.ReplyToAuthorId is { } rid && rid != Guid.Empty && profiles.TryGetValue(rid, out var replyProfile))
+            {
+                if (!string.IsNullOrWhiteSpace(replyProfile.DisplayName)) replyAuthorName = replyProfile.DisplayName;
+                replyAuthorAvatarUrl = replyProfile.AvatarUrl;
             }
 
             return Result<CommentDto>.Success(new CommentDto(
@@ -93,7 +108,19 @@ namespace Planora.Collaboration.Application.Features.Comments.Commands.UpdateCom
                 IsOwn: comment.AuthorId == userId,
                 IsEdited: comment.IsEdited,
                 IsSystemComment: comment.IsSystemComment,
-                IsGenesisComment: false));
+                IsGenesisComment: false,
+                ReplyToType: comment.ReplyToType switch
+                {
+                    ReplyTargetType.Comment => "comment",
+                    ReplyTargetType.Subtask => "subtask",
+                    _ => null,
+                },
+                ReplyToId: comment.ReplyToId,
+                ReplyToAuthorId: comment.ReplyToAuthorId,
+                ReplyToAuthorName: replyAuthorName,
+                ReplyToAuthorAvatarUrl: replyAuthorAvatarUrl,
+                ReplyToPreview: comment.ReplyToPreview,
+                ReplyToDeleted: comment.ReplyToDeleted));
         }
     }
 }
