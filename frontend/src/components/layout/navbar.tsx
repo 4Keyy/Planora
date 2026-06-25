@@ -368,7 +368,7 @@ export function Navbar() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.96 }}
                     transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
-                    className="absolute right-0 top-full mt-3 w-52 rounded-2xl border border-gray-100 bg-white/96 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.10)] overflow-hidden"
+                    className="absolute right-0 top-full mt-3 w-52 rounded-2xl border border-gray-200/90 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.10)] overflow-hidden"
                     role="menu"
                   >
                     <div className="px-4 py-3 border-b border-gray-50">
@@ -483,7 +483,7 @@ export function Navbar() {
               transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
               role="menu"
               aria-label="Main menu"
-              className="pointer-events-auto absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-3xl border border-gray-200/90 bg-white/97 backdrop-blur-xl shadow-[0_16px_48px_rgba(0,0,0,0.14)]"
+              className="pointer-events-auto absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-3xl border border-gray-200/90 bg-white shadow-[0_16px_48px_rgba(0,0,0,0.14)]"
             >
               {/* Quick add — same NLP-friendly create path as the desktop pill */}
               <div className="border-b border-gray-100 p-2.5">
