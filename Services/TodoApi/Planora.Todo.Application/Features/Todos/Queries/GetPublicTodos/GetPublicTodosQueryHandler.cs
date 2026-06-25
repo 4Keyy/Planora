@@ -75,39 +75,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                         request.PageSize,
                         cancellationToken);
 
-                    var friendDtos = friendItems.Select(item =>
-                    {
-                        var dto = _mapper.Map<TodoItemDto>(item);
-                        return new TodoItemDto
-                        {
-                            Id = dto.Id,
-                            Title = dto.Title,
-                            Description = dto.Description,
-                            Status = dto.Status,
-                            IsCompleted = dto.IsCompleted,
-                            IsPublic = dto.IsPublic,
-                            Hidden = dto.Hidden,
-                            Priority = dto.Priority,
-                            DueDate = dto.DueDate,
-                            ExpectedDate = dto.ExpectedDate,
-                            ActualDate = dto.ActualDate,
-                            CompletedAt = dto.CompletedAt,
-                            IsOnTime = dto.IsOnTime,
-                            Delay = dto.Delay,
-                            UserId = dto.UserId,
-                            CategoryId = null,
-                            Tags = dto.Tags,
-                            SharedWithUserIds = dto.SharedWithUserIds,
-                            HasSharedAudience = dto.HasSharedAudience,
-                            IsVisuallyUrgent = dto.IsVisuallyUrgent,
-                            CreatedAt = dto.CreatedAt,
-                            UpdatedAt = dto.UpdatedAt,
-                            WorkerCount = item.Workers.Count,
-                            WorkerUserIds = item.Workers.Select(w => w.UserId).ToList(),
-                            RequiredWorkers = item.RequiredWorkers,
-                            IsWorking = item.UserId != userId && item.Workers.Any(w => w.UserId == userId),
-                        };
-                    }).ToList();
+                    var friendDtos = friendItems.Select(item => MapPublicTodo(item, userId)).ToList();
 
                     var friendPagedResult = new PagedResult<TodoItemDto>(friendDtos, request.PageNumber, request.PageSize, friendTotalCount);
                     return Result<PagedResult<TodoItemDto>>.Success(friendPagedResult);
@@ -137,41 +105,8 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                     request.PageSize,
                     cancellationToken);
 
-                // Map to DTOs, excluding CategoryId for public todos (as per requirements)
-                var dtos = items.Select(item =>
-                {
-                    var dto = _mapper.Map<TodoItemDto>(item);
-                    return new TodoItemDto
-                    {
-                        Id = dto.Id,
-                        Title = dto.Title,
-                        Description = dto.Description,
-                        Status = dto.Status,
-                        IsCompleted = dto.IsCompleted,
-                        OwnerCompleted = dto.OwnerCompleted,
-                        IsPublic = dto.IsPublic,
-                        Hidden = dto.Hidden,
-                        Priority = dto.Priority,
-                        DueDate = dto.DueDate,
-                        ExpectedDate = dto.ExpectedDate,
-                        ActualDate = dto.ActualDate,
-                        CompletedAt = dto.CompletedAt,
-                        IsOnTime = dto.IsOnTime,
-                        Delay = dto.Delay,
-                        UserId = dto.UserId,
-                        CategoryId = null,
-                        Tags = dto.Tags,
-                        SharedWithUserIds = dto.SharedWithUserIds,
-                        HasSharedAudience = dto.HasSharedAudience,
-                        IsVisuallyUrgent = dto.IsVisuallyUrgent,
-                        CreatedAt = dto.CreatedAt,
-                        UpdatedAt = dto.UpdatedAt,
-                        WorkerCount = item.Workers.Count,
-                        WorkerUserIds = item.Workers.Select(w => w.UserId).ToList(),
-                        RequiredWorkers = item.RequiredWorkers,
-                        IsWorking = item.UserId != userId && item.Workers.Any(w => w.UserId == userId),
-                    };
-                }).ToList();
+                // Map to DTOs (CategoryId is hidden for the public feed — see MapPublicTodo)
+                var dtos = items.Select(item => MapPublicTodo(item, userId)).ToList();
 
                 var pagedResult = new PagedResult<TodoItemDto>(
                     dtos,
@@ -191,6 +126,52 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                 _logger.LogError(ex, "Failed to retrieve public todos for user {UserId}", userId);
                 return Result<PagedResult<TodoItemDto>>.Failure(new Error("QUERY_FAILED", "Unable to retrieve todos. Please try again."));
             }
+        }
+
+        /// <summary>
+        /// Single source of truth for the public-feed DTO projection, shared by both the
+        /// single-friend and all-friends branches. Public todos deliberately hide the owner's
+        /// CategoryId, and worker fields plus the viewer-relative IsWorking are derived from the
+        /// entity. Centralising this stops the two branches from drifting (a previous copy in the
+        /// single-friend branch had silently dropped <see cref="TodoItemDto.OwnerCompleted"/>).
+        /// </summary>
+        private TodoItemDto MapPublicTodo(TodoItem item, Guid viewerId)
+        {
+            var dto = _mapper.Map<TodoItemDto>(item);
+            return new TodoItemDto
+            {
+                Id = dto.Id,
+                Title = dto.Title,
+                Description = dto.Description,
+                Status = dto.Status,
+                IsCompleted = dto.IsCompleted,
+                // From the entity, NOT the mapped dto: OwnerCompleted has no AutoMapper rule, so
+                // dto.OwnerCompleted is always default-false. Mirror GetUserTodos (OwnerCompleted =
+                // item.IsCompleted) so the public feed reports the real owner-completion state the
+                // frontend needs to gate the reopen affordance.
+                OwnerCompleted = item.IsCompleted,
+                IsPublic = dto.IsPublic,
+                Hidden = dto.Hidden,
+                Priority = dto.Priority,
+                DueDate = dto.DueDate,
+                ExpectedDate = dto.ExpectedDate,
+                ActualDate = dto.ActualDate,
+                CompletedAt = dto.CompletedAt,
+                IsOnTime = dto.IsOnTime,
+                Delay = dto.Delay,
+                UserId = dto.UserId,
+                CategoryId = null,
+                Tags = dto.Tags,
+                SharedWithUserIds = dto.SharedWithUserIds,
+                HasSharedAudience = dto.HasSharedAudience,
+                IsVisuallyUrgent = dto.IsVisuallyUrgent,
+                CreatedAt = dto.CreatedAt,
+                UpdatedAt = dto.UpdatedAt,
+                WorkerCount = item.Workers.Count,
+                WorkerUserIds = item.Workers.Select(w => w.UserId).ToList(),
+                RequiredWorkers = item.RequiredWorkers,
+                IsWorking = item.UserId != viewerId && item.Workers.Any(w => w.UserId == viewerId),
+            };
         }
     }
 }

@@ -641,6 +641,7 @@ public class TodoQueryHandlerTests
         var otherFriendId = Guid.NewGuid();
         var hiddenTodoId = Guid.NewGuid();
         var friendTodo = TodoItem.Create(friendId, "Friend task", categoryId: Guid.NewGuid(), isPublic: true);
+        friendTodo.MarkAsDone(friendId); // owner-completed → OwnerCompleted must surface on the public feed
         var otherFriendTodo = TodoItem.Create(otherFriendId, "Other friend task", categoryId: Guid.NewGuid(), isPublic: true, sharedWithUserIds: new[] { userId });
         var privateFriendTodo = TodoItem.Create(friendId, "Private friend task");
         var fixture = new TodoQueryFixture(userId);
@@ -672,12 +673,17 @@ public class TodoQueryHandlerTests
         var friendDto = Assert.Single(friendOnly.Value!.Items);
         Assert.Equal(friendTodo.Id, friendDto.Id);
         Assert.Null(friendDto.CategoryId);
+        // REGRESSION: the single-friend branch used to drop OwnerCompleted entirely, and the
+        // all-friends branch read it from the unmapped dto (always false). Both must now report the
+        // real owner-completion from the entity so the frontend reopen gate works on the public feed.
+        Assert.True(friendDto.OwnerCompleted);
 
         var allFriends = await fixture.CreateGetPublicTodosHandler().Handle(
             new GetPublicTodosQuery(),
             CancellationToken.None);
         Assert.Equal(2, allFriends.Value!.Items.Count);
         Assert.All(allFriends.Value.Items, item => Assert.Null(item.CategoryId));
+        Assert.True(allFriends.Value.Items.Single(item => item.Id == friendTodo.Id).OwnerCompleted);
     }
 
     [Fact]

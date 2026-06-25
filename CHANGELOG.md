@@ -40,6 +40,12 @@ passing). The following still-open gaps were closed:
 - **Cleanup (PLN-39)** — removed leftover `// ИСПРАВЛЕНО` debug markers, fixed the `_logger` parameter
   naming in `IdempotentMessageHandler`, and corrected the stale "no global query filter" comment in
   `CategoryRepository` (the global soft-delete filter is defined in `CategoryConfiguration`).
+- **Todos (PLN-53)** — collapsed the two duplicated public-feed DTO projections in `GetPublicTodos`
+  into one `MapPublicTodo` helper, which fixed a latent bug the duplication hid: the single-friend
+  branch never set `OwnerCompleted`, and the all-friends branch read it from the unmapped dto (always
+  `false`). Both now take `OwnerCompleted` from the entity (`item.IsCompleted`), matching
+  `GetUserTodos`, so the public feed reports real owner-completion and the frontend reopen gate works.
+  Added a regression assertion in both branches.
 
 ### ci(infra): deploy/migrate collaboration, route avatars in Docker, harden Stryker & Fly env (2026-06-24)
 
