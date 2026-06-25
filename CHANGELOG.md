@@ -4,6 +4,36 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix: plan-verification audit — close health, validation, logging & dead-code gaps (2026-06-25)
+
+A verification pass over the implementation plan. The large majority of planned items were already
+implemented and were confirmed correct (full backend build green; 940 backend + 551 frontend tests
+passing). The following still-open gaps were closed:
+
+- **Health (PLN-34)** — the RabbitMQ broker probe existed only in Auth (and was a TODO in the shared
+  DI), so the other five services reported a green aggregate `/health` with the broker down. Promoted
+  to a shared `BuildingBlocks.Infrastructure.HealthChecks.RabbitMqHealthCheck`, registered once in
+  `AddBuildingBlocksInfrastructure` plus manually in Realtime; `Degraded` + `messaging` tag so a broker
+  blip surfaces on `/health` without gating readiness (the outbox buffers meanwhile). Auth's duplicate
+  was collapsed onto the shared type.
+- **Gateway (PLN-36)** — emit a startup warning when `ForwardedHeaders:KnownProxies` is empty outside
+  Development; behind an edge proxy that misconfiguration silently collapses IP rate-limit partitioning
+  into one shared bucket.
+- **Auth (PLN-45)** — `GetFriendIds`/`AreFriends` swallowed every exception and returned empty/false
+  with no trace. The deliberate, security-tested fail-CLOSED return is preserved, but the bare `catch`
+  now logs the exception so an outage is observable instead of masquerading as "no friends".
+- **Category (PLN-32)** — lowered the domain/`CategoryName` name limit from 100 to 50 to match the
+  validator and the persisted column (defence-in-depth), and added a `DisplayOrder >= 0` validator rule
+  so a negative order is a clean 400 rather than an unhandled 500.
+- **Todos (PLN-54)** — stopped logging the caller's full friend-id list (PII) at Information on the
+  public-feed read path; keep only the count, demote the filter line to Debug, strip decorative emoji.
+- **Notifications (PLN-65/66)** — web-push branch navigation now goes through a shared `isGuid` guard
+  that rejects nil/malformed task ids (an in-flight refactor had left the module referencing a deleted
+  constant); toast id fallback uses `substring` instead of deprecated `substr`.
+- **Frontend (PLN-63)** — removed the unused `@tanstack/react-query` dependency and pruned the lockfile.
+- **Cleanup (PLN-37)** — deleted the dead `GetProblemTypeUri` helper from the enhanced exception
+  middleware.
+
 ### ci(infra): deploy/migrate collaboration, route avatars in Docker, harden Stryker & Fly env (2026-06-24)
 
 - **CD** — added `planora-collaboration` to the Fly deploy matrix in `cd.yml`; the service had a
