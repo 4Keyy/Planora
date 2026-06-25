@@ -17,6 +17,11 @@ namespace Planora.Category.Application.Features.Categories.Commands.CreateCatego
                 .Must(c => string.IsNullOrEmpty(c) || CategoryColors.IsValid(c))
                 .WithMessage("Invalid color format")
                 .When(x => !string.IsNullOrEmpty(x.Color));
+
+            // The domain rejects a negative order (Category.SetDisplayOrder); validate it here so a
+            // bad value is a clean 400 instead of an unhandled domain throw mapped to 500.
+            RuleFor(x => x.DisplayOrder)
+                .GreaterThanOrEqualTo(0).WithMessage("Display order must be zero or greater");
         }
     }
 }

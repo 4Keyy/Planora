@@ -24,10 +24,11 @@ namespace Planora.Category.Domain.ValueObjects
                     ErrorCode.Validation.MissingRequired,
                     "Category name cannot be empty");
 
-            if (value.Length > 100)
+            // 50 mirrors the persisted column width and the FluentValidation rule (see Category.ValidateName).
+            if (value.Length > 50)
                 return Result<CategoryName>.Failure(
                     ErrorCode.Validation.InvalidLength,
-                    "Category name cannot exceed 100 characters");
+                    "Category name cannot exceed 50 characters");
 
             return Result<CategoryName>.Success(new CategoryName(value.Trim()));
         }

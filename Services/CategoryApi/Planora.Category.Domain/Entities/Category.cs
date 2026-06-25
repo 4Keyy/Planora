@@ -122,8 +122,10 @@ public sealed class Category : BaseEntity, IAggregateRoot
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Category name cannot be empty", nameof(name));
 
-        if (name.Length > 100)
-            throw new ArgumentException("Category name cannot exceed 100 characters", nameof(name));
+        // 50 mirrors the persisted column width (CategoryConfiguration: HasMaxLength(50)) and the
+        // FluentValidation rule, so the domain can never accept a name the database would then reject.
+        if (name.Length > 50)
+            throw new ArgumentException("Category name cannot exceed 50 characters", nameof(name));
     }
 
     private static void ValidateColor(string color)
