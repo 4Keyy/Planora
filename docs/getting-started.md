@@ -95,6 +95,16 @@ Both launchers also accept `-Stop` and `-Help`:
 - `-Help` on either prints the full option list and exits. Both also support
   `-SkipFrontend`, `-NoBrowser`, and `-ExitAfterHealthCheck`.
 
+### Production-config run (`-Prod`)
+
+`Start-Planora-Local.ps1 -Prod` shares on the LAN exactly like `-Lan`, but runs the whole stack in a
+production configuration: Release backend builds, `ASPNETCORE_ENVIRONMENT=Production` (production
+error handling, logging and middleware), the Redis-backed distributed rate limiter, and a real
+Next.js production build (`next build` + `next start`) instead of the dev server. Because a local run
+terminates no TLS it serves plain HTTP on the LAN and sets `Security__RequireHttps=false` so the
+browser still accepts the auth cookies; real deployments keep `Secure` cookies behind their HTTPS
+front door. The first production frontend build adds about a minute to startup.
+
 On a first clean database start, Auth, Todo, Category, Messaging, and Collaboration initialize their schemas automatically. If local EF migrations exist, they are applied. If no migrations exist, startup creates the schema from the current EF model. This is intentional because generated `Migrations/` folders are not committed.
 
 ## 3. Verify The System

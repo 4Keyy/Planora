@@ -16,22 +16,28 @@ namespace Planora.Auth.Api.Controllers
         private readonly IMediator _mediator;
         private readonly ILogger<AuthenticationController> _logger;
         private readonly IWebHostEnvironment _env;
+        private readonly IConfiguration _configuration;
 
         public AuthenticationController(
             IMediator mediator,
             ILogger<AuthenticationController> logger,
-            IWebHostEnvironment env)
+            IWebHostEnvironment env,
+            IConfiguration configuration)
         {
             _mediator = mediator;
             _logger = logger;
             _env = env;
+            _configuration = configuration;
         }
 
-        // SECURITY: In non-development environments the Secure flag must always be true,
-        // regardless of whether the inbound request is HTTPS. Behind a TLS-terminating
-        // reverse proxy the backend sees plain HTTP, so Request.IsHttps would be false
-        // even though the browser-to-proxy leg is encrypted.
-        private bool SecureCookie => !_env.IsDevelopment();
+        // SECURITY: In non-development environments the Secure flag is true by default, regardless of
+        // whether the inbound request is HTTPS — behind a TLS-terminating reverse proxy the backend
+        // sees plain HTTP, so Request.IsHttps would be false even though the browser-to-proxy leg is
+        // encrypted. A local production-config run that terminates NO TLS (the -Prod launcher mode on
+        // the LAN, http://) can set Security:RequireHttps=false so the browser still accepts the
+        // cookie; real deployments never set it and keep the secure default.
+        private bool SecureCookie =>
+            _configuration.GetValue<bool?>("Security:RequireHttps") ?? !_env.IsDevelopment();
 
         [HttpPost("register")]
         [AllowAnonymous]

@@ -14,6 +14,7 @@ using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using ApplicationResult = Planora.BuildingBlocks.Application.Models.Result;
@@ -525,7 +526,8 @@ public class AuthenticationControllerTests
         var loggerMock = new Mock<ILogger<AuthenticationController>>();
         var envMock = new Mock<IWebHostEnvironment>();
         envMock.Setup(e => e.EnvironmentName).Returns("Production");
-        return new AuthenticationController(mediatorMock.Object, loggerMock.Object, envMock.Object)
+        var configuration = new ConfigurationBuilder().Build();
+        return new AuthenticationController(mediatorMock.Object, loggerMock.Object, envMock.Object, configuration)
         {
             ControllerContext = new ControllerContext
             {

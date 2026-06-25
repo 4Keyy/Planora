@@ -125,6 +125,7 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 | `ASPNETCORE_ENVIRONMENT` | optional | ASP.NET environment; Compose sets `Docker` per backend container. |
 | `ASPNETCORE_URLS` | optional | Kestrel URL override when explicitly provided. |
 | `RateLimiting__Backend` | optional | Set to `Redis` to use the Redis-backed distributed rate limiter (required in multi-replica production so per-IP counters are shared); unset (default) uses the in-memory limiter. `docker-compose.yml` sets it for every service. |
+| `Security__RequireHttps` | optional | Overrides the auth cookie `Secure` flag (config key `Security:RequireHttps`, read by `AuthenticationController`). Unset (default) keeps the secure default — `Secure` cookies in every non-Development environment. The `-Prod` local launcher sets it to `false` so a plain-HTTP LAN run still accepts the refresh/XSRF cookies; real deployments leave it unset and terminate TLS at the front door. |
 | `CORS_ALLOWED_ORIGINS` | documented but no direct parser found | Services read `Cors:AllowedOrigins` from appsettings/configuration. For env override use ASP.NET nested configuration keys such as `Cors__AllowedOrigins__0`. |
 
 ## Service Ports

@@ -94,6 +94,15 @@
     The only thing -Lan cannot do from the host is override a VPN that filters the LAN subnet; in
     that one case it tells you precisely to enable the VPN's "Allow LAN" or stop it while sharing.
 
+.PARAMETER Prod
+    Same LAN share as -Lan, but run the entire stack in a PRODUCTION configuration. The backend
+    builds AND runs in Release; ASPNETCORE_ENVIRONMENT / DOTNET_ENVIRONMENT are set to Production
+    (production error handling, logging and middleware); rate limiting uses the Redis-backed
+    distributed limiter; and the frontend is a real Next.js production build (`next build` then
+    `next start`) rather than the dev server. A local run terminates no TLS, so it serves plain HTTP
+    on the LAN and sets Security:RequireHttps=false so the browser still accepts the auth cookies -
+    production deployments keep Secure cookies behind their HTTPS front door. Implies -Lan.
+
 .PARAMETER Help
     Print usage and exit without starting anything. No log file is created.
 
@@ -117,6 +126,12 @@
     .\Start-Planora-Local.ps1 -Lan
     Start the stack and share it on the Wi-Fi/LAN: opens + verifies the firewall, then prints a
     READY verdict with the URL teammates open (or the one thing to fix).
+
+.EXAMPLE
+    .\Start-Planora-Local.ps1 -Prod
+    Run the full stack in a production configuration (Release build, Production environment, Redis
+    rate limiting, real Next.js production build) and share it on the LAN with the same verified
+    READY verdict as -Lan.
 
 .EXAMPLE
     .\Start-Planora-Local.ps1 -ExitAfterHealthCheck
@@ -148,12 +163,24 @@ param(
     # Open the Windows Firewall for the frontend + gateway ports and print a shareable
     # LAN URL, so another device on the same Wi-Fi can use the app while this runs.
     [switch]$Lan,
+    # Same LAN share as -Lan, but run the whole stack in a PRODUCTION configuration:
+    # ASPNETCORE_ENVIRONMENT=Production, Release backend builds, a real Next.js production
+    # build (next build + next start), and Redis-backed (distributed) rate limiting.
+    [switch]$Prod,
     # Print usage and exit.
     [switch]$Help
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Continue"
+
+# -Prod is "-Lan in a production configuration": it shares on the LAN exactly like -Lan, so it
+# implies -Lan. Every production switch below keys off $Prod.
+if ($Prod) { $Lan = $true }
+
+# Build configuration for the one-shot solution build AND every `dotnet run`. Release for a
+# production run (optimized, no debug assertions); Debug otherwise (fast iterative rebuilds).
+$BuildConfiguration = if ($Prod) { "Release" } else { "Debug" }
 
 # ---------------------------------------------------------------------------
 #  Script root (module imports happen after transcript starts - see below)
@@ -279,7 +306,7 @@ function Show-Usage {
     Write-Host ""
     Write-Host "${BOLD}USAGE${RESET}"
     Write-Host "  .\Start-Planora-Local.ps1 [-Clean] [-SkipBuild] [-SkipFrontend] [-NoBrowser]"
-    Write-Host "                            [-Lan] [-ExitAfterHealthCheck] [-Stop] [-Help]"
+    Write-Host "                            [-Lan] [-Prod] [-ExitAfterHealthCheck] [-Stop] [-Help]"
     Write-Host ""
     Write-Host "${BOLD}OPTIONS${RESET}"
     Write-Host "  -Clean                 Wipe bin/obj/.next, restore, rebuild infra images (data preserved)."
@@ -287,6 +314,8 @@ function Show-Usage {
     Write-Host "  -SkipFrontend          Start the backend + gateway only; do not start the frontend."
     Write-Host "  -NoBrowser             Do not open the browser when the frontend is ready."
     Write-Host "  -Lan                   Share on the Wi-Fi/LAN: open + verify the firewall, then a READY verdict."
+    Write-Host "  -Prod                  Like -Lan, but production config: Release build, Production env, a real"
+    Write-Host "                         Next.js build (next build + start), and Redis-backed rate limiting."
     Write-Host "  -ExitAfterHealthCheck  Start, verify every health endpoint, then shut down (CI / smoke test)."
     Write-Host "  -Stop                  Stop everything this launcher started and free the ports, then exit."
     Write-Host "  -Help                  Show this help and exit (no log file created)."
@@ -300,6 +329,7 @@ function Show-Usage {
     Write-Host "  .\Start-Planora-Local.ps1 -SkipBuild      # fastest restart, reuse existing build"
     Write-Host "  .\Start-Planora-Local.ps1 -Clean          # full clean rebuild"
     Write-Host "  .\Start-Planora-Local.ps1 -Lan            # also share on the Wi-Fi/LAN (verified + verdict)"
+    Write-Host "  .\Start-Planora-Local.ps1 -Prod           # production config + LAN share (Release, prod build)"
     Write-Host "  .\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser"
     Write-Host "  .\Start-Planora-Local.ps1 -Stop           # stop everything this launcher started"
     Write-Host "  Get-Help .\Start-Planora-Local.ps1 -Full  # full annotated help"
@@ -874,7 +904,7 @@ function Invoke-DotnetRestore {
 #  Build backend projects once to avoid parallel dotnet run build contention
 # ---------------------------------------------------------------------------
 function Invoke-DotnetBackendBuild {
-    Write-Step "Building .NET backend services..."
+    Write-Step "Building .NET backend services ($BuildConfiguration)..."
     $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
     # PERF: build the whole solution in a single dotnet invocation. MSBuild resolves
@@ -883,7 +913,7 @@ function Invoke-DotnetBackendBuild {
     # each re-evaluate the same shared references.
     $sln = Join-Path $RepoRoot "Planora.sln"
     if (Test-Path $sln) {
-        & dotnet build $sln --configuration Debug --verbosity minimal 2>&1 | Out-Null
+        & dotnet build $sln --configuration $BuildConfiguration --verbosity minimal 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
             Write-Fail "Solution build failed - inspect the errors above"
             return $false
@@ -904,7 +934,7 @@ function Invoke-DotnetBackendBuild {
         }
 
         Write-Info "Building $name..."
-        & dotnet build $projectPath --configuration Debug --verbosity minimal 2>&1 | Out-Null
+        & dotnet build $projectPath --configuration $BuildConfiguration --verbosity minimal 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
             Write-Fail "$($name): dotnet build failed"
             return $false
@@ -944,8 +974,20 @@ function Import-EnvFile {
         }
     }
 
-    # ASP.NET Core environment + local Redis connection (host-mapped ports).
-    [System.Environment]::SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development", "Process")
+    # ASP.NET Core environment + local Redis connection (host-mapped ports). -Prod runs the whole
+    # stack in a real Production configuration; the plain (or -Lan) run stays in Development.
+    $envName = if ($Prod) { "Production" } else { "Development" }
+    [System.Environment]::SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", $envName, "Process")
+    [System.Environment]::SetEnvironmentVariable("DOTNET_ENVIRONMENT",     $envName, "Process")
+    if ($Prod) {
+        # Distributed, Redis-backed rate limiting (the production backend) instead of in-memory.
+        [System.Environment]::SetEnvironmentVariable("RateLimiting__Backend", "Redis", "Process")
+        # A local prod-config run terminates NO TLS - it serves plain HTTP on the LAN. Tell the Auth
+        # API to drop the cookie Secure flag (Security:RequireHttps=false) so the browser still stores
+        # the refresh/XSRF cookies; everything else runs with full Production behaviour. Real deploys
+        # never set this and keep Secure cookies behind their HTTPS front door.
+        [System.Environment]::SetEnvironmentVariable("Security__RequireHttps", "false", "Process")
+    }
     Set-LocalRedisConnectionEnvironment
     Set-LocalPostgresConnectionEnvironment
 }
@@ -1018,7 +1060,7 @@ function Start-DotnetService {
     # (JWT secret, gRPC key, RabbitMQ creds, Redis connection, ASP.NET env)
     # were loaded into this process's environment block by Import-EnvFile and
     # are inherited automatically by the child process below.
-    $cmd = 'dotnet run --project "' + $projectPath + '" --no-launch-profile --no-build 2>&1 | Tee-Object -FilePath "' + $svcLog + '"'
+    $cmd = 'dotnet run --project "' + $projectPath + '" -c ' + $BuildConfiguration + ' --no-launch-profile --no-build 2>&1 | Tee-Object -FilePath "' + $svcLog + '"'
 
     $proc = Start-Process powershell `
         -ArgumentList @("-NoProfile", "-NonInteractive", "-Command", $cmd) `
@@ -1066,8 +1108,19 @@ function Start-Frontend {
         ""
     }
 
-    # Use a simpler command for starting the frontend to avoid quoting issues in Start-Process
-    $cmd = "cd frontend; $installPart npm run dev -- -H 0.0.0.0 2>&1 | Tee-Object -FilePath ""$fLog"""
+    # Frontend run command. -Prod builds the optimized Next.js bundle then serves it with `next start`
+    # (production mode), bound to all interfaces for the LAN; otherwise the dev server with HMR. The
+    # NEXT_PUBLIC_* values were already pinned to the LAN IP by the -Lan step and are baked into the
+    # production build here. The run sequence is grouped so its full output (build + serve) is logged.
+    $runPart = if ($Prod) {
+        "Write-Host '[prod] Building the Next.js production bundle (this can take a minute)...'; " +
+        "npm run build; " +
+        "if (`$LASTEXITCODE -eq 0) { npm run start -- -H 0.0.0.0 -p $FrontendPort } " +
+        "else { Write-Host '[prod] next build FAILED - see the log above'; exit 1 }"
+    } else {
+        "npm run dev -- -H 0.0.0.0"
+    }
+    $cmd = "cd frontend; $installPart & { $runPart } 2>&1 | Tee-Object -FilePath ""$fLog"""
 
     $proc = Start-Process powershell `
         -ArgumentList @("-NoProfile", "-Command", $cmd) `
@@ -1104,12 +1157,15 @@ function Invoke-AllHealthChecks {
     if (-not $SkipFrontend) {
         $services += @{
             Name      = "frontend"
+            # -Prod compiles the production bundle inside the frontend wrapper before the server
+            # binds, so allow far longer for the port to come up than the dev server needs.
             HealthUrl = "http://127.0.0.1:$FrontendPort"
-            Timeout   = 180
+            Timeout   = if ($Prod) { 600 } else { 180 }
         }
     }
 
-    $results = Test-AllServicesHealthy -Services $services -OverallTimeoutSeconds 240
+    $overallTimeout = if ($Prod) { 660 } else { 240 }
+    $results = Test-AllServicesHealthy -Services $services -OverallTimeoutSeconds $overallTimeout
 
     foreach ($r in $results) {
         if ($r.Status -ne "Healthy") {
@@ -1142,8 +1198,9 @@ function Show-Summary {
 
     $border = "=" * 58
     Write-Host ""
+    $modeTag = if ($Prod) { "[Production Mode]" } else { "[Local Mode]" }
     Write-Host "${CYAN}  +${border}+${RESET}"
-    Write-Host "${CYAN}  |${BOLD}$(("  Planora is Running  [Local Mode]").PadRight(58))${RESET}${CYAN}|${RESET}"
+    Write-Host "${CYAN}  |${BOLD}$(("  Planora is Running  $modeTag").PadRight(58))${RESET}${CYAN}|${RESET}"
     Write-Host "${CYAN}  +${border}+${RESET}"
 
     foreach ($s in $services) {
@@ -1226,8 +1283,12 @@ $null = Register-EngineEvent PowerShell.Exiting -Action { Invoke-GracefulShutdow
 # ===========================================================================
 #  ENTRY POINT
 # ===========================================================================
-$modeLabel = if ($Stop) { "Stop" } elseif ($Clean) { "CLEAN REBUILD" } else { "Fresh Restart" }
+$modeLabel = if ($Stop) { "Stop" } elseif ($Prod) { "PRODUCTION" } elseif ($Clean) { "CLEAN REBUILD" } else { "Fresh Restart" }
 Show-Header "Planora - Local Launcher [$modeLabel]"
+if ($Prod) {
+    Write-Warn "PRODUCTION mode: Release build, Production environment, Redis rate limiting, real Next.js build."
+    Write-Info "Serves plain HTTP on the LAN (no TLS), so cookie Secure is relaxed for this local run only."
+}
 
 Write-Info "Log file: $LogFile"
 Write-Host ""
