@@ -253,6 +253,19 @@ public class Program
             {
                 app.UseForwardedHeaders();
             }
+            else if (!builder.Environment.IsDevelopment())
+            {
+                // Operational guard: outside Development with no configured proxy, X-Forwarded-For is
+                // (correctly) ignored, so every request behind an edge proxy (e.g. Fly) arrives from the
+                // proxy's socket IP. IP-based rate-limit partitioning then collapses into ONE shared
+                // bucket for all clients. Warn loudly so a missing ForwardedHeaders__KnownProxies is
+                // caught at boot instead of silently disabling per-client limits.
+                app.Logger.LogWarning(
+                    "ForwardedHeaders:KnownProxies is empty in environment {Environment}. Behind an edge " +
+                    "proxy every client shares the proxy socket IP, collapsing IP rate-limit partitioning " +
+                    "into a single bucket. Set ForwardedHeaders__KnownProxies to the edge proxy CIDR range.",
+                    builder.Environment.EnvironmentName);
+            }
 
             // SECURITY: Redirect HTTP to HTTPS in non-development environments.
             if (!builder.Environment.IsDevelopment())
