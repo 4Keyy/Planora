@@ -10,16 +10,16 @@ public sealed class IdempotentMessageHandler<TEvent> : IIntegrationEventHandler<
     public IdempotentMessageHandler(
         IInboxRepository inboxRepository,
         IIntegrationEventHandler<TEvent> decorated,
-        ILogger<IdempotentMessageHandler<TEvent>> _logger)
+        ILogger<IdempotentMessageHandler<TEvent>> logger)
     {
         _inboxRepository = inboxRepository;
         _decorated = decorated;
-        this._logger = _logger;
+        _logger = logger;
     }
 
     public async Task HandleAsync(TEvent @event, CancellationToken cancellationToken = default)
     {
-        var eventType = typeof(TEvent).Name; // ИСПРАВЛЕНО
+        var eventType = typeof(TEvent).Name;
         var eventId = GetEventId(@event);
 
         if (await _inboxRepository.ExistsAsync(eventId, cancellationToken))

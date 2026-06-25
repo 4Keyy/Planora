@@ -12,9 +12,9 @@ namespace Planora.Category.Infrastructure.Persistence.Repositories
         }
 
         // No AsNoTracking: the Update/Delete command handlers load via GetByIdAsync then mutate,
-        // so the returned entity must be change-tracked (INV-DATA-3). The !IsDeleted predicate
-        // (this repository has no global query filter) stops a soft-deleted category from being
-        // re-fetched and resurrected by a subsequent Update/Delete.
+        // so the returned entity must be change-tracked (INV-DATA-3). The global soft-delete query
+        // filter (CategoryConfiguration.HasQueryFilter) already excludes deleted rows; the explicit
+        // !IsDeleted is kept as defence-in-depth should a caller ever apply IgnoreQueryFilters().
         public async Task<Domain.Entities.Category?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return await _context.Categories.FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, cancellationToken);

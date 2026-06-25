@@ -41,7 +41,7 @@ public static class SpecificationEvaluator
 
         if (specification.AsSplitQuery)
         {
-            query = query.AsSplitQuery(); // ИСПРАВЛЕНО
+            query = query.AsSplitQuery();
         }
 
         if (!specification.AsTracking)
