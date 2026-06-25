@@ -106,21 +106,17 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
                 "Subtask {SubtaskId} created under task {ParentId} by user {UserId}",
                 subtask.Id, parent.Id, userId);
 
-            // The subtask is owned by the parent owner. When the owner is the caller, their JWT
-            // claims are the freshest author source; when a collaborator added it the author (the
-            // owner) is resolved on the next branch reconcile (GetSubtasks), so it is left unset
-            // here rather than mislabelled as the collaborator.
-            var dto = _mapper.Map<TodoItemDto>(subtask);
-            if (subtask.UserId == userId)
+            // The subtask's author is whoever ADDED it — the caller — even though the row is owned by
+            // (filed under) the parent owner for access purposes. The caller IS the creator, so their
+            // JWT is the freshest source for the author label; GetSubtasks reconciles it the same way
+            // (from CreatedByUserId) on later reads.
+            var dto = _mapper.Map<TodoItemDto>(subtask) with
             {
-                dto = dto with
-                {
-                    AuthorName = _currentUserContext.Name ?? _currentUserContext.Email,
-                    AuthorAvatarUrl = string.IsNullOrEmpty(_currentUserContext.ProfilePictureUrl)
-                        ? null
-                        : _currentUserContext.ProfilePictureUrl,
-                };
-            }
+                AuthorName = _currentUserContext.Name ?? _currentUserContext.Email,
+                AuthorAvatarUrl = string.IsNullOrEmpty(_currentUserContext.ProfilePictureUrl)
+                    ? null
+                    : _currentUserContext.ProfilePictureUrl,
+            };
 
             // Enrich with the (inherited) category so the subtask card shows the same label as the parent.
             if (subtask.CategoryId.HasValue)

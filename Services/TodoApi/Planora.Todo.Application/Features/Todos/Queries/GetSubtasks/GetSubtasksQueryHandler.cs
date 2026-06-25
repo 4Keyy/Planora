@@ -88,14 +88,17 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
             // Resolve every author AND every worker's live identity (name + avatar) in ONE Auth
             // batch call — both feed the branch card, so batching them keeps it a single round-trip.
             // Failure-tolerant: a lookup failure just leaves the labels empty.
-            var profileIds = subtasks.Select(s => s.UserId)
+            // The author shown for a subtask is whoever ADDED it (CreatedByUserId — possibly a
+            // collaborator), NOT the parent owner the subtask is filed under. Fall back to UserId
+            // for legacy rows created before CreatedByUserId was recorded.
+            var profileIds = subtasks.Select(s => s.CreatedByUserId ?? s.UserId)
                 .Concat(subtasks.SelectMany(s => s.Workers.Select(w => w.UserId)))
                 .Distinct();
             var profiles = await _userProfileService.GetProfilesAsync(profileIds, cancellationToken);
 
             var dtos = subtasks.Select(s =>
             {
-                profiles.TryGetValue(s.UserId, out var author);
+                profiles.TryGetValue(s.CreatedByUserId ?? s.UserId, out var author);
                 // "In work" is GLOBAL and the same for every viewer: anyone who took the subtask into
                 // work is listed here (oldest join first, for a stable avatar order), so the branch
                 // shows WHO is working rather than an anonymous count. The viewer's own membership
