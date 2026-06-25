@@ -47,6 +47,7 @@ import { getApiBaseUrl } from "@/lib/config"
 import { clearCsrfToken } from "@/lib/csrf"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
+import { invalidateFriends } from "@/hooks/use-friends"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar } from "@/components/ui/avatar"
@@ -794,6 +795,7 @@ export default function ProfilePage() {
     try {
       await api.post(`/friendships/requests/${friendshipId}/accept`)
       addToast({ type: "success", title: "Friend added" })
+      invalidateFriends() // a new friend → refresh the shared cache the task modals read
       loadFriends()
     } catch {
       addToast({ type: "error", title: "Failed to accept request" })
@@ -814,6 +816,7 @@ export default function ProfilePage() {
     try {
       await api.delete(`/friendships/${friendId}`)
       addToast({ type: "success", title: "Friend removed" })
+      invalidateFriends() // friend removed → refresh the shared cache the task modals read
       loadFriends()
     } catch {
       addToast({ type: "error", title: "Failed to remove friend" })

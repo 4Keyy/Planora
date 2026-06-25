@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { useFriends } from "@/hooks/use-friends"
+import { useFriends, invalidateFriends } from "@/hooks/use-friends"
 import { api } from "@/lib/api"
 import type { FriendDto, PagedResult } from "@/types/auth"
 
@@ -24,6 +24,7 @@ const page = (items: FriendDto[], hasNextPage = false): PagedResult<FriendDto> =
 
 describe("useFriends", () => {
   afterEach(() => {
+    invalidateFriends() // reset the shared module cache so tests stay isolated
     vi.restoreAllMocks()
   })
 
