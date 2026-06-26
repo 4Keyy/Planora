@@ -974,6 +974,17 @@ function Import-EnvFile {
         }
     }
 
+    # PROXY GUARD: a system HTTP proxy / VPN client (xray / sing-box / v2RayTun / Happ, typically
+    # 127.0.0.1:10809) routes traffic to a remote server and BLACKHOLES the launcher's local-only
+    # connections - every service talks to its siblings and to Postgres/Redis/RabbitMQ over loopback.
+    # .NET's HttpClient honours HTTP_PROXY/HTTPS_PROXY (using NO_PROXY for exceptions), so without a
+    # NO_PROXY the gateway->service and service->service gRPC/HTTP calls get sent to the proxy and
+    # time out. Pin a NO_PROXY covering loopback for THIS process tree only (Process scope - the
+    # user's other apps and their proxy are untouched).
+    foreach ($pv in @("NO_PROXY", "no_proxy")) {
+        [System.Environment]::SetEnvironmentVariable($pv, "localhost,127.0.0.1,::1", "Process")
+    }
+
     # ASP.NET Core environment + local Redis connection (host-mapped ports). -Prod runs the whole
     # stack in a real Production configuration; the plain (or -Lan) run stays in Development.
     $envName = if ($Prod) { "Production" } else { "Development" }
