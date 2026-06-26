@@ -25,7 +25,11 @@ export function middleware(request: NextRequest) {
   // to apiOrigin alone blocks the real fetch ("connect-src ... violates" / "Failed to fetch"). In dev
   // the permissive http/https/ws covers it; in production keep it explicit but ADD the same-host
   // gateway for a local/LAN viewer, each with its ws/wss form for the SignalR realtime channel.
-  const requestHost = request.nextUrl.hostname
+  // The Host header is what the BROWSER actually used (e.g. "localhost:3000"), which is what
+  // config.ts getApiBaseUrl keys off (window.location.hostname). request.nextUrl.hostname reflects
+  // the SERVER's view under `next start -H 0.0.0.0` (the bind/LAN address), so it must only be a
+  // fallback for synthetic requests with no Host header (tests).
+  const requestHost = (request.headers.get('host') ?? '').split(':')[0] || request.nextUrl.hostname
   const prodConnectOrigins = new Set<string>([apiOrigin])
   if (isLocalNetworkHost(requestHost)) prodConnectOrigins.add(`http://${requestHost}:5132`)
 

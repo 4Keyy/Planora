@@ -64,6 +64,19 @@ describe("CSP middleware", () => {
     expect(csp).toContain("ws://localhost:5132")        // realtime (SignalR) ws scheme
   })
 
+  it("derives the same-host gateway from the Host header, not the server bind address", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://192.168.42.19:5132")
+    // `next start -H 0.0.0.0`: the server URL is the bind/LAN host, but the browser sent
+    // Host: localhost:3000. The CSP must follow the browser's host (where getApiBaseUrl points).
+    const res = middleware(
+      new NextRequest("http://192.168.42.19:3000/auth/login", { headers: { host: "localhost:3000" } }),
+    )
+    const csp = res.headers.get("content-security-policy") as string
+    expect(csp).toContain("http://localhost:5132")
+    expect(csp).toContain("ws://localhost:5132")
+  })
+
   it("adds upgrade-insecure-requests for an https API origin in production", () => {
     vi.stubEnv("NODE_ENV", "production")
     vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.planora.example")
