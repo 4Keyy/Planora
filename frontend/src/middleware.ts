@@ -19,14 +19,19 @@ export function middleware(request: NextRequest) {
     ? `'self' 'nonce-${nonce}' 'unsafe-eval'`
     : `'self' 'nonce-${nonce}'`
 
-  // In dev the page can be opened from a LAN IP (a peer on the same Wi-Fi), and the
-  // client derives the API gateway as `http://<sameHost>:5132` at runtime — which varies
-  // by viewer. Allowing http/https/ws in dev lets any same-LAN host reach the gateway,
-  // mirroring the equally-permissive dev `img-src` below. Production stays locked to the
-  // single explicit API origin.
+  // The client (config.ts getApiBaseUrl) targets the gateway on the SAME host the page was opened
+  // from (http://<host>:5132). For a local/LAN viewer that differs from the apiOrigin baked at build
+  // — e.g. the page is opened on localhost while NEXT_PUBLIC_API_URL is the LAN IP — so a CSP locked
+  // to apiOrigin alone blocks the real fetch ("connect-src ... violates" / "Failed to fetch"). In dev
+  // the permissive http/https/ws covers it; in production keep it explicit but ADD the same-host
+  // gateway for a local/LAN viewer, each with its ws/wss form for the SignalR realtime channel.
+  const requestHost = request.nextUrl.hostname
+  const prodConnectOrigins = new Set<string>([apiOrigin])
+  if (isLocalNetworkHost(requestHost)) prodConnectOrigins.add(`http://${requestHost}:5132`)
+
   const connectSrc = isDev
     ? `'self' ${apiOrigin} http: https: ws: wss:`
-    : `'self' ${apiOrigin}`
+    : `'self' ${[...prodConnectOrigins].flatMap(withRealtime).join(' ')}`
 
   // In dev the avatar server may be on any HTTP origin (localhost, LAN IP, etc.),
   // and SSR vs client can resolve to different hosts. Allowing all `http:` in dev
@@ -91,4 +96,26 @@ function sanitizeOrigin(raw: string): string {
     // fall through
   }
   return 'http://localhost:5132'
+}
+
+// Mirrors config.ts: loopback + RFC1918 private-LAN hosts are the ones for which the client rewrites
+// the gateway to the same host it was opened from. Kept local so middleware stays Edge-self-contained.
+function isLocalNetworkHost(hostname: string): boolean {
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true
+  const parts = hostname.split('.').map((p) => Number(p))
+  if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) return false
+  const [a, b] = parts
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)
+}
+
+// Expands a gateway origin into its http(s) origin plus the matching WebSocket scheme (ws/wss) — the
+// SignalR realtime channel needs the ws form in connect-src alongside the plain fetch origin.
+function withRealtime(origin: string): string[] {
+  try {
+    const u = new URL(origin)
+    const ws = u.protocol === 'https:' ? 'wss:' : 'ws:'
+    return [u.origin, `${ws}//${u.host}`]
+  } catch {
+    return [origin]
+  }
 }

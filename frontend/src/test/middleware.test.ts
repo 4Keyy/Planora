@@ -47,8 +47,21 @@ describe("CSP middleware", () => {
     vi.stubEnv("NODE_ENV", "production")
     const prodCsp = cspFor("/")
     expect(prodCsp).not.toMatch(/script-src[^;]*'unsafe-eval'/)
-    // Production connect-src does not get the blanket `http:`/`ws:` dev allowance.
-    expect(prodCsp).not.toMatch(/connect-src[^;]*\bws:/)
+    // Production connect-src does not get the blanket scheme-only `http:`/`ws:` dev allowance
+    // (it may still list specific ws://<host> origins for the SignalR realtime channel).
+    expect(prodCsp).not.toMatch(/connect-src[^;]*\s(?:http|https|ws|wss):(?:\s|;|$)/)
+  })
+
+  it("allows the same-host gateway for a local viewer even when the API origin is the LAN IP", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    // Built with the LAN IP baked into NEXT_PUBLIC_API_URL, but the page is opened on localhost —
+    // the client (config.ts) targets http://localhost:5132, so the CSP must permit it. Regression:
+    // a CSP locked to the apiOrigin alone blocked the csrf-token/login fetch with a CSP violation.
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://192.168.42.19:5132")
+    const csp = cspFor("/auth/login")
+    expect(csp).toContain("http://localhost:5132")     // same-host gateway (the real fetch target)
+    expect(csp).toContain("http://192.168.42.19:5132") // the baked apiOrigin
+    expect(csp).toContain("ws://localhost:5132")        // realtime (SignalR) ws scheme
   })
 
   it("adds upgrade-insecure-requests for an https API origin in production", () => {
