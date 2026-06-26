@@ -36,6 +36,26 @@ const safeApiUrl = (() => {
   }
   return defaultApiUrl
 })()
+
+// True when the API gateway is a loopback / RFC1918 private host — i.e. a local run (the -Prod
+// launcher serves on localhost / the LAN IP). Next 16's image optimizer refuses to fetch an upstream
+// whose host resolves to a private/loopback IP (SSRF guard, → 400), so for a local API the avatars
+// must be served unoptimized (loaded straight from the gateway), exactly like dev. A real deployment
+// has a public API host and keeps optimization on.
+const isLocalApiHost = (() => {
+  try {
+    const h = new URL(safeApiUrl).hostname
+    if (h === 'localhost' || h === '127.0.0.1' || h === '::1') return true
+    const p = h.split('.').map((n) => Number(n))
+    if (p.length !== 4 || p.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false
+    const [a, b] = p
+    return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168)
+  } catch {
+    return false
+  }
+})()
+const imagesUnoptimized = isDev || isLocalApiHost
+
 // CSP is set per-request with a unique nonce by src/middleware.ts.
 // Only static security headers that don't need per-request variability remain here.
 const securityHeaders = [
@@ -110,11 +130,12 @@ const nextConfig = {
     // webp), so bypass the optimizer in dev and let the browser load the avatar straight
     // from the gateway — the dev CSP `img-src` already allows `http:`. Production keeps
     // optimization on; the gateway there is a public host, not a private IP.
-    unoptimized: isDev,
+    unoptimized: imagesUnoptimized,
     remotePatterns: (() => {
-      // In dev: allow any HTTPS host + any HTTP host (API may be on a LAN IP, not localhost).
-      // In production: restrict to the explicit API host (and its port, if non-default).
-      if (isDev) {
+      // In dev OR a local-API production run: allow any HTTPS + HTTP host (the avatar may be on
+      // localhost or a LAN IP, and the optimizer is bypassed anyway). A public-API deployment
+      // restricts to the explicit API host (and its port, if non-default).
+      if (isDev || isLocalApiHost) {
         return [
           { protocol: 'https', hostname: '**' },
           { protocol: 'http', hostname: '**' },

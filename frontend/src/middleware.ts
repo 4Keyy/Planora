@@ -37,12 +37,13 @@ export function middleware(request: NextRequest) {
     ? `'self' ${apiOrigin} http: https: ws: wss:`
     : `'self' ${[...prodConnectOrigins].flatMap(withRealtime).join(' ')}`
 
-  // In dev the avatar server may be on any HTTP origin (localhost, LAN IP, etc.),
-  // and SSR vs client can resolve to different hosts. Allowing all `http:` in dev
-  // is intentional — production locks it to the specific API origin only.
+  // In dev the avatar server may be on any HTTP origin (localhost, LAN IP, etc.) so `http:` is open.
+  // Avatars are served by the gateway. With the local image optimizer bypassed (next.config:
+  // imagesUnoptimized), the browser loads them straight from the gateway, so img-src needs the same
+  // gateway origins connect-src got (apiOrigin + the same-host gateway for a local/LAN viewer).
   const imgSrc = isDev
     ? `'self' data: https: http:`
-    : `'self' data: https: ${apiOrigin}`
+    : `'self' data: https: ${[...prodConnectOrigins].join(' ')}`
 
   const cspParts = [
     "default-src 'self'",
