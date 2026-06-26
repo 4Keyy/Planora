@@ -1347,7 +1347,18 @@ if ($Lan) {
         [System.Environment]::SetEnvironmentVariable("Frontend__BaseUrl",           $lanFrontendUrl, "Process")
         [System.Environment]::SetEnvironmentVariable("NEXT_PUBLIC_API_URL",         $lanGatewayUrl,  "Process")
         [System.Environment]::SetEnvironmentVariable("NEXT_PUBLIC_API_GATEWAY_URL", $lanGatewayUrl,  "Process")
+
+        # CORS: the Development policy already accepts any private-LAN origin via a predicate, but the
+        # strict PRODUCTION policy (-Prod) only allows the explicit Cors:AllowedOrigins list. Without
+        # this, a browser on http://<lan-ip>:3000 is refused cross-origin by the gateway/services in
+        # -Prod ("Cannot reach the server"). Pin localhost + this LAN IP as the allowed frontend
+        # origins. Env vars override appsettings; indices stay contiguous from 0 so ASP.NET's array
+        # binder reads them all.
+        [System.Environment]::SetEnvironmentVariable("Cors__AllowedOrigins__0", "http://localhost:3000", "Process")
+        [System.Environment]::SetEnvironmentVariable("Cors__AllowedOrigins__1", "http://127.0.0.1:3000", "Process")
+        [System.Environment]::SetEnvironmentVariable("Cors__AllowedOrigins__2", $lanFrontendUrl,         "Process")
         Write-OK "Synced LAN URLs to current IP (Frontend__BaseUrl -> $lanFrontendUrl)"
+        Write-OK "Pinned CORS origins: localhost, 127.0.0.1, $lanFrontendUrl"
     }
 }
 
