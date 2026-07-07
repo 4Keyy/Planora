@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: data-retention — security-forensics retention (login history, audit log) (2026-07-08)
+
+Adds the two forensics vectors, deliberately kept far longer than user content and **opt-in**:
+`LoginHistoryPurgePolicy` purges login history older than `Retention:LoginHistoryDays` (default 180)
+and `AuditLogPurgePolicy` purges audit-log rows older than `AuditLogDays` (default 365). Both are gated
+on their own flags (`PurgeLoginHistory` / `PurgeAuditLogs`) which default to **false** — enabling them is
+a conscious compliance decision, not something that happens by simply turning the subsystem on. The
+existing `(LoginAt)` and `(CreatedAt)` indexes already cover the scans, so no migration is needed.
+
+Security: bounded, opt-in retention of forensic data — never purged implicitly with ordinary content.
+
 ### feat: todos — completed-task deletion-countdown badge (2026-07-07)
 
 The completed archive now shows a small, non-intrusive pill on each task that will be auto-deleted —

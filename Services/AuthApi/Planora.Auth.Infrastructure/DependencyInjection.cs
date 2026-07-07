@@ -35,7 +35,9 @@ public static class DependencyInjection
         // processed outbox rows. Safety-gated (advisory lock + tripwire + dry-run), disabled by default.
         services.AddRetention(configuration)
             .AddRetentionPolicy<ProcessedMessagePurgePolicy>()
-            .AddRetentionPolicy<Retention.ExpiredRefreshTokenPurgePolicy>();
+            .AddRetentionPolicy<Retention.ExpiredRefreshTokenPurgePolicy>()
+            .AddRetentionPolicy<Retention.LoginHistoryPurgePolicy>()
+            .AddRetentionPolicy<Retention.AuditLogPurgePolicy>();
 
         return services;
     }
