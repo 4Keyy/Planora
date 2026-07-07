@@ -4,6 +4,28 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: data-retention subsystem — foundation (2026-07-07)
+
+First slice of the data-retention / hard-purge subsystem that physically removes stale data
+(soft-deleted rows past a grace window, long-completed tasks, read notifications, processed
+outbox/inbox messages, expired tokens). This commit lands only the shared harness in
+`BuildingBlocks.Infrastructure.Retention`; no vector is wired yet, and the whole subsystem ships
+**disabled** (`Retention:Enabled=false`) and, once enabled, **dry-run by default**.
+
+- **`RetentionBackgroundService`** — a daily scheduler modelled on `OutboxProcessor` (a
+  `BackgroundService` opening a fresh DI scope per policy) that fires once per day at a configurable
+  off-peak UTC hour and runs every registered `IRetentionPolicy`.
+- **Safety by construction** via the shared `RetentionExecutor`: a Postgres session-level advisory
+  lock (`PostgresAdvisoryLock`, stable FNV-1a key) as the single-instance guard, a tripwire that
+  aborts a pass when eligible rows exceed `MaxDeletionsPerRun`, a dry-run mode that only counts, and
+  batched set-based `ExecuteDeleteAsync`.
+- **Observability** — new `planora.retention.*` metrics (rows_deleted, tripwire, errors, run.duration).
+- **Config** — `RetentionOptions` (bound from the `Retention` section) with per-vector windows and
+  enable flags; security-forensics vectors (login history, audit log) ship OFF.
+
+Security: hard-purge advances data minimisation; the tripwire + advisory lock prevent runaway or
+concurrent deletion.
+
 ### fix: plan-verification audit — close health, validation, logging & dead-code gaps (2026-06-25)
 
 A verification pass over the implementation plan. The large majority of planned items were already

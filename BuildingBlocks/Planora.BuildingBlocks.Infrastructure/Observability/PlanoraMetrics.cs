@@ -107,4 +107,36 @@ public static class PlanoraMetrics
         name: "planora.cache.operations",
         unit: "{operation}",
         description: "Cache get operations, partitioned by key prefix and outcome (hit_l1 / hit_l2 / miss / error).");
+
+    /// <summary>
+    /// Counter of rows physically purged by the retention subsystem. Tag <c>policy</c> — the retention
+    /// policy name (low cardinality: one per registered vector, e.g. <c>outbox-inbox-purge</c>,
+    /// <c>soft-delete-purge:TodoItem</c>). Zero in dry-run mode.
+    /// </summary>
+    public static readonly Counter<long> RetentionRowsDeleted = Meter.CreateCounter<long>(
+        name: "planora.retention.rows_deleted",
+        unit: "{row}",
+        description: "Rows physically deleted by a retention policy pass, partitioned by policy.");
+
+    /// <summary>
+    /// Counter incremented when a retention policy's tripwire aborts a pass because the eligible-row count
+    /// exceeded <c>MaxDeletionsPerRun</c>. A non-zero rate is an alert condition — something is mass-marking
+    /// rows deletable. Tag <c>policy</c>.
+    /// </summary>
+    public static readonly Counter<long> RetentionTripwire = Meter.CreateCounter<long>(
+        name: "planora.retention.tripwire",
+        unit: "{trip}",
+        description: "Number of retention passes aborted by the safety tripwire, partitioned by policy.");
+
+    /// <summary>Counter of retention policy passes that threw. Tag <c>policy</c>.</summary>
+    public static readonly Counter<long> RetentionErrors = Meter.CreateCounter<long>(
+        name: "planora.retention.errors",
+        unit: "{error}",
+        description: "Number of retention policy passes that failed, partitioned by policy.");
+
+    /// <summary>Histogram of per-policy pass duration in seconds. Tag <c>policy</c>.</summary>
+    public static readonly Histogram<double> RetentionRunDuration = Meter.CreateHistogram<double>(
+        name: "planora.retention.run.duration",
+        unit: "s",
+        description: "Wall-clock duration of one retention policy pass.");
 }
