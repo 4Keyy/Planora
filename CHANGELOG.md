@@ -4,6 +4,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: todos — completed-task deletion-countdown badge (2026-07-07)
+
+The completed archive now shows a small, non-intrusive pill on each task that will be auto-deleted —
+"удалится через N дн." (warming to amber in the final three days, with the exact date in the tooltip and
+aria-label). It renders only for globally-completed tasks (those actually on the delete path); a
+viewer-only completion has no `completedAt` and shows nothing. The countdown is a pure util
+(`getDeletionCountdown`, mirroring the backend `Retention:CompletedTaskDays` default of 30) so it is a
+hint, not authority — the backend enforces the actual deletion. Fully covered by unit tests; the 85%
+frontend coverage gate stays green.
+
 ### feat: todos — auto-delete long-completed tasks (2026-07-07)
 
 Tasks left completed longer than `Retention:CompletedTaskDays` (default 30) are now auto-deleted.

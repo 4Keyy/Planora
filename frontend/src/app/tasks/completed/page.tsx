@@ -12,6 +12,7 @@ import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
 import { Todo, PagedTodosResponse, type UpdateTodoPayload, isTodoOwner, sameUserId, toApiTodoStatus } from "@/types/todo"
 import { TodoCard } from "@/components/todos/todo-card"
+import { TaskDeletionBadge } from "@/components/todos/task-deletion-badge"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
@@ -521,14 +522,20 @@ export default function CompletedTasksPage() {
             columns={4}
             breakpoints={COMPLETED_MASONRY_BREAKPOINTS}
             renderItem={(todo) => (
-              <TodoCard
-                todo={todo}
-                variant="completed"
-                onComplete={() => handleComplete(todo.id)}
-                onDelete={() => setDeletingTodo(todo)}
-                onEdit={() => setEditingTodo(todo)}
-                onToggleHidden={() => handleToggleHidden(todo.id)}
-              />
+              <div>
+                <TodoCard
+                  todo={todo}
+                  variant="completed"
+                  onComplete={() => handleComplete(todo.id)}
+                  onDelete={() => setDeletingTodo(todo)}
+                  onEdit={() => setEditingTodo(todo)}
+                  onToggleHidden={() => handleToggleHidden(todo.id)}
+                />
+                {/* Gentle auto-deletion countdown. Renders only for globally-completed tasks
+                    (those actually on the delete path); viewer-only completions have no
+                    completedAt and show nothing. */}
+                <TaskDeletionBadge completedAt={todo.completedAt} className="mt-2 ml-1" />
+              </div>
             )}
           />
 
