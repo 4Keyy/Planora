@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: data-retention — purge long-expired refresh tokens (2026-07-07)
+
+Wires AuthApi into the retention subsystem and adds `ExpiredRefreshTokenPurgePolicy`, which physically
+deletes refresh tokens whose `ExpiresAt` is more than `Retention:ExpiredRefreshTokenDays` in the past
+(default 30). Token rotation mints a new row on every refresh and never removes the old ones, so this
+is the only thing bounding the `RefreshTokens` table; the grace past expiry keeps a just-expired token
+visible in the session list first. The existing `(ExpiresAt)` index already covers the scan. Auth now
+also registers the shared processed-outbox purge and exposes its context as `DbContext` for the
+scheduler. Still disabled + dry-run by default.
+
+Performance: bounds unbounded refresh-token accumulation from rotation.
+
 ### feat: data-retention — notification housekeeping + delete cascade (2026-07-07)
 
 RealtimeApi notification-log retention (B4/B5) plus the missing cross-service delete cascade:

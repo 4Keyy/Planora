@@ -9,6 +9,8 @@ using Planora.BuildingBlocks.Infrastructure.Configuration;
 using Planora.BuildingBlocks.Infrastructure.Extensions;
 using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Application.Messaging;
+using Planora.BuildingBlocks.Infrastructure.Retention;
+using Planora.BuildingBlocks.Infrastructure.Retention.Policies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -28,6 +30,12 @@ public static class DependencyInjection
         AddGrpcServices(services, configuration);
         AddHealthChecks(services, configuration);
         AddRabbitMqBackground(services, configuration);
+
+        // Retention: purge long-expired refresh tokens (token rotation never removes old rows) plus the
+        // processed outbox rows. Safety-gated (advisory lock + tripwire + dry-run), disabled by default.
+        services.AddRetention(configuration)
+            .AddRetentionPolicy<ProcessedMessagePurgePolicy>()
+            .AddRetentionPolicy<Retention.ExpiredRefreshTokenPurgePolicy>();
 
         return services;
     }
@@ -66,6 +74,10 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AuthDbContext>());
+
+        // Expose the context as DbContext too, so the retention background service can resolve it the
+        // same way every other service does (Auth otherwise only registers IApplicationDbContext).
+        services.AddScoped<Microsoft.EntityFrameworkCore.DbContext>(sp => sp.GetRequiredService<AuthDbContext>());
     }
 
     private static void AddRepositories(IServiceCollection services)
