@@ -26,6 +26,21 @@ outbox/inbox messages, expired tokens). This commit lands only the shared harnes
 Security: hard-purge advances data minimisation; the tripwire + advisory lock prevent runaway or
 concurrent deletion.
 
+### feat: data-retention — purge processed outbox/inbox messages (2026-07-07)
+
+First live retention vector. `ProcessedMessagePurgePolicy` (BuildingBlocks) physically deletes outbox
+rows that were successfully published and inbox rows that were successfully consumed once they are older
+than their configured window (`Retention:OutboxProcessedDays` / `InboxProcessedDays`, default 7 days).
+Dead-lettered / failed rows are deliberately kept for investigation. Wired into TodoApi, CategoryApi,
+CollaborationApi and MessagingApi (RealtimeApi and AuthApi get it in their own slices). This closes the
+systemic leak where every service's `DeleteProcessedMessagesAsync` existed but was never scheduled, so
+`OutboxMessages`/`InboxMessages` grew unbounded.
+
+The lock is abstracted behind `IRetentionLock` so the guard logic (dry-run, tripwire, batching) is
+unit-testable without PostgreSQL. Still ships disabled + dry-run by default.
+
+Performance: bounds previously-unbounded growth of the outbox/inbox tables across four services.
+
 ### fix: plan-verification audit — close health, validation, logging & dead-code gaps (2026-06-25)
 
 A verification pass over the implementation plan. The large majority of planned items were already

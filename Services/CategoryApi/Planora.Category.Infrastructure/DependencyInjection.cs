@@ -4,6 +4,8 @@ using Planora.BuildingBlocks.Application.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Planora.BuildingBlocks.Infrastructure.Retention;
+using Planora.BuildingBlocks.Infrastructure.Retention.Policies;
 
 namespace Planora.Category.Infrastructure
 {
@@ -46,6 +48,11 @@ namespace Planora.Category.Infrastructure
 
             // Outbox Processor
             services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();
+
+            // Retention: purge processed outbox/inbox rows past their configured window. Safety-gated
+            // (advisory lock + tripwire + dry-run) and disabled by default until an operator opts in.
+            services.AddRetention(configuration)
+                .AddRetentionPolicy<ProcessedMessagePurgePolicy>();
 
             services.AddHealthChecks()
                 .AddDbContextCheck<CategoryDbContext>("category-dbcontext");

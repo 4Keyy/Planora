@@ -19,6 +19,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         public static async Task<RetentionResult> RunAsync(
             string policyName,
             DbContext db,
+            IRetentionLock lockProvider,
             RetentionContext context,
             Func<CancellationToken, Task<int>> countAsync,
             Func<int, CancellationToken, Task<int>> deleteBatchAsync,
@@ -28,7 +29,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
             var options = context.Options;
             var lockKey = PostgresAdvisoryLock.KeyFor(policyName);
 
-            if (!await PostgresAdvisoryLock.TryAcquireAsync(db, lockKey, cancellationToken))
+            if (!await lockProvider.TryAcquireAsync(db, lockKey, cancellationToken))
             {
                 logger.LogInformation(
                     "Retention[{Policy}] skipped — advisory lock held by another instance", policyName);
@@ -90,7 +91,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
             }
             finally
             {
-                await PostgresAdvisoryLock.ReleaseAsync(db, lockKey);
+                await lockProvider.ReleaseAsync(db, lockKey);
             }
         }
 

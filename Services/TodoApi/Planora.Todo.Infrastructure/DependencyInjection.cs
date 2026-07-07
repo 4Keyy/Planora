@@ -10,6 +10,8 @@ using Planora.Todo.Application.Interfaces;
 using Planora.Todo.Application.Services;
 using Planora.Todo.Infrastructure.Grpc;
 using Planora.GrpcContracts;
+using Planora.BuildingBlocks.Infrastructure.Retention;
+using Planora.BuildingBlocks.Infrastructure.Retention.Policies;
 
 namespace Planora.Todo.Infrastructure
 {
@@ -55,6 +57,11 @@ namespace Planora.Todo.Infrastructure
             services.AddScoped<Planora.BuildingBlocks.Application.Outbox.IOutboxRepository,
                 Persistence.Repositories.OutboxRepository>();
             services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();
+
+            // Retention: purge processed outbox/inbox rows past their configured window. Safety-gated
+            // (advisory lock + tripwire + dry-run) and disabled by default until an operator opts in.
+            services.AddRetention(configuration)
+                .AddRetentionPolicy<ProcessedMessagePurgePolicy>();
 
             // Services
             services.AddHttpContextAccessor();

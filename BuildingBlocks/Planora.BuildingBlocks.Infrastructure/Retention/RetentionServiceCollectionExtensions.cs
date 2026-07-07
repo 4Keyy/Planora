@@ -14,6 +14,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
             IConfiguration configuration)
         {
             services.Configure<RetentionOptions>(configuration.GetSection(RetentionOptions.SectionName));
+            services.AddSingleton<IRetentionLock, PostgresRetentionLock>();
             services.AddHostedService<RetentionBackgroundService>();
             return services;
         }

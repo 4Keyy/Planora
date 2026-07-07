@@ -5,6 +5,8 @@ using Planora.Collaboration.Application.Services;
 using Planora.Collaboration.Infrastructure.Grpc;
 using Planora.Collaboration.Infrastructure.Persistence.Repositories;
 using Microsoft.Extensions.Caching.Memory;
+using Planora.BuildingBlocks.Infrastructure.Retention;
+using Planora.BuildingBlocks.Infrastructure.Retention.Policies;
 
 namespace Planora.Collaboration.Infrastructure
 {
@@ -40,6 +42,11 @@ namespace Planora.Collaboration.Infrastructure
 
             // Outbox Processor — ships NotificationEvent to RabbitMQ (INV-COMM-3).
             services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();
+
+            // Retention: purge processed outbox/inbox rows past their configured window. Safety-gated
+            // (advisory lock + tripwire + dry-run) and disabled by default until an operator opts in.
+            services.AddRetention(configuration)
+                .AddRetentionPolicy<ProcessedMessagePurgePolicy>();
 
             // Current user context
             services.AddHttpContextAccessor();

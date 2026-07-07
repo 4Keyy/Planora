@@ -8,6 +8,8 @@ using Planora.Messaging.Application.Services;
 using Planora.Messaging.Domain;
 using Planora.Messaging.Infrastructure.Persistence;
 using Planora.Messaging.Infrastructure.Services;
+using Planora.BuildingBlocks.Infrastructure.Retention;
+using Planora.BuildingBlocks.Infrastructure.Retention.Policies;
 
 namespace Planora.Messaging.Infrastructure
 {
@@ -41,6 +43,11 @@ namespace Planora.Messaging.Infrastructure
             // Outbox Processor — ships the message NotificationEvent to RabbitMQ (INV-COMM-3) instead of
             // SendMessageHandler publishing straight to the broker, so a notification survives a broker blip.
             services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();
+
+            // Retention: purge processed outbox/inbox rows past their configured window. Safety-gated
+            // (advisory lock + tripwire + dry-run) and disabled by default until an operator opts in.
+            services.AddRetention(configuration)
+                .AddRetentionPolicy<ProcessedMessagePurgePolicy>();
 
             // Services
             services.AddHttpContextAccessor();
