@@ -878,3 +878,22 @@ dropped once into the root layout and sits behind all content.
 - Pauses on `visibilitychange` (tab hidden) and resumes on tab visible.
 - Pointer tracking via `window` (not container) so mouse influence still applies through `pointer-events-none`.
 - Full cleanup on unmount: `cancelAnimationFrame`, `ResizeObserver.disconnect`, `renderer.dispose()`, `renderer.forceContextLoss()`, canvas `removeChild`.
+
+## Automatic data cleanup (retention)
+
+Confirmed behaviour once the retention subsystem is enabled (it ships disabled + dry-run — see
+`configuration.md`):
+
+- **Completed tasks auto-delete.** A task left completed for `CompletedTaskDays` (default 30) is deleted —
+  through the same cascade as a manual delete, so its comment timeline and notifications go too, and the
+  whole branch (all subtasks, any status) goes with the root. Shared/public tasks are deleted for everyone
+  once the owner's completion is ≥30 days old; a task a friend completed only for themselves (owner still
+  active) is instead hidden from that friend after 30 days. The completed archive shows a small
+  "удалится через N дн." badge on tasks that are on the delete path.
+- **Soft-deleted data is really deleted.** Anything soft-deleted (task, category, comment, …) is physically
+  removed `SoftDeleteGraceDays` (default 7) later — the grace window doubles as an undo/recovery window.
+- **Notifications expire.** A read notification is removed `ReadNotificationDays` (default 3) after it was
+  read; an unread one after `UnreadNotificationDays` (default 90). Deleting a task or user also removes its
+  notifications immediately.
+- **Housekeeping.** Processed outbox/inbox messages (7 days) and long-expired refresh tokens (30 days past
+  expiry) are reaped. Login history (180 days) and audit logs (365 days) are opt-in (forensics).

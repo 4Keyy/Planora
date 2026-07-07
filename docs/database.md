@@ -367,3 +367,26 @@ planora_todo
 planora_category
 planora_messaging
 ```
+
+## Data Retention Policies
+
+A daily background purge (`RetentionBackgroundService`) physically removes stale rows. Windows are
+env-configurable (`Retention__*`, see `configuration.md`); the subsystem ships disabled + dry-run and each
+pass is guarded by an advisory lock + tripwire.
+
+| Table / entity | Service | Purged when | Scan index |
+|---|---|---|---|
+| any soft-deleted row (`TodoItems`, `Categories`, `comments`, …) | owning service | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) | `(IsDeleted, DeletedAt)` |
+| `TodoItems` (completed) | Todo | `Status=Done` and `CompletedAt` older than `CompletedTaskDays` (30) → soft-deleted via cascade, then purged after grace | `(UserId, Status, IsDeleted, CompletedAt)` |
+| `user_todo_view_preferences` | Todo | deleted alongside their task (no FK/cascade, so purged explicitly); hidden per-viewer after 30 days for viewer-only completions | `(TodoItemId, ViewerId)` |
+| `Notifications` (read) | Realtime | `IsRead` and `ReadAtUtc` older than `ReadNotificationDays` (3) | `(IsRead, ReadAtUtc)` |
+| `Notifications` (unread) | Realtime | `!IsRead` and `OccurredOnUtc` older than `UnreadNotificationDays` (90) | `(IsRead, OccurredOnUtc)` |
+| `Notifications` / `NotificationDeliveries` | Realtime | cascade-deleted when their task or user is deleted; deliveries also purged after `NotificationDeliveryDays` (30) | `(DeliveredAtUtc)` |
+| `OutboxMessages` / `InboxMessages` | all | `Status=Processed` older than `OutboxProcessedDays` / `InboxProcessedDays` (7) | `(Status, ProcessedOnUtc)` |
+| `RefreshTokens` | Auth | `ExpiresAt` older than `ExpiredRefreshTokenDays` (30) | `(ExpiresAt)` |
+| `LoginHistory` | Auth | opt-in: `LoginAt` older than `LoginHistoryDays` (180) | `(LoginAt)` |
+| `AuditLogs` | Auth | opt-in: `CreatedAt` older than `AuditLogDays` (365) | `(CreatedAt)` |
+
+Dead-lettered / failed outbox/inbox rows are deliberately kept for investigation. The `(IsDeleted,
+DeletedAt)` scan indexes land via the EF model on the migration-less services (created by `EnsureCreated`)
+and via idempotent startup DDL on TodoApi and RealtimeApi; no new EF migration was added.

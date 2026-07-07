@@ -319,3 +319,39 @@ The Realtime service is wired conditionally: when `ConnectionStrings:RealtimeDat
 | PostgreSQL local port | Docker exposes host `5433`; some launch profile examples mention `5432`. | Use `5433` for host-to-container PostgreSQL. |
 | `CORS_ALLOWED_ORIGINS` | Present in `.env.example`, but services read `Cors:AllowedOrigins` from configuration. | Override with `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, etc. when using environment variables. |
 | Todo description length | validators allow 5000 characters, EF Core column config sets max length 2000. | Treat 2000 as the safe persisted limit until code is reconciled. |
+
+## Data Retention (automatic cleanup)
+
+A daily background job (`RetentionBackgroundService`, in `BuildingBlocks.Infrastructure.Retention`)
+physically removes stale data. It runs in every service that owns purgeable data and is governed by the
+`Retention` configuration section (env `Retention__*`). It ships **disabled** and, once enabled, **dry-run
+by default**; every pass is guarded by a Postgres advisory lock (single-instance), a per-pass tripwire, and
+batched deletes.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `Retention__Enabled` | `false` | Master switch. When false the scheduler never runs. |
+| `Retention__DryRun` | `true` | Count and log only — delete nothing. On-prod rehearsal. |
+| `Retention__RunAtHourUtc` | `3` | UTC hour (0–23) the daily pass fires. |
+| `Retention__BatchSize` | `1000` | Rows deleted per batch statement. |
+| `Retention__MaxDeletionsPerRun` | `50000` | Tripwire: a pass finding more eligible rows aborts and alerts. |
+| `Retention__SoftDeleteGraceDays` | `7` | Grace before a soft-deleted row is physically purged. |
+| `Retention__CompletedTaskDays` | `30` | Days a task may sit completed before auto-deletion. |
+| `Retention__ReadNotificationDays` | `3` | Days a read notification survives after being read. |
+| `Retention__UnreadNotificationDays` | `90` | Days an unread notification survives. |
+| `Retention__NotificationDeliveryDays` | `30` | Days a delivery-audit row survives after delivery. |
+| `Retention__OutboxProcessedDays` | `7` | Days a processed outbox message survives. |
+| `Retention__InboxProcessedDays` | `7` | Days a processed inbox message survives. |
+| `Retention__ExpiredRefreshTokenDays` | `30` | Grace past a refresh token's expiry before purge. |
+| `Retention__PurgeLoginHistory` | `false` | Opt-in: enable login-history purge (forensics). |
+| `Retention__LoginHistoryDays` | `180` | Login-history retention when enabled. |
+| `Retention__PurgeAuditLogs` | `false` | Opt-in: enable audit-log purge (forensics). |
+| `Retention__AuditLogDays` | `365` | Audit-log retention when enabled. |
+
+Each content vector also has its own `Retention__Purge*` toggle (e.g. `PurgeSoftDeleted`,
+`PurgeCompletedTasks`, `PurgeReadNotifications`, `PurgeOutboxInbox`, `PurgeExpiredRefreshTokens`), all
+defaulting to true so the master switch enables them together.
+
+**Rollout:** set `Retention__Enabled=true` with `Retention__DryRun=true`, watch the `Retention[...]`
+"would delete N" logs and the `planora.retention.*` metrics for a day, then set `Retention__DryRun=false`.
+The security-forensics vectors stay off until a deliberate compliance decision enables them.

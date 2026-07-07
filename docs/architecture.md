@@ -357,3 +357,33 @@ ADRs are stored in [`DECISIONS/`](DECISIONS/):
 | Realtime persistence absent | Notifications/connections are not durably stored in a Realtime database. | Treat Realtime as fan-out/connection service unless code adds persistence. |
 | Realtime notification consumer is not deduped | `NotificationEvent` delivery is at-least-once, so a redelivered event can re-push a SignalR notification (a duplicate transient toast). | Intentional: Realtime is a stateless SignalR fan-out with no DB write, so persistent inbox dedup (used by Collaboration) would be disproportionate. The event-bus dedup is graceful — it simply no-ops here. |
 | Compose service ports are local-development bindings | Compose is a local topology, not a production edge design. | Keep databases, broker, cache, gRPC, and backend service ports private in production. |
+
+## Data Retention subsystem
+
+A daily background purge that physically removes stale data, keeping storage bounded and honouring data
+minimisation. Design decisions (ADR):
+
+- **Per-service, not central.** Each service owns its database, so the `RetentionBackgroundService` (shared
+  `BuildingBlocks.Infrastructure.Retention`) runs inside every service and purges only its own tables — a
+  central cleaner cannot reach another service's DB without breaking the ownership boundary.
+- **Modelled on `OutboxProcessor`.** A `BackgroundService` that opens a fresh DI scope per policy, but on a
+  once-a-day off-peak schedule (`RunAtHourUtc`) instead of a poll loop.
+- **Safety by construction (`RetentionExecutor`).** Every pass takes a Postgres session-level advisory lock
+  (the single-instance guard — there is no other leader election), aborts via a tripwire if more than
+  `MaxDeletionsPerRun` rows are eligible, supports a dry-run mode, and deletes in batches. `planora.retention.*`
+  metrics expose rows deleted, tripwire trips, errors and duration.
+- **Two mechanisms.** Already-soft-deleted rows and processed messages are removed set-based
+  (`ExecuteDeleteAsync`) with no events — the cross-service cascade already ran at soft-delete time.
+  Completed-task auto-deletion instead goes through the domain **soft-delete + integration-event cascade**,
+  so Collaboration comments and Realtime notifications are cleaned up, and the row still gets the normal
+  grace window before physical purge (a recovery buffer).
+- **Shared-task rule.** For a completed shared/public task the owner's global completion dominates every
+  holder's view, so "delete once every holder has held it completed 30 days" reduces to "the owner completed
+  it ≥30 days ago" — no friend-audience enumeration. Viewer-only completions are hidden per viewer after 30
+  days instead of deleted.
+- **Cascade gap closed.** RealtimeApi now consumes `TaskDeleted`/`UserDeleted` to drop the matching
+  notifications (they carry a `TaskId`/`UserId` but no cross-service foreign key), so a deleted task/user no
+  longer orphans its notification log.
+
+Ships **disabled** and **dry-run by default**; the forensics vectors (login history, audit log) are
+additionally opt-in.
