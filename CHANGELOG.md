@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: todos — auto-delete long-completed tasks (2026-07-07)
+
+Tasks left completed longer than `Retention:CompletedTaskDays` (default 30) are now auto-deleted.
+`CompletedTodoPolicy` deletes them through the **same soft-delete + integration-event cascade** as a
+manual delete (not a raw purge), so the task's Collaboration comment timeline and its Realtime
+notifications are cleaned up and the row still gets the normal soft-delete grace window before
+`TodoSoftDeletePurgePolicy` physically removes it — a built-in recovery buffer. Only branch roots are
+candidates; deleting a root cascades to every subtask regardless of status, so a whole branch dies
+together (decision #3).
+
+For shared/public tasks the owner's global completion dominates every holder's view, so "delete once
+every holder has held it completed for 30 days" reduces exactly to "the owner completed it ≥30 days
+ago" — no friend-audience enumeration needed. The complementary `TodoCompletedViewerHidePolicy` covers
+the owner-not-yet-done case: when a viewer personally completed a still-active shared task, it is hidden
+from that viewer's list after 30 days (reusing the existing per-viewer hide flag) while staying alive for
+the owner (decision #2). Still disabled + dry-run by default.
+
 ### feat: data-retention — purge long-expired refresh tokens (2026-07-07)
 
 Wires AuthApi into the retention subsystem and adds `ExpiredRefreshTokenPurgePolicy`, which physically
