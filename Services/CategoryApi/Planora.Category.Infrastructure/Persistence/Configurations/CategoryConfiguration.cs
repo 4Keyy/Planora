@@ -46,6 +46,10 @@ namespace Planora.Category.Infrastructure.Persistence.Configurations
             builder.HasIndex(x => x.UserId);
             builder.HasIndex(x => new { x.UserId, x.IsDeleted });
             builder.HasIndex(x => x.CreatedAt);
+
+            // Retention purge scan: rows soft-deleted before the grace cutoff (IsDeleted + DeletedAt range).
+            builder.HasIndex(x => new { x.IsDeleted, x.DeletedAt })
+                .HasDatabaseName("ix_categories_isdeleted_deletedat");
         }
     }
 }

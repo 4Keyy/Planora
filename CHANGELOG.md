@@ -41,7 +41,22 @@ unit-testable without PostgreSQL. Still ships disabled + dry-run by default.
 
 Performance: bounds previously-unbounded growth of the outbox/inbox tables across four services.
 
-### fix: plan-verification audit — close health, validation, logging & dead-code gaps (2026-06-25)
+### feat: data-retention — hard-purge soft-deleted rows after the grace window (2026-07-07)
+
+Physically removes rows that have been soft-deleted longer than `Retention:SoftDeleteGraceDays`
+(default 7) — the grace window doubles as the recovery window. Generic
+`SoftDeletedPurgePolicy<TEntity>` is wired for `Category` (CategoryApi) and `Comment`
+(CollaborationApi); TodoApi uses a bespoke `TodoSoftDeletePurgePolicy` that additionally deletes the
+orphaned `UserTodoViewPreference` rows (that table has no FK/cascade to `todo_items`) and purges
+subtasks before their parents to respect the `NO ACTION` self-FK. Cross-service cascade already
+happened at soft-delete time, so the purge publishes no events — it only reclaims storage.
+
+Adds a `(IsDeleted, DeletedAt)` scan index per table: via the EF model for Category/Collaboration
+(materialised by `EnsureCreated`) and via idempotent startup DDL for TodoApi (matching its existing
+startup-DDL convention, since TodoApi bootstraps through migrations). Still disabled + dry-run by default.
+
+Performance: bounds unbounded accumulation of soft-deleted rows; the scan index keeps the daily
+purge a range seek rather than a full-table scan. — close health, validation, logging & dead-code gaps (2026-06-25)
 
 A verification pass over the implementation plan. The large majority of planned items were already
 implemented and were confirmed correct (full backend build green; 940 backend + 551 frontend tests

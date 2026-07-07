@@ -46,7 +46,8 @@ namespace Planora.Collaboration.Infrastructure
             // Retention: purge processed outbox/inbox rows past their configured window. Safety-gated
             // (advisory lock + tripwire + dry-run) and disabled by default until an operator opts in.
             services.AddRetention(configuration)
-                .AddRetentionPolicy<ProcessedMessagePurgePolicy>();
+                .AddRetentionPolicy<ProcessedMessagePurgePolicy>()
+                .AddRetentionPolicy<SoftDeletedPurgePolicy<Planora.Collaboration.Domain.Entities.Comment>>();
 
             // Current user context
             services.AddHttpContextAccessor();
