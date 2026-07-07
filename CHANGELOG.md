@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: data-retention — notification housekeeping + delete cascade (2026-07-07)
+
+RealtimeApi notification-log retention (B4/B5) plus the missing cross-service delete cascade:
+
+- Three retention policies — read notifications purged `Retention:ReadNotificationDays` after they were
+  read (default 3), unread purged after `UnreadNotificationDays` (default 90), delivered delivery-audit
+  rows purged after `NotificationDeliveryDays` (default 30). Registered only when RealtimeApi has a
+  database configured; the shared processed-outbox purge is registered here too.
+- **Delete cascade** — `Notification` carries a `TaskId`/`UserId` but no cross-service FK, so a deleted
+  task or user previously orphaned its notifications forever. New `TaskDeletedNotificationCleanupHandler`
+  and `UserDeletedNotificationCleanupHandler` consume the existing integration events and hard-delete the
+  matching notifications and their delivery rows (via new `INotificationStore.DeleteByTaskId/UserIdAsync`).
+- Scan indexes `(IsRead, ReadAtUtc)`, `(IsRead, OccurredOnUtc)`, `(DeliveredAtUtc)` added via idempotent
+  startup DDL. Still disabled + dry-run by default.
+
+Performance: bounds notification/delivery table growth; closes the notification-orphan leak on task/user deletion.
+
 ### feat: data-retention subsystem — foundation (2026-07-07)
 
 First slice of the data-retention / hard-purge subsystem that physically removes stale data

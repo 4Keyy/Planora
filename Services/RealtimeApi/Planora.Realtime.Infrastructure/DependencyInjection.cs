@@ -12,6 +12,9 @@ using Planora.Realtime.Application.Interfaces;
 using Planora.Realtime.Infrastructure.Grpc;
 using Planora.Realtime.Infrastructure.Persistence;
 using Planora.Realtime.Infrastructure.Services;
+using Planora.Realtime.Application.Features.IntegrationEvents;
+using Planora.BuildingBlocks.Infrastructure.Retention;
+using Planora.BuildingBlocks.Infrastructure.Retention.Policies;
 
 namespace Planora.Realtime.Infrastructure;
 
@@ -77,6 +80,12 @@ public static class DependencyInjection
         services.AddScoped<NotificationEventHandler>();
         services.AddScoped<RealtimeSyncEventHandler>();
 
+        // Cascade cleanup of the notification log when a task or user is deleted upstream. Same concrete-
+        // type registration requirement as above (the bus resolves the concrete handler). They depend on
+        // INotificationStore, which degrades to a no-op when no database is configured.
+        services.AddScoped<TaskDeletedNotificationCleanupHandler>();
+        services.AddScoped<UserDeletedNotificationCleanupHandler>();
+
         // T2.5 — durable notification log. Wired conditionally on a configured
         // connection string so test hosts and ephemeral local runs (which don't
         // yet provide a Postgres) keep starting without the DB dependency.
@@ -121,6 +130,15 @@ public static class DependencyInjection
 
             services.AddHealthChecks()
                 .AddDbContextCheck<RealtimeDbContext>("realtime-dbcontext");
+
+            // Retention: notification-log housekeeping (read 3d / unread 90d / deliveries 30d) plus the
+            // processed outbox purge. Registered only when a database is configured; safety-gated
+            // (advisory lock + tripwire + dry-run) and disabled by default.
+            services.AddRetention(configuration)
+                .AddRetentionPolicy<ProcessedMessagePurgePolicy>()
+                .AddRetentionPolicy<Retention.ReadNotificationPurgePolicy>()
+                .AddRetentionPolicy<Retention.UnreadNotificationPurgePolicy>()
+                .AddRetentionPolicy<Retention.NotificationDeliveryPurgePolicy>();
         }
 
         // No-DB fallbacks (test hosts / ephemeral local runs): the consumer still pushes ephemerally

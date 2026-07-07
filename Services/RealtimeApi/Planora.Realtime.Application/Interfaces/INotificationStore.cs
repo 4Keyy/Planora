@@ -19,4 +19,18 @@ public interface INotificationStore
     /// duplicate (already handled) — the caller must NOT re-deliver.
     /// </returns>
     Task<bool> TryAddAsync(Notification notification, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hard-deletes every notification (and its delivery rows) scoped to a task that has been deleted
+    /// upstream, so the notification log does not keep orphaned rows pointing at a task that no longer
+    /// exists. Idempotent — a redelivered TaskDeleted event simply finds nothing left. Returns the
+    /// number of notification rows removed.
+    /// </summary>
+    Task<int> DeleteByTaskIdAsync(Guid taskId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hard-deletes every notification (and its delivery rows) belonging to a user that has been
+    /// deleted upstream. Idempotent. Returns the number of notification rows removed.
+    /// </summary>
+    Task<int> DeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
 }
