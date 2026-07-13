@@ -4,6 +4,24 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: data-retention — purge soft-deleted user accounts (2026-07-08)
+
+Closes the final accumulation vector found by the completeness audit: a deleted account is soft-deleted
+only, and unlike every other soft-deletable entity it was never physically purged. `UserSoftDeletePurgePolicy`
+(Auth) now removes accounts soft-deleted longer than `SoftDeleteGraceDays`, honouring the "soft-deleted ⇒
+really deleted after the grace window" rule for accounts too (and advancing GDPR erasure). It is bespoke
+rather than the generic `SoftDeletedPurgePolicy<User>` because dependent rows would otherwise block or
+orphan the delete: it removes friendships first (their FK to `User` is `RESTRICT`), then refresh tokens,
+login/password history, recovery codes and roles — all with `IgnoreQueryFilters` so rows belonging to a
+deleted user are visible — then the user. Audit-log rows are deliberately kept as the forensic record; the
+cross-service cascade already ran at soft-delete time, so nothing is re-published.
+
+Enabled by default (`PurgeDeletedUsers`) but, like the whole subsystem, inert until the master switch is on
+and dry-run is off; set it false where legal/GDPR policy requires retaining deleted-account records.
+
+Every accumulating table across all six services is now purged, bounded, or covered by an opt-in mechanism.
+Security: advances data minimisation / right-to-erasure for deleted accounts.
+
 ### feat: data-retention — complete coverage (recovery codes, friendships, messages) (2026-07-08)
 
 Closes the last accumulation vectors so retention covers every growing table:

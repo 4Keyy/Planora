@@ -351,6 +351,7 @@ batched deletes.
 | `Retention__AuditLogDays` | `365` | Audit-log retention when enabled. |
 | `Retention__PurgeUsedRecoveryCodes` | `true` | Reap spent 2FA recovery codes (safe housekeeping). |
 | `Retention__RecoveryCodeUsedDays` | `30` | Age (by `UsedAt`) at which spent recovery codes are purged. |
+| `Retention__PurgeDeletedUsers` | `true` | Physically purge soft-deleted accounts (and all Auth-owned dependent rows) after `SoftDeleteGraceDays`. Set false for legal/GDPR retention of deleted accounts. |
 | `Retention__PurgeFriendships` | `false` | Opt-in: purge terminal (rejected/cancelled/removed) friendship rows. |
 | `Retention__FriendshipTerminalDays` | `90` | Age at which terminal friendship rows are purged. |
 | `Retention__PurgeMessages` | `false` | Opt-in: purge old messages (user content — a product decision). |

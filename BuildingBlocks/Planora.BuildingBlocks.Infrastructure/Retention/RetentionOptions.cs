@@ -93,6 +93,15 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         // Spent (already-used) recovery codes are safe to reap — enabled by default.
         public bool PurgeUsedRecoveryCodes { get; set; } = true;
 
+        /// <summary>
+        /// Physically purge soft-deleted user accounts (and all their Auth-owned dependent rows) after
+        /// <see cref="SoftDeleteGraceDays"/>. Honours the "soft-deleted ⇒ really deleted after the grace
+        /// window" rule for accounts too. On by default, but — like the whole subsystem — gated behind the
+        /// master switch and dry-run, so nothing is erased until an operator deliberately enables it. Set
+        /// false where legal/GDPR policy requires keeping deleted-account records.
+        /// </summary>
+        public bool PurgeDeletedUsers { get; set; } = true;
+
         // Security-forensics vectors ship OFF — enabling them is a compliance decision.
         public bool PurgeLoginHistory { get; set; } = false;
         public bool PurgeAuditLogs { get; set; } = false;

@@ -384,6 +384,7 @@ pass is guarded by an advisory lock + tripwire.
 | `Notifications` / `NotificationDeliveries` | Realtime | cascade-deleted when their task or user is deleted; deliveries also purged after `NotificationDeliveryDays` (30) | `(DeliveredAtUtc)` |
 | `OutboxMessages` / `InboxMessages` | all | `Status=Processed` older than `OutboxProcessedDays` / `InboxProcessedDays` (7) | `(Status, ProcessedOnUtc)` |
 | `RefreshTokens` | Auth | `ExpiresAt` older than `ExpiredRefreshTokenDays` (30) | `(ExpiresAt)` |
+| `Users` (soft-deleted) | Auth | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) — a bespoke policy deletes all Auth-owned dependents first (friendships, refresh tokens, login/password history, recovery codes, roles) then the user | `(IsDeleted)` |
 | `LoginHistory` | Auth | opt-in: `LoginAt` older than `LoginHistoryDays` (180) | `(LoginAt)` |
 | `AuditLogs` | Auth | opt-in: `CreatedAt` older than `AuditLogDays` (365) | `(CreatedAt)` |
 | `UserRecoveryCodes` (used) | Auth | spent codes (`IsUsed`) older than `RecoveryCodeUsedDays` (30) | — (tiny table) |

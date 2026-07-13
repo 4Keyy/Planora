@@ -138,7 +138,19 @@ public sealed class ExtraCleanupPolicyTests
     {
         var d = new RetentionOptions();
         Assert.True(d.PurgeUsedRecoveryCodes);   // safe housekeeping → on
+        Assert.True(d.PurgeDeletedUsers);        // requirement #1 applies to accounts too → on
         Assert.False(d.PurgeFriendships);        // user-meaningful → opt-in
         Assert.False(d.PurgeMessages);           // user content → opt-in
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    public void UserPurge_HonoursSoftDeleteRuleForAccounts()
+    {
+        var policy = new UserSoftDeletePurgePolicy(new AlwaysGrantLock(), NullLogger<UserSoftDeletePurgePolicy>.Instance);
+
+        Assert.Equal("soft-delete-purge:User", policy.Name);
+        Assert.True(policy.IsEnabled(new RetentionOptions()));
+        Assert.False(policy.IsEnabled(new RetentionOptions { PurgeDeletedUsers = false }));
     }
 }
