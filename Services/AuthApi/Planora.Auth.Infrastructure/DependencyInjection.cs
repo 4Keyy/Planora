@@ -36,6 +36,8 @@ public static class DependencyInjection
         services.AddRetention(configuration)
             .AddRetentionPolicy<ProcessedMessagePurgePolicy>()
             .AddRetentionPolicy<Retention.ExpiredRefreshTokenPurgePolicy>()
+            .AddRetentionPolicy<Retention.UsedRecoveryCodePurgePolicy>()
+            .AddRetentionPolicy<Retention.FriendshipTerminalPurgePolicy>()
             .AddRetentionPolicy<Retention.LoginHistoryPurgePolicy>()
             .AddRetentionPolicy<Retention.AuditLogPurgePolicy>();
 

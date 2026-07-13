@@ -72,6 +72,15 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         /// <summary>V10: audit-log retention (security forensics — kept long).</summary>
         public int AuditLogDays { get; set; } = 365;
 
+        /// <summary>V11: age (by last transition) at which terminal friendship rows are purged.</summary>
+        public int FriendshipTerminalDays { get; set; } = 90;
+
+        /// <summary>V12: age (by <c>UsedAt</c>) at which spent recovery codes are purged.</summary>
+        public int RecoveryCodeUsedDays { get; set; } = 30;
+
+        /// <summary>V13: age (by <c>CreatedAt</c>) at which messages are purged (opt-in — user content).</summary>
+        public int MessageDays { get; set; } = 365;
+
         // ── Per-vector enable flags ────────────────────────────────────────────────────────────
         public bool PurgeSoftDeleted { get; set; } = true;
         public bool PurgeCompletedTasks { get; set; } = true;
@@ -81,8 +90,15 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         public bool PurgeOutboxInbox { get; set; } = true;
         public bool PurgeExpiredRefreshTokens { get; set; } = true;
 
+        // Spent (already-used) recovery codes are safe to reap — enabled by default.
+        public bool PurgeUsedRecoveryCodes { get; set; } = true;
+
         // Security-forensics vectors ship OFF — enabling them is a compliance decision.
         public bool PurgeLoginHistory { get; set; } = false;
         public bool PurgeAuditLogs { get; set; } = false;
+
+        // Touch user-meaningful history — ship OFF, enabling is a product decision.
+        public bool PurgeFriendships { get; set; } = false;
+        public bool PurgeMessages { get; set; } = false;
     }
 }

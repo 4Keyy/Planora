@@ -4,6 +4,24 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: data-retention — complete coverage (recovery codes, friendships, messages) (2026-07-08)
+
+Closes the last accumulation vectors so retention covers every growing table:
+
+- **Spent recovery codes** (`UsedRecoveryCodePurgePolicy`, Auth) — a used 2FA recovery code can never be
+  redeemed again, so rows older than `RecoveryCodeUsedDays` (30) are reaped. **On by default** (unambiguous
+  housekeeping); unused codes are always kept.
+- **Terminal friendships** (`FriendshipTerminalPurgePolicy`, Auth) — Rejected/Cancelled/Removed rows older
+  than `FriendshipTerminalDays` (90) are purged; Accepted/Pending are never touched. **Opt-in**
+  (`PurgeFriendships`, default false) since a removed/rejected record is arguably user history.
+- **Old messages** (`MessageRetentionPurgePolicy`, Messaging) — messages older than `MessageDays` (365).
+  **Opt-in** (`PurgeMessages`, default false) because deleting a user's conversation history is a product
+  decision, not something that happens by merely enabling the subsystem. The existing `(CreatedAt)` index
+  covers the scan.
+
+With these, every service's accumulating tables are either actively purged, bounded, or covered by an
+opt-in mechanism. Eligibility and the safe/opt-in defaults are covered by tests.
+
 ### feat: data-retention — startup catch-up pass (2026-07-08)
 
 The retention scheduler now runs a catch-up pass shortly after **every** startup (default on,

@@ -349,6 +349,12 @@ batched deletes.
 | `Retention__LoginHistoryDays` | `180` | Login-history retention when enabled. |
 | `Retention__PurgeAuditLogs` | `false` | Opt-in: enable audit-log purge (forensics). |
 | `Retention__AuditLogDays` | `365` | Audit-log retention when enabled. |
+| `Retention__PurgeUsedRecoveryCodes` | `true` | Reap spent 2FA recovery codes (safe housekeeping). |
+| `Retention__RecoveryCodeUsedDays` | `30` | Age (by `UsedAt`) at which spent recovery codes are purged. |
+| `Retention__PurgeFriendships` | `false` | Opt-in: purge terminal (rejected/cancelled/removed) friendship rows. |
+| `Retention__FriendshipTerminalDays` | `90` | Age at which terminal friendship rows are purged. |
+| `Retention__PurgeMessages` | `false` | Opt-in: purge old messages (user content — a product decision). |
+| `Retention__MessageDays` | `365` | Age (by `CreatedAt`) at which messages are purged when enabled. |
 
 Each content vector also has its own `Retention__Purge*` toggle (e.g. `PurgeSoftDeleted`,
 `PurgeCompletedTasks`, `PurgeReadNotifications`, `PurgeOutboxInbox`, `PurgeExpiredRefreshTokens`), all

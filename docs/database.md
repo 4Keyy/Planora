@@ -386,6 +386,9 @@ pass is guarded by an advisory lock + tripwire.
 | `RefreshTokens` | Auth | `ExpiresAt` older than `ExpiredRefreshTokenDays` (30) | `(ExpiresAt)` |
 | `LoginHistory` | Auth | opt-in: `LoginAt` older than `LoginHistoryDays` (180) | `(LoginAt)` |
 | `AuditLogs` | Auth | opt-in: `CreatedAt` older than `AuditLogDays` (365) | `(CreatedAt)` |
+| `UserRecoveryCodes` (used) | Auth | spent codes (`IsUsed`) older than `RecoveryCodeUsedDays` (30) | — (tiny table) |
+| `Friendships` (terminal) | Auth | opt-in: Rejected/Cancelled/Removed older than `FriendshipTerminalDays` (90) | — (small table) |
+| `Messages` | Messaging | opt-in (user content): `CreatedAt` older than `MessageDays` (365) | `(CreatedAt)` |
 
 Dead-lettered / failed outbox/inbox rows are deliberately kept for investigation. The `(IsDeleted,
 DeletedAt)` scan indexes land via the EF model on the migration-less services (created by `EnsureCreated`)
