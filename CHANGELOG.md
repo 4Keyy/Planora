@@ -4,6 +4,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: data-retention — startup catch-up pass (2026-07-08)
+
+The retention scheduler now runs a catch-up pass shortly after **every** startup (default on,
+`Retention:RunOnStartup`), in addition to the daily `RunAtHourUtc` schedule, so data that is already past
+its window is cleaned on each launch instead of waiting hours for the next scheduled run. A short
+`StartupDelaySeconds` (default 60) lets the database and broker come up first; the pass is idempotent and
+advisory-lock-guarded, so restart-heavy environments simply find less to do each time. Covered by a
+hosted-service start/stop test.
+
 ### feat: data-retention — security-forensics retention (login history, audit log) (2026-07-08)
 
 Adds the two forensics vectors, deliberately kept far longer than user content and **opt-in**:

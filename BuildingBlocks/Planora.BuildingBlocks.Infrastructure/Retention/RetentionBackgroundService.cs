@@ -38,8 +38,27 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
             }
 
             _logger.LogInformation(
-                "Retention scheduler started — daily at {Hour:00}:00 UTC, dry-run={DryRun}, {PolicyCount} policy(ies) registered",
-                _options.RunAtHourUtc, _options.DryRun, _policies.Count());
+                "Retention scheduler started — daily at {Hour:00}:00 UTC, dry-run={DryRun}, runOnStartup={RunOnStartup}, {PolicyCount} policy(ies) registered",
+                _options.RunAtHourUtc, _options.DryRun, _options.RunOnStartup, _policies.Count());
+
+            // Startup catch-up pass: on every launch, purge data that is already past its window instead of
+            // waiting for the next RunAtHourUtc. A short delay first lets the database and broker come up so
+            // the pass does not race the app's own startup. Deletes are idempotent and guarded by the
+            // advisory lock, so a restart-heavy environment simply finds less to do each time.
+            if (_options.RunOnStartup)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, _options.StartupDelaySeconds)), stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+
+                _logger.LogInformation("Retention running startup catch-up pass");
+                await RunAllPoliciesAsync(stoppingToken);
+            }
 
             while (!stoppingToken.IsCancellationRequested)
             {

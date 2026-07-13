@@ -333,6 +333,8 @@ batched deletes.
 | `Retention__Enabled` | `false` | Master switch. When false the scheduler never runs. |
 | `Retention__DryRun` | `true` | Count and log only — delete nothing. On-prod rehearsal. |
 | `Retention__RunAtHourUtc` | `3` | UTC hour (0–23) the daily pass fires. |
+| `Retention__RunOnStartup` | `true` | Also run a catch-up pass shortly after every startup, so data already past its window is cleaned on each launch — not only at `RunAtHourUtc`. |
+| `Retention__StartupDelaySeconds` | `60` | Delay before the startup catch-up pass, letting the database/broker come up first. |
 | `Retention__BatchSize` | `1000` | Rows deleted per batch statement. |
 | `Retention__MaxDeletionsPerRun` | `50000` | Tripwire: a pass finding more eligible rows aborts and alerts. |
 | `Retention__SoftDeleteGraceDays` | `7` | Grace before a soft-deleted row is physically purged. |

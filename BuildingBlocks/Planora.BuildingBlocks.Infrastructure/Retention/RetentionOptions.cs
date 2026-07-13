@@ -31,6 +31,16 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         /// </summary>
         public int MaxDeletionsPerRun { get; set; } = 50_000;
 
+        /// <summary>
+        /// Run a catch-up pass shortly after startup (in addition to the daily schedule), so data that is
+        /// already past its window is cleaned on <b>every launch</b> rather than waiting for the next
+        /// <see cref="RunAtHourUtc"/>.
+        /// </summary>
+        public bool RunOnStartup { get; set; } = true;
+
+        /// <summary>Delay before the startup catch-up pass, giving the database/broker time to come up.</summary>
+        public int StartupDelaySeconds { get; set; } = 60;
+
         // ── Retention windows (days) ───────────────────────────────────────────────────────────
         /// <summary>V1: grace between soft-delete (<c>DeletedAt</c>) and physical purge.</summary>
         public int SoftDeleteGraceDays { get; set; } = 7;
