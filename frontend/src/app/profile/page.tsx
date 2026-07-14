@@ -221,7 +221,7 @@ function MetricTile({
     <div className="bg-white p-4 dark:bg-gray-900">
       <dt className={LABEL}>{label}</dt>
       <dd className="mt-2 flex items-baseline gap-2">
-        <span className="truncate text-xl font-black tracking-tight text-gray-950 dark:text-gray-50">
+        <span className="min-w-0 truncate text-xl font-black tabular-nums tracking-tight text-gray-950 dark:text-gray-50">
           {value}
         </span>
         {active !== undefined && (
@@ -914,6 +914,17 @@ export default function ProfilePage() {
       : `data:image/png;base64,${twoFactorSetup.qrCodeUrl}`
     : ""
 
+  // Section reveal-on-scroll: each panel fades and lifts into place the first
+  // time it enters the viewport. Fully disabled under prefers-reduced-motion.
+  const revealProps = prefersReducedMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 20 },
+        whileInView: { opacity: 1, y: 0 },
+        viewport: { once: true, margin: "-60px" },
+        transition: { duration: 0.5, ease: EASE_OUT_EXPO },
+      }
+
   /* ---------------- Render ---------------- */
 
   return (
@@ -1010,7 +1021,7 @@ export default function ProfilePage() {
           <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 dark:border-gray-800 dark:bg-gray-800 sm:grid-cols-4">
             <MetricTile label="Active sessions" value={security?.activeSessionsCount ?? sessions.length ?? "—"} />
             <MetricTile label="Member since" value={formatDateShort(user?.createdAt)} />
-            <MetricTile label="Last login" value={formatDate(user?.lastLoginAt)} />
+            <MetricTile label="Last login" value={formatDateShort(user?.lastLoginAt)} />
             <MetricTile label="Role" value={roles.length ? roles.join(", ") : "User"} />
           </dl>
         </div>
@@ -1037,15 +1048,25 @@ export default function ProfilePage() {
                       transition={TWEEN_FAST}
                       aria-current={isActive ? "true" : undefined}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-xl border border-transparent p-2.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-1 dark:focus-visible:ring-gray-100",
-                        isActive
-                          ? "bg-gray-100 dark:bg-gray-800"
-                          : "hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        "relative flex w-full items-center gap-3 rounded-xl border border-transparent p-2.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-1 dark:focus-visible:ring-gray-100",
+                        !isActive && "hover:bg-gray-50 dark:hover:bg-gray-800/50"
                       )}
                     >
+                      {isActive && (
+                        <motion.span
+                          layoutId="rail-active-pill"
+                          className="absolute inset-0 rounded-xl bg-gray-100 dark:bg-gray-800"
+                          transition={
+                            prefersReducedMotion
+                              ? { duration: 0 }
+                              : { type: "spring", stiffness: 420, damping: 34 }
+                          }
+                          aria-hidden
+                        />
+                      )}
                       <span
                         className={cn(
-                          "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border transition-colors",
+                          "relative z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border transition-colors",
                           isActive
                             ? "border-gray-200 bg-white text-gray-950 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50"
                             : "border-transparent text-gray-400 dark:text-gray-500"
@@ -1053,7 +1074,7 @@ export default function ProfilePage() {
                       >
                         <Icon className="h-4 w-4" strokeWidth={2.4} aria-hidden />
                       </span>
-                      <span className="min-w-0 flex-1">
+                      <span className="relative z-10 min-w-0 flex-1">
                         <span
                           className={cn(
                             "block truncate text-sm font-black tracking-tight",
@@ -1069,7 +1090,7 @@ export default function ProfilePage() {
                       {badge !== undefined && badge !== null && (
                         <span
                           className={cn(
-                            "flex-shrink-0 rounded-full px-2 py-1 text-[10px] font-black",
+                            "relative z-10 flex-shrink-0 rounded-full px-2 py-1 text-[10px] font-black tabular-nums",
                             isActive
                               ? "border border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400"
                               : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
@@ -1119,7 +1140,7 @@ export default function ProfilePage() {
         {/* ============ CONTENT ============ */}
         <div className="flex min-w-0 flex-col gap-11">
           {/* ---------- PROFILE ---------- */}
-          <section aria-labelledby="section-profile" className="scroll-mt-24">
+          <motion.section {...revealProps} aria-labelledby="section-profile" className="scroll-mt-24">
             <SectionHeading index="01" title="Profile" description="Your name, avatar and account details." />
             <div className="flex flex-col gap-[18px]">
               <SectionCard
@@ -1268,10 +1289,10 @@ export default function ProfilePage() {
                 </div>
               </SectionCard>
             </div>
-          </section>
+          </motion.section>
 
           {/* ---------- SECURITY ---------- */}
-          <section ref={setSectionRef("security")} aria-labelledby="section-security" className="scroll-mt-24">
+          <motion.section ref={setSectionRef("security")} {...revealProps} aria-labelledby="section-security" className="scroll-mt-24">
             <SectionHeading index="02" title="Security" description="Password, two-factor, sessions and account removal." />
             <div className="flex flex-col gap-[18px]">
               <SectionCard
@@ -1519,10 +1540,10 @@ export default function ProfilePage() {
                 </SectionCard>
               </div>
             </div>
-          </section>
+          </motion.section>
 
           {/* ---------- SESSIONS ---------- */}
-          <section ref={setSectionRef("sessions")} aria-labelledby="section-sessions" className="scroll-mt-24">
+          <motion.section ref={setSectionRef("sessions")} {...revealProps} aria-labelledby="section-sessions" className="scroll-mt-24">
             <SectionHeading index="03" title="Sessions" description="Devices currently signed in to your account." />
             <SectionCard
               icon={Monitor}
@@ -1592,10 +1613,10 @@ export default function ProfilePage() {
                 <EmptyState icon={Monitor} title="No active sessions" description="New sessions will appear here after sign-in." />
               )}
             </SectionCard>
-          </section>
+          </motion.section>
 
           {/* ---------- HISTORY ---------- */}
-          <section ref={setSectionRef("history")} aria-labelledby="section-history" className="scroll-mt-24">
+          <motion.section ref={setSectionRef("history")} {...revealProps} aria-labelledby="section-history" className="scroll-mt-24">
             <SectionHeading index="04" title="History" description="Recent authentication activity." />
             <SectionCard
               icon={HistoryIcon}
@@ -1671,10 +1692,10 @@ export default function ProfilePage() {
                 <EmptyState icon={HistoryIcon} title="No login history" description="Authentication events will appear here." />
               )}
             </SectionCard>
-          </section>
+          </motion.section>
 
           {/* ---------- FRIENDS ---------- */}
-          <section ref={setSectionRef("friends")} aria-labelledby="section-friends" className="scroll-mt-24">
+          <motion.section ref={setSectionRef("friends")} {...revealProps} aria-labelledby="section-friends" className="scroll-mt-24">
             <SectionHeading index="05" title="Friends" description="People you can share tasks with." />
             <div className="flex flex-col gap-[18px]">
               <SectionCard icon={UserPlus} title="Add a friend" description="By account email, or by their User ID.">
@@ -1827,7 +1848,7 @@ export default function ProfilePage() {
                       {friends.items.map((friend) => (
                         <li
                           key={friend.id}
-                          className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 transition-colors hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-600"
+                          className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm dark:border-gray-800 dark:hover:border-gray-600"
                         >
                           <Avatar
                             src={friend.profilePictureUrl}
@@ -1879,11 +1900,11 @@ export default function ProfilePage() {
                 )}
               </SectionCard>
             </div>
-          </section>
+          </motion.section>
 
           {/* ---------- ADMIN (role-gated) ---------- */}
           {isAdmin && (
-            <section ref={setSectionRef("admin")} aria-labelledby="section-admin" className="scroll-mt-24">
+            <motion.section ref={setSectionRef("admin")} {...revealProps} aria-labelledby="section-admin" className="scroll-mt-24">
               <SectionHeading index="06" title="Admin" description="Platform statistics and user operations." />
               <div className="flex flex-col gap-[18px]">
                 <SectionCard
@@ -2048,7 +2069,7 @@ export default function ProfilePage() {
                   </SectionCard>
                 </div>
               </div>
-            </section>
+            </motion.section>
           )}
         </div>
       </div>
