@@ -50,7 +50,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import { EASE_OUT_EXPO, TWEEN_FAST } from "@/lib/animations"
+import { TWEEN_FAST } from "@/lib/animations"
 import type {
   UserDto,
   UserSecurityDto,
@@ -914,26 +914,10 @@ export default function ProfilePage() {
       : `data:image/png;base64,${twoFactorSetup.qrCodeUrl}`
     : ""
 
-  // Section reveal-on-scroll: each panel fades and lifts into place the first
-  // time it enters the viewport. Fully disabled under prefers-reduced-motion.
-  const revealProps = prefersReducedMotion
-    ? {}
-    : {
-        initial: { opacity: 0, y: 20 },
-        whileInView: { opacity: 1, y: 0 },
-        viewport: { once: true, margin: "-60px" },
-        transition: { duration: 0.5, ease: EASE_OUT_EXPO },
-      }
-
   /* ---------------- Render ---------------- */
 
   return (
-    <motion.div
-      initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
-      className="min-w-0 overflow-x-hidden pb-24"
-    >
+    <div className="min-w-0 overflow-x-clip pb-24">
       {/* ============ IDENTITY HEADER ============ */}
       <section
         ref={setSectionRef("profile")}
@@ -1029,7 +1013,7 @@ export default function ProfilePage() {
 
       <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[268px_minmax(0,1fr)] lg:gap-8">
         {/* ============ RAIL ============ */}
-        <div className="lg:sticky lg:top-5 lg:self-start">
+        <div className="lg:sticky lg:top-24 lg:self-start">
           <nav
             aria-label="Profile sections"
             className={cn(CARD, "p-1.5")}
@@ -1140,7 +1124,7 @@ export default function ProfilePage() {
         {/* ============ CONTENT ============ */}
         <div className="flex min-w-0 flex-col gap-11">
           {/* ---------- PROFILE ---------- */}
-          <motion.section {...revealProps} aria-labelledby="section-profile" className="scroll-mt-24">
+          <section aria-labelledby="section-profile" className="scroll-mt-24">
             <SectionHeading index="01" title="Profile" description="Your name, avatar and account details." />
             <div className="flex flex-col gap-[18px]">
               <SectionCard
@@ -1289,10 +1273,10 @@ export default function ProfilePage() {
                 </div>
               </SectionCard>
             </div>
-          </motion.section>
+          </section>
 
           {/* ---------- SECURITY ---------- */}
-          <motion.section ref={setSectionRef("security")} {...revealProps} aria-labelledby="section-security" className="scroll-mt-24">
+          <section ref={setSectionRef("security")} aria-labelledby="section-security" className="scroll-mt-24">
             <SectionHeading index="02" title="Security" description="Password, two-factor, sessions and account removal." />
             <div className="flex flex-col gap-[18px]">
               <SectionCard
@@ -1540,10 +1524,10 @@ export default function ProfilePage() {
                 </SectionCard>
               </div>
             </div>
-          </motion.section>
+          </section>
 
           {/* ---------- SESSIONS ---------- */}
-          <motion.section ref={setSectionRef("sessions")} {...revealProps} aria-labelledby="section-sessions" className="scroll-mt-24">
+          <section ref={setSectionRef("sessions")} aria-labelledby="section-sessions" className="scroll-mt-24">
             <SectionHeading index="03" title="Sessions" description="Devices currently signed in to your account." />
             <SectionCard
               icon={Monitor}
@@ -1613,10 +1597,10 @@ export default function ProfilePage() {
                 <EmptyState icon={Monitor} title="No active sessions" description="New sessions will appear here after sign-in." />
               )}
             </SectionCard>
-          </motion.section>
+          </section>
 
           {/* ---------- HISTORY ---------- */}
-          <motion.section ref={setSectionRef("history")} {...revealProps} aria-labelledby="section-history" className="scroll-mt-24">
+          <section ref={setSectionRef("history")} aria-labelledby="section-history" className="scroll-mt-24">
             <SectionHeading index="04" title="History" description="Recent authentication activity." />
             <SectionCard
               icon={HistoryIcon}
@@ -1692,10 +1676,10 @@ export default function ProfilePage() {
                 <EmptyState icon={HistoryIcon} title="No login history" description="Authentication events will appear here." />
               )}
             </SectionCard>
-          </motion.section>
+          </section>
 
           {/* ---------- FRIENDS ---------- */}
-          <motion.section ref={setSectionRef("friends")} {...revealProps} aria-labelledby="section-friends" className="scroll-mt-24">
+          <section ref={setSectionRef("friends")} aria-labelledby="section-friends" className="scroll-mt-24">
             <SectionHeading index="05" title="Friends" description="People you can share tasks with." />
             <div className="flex flex-col gap-[18px]">
               <SectionCard icon={UserPlus} title="Add a friend" description="By account email, or by their User ID.">
@@ -1902,11 +1886,11 @@ export default function ProfilePage() {
                 )}
               </SectionCard>
             </div>
-          </motion.section>
+          </section>
 
           {/* ---------- ADMIN (role-gated) ---------- */}
           {isAdmin && (
-            <motion.section ref={setSectionRef("admin")} {...revealProps} aria-labelledby="section-admin" className="scroll-mt-24">
+            <section ref={setSectionRef("admin")} aria-labelledby="section-admin" className="scroll-mt-24">
               <SectionHeading index="06" title="Admin" description="Platform statistics and user operations." />
               <div className="flex flex-col gap-[18px]">
                 <SectionCard
@@ -2071,10 +2055,10 @@ export default function ProfilePage() {
                   </SectionCard>
                 </div>
               </div>
-            </motion.section>
+            </section>
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
