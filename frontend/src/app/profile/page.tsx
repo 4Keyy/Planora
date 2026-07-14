@@ -1704,6 +1704,7 @@ export default function ProfilePage() {
                     <div className="flex gap-2">
                       <Input
                         type="email"
+                        autoComplete="off"
                         placeholder="friend@planora.app"
                         value={friendEmailInput}
                         onChange={(e) => setFriendEmailInput(e.target.value)}
@@ -1720,6 +1721,7 @@ export default function ProfilePage() {
                   <FieldGroup label="By user ID">
                     <div className="flex gap-2">
                       <Input
+                        autoComplete="off"
                         placeholder="00000000-0000-0000-0000-000000000000"
                         value={friendIdInput}
                         onChange={(e) => setFriendIdInput(e.target.value)}
@@ -1736,7 +1738,7 @@ export default function ProfilePage() {
                 </div>
               </SectionCard>
 
-              <div className="grid gap-[18px] md:grid-cols-2">
+              <div className="grid items-start gap-[18px] md:grid-cols-2">
                 <SectionCard
                   icon={ArrowLeft}
                   title="Incoming"
@@ -1934,7 +1936,7 @@ export default function ProfilePage() {
                   )}
                 </SectionCard>
 
-                <div className="grid gap-[18px] xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,1fr)]">
+                <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,1fr)]">
                   <SectionCard icon={Search} title="User management" description="Search and filter accounts.">
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       <Input
