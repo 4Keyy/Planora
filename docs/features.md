@@ -91,8 +91,9 @@ Let users manage profile data, password/email changes, email verification, sessi
 
 ### Frontend Behavior
 
-- The profile route presents account work as a single responsive profile center: a summary header, horizontal-on-mobile/side-on-desktop section navigation, and animated panels for identity, security, sessions, login history, friends, and admin tools.
-- Profile panels use calm opacity/position transitions through `framer-motion` and keep existing Auth API calls for profile update, password/email changes, email verification, 2FA setup, session revocation, friend requests, and admin user lookup.
+- The profile route presents account work as a single continuously scrolling profile center rendered in a monochrome "spec-grid" style with full light/dark theming: an identity header (avatar with click-or-drag upload, status pills, and a metric grid) followed by stacked sections for identity, security, sessions, login history, friends, and admin tools.
+- Navigation is a sticky side rail (horizontal scroller on mobile) driven by a scroll-spy: the rail highlights whichever section is in view via `aria-current`, and clicking a rail item smooth-scrolls to that section. All sections render at once; each section's data is fetched lazily the first time it scrolls into view, and per-section `Refresh` buttons re-fetch on demand.
+- Motion is limited to the page enter and rail tap feedback through `framer-motion`, and every animation is suppressed under `useReducedMotion()` (including switching smooth scroll to instant). All existing Auth API calls are preserved unchanged for profile update, password/email changes, email verification, 2FA setup, session revocation, friend requests, and admin user lookup.
 - Character-limited profile fields use the shared input counter and warning styling used elsewhere in the frontend.
 
 ## Friendships
