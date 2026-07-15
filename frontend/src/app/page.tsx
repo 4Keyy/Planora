@@ -61,7 +61,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="flex-1 flex flex-col items-center justify-center text-center px-4 py-16 sm:py-24 max-w-4xl mx-auto w-full">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={HERO_TRANSITION}
           className="space-y-8"
@@ -101,7 +101,7 @@ export default function HomePage() {
 
         {/* Features grid */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={FEATURES_TRANSITION}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-16 sm:mt-24 w-full text-left"

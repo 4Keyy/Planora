@@ -766,7 +766,7 @@ export default function TasksPage() {
         />
       ) : totalCount === 0 ? (
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 8 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ ...SPRING_GENTLE, delay: 0.1 }}
           className="rounded-2xl border border-dashed border-gray-200 bg-white p-16 text-center"

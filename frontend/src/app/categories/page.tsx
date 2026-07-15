@@ -33,7 +33,7 @@ type CategoryFormData = {
 function CategoryCardSkeleton() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15, scale: 0.96 }}
+      initial={{ opacity: 0 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       className="rounded-2xl border-2 border-gray-400 bg-transparent p-6 h-32 animate-pulse overflow-hidden"
     >
@@ -71,7 +71,7 @@ function CategoryCard({
     <>
       <motion.div
         layout
-        initial={{ opacity: 0, y: 15, scale: 0.96 }}
+        initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         whileHover={isControlHover ? undefined : { y: -4, scale: 1.008 }}
@@ -127,7 +127,7 @@ function CategoryCard({
 
         {/* Mobile Delete Button */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1, scale: 1 }}
           className="absolute top-3 right-3 md:hidden z-30"
         >
@@ -369,7 +369,7 @@ function CategoryModal({
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
             <div className="space-y-4">
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.05 }}
                 className="space-y-1.5"
@@ -389,7 +389,7 @@ function CategoryModal({
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
                 className="space-y-1.5"
@@ -409,7 +409,7 @@ function CategoryModal({
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.15 }}
                 className="space-y-1.5"
@@ -467,7 +467,7 @@ function CategoryModal({
             </div>
 
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.2 }}
               className="space-y-4"

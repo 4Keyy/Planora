@@ -141,7 +141,7 @@ export default function LoginPage() {
       {/* Right panel — form */}
       <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-6 lg:px-4 lg:py-12">
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={TWEEN_DELIBERATE}
           className="w-full max-w-sm space-y-7 rounded-3xl border border-gray-200/70 bg-white/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8 lg:space-y-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none"

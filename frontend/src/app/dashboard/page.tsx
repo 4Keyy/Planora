@@ -55,7 +55,7 @@ function ProgressCircle({ value, total }: { value: number; total: number }) {
   const percentage = total > 0 ? Math.round((value / total) * 100) : 0
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0 }}
       animate={{ opacity: 1, scale: 1 }}
       className="flex flex-col items-center gap-3"
     >
@@ -697,7 +697,7 @@ export default function DashboardPage() {
     <div className="space-y-6 md:space-y-10 pb-10">
       {/* Header section with Progress */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
         className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-br from-white via-white to-gray-50 rounded-2xl p-6 md:p-8 shadow-card border border-gray-100 relative overflow-hidden group hover:shadow-lg transition-all duration-500"
@@ -712,7 +712,7 @@ export default function DashboardPage() {
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-gray-400 rounded-full translate-y-1/3 -translate-x-1/3 blur-3xl pointer-events-none opacity-[0.01]" />
 
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.1, duration: 0.4 }}
           className="relative z-10 space-y-3"
@@ -741,7 +741,7 @@ export default function DashboardPage() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.15, duration: 0.4 }}
           className="relative z-10 flex items-center justify-center md:justify-end gap-6 bg-white/60 backdrop-blur-xl rounded-2xl p-5 border border-white/80 shadow-sm self-center md:self-auto min-w-[200px] hover:shadow-md transition-all"
@@ -793,13 +793,13 @@ export default function DashboardPage() {
             <>
               {activeTodos.length === 0 ? (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
+                  initial={{ opacity: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: "spring", stiffness: 200, damping: 25 }}
                   className="rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-br from-white via-gray-50 to-gray-50 p-12 md:p-16 text-center shadow-sm hover:shadow-md transition-all"
                 >
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
+                    initial={{ opacity: 0 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.1 }}
                     className="mx-auto h-20 w-20 rounded-2xl bg-gradient-to-br from-green-50 to-gray-50 flex items-center justify-center mb-6 border border-green-100"
@@ -906,7 +906,7 @@ export default function DashboardPage() {
               {/* Pagination - Beautiful */}
               {totalPages > 1 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="flex flex-wrap items-center justify-center gap-2 pt-8 pb-4"
                 >

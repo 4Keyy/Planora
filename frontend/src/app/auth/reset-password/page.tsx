@@ -49,7 +49,7 @@ function ResetPasswordContent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-transparent px-5 py-10 sm:px-6">
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={TWEEN_DELIBERATE}
         className="w-full max-w-sm rounded-3xl border border-gray-200/70 bg-white/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8"
