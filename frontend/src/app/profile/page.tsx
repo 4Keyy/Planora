@@ -174,7 +174,7 @@ function SectionCard({
   bodyClassName?: string
 }) {
   return (
-    <section className={cn(CARD, "flex h-full flex-col overflow-hidden", className)}>
+    <section className={cn(CARD, "flex flex-col overflow-hidden", className)}>
       <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
         <div className="flex min-w-0 items-center gap-3">
           {Icon && (
