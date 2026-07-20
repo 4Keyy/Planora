@@ -402,9 +402,9 @@ The two variants share the title editor, In Progress pill and branch but lay the
   Escape closes the modal but is a no-op (beyond popover/title) on the page.
 
 **Calendars are click-to-open everywhere except this page.** The branch page sidebar is the only
-place the calendar stays open; the modal's date token opens a popover, and the create panel uses a
-collapsible inline calendar (hidden until clicked) — so the calendar is never shown unprompted
-except on the dedicated branch page.
+place the calendar stays open; the modal's date token and the create panel's Due-date selector plate
+both open the calendar as an anchored popover (`DatePopover`) — so the calendar is never shown
+unprompted except on the dedicated branch page.
 
 **The date calendar is a two-click range picker** (`DateCalendar`, logic in the pure, unit-tested
 `computeNextDueRange`). The first click sets a single target date (the deadline). Clicking that same
@@ -491,7 +491,29 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
 - `frontend/src/components/todos/todo-card.tsx` runs a short local completion/reopen animation before calling the page-level status update, so list refreshes happen after the card has visually acknowledged the action.
 - Hidden/collapsed task cards blur the category pill until hover/focus, keeping category filtering visible without exposing it at rest.
 - Urgent, overdue, and due-today private cards use a red border only; shared/public urgent cards keep the blue shared frame and use a red left border wall. The previous filled left urgency stripe is intentionally absent.
-- The create task panel keeps title and description as labeled light panels, followed by full-width priority, category, due date, and `Share With` sections. The due-date field uses the project's own inline `DateCalendar` (with its Today/Tomorrow/+3/Next-week quick-picks), not a native `<input type="date">`. Character-limited fields show `current/max` counters at the panel edge and switch to red warning state from 80% of the limit. Friend visibility stays inside a neutral `Share With` selector where all-friends visibility and direct friend selection are mutually exclusive, and the panel does not expose a tags field or a duplicate property summary.
+- **Create task panel (redesigned)** (`frontend/src/components/todos/create-todo-panel.tsx`): the title
+  and details are naked oversized inputs behind a single left rule ("What needs to be done?" /
+  "Add details — optional."), followed by a row of four compact **selector plates** — Priority,
+  Due date, Category, Share — each opening an anchored popover (the shared `PriorityPopover`,
+  `DatePopover` with its Today/Tomorrow/+3/Next-week quick-picks, `CategoryPopover`, and a
+  panel-local `SharePopover`). The plate row auto-fits: 4-up on the wide `/tasks` page, stacking in
+  the dashboard sidebar. Due date and Category plates expose inline ✕ clear controls; the footer
+  shows a `⌘/Ctrl` + `↵` "to create" hint and a black `→ Create task` action that stays disabled
+  until a title exists. Character-limited fields keep `current/max` counters (red from 80% of the
+  limit). Share semantics are unchanged: all-friends visibility (public) and direct friend selection
+  are mutually exclusive, and the panel exposes no tags field. `CategoryPopover` now accepts an
+  optional `onDeleteCategory`, so categories can still be deleted from the create panel's list (the
+  edit modal does not pass it and is unchanged); category creation happens immediately inside the
+  popover (default swatch + Briefcase icon) instead of being deferred to task submit. `Escape`
+  closes an open selector popover first and collapses the panel only on the next press. The panel's
+  collapse animation clips overflow while animating and releases clipping once settled so popovers
+  can extend past the panel bounds.
+- **/tasks control deck (redesigned)**: the page header is a `Workspace` eyebrow over an oversized
+  `Tasks` title with `N active` / `N done` count pills on the right (numbers roll vertically on
+  change). The Quick Filter plate ("Filter tasks by category." / `F` hint / "Open menu") and the
+  create panel are **both always on screen** — the panel's collapsed header is the "new task"
+  affordance and expands in place, so there is no separate New Task button and the `F` shortcut
+  works regardless of the panel state.
 - On the dashboard, the create panel opens with a softened layout transition and staged field reveal. Its primary plus icon becomes a rotated close action while the panel is open, so the same control pattern can open and close the draft surface.
 - Toast notifications render on the toast z-index layer and start below the fixed navbar, so completion/update feedback is not hidden behind the header.
 - The floating navbar quick-creates tasks (title only, private, no category) and dispatches a `planora:task-created` custom DOM event on success, carrying the freshly created task on `event.detail.todo` (see `frontend/src/lib/events.ts`). Both the dashboard and todos pages listen for this event: they insert the new task into the list immediately (optimistically) and then reconcile with a silent background refetch, so a new task appears instantly instead of after the list reloads. The dashboard also resets pagination to page 1.

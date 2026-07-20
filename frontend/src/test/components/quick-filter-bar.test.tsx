@@ -28,7 +28,7 @@ describe("QuickFilterBar", () => {
     const onClear = vi.fn()
     render(<QuickFilterBar categories={cats} selectedIds={[]} onOpen={onOpen} onClear={onClear} />)
 
-    expect(screen.getByText(/Filter your tasks by categories/i)).toBeInTheDocument()
+    expect(screen.getByText(/Filter tasks by category/i)).toBeInTheDocument()
     expect(screen.getByText("F")).toBeInTheDocument()
     expect(screen.queryByLabelText("Clear category filter")).toBeNull()
 

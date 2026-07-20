@@ -108,7 +108,7 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
                   transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                   className="absolute inset-0 flex items-center text-xs text-gray-500 font-medium whitespace-nowrap"
                 >
-                  Filter your tasks by categories with ease.
+                  Filter tasks by category.
                 </motion.p>
               )}
             </AnimatePresence>
@@ -127,7 +127,7 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
           className="rounded-xl font-bold text-xs h-10 border-gray-200 hover:bg-black hover:text-white hover:border-black transition-[background-color,border-color,color] px-6"
           onClick={onOpen}
         >
-          Open Menu
+          Open menu
         </Button>
       </div>
     </motion.div>

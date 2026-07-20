@@ -73,8 +73,11 @@ describe("frontend usability contract", () => {
     expect(screen.getByPlaceholderText("What needs to be done?")).toHaveFocus()
     expect(screen.getByRole("button", { name: "Close create task panel" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Create Task" })).toBeDisabled()
-    expect(screen.getByRole("combobox")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Create task" })).toBeDisabled()
+    // The four selector plates are reachable by accessible name
+    expect(screen.getByRole("button", { name: "Priority" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Due date" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Category" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Private task" })).toBeInTheDocument()
     expect(screen.queryByText("Visible to all friends")).not.toBeInTheDocument()
   })

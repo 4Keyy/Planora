@@ -5,7 +5,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Plus, CheckCircle2, ChevronRight, History, X } from "lucide-react"
+import { Plus, CheckCircle2, ChevronRight, History } from "lucide-react"
+import { cn } from "@/lib/utils"
 import axios from "axios"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
@@ -28,7 +29,15 @@ const EditTodoModal = dynamic(
 )
 const CreateTodoPanel = dynamic(
   () => import("@/components/todos/create-todo-panel").then((m) => ({ default: m.CreateTodoPanel })),
-  { ssr: false },
+  {
+    ssr: false,
+    // The panel's collapsed header is now always on screen (it IS the "new task"
+    // affordance), so reserve its footprint while the chunk streams in to avoid
+    // a layout pop.
+    loading: () => (
+      <div className="h-[84px] rounded-3xl border border-gray-200/80 bg-white shadow-sm" aria-hidden="true" />
+    ),
+  },
 )
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
@@ -57,6 +66,41 @@ const TODO_MASONRY_BREAKPOINTS = [
   { maxWidth: 480, columns: 1 },
 ]
 const EMPTY_USER_ID = "00000000-0000-0000-0000-000000000000"
+
+/**
+ * Header count pill ("5 active" / "2 done"). The number crossfades vertically
+ * on change so live updates read as a counter roll, never a hard swap.
+ */
+function StatusPill({ count, label, emphasis }: { count: number; label: string; emphasis?: boolean }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
+      className={cn(
+        "flex items-center gap-2 rounded-full border bg-white px-4 py-2 shadow-sm",
+        emphasis ? "border-gray-200" : "border-gray-100",
+      )}
+    >
+      <span className={cn("h-2 w-2 rounded-full", emphasis ? "bg-gray-950" : "bg-gray-300")} />
+      <span className="relative overflow-hidden">
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            key={count}
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -10, opacity: 0 }}
+            transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
+            className={cn("block text-sm font-black tabular-nums", emphasis ? "text-gray-950" : "text-gray-400")}
+          >
+            {count}
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      <span className={cn("text-sm font-bold", emphasis ? "text-gray-950" : "text-gray-400")}>{label}</span>
+    </motion.div>
+  )
+}
 
 const redactHiddenSharedTodo = (todo: Todo): Todo => ({
   ...todo,
@@ -120,12 +164,12 @@ export default function TasksPage() {
     setFilterCategoryIds(readFilter(user?.userId))
   }, [user?.userId])
 
-  // Press "F" — toggle category filter modal (skip when typing in inputs or create panel open)
+  // Press "F" — toggle category filter modal (skip when typing in inputs). The filter plate is
+  // always on screen now, so the shortcut works whether or not the create panel is expanded.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== "f") return
       if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
-      if (isCreateOpen) return
       const target = e.target as HTMLElement
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
       e.preventDefault()
@@ -133,7 +177,7 @@ export default function TasksPage() {
     }
     window.addEventListener("keydown", handler, true)
     return () => window.removeEventListener("keydown", handler, true)
-  }, [isCreateOpen])
+  }, [])
 
   // Press "C" — open create panel
   useEffect(() => {
@@ -654,107 +698,53 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
-          <p className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-1">
-            All Tasks
-          </p>
-          <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
-          <p className="text-gray-500 mt-1">
-            {activeCount} active · {doneCount} done · {totalCount} total
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <Button
-            onClick={() => setIsCreateOpen(!isCreateOpen)}
-            variant={isCreateOpen ? "outline" : "default"}
-            // Fixed min-width + centred content so swapping the "New Task" ⇄ "Close" label never
-            // resizes the button and makes it jerk sideways. The label crossfades in place.
-            className={`relative min-w-[150px] justify-center overflow-hidden ${isCreateOpen ? "border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:border-gray-400 transition-[background-color,border-color,color]" : ""}`}
+          <motion.p
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: EASE_OUT_EXPO }}
+            className="mb-1.5 text-[11px] font-black uppercase tracking-[0.3em] text-gray-400"
           >
-            <AnimatePresence mode="wait" initial={false}>
-              {isCreateOpen ? (
-                <motion.span
-                  key="close"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex items-center gap-1.5"
-                >
-                  <X className="h-4 w-4" />
-                  Close
-                </motion.span>
-              ) : (
-                <motion.span
-                  key="new"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex items-center gap-1.5"
-                >
-                  <Plus className="h-4 w-4" />
-                  New Task
-                  <kbd className="hidden md:flex font-mono bg-white/20 text-white/70 px-1.5 py-0.5 rounded text-[10px] font-bold border border-white/20 leading-tight">c</kbd>
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </Button>
+            Workspace
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.34, delay: 0.04, ease: EASE_OUT_EXPO }}
+            className="text-4xl font-black leading-none tracking-tight text-gray-950 sm:text-[44px]"
+          >
+            Tasks
+          </motion.h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusPill count={activeCount} label="active" emphasis />
+          <StatusPill count={doneCount} label="done" />
         </div>
       </div>
 
-      {/* The quick-filter plate and the create panel are two INDEPENDENT presences (not a single
-          `mode="wait"` swap). A `mode="wait"` swap dropped the filter's enter animation when the
-          create panel closed on submit, because `handleCreate` flips `isCreateOpen` and then
-          immediately re-renders the page via `fetchActiveTodos` (`setLoading`), interrupting the
-          deferred enter and leaving the filter collapsed at height 0. Decoupling them makes each
-          presence self-contained, so the filter always re-reveals after a task is created. */}
-      <AnimatePresence initial={false}>
-        {!isCreateOpen && (
-          <motion.div
-            key="quick-filter"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <QuickFilterBar
-              categories={categories}
-              selectedIds={filterCategoryIds}
-              onOpen={() => setIsCategoryModalOpen(true)}
-              onClear={() => handleFilterChange([])}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <AnimatePresence initial={false}>
-        {isCreateOpen && (
-          <motion.div
-            key="create-panel"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <CreateTodoPanel
-              isOpen={true}
-              onToggle={() => setIsCreateOpen(false)}
-              categories={categories}
-              onSubmit={handleCreate}
-              onCreateCategory={fetchCategories}
-              onDeleteCategory={async (id) => {
-                await api.delete(`/categories/api/v1/categories/${id}`)
-                await fetchCategories()
-                await fetchActiveTodos()
-                await fetchCompletedPreview()
-              }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* The redesigned control deck: the quick-filter plate and the create panel are BOTH always
+          on screen — the panel's own collapsed header is the "new task" affordance and expands in
+          place, exactly like the reference design. */}
+      <QuickFilterBar
+        categories={categories}
+        selectedIds={filterCategoryIds}
+        onOpen={() => setIsCategoryModalOpen(true)}
+        onClear={() => handleFilterChange([])}
+      />
+      <CreateTodoPanel
+        isOpen={isCreateOpen}
+        onToggle={() => setIsCreateOpen((prev) => !prev)}
+        categories={categories}
+        onSubmit={handleCreate}
+        onCreateCategory={fetchCategories}
+        onDeleteCategory={async (id) => {
+          await api.delete(`/categories/api/v1/categories/${id}`)
+          await fetchCategories()
+          await fetchActiveTodos()
+          await fetchCompletedPreview()
+        }}
+      />
 
       {loading ? (
         <MasonryColumns

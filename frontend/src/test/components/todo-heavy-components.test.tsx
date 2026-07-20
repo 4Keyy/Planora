@@ -412,20 +412,22 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "  Ship test suite  " },
     })
-    fireEvent.change(screen.getByPlaceholderText("Add details, context, or acceptance criteria..."), {
+    fireEvent.change(screen.getByPlaceholderText("Add details — optional."), {
       target: { value: "  Regression coverage  " },
     })
-    // Due date uses the project's own calendar, collapsed by default — open it, then pick "Today"
-    // via its quick-pick and assert against the same ISO the component derives.
+    // Due date lives behind the selector plate — open its popover, then pick "Today"
+    // via the calendar quick-pick and assert against the same ISO the component derives.
     const todayDueIso = new Date(new Date().toISOString().split("T")[0]).toISOString()
-    fireEvent.click(screen.getByRole("button", { name: /Select a date/ }))
-    fireEvent.click(screen.getByRole("button", { name: "Today" }))
-    fireEvent.click(screen.getByRole("button", { name: /High/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Due date" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Today" }))
+    // Priority plate → popover option
+    fireEvent.click(screen.getByRole("button", { name: "Priority" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Priority High" }))
     expect(screen.queryByText("Visible to all friends")).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Private task" }))
     await user.click(await screen.findByText("All friends"))
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
     expect(onSubmit).toHaveBeenCalledWith({
@@ -464,7 +466,7 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "x".repeat(160) },
     })
-    fireEvent.change(screen.getByPlaceholderText("Add details, context, or acceptance criteria..."), {
+    fireEvent.change(screen.getByPlaceholderText("Add details — optional."), {
       target: { value: "x".repeat(4000) },
     })
 
@@ -555,16 +557,21 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    await user.click(screen.getByRole("combobox"))
-    await user.click(await screen.findByText("+ Create Category"))
-    fireEvent.change(screen.getByPlaceholderText("Category name *"), { target: { value: "Inbox" } })
+    // Category creation now happens inside the selector popover: a failure surfaces
+    // there and never blocks creating the task itself (which proceeds category-less).
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    await user.click(await screen.findByText("Create new category"))
+    fireEvent.change(screen.getByPlaceholderText("Category name"), { target: { value: "Inbox" } })
+    await user.click(screen.getByRole("button", { name: "Create" }))
+    expect(await screen.findByText("category service unavailable")).toBeInTheDocument()
+    expect(onCreateCategory).not.toHaveBeenCalled()
+
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Fallback category task" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
-    expect(onCreateCategory).not.toHaveBeenCalled()
     expect(onSubmit.mock.calls[0][0].categoryId).toBeNull()
   })
 
@@ -576,11 +583,11 @@ describe("CreateTodoPanel", () => {
     vi.mocked(api.post).mockResolvedValueOnce({
       data: {
         success: true,
-        data: { id: "cat-new", name: "Inbox", color: "#123456", icon: null },
+        data: { id: "cat-new", name: "Inbox", color: "#0ea5e9", icon: "Briefcase" },
       },
     })
 
-    const { container } = render(
+    render(
       <CreateTodoPanel
         isOpen
         onToggle={vi.fn()}
@@ -591,30 +598,30 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    await user.click(screen.getByRole("combobox"))
-    const workOption = await screen.findByText("Work")
-    const deleteButton = workOption.closest('[role="option"]')?.querySelector("button") as HTMLButtonElement
-    fireEvent.click(deleteButton)
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    // Delete an existing option straight from the popover list
+    await user.click(await screen.findByRole("button", { name: "Delete Work" }))
     expect(onDeleteCategory).toHaveBeenCalledWith("cat-1")
 
-    await user.click(await screen.findByText("+ Create Category"))
-    fireEvent.change(screen.getByPlaceholderText("Category name *"), { target: { value: "Inbox" } })
-    fireEvent.change(container.querySelector('input[type="color"]') as HTMLInputElement, {
-      target: { value: "#123456" },
+    await user.click(screen.getByText("Create new category"))
+    fireEvent.change(screen.getByPlaceholderText("Category name"), { target: { value: "Inbox" } })
+    await user.click(screen.getByRole("button", { name: "Create" }))
+
+    // The popover creates the category immediately with the default swatch + icon
+    await waitFor(() => expect(onCreateCategory).toHaveBeenCalledOnce())
+    expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
+      name: "Inbox",
+      color: "#0ea5e9",
+      icon: "Briefcase",
+      displayOrder: 0,
     })
+
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Task with new category" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
-    expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
-      name: "Inbox",
-      color: "#123456",
-      icon: null,
-      displayOrder: 0,
-    })
-    expect(onCreateCategory).toHaveBeenCalledOnce()
     expect(onSubmit.mock.calls[0][0]).toMatchObject({
       title: "Task with new category",
       categoryId: "cat-new",
@@ -638,9 +645,162 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Failing task" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
 
     expect(await screen.findByText("Failed to create task. Please try again.")).toBeInTheDocument()
+  })
+
+  it("shares directly with a friend, then switches to all-friends and back", async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={onSubmit}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+
+    // Direct share: pick the friend from the share popover
+    await user.click(screen.getByRole("button", { name: "Private task" }))
+    await user.click(await screen.findByRole("checkbox", { name: "Ada Lovelace" }))
+    expect(screen.getByRole("button", { name: "Shared with 1 friend" })).toBeInTheDocument()
+
+    // Switching to all-friends clears the direct selection
+    await user.click(screen.getByText("All friends"))
+    expect(screen.getByRole("button", { name: "Shared with all friends" })).toBeInTheDocument()
+
+    // Picking a friend while public flips back to a direct share with just them
+    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    expect(screen.getByRole("button", { name: "Shared with 1 friend" })).toBeInTheDocument()
+
+    // Toggling the same friend off returns to private
+    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    expect(screen.getByRole("button", { name: "Private task" })).toBeInTheDocument()
+
+    // Re-select and submit: capacity = author + 1 friend
+    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
+      target: { value: "Pair task" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      isPublic: false,
+      sharedWithUserIds: ["friend-1"],
+      requiredWorkers: 2,
+    })
+  })
+
+  it("selects an existing category, clears it, and clears a picked due date", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+
+    // Category: pick "Work" from the popover, plate shows it, then clear
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    await user.click(await screen.findByText("Work"))
+    expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("Work")
+    await user.click(screen.getByRole("button", { name: "Clear category" }))
+    expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("None")
+
+    // Due date: pick "Today", plate leaves the "No date" placeholder, then clear via keyboard
+    fireEvent.click(screen.getByRole("button", { name: "Due date" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Today" }))
+    // The old value crossfades out — wait for the exiting "No date" span to unmount
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Due date" })).not.toHaveTextContent("No date"),
+    )
+    fireEvent.keyDown(screen.getByRole("button", { name: "Clear due date" }), { key: "Enter" })
+    expect(screen.getByRole("button", { name: "Due date" })).toHaveTextContent("No date")
+  })
+
+  it("clears the selected category when it is deleted from the popover list", async () => {
+    const user = userEvent.setup()
+    const onDeleteCategory = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={onDeleteCategory}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    await user.click(await screen.findByText("Work"))
+    expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("Work")
+
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    await user.click(await screen.findByRole("button", { name: "Delete Work" }))
+
+    expect(onDeleteCategory).toHaveBeenCalledWith("cat-1")
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("None"),
+    )
+  })
+
+  it("Escape closes an open selector popover first and the panel only on the next press", async () => {
+    const user = userEvent.setup()
+    const onToggle = vi.fn()
+
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={onToggle}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Priority" }))
+    expect(await screen.findByRole("button", { name: "Priority High" })).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+    expect(onToggle).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Priority High" })).not.toBeInTheDocument(),
+    )
+
+    await user.keyboard("{Escape}")
+    expect(onToggle).toHaveBeenCalledOnce()
+  })
+
+  it("updates the priority plate value from the popover", async () => {
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole("button", { name: "Priority" })).toHaveTextContent("Medium")
+    fireEvent.click(screen.getByRole("button", { name: "Priority" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Priority Urgent" }))
+    expect(screen.getByRole("button", { name: "Priority" })).toHaveTextContent("Urgent")
   })
 })
 

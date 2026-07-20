@@ -1,7 +1,7 @@
 "use client"
 
 import { RefObject, useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus, X } from "lucide-react"
 import { Popover, PopoverHeader } from "../popover"
 import { CATEGORY_COLOR_SWATCHES } from "../utils"
 import { ColorPicker } from "../color-picker"
@@ -18,6 +18,8 @@ interface CategoryPopoverProps {
   onChange: (id: string | null) => void
   categories: Category[]
   onCreateCategory: () => Promise<void>
+  /** When provided, each category row exposes a delete control (create panel only). */
+  onDeleteCategory?: (id: string) => void | Promise<void>
   containerRef: RefObject<HTMLElement | null>
   canEdit: boolean
   /** Popover alignment under the trigger. Default "left"; the page sidebar uses "center". */
@@ -25,7 +27,7 @@ interface CategoryPopoverProps {
 }
 
 export function CategoryPopover({
-  open, onClose, value, onChange, categories, onCreateCategory, containerRef, canEdit, align = "left",
+  open, onClose, value, onChange, categories, onCreateCategory, onDeleteCategory, containerRef, canEdit, align = "left",
 }: CategoryPopoverProps) {
   const [creating,  setCreating]  = useState(false)
   const [name,      setName]      = useState("")
@@ -264,36 +266,63 @@ export function CategoryPopover({
               const CatIcon  = cat.icon ? (ICON_MAP[cat.icon] ?? null) : null
               const isActive = value === cat.id
               return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => selectCategory(cat.id)}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: 8,
-                    padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
-                    background: isActive ? "#fafafa" : "transparent", textAlign: "left",
-                    transition: "background 100ms",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isActive ? "#fafafa" : "transparent" }}
-                >
-                  <div style={{
-                    width: 22, height: 22, borderRadius: 5, flexShrink: 0,
-                    background: cat.color ? `${cat.color}20` : "#f0f0f0",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {CatIcon && <CatIcon size={11} color={cat.color ?? "#525252"} />}
-                  </div>
-                  <span style={{
-                    fontSize: 12, fontWeight: 800, letterSpacing: "-0.01em",
-                    color: "#0a0a0a", flex: 1,
-                  }}>
-                    {cat.name}
-                  </span>
-                  {isActive && (
-                    <span style={{ fontSize: 11, fontWeight: 800, color: "#0a0a0a" }}>✓</span>
+                <div key={cat.id} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={() => selectCategory(cat.id)}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 8,
+                      padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
+                      paddingRight: onDeleteCategory ? 34 : 10,
+                      background: isActive ? "#fafafa" : "transparent", textAlign: "left",
+                      transition: "background 100ms",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isActive ? "#fafafa" : "transparent" }}
+                  >
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 5, flexShrink: 0,
+                      background: cat.color ? `${cat.color}20` : "#f0f0f0",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {CatIcon && <CatIcon size={11} color={cat.color ?? "#525252"} />}
+                    </div>
+                    <span style={{
+                      fontSize: 12, fontWeight: 800, letterSpacing: "-0.01em",
+                      color: "#0a0a0a", flex: 1,
+                    }}>
+                      {cat.name}
+                    </span>
+                    {isActive && (
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#0a0a0a" }}>✓</span>
+                    )}
+                  </button>
+                  {/* Sibling (not nested) delete control — a button inside a button is invalid HTML. */}
+                  {onDeleteCategory && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${cat.name}`}
+                      onClick={(e) => { e.stopPropagation(); void onDeleteCategory(cat.id) }}
+                      style={{
+                        position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                        width: 22, height: 22, borderRadius: 7, border: "none", cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "transparent", color: "#d4d4d4",
+                        transition: "background 100ms, color 100ms",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2"
+                        ;(e.currentTarget as HTMLButtonElement).style.color = "#ef4444"
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                        ;(e.currentTarget as HTMLButtonElement).style.color = "#d4d4d4"
+                      }}
+                    >
+                      <X size={11} strokeWidth={2.5} />
+                    </button>
                   )}
-                </button>
+                </div>
               )
             })}
           </div>
