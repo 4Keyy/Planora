@@ -17,6 +17,8 @@ interface DatePopoverProps {
   containerRef: RefObject<HTMLElement | null>
   /** When true the date options are shown muted and non-interactive (non-owner viewer). */
   readOnly?: boolean
+  /** Render in a viewport-fixed body portal (create panel / dashboard) so it can't stretch the page. */
+  portal?: boolean
 }
 
 function pad(n: number): string { return String(n).padStart(2, "0") }
@@ -30,9 +32,9 @@ function addDays(base: string | null, n: number): string {
 
 function todayISO(): string { return toISO(new Date()) }
 
-export function DatePopover({ open, onClose, start, end, onChange, containerRef, readOnly }: DatePopoverProps) {
+export function DatePopover({ open, onClose, start, end, onChange, containerRef, readOnly, portal }: DatePopoverProps) {
   return (
-    <Popover open={open} onClose={onClose} width={332} containerRef={containerRef}>
+    <Popover open={open} onClose={onClose} width={332} containerRef={containerRef} portal={portal}>
       <DateCalendar start={start} end={end} onChange={onChange} readOnly={readOnly} autoClose={onClose} />
     </Popover>
   )

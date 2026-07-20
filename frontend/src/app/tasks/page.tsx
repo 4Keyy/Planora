@@ -723,15 +723,9 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* The redesigned control deck: the quick-filter plate and the create panel are BOTH always
+      {/* The redesigned control deck: the create panel and the quick-filter plate are BOTH always
           on screen — the panel's own collapsed header is the "new task" affordance and expands in
-          place, exactly like the reference design. */}
-      <QuickFilterBar
-        categories={categories}
-        selectedIds={filterCategoryIds}
-        onOpen={() => setIsCategoryModalOpen(true)}
-        onClear={() => handleFilterChange([])}
-      />
+          place. Create sits above the filter (task creation is the primary action of this page). */}
       <CreateTodoPanel
         isOpen={isCreateOpen}
         onToggle={() => setIsCreateOpen((prev) => !prev)}
@@ -744,6 +738,12 @@ export default function TasksPage() {
           await fetchActiveTodos()
           await fetchCompletedPreview()
         }}
+      />
+      <QuickFilterBar
+        categories={categories}
+        selectedIds={filterCategoryIds}
+        onOpen={() => setIsCategoryModalOpen(true)}
+        onClear={() => handleFilterChange([])}
       />
 
       {loading ? (

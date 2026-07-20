@@ -14,9 +14,11 @@ interface PriorityPopoverProps {
   readOnly?: boolean
   /** Popover alignment under the trigger. Default "left"; the page sidebar uses "center". */
   align?: "left" | "right" | "center"
+  /** Render in a viewport-fixed body portal (create panel / dashboard) so it can't stretch the page. */
+  portal?: boolean
 }
 
-export function PriorityPopover({ open, onClose, value, onChange, containerRef, readOnly, align = "left" }: PriorityPopoverProps) {
+export function PriorityPopover({ open, onClose, value, onChange, containerRef, readOnly, align = "left", portal }: PriorityPopoverProps) {
   const handleSelect = (key: string) => {
     if (readOnly) return
     onChange(key)
@@ -24,7 +26,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
   }
 
   return (
-    <Popover open={open} onClose={onClose} width={300} align={align} containerRef={containerRef}>
+    <Popover open={open} onClose={onClose} width={300} align={align} containerRef={containerRef} portal={portal}>
       <PopoverHeader label="Priority" />
       <div style={{ padding: 6, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
         {PRIORITY_LEVELS.map((p, i) => {

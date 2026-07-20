@@ -231,7 +231,7 @@ function SharePopover({
       : "only you"
 
   return (
-    <Popover open={open} onClose={onClose} width={320} align="right" containerRef={containerRef}>
+    <Popover open={open} onClose={onClose} width={320} align="right" containerRef={containerRef} portal>
       <PopoverHeader
         label="Share"
         sub={<span className="text-[11px] font-semibold text-gray-400">{sub}</span>}
@@ -346,10 +346,6 @@ export function CreateTodoPanel({
   const [isPublic, setIsPublic] = useState(false)
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([])
   const [openPopover, setOpenPopover] = useState<OpenPopover>(null)
-  // The collapse animation needs overflow clipping, but the selector popovers
-  // must escape the panel once it is fully open — so clipping is released after
-  // the height transition settles (see the timeout below).
-  const [settled, setSettled] = useState(isOpen)
 
   const prefersReducedMotion = useReducedMotion()
   const friends = useFriends(isOpen)
@@ -384,15 +380,6 @@ export function CreateTodoPanel({
       return () => clearTimeout(t)
     }
     setOpenPopover(null)
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen) {
-      setSettled(false)
-      return
-    }
-    const t = setTimeout(() => setSettled(true), 400)
-    return () => clearTimeout(t)
   }, [isOpen])
 
   const handleSubmit = async () => {
@@ -489,12 +476,7 @@ export function CreateTodoPanel({
   }
 
   return (
-    <div
-      className={cn(
-        "rounded-3xl border border-gray-200/80 bg-white shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)]",
-        !isOpen && "overflow-hidden"
-      )}
-    >
+    <div className="overflow-hidden rounded-3xl border border-gray-200/80 bg-white shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)]">
       {/*
         Always-visible header — clicking opens/closes the panel.
         The + button is ONE persistent element that rotates 0° ↔ 45°,
@@ -581,9 +563,9 @@ export function CreateTodoPanel({
           transition: rowTransition,
         }}
       >
-        {/* Clipping is released once the open transition settles so the
-            selector popovers can extend past the panel bounds. */}
-        <div className={cn("min-h-0", (!isOpen || !settled) && "overflow-hidden")}>
+        {/* The selector popovers render in a body portal (see Popover `portal`), so the panel
+            can stay clipped through the whole height animation without trapping them. */}
+        <div className="min-h-0 overflow-hidden">
           <div
             style={{ opacity: isOpen ? 1 : 0, transition: contentOpacityTransition }}
           >
@@ -650,6 +632,7 @@ export function CreateTodoPanel({
                       value={priority}
                       onChange={setPriority}
                       containerRef={priorityCardRef as RefObject<HTMLElement | null>}
+                      portal
                     />
                   </SelectorCard>
                 </motion.div>
@@ -678,6 +661,7 @@ export function CreateTodoPanel({
                         setDueDate(e ?? "")
                       }}
                       containerRef={dateCardRef as RefObject<HTMLElement | null>}
+                      portal
                     />
                   </SelectorCard>
                 </motion.div>
@@ -711,6 +695,7 @@ export function CreateTodoPanel({
                       onDeleteCategory={handleDeleteCategory}
                       containerRef={categoryCardRef as RefObject<HTMLElement | null>}
                       canEdit
+                      portal
                     />
                   </SelectorCard>
                 </motion.div>

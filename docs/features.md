@@ -427,6 +427,19 @@ never "snap back". This matters because a friends-visibility task with no one se
 `isPublic:false, sharedWith:[]`, indistinguishable from private; re-seeding on every update used to
 flip the selection. The shared `Popover` animates open **and** close (framer-motion).
 
+**Popover positioning modes** (`edit-todo-modal/popover.tsx`): the shared `Popover` renders in one of
+two modes. By default it is an **in-flow absolute** child of its trigger wrapper — used inside the
+scrollable edit modal, where the popover must scroll *with* the modal body. With the `portal` prop it
+instead renders into a `document.body` portal with viewport-**fixed** positioning: it is glued to the
+trigger via `getBoundingClientRect` (repositioning on capture-phase scroll + resize), **flips above**
+the trigger when there isn't room below, and caps its `maxHeight` to the available space (scrolling
+internally). Because a fixed/portaled element never contributes to the document's scroll height,
+opening a `portal` popover can **never stretch the page** and closing it can **never snap** it — this
+is what the create-task panel (on `/tasks` and the dashboard sidebar) uses for all four selectors, so
+even the tall inline "create category" form stays inside the viewport instead of growing the page.
+`PriorityPopover`, `DatePopover`, and `CategoryPopover` accept and forward an optional `portal` prop
+(default `false`, so the edit-modal usages are unchanged).
+
 The page owns the task + category data and wires every editor action against the API: owner
 autosave (`PUT` preserving status), viewer category preference, take/leave work, complete/restore,
 and duplicate (which navigates to the new copy's page). A missing/forbidden task shows a friendly
@@ -505,15 +518,18 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
   optional `onDeleteCategory`, so categories can still be deleted from the create panel's list (the
   edit modal does not pass it and is unchanged); category creation happens immediately inside the
   popover (default swatch + Briefcase icon) instead of being deferred to task submit. `Escape`
-  closes an open selector popover first and collapses the panel only on the next press. The panel's
-  collapse animation clips overflow while animating and releases clipping once settled so popovers
-  can extend past the panel bounds.
+  closes an open selector popover first and collapses the panel only on the next press. All four
+  selector popovers render in a body portal (see "Popover positioning modes"), so the panel stays
+  `overflow-hidden` through the whole collapse animation without trapping them and **without ever
+  growing the page** — even the tall inline "create category" form flips/caps inside the viewport
+  instead of stretching the document and snapping back on close.
 - **/tasks control deck (redesigned)**: the page header is a `Workspace` eyebrow over an oversized
   `Tasks` title with `N active` / `N done` count pills on the right (numbers roll vertically on
-  change). The Quick Filter plate ("Filter tasks by category." / `F` hint / "Open menu") and the
-  create panel are **both always on screen** — the panel's collapsed header is the "new task"
-  affordance and expands in place, so there is no separate New Task button and the `F` shortcut
-  works regardless of the panel state.
+  change). The create panel and the Quick Filter plate ("Filter tasks by category." / `F` hint /
+  "Open menu") are **both always on screen**, with the **create panel above the filter** (task
+  creation is the page's primary action) — the panel's collapsed header is the "new task" affordance
+  and expands in place, so there is no separate New Task button and the `F` shortcut works regardless
+  of the panel state.
 - On the dashboard, the create panel opens with a softened layout transition and staged field reveal. Its primary plus icon becomes a rotated close action while the panel is open, so the same control pattern can open and close the draft surface.
 - Toast notifications render on the toast z-index layer and start below the fixed navbar, so completion/update feedback is not hidden behind the header.
 - The floating navbar quick-creates tasks (title only, private, no category) and dispatches a `planora:task-created` custom DOM event on success, carrying the freshly created task on `event.detail.todo` (see `frontend/src/lib/events.ts`). Both the dashboard and todos pages listen for this event: they insert the new task into the list immediately (optimistically) and then reconcile with a silent background refetch, so a new task appears instantly instead of after the list reloads. The dashboard also resets pagination to page 1.
