@@ -241,10 +241,25 @@ The value must be an `http` or `https` origin with no path/query/hash. Invalid v
 | `NEXT_PUBLIC_API_SAME_ORIGIN` | `0` | `1` makes `getApiBaseUrl()` return the frontend's own origin for every browser-side call. |
 
 With the flag on, the browser never addresses the gateway's port: it calls `http://localhost:3000/auth/api/...`
-and the `rewrites()` in `frontend/next.config.js` forward the request to `safeApiUrl` server-side. Only the
-`/auth/api`, `/todos/api`, `/categories/api`, `/collaboration/api`, `/messaging/api`, `/realtime` and `/avatars`
-sub-paths are proxied, so the frontend's own `/auth/login` page is never shadowed. Server-side rendering is
-unaffected — there is no `window`, so SSR keeps calling the gateway directly.
+and the `rewrites()` in `frontend/next.config.js` forward the request to `safeApiUrl` server-side. Server-side
+rendering is unaffected — there is no `window`, so SSR keeps calling the gateway directly.
+
+Only these paths are proxied, so the frontend's own `/auth/login` page is never shadowed:
+
+| Proxied source | Notes |
+|---|---|
+| `/auth/api/:path*` | |
+| `/todos/api/:path*` | |
+| `/categories/api/:path*` | |
+| `/collaboration/api/:path*` | |
+| `/messaging/api/:path*` | |
+| `/realtime/:path*` | covers both `/realtime/api/v1/notifications*` and the SignalR hub at `/realtime/hubs/notifications` |
+| `/avatars/:path*` | |
+| `/friendships` + `/friendships/:path*` | the only gateway route the frontend calls **without** a service prefix (`api.get("/friendships")` in `src/hooks/use-friends.ts` and `src/app/profile/page.tsx`) |
+
+> Any gateway route the frontend calls that is missing from this list 404s against Next instead of reaching
+> the gateway — the failure is a 404, not a timeout. When adding a new top-level gateway path to the client,
+> add a matching rewrite here.
 
 Turn it on when the page on `:3000` loads but API calls hang until the axios timeout (10 s) while the gateway
 answers fine from a terminal. That asymmetry means something treats the two ports differently — a browser

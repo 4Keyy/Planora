@@ -200,6 +200,12 @@ const nextConfig = {
     // sub-paths so they never shadow the frontend's own /auth/* or /categories pages,
     // and they are inert for localhost / LAN-IP access (which call the gateway
     // directly with an absolute URL and never hit these frontend paths).
+    //
+    // `/friendships` is the one gateway route the frontend calls WITHOUT a service
+    // prefix (src/hooks/use-friends.ts, src/app/profile/page.tsx call api.get('/friendships')),
+    // so it needs its own entries — the bare path and its sub-paths — or every friends
+    // request 404s against Next instead of reaching the gateway. There is no frontend
+    // page at /friendships, so nothing is shadowed.
     const gatewayProxies = [
       '/auth/api/:path*',
       '/todos/api/:path*',
@@ -208,6 +214,8 @@ const nextConfig = {
       '/messaging/api/:path*',
       '/realtime/:path*',
       '/avatars/:path*',
+      '/friendships',
+      '/friendships/:path*',
     ].map((source) => ({ source, destination: `${safeApiUrl}${source}` }))
 
     return [
