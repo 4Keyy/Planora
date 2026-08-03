@@ -3,6 +3,16 @@ const configuredApiBaseUrl =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_API_GATEWAY_URL
 
+// Opt-in escape hatch: send every browser-side API + realtime call to the frontend's OWN
+// origin, letting the `rewrites()` in next.config.js proxy them on to the gateway.
+// Cross-origin calls to the gateway's port are the fragile part of a local run: the page on
+// :3000 loads fine while requests to :5132 hang for the full axios timeout, because a browser
+// extension, a polluted localhost cookie jar (cookies ignore ports) or a VPN/proxy treats the
+// two ports differently. Same-origin removes the preflight and the second host entirely, so
+// only one port is ever touched. Server-side rendering is unaffected — there is no window, so
+// SSR keeps calling the gateway directly.
+const forceSameOriginApi = process.env.NEXT_PUBLIC_API_SAME_ORIGIN === "1"
+
 function isLocalNetworkHost(hostname: string): boolean {
   if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
     return true
@@ -50,6 +60,10 @@ function getBrowserSameHostApiBaseUrl(configured: string | undefined): string | 
 }
 
 export function getApiBaseUrl(): string {
+  if (forceSameOriginApi && typeof window !== "undefined") {
+    return window.location.origin
+  }
+
   const configured = normalizeApiBaseUrl(configuredApiBaseUrl)
   const browserSameHost = getBrowserSameHostApiBaseUrl(configured)
   if (browserSameHost) return browserSameHost

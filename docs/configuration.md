@@ -113,6 +113,7 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 | `REDIS_PASSWORD` | required | Redis `requirepass`; Compose builds each service's `ConnectionStrings__Redis` from it. |
 | `NEXT_PUBLIC_API_URL` | optional | Frontend API Gateway base URL; default is `http://localhost:5132`. |
 | `NEXT_PUBLIC_API_GATEWAY_URL` | optional alias | Read by `frontend/next.config.js` if `NEXT_PUBLIC_API_URL` is absent. |
+| `NEXT_PUBLIC_API_SAME_ORIGIN` | optional | `1` routes browser-side API + realtime calls through the frontend's own origin via the `next.config.js` rewrites instead of the gateway's port. Default `0`. |
 | `NEXT_PUBLIC_ENVIRONMENT` | optional | Environment label; no direct behavior found in core API client. |
 | `HOST` | optional | Host binding for Next.js dev server when used by npm/launcher context. |
 | `Frontend__BaseUrl` | optional | Frontend origin used in email verification/password-reset links. Use the laptop LAN IP instead of `localhost` when links are opened from another Wi-Fi device. |
@@ -232,6 +233,29 @@ Code:
 3. fallback `http://localhost:5132`
 
 The value must be an `http` or `https` origin with no path/query/hash. Invalid values fall back to `http://localhost:5132`.
+
+### Same-origin API routing (`NEXT_PUBLIC_API_SAME_ORIGIN`)
+
+| Variable | Default | Effect |
+|---|---|---|
+| `NEXT_PUBLIC_API_SAME_ORIGIN` | `0` | `1` makes `getApiBaseUrl()` return the frontend's own origin for every browser-side call. |
+
+With the flag on, the browser never addresses the gateway's port: it calls `http://localhost:3000/auth/api/...`
+and the `rewrites()` in `frontend/next.config.js` forward the request to `safeApiUrl` server-side. Only the
+`/auth/api`, `/todos/api`, `/categories/api`, `/collaboration/api`, `/messaging/api`, `/realtime` and `/avatars`
+sub-paths are proxied, so the frontend's own `/auth/login` page is never shadowed. Server-side rendering is
+unaffected — there is no `window`, so SSR keeps calling the gateway directly.
+
+Turn it on when the page on `:3000` loads but API calls hang until the axios timeout (10 s) while the gateway
+answers fine from a terminal. That asymmetry means something treats the two ports differently — a browser
+extension, a polluted `localhost` cookie jar (cookies ignore ports), a VPN/proxy, or a stale LAN IP baked into
+`NEXT_PUBLIC_API_URL`. Same-origin removes the preflight and the second host entirely. Changing the flag
+requires a dev-server restart; a `.env.local` edit triggers one automatically.
+
+> Process environment beats `.env` files. The launcher exports `NEXT_PUBLIC_API_URL` into each child process,
+> so a value pinned in the root `.env` overrides `frontend/.env.local`. If that pinned IP is stale, the
+> same-origin rewrite fails with `ECONNREFUSED` and returns `500`; the fix is to correct the root `.env`
+> (or run `-Lan`, which re-detects the LAN IP on every run).
 
 ### Same-Wi-Fi / LAN sharing
 

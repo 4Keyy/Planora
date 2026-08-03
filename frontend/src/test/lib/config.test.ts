@@ -2,8 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 const originalApiUrl = process.env.NEXT_PUBLIC_API_URL
 const originalGatewayUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL
+const originalSameOrigin = process.env.NEXT_PUBLIC_API_SAME_ORIGIN
 
-async function loadConfig(apiUrl?: string, gatewayUrl?: string) {
+async function loadConfig(apiUrl?: string, gatewayUrl?: string, sameOrigin?: string) {
   vi.resetModules()
   if (apiUrl === undefined) {
     delete process.env.NEXT_PUBLIC_API_URL
@@ -15,6 +16,12 @@ async function loadConfig(apiUrl?: string, gatewayUrl?: string) {
     delete process.env.NEXT_PUBLIC_API_GATEWAY_URL
   } else {
     process.env.NEXT_PUBLIC_API_GATEWAY_URL = gatewayUrl
+  }
+
+  if (sameOrigin === undefined) {
+    delete process.env.NEXT_PUBLIC_API_SAME_ORIGIN
+  } else {
+    process.env.NEXT_PUBLIC_API_SAME_ORIGIN = sameOrigin
   }
 
   return import("@/lib/config")
@@ -33,6 +40,11 @@ describe("config", () => {
       delete process.env.NEXT_PUBLIC_API_GATEWAY_URL
     } else {
       process.env.NEXT_PUBLIC_API_GATEWAY_URL = originalGatewayUrl
+    }
+    if (originalSameOrigin === undefined) {
+      delete process.env.NEXT_PUBLIC_API_SAME_ORIGIN
+    } else {
+      process.env.NEXT_PUBLIC_API_SAME_ORIGIN = originalSameOrigin
     }
   })
 
@@ -132,6 +144,46 @@ describe("config", () => {
     const { getApiBaseUrl } = await loadConfig()
 
     expect(getApiBaseUrl()).toBe("https://planora.local:5132")
+  })
+
+  it("routes every browser call through the frontend origin when NEXT_PUBLIC_API_SAME_ORIGIN=1", async () => {
+    // Escape hatch for a local run where the browser reaches :3000 but stalls on the
+    // gateway's :5132. The flag wins over every other rule, including the configured host.
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "http:",
+        hostname: "localhost",
+        origin: "http://localhost:3000",
+      },
+    })
+
+    const { getApiBaseUrl } = await loadConfig("http://192.168.42.19:5132", undefined, "1")
+
+    expect(getApiBaseUrl()).toBe("http://localhost:3000")
+  })
+
+  it("leaves the configured API host alone when NEXT_PUBLIC_API_SAME_ORIGIN is not exactly 1", async () => {
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "https:",
+        hostname: "app.planora.com",
+        origin: "https://app.planora.com",
+      },
+    })
+
+    const { getApiBaseUrl } = await loadConfig("https://api.planora.com", undefined, "0")
+
+    expect(getApiBaseUrl()).toBe("https://api.planora.com")
+  })
+
+  it("keeps SSR calling the gateway directly even with same-origin routing on", async () => {
+    // There is no window on the server, so the rewrites can't apply — the Next server must
+    // reach the gateway by its configured origin.
+    vi.stubGlobal("window", undefined)
+
+    const { getApiBaseUrl } = await loadConfig("http://localhost:5132", undefined, "1")
+
+    expect(getApiBaseUrl()).toBe("http://localhost:5132")
   })
 
   it("uses localhost when running without a browser window", async () => {
