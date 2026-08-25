@@ -408,6 +408,15 @@ $ServiceRestPorts = @($ServiceDefs.Values | ForEach-Object { $_.Port })
 $ServiceGrpcPorts = @(foreach ($d in $ServiceDefs.Values) { if ($d.Contains('GrpcPort')) { $d.GrpcPort } })
 # Every port the launcher owns - used by stop/cleanup fallbacks to find orphans.
 $AllPlanoraPorts  = @($ServiceRestPorts + $ServiceGrpcPorts + $FrontendPort)
+# Port -> human-readable owner, so a conflict can be reported as "todo-api (gRPC)" and not "5101".
+$PortServiceNames = @{}
+foreach ($svcName in $ServiceDefs.Keys) {
+    $PortServiceNames[$ServiceDefs[$svcName].Port] = $svcName
+    if ($ServiceDefs[$svcName].Contains('GrpcPort')) {
+        $PortServiceNames[$ServiceDefs[$svcName].GrpcPort] = "$svcName (gRPC)"
+    }
+}
+$PortServiceNames[$FrontendPort] = "frontend"
 # Service names in reverse startup order, for graceful shutdown.
 $ShutdownOrder    = @($ServiceDefs.Keys) ; [array]::Reverse($ShutdownOrder)
 
@@ -811,7 +820,7 @@ function Stop-PlanoraProcesses {
 
     # Phase 2: port-based fallback for anything not in PID files
     foreach ($port in $AllPlanoraPorts) {
-        $owner = Get-PortOwner -Port $port
+        $owner = Get-PortOwner -Port $port -RepoRoot $RepoRoot
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
             Stop-Process -Id $owner.Pid -Force -ErrorAction SilentlyContinue
@@ -824,17 +833,46 @@ function Stop-PlanoraProcesses {
         & dotnet build-server shutdown 2>&1 | Out-Null
     }
 
-    # Wait for every REST port (plus frontend) to be free before proceeding.
-    foreach ($name in $ServiceDefs.Keys) {
-        $null = Wait-PortFree -Port $ServiceDefs[$name].Port -ServiceName $name -TimeoutSeconds 15
+    # Wait for every port this launcher owns (REST + gRPC + frontend) to be free.
+    #
+    # A port still occupied here belongs to a process phase 1/2 deliberately did NOT kill -
+    # a foreign application, not a stale Planora run. Starting anyway is not an option: on
+    # Windows a second Kestrel can bind an already-bound port instead of failing with
+    # EADDRINUSE, after which the OS hands incoming connections to whichever socket it
+    # pleases. The service then logs "started successfully" while the gateway's requests are
+    # answered by the OTHER application - every call comes back 404 from a server that has
+    # never heard of the route. Abort with the squatter named instead of shipping that ghost.
+    $portsToCheck = if ($SkipFrontend) { @($AllPlanoraPorts | Where-Object { $_ -ne $FrontendPort }) } else { $AllPlanoraPorts }
+    $blocked = [System.Collections.Generic.List[string]]::new()
+    foreach ($port in $portsToCheck) {
+        $svcLabel = if ($PortServiceNames.ContainsKey($port)) { $PortServiceNames[$port] } else { "port $port" }
+        if (Wait-PortFree -Port $port -ServiceName $svcLabel -TimeoutSeconds 15) { continue }
+
+        $owner = Get-PortOwner -Port $port -RepoRoot $RepoRoot
+        if ($null -ne $owner) {
+            $blocked.Add("$port ($svcLabel) <- $($owner.ProcessName) PID $($owner.Pid) [$($owner.ExecutablePath)]")
+        } else {
+            # No owning process - usually a socket still in TIME_WAIT from the run we just
+            # stopped. That resolves on its own and must not block a legitimate restart.
+            Write-Warn "Port $port ($svcLabel) is not free yet, but no owning process was found - continuing."
+        }
     }
-    $null = Wait-PortFree -Port $FrontendPort -ServiceName "frontend" -TimeoutSeconds 15
+
+    if ($blocked.Count -gt 0) {
+        Write-Fail "Port(s) held by a process that is not part of Planora:"
+        foreach ($line in $blocked) { Write-Info "  $line" }
+        Write-Info "Stop that application (or change its port) and re-run this script."
+        Write-Info "To free a port by force:  Stop-Process -Id <PID> -Force"
+        $Failures.Add("Port conflict: $($blocked -join '; ')")
+        return $false
+    }
 
     # Clean up stale PID files now that everything is stopped
     Clear-PidDirectory
 
     $elapsed = [Math]::Round($stepTimer.Elapsed.TotalSeconds, 1)
     Write-OK "All Planora processes stopped ($($elapsed)s)"
+    return $true
 }
 
 # ---------------------------------------------------------------------------
@@ -1257,7 +1295,7 @@ function Invoke-GracefulShutdown {
     # dotnet run/npm are launched through wrapper PowerShell processes. Stop the
     # real service processes on their ports first so the wrappers can exit cleanly.
     foreach ($port in $AllPlanoraPorts) {
-        $owner = Get-PortOwner -Port $port
+        $owner = Get-PortOwner -Port $port -RepoRoot $RepoRoot
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping service PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
             Stop-Process -Id $owner.Pid -Force -ErrorAction SilentlyContinue
@@ -1275,7 +1313,7 @@ function Invoke-GracefulShutdown {
 
     # Final port-based fallback for anything that survived wrapper shutdown.
     foreach ($port in $AllPlanoraPorts) {
-        $owner = Get-PortOwner -Port $port
+        $owner = Get-PortOwner -Port $port -RepoRoot $RepoRoot
         if ($owner -and $owner.IsPlanora) {
             Write-Info "Stopping leftover PID $($owner.Pid) ($($owner.ProcessName)) on port $port"
             Stop-Process -Id $owner.Pid -Force -ErrorAction SilentlyContinue
@@ -1376,7 +1414,11 @@ if ($Lan) {
 # -- Step 2: Stop existing processes -----------------------------------------
 Write-Host ""
 $stepTimer = [System.Diagnostics.Stopwatch]::StartNew()
-Stop-PlanoraProcesses
+if (-not (Stop-PlanoraProcesses)) {
+    Write-Fail "Cannot start: a Planora port is taken by another application (see above)."
+    try { Stop-Transcript | Out-Null } catch {}
+    exit 1
+}
 
 # -- Step 3: Clean build artifacts (if -Clean) --------------------------------
 if ($Clean) {

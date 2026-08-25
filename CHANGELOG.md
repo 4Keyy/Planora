@@ -4,6 +4,38 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix: launcher — detect a foreign process squatting on a Planora port (2026-08-24)
+
+`Test-PortFree` probed a port by binding `127.0.0.1`, which Windows grants even when another server
+already holds the same port on `0.0.0.0` or `[::]` — so an occupied port was reported free. A second
+Kestrel then started next to the squatter (each on a different address family, both logging a
+successful start) and whichever family the caller resolved to decided which application answered.
+Concretely: an unrelated local API on `5100` answered the gateway's `todos` downstream calls, so every
+`/todos/api/v1/*` request came back `404` from a server that had never heard of the route, while the
+launcher and the Todo API logs both reported healthy.
+
+The probe now asks `Get-NetTCPConnection` whether *anything* is listening on the port on any address
+family, and only then attempts exclusive (`SO_EXCLUSIVEADDRUSE`) wildcard binds on both IPv4 and IPv6.
+`Stop-PlanoraProcesses` checks every port it owns — REST, gRPC and the frontend — and aborts the run
+naming the process, PID and executable holding the port instead of starting a service that cannot be
+reached; a port with no owning process (a socket in `TIME_WAIT` from the run just stopped) only warns,
+so ordinary restarts are unaffected. `Get-PortOwner` now also returns `ExecutablePath`, since two
+unrelated .NET services are both just "dotnet" by name.
+
+A second half of the same incident: the launcher decided what it was allowed to kill by process
+*name*. `Get-PortOwner` flagged any `dotnet`, `node` or `Planora` process on a Planora port as a
+stale run of our own, so `Stop-PlanoraProcesses` and the Ctrl+C shutdown path force-killed an
+unrelated local API that happened to sit on `5100` — the EDU-ECON backend, in practice. Ownership is
+now decided by provenance instead: `Test-ProcessUnderPath` walks the process and its six nearest
+ancestors and asks whether any of them was launched from inside the Planora tree. The ancestor walk
+is required because a service started through `dotnet run` or `npm run dev` lives under
+`cmd -> npm -> node` and only one link in that chain carries the repo path; the walk is depth-limited
+because Windows recycles PIDs and a parent chain can loop back on itself. `Get-PortOwner` and
+`Assert-PortsFree` take an optional `-RepoRoot` for this and keep the old name-based guess only as a
+fallback for callers that cannot say where Planora lives. A foreign owner is now reported as a
+conflict to resolve, never terminated.
+
+
 ### feat: data-retention — purge soft-deleted user accounts (2026-07-08)
 
 Closes the final accumulation vector found by the completeness audit: a deleted account is soft-deleted
