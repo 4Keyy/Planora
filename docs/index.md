@@ -45,6 +45,12 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | [`caching.md`](caching.md) | Cache layers, naming, TTL, invalidation |
 | [`DECISIONS/`](DECISIONS/) | Architecture Decision Records (ADRs) |
 
+### Research (pre-implementation)
+
+| File | Purpose |
+|---|---|
+| [`eco/RESEARCH.md`](eco/RESEARCH.md) | Personal-finance domain research for the planned Eco / Ledger service: industry landscape, abandonment causes, money & ledger modelling, metrics, interface language, storage, Planora integration, naming. Research only — no implementation plan |
+
 ### Security
 
 | File | Purpose |
