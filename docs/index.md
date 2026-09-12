@@ -78,6 +78,7 @@ configuration, tests, scripts, CI, or shipped artefacts.
 |---|---|
 | [`development.md`](development.md) | Local workflows for adding features, endpoints, components |
 | [`testing.md`](testing.md) | Suites, commands, coverage, OpenAPI lint |
+| [`plans/`](plans/) | Working plans and research prompts for upcoming work |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | PR checklist, branch hygiene, CODEOWNERS |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Released changes, conventional-commit log |
 
