@@ -50,6 +50,7 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | File | Purpose |
 |---|---|
 | [`eco/RESEARCH.md`](eco/RESEARCH.md) | Personal-finance domain research for the planned Eco / Ledger service: industry landscape, abandonment causes, money & ledger modelling, metrics, interface language, storage, Planora integration, naming. Research only — no implementation plan |
+| [`eco/UX-BLUEPRINT.md`](eco/UX-BLUEPRINT.md) | Layout and interaction specification for the same service on desktop and phone web: grid and breakpoints, screen inventory, per-screen wireframes with pixel sizes, component inventory, frame-by-frame interaction choreography, chart specs, performance budgets, accessibility, design-token additions |
 
 ### Security
 
