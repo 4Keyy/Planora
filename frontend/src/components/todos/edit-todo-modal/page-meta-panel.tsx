@@ -270,8 +270,12 @@ export function PageMetaPanel({
           ) : "No due date"}
         </div>
 
-        {/* The calendar itself — always visible. */}
-        <div style={{ border: "1px solid var(--pl-line)", borderRadius: 14, overflow: "hidden", background: "white" }}>
+        {/* The calendar itself — always visible, and full-bleed on phones so seven
+            44px day columns actually fit. See `.calendar-bleed` in globals.css. */}
+        <div
+          className="calendar-bleed"
+          style={{ borderWidth: 1, borderStyle: "solid", borderColor: "var(--pl-line)", overflow: "hidden", background: "white" }}
+        >
           <DateCalendar start={dueDateStart} end={dueDate} onChange={onDueRangeChange} readOnly={ownerLocked} headless hideQuickPicks />
         </div>
       </div>

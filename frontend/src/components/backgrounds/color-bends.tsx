@@ -1,24 +1,32 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import {
-  Clock,
-  Mesh,
-  OrthographicCamera,
-  PlaneGeometry,
-  Scene,
-  ShaderMaterial,
-  SRGBColorSpace,
-  Vector2,
-  Vector3,
-  WebGLRenderer,
-} from "three"
 
-// ─── Shader ──────────────────────────────────────────────────────────────────
+/**
+ * Animated ribbon background, drawn with raw WebGL.
+ *
+ * This used to be a three.js scene. three.js is a scene graph — cameras, meshes,
+ * materials, a render loop that traverses all of it — and none of that was in use
+ * here: the whole effect is ONE fragment shader over ONE screen-filling quad, with
+ * no depth, no lighting, no second object to sort against. The library cost 506 kB
+ * of JavaScript to supply a vertex buffer and a uniform setter, and it was the
+ * single largest dependency in the bundle.
+ *
+ * The shader below is byte-for-byte the shader that ran before; only the ~90 lines
+ * of plumbing changed. Two preamble differences are all that raw GL requires:
+ * three.js injected `precision highp float` into every fragment shader and declared
+ * the `position` and `uv` attributes, so both are written out explicitly here.
+ *
+ * Deliberately WebGL 1, not 2: the shader is GLSL ES 1.00 (`varying`, `gl_FragColor`)
+ * and gains nothing from GLSL 3.00, while WebGL 1 is supported by a wider set of
+ * older GPUs and drivers. A context that fails to create returns null and the layer
+ * above falls back to the static CSS gradient — the same path a lost context takes.
+ */
 
 const MAX_COLORS = 8
 
 const FRAG = /* glsl */ `
+precision highp float;
 #define MAX_COLORS ${MAX_COLORS}
 uniform vec2  uCanvas;
 uniform float uTime;
@@ -113,10 +121,12 @@ void main() {
 `
 
 const VERT = /* glsl */ `
+attribute vec2 position;
+attribute vec2 uv;
 varying vec2 vUv;
 void main() {
   vUv = uv;
-  gl_Position = vec4(position, 1.0);
+  gl_Position = vec4(position, 0.0, 1.0);
 }
 `
 
@@ -142,13 +152,62 @@ export interface ColorBendsProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-export function hexToVec3(hex: string): Vector3 {
+/** An RGB triple in 0..1, the form the `uColors` uniform array wants. */
+export type Rgb = [number, number, number]
+
+/** `#abc` or `#aabbcc` (with or without the hash) to a 0..1 RGB triple. */
+export function hexToVec3(hex: string): Rgb {
   const h = hex.replace("#", "").trim()
   const full = h.length === 3
     ? [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)]
     : [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
-  return new Vector3(full[0] / 255, full[1] / 255, full[2] / 255)
+  return [full[0] / 255, full[1] / 255, full[2] / 255]
 }
+
+function compile(gl: WebGLRenderingContext, type: number, source: string): WebGLShader | null {
+  const sh = gl.createShader(type)
+  if (!sh) return null
+  gl.shaderSource(sh, source)
+  gl.compileShader(sh)
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    // A compile failure is a developer error, not a user-facing one: report it and
+    // let the caller fall back to the static gradient rather than a blank canvas.
+    console.error("ColorBends shader failed to compile:", gl.getShaderInfoLog(sh))
+    gl.deleteShader(sh)
+    return null
+  }
+  return sh
+}
+
+function link(gl: WebGLRenderingContext, vert: string, frag: string): WebGLProgram | null {
+  const vs = compile(gl, gl.VERTEX_SHADER, vert)
+  const fs = compile(gl, gl.FRAGMENT_SHADER, frag)
+  if (!vs || !fs) return null
+  const prog = gl.createProgram()
+  if (!prog) return null
+  gl.attachShader(prog, vs)
+  gl.attachShader(prog, fs)
+  gl.linkProgram(prog)
+  // The shaders belong to the program once linked; dropping our handles here means
+  // a later dispose only has to delete the program.
+  gl.deleteShader(vs)
+  gl.deleteShader(fs)
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error("ColorBends program failed to link:", gl.getProgramInfoLog(prog))
+    gl.deleteProgram(prog)
+    return null
+  }
+  return prog
+}
+
+/** Every uniform the fragment shader declares, resolved once at link time. */
+type Uniforms = Record<string, WebGLUniformLocation | null>
+
+const UNIFORM_NAMES = [
+  "uCanvas", "uTime", "uSpeed", "uRot", "uColorCount", "uColors", "uTransparent",
+  "uScale", "uFrequency", "uWarpStrength", "uPointer", "uMouseInfluence",
+  "uParallax", "uNoise", "uIterations", "uIntensity", "uBandWidth",
+] as const
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -169,16 +228,21 @@ export function ColorBends({
   bandWidth     = 6,
   className     = "",
 }: ColorBendsProps) {
-  const containerRef    = useRef<HTMLDivElement>(null)
-  const rotationRef     = useRef(rotation)
-  const autoRotateRef   = useRef(autoRotate)
-  const ptrTargetRef    = useRef(new Vector2(0, 0))
-  const ptrCurrentRef   = useRef(new Vector2(0, 0))
-  const materialRef     = useRef<ShaderMaterial | null>(null)
-  const rendererRef     = useRef<WebGLRenderer | null>(null)
-  const rafRef          = useRef<number | null>(null)
+  const containerRef  = useRef<HTMLDivElement>(null)
+  const rotationRef   = useRef(rotation)
+  const autoRotateRef = useRef(autoRotate)
+  // Pointer in clip space: where it is, and where the render loop has eased to.
+  const ptrTargetRef  = useRef<[number, number]>([0, 0])
+  const ptrCurrentRef = useRef<[number, number]>([0, 0])
+  // Live GL handles, so the cheap uniform-sync effect can reach them without
+  // tearing down and rebuilding the context.
+  const glRef   = useRef<WebGLRenderingContext | null>(null)
+  const progRef = useRef<WebGLProgram | null>(null)
+  const uRef    = useRef<Uniforms>({})
+  const drawRef = useRef<(() => void) | null>(null)
+  const rafRef  = useRef<number | null>(null)
 
-  // ── Main effect: scene setup, render loop ──────────────────────────────────
+  // ── Main effect: context, program, render loop ─────────────────────────────
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -187,106 +251,152 @@ export function ColorBends({
     // globals.css nor framer-motion's MotionConfig can reach a requestAnimationFrame
     // loop. Below it renders one static frame and never starts the loop.
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const reduceMotion = motionQuery.matches
+    let reduceMotion = motionQuery.matches
 
-    // Scene
-    const scene    = new Scene()
-    const camera   = new OrthographicCamera(-1, 1, 1, -1, 0, 1)
-    const geometry = new PlaneGeometry(2, 2)
+    const canvas = document.createElement("canvas")
+    Object.assign(canvas.style, { width: "100%", height: "100%", display: "block" })
 
-    const uColorsArr = Array.from({ length: MAX_COLORS }, () => new Vector3())
-    const uniforms = {
-      uCanvas:        { value: new Vector2(1, 1)    },
-      uTime:          { value: 0                     },
-      uSpeed:         { value: speed                 },
-      uRot:           { value: new Vector2(1, 0)     },
-      uColorCount:    { value: 0                     },
-      uColors:        { value: uColorsArr            },
-      uTransparent:   { value: transparent ? 1 : 0  },
-      uScale:         { value: scale                 },
-      uFrequency:     { value: frequency             },
-      uWarpStrength:  { value: warpStrength          },
-      uPointer:       { value: new Vector2(0, 0)     },
-      uMouseInfluence:{ value: mouseInfluence        },
-      uParallax:      { value: parallax              },
-      uNoise:         { value: noise                 },
-      uIterations:    { value: iterations            },
-      uIntensity:     { value: intensity             },
-      uBandWidth:     { value: bandWidth             },
-    }
-
-    const material = new ShaderMaterial({
-      vertexShader:      VERT,
-      fragmentShader:    FRAG,
-      uniforms,
+    const gl = canvas.getContext("webgl", {
+      alpha: true,
+      antialias: false,
+      depth: false,
+      stencil: false,
+      // The shader emits premultiplied RGB (`col * a`), which is what the compositor
+      // is told to expect here. Mismatching the two is the classic cause of a halo
+      // around a transparent WebGL layer.
       premultipliedAlpha: true,
-      transparent:       true,
-    })
-    materialRef.current = material
+      powerPreference: "high-performance",
+      preserveDrawingBuffer: false,
+    }) as WebGLRenderingContext | null
 
-    scene.add(new Mesh(geometry, material))
+    // No WebGL (old driver, blocklisted GPU, jsdom under test): leave the container
+    // empty. The layer above is already showing the static CSS gradient.
+    if (!gl) return
 
-    const renderer = new WebGLRenderer({
-      antialias:        false,
-      powerPreference:  "high-performance",
-      alpha:            true,
-    })
-    rendererRef.current = renderer
-    renderer.outputColorSpace = SRGBColorSpace
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
-    renderer.setClearColor(0x000000, transparent ? 0 : 1)
-    Object.assign(renderer.domElement.style, { width: "100%", height: "100%", display: "block" })
-    container.appendChild(renderer.domElement)
+    const prog = link(gl, VERT, FRAG)
+    if (!prog) return
 
-    const clock = new Clock()
-    let running = !reduceMotion
+    container.appendChild(canvas)
+    glRef.current = gl
+    progRef.current = prog
 
+    const u: Uniforms = {}
+    for (const name of UNIFORM_NAMES) u[name] = gl.getUniformLocation(prog, name)
+    uRef.current = u
+
+    // One screen-filling quad as a triangle strip: four vertices, no index buffer.
+    // `uv` runs 0..1 so the fragment shader's `vUv` matches what three.js produced
+    // for a PlaneGeometry.
+    const quad = new Float32Array([
+      -1, -1, 0, 0,
+       1, -1, 1, 0,
+      -1,  1, 0, 1,
+       1,  1, 1, 1,
+    ])
+    const buffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW)
+
+    const aPosition = gl.getAttribLocation(prog, "position")
+    const aUv       = gl.getAttribLocation(prog, "uv")
+    gl.useProgram(prog)
+    gl.enableVertexAttribArray(aPosition)
+    gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 16, 0)
+    gl.enableVertexAttribArray(aUv)
+    gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 16, 8)
+
+    gl.disable(gl.DEPTH_TEST)
+    gl.disable(gl.BLEND)
+    gl.clearColor(0, 0, 0, transparent ? 0 : 1)
+
+    // Static uniforms — the ones that only change when this effect re-runs.
+    gl.uniform1f(u.uSpeed!, speed)
+    gl.uniform1f(u.uScale!, scale)
+    gl.uniform1f(u.uFrequency!, frequency)
+    gl.uniform1f(u.uWarpStrength!, warpStrength)
+    gl.uniform1f(u.uMouseInfluence!, mouseInfluence)
+    gl.uniform1f(u.uParallax!, parallax)
+    gl.uniform1f(u.uNoise!, noise)
+    gl.uniform1i(u.uIterations!, iterations)
+    gl.uniform1f(u.uIntensity!, intensity)
+    gl.uniform1f(u.uBandWidth!, bandWidth)
+    gl.uniform1i(u.uTransparent!, transparent ? 1 : 0)
+
+    const start = performance.now()
+    let last = start
+    let running = false
+
+    const draw = () => {
+      const now = performance.now()
+      const dt = Math.min((now - last) / 1000, 0.1)
+      last = now
+      const elapsed = reduceMotion ? 0 : (now - start) / 1000
+
+      gl.uniform1f(u.uTime!, elapsed)
+
+      const deg = (rotationRef.current % 360) + autoRotateRef.current * elapsed
+      const rad = (deg * Math.PI) / 180
+      gl.uniform2f(u.uRot!, Math.cos(rad), Math.sin(rad))
+
+      // Smooth pointer easing, frame-rate independent.
+      const cur = ptrCurrentRef.current
+      const tgt = ptrTargetRef.current
+      const k = Math.min(1, dt * 8)
+      cur[0] += (tgt[0] - cur[0]) * k
+      cur[1] += (tgt[1] - cur[1]) * k
+      gl.uniform2f(u.uPointer!, cur[0], cur[1])
+
+      gl.clear(gl.COLOR_BUFFER_BIT)
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    }
+    drawRef.current = draw
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
     const resize = () => {
       const w = container.clientWidth  || 1
       const h = container.clientHeight || 1
-      renderer.setSize(w, h, false)
-      uniforms.uCanvas.value.set(w, h)
+      const pw = Math.max(1, Math.round(w * dpr))
+      const ph = Math.max(1, Math.round(h * dpr))
+      if (canvas.width !== pw || canvas.height !== ph) {
+        canvas.width = pw
+        canvas.height = ph
+      }
+      gl.viewport(0, 0, pw, ph)
+      gl.uniform2f(u.uCanvas!, w, h)
+      // A resize while the loop is parked (reduced motion, hidden tab) still has to
+      // repaint, or the canvas keeps the old frame stretched to the new size.
+      if (!running) draw()
+    }
+
+    const loop = () => {
+      draw()
+      if (running) rafRef.current = requestAnimationFrame(loop)
     }
 
     const ro = new ResizeObserver(resize)
     ro.observe(container)
     resize()
 
-    const loop = () => {
-      const dt      = clock.getDelta()
-      uniforms.uTime.value = clock.elapsedTime
-
-      const deg = (rotationRef.current % 360) + autoRotateRef.current * clock.elapsedTime
-      const rad = (deg * Math.PI) / 180
-      uniforms.uRot.value.set(Math.cos(rad), Math.sin(rad))
-
-      // Smooth pointer lerp
-      ptrCurrentRef.current.lerp(ptrTargetRef.current, Math.min(1, dt * 8))
-      uniforms.uPointer.value.copy(ptrCurrentRef.current)
-
-      renderer.render(scene, camera)
-      if (running) rafRef.current = requestAnimationFrame(loop)
+    if (reduceMotion) {
+      draw()              // one static frame, no loop
+    } else {
+      running = true
+      rafRef.current = requestAnimationFrame(loop)
     }
 
-    if (reduceMotion) {
-      // Single static frame
-      clock.getDelta()
-      uniforms.uTime.value = 0
-      const rad = (rotation * Math.PI) / 180
-      uniforms.uRot.value.set(Math.cos(rad), Math.sin(rad))
-      renderer.render(scene, camera)
-    } else {
-      rafRef.current = requestAnimationFrame(loop)
+    const stop = () => {
+      running = false
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
     }
 
     const onVis = () => {
       if (reduceMotion) return
       if (document.visibilityState === "hidden") {
-        running = false
-        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
-        rafRef.current = null
-      } else {
+        stop()
+      } else if (rafRef.current === null) {
         running = true
+        last = performance.now()
         rafRef.current = requestAnimationFrame(loop)
       }
     }
@@ -296,64 +406,72 @@ export function ColorBends({
     // page load. Reading it once at mount left the loop running for anyone who
     // turned reduced motion on without reloading.
     const onMotionPreferenceChange = (e: MediaQueryListEvent) => {
+      reduceMotion = e.matches
       if (e.matches) {
-        running = false
-        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
-        rafRef.current = null
-        renderer.render(scene, camera)
+        stop()
+        draw()
       } else if (rafRef.current === null && document.visibilityState !== "hidden") {
         running = true
+        last = performance.now()
         rafRef.current = requestAnimationFrame(loop)
       }
     }
     motionQuery.addEventListener("change", onMotionPreferenceChange)
 
+    /**
+     * A GPU can take the context away at any time (driver reset, a tab backgrounded
+     * long enough, machine sleep). Without this handler the canvas would keep its
+     * last frame while every subsequent GL call silently no-ops. Preventing the
+     * default lets the browser restore it; until then, stop drawing.
+     */
+    const onContextLost = (e: Event) => {
+      e.preventDefault()
+      stop()
+    }
+    canvas.addEventListener("webglcontextlost", onContextLost)
+
     return () => {
-      running = false
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+      stop()
       ro.disconnect()
       document.removeEventListener("visibilitychange", onVis)
       motionQuery.removeEventListener("change", onMotionPreferenceChange)
-      geometry.dispose()
-      material.dispose()
-      renderer.dispose()
-      renderer.forceContextLoss()
-      if (renderer.domElement.parentElement === container) {
-        container.removeChild(renderer.domElement)
-      }
+      canvas.removeEventListener("webglcontextlost", onContextLost)
+      gl.deleteBuffer(buffer)
+      gl.deleteProgram(prog)
+      // Release the GPU allocation immediately rather than waiting for GC — a
+      // browser only grants a handful of live WebGL contexts per page.
+      gl.getExtension("WEBGL_lose_context")?.loseContext()
+      glRef.current = null
+      progRef.current = null
+      drawRef.current = null
+      if (canvas.parentElement === container) container.removeChild(canvas)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bandWidth, frequency, intensity, iterations, mouseInfluence, noise, parallax, scale, speed, transparent, warpStrength])
 
-  // ── Uniform sync (lightweight, no scene rebuild) ───────────────────────────
+  // ── Uniform sync (lightweight, no context rebuild) ─────────────────────────
   useEffect(() => {
     rotationRef.current   = rotation
     autoRotateRef.current = autoRotate
 
-    const mat = materialRef.current
-    const rdr = rendererRef.current
-    if (!mat) return
-
-    mat.uniforms.uSpeed.value          = speed
-    mat.uniforms.uScale.value          = scale
-    mat.uniforms.uFrequency.value      = frequency
-    mat.uniforms.uWarpStrength.value   = warpStrength
-    mat.uniforms.uMouseInfluence.value = mouseInfluence
-    mat.uniforms.uParallax.value       = parallax
-    mat.uniforms.uNoise.value          = noise
-    mat.uniforms.uIterations.value     = iterations
-    mat.uniforms.uIntensity.value      = intensity
-    mat.uniforms.uBandWidth.value      = bandWidth
-    mat.uniforms.uTransparent.value    = transparent ? 1 : 0
-    if (rdr) rdr.setClearColor(0x000000, transparent ? 0 : 1)
+    const gl = glRef.current
+    const prog = progRef.current
+    const u = uRef.current
+    if (!gl || !prog) return
+    gl.useProgram(prog)
 
     const vecs = (colors || []).filter(Boolean).slice(0, MAX_COLORS).map(hexToVec3)
-    for (let i = 0; i < MAX_COLORS; i++) {
-      const v = mat.uniforms.uColors.value[i] as Vector3
-      if (i < vecs.length) v.copy(vecs[i]); else v.set(0, 0, 0)
-    }
-    mat.uniforms.uColorCount.value = vecs.length
-  }, [rotation, autoRotate, speed, scale, frequency, warpStrength, mouseInfluence, parallax, noise, iterations, intensity, bandWidth, colors, transparent])
+    // uColors is a vec3 array: one flat Float32Array of MAX_COLORS * 3, unused
+    // slots zeroed. uColorCount is what actually bounds the shader's loop.
+    const flat = new Float32Array(MAX_COLORS * 3)
+    vecs.forEach((v, i) => { flat[i * 3] = v[0]; flat[i * 3 + 1] = v[1]; flat[i * 3 + 2] = v[2] })
+    gl.uniform3fv(u.uColors!, flat)
+    gl.uniform1i(u.uColorCount!, vecs.length)
+
+    // Repaint immediately: when the loop is parked (reduced motion) a colour change
+    // would otherwise not appear until the next resize.
+    drawRef.current?.()
+  }, [rotation, autoRotate, colors])
 
   // ── Global pointer tracking (works even with pointer-events-none) ──────────
   useEffect(() => {
@@ -362,10 +480,10 @@ export function ColorBends({
 
     const onMove = (e: PointerEvent) => {
       const rect = container.getBoundingClientRect()
-      ptrTargetRef.current.set(
+      ptrTargetRef.current = [
         ((e.clientX - rect.left)  / (rect.width  || 1)) * 2 - 1,
        -(((e.clientY - rect.top) / (rect.height || 1)) * 2 - 1),
-      )
+      ]
     }
     window.addEventListener("pointermove", onMove, { passive: true })
     return () => window.removeEventListener("pointermove", onMove)

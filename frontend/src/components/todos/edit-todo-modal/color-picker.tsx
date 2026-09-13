@@ -253,7 +253,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       {/* ── Preset swatches ── */}
       <div>
         <div style={{
-          fontSize: 12, fontWeight: 900, letterSpacing: "0.14em",
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
           textTransform: "uppercase", color: "var(--pl-ink-subtle)", marginBottom: 7,
         }}>
           Presets

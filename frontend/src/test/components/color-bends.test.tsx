@@ -1,44 +1,69 @@
 import { render, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { Vector3 } from "three"
 import { hexToVec3, ColorBends } from "@/components/backgrounds/color-bends"
 import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
 
-// ─── Three.js WebGLRenderer mock (vi.hoisted = available before vi.mock) ─────
+// ─── WebGL context mock ───────────────────────────────────────────────────────
+//
+// jsdom has no GPU, so `canvas.getContext("webgl")` returns null and the component
+// bails out before it registers a single listener. This stub is the whole WebGL 1
+// surface the component touches, and no more: every entry is a spy, so a test can
+// assert on the exact calls (did it delete the program on unmount? did it lose the
+// context?) instead of on a library's behaviour.
+//
+// `getShaderParameter` / `getProgramParameter` return true so compilation and
+// linking "succeed"; a test that wants the failure path overrides them.
 
-const MockedRenderer = vi.hoisted(() => {
-  const instances: {
-    domElement: HTMLCanvasElement
-    outputColorSpace: string
-    setPixelRatio: ReturnType<typeof vi.fn>
-    setClearColor:   ReturnType<typeof vi.fn>
-    setSize:         ReturnType<typeof vi.fn>
-    render:          ReturnType<typeof vi.fn>
-    dispose:         ReturnType<typeof vi.fn>
-    forceContextLoss: ReturnType<typeof vi.fn>
-  }[] = []
+const GLMock = vi.hoisted(() => {
+  const contexts: Record<string, ReturnType<typeof vi.fn>>[] = []
+  const loseContext = vi.fn()
 
-  class WebGLRendererMock {
-    domElement!:      HTMLCanvasElement
-    outputColorSpace = ""
-    setPixelRatio    = vi.fn()
-    setClearColor    = vi.fn()
-    setSize          = vi.fn()
-    render           = vi.fn()
-    dispose          = vi.fn()
-    forceContextLoss = vi.fn()
-    constructor() {
-      this.domElement = document.createElement("canvas")
-      instances.push(this as unknown as typeof instances[number])
+  const make = () => {
+    const gl: Record<string, unknown> = {
+      // Enum values the component passes back to us. Their numbers are irrelevant
+      // to the stub — only their identity matters.
+      VERTEX_SHADER: 35633, FRAGMENT_SHADER: 35632, COMPILE_STATUS: 35713,
+      LINK_STATUS: 35714, ARRAY_BUFFER: 34962, STATIC_DRAW: 35044, FLOAT: 5126,
+      TRIANGLE_STRIP: 5, COLOR_BUFFER_BIT: 16384, DEPTH_TEST: 2929, BLEND: 3042,
+
+      createShader: vi.fn(() => ({})),
+      shaderSource: vi.fn(),
+      compileShader: vi.fn(),
+      getShaderParameter: vi.fn(() => true),
+      getShaderInfoLog: vi.fn(() => ""),
+      deleteShader: vi.fn(),
+      createProgram: vi.fn(() => ({})),
+      attachShader: vi.fn(),
+      linkProgram: vi.fn(),
+      getProgramParameter: vi.fn(() => true),
+      getProgramInfoLog: vi.fn(() => ""),
+      deleteProgram: vi.fn(),
+      useProgram: vi.fn(),
+      getUniformLocation: vi.fn((_p: unknown, name: string) => ({ name })),
+      getAttribLocation: vi.fn(() => 0),
+      createBuffer: vi.fn(() => ({})),
+      bindBuffer: vi.fn(),
+      bufferData: vi.fn(),
+      deleteBuffer: vi.fn(),
+      enableVertexAttribArray: vi.fn(),
+      vertexAttribPointer: vi.fn(),
+      enable: vi.fn(),
+      disable: vi.fn(),
+      clearColor: vi.fn(),
+      clear: vi.fn(),
+      viewport: vi.fn(),
+      drawArrays: vi.fn(),
+      uniform1f: vi.fn(),
+      uniform1i: vi.fn(),
+      uniform2f: vi.fn(),
+      uniform3fv: vi.fn(),
+      getExtension: vi.fn((name: string) => (name === "WEBGL_lose_context" ? { loseContext } : null)),
     }
+    contexts.push(gl as Record<string, ReturnType<typeof vi.fn>>)
+    return gl
   }
 
-  return { WebGLRendererMock, instances }
-})
-
-vi.mock("three", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("three")>()
-  return { ...actual, WebGLRenderer: MockedRenderer.WebGLRendererMock }
+  return { make, contexts, loseContext }
 })
 
 // ─── Browser API stubs ────────────────────────────────────────────────────────
@@ -47,7 +72,11 @@ class ObserverStub { observe = vi.fn(); disconnect = vi.fn() }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  MockedRenderer.instances.length = 0
+  GLMock.contexts.length = 0
+  // Every canvas created in a test hands back the stub context.
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    ((type: string) => (type === "webgl" ? GLMock.make() : null)) as unknown as HTMLCanvasElement["getContext"]
+  )
   vi.stubGlobal("ResizeObserver", ObserverStub)
   vi.stubGlobal("IntersectionObserver", ObserverStub)
   vi.stubGlobal("requestAnimationFrame", vi.fn(() => 1))
@@ -70,56 +99,62 @@ afterEach(() => {
 describe("hexToVec3()", () => {
   it("converts #000000 to (0,0,0)", () => {
     const v = hexToVec3("#000000")
-    expect(v.x).toBeCloseTo(0); expect(v.y).toBeCloseTo(0); expect(v.z).toBeCloseTo(0)
+    expect(v[0]).toBeCloseTo(0); expect(v[1]).toBeCloseTo(0); expect(v[2]).toBeCloseTo(0)
   })
 
   it("converts #ffffff to (1,1,1)", () => {
     const v = hexToVec3("#ffffff")
-    expect(v.x).toBeCloseTo(1); expect(v.y).toBeCloseTo(1); expect(v.z).toBeCloseTo(1)
+    expect(v[0]).toBeCloseTo(1); expect(v[1]).toBeCloseTo(1); expect(v[2]).toBeCloseTo(1)
   })
 
   it("converts red #ff0000 to (1,0,0)", () => {
     const v = hexToVec3("#ff0000")
-    expect(v.x).toBeCloseTo(1); expect(v.y).toBeCloseTo(0); expect(v.z).toBeCloseTo(0)
+    expect(v[0]).toBeCloseTo(1); expect(v[1]).toBeCloseTo(0); expect(v[2]).toBeCloseTo(0)
   })
 
   it("expands 3-digit shorthand #f00 to (1,0,0)", () => {
     const v = hexToVec3("#f00")
-    expect(v.x).toBeCloseTo(1); expect(v.y).toBeCloseTo(0); expect(v.z).toBeCloseTo(0)
+    expect(v[0]).toBeCloseTo(1); expect(v[1]).toBeCloseTo(0); expect(v[2]).toBeCloseTo(0)
   })
 
   it("expands 3-digit shorthand #fff to (1,1,1)", () => {
     const v = hexToVec3("#fff")
-    expect(v.x).toBeCloseTo(1); expect(v.y).toBeCloseTo(1); expect(v.z).toBeCloseTo(1)
+    expect(v[0]).toBeCloseTo(1); expect(v[1]).toBeCloseTo(1); expect(v[2]).toBeCloseTo(1)
   })
 
   it("converts #808080 to equal rgb channels", () => {
     const v = hexToVec3("#808080")
-    expect(v.x).toBeCloseTo(0x80 / 255)
-    expect(v.x).toBeCloseTo(v.y)
-    expect(v.y).toBeCloseTo(v.z)
+    expect(v[0]).toBeCloseTo(0x80 / 255)
+    expect(v[0]).toBeCloseTo(v[1])
+    expect(v[1]).toBeCloseTo(v[2])
   })
 
   it("works without a leading hash", () => {
     const v = hexToVec3("aabbcc")
-    expect(v.x).toBeCloseTo(0xaa / 255)
-    expect(v.y).toBeCloseTo(0xbb / 255)
-    expect(v.z).toBeCloseTo(0xcc / 255)
+    expect(v[0]).toBeCloseTo(0xaa / 255)
+    expect(v[1]).toBeCloseTo(0xbb / 255)
+    expect(v[2]).toBeCloseTo(0xcc / 255)
   })
 
-  it("returns a Vector3 instance", () => {
-    expect(hexToVec3("#123456")).toBeInstanceOf(Vector3)
+  it("returns a three-channel tuple in 0..1", () => {
+    const v = hexToVec3("#123456")
+    expect(Array.isArray(v)).toBe(true)
+    expect(v).toHaveLength(3)
+    for (const c of v) {
+      expect(c).toBeGreaterThanOrEqual(0)
+      expect(c).toBeLessThanOrEqual(1)
+    }
   })
 
   it("is deterministic", () => {
-    expect(hexToVec3("#abcdef").x).toBe(hexToVec3("#abcdef").x)
+    expect(hexToVec3("#abcdef")[0]).toBe(hexToVec3("#abcdef")[0])
   })
 
   it("gray palette colors are neutral (r=g=b)", () => {
     for (const hex of ["#d4d4d4", "#9e9e9e", "#616161"]) {
       const v = hexToVec3(hex)
-      expect(v.x).toBeCloseTo(v.y)
-      expect(v.y).toBeCloseTo(v.z)
+      expect(v[0]).toBeCloseTo(v[1])
+      expect(v[1]).toBeCloseTo(v[2])
     }
   })
 
@@ -127,8 +162,8 @@ describe("hexToVec3()", () => {
     const light = hexToVec3("#d4d4d4")
     const mid   = hexToVec3("#9e9e9e")
     const dark  = hexToVec3("#616161")
-    expect(light.x).toBeGreaterThan(mid.x)
-    expect(mid.x).toBeGreaterThan(dark.x)
+    expect(light[0]).toBeGreaterThan(mid[0])
+    expect(mid[0]).toBeGreaterThan(dark[0])
   })
 })
 
@@ -145,12 +180,29 @@ describe("ColorBends", () => {
     expect(container.querySelectorAll("div")).toHaveLength(1)
   })
 
-  it("creates a WebGLRenderer instance on mount", () => {
+  it("creates exactly one WebGL context on mount", () => {
     render(<ColorBends />)
-    expect(MockedRenderer.instances).toHaveLength(1)
+    expect(GLMock.contexts).toHaveLength(1)
   })
 
-  it("appends renderer canvas to the container div", () => {
+  it("compiles and links the shader program on mount", () => {
+    render(<ColorBends />)
+    const gl = GLMock.contexts[0]
+    expect(gl.compileShader).toHaveBeenCalledTimes(2)   // vertex + fragment
+    expect(gl.linkProgram).toHaveBeenCalledTimes(1)
+    expect(gl.drawArrays).toHaveBeenCalled()
+  })
+
+  it("renders nothing and throws nothing when WebGL is unavailable", () => {
+    // Blocklisted GPU, ancient driver, or a browser with WebGL disabled: the
+    // component must leave the container empty so the static CSS gradient shows
+    // through, rather than appending a permanently blank canvas.
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null)
+    const { container } = render(<ColorBends />)
+    expect(container.querySelector("canvas")).toBeNull()
+  })
+
+  it("appends the canvas to the container div", () => {
     const { container } = render(<ColorBends />)
     const canvas = container.querySelector("canvas")
     expect(canvas).not.toBeNull()
@@ -223,16 +275,31 @@ describe("ColorBends", () => {
     expect(cancel).toHaveBeenCalled()
   })
 
-  it("calls dispose() on the renderer when unmounted", () => {
+  it("deletes the program and the buffer when unmounted", () => {
     const { unmount } = render(<ColorBends />)
+    const gl = GLMock.contexts[0]
     unmount()
-    expect(MockedRenderer.instances[0].dispose).toHaveBeenCalled()
+    expect(gl.deleteProgram).toHaveBeenCalled()
+    expect(gl.deleteBuffer).toHaveBeenCalled()
   })
 
-  it("calls forceContextLoss() on the renderer when unmounted", () => {
+  it("releases the GPU context when unmounted", () => {
+    // A page is granted only a handful of live WebGL contexts; waiting for GC to
+    // reclaim this one means a remount can fail to get a context at all.
     const { unmount } = render(<ColorBends />)
     unmount()
-    expect(MockedRenderer.instances[0].forceContextLoss).toHaveBeenCalled()
+    expect(GLMock.loseContext).toHaveBeenCalled()
+  })
+
+  it("stops drawing when the GPU takes the context away", () => {
+    const cancel = vi.fn()
+    vi.stubGlobal("cancelAnimationFrame", cancel)
+    const { container } = render(<ColorBends />)
+    const canvas = container.querySelector("canvas")!
+    const event = new Event("webglcontextlost", { cancelable: true })
+    canvas.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)   // lets the browser restore it
+    expect(cancel).toHaveBeenCalled()
   })
 
   it("registers ResizeObserver on mount and disconnects on unmount", () => {
@@ -262,6 +329,66 @@ describe("ColorBends", () => {
     expect(addSpy.mock.calls.some(([e]) => e === "visibilitychange")).toBe(true)
     unmount()
     expect(removeSpy.mock.calls.some(([e]) => e === "visibilitychange")).toBe(true)
+  })
+
+  it("falls back to the static gradient when the shader fails to compile", () => {
+    // A driver that rejects the shader must not leave a blank canvas over the page.
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation((() => {
+      const gl = GLMock.make()
+      gl.getShaderParameter = vi.fn(() => false)
+      return gl
+    }) as unknown as HTMLCanvasElement["getContext"])
+    const { container } = render(<ColorBends />)
+    expect(container.querySelector("canvas")).toBeNull()
+    expect(errorSpy).toHaveBeenCalled()
+  })
+
+  it("falls back to the static gradient when the program fails to link", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation((() => {
+      const gl = GLMock.make()
+      gl.getProgramParameter = vi.fn(() => false)
+      return gl
+    }) as unknown as HTMLCanvasElement["getContext"])
+    const { container } = render(<ColorBends />)
+    expect(container.querySelector("canvas")).toBeNull()
+    expect(errorSpy).toHaveBeenCalled()
+  })
+
+  it("uploads the palette as a flat vec3 array bounded by uColorCount", () => {
+    render(<ColorBends colors={["#ff0000", "#00ff00"]} />)
+    const gl = GLMock.contexts[0]
+    const call = gl.uniform3fv.mock.calls.at(-1)!
+    const flat = call[1] as Float32Array
+    expect(flat).toHaveLength(24)                       // MAX_COLORS * 3
+    expect(Array.from(flat.slice(0, 6))).toEqual([1, 0, 0, 0, 1, 0])
+    expect(Array.from(flat.slice(6))).toEqual(Array(18).fill(0))  // unused slots zeroed
+    expect(gl.uniform1i).toHaveBeenCalledWith(expect.objectContaining({ name: "uColorCount" }), 2)
+  })
+
+  it("never uploads more than MAX_COLORS entries", () => {
+    const ten = ["#111111", "#222222", "#333333", "#444444", "#555555",
+                 "#666666", "#777777", "#888888", "#999999", "#aaaaaa"]
+    render(<ColorBends colors={ten} />)
+    const gl = GLMock.contexts[0]
+    expect(gl.uniform1i).toHaveBeenCalledWith(expect.objectContaining({ name: "uColorCount" }), 8)
+  })
+
+  it("parks the loop when the tab is hidden and restarts it when shown", () => {
+    const cancel = vi.fn()
+    vi.stubGlobal("cancelAnimationFrame", cancel)
+    render(<ColorBends />)
+
+    Object.defineProperty(document, "visibilityState", { value: "hidden", writable: true, configurable: true })
+    document.dispatchEvent(new Event("visibilitychange"))
+    expect(cancel).toHaveBeenCalled()
+
+    const raf = vi.fn(() => 5)
+    vi.stubGlobal("requestAnimationFrame", raf)
+    Object.defineProperty(document, "visibilityState", { value: "visible", writable: true, configurable: true })
+    document.dispatchEvent(new Event("visibilitychange"))
+    expect(raf).toHaveBeenCalled()
   })
 
   it("accepts the full gray config without crashing", () => {
@@ -359,7 +486,7 @@ describe("ColorBendsLayer", () => {
   // constructed. Each branch of prefersLightweightBackground is exercised here.
 
   const expectStaticGradient = (container: HTMLElement) => {
-    expect(MockedRenderer.instances).toHaveLength(0)
+    expect(GLMock.contexts).toHaveLength(0)
     const bg = container.querySelector('div[aria-hidden="true"]')
     expect(bg).not.toBeNull()
     expect(bg?.getAttribute("style") ?? "").toContain("gradient")

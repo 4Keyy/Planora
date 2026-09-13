@@ -122,6 +122,10 @@
   }
 
   :root {
+  /* Horizontal padding of the task editor's body. Read by `.calendar-bleed`,
+     which cancels exactly this much to run the month grid to the card edges. */
+  --pl-editor-gutter: 16px;
+
     --font-sans: "Plus Jakarta Sans";
     /* Every token, exposed as a CSS variable. The branch surface builds almost
        all of its styling through inline style objects where a Tailwind class
@@ -175,6 +179,33 @@
   /* Page container. One width for the whole product. */
   .container-app {
     @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /**
+   * Full-bleed month grid on phones.
+   *
+   * A seven-column calendar wants 7 x 44px + gaps = 320px before any chrome.
+   * On a 390px phone the app gutter, the card border and the editor's own body
+   * padding had already spent 78 of those pixels, leaving 36px-wide day cells —
+   * under the 44px target and visibly cramped. Cancelling the body padding for
+   * this one block (the standard mobile date-picker move) hands the grid the
+   * full card width and takes the cells to ~45px, while the text around it
+   * keeps its comfortable gutters.
+   *
+   * The inline margin MUST match the editor body's phone padding in modal.tsx.
+   * Both read the same custom property so the two cannot drift apart.
+   */
+  .calendar-bleed {
+    margin-inline: calc(var(--pl-editor-gutter) * -1);
+    border-inline-width: 0;
+    border-radius: 0;
+  }
+  @media (min-width: 1024px) {
+    .calendar-bleed {
+      margin-inline: 0;
+      border-inline-width: 1px;
+      border-radius: 14px;
+    }
   }
 }
 

@@ -465,8 +465,12 @@ export function TodoEditor({
         {/* Body: meta sidebar | branch — stacks vertically on phones, two columns on lg+ so the
             fixed 389px sidebar never overflows a narrow screen. */}
         <div
-          style={{ flex: 1, minHeight: 0, padding: "14px 26px 22px" }}
-          className="flex flex-col gap-4 lg:flex-row lg:gap-0"
+          /* Side padding is `--pl-editor-gutter` on phones (26px of a 390px screen
+             was 13% of it) and widens on lg. `.calendar-bleed` cancels exactly
+             this value to run the month grid edge to edge, so the two must stay
+             in step — hence the shared custom property rather than two numbers. */
+          style={{ flex: 1, minHeight: 0, paddingInline: "var(--pl-editor-gutter)" }}
+          className="flex flex-col gap-4 pb-[22px] pt-[14px] lg:flex-row lg:gap-0 lg:px-[26px]"
         >
           <div className="branch-scroll w-full flex-shrink-0 lg:w-[389px] lg:overflow-y-auto lg:pr-6">
             <PageMetaPanel {...metaProps} />

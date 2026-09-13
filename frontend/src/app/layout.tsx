@@ -1,10 +1,28 @@
 import "./globals.css"
-import "@fontsource/plus-jakarta-sans/300.css"
-import "@fontsource/plus-jakarta-sans/400.css"
-import "@fontsource/plus-jakarta-sans/500.css"
-import "@fontsource/plus-jakarta-sans/600.css"
-import "@fontsource/plus-jakarta-sans/700.css"
-import "@fontsource/plus-jakarta-sans/800.css"
+/**
+ * Four weights, two subsets — and nothing else.
+ *
+ * The bare `<weight>.css` entry points each declare FOUR @font-face rules (latin,
+ * latin-ext, vietnamese, cyrillic-ext), so six of them shipped 24 font files to
+ * build an English-language product. Weights 300 and 800 were not in the type
+ * scale at all, and `font-weight: 900` appeared once in the colour picker — a
+ * weight no file provides, which the browser answers by synthetically emboldening
+ * the 800 face. The type scale defines exactly four weights (400/500/600/700) and
+ * those are the four loaded here.
+ *
+ * latin-ext stays: names, categories and comments are user text and routinely
+ * carry accented Latin characters. vietnamese and cyrillic-ext do not — the UI is
+ * English and any stray glyph falls back to the system stack, which is the correct
+ * outcome rather than a reason to ship two more subsets.
+ */
+import "@fontsource/plus-jakarta-sans/latin-400.css"
+import "@fontsource/plus-jakarta-sans/latin-500.css"
+import "@fontsource/plus-jakarta-sans/latin-600.css"
+import "@fontsource/plus-jakarta-sans/latin-700.css"
+import "@fontsource/plus-jakarta-sans/latin-ext-400.css"
+import "@fontsource/plus-jakarta-sans/latin-ext-500.css"
+import "@fontsource/plus-jakarta-sans/latin-ext-600.css"
+import "@fontsource/plus-jakarta-sans/latin-ext-700.css"
 import { ReactNode } from "react"
 import type { Viewport } from "next"
 import { cn } from "@/lib/utils"

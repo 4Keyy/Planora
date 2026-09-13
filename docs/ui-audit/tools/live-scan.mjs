@@ -465,11 +465,61 @@ for (const mode of ['data', 'reduced-motion', 'dark-os']) {
 
       const t0 = Date.now()
       let status = null
+      // False means the page never stopped moving within the settle budget — a
+      // measurement taken under those conditions is reported, but flagged.
+      let settled = false
       try {
         const resp = await page.goto(BASE + route.path, { waitUntil: 'domcontentloaded', timeout: 30000 })
         status = resp?.status() ?? null
-        // The dev server's HMR socket never lets the page reach networkidle.
-        await page.waitForTimeout(1800)
+        /**
+         * Settle before measuring. A flat sleep here was wrong twice over in a
+         * 264-cell matrix: under contention 1800ms sometimes landed before React
+         * hydrated (three cells reported a page with no headings, no targets and
+         * no contrast pairs at all), and sometimes mid-entrance-animation, where
+         * a form field scaling up from 0.5 measured 177x21 and was filed as a
+         * WCAG 2.5.8 failure. Both were the harness, not the product — and both
+         * are the expensive kind of wrong, because a phantom failure costs an
+         * investigation.
+         *
+         * So: wait for the page to stop changing. Two consecutive samples of the
+         * signature (element count, layout height, and the box of the first
+         * interactive element) must agree, and no Web Animation may still be
+         * running. Falls back to the old fixed wait if the page never settles —
+         * an animation that genuinely never stops is itself worth measuring.
+         */
+        await page.waitForFunction(() => {
+          const sig = () => {
+            const el = document.querySelector('a[href], button, input, select, textarea')
+            const r = el ? el.getBoundingClientRect() : { width: 0, height: 0, x: 0, y: 0 }
+            return [
+              document.querySelectorAll('*').length,
+              Math.round(document.documentElement.scrollHeight),
+              Math.round(r.width), Math.round(r.height), Math.round(r.x), Math.round(r.y),
+            ].join('|')
+          }
+          /**
+           * Only animations that will actually END count. A looping pulse — a
+           * presence dot, a skeleton shimmer — is running by design and waiting
+           * for it means waiting forever; requiring zero running animations made
+           * every branch cell sit out the full 12s timeout.
+           */
+          const running = typeof document.getAnimations === 'function'
+            ? document.getAnimations().filter((a) => {
+                if (a.playState !== 'running') return false
+                const it = a.effect && a.effect.getTiming ? a.effect.getTiming().iterations : 1
+                return Number.isFinite(it)
+              }).length
+            : 0
+          const w = window
+          const now = sig()
+          const stable = w.__plSig === now && running === 0
+          w.__plSig = now
+          w.__plStable = stable ? (w.__plStable || 0) + 1 : 0
+          // Three agreeing samples ~120ms apart, and nothing animating.
+          return w.__plStable >= 3
+        }, null, { timeout: 12000, polling: 120 }).then(() => { settled = true }).catch(() => null)
+        // Floor: even a settled page needs its fonts swapped in before a screenshot.
+        await page.waitForTimeout(400)
       } catch (e) {
         results.routes[`${route.name}@${vp.w}`] = { error: String(e).slice(0, 200) }
         await context.close()
@@ -477,6 +527,7 @@ for (const mode of ['data', 'reduced-motion', 'dark-os']) {
       }
       const loadMs = Date.now() - t0
       const finalUrl = page.url()
+      if (!settled) console.warn(`  ! ${route.name}@${vp.w} ${mode}: never settled in 12s — measurements flagged`)
 
       const dsTag = MOCK && DATASET !== 'rich' ? `-${DATASET}` : ''
       const suffix = (mode === 'data' ? '' : `-${mode}`) + dsTag
@@ -513,7 +564,7 @@ for (const mode of ['data', 'reduced-motion', 'dark-os']) {
 
       results.routes[`${route.name}@${vp.w}${suffix}`] = {
         route: route.path, viewport: `${vp.w}x${vp.h}`, viewportLabel: vp.label, mode,
-        httpStatus: status, finalUrl, redirected: !finalUrl.endsWith(route.path), loadMs,
+        httpStatus: status, finalUrl, redirected: !finalUrl.endsWith(route.path), loadMs, settled,
         screenshot: path.relative('docs/ui-audit', file).replace(/\\/g, '/'),
         vitals, consoleErrors: consoleErrors.slice(0, 8), tabOrder, ...probe,
       }
