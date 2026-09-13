@@ -175,6 +175,46 @@ describe("ColorBends", () => {
     expect(raf).not.toHaveBeenCalled()
   })
 
+  it("stops the loop when reduced motion is switched on mid-session", () => {
+    // The preference is a system setting, not a page load: reading it once at
+    // mount left the loop running for anyone who turned it on without reloading.
+    let onChange: ((e: { matches: boolean }) => void) | null = null
+    Object.defineProperty(window, "matchMedia", {
+      writable: true, configurable: true,
+      value: vi.fn((q: string) => ({
+        matches: false, media: q,
+        addEventListener: vi.fn((_: string, cb: (e: { matches: boolean }) => void) => { onChange = cb }),
+        removeEventListener: vi.fn(),
+      })),
+    })
+    const cancel = vi.fn()
+    vi.stubGlobal("cancelAnimationFrame", cancel)
+    render(<ColorBends />)
+
+    expect(onChange).toBeTypeOf("function")
+    onChange!({ matches: true })
+    expect(cancel).toHaveBeenCalled()
+  })
+
+  it("restarts the loop when reduced motion is switched back off", () => {
+    let onChange: ((e: { matches: boolean }) => void) | null = null
+    Object.defineProperty(window, "matchMedia", {
+      writable: true, configurable: true,
+      value: vi.fn((q: string) => ({
+        matches: false, media: q,
+        addEventListener: vi.fn((_: string, cb: (e: { matches: boolean }) => void) => { onChange = cb }),
+        removeEventListener: vi.fn(),
+      })),
+    })
+    render(<ColorBends />)
+
+    onChange!({ matches: true })
+    const raf = vi.fn(() => 7)
+    vi.stubGlobal("requestAnimationFrame", raf)
+    onChange!({ matches: false })
+    expect(raf).toHaveBeenCalled()
+  })
+
   it("calls cancelAnimationFrame on unmount", () => {
     const cancel = vi.fn()
     vi.stubGlobal("cancelAnimationFrame", cancel)
