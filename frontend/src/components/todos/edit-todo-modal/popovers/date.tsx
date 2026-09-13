@@ -34,7 +34,7 @@ function todayISO(): string { return toISO(new Date()) }
 
 export function DatePopover({ open, onClose, start, end, onChange, containerRef, readOnly, portal }: DatePopoverProps) {
   return (
-    <Popover open={open} onClose={onClose} width={332} containerRef={containerRef} portal={portal}>
+    <Popover open={open} onClose={onClose} width={364} containerRef={containerRef} portal={portal}>
       <DateCalendar start={start} end={end} onChange={onChange} readOnly={readOnly} autoClose={onClose} />
     </Popover>
   )
@@ -142,10 +142,13 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
   const clearAction = (startN || endN) && !readOnly ? (
     <button
       onClick={() => commit({ start: null, end: null })}
+      className="touch-target"
       style={{
         background: "none", border: "none", cursor: "pointer",
+        display: "inline-flex", alignItems: "center", minHeight: 36, padding: "0 8px",
+        borderRadius: 8,
         fontSize: 12, fontWeight: 700, letterSpacing: "0.1em",
-        textTransform: "uppercase", color: "var(--pl-ink-muted)", padding: 0,
+        textTransform: "uppercase", color: "var(--pl-ink-muted)",
       }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink)" }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)" }}
@@ -194,8 +197,9 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
             <button
               onClick={() => goMonth(-1)}
               aria-label="Previous month"
+              className="touch-target"
               style={{
-                width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
+                width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
                 background: "var(--pl-paper-sunken)", border: "none", borderRadius: 8, cursor: "pointer",
               }}
             >
@@ -222,8 +226,9 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
             <button
               onClick={() => goMonth(1)}
               aria-label="Next month"
+              className="touch-target"
               style={{
-                width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
+                width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
                 background: "var(--pl-paper-sunken)", border: "none", borderRadius: 8, cursor: "pointer",
               }}
             >
@@ -288,7 +293,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                     aria-label={iso}
                     aria-pressed={isCap || undefined}
                     style={{
-                      position: "relative", height: 32, border: "none", background: "transparent",
+                      position: "relative", height: 44, border: "none", background: "transparent",
                       cursor: "pointer", padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}

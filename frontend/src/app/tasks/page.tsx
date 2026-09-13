@@ -858,7 +858,7 @@ export default function TasksPage() {
             <div className="space-y-4">
               <button
                 onClick={() => setShowCompleted((prev) => !prev)}
-                className="flex items-center gap-3 text-body-sm font-bold text-ink-subtle hover:text-ink transition-colors group px-1 w-full"
+                className="touch-target flex min-h-control items-center gap-3 text-body-sm font-bold text-ink-subtle hover:text-ink transition-colors group px-1 w-full"
               >
                 <div className={`h-8 w-8 rounded-md flex items-center justify-center transition-[background-color,color] ${showCompleted ? "bg-ink text-paper" : "bg-gray-100 text-ink-subtle group-hover:bg-gray-200 group-hover:text-ink"}`}>
                   <motion.div

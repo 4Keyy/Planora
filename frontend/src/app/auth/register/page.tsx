@@ -192,7 +192,7 @@ export default function RegisterPage() {
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} tabIndex={-1}
                   aria-label={showPass ? "Hide password" : "Show password"}
-                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted">
+                  className="touch-target absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted">
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -221,7 +221,7 @@ export default function RegisterPage() {
                 />
                 <button type="button" onClick={() => setShowConfirm(!showConfirm)} tabIndex={-1}
                   aria-label={showConfirm ? "Hide password" : "Show password"}
-                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted">
+                  className="touch-target absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted">
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>

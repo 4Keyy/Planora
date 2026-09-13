@@ -131,7 +131,7 @@ export function CategoryPopover({
             style={{
               width: "100%", marginBottom: 14,
               background: "var(--pl-paper-sunken)", border: "1px solid var(--pl-line)", borderRadius: 12,
-              padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--pl-ink)",
+              minHeight: 44, padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--pl-ink)",
               outline: "none", boxSizing: "border-box", fontFamily: "inherit",
             }}
           />

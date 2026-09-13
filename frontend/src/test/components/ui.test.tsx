@@ -21,7 +21,7 @@ describe("Button", () => {
 
   it("supports variant and size class generation", () => {
     expect(buttonVariants({ variant: "destructive", size: "lg" })).toContain("bg-alert")
-    expect(buttonVariants({ variant: "destructive", size: "lg" })).toContain("h-12")
+    expect(buttonVariants({ variant: "destructive", size: "lg" })).toContain("h-control-lg")
   })
 })
 

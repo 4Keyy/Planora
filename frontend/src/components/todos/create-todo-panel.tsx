@@ -592,7 +592,7 @@ export function CreateTodoPanel({
                     placeholder="What needs to be done?"
                     maxLength={TITLE_MAX_LENGTH}
                     className={cn(
-                      "w-full border-none bg-transparent p-0 text-title font-bold tracking-tight outline-none sm:text-display-sm sm:leading-tight",
+                      "min-h-control w-full border-none bg-transparent p-0 text-title font-bold tracking-tight outline-none sm:text-display-sm sm:leading-tight",
                       "placeholder:text-ink-subtle",
                       titleNearLimit ? "text-alert" : "text-ink"
                     )}
@@ -608,7 +608,7 @@ export function CreateTodoPanel({
                     placeholder="Add details — optional."
                     rows={2}
                     maxLength={DESCRIPTION_MAX_LENGTH}
-                    className="max-h-40 w-full resize-none border-none bg-transparent p-0 text-body-sm font-medium text-ink-muted outline-none placeholder:text-ink-subtle"
+                    className="min-h-control max-h-40 w-full resize-none border-none bg-transparent p-0 text-body-sm font-medium text-ink-muted outline-none placeholder:text-ink-subtle"
                   />
                   <span className="flex-shrink-0">
                     <LimitCounter value={description.length} max={DESCRIPTION_MAX_LENGTH} />

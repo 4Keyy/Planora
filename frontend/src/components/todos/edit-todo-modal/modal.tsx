@@ -441,8 +441,10 @@ export function TodoEditor({
           <div className="flex-shrink-0 lg:w-[390px]">
             <Link
               href="/tasks"
+              className="touch-target"
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6,
+                minHeight: 36, paddingRight: 8, borderRadius: 8,
                 fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase",
                 color: "var(--pl-ink-subtle)", textDecoration: "none",
               }}

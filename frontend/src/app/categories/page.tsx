@@ -138,7 +138,7 @@ function CategoryCard({
               e.stopPropagation()
               onDelete()
             }}
-            className="p-2.5 rounded-full bg-alert text-paper shadow-md hover:shadow-lg transition-all active:shadow-none"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-alert text-paper shadow-md transition-shadow hover:shadow-lg active:shadow-none"
             aria-label="Delete category"
           >
             <Trash2 className="h-5 w-5" />

@@ -45,12 +45,12 @@ export default function HomePage() {
       >
         <span className="text-body font-bold tracking-tight text-ink">Planora</span>
         <div className="flex items-center gap-3">
-          <Link href="/auth/login" className="text-body-sm text-ink-subtle hover:text-ink transition-colors px-3 py-1.5" suppressHydrationWarning>
+          <Link href="/auth/login" className="touch-target inline-flex items-center text-body-sm text-ink-subtle hover:text-ink transition-colors px-3 py-1.5" suppressHydrationWarning>
             Sign in
           </Link>
           <Link
             href="/auth/register"
-            className="text-body-sm font-medium bg-gray-900 text-paper px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+            className="touch-target inline-flex items-center text-body-sm font-medium bg-gray-900 text-paper px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
             suppressHydrationWarning
           >
             Get started

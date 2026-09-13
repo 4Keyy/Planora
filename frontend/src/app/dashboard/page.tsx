@@ -939,7 +939,7 @@ export default function DashboardPage() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handlePageChange(pageNum)}
                             className={cn(
-                              "w-9 h-9 rounded-md text-caption font-bold transition-all duration-base border",
+                              "touch-target w-9 h-9 rounded-md text-caption font-bold transition-all duration-base border",
                               currentPage === pageNum
                                 ? "bg-gradient-to-br from-black to-gray-900 text-paper shadow-lg shadow-black/30 scale-110 border-black"
                                 : "text-ink-muted hover:bg-gray-100 hover:text-ink hover:border-line-strong border-line"

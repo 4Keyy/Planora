@@ -173,6 +173,34 @@
 }
 
 @layer utilities {
+  /**
+   * Guarantees a 44x44 hit area without changing what the control LOOKS like.
+   * The pseudo-element extends the target symmetrically and takes part in hit
+   * testing only — it never affects layout, so a 24px icon button keeps its
+   * 24px appearance while a thumb gets the full touch threshold.
+   *
+   * Do NOT use it on controls that sit closer than 8px to a neighbour: the
+   * expanded areas would overlap and steal each other's taps. Those need real
+   * spacing instead.
+   */
+  .touch-target {
+    position: relative;
+  }
+  .touch-target::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+    /* MUST be explicit. `pointer-events` is inherited, and several of this
+       product's surfaces set it to `none` on a wrapper and re-enable it per
+       child — the pseudo-element then inherited `none` and the whole expanded
+       area was inert. Without this line the utility silently does nothing. */
+    pointer-events: auto;
+  }
+
   /* Frosted surface for floating chrome (navbar, sheets). */
   .glass {
     background: rgba(255, 255, 255, 0.75);

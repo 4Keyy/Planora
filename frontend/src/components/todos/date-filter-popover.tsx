@@ -69,7 +69,7 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-controls={panelId}
-          className="flex h-8 max-w-[220px] items-center gap-2 rounded-md px-2.5 text-caption font-bold text-ink-muted transition-colors hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 cursor-pointer"
+          className="touch-target flex h-8 max-w-[220px] items-center gap-2 rounded-md px-2.5 text-caption font-bold text-ink-muted transition-colors hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 cursor-pointer"
         >
           <CalendarSearch className="h-4 w-4 flex-shrink-0 text-ink-subtle" strokeWidth={1.8} aria-hidden="true" />
           <span className={cn("truncate", hasFilter ? "text-ink" : "text-ink-muted")}>

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
   // ===== BASE STYLES (unified across all variants) =====
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized focus-visible:outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group",
+  "touch-target inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized focus-visible:outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group",
   {
     variants: {
       variant: {
@@ -31,10 +31,10 @@ const buttonVariants = cva(
           "bg-alert text-paper shadow-md hover:bg-alert hover:shadow-lg active:scale-[0.96] focus-visible:ring-alert/30 hover:translate-y-[-2px]",
       },
       size: {
-        sm: "h-9 rounded-md px-4 text-caption font-bold tracking-wide",
-        default: "h-10 rounded-lg px-5 text-body-sm font-semibold",
-        lg: "h-12 rounded-lg px-6 text-body font-bold",
-        icon: "h-10 w-10 rounded-lg",
+        sm: "h-control-sm rounded-md px-4 text-caption font-semibold tracking-wide",
+        default: "h-control rounded-md px-5 text-body-sm font-semibold",
+        lg: "h-control-lg rounded-md px-6 text-body font-semibold",
+        icon: "h-control w-control rounded-md",
       },
     },
     defaultVariants: {

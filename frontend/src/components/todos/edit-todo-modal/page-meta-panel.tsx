@@ -76,7 +76,7 @@ function MetaButton({ onClick, isOpen, muted, label, popover, containerRef }: Me
         aria-disabled={muted || undefined}
         style={{
           width: "100%", display: "flex", alignItems: "center", gap: 8,
-          padding: "9px 11px", borderRadius: 12,
+          minHeight: 44, padding: "9px 11px", borderRadius: 12,
           border: `1px solid ${isOpen ? "var(--pl-line)" : "var(--pl-line)"}`,
           cursor: muted ? "default" : "pointer",
           background: isOpen ? "var(--pl-paper-sunken)" : "white",
@@ -245,7 +245,8 @@ export function PageMetaPanel({
           action={dateClearable ? (
             <button
               onClick={() => onDueRangeChange(null, null)}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", padding: 0 }}
+              className="touch-target"
+              style={{ background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", minHeight: 36, padding: "0 8px", borderRadius: 8, fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)" }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-subtle)" }}
             >

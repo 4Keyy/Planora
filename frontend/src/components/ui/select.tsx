@@ -17,7 +17,7 @@ const SelectTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       // ===== UNIFIED SELECT TRIGGER (matches Input) =====
-      "flex h-10 w-full items-center justify-between rounded-lg border bg-paper px-4 py-2 text-body-sm transition-[background-color,border-color,box-shadow] duration-base ease-emphasized",
+      "flex h-control w-full items-center justify-between rounded-lg border bg-paper px-4 py-2 text-body-sm transition-[background-color,border-color,box-shadow] duration-base ease-emphasized",
       // Border states
       "border-line hover:border-line-strong",
       // Focus state

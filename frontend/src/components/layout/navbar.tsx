@@ -440,9 +440,10 @@ export function Navbar() {
           <Link
             href="/dashboard"
             onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-1.5"
+            className="touch-target flex items-center gap-1.5"
+            aria-label="Planora — go to dashboard"
           >
-            <span className="h-[6px] w-[6px] rounded-full bg-gray-900 flex-shrink-0" />
+            <span className="h-[6px] w-[6px] rounded-full bg-gray-900 flex-shrink-0" aria-hidden="true" />
             <span className="text-body-sm font-bold tracking-tight text-ink select-none">Planora</span>
           </Link>
 

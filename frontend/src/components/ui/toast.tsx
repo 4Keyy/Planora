@@ -51,7 +51,7 @@ const Toast = React.forwardRef<
       <button
         onClick={() => removeToast(id)}
         aria-label="Dismiss notification"
-        className="rounded-md p-1.5 opacity-60 transition-[opacity,background-color,transform] duration-fast hover:opacity-100 hover:bg-ink/5 active:scale-95"
+        className="touch-target rounded-md p-1.5 opacity-60 transition-[opacity,background-color,transform] duration-fast hover:opacity-100 hover:bg-ink/5 active:scale-95"
       >
         <X className="h-4 w-4" />
       </button>

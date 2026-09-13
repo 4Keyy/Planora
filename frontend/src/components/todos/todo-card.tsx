@@ -645,7 +645,7 @@ function TodoCardComponent({
                     disabled={isCompletionPending}
                     aria-busy={isCompletionPending}
                     className={cn(
-                      "h-8 w-8 rounded-full border-2 flex items-center justify-center",
+                      "touch-target h-8 w-8 rounded-full border-2 flex items-center justify-center",
                       "transition-[box-shadow,ring,opacity] duration-fast",
                       // Phase rings
                       isJoining && "shadow-lg ring-2 ring-accent/35",
@@ -775,7 +775,7 @@ function TodoCardComponent({
                       whileHover={isVisibilityPending || isCompletionPending ? undefined : { scale: 1.2, rotate: 10 }}
                       whileTap={isVisibilityPending || isCompletionPending ? undefined : { scale: 0.9 }}
                       className={cn(
-                        "h-6 w-6 flex items-center justify-center rounded-full border-[1.5px] border-line-strong text-ink-muted hover:text-ink hover:border-gray-500 hover:bg-gray-100 transition-[background-color,border-color,color,opacity,transform] shadow-sm",
+                        "touch-target h-6 w-6 flex items-center justify-center rounded-full border-[1.5px] border-line-strong text-ink-muted hover:text-ink hover:border-gray-500 hover:bg-gray-100 transition-[background-color,border-color,color,opacity,transform] shadow-sm",
                         (isVisibilityPending || isCompletionPending) && "opacity-60 cursor-wait"
                       )}
                       aria-label="Collapse task card"

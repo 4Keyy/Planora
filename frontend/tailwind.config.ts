@@ -102,6 +102,11 @@ const config = {
         "control-lg": tokens.size.control.lg,
         tab: tokens.size.tab,
       },
+      width: {
+        control: tokens.size.control.md,
+        "control-sm": tokens.size.control.sm,
+        "control-lg": tokens.size.control.lg,
+      },
       minHeight: {
         control: tokens.size.control.md,
         touch: "44px",

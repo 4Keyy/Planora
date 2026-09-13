@@ -80,7 +80,7 @@ export function NotificationBell({ className }: { className?: string }) {
         aria-label={totalUnread > 0 ? `Notifications, ${totalUnread} unread` : "Notifications"}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="relative flex h-8 w-8 items-center justify-center rounded-full text-ink-subtle transition-colors duration-fast hover:bg-gray-100 hover:text-ink"
+        className="touch-target relative flex h-8 w-8 items-center justify-center rounded-full text-ink-subtle transition-colors duration-fast hover:bg-gray-100 hover:text-ink"
       >
         <Bell className="h-[18px] w-[18px]" strokeWidth={2.1} />
         <AnimatePresence>

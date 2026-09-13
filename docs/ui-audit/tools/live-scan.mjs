@@ -100,7 +100,16 @@ const PROBE = () => {
   const vis = (el) => {
     const r = el.getBoundingClientRect()
     const s = getComputedStyle(el)
-    return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && s.opacity !== '0'
+    if (!(r.width > 0 && r.height > 0)) return false
+    if (s.visibility === 'hidden' || s.display === 'none' || s.opacity === '0') return false
+    /**
+     * The sr-only pattern — a 1px clipped box — is an ANNOUNCED element, not a
+     * tapped one: the visible label beside it is the real target. Counting the
+     * hidden file input as a 1x1 touch target is a false positive.
+     */
+    const clipped = s.clipPath !== 'none' || (s.clip && s.clip !== 'auto')
+    if (clipped && r.width <= 2 && r.height <= 2) return false
+    return true
   }
   const sel = (el) => {
     const parts = []
@@ -145,10 +154,30 @@ const PROBE = () => {
   const INTERACTIVE = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, [role="button"], [role="link"], [role="checkbox"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex]:not([tabindex="-1"])'
 
   // ── 1. target sizes ──
+  /**
+   * WCAG 2.5.8 measures the TARGET, not the painted box. A control may keep a
+   * small visual footprint while a pseudo-element extends its hit area — the
+   * pseudo-element inherits pointer-events, so it is genuinely part of the
+   * target. Measure the union of the two.
+   */
+  const hitBox = (el) => {
+    const r = el.getBoundingClientRect()
+    let w = r.width, h = r.height
+    for (const pseudo of ['::after', '::before']) {
+      const ps = getComputedStyle(el, pseudo)
+      if (!ps || ps.content === 'none' || ps.position !== 'absolute') continue
+      if (ps.pointerEvents === 'none') continue
+      const pw = parseFloat(ps.width), ph = parseFloat(ps.height)
+      if (Number.isFinite(pw)) w = Math.max(w, pw)
+      if (Number.isFinite(ph)) h = Math.max(h, ph)
+    }
+    return { width: w, height: h, x: r.x, y: r.y }
+  }
+
   const targets = []
   for (const el of document.querySelectorAll(INTERACTIVE)) {
     if (!vis(el)) continue
-    const r = el.getBoundingClientRect()
+    const r = hitBox(el)
     targets.push({
       tag: el.tagName.toLowerCase(),
       role: el.getAttribute('role') || null,

@@ -1801,6 +1801,7 @@ export function BranchFeed({
             ref={plusBtnRef}
             aria-label="Add a subtask or attachment"
             aria-expanded={plusMenuOpen}
+            className="touch-target"
             onClick={() => setPlusMenuOpen((v) => !v)}
             style={{
               width: 32, height: 32, borderRadius: 10, border: "none",
@@ -1866,7 +1867,7 @@ export function BranchFeed({
             disabled={submitting}
             style={{
               flex: 1, background: "transparent", border: "none", outline: "none",
-              padding: "6px 10px", fontSize: 14, fontWeight: 500, lineHeight: 1.5,
+              minHeight: 44, padding: "11px 10px", fontSize: 14, fontWeight: 500, lineHeight: 1.5,
               fontFamily: "inherit", color: "var(--pl-ink)",
               resize: "none", maxHeight: 80, overflowY: "auto",
             }}
@@ -2051,7 +2052,10 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
    completion "reply" the rail gently bends down to. The card's completion toggle is the primary
    rail marker; the green completion node sits just below it. The subtask's create/complete system
    comments are folded in here (parsed into `meta`) instead of appearing as separate rail nodes. */
-const SUBTASK_TOGGLE = 26
+// The subtask's completion toggle sits alone on the sub-branch rail with the
+// card beside it, so widening it costs no neighbour any room. 26 was below the
+// WCAG 2.5.8 floor once the ring's own stroke is discounted.
+const SUBTASK_TOGGLE = 32
 const SUBTASK_DELETE_ZONE = 50
 // Shared box model for the subtask title's view (<span>) and edit (<textarea>) states, so
 // double-clicking to edit fades in place with zero layout shift (identical padding/border/metrics).
@@ -2305,6 +2309,7 @@ function SubtaskCard({
           onClick={handleMarkerClick}
           disabled={pending}
           aria-label={markerAriaLabel}
+          className="touch-target"
           style={{
             position: "absolute",
             left: SUB_TOGGLE_X - SUBTASK_TOGGLE / 2,
@@ -2450,9 +2455,10 @@ function SubtaskCard({
                 onClick={(e) => { e.stopPropagation(); onReply() }}
                 aria-label="Reply to subtask"
                 title="Reply in branch"
+                className="touch-target"
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0,
-                  padding: "3px 7px", borderRadius: 7, border: "none",
+                  minHeight: 36, padding: "0 10px", borderRadius: 10, border: "none",
                   background: "transparent", cursor: "pointer",
                   fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                   textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1,
@@ -2505,9 +2511,10 @@ function SubtaskCard({
                     disabled={pending}
                     aria-label="Take subtask into work"
                     title="Take into work"
+                    className="touch-target"
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
-                      padding: "4px 10px", borderRadius: 999,
+                      minHeight: 36, padding: "0 12px", borderRadius: 999,
                       border: "1px solid var(--pl-gray-150)", background: "white",
                       cursor: pending ? "default" : "pointer",
                       fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
@@ -2660,8 +2667,9 @@ function SubtaskIconButton({ label, title, color, hoverBg, disabled, onClick, ch
       disabled={disabled}
       aria-label={label}
       title={title}
+      className="touch-target"
       style={{
-        width: 26, height: 26, borderRadius: 8, border: "none",
+        width: 36, height: 36, borderRadius: 10, border: "none",
         display: "flex", alignItems: "center", justifyContent: "center",
         background: "transparent", cursor: disabled ? "default" : "pointer", color,
         transition: "background 120ms",
