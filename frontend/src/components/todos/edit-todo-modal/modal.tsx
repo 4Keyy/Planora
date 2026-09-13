@@ -304,8 +304,8 @@ export function TodoEditor({
       marginLeft: -inset,
       padding: `${vpad}px ${inset}px`,
       boxSizing: "border-box",
-      fontSize, fontWeight: 900, lineHeight: 1.22, letterSpacing: "-0.025em",
-      color: "#0a0a0a", borderRadius: 10,
+      fontSize, fontWeight: 700, lineHeight: 1.22, letterSpacing: "-0.025em",
+      color: "var(--pl-ink)", borderRadius: 10,
     }
     return editingTitle && isOwner ? (
       <textarea
@@ -326,7 +326,7 @@ export function TodoEditor({
         style={{
           ...box,
           resize: "none", border: "none", outline: "none",
-          background: "#fafafa", fontFamily: "inherit", overflow: "hidden",
+          background: "var(--pl-paper-sunken)", fontFamily: "inherit", overflow: "hidden",
           transition: "background 140ms",
         }}
       />
@@ -340,7 +340,7 @@ export function TodoEditor({
           cursor: isOwner ? "text" : "default",
           background: "transparent", transition: "background 140ms", wordBreak: "break-word",
         }}
-        onMouseEnter={(e) => { if (isOwner) (e.currentTarget as HTMLHeadingElement).style.background = "#fafafa" }}
+        onMouseEnter={(e) => { if (isOwner) (e.currentTarget as HTMLHeadingElement).style.background = "var(--pl-paper-sunken)" }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLHeadingElement).style.background = "transparent" }}
       >
         {title}
@@ -355,18 +355,18 @@ export function TodoEditor({
       onMouseLeave={() => setPillHovered(false)}
       style={{
         display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
-        background: pillHovered ? "#fef2f2" : "#f5f3ff",
-        border: `1px solid ${pillHovered ? "#fecaca" : "#ddd6fe"}`,
+        background: pillHovered ? "var(--pl-alert-surface)" : "var(--pl-accent-surface)",
+        border: `1px solid ${pillHovered ? "var(--pl-alert-surface)" : "#ddd6fe"}`,
         borderRadius: 100, padding: "5px 10px 5px 8px", cursor: "default",
         transition: "background 240ms ease, border-color 240ms ease",
       }}
     >
       <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
-        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "#ef4444" : "#8b5cf6", transition: "background 240ms ease" }} />
+        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", transition: "background 240ms ease" }} />
         <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", animation: "pl_pulse 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite", transition: "background 240ms ease" }} />
       </div>
       <div style={{ position: "relative", display: "inline-block" }}>
-        <span style={{ display: "block", fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", color: "#6d28d9", opacity: pillHovered ? 0 : 1, transition: "opacity 180ms ease", userSelect: "none" }}>
+        <span style={{ display: "block", fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", color: "var(--pl-accent)", opacity: pillHovered ? 0 : 1, transition: "opacity 180ms ease", userSelect: "none" }}>
           In Progress
         </span>
         <button
@@ -374,12 +374,12 @@ export function TodoEditor({
           style={{
             position: "absolute", inset: "-3px -6px",
             display: "flex", alignItems: "center", justifyContent: "center",
-            background: "transparent", border: "1px solid #fecaca", borderRadius: 6, cursor: "pointer",
-            fontSize: 11, fontWeight: 700, color: "#991b1b", whiteSpace: "nowrap", fontFamily: "inherit",
+            background: "transparent", border: "1px solid var(--pl-alert-surface)", borderRadius: 6, cursor: "pointer",
+            fontSize: 12, fontWeight: 700, color: "var(--pl-alert)", whiteSpace: "nowrap", fontFamily: "inherit",
             opacity: pillHovered ? 1 : 0, pointerEvents: pillHovered ? "auto" : "none",
             transition: "opacity 180ms ease, background 120ms ease",
           }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fef2f2" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-alert-surface)" }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
         >
           Leave
@@ -443,8 +443,8 @@ export function TodoEditor({
               href="/tasks"
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6,
-                fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase",
-                color: "#a3a3a3", textDecoration: "none",
+                fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase",
+                color: "var(--pl-ink-subtle)", textDecoration: "none",
               }}
             >
               <ArrowLeft size={13} strokeWidth={2.4} /> Task Branch
@@ -469,7 +469,7 @@ export function TodoEditor({
           <div className="branch-scroll w-full flex-shrink-0 lg:w-[389px] lg:overflow-y-auto lg:pr-6">
             <PageMetaPanel {...metaProps} />
           </div>
-          <div style={{ background: "#f5f5f5" }} className="hidden w-px flex-shrink-0 lg:block" />
+          <div style={{ background: "var(--pl-gray-100)" }} className="hidden w-px flex-shrink-0 lg:block" />
           <div className="flex min-w-0 flex-1 flex-col lg:pl-6">
             {branchNode}
           </div>
@@ -486,7 +486,7 @@ export function TodoEditor({
     >
       {/* ── (1) Top chrome bar ── (tighter side padding on phones for more content width) */}
       <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-[26px]">
-        <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
           Task Branch
         </span>
 
@@ -499,16 +499,16 @@ export function TodoEditor({
               display: "flex", alignItems: "center", gap: 5,
               background: "transparent", border: "none", cursor: "pointer",
               padding: "5px 6px", borderRadius: 8,
-              fontSize: 11, fontWeight: 700, letterSpacing: "0.02em",
-              color: "#a3a3a3", fontFamily: "inherit",
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.02em",
+              color: "var(--pl-ink-subtle)", fontFamily: "inherit",
               transition: "color 120ms, background 120ms",
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "#525252"
-              ;(e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)"
+              ;(e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)"
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+              (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-subtle)"
               ;(e.currentTarget as HTMLButtonElement).style.background = "transparent"
             }}
           >
@@ -524,12 +524,12 @@ export function TodoEditor({
             style={{
               width: 30, height: 30, borderRadius: 10, border: "none",
               display: "flex", alignItems: "center", justifyContent: "center",
-              background: "#fafafa", cursor: "pointer", transition: "background 120ms",
+              background: "var(--pl-paper-sunken)", cursor: "pointer", transition: "background 120ms",
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0" }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-line)" }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)" }}
           >
-            <X size={12} color="#525252" />
+            <X size={12} color="var(--pl-ink-muted)" />
           </button>
         </div>
       </div>
@@ -545,7 +545,7 @@ export function TodoEditor({
       </div>
 
       {/* Divider */}
-      <div className="mx-4 sm:mx-[26px]" style={{ height: 1, background: "#f5f5f5" }} />
+      <div className="mx-4 sm:mx-[26px]" style={{ height: 1, background: "var(--pl-gray-100)" }} />
 
       {/* ── (4) Branch panel ── (flex-fills the container; scrolls internally) */}
       <div className="flex flex-1 flex-col px-4 pb-5 pt-[18px] sm:px-[26px]" style={{ minHeight: 0 }}>

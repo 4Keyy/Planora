@@ -1,10 +1,12 @@
-// Priority levels with English labels, colors, and descriptions
+// Priority levels. There is deliberately no colour here: five hues collapse under
+// deuteranopia (measured 0.049 apart in OKLab for the two lowest) and read as
+// unordered labels rather than a scale. Magnitude is drawn by PriorityMeter.
 export const PRIORITY_LEVELS = [
-  { key: "VeryLow", label: "Very Low", color: "#9ca3af", desc: "Can be postponed" },
-  { key: "Low",     label: "Low",      color: "#10b981", desc: "Not urgent" },
-  { key: "Medium",  label: "Medium",   color: "#0ea5e9", desc: "Standard" },
-  { key: "High",    label: "High",     color: "#f59e0b", desc: "Important" },
-  { key: "Urgent",  label: "Urgent",   color: "#ef4444", desc: "Do it now" },
+  { key: "VeryLow", label: "Very Low", desc: "Can be postponed" },
+  { key: "Low",     label: "Low",      desc: "Not urgent" },
+  { key: "Medium",  label: "Medium",   desc: "Standard" },
+  { key: "High",    label: "High",     desc: "Important" },
+  { key: "Urgent",  label: "Urgent",   desc: "Do it now" },
 ] as const
 
 const PRIORITY_TO_NUM: Record<string, number> = {
@@ -24,8 +26,9 @@ export function getPriorityString(priority: string | number): string {
   return NUM_TO_PRIORITY[s] ?? "Medium"
 }
 
-export function getPriorityColor(priority: string): string {
-  return PRIORITY_LEVELS.find((p) => p.key === priority)?.color ?? "#9ca3af"
+/** @deprecated Priority is not encoded by colour. Use `PriorityMeter`. */
+export function getPriorityColor(): string {
+  return "var(--pl-ink-subtle)"
 }
 
 export function getPriorityLabel(priority: string): string {
@@ -148,6 +151,16 @@ export function getHueFromId(id: string): number {
   return Math.abs(hash) % 360
 }
 
+/**
+ * Category colours are USER DATA, not theme. They are persisted on the Category
+ * record and round-trip through the API, so they must stay literal hex values —
+ * a CSS variable would be stored verbatim and render as nothing everywhere else.
+ * These twelve are the offered swatches; a user may pick any colour.
+ *
+ * They never carry text: the category name renders in ink and the colour appears
+ * only on a 16px icon and a 6px dot, which keeps an arbitrary user choice from
+ * ever becoming a contrast failure.
+ */
 export const CATEGORY_COLOR_SWATCHES = [
   "#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6",
   "#ec4899","#06b6d4","#84cc16","#f97316","#6366f1",

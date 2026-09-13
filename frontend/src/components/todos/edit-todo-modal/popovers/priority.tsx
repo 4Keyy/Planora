@@ -48,11 +48,11 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
                 borderRadius: 11,
                 border: "none",
                 cursor: "pointer",
-                background: isActive ? "#0a0a0a" : "transparent",
+                background: isActive ? "var(--pl-ink)" : "transparent",
                 transition: "background 120ms",
                 textAlign: "left",
               }}
-              onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
+              onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)" }}
               onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
             >
               {/* Intensity bars */}
@@ -68,7 +68,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
                         borderRadius: 2,
                         background: isActive
                           ? (filled ? "white" : "rgba(255,255,255,0.22)")
-                          : (filled ? p.color : "#eaeaea"),
+                          : (filled ? "var(--pl-ink-subtle)" : "var(--pl-line)"),
                         transition: "background 120ms",
                       }}
                     />
@@ -79,18 +79,18 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
               {/* Label + desc */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  fontSize: 13,
-                  fontWeight: 900,
+                  fontSize: 14,
+                  fontWeight: 700,
                   letterSpacing: "-0.01em",
-                  color: isActive ? "white" : "#0a0a0a",
+                  color: isActive ? "white" : "var(--pl-ink)",
                   lineHeight: 1.2,
                 }}>
                   {p.label}
                 </div>
                 <div style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: 600,
-                  color: isActive ? "rgba(255,255,255,0.55)" : "#a3a3a3",
+                  color: isActive ? "rgba(255,255,255,0.55)" : "var(--pl-ink-subtle)",
                   marginTop: 2,
                 }}>
                   {p.desc}

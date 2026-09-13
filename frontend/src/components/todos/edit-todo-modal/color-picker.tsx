@@ -153,6 +153,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
         {/* Layer 1: white → hue color */}
         <div style={{
           position: "absolute", inset: 0,
+          // Colour-space geometry, not theme: the saturation axis runs from pure
+          // white to the pure hue and the value axis to pure black, by definition.
           background: `linear-gradient(to right, #ffffff, ${pureHueHex})`,
         }} />
         {/* Layer 2: transparent → black */}
@@ -229,10 +231,10 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
         {/* Hex input */}
         <div style={{
           flex: 1, display: "flex", alignItems: "center",
-          background: "#f5f5f5", borderRadius: 8, padding: "0 10px",
-          border: "1px solid #eaeaea",
+          background: "var(--pl-gray-100)", borderRadius: 8, padding: "0 10px",
+          border: "1px solid var(--pl-line)",
         }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#a3a3a3", marginRight: 2 }}>#</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink-subtle)", marginRight: 2 }}>#</span>
           <input
             value={hexInput.replace("#", "")}
             onChange={(e) => handleHexInput(e.target.value)}
@@ -240,7 +242,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
             spellCheck={false}
             style={{
               flex: 1, border: "none", background: "transparent",
-              fontSize: 12, fontWeight: 700, color: "#262626",
+              fontSize: 12, fontWeight: 700, color: "var(--pl-ink)",
               outline: "none", fontFamily: "monospace", letterSpacing: "0.04em",
               padding: "8px 0",
             }}
@@ -251,8 +253,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       {/* ── Preset swatches ── */}
       <div>
         <div style={{
-          fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
-          textTransform: "uppercase", color: "#a3a3a3", marginBottom: 7,
+          fontSize: 12, fontWeight: 900, letterSpacing: "0.14em",
+          textTransform: "uppercase", color: "var(--pl-ink-subtle)", marginBottom: 7,
         }}>
           Presets
         </div>

@@ -117,13 +117,13 @@ export default function LoginPage() {
           <h2 className="text-display-sm font-bold text-paper leading-tight">
             Your tasks,<br />perfectly organized.
           </h2>
-          <p className="text-ink-subtle text-body leading-relaxed max-w-xs">
+          <p className="text-paper-subtle text-body leading-relaxed max-w-xs">
             Manage everything in one place with smart priorities, categories, and progress tracking.
           </p>
 
           <div className="flex flex-col gap-3 pt-2">
             {["Create tasks with priorities & due dates", "Organize with color-coded categories", "Track progress across all your projects"].map(text => (
-              <div key={text} className="flex items-center gap-3 text-body-sm text-ink-subtle">
+              <div key={text} className="flex items-center gap-3 text-body-sm text-paper-muted">
                 <div className="h-1.5 w-1.5 rounded-full bg-positive flex-shrink-0" />
                 {text}
               </div>
@@ -132,7 +132,7 @@ export default function LoginPage() {
         </div>
 
         <div className="relative z-10">
-          <p className="text-ink-muted text-caption">
+          <p className="text-paper-subtle text-caption">
             © {mounted ? new Date().getFullYear() : "2026"} Planora
           </p>
         </div>

@@ -123,12 +123,33 @@
 
   :root {
     --font-sans: "Plus Jakarta Sans";
-    /* Exposed for the handful of places that build a colour inside an inline
-       style object, where a Tailwind class cannot reach. Both resolve to tokens. */
-    --pl-accent: theme("colors.accent");
-    --pl-alert: theme("colors.alert");
+    /* Every token, exposed as a CSS variable. The branch surface builds almost
+       all of its styling through inline style objects where a Tailwind class
+       cannot reach, so it consumes these instead of carrying hex literals —
+       251 of which used to live in that one screen. */
     --pl-ink: theme("colors.ink");
+    --pl-ink-muted: theme("colors.ink-muted");
+    --pl-ink-subtle: theme("colors.ink-subtle");
+    --pl-ink-faint: theme("colors.ink-faint");
     --pl-line: theme("colors.line");
+    --pl-line-strong: theme("colors.line-strong");
+    --pl-paper: theme("colors.paper");
+    --pl-paper-sunken: theme("colors.paper-sunken");
+    --pl-accent: theme("colors.accent");
+    --pl-accent-surface: theme("colors.accent-surface");
+    --pl-accent-ink: theme("colors.accent-ink");
+    --pl-alert: theme("colors.alert");
+    --pl-alert-surface: theme("colors.alert-surface");
+    --pl-alert-ink: theme("colors.alert-ink");
+    --pl-positive: theme("colors.positive");
+    --pl-positive-surface: theme("colors.positive-surface");
+    --pl-warn: theme("colors.warn");
+    --pl-warn-surface: theme("colors.warn-surface");
+    --pl-focus: theme("colors.focus");
+    --pl-gray-100: theme("colors.gray.100");
+    --pl-gray-150: theme("colors.gray.150");
+    --pl-gray-200: theme("colors.gray.200");
+    --pl-gray-300: theme("colors.gray.300");
   }
 
   /* Dark theme is FROZEN, not supported. The product pins `color-scheme: light`

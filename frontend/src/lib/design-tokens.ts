@@ -46,6 +46,13 @@ const color = {
 
   /** Surfaces. */
   paper: "#ffffff",
+  /**
+   * Text ON an ink surface. The auth pages carry a dark marketing panel, so the
+   * ink ramp has to run in reverse there: reusing `inkMuted` on `#171717`
+   * measured 2.29:1.
+   */
+  paperMuted: "#e5e5e5",   // 14.4:1 on ink
+  paperSubtle: "#a3a3a3",  // 7.44:1 on ink — muted, still compliant
   paperSunken: "#fafafa",
   paperRaised: "#ffffff",
 
@@ -272,6 +279,8 @@ export const tailwindTheme = {
     "line-strong": color.lineStrong,
 
     paper: color.paper,
+    "paper-muted": color.paperMuted,
+    "paper-subtle": color.paperSubtle,
     "paper-sunken": color.paperSunken,
     "paper-raised": color.paperRaised,
 

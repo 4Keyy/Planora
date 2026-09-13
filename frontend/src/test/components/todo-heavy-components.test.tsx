@@ -715,9 +715,15 @@ describe("CreateTodoPanel", () => {
     // Category: pick "Work" from the popover, plate shows it, then clear
     fireEvent.click(screen.getByRole("button", { name: "Category" }))
     await user.click(await screen.findByText("Work"))
-    expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("Work")
+    // The plate crossfades: the outgoing value stays mounted for the exit
+    // animation, so assert on the settled state rather than the next tick.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("Work"),
+    )
     await user.click(screen.getByRole("button", { name: "Clear category" }))
-    expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("None")
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("None"),
+    )
 
     // Due date: pick "Today", plate leaves the "No date" placeholder, then clear via keyboard
     fireEvent.click(screen.getByRole("button", { name: "Due date" }))

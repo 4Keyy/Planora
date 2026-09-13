@@ -1067,7 +1067,7 @@ export default function ProfilePage() {
                         >
                           {section.label}
                         </span>
-                        <span className="block truncate text-caption font-semibold text-ink-subtle">
+                        <span className="block truncate text-caption font-semibold text-ink-muted">
                           {section.description}
                         </span>
                       </span>

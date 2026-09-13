@@ -16,21 +16,23 @@ import { haptic } from "@/lib/haptics"
 import { CompletionCelebration } from "@/components/animated/celebration"
 import { NotificationBadgeCluster } from "@/components/notifications/notification-badge-cluster"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { PriorityMeter } from "@/components/ui/priority-meter"
 import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNING } from "@/lib/ui-preferences"
 import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
 
-const PRIORITY_CONFIG: Record<string, { color: string; num: number }> = {
-  "1": { color: "#9ca3af", num: 1 },
-  "2": { color: "#6b7280", num: 2 },
-  "3": { color: "#4b5563", num: 3 },
-  "4": { color: "#1f2937", num: 4 },
-  "5": { color: "#000000", num: 5 },
-  VeryLow:  { color: "#9ca3af", num: 1 },
-  Low:      { color: "#6b7280", num: 2 },
-  Medium:   { color: "#4b5563", num: 3 },
-  High:     { color: "#1f2937", num: 4 },
-  Urgent:   { color: "#000000", num: 5 },
-  Critical: { color: "#000000", num: 5 },
+/** Priority is a magnitude, not a category — see components/ui/priority-meter.tsx. */
+const PRIORITY_CONFIG: Record<string, { num: number }> = {
+  "1": { num: 1 },
+  "2": { num: 2 },
+  "3": { num: 3 },
+  "4": { num: 4 },
+  "5": { num: 5 },
+  VeryLow:  { num: 1 },
+  Low:      { num: 2 },
+  Medium:   { num: 3 },
+  High:     { num: 4 },
+  Urgent:   { num: 5 },
+  Critical: { num: 5 },
 }
 
 const CARD_VISIBILITY_LAYOUT = {
@@ -470,9 +472,21 @@ function TodoCardComponent({
         {/* Delete Trigger Area (Desktop - slide from right) */}
         {!isCollapsed && canDelete && (
           <div
-            className="absolute top-[-2px] right-[-2px] bottom-[-2px] w-[68px] z-30 hidden md:flex overflow-hidden"
+            role="button"
+            tabIndex={0}
+            aria-label={`Delete task: ${todo.title}`}
+            className="absolute top-[-2px] right-[-2px] bottom-[-2px] w-[68px] z-30 hidden md:flex overflow-hidden rounded-r-lg"
             onMouseEnter={() => { setIsDeleteZoneHovered(true); setIsControlHover(true) }}
             onMouseLeave={() => { setIsDeleteZoneHovered(false); setIsControlHover(false) }}
+            onFocus={() => setIsDeleteZoneHovered(true)}
+            onBlur={() => setIsDeleteZoneHovered(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                e.stopPropagation()
+                onDelete()
+              }
+            }}
           >
             <AnimatePresence>
               {isDeleteZoneHovered && (
@@ -486,11 +500,11 @@ function TodoCardComponent({
                   animate="visible"
                   exit="hidden"
                   style={{
-                    background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 35%, #dc2626 100%)",
-                    boxShadow: "-6px 0 20px rgba(239,68,68,0.18)",
+                    background:
+                      "linear-gradient(to right, color-mix(in srgb, var(--pl-alert) 0%, transparent) 0%, color-mix(in srgb, var(--pl-alert) 85%, transparent) 35%, var(--pl-alert) 100%)",
                   }}
                   className="h-full w-full flex items-center justify-center text-paper cursor-pointer"
-                  whileHover={{ filter: "brightness(1.12)" }}
+                  whileHover={{ opacity: 0.92 }}
                   onClick={(e) => { e.stopPropagation(); onDelete() }}
                 >
                   <motion.div
@@ -499,7 +513,7 @@ function TodoCardComponent({
                       visible: { scale: 1, opacity: 1, y: 0, transition: { delay: 0.07, type: "spring", stiffness: 420, damping: 22 } },
                     }}
                   >
-                    <Trash className="h-[18px] w-[18px]" />
+                    <Trash className="h-[18px] w-[18px]" aria-hidden="true" />
                   </motion.div>
                 </motion.div>
               )}
@@ -521,9 +535,10 @@ function TodoCardComponent({
                 e.stopPropagation();
                 onDelete();
               }}
-              className="p-2.5 rounded-full bg-alert text-paper shadow-md hover:shadow-lg transition-all active:shadow-none"
+              aria-label={`Delete task: ${todo.title}`}
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-alert text-paper shadow-md transition-shadow hover:shadow-lg active:shadow-none"
             >
-              <Trash className="h-5 w-5" />
+              <Trash className="h-5 w-5" aria-hidden="true" />
             </motion.button>
           </motion.div>
         )}
@@ -531,11 +546,7 @@ function TodoCardComponent({
         {/* Subtle category watermark */}
         {!isCompleted && CategoryIcon && !isCollapsed && (
           <div className="absolute -right-7 -bottom-7 pointer-events-none opacity-[0.07] group-hover/card:opacity-[0.12] transition-opacity duration-slow">
-            <CategoryIcon
-              className="h-32 w-32"
-              style={{ color: "#000" }}
-              strokeWidth={1}
-            />
+            <CategoryIcon className="h-32 w-32 text-ink" strokeWidth={1} />
           </div>
         )}
 
@@ -785,7 +796,10 @@ function TodoCardComponent({
                     >
                       <h3
                         className={cn(
+                          // pr-12 on phones reserves the lane the delete button occupies;
+                          // without it the first line was clipped mid-word.
                           "font-bold tracking-tight leading-snug break-words transition-colors duration-slow ease-emphasized",
+                          canDelete && !isCollapsed && "pr-12 md:pr-0",
                           isCompleting
                             ? "text-title-sm md:text-title-sm text-ink-subtle line-through decoration-positive/70 decoration-2"
                             : isCompleted
@@ -829,15 +843,7 @@ function TodoCardComponent({
                           {truncateText(todo.categoryName, 12)}
                         </span>
                       )}
-                      {!isCompleted && (
-                        <span
-                          className="flex items-center gap-1 text-caption font-bold tracking-wide"
-                          style={{ color: priorityConfig.color }}
-                        >
-                          <Zap className="h-3 w-3" />
-                          {priorityConfig.num}/5
-                        </span>
-                      )}
+                      {!isCompleted && <PriorityMeter value={priorityConfig.num} size="sm" />}
                       {showShareBadge && (
                         <motion.span
                           initial={{ scale: 0.9, opacity: 0 }}

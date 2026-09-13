@@ -274,6 +274,35 @@ const PROBE = () => {
     }
     return [255, 255, 255]
   }
+  /**
+   * A pill or circle is often painted by an absolutely-positioned SIBLING that
+   * covers the text rather than by an ancestor background. Walking up the tree
+   * alone reported white-on-white for a selected calendar day whose real
+   * backdrop measured 17.9:1. Look for a positioned element that covers this
+   * one and paints opaquely.
+   */
+  const paintedBehind = (el) => {
+    const r = el.getBoundingClientRect()
+    let scope = el.parentElement
+    for (let depth = 0; scope && depth < 3; depth++, scope = scope.parentElement) {
+      for (const sib of scope.children) {
+        if (sib === el || sib.contains(el)) continue
+        const ss = getComputedStyle(sib)
+        if (ss.position !== 'absolute' && ss.position !== 'fixed') continue
+        // The element's OWN opacity matters as much as its background alpha:
+        // a decorative ink blob at opacity .03 is opaque-coloured but invisible,
+        // and treating it as a backdrop reported ink-on-ink at 1:1.
+        if (parseFloat(ss.opacity) < 0.95) continue
+        const c = parse(ss.backgroundColor)
+        if (!c || c.a < 0.95) continue
+        const sr = sib.getBoundingClientRect()
+        const covers = sr.left <= r.left + 1 && sr.right >= r.right - 1 &&
+                       sr.top <= r.top + 1 && sr.bottom >= r.bottom - 1
+        if (covers) return c.rgb
+      }
+    }
+    return null
+  }
   const blend = (a, b) => b
   const ratio = (fg, bg) => {
     const l1 = lum(fg), l2 = lum(bg)
@@ -289,7 +318,7 @@ const PROBE = () => {
     const s = getComputedStyle(el)
     const fg = parse(s.color)
     if (!fg) continue
-    const bg = effectiveBg(el)
+    const bg = paintedBehind(el) ?? effectiveBg(el)
     const px = parseFloat(s.fontSize)
     const bold = parseInt(s.fontWeight, 10) >= 700
     const isLarge = px >= 24 || (px >= 18.66 && bold)

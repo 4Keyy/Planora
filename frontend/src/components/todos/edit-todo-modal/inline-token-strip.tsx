@@ -45,7 +45,7 @@ interface InlineTokenStripProps {
 function Dot() {
   return (
     <div style={{
-      width: 3, height: 3, borderRadius: "50%", background: "#d4d4d4",
+      width: 3, height: 3, borderRadius: "50%", background: "var(--pl-gray-300)",
       flexShrink: 0, marginLeft: 2, marginRight: 2,
     }} />
   )
@@ -76,14 +76,14 @@ function InlineToken({ onClick, isOpen, label, popover, containerRef, muted }: I
           display: "flex", alignItems: "center", gap: 5,
           padding: "5px 10px", borderRadius: 9, border: "none",
           cursor: muted ? "default" : "pointer",
-          background: isOpen ? "#fafafa" : "transparent",
-          color: isOpen ? "#0a0a0a" : "#525252",
+          background: isOpen ? "var(--pl-paper-sunken)" : "transparent",
+          color: isOpen ? "var(--pl-ink)" : "var(--pl-ink-muted)",
           opacity: muted ? 0.45 : 1,
-          fontSize: 11.5, fontWeight: 800, letterSpacing: "-0.005em",
+          fontSize: 12, fontWeight: 700, letterSpacing: "-0.005em",
           whiteSpace: "nowrap",
           transition: "background 120ms, color 120ms, opacity 120ms",
         }}
-        onMouseEnter={(e) => { if (!isOpen && !muted) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+        onMouseEnter={(e) => { if (!isOpen && !muted) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
         onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
       >
         {label}
@@ -118,7 +118,7 @@ export function InlineTokenStrip({
   const ownerLocked    = !isOwner
   const categoryLocked = !canEditCategory
 
-  const priorityColor = getPriorityColor(priority)
+  const priorityColor = getPriorityColor()
   const priorityLabel = getPriorityLabel(priority)
 
   const activeCat      = categories.find((c) => c.id === categoryId)
@@ -178,7 +178,7 @@ export function InlineTokenStrip({
             {dueDate ? (
               <>
                 {formatDueRange(dueDateStart, dueDate)}
-                <span style={{ color: "#a3a3a3", fontWeight: 600, marginLeft: 2 }}>
+                <span style={{ color: "var(--pl-ink-subtle)", fontWeight: 600, marginLeft: 2 }}>
                   · {formatRelativeRu(dueDate)}
                 </span>
               </>
@@ -214,10 +214,10 @@ export function InlineTokenStrip({
             <>
               <div style={{
                 width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-                background: activeCat.color ? `${activeCat.color}22` : "#f0f0f0",
+                background: activeCat.color ? `${activeCat.color}22` : "var(--pl-line)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                {CatIcon && <CatIcon size={9} color={activeCat.color ?? "#525252"} />}
+                {CatIcon && <CatIcon size={9} color={activeCat.color ?? "var(--pl-ink-muted)"} />}
               </div>
               {activeCat.name}
             </>
@@ -226,11 +226,11 @@ export function InlineTokenStrip({
             <>
               <div style={{
                 width: 14, height: 14, borderRadius: 3, flexShrink: 0, opacity: 0.5,
-                background: authorCategoryColor ? `${authorCategoryColor}22` : "#f0f0f0",
+                background: authorCategoryColor ? `${authorCategoryColor}22` : "var(--pl-line)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
                 {AuthorCatIcon && (
-                  <AuthorCatIcon size={9} color={authorCategoryColor ?? "#525252"} />
+                  <AuthorCatIcon size={9} color={authorCategoryColor ?? "var(--pl-ink-muted)"} />
                 )}
               </div>
               <span style={{ opacity: 0.55, fontStyle: "italic" }}>
@@ -239,7 +239,7 @@ export function InlineTokenStrip({
             </>
           ) : (
             /* No category at all */
-            <span style={{ color: "#a3a3a3" }}>No category</span>
+            <span style={{ color: "var(--pl-ink-subtle)" }}>No category</span>
           )
         }
         popover={

@@ -120,7 +120,7 @@ export default function RegisterPage() {
 
         <div className="relative z-10 space-y-6">
           <div className="space-y-2">
-            <div className="text-caption font-semibold text-ink-subtle uppercase tracking-wider">Start your workspace</div>
+            <div className="text-caption font-semibold text-paper-subtle uppercase tracking-wider">Start your workspace</div>
             <h2 className="text-display-sm font-bold text-paper leading-tight">
               Start managing<br />your life better.
             </h2>
@@ -135,14 +135,14 @@ export default function RegisterPage() {
             ].map(s => (
               <div key={s.label} className="rounded-lg bg-paper/5 border border-white/10 p-4">
                 <div className="text-title-sm font-bold text-paper">{s.num}</div>
-                <div className="text-caption text-ink-subtle mt-0.5">{s.label}</div>
+                <div className="text-caption text-paper-subtle mt-0.5">{s.label}</div>
               </div>
             ))}
           </div>
         </div>
 
         <div className="relative z-10">
-          <p className="text-ink-muted text-caption">© {mounted ? new Date().getFullYear() : "2026"} Planora</p>
+          <p className="text-paper-subtle text-caption">© {mounted ? new Date().getFullYear() : "2026"} Planora</p>
         </div>
       </div>
 

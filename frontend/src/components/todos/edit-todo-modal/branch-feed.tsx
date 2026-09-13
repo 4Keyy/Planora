@@ -157,9 +157,9 @@ interface ReplyDraft {
 
 // Quote accents — violet for quoted messages (matching the branch's indigo accents), amber for
 // quoted subtasks (matching the subtask in-work palette), grey once the target is deleted.
-const QUOTE_ACCENT_COMMENT = "#c4b5fd"
-const QUOTE_ACCENT_SUBTASK = "#fcd34d"
-const QUOTE_ACCENT_DELETED = "#e5e5e5"
+const QUOTE_ACCENT_COMMENT = "var(--pl-accent-surface)"
+const QUOTE_ACCENT_SUBTASK = "var(--pl-warn-surface)"
+const QUOTE_ACCENT_DELETED = "var(--pl-line)"
 
 // Completion attribution for a subtask, parsed from its (now hidden) "completed a subtask" system
 // comment and rendered as a no-icon reply in the subtask's sub-branch. Creation is intentionally
@@ -1016,7 +1016,7 @@ export function BranchFeed({
     />
   )
 
-  const composeAccent = composeMode === "text" ? "#0a0a0a" : "#4f46e5"
+  const composeAccent = composeMode === "text" ? "var(--pl-ink)" : "var(--pl-accent)"
 
   // While the task is active the "+" menu offers description / subtask / take-into-work + complete.
   // Once it is completed those are hidden and the menu instead offers the completed-task actions.
@@ -1064,7 +1064,7 @@ export function BranchFeed({
                 textAlign: "left",
                 cursor: "pointer",
                 padding: "10px 14px",
-                border: "1px solid #ececec",
+                border: "1px solid var(--pl-gray-150)",
                 borderRadius: 14,
                 background: "rgba(250,250,250,0.85)",
                 backdropFilter: "blur(10px)",
@@ -1085,11 +1085,11 @@ export function BranchFeed({
                 size={22}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 8.5, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3", lineHeight: 1.2 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1.2 }}>
                   Author&apos;s Note
                 </div>
                 <div style={{
-                  fontSize: 12, fontWeight: 600, color: "#262626", lineHeight: 1.3,
+                  fontSize: 12, fontWeight: 600, color: "var(--pl-ink)", lineHeight: 1.3,
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1,
                 }}>
                   {genesis.content}
@@ -1101,7 +1101,7 @@ export function BranchFeed({
                 style={{
                   flexShrink: 0, width: 22, height: 22, borderRadius: 7,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "#f0f0f0", color: "#8b5cf6",
+                  background: "var(--pl-gray-100)", color: "var(--pl-accent)",
                 }}
               >
                 <ChevronUp size={13} strokeWidth={2.4} />
@@ -1134,8 +1134,8 @@ export function BranchFeed({
           style={{
             position: "relative",
             zIndex: 1,
-            background: "#fafafa",
-            border: "1px solid #f0f0f0",
+            background: "var(--pl-paper-sunken)",
+            border: "1px solid var(--pl-line)",
             borderRadius: 18,
             padding: "16px 18px 18px",
             marginLeft: -6,
@@ -1156,14 +1156,14 @@ export function BranchFeed({
                 size={32}
               />
               <div>
-                <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3", lineHeight: 1.2 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1.2 }}>
                   Author&apos;s Note
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 2 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 900, letterSpacing: "-0.015em", color: "#0a0a0a" }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.015em", color: "var(--pl-ink)" }}>
                     {genesis.authorName}
                   </span>
-                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#a3a3a3" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
                     {formatTimeHHMM(genesis.createdAt)}
                   </span>
                 </div>
@@ -1176,12 +1176,12 @@ export function BranchFeed({
                 onClick={() => { setEditingGenesis(true); setGenesisEditContent(genesis.content) }}
                 style={{
                   display: "flex", alignItems: "center", gap: 4,
-                  background: "white", border: "1px solid #eaeaea",
+                  background: "white", border: "1px solid var(--pl-line)",
                   borderRadius: 8, padding: "5px 10px", cursor: "pointer",
-                  fontSize: 10, fontWeight: 800, letterSpacing: "0.04em",
-                  textTransform: "uppercase", color: "#525252",
+                  fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+                  textTransform: "uppercase", color: "var(--pl-ink-muted)",
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white" }}
               >
                 <Pencil size={10} />
@@ -1208,9 +1208,9 @@ export function BranchFeed({
                   if (e.key === "Escape") setEditingGenesis(false)
                 }}
                 style={{
-                  width: "100%", background: "white", border: "1px solid #eaeaea", borderRadius: 12,
-                  padding: 12, fontSize: 13, lineHeight: 1.6, resize: "none",
-                  fontFamily: "inherit", color: "#262626", outline: "none", boxSizing: "border-box",
+                  width: "100%", background: "white", border: "1px solid var(--pl-line)", borderRadius: 12,
+                  padding: 12, fontSize: 14, lineHeight: 1.6, resize: "none",
+                  fontFamily: "inherit", color: "var(--pl-ink)", outline: "none", boxSizing: "border-box",
                   minHeight: 60, overflowY: "hidden",
                 }}
               />
@@ -1219,7 +1219,7 @@ export function BranchFeed({
                   onClick={() => setEditingGenesis(false)}
                   style={{
                     background: "transparent", border: "none", cursor: "pointer",
-                    fontSize: 11, fontWeight: 800, color: "#525252",
+                    fontSize: 12, fontWeight: 700, color: "var(--pl-ink-muted)",
                   }}
                 >
                   Cancel
@@ -1228,9 +1228,9 @@ export function BranchFeed({
                   onClick={handleGenesisSave}
                   disabled={submitting}
                   style={{
-                    background: "#0a0a0a", border: "none", borderRadius: 9,
+                    background: "var(--pl-ink)", border: "none", borderRadius: 9,
                     padding: "6px 12px", cursor: "pointer",
-                    fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
+                    fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
                     textTransform: "uppercase", color: "white",
                   }}
                 >
@@ -1247,7 +1247,7 @@ export function BranchFeed({
               }}
               title={isOwner ? "Double-click to edit" : undefined}
               style={{
-                fontSize: 13.5, fontWeight: 500, lineHeight: 1.65, color: "#262626",
+                fontSize: 14, fontWeight: 500, lineHeight: 1.65, color: "var(--pl-ink)",
                 whiteSpace: "pre-wrap", letterSpacing: "-0.005em", margin: 0,
                 overflowWrap: "anywhere", wordBreak: "break-word",
                 cursor: isOwner ? "text" : "default",
@@ -1266,8 +1266,8 @@ export function BranchFeed({
             style={{
               display: "block", marginBottom: 10,
               background: "none", border: "none", cursor: "pointer",
-              fontSize: 11, fontWeight: 800, letterSpacing: "0.04em",
-              textTransform: "uppercase", color: "#0a0a0a",
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+              textTransform: "uppercase", color: "var(--pl-ink)",
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecoration = "underline" }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecoration = "none" }}
@@ -1277,11 +1277,11 @@ export function BranchFeed({
         )}
 
         {loading && (
-          <p style={{ fontSize: 12, color: "#a3a3a3" }}>Loading…</p>
+          <p style={{ fontSize: 12, color: "var(--pl-ink-subtle)" }}>Loading…</p>
         )}
 
         {!loading && feed.length === 0 && (
-          <p style={{ fontSize: 12, color: "#a3a3a3", fontStyle: "italic" }}>
+          <p style={{ fontSize: 12, color: "var(--pl-ink-subtle)", fontStyle: "italic" }}>
             No messages yet
           </p>
         )}
@@ -1298,7 +1298,7 @@ export function BranchFeed({
               bottom: 4,
               width: 2,
               borderRadius: 1,
-              background: "linear-gradient(to bottom, transparent 0, #e4e4e7 14px, #e4e4e7 calc(100% - 14px), transparent 100%)",
+              background: "linear-gradient(to bottom, transparent 0, var(--pl-line) 14px, var(--pl-line) calc(100% - 14px), transparent 100%)",
               pointerEvents: "none",
             }} />
 
@@ -1338,7 +1338,7 @@ export function BranchFeed({
                       ? renderReplyThread(
                           `thread-s-${s.id}`, item.replies, "subtask",
                           // Continue the subtask's own sub-branch colour into the reply rail.
-                          isSubtaskDone(s) ? "#a7f3d0" : subtaskWorkerCount(s) > 0 ? "#fcd98c" : "#e1e1e6",
+                          isSubtaskDone(s) ? "var(--pl-positive-surface)" : subtaskWorkerCount(s) > 0 ? "var(--pl-warn-surface)" : "var(--pl-line)",
                         )
                       : null,
                   ]
@@ -1411,7 +1411,7 @@ export function BranchFeed({
       </div>
 
       {error && (
-        <p style={{ fontSize: 11, color: "#ef4444", padding: "4px 0" }}>{error}</p>
+        <p style={{ fontSize: 12, color: "var(--pl-alert)", padding: "4px 0" }}>{error}</p>
       )}
 
       {/* ── Compose ── */}
@@ -1432,12 +1432,12 @@ export function BranchFeed({
               <div style={{
                 display: "flex", alignItems: "center", gap: 8,
                 marginBottom: 6, padding: "7px 8px 7px 10px",
-                background: "#fafafa",
-                border: "1px solid #f0f0f0",
+                background: "var(--pl-paper-sunken)",
+                border: "1px solid var(--pl-line)",
                 borderLeft: `2.5px solid ${replyDraft.type === "subtask" ? QUOTE_ACCENT_SUBTASK : QUOTE_ACCENT_COMMENT}`,
                 borderRadius: 12,
               }}>
-                <Reply size={12} color="#a3a3a3" strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                <Reply size={12} color="var(--pl-ink-subtle)" strokeWidth={2.2} style={{ flexShrink: 0 }} />
                 <FriendAvatar
                   friend={{
                     id: replyDraft.authorId ?? "",
@@ -1450,14 +1450,14 @@ export function BranchFeed({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span style={{
-                      fontSize: 8.5, fontWeight: 900, letterSpacing: "0.12em",
-                      textTransform: "uppercase", color: "#a3a3a3", lineHeight: 1.2,
+                      fontSize: 12, fontWeight: 700, letterSpacing: "0.12em",
+                      textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1.2,
                     }}>
                       Replying to
                     </span>
                     <span style={{
-                      fontSize: 11, fontWeight: 800, letterSpacing: "-0.01em",
-                      color: "#0a0a0a", whiteSpace: "nowrap", overflow: "hidden",
+                      fontSize: 12, fontWeight: 700, letterSpacing: "-0.01em",
+                      color: "var(--pl-ink)", whiteSpace: "nowrap", overflow: "hidden",
                       textOverflow: "ellipsis", lineHeight: 1.2,
                     }}>
                       {replyDraft.authorName || "Unknown"}
@@ -1465,9 +1465,9 @@ export function BranchFeed({
                     {replyDraft.type === "subtask" && (
                       <span style={{
                         display: "inline-flex", alignItems: "center", gap: 3,
-                        fontSize: 8, fontWeight: 900, letterSpacing: "0.1em",
-                        textTransform: "uppercase", color: "#b45309",
-                        background: "#fef3c7", border: "1px solid #fde68a",
+                        fontSize: 12, fontWeight: 700, letterSpacing: "0.1em",
+                        textTransform: "uppercase", color: "var(--pl-warn)",
+                        background: "var(--pl-warn-surface)", border: "1px solid var(--pl-warn-surface)",
                         padding: "1px 6px", borderRadius: 5, flexShrink: 0,
                       }}>
                         <ListTree size={8} strokeWidth={2.6} />
@@ -1476,7 +1476,7 @@ export function BranchFeed({
                     )}
                   </div>
                   <div style={{
-                    fontSize: 11, fontWeight: 500, color: "#737373", lineHeight: 1.35,
+                    fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", lineHeight: 1.35,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     marginTop: 1,
                   }}>
@@ -1491,16 +1491,16 @@ export function BranchFeed({
                     display: "flex", alignItems: "center", justifyContent: "center",
                     width: 22, height: 22, borderRadius: 7, border: "none",
                     background: "transparent", cursor: "pointer", padding: 0,
-                    color: "#a3a3a3", flexShrink: 0,
+                    color: "var(--pl-ink-subtle)", flexShrink: 0,
                     transition: "background 120ms, color 120ms",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "#eeeeee"
-                    ;(e.currentTarget as HTMLButtonElement).style.color = "#525252"
+                    (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-150)"
+                    ;(e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)"
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLButtonElement).style.background = "transparent"
-                    ;(e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+                    ;(e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-subtle)"
                   }}
                 >
                   <X size={11} strokeWidth={2.5} />
@@ -1519,15 +1519,15 @@ export function BranchFeed({
           }}>
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 5,
-              background: "#eef2ff", border: "1px solid #c7d2fe",
+              background: "var(--pl-accent-surface)", border: "1px solid var(--pl-accent-surface)",
               borderRadius: 8, padding: "4px 8px 4px 7px",
             }}>
               {composeMode === "description"
-                ? <FileText size={11} color="#4f46e5" strokeWidth={2.2} />
-                : <ListTree size={11} color="#4f46e5" strokeWidth={2.2} />}
+                ? <FileText size={11} color="var(--pl-accent)" strokeWidth={2.2} />
+                : <ListTree size={11} color="var(--pl-accent)" strokeWidth={2.2} />}
               <span style={{
-                fontSize: 11, fontWeight: 900, letterSpacing: "0.06em",
-                textTransform: "uppercase", color: "#4f46e5",
+                fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
+                textTransform: "uppercase", color: "var(--pl-accent)",
               }}>
                 {composeMode === "description" ? "Description" : "Subtask"}
               </span>
@@ -1537,16 +1537,16 @@ export function BranchFeed({
                   display: "flex", alignItems: "center", justifyContent: "center",
                   width: 16, height: 16, borderRadius: 4, border: "none",
                   background: "transparent", cursor: "pointer", padding: 0,
-                  color: "#6366f1", marginLeft: 1,
+                  color: "var(--pl-accent)", marginLeft: 1,
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#c7d2fe" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-accent-surface)" }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
                 title="Cancel"
               >
                 <X size={10} strokeWidth={2.5} />
               </button>
             </div>
-            <span style={{ fontSize: 10.5, fontWeight: 600, color: "#a3a3a3" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-subtle)" }}>
               {composeMode === "description" ? "task description · ↵ to save · ⇧↵ new line" : "a step in this task · ↵ to add"}
             </span>
           </div>
@@ -1568,7 +1568,7 @@ export function BranchFeed({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 4 }}
                 transition={{ duration: 0.18 }}
-                style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 11, fontWeight: 600, color: "#6d5bd0" }}
+                style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 12, fontWeight: 600, color: "var(--pl-accent)" }}
               >
                 <span style={{ display: "inline-flex", gap: 2 }}>
                   <span className="branch-typing-dot" style={{ animationDelay: "-0.32s" }} />
@@ -1593,7 +1593,7 @@ export function BranchFeed({
                 transition={SPRING_SNAP}
                 style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: "auto" }}
               >
-                <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.04em", textTransform: "uppercase", color: "#a3a3a3" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
                   {branchUnread.count} new
                 </span>
                 <NotificationBadge type={branchUnread.latestType} count={branchUnread.count} showCount size={22} />
@@ -1605,8 +1605,8 @@ export function BranchFeed({
         {/* Compose box — position:relative anchors the floating menu */}
         <div style={{
           position: "relative",
-          background: composeMode !== "text" ? "#faf5ff" : "#fafafa",
-          border: composeMode !== "text" ? "1.5px solid #c7d2fe" : "1px solid #f0f0f0",
+          background: composeMode !== "text" ? "var(--pl-accent-surface)" : "var(--pl-paper-sunken)",
+          border: composeMode !== "text" ? "1.5px solid var(--pl-accent-surface)" : "1px solid var(--pl-line)",
           borderRadius: 14,
           padding: 4,
           display: "flex",
@@ -1624,7 +1624,7 @@ export function BranchFeed({
                 bottom: "calc(100% + 8px)",
                 left: 0,
                 background: "white",
-                border: "1px solid #ebebeb",
+                border: "1px solid var(--pl-gray-150)",
                 borderRadius: 14,
                 boxShadow: "0 8px 30px -4px rgba(0,0,0,0.12), 0 2px 8px -2px rgba(0,0,0,0.06)",
                 padding: 6,
@@ -1649,7 +1649,7 @@ export function BranchFeed({
                       transition: "background 100ms, opacity 100ms",
                     }}
                     onMouseEnter={(e) => {
-                      if (!genesis) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
+                      if (!genesis) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)"
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLButtonElement).style.background = "transparent"
@@ -1657,24 +1657,24 @@ export function BranchFeed({
                   >
                     <div style={{
                       width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                      background: genesis ? "#f5f5f5" : "#eef2ff",
+                      background: genesis ? "var(--pl-gray-100)" : "var(--pl-accent-surface)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      <FileText size={13} color={genesis ? "#a3a3a3" : "#4f46e5"} strokeWidth={1.8} />
+                      <FileText size={13} color={genesis ? "var(--pl-ink-subtle)" : "var(--pl-accent)"} strokeWidth={1.8} />
                     </div>
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 800, color: genesis ? "#a3a3a3" : "#0a0a0a", letterSpacing: "-0.01em" }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: genesis ? "var(--pl-ink-subtle)" : "var(--pl-ink)", letterSpacing: "-0.01em" }}>
                         Description
                       </div>
-                      <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", marginTop: 1 }}>
                         {genesis ? "Already added" : "Task description"}
                       </div>
                     </div>
                     {genesis && (
                       <div style={{
-                        marginLeft: "auto", fontSize: 9, fontWeight: 900,
+                        marginLeft: "auto", fontSize: 12, fontWeight: 700,
                         letterSpacing: "0.1em", textTransform: "uppercase",
-                        color: "#c4b5fd", background: "#f5f3ff",
+                        color: "var(--pl-accent)", background: "var(--pl-accent-surface)",
                         padding: "2px 7px", borderRadius: 6,
                       }}>
                         Added
@@ -1695,20 +1695,20 @@ export function BranchFeed({
                       padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
                       background: "transparent", textAlign: "left", transition: "background 100ms",
                     }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
                   >
                     <div style={{
                       width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                      background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "var(--pl-accent-surface)", display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      <ListTree size={14} color="#4f46e5" strokeWidth={1.9} />
+                      <ListTree size={14} color="var(--pl-accent)" strokeWidth={1.9} />
                     </div>
                     <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0a0a0a", letterSpacing: "-0.01em" }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", letterSpacing: "-0.01em" }}>
                         Subtask
                       </div>
-                      <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", marginTop: 1 }}>
                         Add a step to this task
                       </div>
                     </div>
@@ -1720,15 +1720,15 @@ export function BranchFeed({
               {menuShowsActions && (
                 <>
                   {menuShowsDescription && (
-                    <div style={{ height: 1, background: "#f3f3f3", margin: "6px 8px" }} />
+                    <div style={{ height: 1, background: "var(--pl-gray-100)", margin: "6px 8px" }} />
                   )}
                   <MenuSectionLabel>Actions</MenuSectionLabel>
 
                   {showWorkAction && (
                     inProgress ? (
                       <MenuActionItem
-                        icon={<LogOut size={13} color="#dc2626" strokeWidth={1.9} />}
-                        iconBg="#fef2f2"
+                        icon={<LogOut size={13} color="var(--pl-alert)" strokeWidth={1.9} />}
+                        iconBg="var(--pl-alert-surface)"
                         title="Leave task"
                         subtitle="Stop working on this"
                         pending={actionPending === "work"}
@@ -1737,8 +1737,8 @@ export function BranchFeed({
                       />
                     ) : (
                       <MenuActionItem
-                        icon={<Zap size={13} color="#4f46e5" strokeWidth={1.9} />}
-                        iconBg="#eef2ff"
+                        icon={<Zap size={13} color="var(--pl-accent)" strokeWidth={1.9} />}
+                        iconBg="var(--pl-accent-surface)"
                         title="Take into work"
                         subtitle="Start working on this"
                         pending={actionPending === "work"}
@@ -1750,8 +1750,8 @@ export function BranchFeed({
 
                   {showCompleteAction && (
                     <MenuActionItem
-                      icon={<CheckCircle2 size={13} color="#059669" strokeWidth={1.9} />}
-                      iconBg="#ecfdf5"
+                      icon={<CheckCircle2 size={13} color="var(--pl-positive)" strokeWidth={1.9} />}
+                      iconBg="var(--pl-positive-surface)"
                       title={isCompleted ? "Reopen task" : "Complete task"}
                       subtitle={isCompleted ? "Move back to active" : "Mark this task done"}
                       pending={actionPending === "complete"}
@@ -1770,8 +1770,8 @@ export function BranchFeed({
 
                   {canRestore && (
                     <MenuActionItem
-                      icon={<RotateCcw size={13} color="#059669" strokeWidth={1.9} />}
-                      iconBg="#ecfdf5"
+                      icon={<RotateCcw size={13} color="var(--pl-positive)" strokeWidth={1.9} />}
+                      iconBg="var(--pl-positive-surface)"
                       title="Restore task"
                       subtitle="Bring this back to active"
                       pending={actionPending === "complete"}
@@ -1782,8 +1782,8 @@ export function BranchFeed({
 
                   {showDuplicate && (
                     <MenuActionItem
-                      icon={<Copy size={13} color="#4f46e5" strokeWidth={1.9} />}
-                      iconBg="#eef2ff"
+                      icon={<Copy size={13} color="var(--pl-accent)" strokeWidth={1.9} />}
+                      iconBg="var(--pl-accent-surface)"
                       title="Duplicate task"
                       subtitle="Create a fresh copy"
                       pending={actionPending === "duplicate"}
@@ -1804,20 +1804,20 @@ export function BranchFeed({
               width: 32, height: 32, borderRadius: 10, border: "none",
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer", flexShrink: 0,
-              background: plusMenuOpen ? "#f0f0f0" : "transparent",
-              color: plusMenuOpen ? "#0a0a0a" : "#a3a3a3",
+              background: plusMenuOpen ? "var(--pl-line)" : "transparent",
+              color: plusMenuOpen ? "var(--pl-ink)" : "var(--pl-ink-subtle)",
               transition: "background 120ms, color 120ms",
             }}
             onMouseEnter={(e) => {
               if (!plusMenuOpen) {
-                (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"
-                ;(e.currentTarget as HTMLButtonElement).style.color = "#525252"
+                (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)"
+                ;(e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)"
               }
             }}
             onMouseLeave={(e) => {
               if (!plusMenuOpen) {
                 (e.currentTarget as HTMLButtonElement).style.background = "transparent"
-                ;(e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+                ;(e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-subtle)"
               }
             }}
             title="Attach"
@@ -1864,8 +1864,8 @@ export function BranchFeed({
             disabled={submitting}
             style={{
               flex: 1, background: "transparent", border: "none", outline: "none",
-              padding: "6px 10px", fontSize: 12.5, fontWeight: 500, lineHeight: 1.5,
-              fontFamily: "inherit", color: "#262626",
+              padding: "6px 10px", fontSize: 14, fontWeight: 500, lineHeight: 1.5,
+              fontFamily: "inherit", color: "var(--pl-ink)",
               resize: "none", maxHeight: 80, overflowY: "auto",
             }}
           />
@@ -1876,14 +1876,14 @@ export function BranchFeed({
               width: 32, height: 32, borderRadius: 10, border: "none",
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: newContent.trim() && !submitting ? "pointer" : "default",
-              background: newContent.trim() && !submitting ? composeAccent : "#e5e5e5",
+              background: newContent.trim() && !submitting ? composeAccent : "var(--pl-line)",
               flexShrink: 0,
               transition: "background 120ms",
             }}
           >
             {submitting && composeMode === "subtask"
               ? <Loader2 size={14} color="white" className="animate-spin" />
-              : <Send size={14} color={newContent.trim() && !submitting ? "white" : "#a3a3a3"} />}
+              : <Send size={14} color={newContent.trim() && !submitting ? "white" : "var(--pl-ink-subtle)"} />}
           </button>
         </div>
       </div>
@@ -1912,8 +1912,8 @@ export function BranchFeed({
 function MenuSectionLabel({ children }: { children: ReactNode }) {
   return (
     <div style={{
-      fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
-      textTransform: "uppercase", color: "#a3a3a3",
+      fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
+      textTransform: "uppercase", color: "var(--pl-ink-subtle)",
       padding: "4px 10px 8px",
     }}>
       {children}
@@ -1945,7 +1945,7 @@ function MenuActionItem({ icon, iconBg, title, subtitle, pending, disabled, onCl
         opacity: muted ? 0.45 : 1,
         transition: "background 100ms, opacity 100ms",
       }}
-      onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+      onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
     >
       <div style={{
@@ -1956,15 +1956,15 @@ function MenuActionItem({ icon, iconBg, title, subtitle, pending, disabled, onCl
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 800, color: "#0a0a0a", letterSpacing: "-0.01em" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", letterSpacing: "-0.01em" }}>
           {title}
         </div>
-        <div style={{ fontSize: 10.5, fontWeight: 500, color: "#a3a3a3", marginTop: 1 }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", marginTop: 1 }}>
           {subtitle}
         </div>
       </div>
       {pending && (
-        <Loader2 size={14} color="#a3a3a3" className="animate-spin" style={{ marginLeft: "auto", flexShrink: 0 }} />
+        <Loader2 size={14} color="var(--pl-ink-subtle)" className="animate-spin" style={{ marginLeft: "auto", flexShrink: 0 }} />
       )}
     </button>
   )
@@ -1976,14 +1976,14 @@ function DaySeparator({ label }: { label: string }) {
     <div style={{ position: "relative", display: "flex", alignItems: "center", padding: "10px 0 6px", marginLeft: -RAIL_GUTTER, zIndex: 1 }}>
       <span style={{
         background: "white",
-        border: "1px solid #eaeaea",
+        border: "1px solid var(--pl-line)",
         borderRadius: 100,
         padding: "2px 10px",
-        fontSize: 9,
-        fontWeight: 900,
+        fontSize: 12,
+        fontWeight: 700,
         letterSpacing: "0.14em",
         textTransform: "uppercase",
-        color: "#525252",
+        color: "var(--pl-ink-muted)",
         whiteSpace: "nowrap",
         flexShrink: 0,
         position: "relative",
@@ -1991,7 +1991,7 @@ function DaySeparator({ label }: { label: string }) {
       }}>
         {label}
       </span>
-      <div style={{ flex: 1, height: 1, background: "#f5f5f5", marginLeft: 8 }} />
+      <div style={{ flex: 1, height: 1, background: "var(--pl-gray-100)", marginLeft: 8 }} />
     </div>
   )
 }
@@ -2017,25 +2017,25 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
         width: SYSTEM_MARKER,
         height: SYSTEM_MARKER,
         borderRadius: "50%",
-        background: "#ffffff",
-        boxShadow: "0 0 0 3px #ffffff, inset 0 0 0 1.5px #e5e5e5",
+        background: "var(--pl-paper)",
+        boxShadow: "0 0 0 3px var(--pl-paper), inset 0 0 0 1.5px var(--pl-line)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 2,
       }}>
-        <Icon size={11} color="#737373" strokeWidth={2.2} />
+        <Icon size={11} color="var(--pl-ink-subtle)" strokeWidth={2.2} />
       </div>
 
       {/* Text row */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: SYSTEM_MARKER }}>
-        <p style={{ flex: 1, minWidth: 0, margin: 0, fontSize: 12, fontWeight: 600, color: "#525252", lineHeight: 1.35, overflowWrap: "anywhere", wordBreak: "break-word" }}>
+        <p style={{ flex: 1, minWidth: 0, margin: 0, fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)", lineHeight: 1.35, overflowWrap: "anywhere", wordBreak: "break-word" }}>
           {author && (
-            <strong style={{ fontWeight: 900, color: "#0a0a0a" }}>{author} </strong>
+            <strong style={{ fontWeight: 700, color: "var(--pl-ink)" }}>{author} </strong>
           )}
           {body}
         </p>
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#a3a3a3", flexShrink: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", flexShrink: 0 }}>
           {formatTimeHHMM(comment.createdAt)}
         </span>
       </div>
@@ -2055,7 +2055,7 @@ const SUBTASK_DELETE_ZONE = 50
 const SUBTASK_TITLE_BOX = {
   flex: 1, minWidth: 0, boxSizing: "border-box" as const,
   padding: "5px 9px", borderRadius: 8,
-  fontSize: 13.5, fontWeight: 400, lineHeight: 1.45,
+  fontSize: 14, fontWeight: 400, lineHeight: 1.45,
   fontFamily: "inherit",
 } satisfies CSSProperties
 // x of the rail centre within a cluster's content box (content starts RAIL_GUTTER from the wrapper).
@@ -2090,7 +2090,7 @@ function SubtaskWorkPresence({
   const extra = Math.max(workerCount, workers.length) - shown.length
   const label = workersLabel(workers, workerCount)
   const fullList = workers.map((w) => (w.name ?? "").trim() || "Someone").join(", ")
-  const ringColor = leaving ? "#fee2e2" : "#fff8e6"
+  const ringColor = leaving ? "var(--pl-alert-surface)" : "var(--pl-warn-surface)"
 
   return (
     <motion.div
@@ -2104,8 +2104,8 @@ function SubtaskWorkPresence({
       title={canLeave ? "You're working on this — click to leave" : `In work · ${fullList || label}`}
       style={{
         display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0, maxWidth: 188,
-        background: leaving ? "linear-gradient(180deg,#fff1f2,#fee2e2)" : "linear-gradient(180deg,#fff8e6,#fef0c7)",
-        border: `1px solid ${leaving ? "#fecaca" : "#fce4a6"}`,
+        background: leaving ? "linear-gradient(180deg,var(--pl-alert-surface),var(--pl-alert-surface))" : "linear-gradient(180deg,var(--pl-warn-surface),var(--pl-warn-surface))",
+        border: `1px solid ${leaving ? "var(--pl-alert-surface)" : "var(--pl-warn-surface)"}`,
         padding: "2px 9px 2px 4px", borderRadius: 999,
         boxShadow: "0 1px 3px -1px rgba(245,158,11,0.3)",
         cursor: canLeave ? "pointer" : "default",
@@ -2133,9 +2133,9 @@ function SubtaskWorkPresence({
             <span style={{
               marginLeft: -5, position: "relative", zIndex: 0,
               width: 18, height: 18, borderRadius: "50%",
-              background: "#fde68a", boxShadow: `0 0 0 2px ${ringColor}`,
+              background: "var(--pl-warn-surface)", boxShadow: `0 0 0 2px ${ringColor}`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 8.5, fontWeight: 900, color: "#92400e", letterSpacing: "-0.02em",
+              fontSize: 12, fontWeight: 700, color: "var(--pl-warn)", letterSpacing: "-0.02em",
             }}>
               +{extra}
             </span>
@@ -2146,9 +2146,9 @@ function SubtaskWorkPresence({
       <span style={{ position: "relative", display: "inline-block", minWidth: 0 }}>
         <span style={{
           display: "block",
-          fontSize: 9.5, fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase",
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 116,
-          color: "#b45309", opacity: leaving ? 0 : 1, transition: "opacity 160ms ease", userSelect: "none",
+          color: "var(--pl-warn)", opacity: leaving ? 0 : 1, transition: "opacity 160ms ease", userSelect: "none",
         }}>
           {label}
         </span>
@@ -2156,7 +2156,7 @@ function SubtaskWorkPresence({
           <span style={{
             position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#b91c1c", fontSize: 9.5, fontWeight: 900, letterSpacing: "0.05em",
+            color: "var(--pl-alert)", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
             textTransform: "uppercase", opacity: hovered ? 1 : 0,
             transition: "opacity 160ms ease", userSelect: "none",
           }}>
@@ -2236,7 +2236,7 @@ function SubtaskCard({
   // Someone (anyone) is working on it → amber accents; the viewer's own membership drives the toggle.
   const someoneWorking = workerCount > 0 || workers.length > 0
   // Sub-branch accent — the little branch the subtask hangs from, tinted to its state.
-  const branchColor = done ? "#a7f3d0" : someoneWorking ? "#fcd98c" : "#e1e1e6"
+  const branchColor = done ? "var(--pl-positive-surface)" : someoneWorking ? "var(--pl-warn-surface)" : "var(--pl-line)"
 
   // A subtask is taken into work and completed through this ONE marker — exactly like a normal task,
   // with no separate "lightning" affordance. First click takes it into work (per-user join), a
@@ -2249,10 +2249,10 @@ function SubtaskCard({
   }
   // Marker border tracks the stage: grey idle → amber once in work → green hint when a click
   // would complete it (you're working and hovering).
-  const markerBorderColor = viewerWorking && hovered ? "#10b981"
-    : someoneWorking ? "#f59e0b"
-    : hovered ? "#f59e0b"
-    : "#d4d4d4"
+  const markerBorderColor = viewerWorking && hovered ? "var(--pl-positive)"
+    : someoneWorking ? "var(--pl-warn)"
+    : hovered ? "var(--pl-warn)"
+    : "var(--pl-line-strong)"
   const markerAriaLabel = done ? "Reopen subtask" : viewerWorking ? "Complete subtask" : "Take subtask into work"
 
   return (
@@ -2308,10 +2308,10 @@ function SubtaskCard({
             top: "50%",
             width: SUBTASK_TOGGLE, height: SUBTASK_TOGGLE, borderRadius: "50%",
             border: done ? "none" : `2px solid ${markerBorderColor}`,
-            background: done ? "#10b981" : "#ffffff",
+            background: done ? "var(--pl-positive)" : "var(--pl-paper)",
             boxShadow: done
-              ? "0 0 0 3px #ffffff, 0 2px 6px -1px rgba(16,185,129,0.5)"
-              : "0 0 0 3px #ffffff",
+              ? "0 0 0 3px var(--pl-paper), 0 2px 6px -1px rgba(16,185,129,0.5)"
+              : "0 0 0 3px var(--pl-paper)",
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: pending ? "default" : "pointer", padding: 0, zIndex: 3,
             transition: "background 160ms, border-color 160ms, transform 120ms, box-shadow 160ms",
@@ -2326,17 +2326,17 @@ function SubtaskCard({
             ) : viewerWorking && hovered ? (
               // You're working and hovering → a click completes it.
               <motion.span key="complete" initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                <Check size={14} color="#10b981" strokeWidth={3} />
+                <Check size={14} color="var(--pl-positive)" strokeWidth={3} />
               </motion.span>
             ) : someoneWorking ? (
               // In work (you and/or others) → calm amber pulse.
               <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#f59e0b" }} className="animate-pulse" />
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--pl-warn)" }} className="animate-pulse" />
               </motion.span>
             ) : hovered ? (
               // Idle + hovering → hint that a click takes it into work (a small amber dot, no bolt).
               <motion.span key="take" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
-                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#f59e0b" }} />
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--pl-warn)" }} />
               </motion.span>
             ) : null}
           </AnimatePresence>
@@ -2349,8 +2349,8 @@ function SubtaskCard({
           display: "flex", flexDirection: "column",
           padding: "11px 12px", paddingRight: bodyPaddingRight,
           borderRadius: 12,
-          background: done ? "#f7fdfb" : someoneWorking ? "#fffdf5" : "#fafafa",
-          border: `1px solid ${done ? "#d7f5ea" : someoneWorking && !done ? "#fde68a" : "#f0f0f0"}`,
+          background: done ? "var(--pl-positive-surface)" : someoneWorking ? "var(--pl-warn-surface)" : "var(--pl-paper-sunken)",
+          border: `1px solid ${done ? "var(--pl-positive-surface)" : someoneWorking && !done ? "var(--pl-warn-surface)" : "var(--pl-line)"}`,
           transition: "background 200ms, border-color 200ms, padding 160ms",
         }}>
           {/* ── Title row ── (wraps freely) or inline editor. The <span> and <textarea> share an
@@ -2375,19 +2375,19 @@ function SubtaskCard({
               onBlur={commitEdit}
               maxLength={SUBTASK_MAX}
               rows={1}
-              style={{ ...SUBTASK_TITLE_BOX, background: "white", border: "1.5px solid #c7d2fe", outline: "none", color: "#262626", resize: "none", maxHeight: 160, overflowY: "auto" }}
+              style={{ ...SUBTASK_TITLE_BOX, background: "white", border: "1.5px solid var(--pl-accent-surface)", outline: "none", color: "var(--pl-ink)", resize: "none", maxHeight: 160, overflowY: "auto" }}
             />
           ) : (
             <span
               onDoubleClick={beginEdit}
-              onMouseEnter={(e) => { if (isOwner) (e.currentTarget as HTMLSpanElement).style.background = "#ffffff" }}
+              onMouseEnter={(e) => { if (isOwner) (e.currentTarget as HTMLSpanElement).style.background = "var(--pl-paper)" }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLSpanElement).style.background = "transparent" }}
               title={isOwner ? "Double-click to edit" : undefined}
               style={{
                 ...SUBTASK_TITLE_BOX,
                 display: "block", whiteSpace: "pre-wrap",
                 border: "1.5px solid transparent", background: "transparent",
-                color: done ? "#a3a3a3" : "#262626",
+                color: done ? "var(--pl-ink-subtle)" : "var(--pl-ink)",
                 textDecoration: done ? "line-through" : "none",
                 overflowWrap: "anywhere", wordBreak: "break-word",
                 cursor: isOwner ? "text" : "default",
@@ -2407,7 +2407,7 @@ function SubtaskCard({
               opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
               pointerEvents: hovered && !deleteHovered ? "auto" : "none",
             }}>
-              <SubtaskIconButton label="Edit subtask" title="Edit" color="#525252" hoverBg="#f0f0f0" onClick={beginEdit} disabled={pending}>
+              <SubtaskIconButton label="Edit subtask" title="Edit" color="var(--pl-ink-muted)" hoverBg="var(--pl-line)" onClick={beginEdit} disabled={pending}>
                 <Pencil size={13} strokeWidth={2} />
               </SubtaskIconButton>
             </div>
@@ -2432,7 +2432,7 @@ function SubtaskCard({
                     size={16}
                   />
                   <span style={{
-                    fontSize: 10.5, fontWeight: 700, color: "#8a8a8a", lineHeight: 1.3,
+                    fontSize: 12, fontWeight: 700, color: "var(--pl-ink-subtle)", lineHeight: 1.3,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     transition: "color 200ms",
                   }}>
@@ -2451,16 +2451,16 @@ function SubtaskCard({
                   display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0,
                   padding: "3px 7px", borderRadius: 7, border: "none",
                   background: "transparent", cursor: "pointer",
-                  fontSize: 9.5, fontWeight: 800, letterSpacing: "0.05em",
-                  textTransform: "uppercase", color: "#a3a3a3", lineHeight: 1,
+                  fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+                  textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1,
                   transition: "color 140ms, background 140ms",
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.color = "#525252"
+                  (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)"
                   ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(0,0,0,0.045)"
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.color = "#a3a3a3"
+                  (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-subtle)"
                   ;(e.currentTarget as HTMLButtonElement).style.background = "transparent"
                 }}
               >
@@ -2505,10 +2505,10 @@ function SubtaskCard({
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
                       padding: "4px 10px", borderRadius: 999,
-                      border: "1px solid #e8e8e8", background: "white",
+                      border: "1px solid var(--pl-gray-150)", background: "white",
                       cursor: pending ? "default" : "pointer",
-                      fontSize: 9.5, fontWeight: 900, letterSpacing: "0.06em",
-                      textTransform: "uppercase", color: "#404040", lineHeight: 1,
+                      fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
+                      textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1,
                       whiteSpace: "nowrap",
                       boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                       transition: "background 160ms, color 160ms, border-color 160ms",
@@ -2517,11 +2517,11 @@ function SubtaskCard({
                     onMouseEnter={(e) => {
                       if (pending) return
                       const b = e.currentTarget as HTMLButtonElement
-                      b.style.background = "#0a0a0a"; b.style.color = "white"; b.style.borderColor = "#0a0a0a"
+                      b.style.background = "var(--pl-ink)"; b.style.color = "white"; b.style.borderColor = "var(--pl-ink)"
                     }}
                     onMouseLeave={(e) => {
                       const b = e.currentTarget as HTMLButtonElement
-                      b.style.background = "white"; b.style.color = "#404040"; b.style.borderColor = "#e8e8e8"
+                      b.style.background = "white"; b.style.color = "var(--pl-ink-muted)"; b.style.borderColor = "var(--pl-line)"
                     }}
                   >
                     {pending
@@ -2566,7 +2566,7 @@ function SubtaskCard({
                       position: "absolute", inset: 0, border: "none", padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       color: "white", cursor: pending ? "default" : "pointer",
-                      background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 38%, #dc2626 100%)",
+                      background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 38%, var(--pl-alert) 100%)",
                       boxShadow: "-6px 0 18px rgba(239,68,68,0.18)",
                     }}
                   >
@@ -2620,19 +2620,19 @@ function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
       <span style={{
         position: "absolute", left: SUB_TOGGLE_X - 1, top: -8,
         width: SUBTASK_OFFSET - SUB_TOGGLE_X, height: REPLY_ROW / 2 + 8,
-        borderLeft: "2px solid #a7f3d0", borderBottom: "2px solid #a7f3d0",
+        borderLeft: "2px solid var(--pl-positive-surface)", borderBottom: "2px solid var(--pl-positive-surface)",
         borderBottomLeftRadius: 12, pointerEvents: "none",
       }} />
 
       {/* Note (icon-less) */}
       <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: REPLY_ROW }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: "#6f7d76", lineHeight: 1.3 }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", lineHeight: 1.3 }}>
           {name
-            ? <><strong style={{ color: "#0a0a0a", fontWeight: 800 }}>{name}</strong> completed sub task</>
-            : <strong style={{ color: "#059669", fontWeight: 800 }}>Sub task completed</strong>}
+            ? <><strong style={{ color: "var(--pl-ink)", fontWeight: 700 }}>{name}</strong> completed sub task</>
+            : <strong style={{ color: "var(--pl-positive)", fontWeight: 700 }}>Sub task completed</strong>}
         </span>
         {at && (
-          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.04em", color: "#bdbdbd" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "var(--pl-ink-subtle)" }}>
             {formatTimeHHMM(at)}
           </span>
         )}
@@ -2706,7 +2706,7 @@ function ReplyQuote({
         display: "flex", alignItems: "center", gap: 7,
         width: "100%", boxSizing: "border-box", textAlign: "left",
         marginBottom: 6, padding: "5px 9px 5px 8px",
-        background: clickable && hovered ? "#f1f1f4" : "#f7f7f8",
+        background: clickable && hovered ? "var(--pl-gray-100)" : "var(--pl-gray-100)",
         border: "none",
         borderLeft: `2.5px solid ${accent}`,
         borderRadius: 10,
@@ -2727,12 +2727,12 @@ function ReplyQuote({
         />
       )}
       {isSubtask && (
-        <ListTree size={10} color={deleted ? "#b8b8b8" : "#d97706"} strokeWidth={2.4} style={{ flexShrink: 0 }} />
+        <ListTree size={10} color={deleted ? "var(--pl-ink-subtle)" : "var(--pl-warn)"} strokeWidth={2.4} style={{ flexShrink: 0 }} />
       )}
       {c.replyToAuthorName && (
         <span style={{
-          fontSize: 10.5, fontWeight: 800, letterSpacing: "-0.01em",
-          color: deleted ? "#a8a8a8" : "#404040",
+          fontSize: 12, fontWeight: 700, letterSpacing: "-0.01em",
+          color: deleted ? "var(--pl-ink-subtle)" : "var(--pl-ink-muted)",
           whiteSpace: "nowrap", flexShrink: 0, lineHeight: 1.3,
         }}>
           {c.replyToAuthorName}
@@ -2740,8 +2740,8 @@ function ReplyQuote({
       )}
       <span style={{
         flex: 1, minWidth: 0,
-        fontSize: 11, fontWeight: 500, lineHeight: 1.35,
-        color: deleted ? "#b3b3b3" : "#8a8a8a",
+        fontSize: 12, fontWeight: 500, lineHeight: 1.35,
+        color: deleted ? "var(--pl-ink-subtle)" : "var(--pl-ink-subtle)",
         fontStyle: deleted ? "italic" : "normal",
         whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
       }}>
@@ -2751,8 +2751,8 @@ function ReplyQuote({
       </span>
       {deleted && (
         <span style={{
-          fontSize: 8, fontWeight: 900, letterSpacing: "0.1em", textTransform: "uppercase",
-          color: "#b3b3b3", background: "#efefef", padding: "1px 6px", borderRadius: 5,
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
+          color: "var(--pl-ink-subtle)", background: "var(--pl-gray-100)", padding: "1px 6px", borderRadius: 5,
           flexShrink: 0,
         }}>
           Deleted
@@ -2790,7 +2790,7 @@ interface ReplyThreadProps {
   onQuoteJump: (type: ReplyTargetType, id: string) => void
 }
 
-const THREAD_LINE = "#d4d4d8"
+const THREAD_LINE = "var(--pl-line)"
 
 function ReplyThread({
   replies, variant, lineColor, isOwner, editingId, editContent, submitting, flashKey, registerNode,
@@ -2947,7 +2947,7 @@ function MessageItem({
         padding: "9px 10px 9px 10px",
         margin: "2px 0",
         borderRadius: 12,
-        background: hovered ? "#fafafa" : "transparent",
+        background: hovered ? "var(--pl-paper-sunken)" : "transparent",
         transition: "background 140ms",
       }}
     >
@@ -2972,23 +2972,23 @@ function MessageItem({
 
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginBottom: 3 }}>
-        <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: "-0.01em", color: "#0a0a0a" }}>
+        <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.01em", color: "var(--pl-ink)" }}>
           {c.authorName}
         </span>
         {c.isOwn && (
           <span style={{
-            background: "#eaeaea", color: "#525252",
+            background: "var(--pl-gray-150)", color: "var(--pl-ink-muted)",
             padding: "1px 6px", borderRadius: 5,
-            fontSize: 9, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase",
+            fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
           }}>
             YOU
           </span>
         )}
-        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "#a3a3a3" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
           {formatTimeHHMM(c.createdAt)}
         </span>
         {c.isEdited && (
-          <span style={{ fontSize: 9, color: "#a3a3a3", fontStyle: "italic" }}>edited</span>
+          <span style={{ fontSize: 12, color: "var(--pl-ink-subtle)", fontStyle: "italic" }}>edited</span>
         )}
 
         {/* Hover actions — reply is available to everyone with branch access; edit/delete
@@ -3004,10 +3004,10 @@ function MessageItem({
                 display: "flex", alignItems: "center", justifyContent: "center",
                 background: "transparent", cursor: "pointer",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#eaeaea" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-line)" }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
             >
-              <Reply size={11} color="#525252" strokeWidth={2.2} />
+              <Reply size={11} color="var(--pl-ink-muted)" strokeWidth={2.2} />
             </button>
             {c.isOwn && (
               <button
@@ -3019,10 +3019,10 @@ function MessageItem({
                   display: "flex", alignItems: "center", justifyContent: "center",
                   background: "transparent", cursor: "pointer",
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#eaeaea" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-line)" }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
               >
-                <Pencil size={10} color="#525252" />
+                <Pencil size={10} color="var(--pl-ink-muted)" />
               </button>
             )}
             {canAct && (
@@ -3035,10 +3035,10 @@ function MessageItem({
                   display: "flex", alignItems: "center", justifyContent: "center",
                   background: "transparent", cursor: "pointer",
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#eaeaea" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-line)" }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
               >
-                <Trash2 size={10} color="#525252" />
+                <Trash2 size={10} color="var(--pl-ink-muted)" />
               </button>
             )}
           </div>
@@ -3066,25 +3066,25 @@ function MessageItem({
               if (e.key === "Escape") onEditCancel()
             }}
             style={{
-              width: "100%", border: "1px solid #e5e5e5", borderRadius: 10, outline: "none",
-              padding: "8px 10px", fontSize: 12.5, lineHeight: 1.55, fontFamily: "inherit",
-              resize: "none", background: "white", color: "#262626", boxSizing: "border-box",
+              width: "100%", border: "1px solid var(--pl-line)", borderRadius: 10, outline: "none",
+              padding: "8px 10px", fontSize: 14, lineHeight: 1.55, fontFamily: "inherit",
+              resize: "none", background: "white", color: "var(--pl-ink)", boxSizing: "border-box",
             }}
           />
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={() => onEditSave(c.id)} disabled={submitting} style={{
-              background: "#0a0a0a", border: "none", borderRadius: 8, padding: "4px 10px",
-              fontSize: 11, fontWeight: 800, color: "white", cursor: "pointer",
+              background: "var(--pl-ink)", border: "none", borderRadius: 8, padding: "4px 10px",
+              fontSize: 12, fontWeight: 700, color: "white", cursor: "pointer",
             }}>Save</button>
             <button onClick={onEditCancel} style={{
               background: "none", border: "none", padding: "4px 8px",
-              fontSize: 11, fontWeight: 600, color: "#525252", cursor: "pointer",
+              fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)", cursor: "pointer",
             }}>Cancel</button>
           </div>
         </div>
       ) : (
         <p style={{
-          fontSize: 13, lineHeight: 1.55, fontWeight: 500, color: "#262626",
+          fontSize: 14, lineHeight: 1.55, fontWeight: 500, color: "var(--pl-ink)",
           whiteSpace: "pre-wrap", letterSpacing: "-0.005em", margin: 0,
           overflowWrap: "anywhere", wordBreak: "break-word",
         }}>

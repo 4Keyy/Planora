@@ -137,7 +137,7 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
               transformOrigin: pos.transformOrigin,
               background: "white",
               borderRadius: 16,
-              border: "1px solid #f0f0f0",
+              border: "1px solid var(--pl-line)",
               boxShadow: "0 16px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.05)",
             }}
           >
@@ -172,7 +172,7 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
               transformOrigin: align === "right" ? "top right" : align === "center" ? "top center" : "top left",
               background: "white",
               borderRadius: 16,
-              border: "1px solid #f0f0f0",
+              border: "1px solid var(--pl-line)",
               boxShadow: "0 16px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.05)",
               overflow: "hidden",
             }}
@@ -196,18 +196,18 @@ export function PopoverHeader({ label, sub, action }: PopoverHeaderProps) {
   return (
     <div style={{
       padding: "12px 14px 8px",
-      borderBottom: "1px solid #f5f5f5",
+      borderBottom: "1px solid var(--pl-gray-100)",
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
       gap: 8,
     }}>
       <span style={{
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: 900,
         letterSpacing: "0.14em",
         textTransform: "uppercase",
-        color: "#a3a3a3",
+        color: "var(--pl-ink-subtle)",
       }}>
         {label}
       </span>
