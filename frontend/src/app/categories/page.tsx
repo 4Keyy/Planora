@@ -138,7 +138,9 @@ function CategoryCard({
               e.stopPropagation()
               onDelete()
             }}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-alert text-paper shadow-md transition-shadow hover:shadow-lg active:shadow-none"
+            /* Neutral until pressed — see todo-card.tsx. The saturated colour
+               belongs to the confirmation, not to the invitation. */
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-paper/90 text-ink-subtle shadow-sm backdrop-blur-sm transition-colors hover:border-alert hover:bg-alert hover:text-paper active:bg-alert"
             aria-label="Delete category"
           >
             <Trash2 className="h-5 w-5" />

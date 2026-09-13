@@ -536,7 +536,11 @@ function TodoCardComponent({
                 onDelete();
               }}
               aria-label={`Delete task: ${todo.title}`}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-alert text-paper shadow-md transition-shadow hover:shadow-lg active:shadow-none"
+              /* Neutral until pressed. Eleven saturated circles used to be the
+                 loudest thing on a list screen, which gave the one action a user
+                 least wants to hit the most visual weight. The product's one
+                 saturated colour is reserved for the confirmation that follows. */
+              className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-paper/90 text-ink-subtle shadow-sm backdrop-blur-sm transition-colors hover:border-alert hover:bg-alert hover:text-paper active:bg-alert"
             >
               <Trash className="h-5 w-5" aria-hidden="true" />
             </motion.button>

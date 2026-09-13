@@ -87,8 +87,11 @@ function makeTodo(i, dataset) {
     categoryName: extreme ? 'A category name that is sixty characters long exactly here' : cat.name,
     categoryColor: cat.color,
     categoryIcon: cat.icon,
+    // The start of an interval must never fall after its end — an inverted range
+    // rendered as "Sep 12 - Sep 11" and looked like a product bug when it was a
+    // fixture bug. Overdue items get a past END, and the start precedes it.
     dueDate: i % 5 === 0 ? iso(-2) : iso(i % 14),
-    dueDateStart: i % 7 === 0 ? iso(-1) : null,
+    dueDateStart: i % 7 === 0 ? (i % 5 === 0 ? iso(-4) : iso(-1)) : null,
     priority: PRIORITIES[i % PRIORITIES.length],
     isPublic: i % 3 === 0,
     isCompleted: i % 4 === 3,
