@@ -400,6 +400,14 @@ export default function ProfilePage() {
   const [friendIdInput, setFriendIdInput] = useState("")
   const [avatarError, setAvatarError] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  /**
+   * In-flight guards. Without them a second click fired a second request — and
+   * one of these actions deletes the account.
+   */
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null)
+  const [respondingRequestId, setRespondingRequestId] = useState<string | null>(null)
   const [avatarDragOver, setAvatarDragOver] = useState(false)
 
   const isEmailVerified = user?.isEmailVerified ?? !!user?.emailVerifiedAt
@@ -687,6 +695,8 @@ export default function ProfilePage() {
   }
 
   const handleProfileSave = async (): Promise<void> => {
+    if (savingProfile) return
+    setSavingProfile(true)
     try {
       const res = await api.put("/auth/api/v1/users/me", {
         firstName: profileForm.firstName,
@@ -699,6 +709,8 @@ export default function ProfilePage() {
       addToast({ type: "success", title: "Profile updated" })
     } catch {
       addToast({ type: "error", title: "Failed to update profile" })
+    } finally {
+      setSavingProfile(false)
     }
   }
 
@@ -783,6 +795,8 @@ export default function ProfilePage() {
   }
 
   const handleRevokeSession = async (tokenId: string): Promise<void> => {
+    if (revokingSessionId) return
+    setRevokingSessionId(tokenId)
     try {
       await api.delete(`/auth/api/v1/users/me/sessions/${tokenId}`)
       addToast({ type: "success", title: "Session revoked" })
@@ -790,6 +804,8 @@ export default function ProfilePage() {
       loadSecurity()
     } catch {
       addToast({ type: "error", title: "Failed to revoke session" })
+    } finally {
+      setRevokingSessionId(null)
     }
   }
 
@@ -807,7 +823,8 @@ export default function ProfilePage() {
   }
 
   const handleDeleteAccount = async (): Promise<void> => {
-    if (!deletePassword.trim()) return
+    if (!deletePassword.trim() || deletingAccount) return
+    setDeletingAccount(true)
     try {
       await api.delete("/auth/api/v1/users/me", { data: { password: deletePassword } })
       useAuthStore.getState().clearAuth()
@@ -816,6 +833,8 @@ export default function ProfilePage() {
       router.push("/auth/login")
     } catch {
       addToast({ type: "error", title: "Failed to delete account" })
+    } finally {
+      setDeletingAccount(false)
     }
   }
 
@@ -868,6 +887,8 @@ export default function ProfilePage() {
   }
 
   const handleAcceptFriendRequest = async (friendshipId: string): Promise<void> => {
+    if (respondingRequestId) return
+    setRespondingRequestId(friendshipId)
     try {
       await api.post(`/friendships/requests/${friendshipId}/accept`)
       addToast({ type: "success", title: "Friend added" })
@@ -875,6 +896,8 @@ export default function ProfilePage() {
       loadFriends()
     } catch {
       addToast({ type: "error", title: "Failed to accept request" })
+    } finally {
+      setRespondingRequestId(null)
     }
   }
 
@@ -1244,7 +1267,7 @@ export default function ProfilePage() {
                           Remove
                         </Button>
                       )}
-                      <Button onClick={handleProfileSave} className="flex-shrink-0">
+                      <Button onClick={handleProfileSave} loading={savingProfile} className="flex-shrink-0">
                         Save changes
                       </Button>
                     </div>
@@ -1516,7 +1539,7 @@ export default function ProfilePage() {
                         value={deletePassword}
                         onChange={(e) => setDeletePassword(e.target.value)}
                       />
-                      <Button variant="destructive" onClick={handleDeleteAccount}>
+                      <Button variant="destructive" onClick={handleDeleteAccount} loading={deletingAccount}>
                         Delete
                       </Button>
                     </div>
@@ -1585,7 +1608,7 @@ export default function ProfilePage() {
                         {session.isCurrent ? (
                           <span className="flex-shrink-0 text-caption font-bold text-ink-subtle">Active</span>
                         ) : (
-                          <Button size="sm" variant="secondary" onClick={() => handleRevokeSession(session.id)}>
+                          <Button size="sm" variant="secondary" loading={revokingSessionId === session.id} onClick={() => handleRevokeSession(session.id)}>
                             Revoke
                           </Button>
                         )}
@@ -1754,7 +1777,7 @@ export default function ProfilePage() {
                             </p>
                             <p className="truncate text-caption font-semibold text-ink-subtle">{request.email}</p>
                           </div>
-                          <Button size="sm" onClick={() => handleAcceptFriendRequest(request.friendshipId)}>
+                          <Button size="sm" loading={respondingRequestId === request.friendshipId} onClick={() => handleAcceptFriendRequest(request.friendshipId)}>
                             <Check className="h-4 w-4" aria-hidden />
                           </Button>
                           <Button

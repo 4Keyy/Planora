@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
@@ -48,17 +49,51 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  /**
+   * An action is in flight. Blocks the button, announces the state, and swaps
+   * the label for a spinner WITHOUT changing the button's width, so the layout
+   * around it does not jump.
+   *
+   * Ten places in this product fired a delete or a save with no guard at all —
+   * including "delete account" — so a second click sent a second request.
+   */
+  loading?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, loading = false, disabled, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+
+    // `asChild` renders someone else's element (usually a Link); a spinner and a
+    // disabled attribute would be meaningless or actively wrong there.
+    if (asChild) {
+      return (
+        <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
+          {children}
+        </Comp>
+      )
+    }
+
     return (
-      <Comp
+      <button
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        disabled={disabled || loading}
+        aria-busy={loading || undefined}
         {...props}
-      />
+      >
+        {loading && (
+          <Loader2
+            className="absolute h-4 w-4 animate-spin"
+            aria-hidden="true"
+            data-testid="button-spinner"
+          />
+        )}
+        {/* The label keeps its box so the button never resizes mid-action. */}
+        <span className={cn("inline-flex items-center gap-2", loading && "invisible")}>
+          {children}
+        </span>
+      </button>
     )
   }
 )
