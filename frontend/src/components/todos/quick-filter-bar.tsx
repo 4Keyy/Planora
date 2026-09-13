@@ -51,7 +51,7 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
           <SlidersHorizontal className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <h3 className="text-body-sm font-bold text-ink uppercase tracking-wider">Quick Filter</h3>
+          <h2 className="text-body-sm font-bold text-ink uppercase tracking-wider">Quick Filter</h2>
           {/* Fixed-height subtitle row — children are absolutely positioned so the crossfade
               between the idle hint and the active-filter summary never changes the plate height. */}
           <div className="relative h-5 mt-0.5">

@@ -494,7 +494,11 @@ export function CreateTodoPanel({
       >
         <div className="flex min-w-0 items-center gap-3.5">
           {/* The single + icon that rotates between open/closed — never unmounts */}
+          {/* Decorative: framer-motion makes an element with whileTap focusable,
+              which put an unnamed 44x44 target inside an already-labelled button. */}
           <motion.div
+            aria-hidden="true"
+            tabIndex={-1}
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.94 }}
             transition={SPRING_RESPONSIVE}
@@ -521,7 +525,7 @@ export function CreateTodoPanel({
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.14, ease: EASE_OUT_EXPO }}
                 >
-                  <h3 className="text-body-sm font-bold tracking-tight text-ink">New task</h3>
+                  <h2 className="text-body-sm font-bold tracking-tight text-ink">New task</h2>
                   <p className="truncate text-caption font-semibold text-ink-subtle">press <kbd className="rounded bg-gray-100 px-1 py-px font-mono text-caption text-ink-subtle">C</kbd> to open</p>
                 </motion.div>
               ) : (

@@ -114,9 +114,9 @@ export default function LoginPage() {
         </div>
 
         <div className="relative z-10 space-y-6">
-          <h2 className="text-display-sm font-bold text-paper leading-tight">
+          <p className="text-display-sm font-bold text-paper leading-tight">
             Your tasks,<br />perfectly organized.
-          </h2>
+          </p>
           <p className="text-paper-subtle text-body leading-relaxed max-w-xs">
             Manage everything in one place with smart priorities, categories, and progress tracking.
           </p>

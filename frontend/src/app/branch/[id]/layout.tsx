@@ -2,6 +2,8 @@ import { ReactNode } from "react"
 import { Navbar } from "@/components/layout/navbar"
 import { AuthGuard } from "@/components/auth-guard"
 
+export const metadata = { title: "Task branch" }
+
 export default function BranchLayout({ children }: { children: ReactNode }) {
     return (
         <AuthGuard>

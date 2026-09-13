@@ -2,6 +2,8 @@ import { ReactNode } from "react"
 import { Navbar } from "@/components/layout/navbar"
 import { AuthGuard } from "@/components/auth-guard"
 
+export const metadata = { title: "Dashboard" }
+
 export default function DashboardLayout({ children }: { children: ReactNode }) {
     return (
         <AuthGuard>

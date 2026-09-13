@@ -1799,6 +1799,8 @@ export function BranchFeed({
           {/* + button — direct flex child, no wrapper div */}
           <button
             ref={plusBtnRef}
+            aria-label="Add a subtask or attachment"
+            aria-expanded={plusMenuOpen}
             onClick={() => setPlusMenuOpen((v) => !v)}
             style={{
               width: 32, height: 32, borderRadius: 10, border: "none",
@@ -1871,6 +1873,7 @@ export function BranchFeed({
           />
           <button
             onClick={handleSubmitWithMode}
+            aria-label={composeMode === "subtask" ? "Add subtask" : "Send message"}
             disabled={!newContent.trim() || submitting}
             style={{
               width: 32, height: 32, borderRadius: 10, border: "none",

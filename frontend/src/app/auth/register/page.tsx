@@ -121,9 +121,9 @@ export default function RegisterPage() {
         <div className="relative z-10 space-y-6">
           <div className="space-y-2">
             <div className="text-caption font-semibold text-paper-subtle uppercase tracking-wider">Start your workspace</div>
-            <h2 className="text-display-sm font-bold text-paper leading-tight">
+            <p className="text-display-sm font-bold text-paper leading-tight">
               Start managing<br />your life better.
-            </h2>
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

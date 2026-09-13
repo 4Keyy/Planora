@@ -162,13 +162,13 @@ function CategoryCard({
 
             {/* Text */}
             <div className="flex-1 min-w-0">
-              <motion.h3
+              <motion.h2
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="font-bold text-ink text-body tracking-tight leading-snug"
               >
                 {truncateText(category.name, 20)}
-              </motion.h3>
+              </motion.h2>
               {category.description && (
                 <motion.p
                   initial={{ opacity: 0 }}

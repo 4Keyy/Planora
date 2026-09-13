@@ -16,7 +16,12 @@ import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
 import { MotionPreferencesProvider } from "@/components/motion-preferences-provider"
 
 export const metadata = {
-  title: "Planora | Private Shared Tasks",
+  // Every route sets its own title through this template, so tabs, history and
+  // the screen-reader announcement name the screen rather than the product.
+  title: {
+    default: "Planora | Private Shared Tasks",
+    template: "%s · Planora",
+  },
   description: "Private shared tasks for friends and family with secure sessions, messaging, and accountability.",
   icons: {
     icon: "/favicon.svg",

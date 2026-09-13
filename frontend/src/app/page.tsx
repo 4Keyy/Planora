@@ -59,6 +59,7 @@ export default function HomePage() {
       </nav>
 
       {/* Hero */}
+      <main className="flex-1 flex flex-col">
       <section className="flex-1 flex flex-col items-center justify-center text-center px-4 py-16 sm:py-24 max-w-4xl mx-auto w-full">
         <motion.div
           initial={{ opacity: 0 }}
@@ -120,6 +121,7 @@ export default function HomePage() {
           ))}
         </motion.div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="py-6 text-center text-caption text-ink-subtle border-t border-white/60">
