@@ -1,3 +1,9 @@
+/**
+ * NOTE: the `tint` values below are DATA, not theme. Each notification kind is
+ * distinguishable by its own hue, and a sweep that collapsed them onto the
+ * semantic palette erased that distinction — several kinds became the same
+ * colour. They are also asserted as hex by notification-types.test.ts.
+ */
 import {
   MessageCircle,
   Reply,

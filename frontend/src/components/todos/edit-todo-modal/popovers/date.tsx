@@ -356,7 +356,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                     <span style={{
                       position: "relative", zIndex: 1,
                       fontSize: 12,
-                      fontWeight: isCap || isToday ? 800 : 500,
+                      fontWeight: isCap || isToday ? 700 : 500,
                       color: isCap ? "white" : (inSolid || isPreviewCap) ? "var(--pl-ink-muted)" : "var(--pl-ink)",
                       transition: "color 120ms",
                     }}>

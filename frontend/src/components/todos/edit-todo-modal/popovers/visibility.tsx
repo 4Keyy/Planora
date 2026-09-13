@@ -110,7 +110,7 @@ export function VisibilityPanel({
               }}
             >
               <Icon size={15} />
-              <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
                 {label}
               </span>
             </button>
@@ -133,7 +133,7 @@ export function VisibilityPanel({
           }}>
             <Lock size={18} color="var(--pl-ink-subtle)" />
           </div>
-          <p style={{ fontSize: 14, fontWeight: 800, color: "var(--pl-ink)", margin: 0, letterSpacing: "-0.01em" }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", margin: 0, letterSpacing: "-0.01em" }}>
             Only you can see this task
           </p>
           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-subtle)", margin: 0 }}>
@@ -156,14 +156,14 @@ export function VisibilityPanel({
             padding: "6px 14px 4px", flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
-            <span style={{ fontSize: 12, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
               Shared with
             </span>
             <button
               onClick={toggleAll}
               style={{
                 background: "none", border: "none", cursor: "pointer",
-                fontSize: 12, fontWeight: 900, letterSpacing: "0.04em",
+                fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
                 textTransform: "uppercase", color: "var(--pl-ink)", padding: 0,
               }}
             >
@@ -203,7 +203,7 @@ export function VisibilityPanel({
                         display: "flex", alignItems: "center", justifyContent: "center",
                         background: isSelected ? "var(--pl-ink)" : "transparent",
                         boxShadow: isSelected ? "none" : "inset 0 0 0 1.5px var(--pl-line)",
-                        fontSize: 12, fontWeight: 900, color: "white",
+                        fontSize: 12, fontWeight: 700, color: "white",
                         transition: "background 100ms, box-shadow 100ms",
                       }}>
                         {isSelected ? "✓" : ""}

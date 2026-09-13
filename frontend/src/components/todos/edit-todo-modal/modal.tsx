@@ -356,7 +356,7 @@ export function TodoEditor({
       style={{
         display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
         background: pillHovered ? "var(--pl-alert-surface)" : "var(--pl-accent-surface)",
-        border: `1px solid ${pillHovered ? "var(--pl-alert-surface)" : "#ddd6fe"}`,
+        border: `1px solid ${pillHovered ? "var(--pl-alert-surface)" : "var(--pl-accent-surface)"}`,
         borderRadius: 100, padding: "5px 10px 5px 8px", cursor: "default",
         transition: "background 240ms ease, border-color 240ms ease",
       }}

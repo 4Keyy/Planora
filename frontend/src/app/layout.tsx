@@ -38,7 +38,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  themeColor: "var(--pl-paper)",
 }
 
 // Render every route per-request so the CSP middleware's per-request nonce

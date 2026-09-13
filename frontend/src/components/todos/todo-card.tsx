@@ -294,7 +294,7 @@ function TodoCardComponent({
   })()
   const categoryShadowColor = todo.categoryColor?.trim()
   const hoverShadowColor = isWorkingOnThis
-    ? "#818cf8"
+    ? "var(--pl-accent)"
     : categoryShadowColor
       || (showShareBadge ? "var(--pl-accent)" : isUrgentOrOverdue ? "var(--pl-alert)" : null)
   const hoverShadow = hoverShadowColor ? `${hoverShadowColor}33` : "rgba(0,0,0,0.08)"
@@ -316,46 +316,46 @@ function TodoCardComponent({
       return {
         scale: [1, 0.88, 1.08, 1],
         rotate: [0, 8, -4, 0],
-        backgroundColor: "#6366f1",
-        borderColor: "#4f46e5",
-        color: "#ffffff",
+        backgroundColor: "var(--pl-accent)",
+        borderColor: "var(--pl-accent)",
+        color: "var(--pl-paper)",
       }
     }
     if (isCompleting) {
       return {
         scale: [1, 0.88, 1.08, 1],
         rotate: [0, -8, 4, 0],
-        backgroundColor: "#10b981",
-        borderColor: "#059669",
-        color: "#ffffff",
+        backgroundColor: "var(--pl-positive)",
+        borderColor: "var(--pl-positive)",
+        color: "var(--pl-paper)",
       }
     }
     if (isReopening) {
       return {
         scale: [1, 0.94, 1.04, 1],
         rotate: [0, -16, 8, 0],
-        backgroundColor: "#f9fafb",
-        borderColor: "#9ca3af",
-        color: "#374151",
+        backgroundColor: "var(--pl-paper-sunken)",
+        borderColor: "var(--pl-ink-subtle)",
+        color: "var(--pl-ink-muted)",
       }
     }
     if (isCompleted) {
-      return { scale: 1, rotate: 0, backgroundColor: "#374151", borderColor: "#1f2937", color: "#ffffff" }
+      return { scale: 1, rotate: 0, backgroundColor: "var(--pl-ink-muted)", borderColor: "var(--pl-ink)", color: "var(--pl-paper)" }
     }
     if (isWorkingOnThis) {
-      const activeColor = todo.categoryColor || "#000000"
+      const activeColor = todo.categoryColor || "var(--pl-ink)"
       return {
         scale: 1, rotate: 0,
         backgroundColor: isButtonHovered ? "rgba(16,185,129,0.06)" : `${activeColor}14`,
-        borderColor: isButtonHovered ? "#34d399" : activeColor,
-        color: isButtonHovered ? "#059669" : activeColor,
+        borderColor: isButtonHovered ? "var(--pl-positive)" : activeColor,
+        color: isButtonHovered ? "var(--pl-positive)" : activeColor,
       }
     }
     return {
       scale: 1, rotate: 0,
       backgroundColor: "rgba(255,255,255,0)",
-      borderColor: (canJoin && isButtonHovered) ? "#a78bfa" : "#d1d5db",
-      color: "#111827",
+      borderColor: (canJoin && isButtonHovered) ? "var(--pl-accent)" : "var(--pl-line-strong)",
+      color: "var(--pl-ink)",
     }
   })()
 
@@ -623,7 +623,7 @@ function TodoCardComponent({
                 >
                   <CategoryIcon
                     className="h-5 w-5 transition-colors duration-slow"
-                    style={{ color: isCardHovered ? "#6b7280" : "#9ca3af" }}
+                    style={{ color: isCardHovered ? "var(--pl-ink-muted)" : "var(--pl-ink-subtle)" }}
                     strokeWidth={1.5}
                   />
                 </motion.div>
@@ -758,7 +758,7 @@ function TodoCardComponent({
                           exit={{ scale: 0, opacity: 0 }}
                           transition={{ type: "spring", stiffness: 580, damping: 26 }}
                         >
-                          <Zap className="h-3 w-3" style={{ color: "#7c3aed" }} />
+                          <Zap className="h-3 w-3" style={{ color: "var(--pl-accent)" }} />
                         </motion.div>
                       )}
                     </AnimatePresence>
@@ -822,7 +822,7 @@ function TodoCardComponent({
                           // fading text-decoration-color, and it survives multi-line titles.
                           <span
                             className={cn(
-                              "bg-no-repeat [background-image:linear-gradient(#d1d5db,#d1d5db)]",
+                              "bg-no-repeat [background-image:linear-gradient(var(--pl-line-strong),var(--pl-line-strong))]",
                               "[background-position:0_53%] [background-size:100%_2px]",
                               "[-webkit-box-decoration-break:clone] [box-decoration-break:clone]",
                               "transition-[background-size] duration-deliberate ease-emphasized",

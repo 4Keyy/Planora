@@ -4,7 +4,7 @@ import { motion } from "framer-motion"
 import { useMemo } from "react"
 import { cn } from "@/lib/utils"
 
-const CONFETTI_COLORS = ["#10b981", "#111827", "#f59e0b", "#60a5fa", "#f43f5e"]
+const CONFETTI_COLORS = ["var(--pl-positive)", "var(--pl-ink)", "var(--pl-warn)", "var(--pl-accent)", "var(--pl-alert)"]
 const CONFETTI_COUNT = 18
 
 interface ConfettiPieceProps {

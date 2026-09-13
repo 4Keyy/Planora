@@ -124,7 +124,7 @@ export const NotificationBadge = memo(function NotificationBadge({
           style={{
             minWidth: 15,
             height: 15,
-            fontSize: 9.5,
+            fontSize: 12,
             background: tint,
             boxShadow: `0 1px 4px -1px ${tint}aa`,
             border: "1.5px solid white",
@@ -187,7 +187,7 @@ function PillBadge({
       {/* Tinted icon chip with the people/branch motif disc — the "analogy" at a glance. */}
       <span
         className="relative inline-flex flex-shrink-0 items-center justify-center rounded-full"
-        style={{ width: chip, height: chip, background: tint, color: "#fff" }}
+        style={{ width: chip, height: chip, background: tint, color: "var(--pl-paper)" }}
       >
         {pulse && !reduce && (
           <motion.span
@@ -200,7 +200,7 @@ function PillBadge({
           />
         )}
         {composite === "people-check" ? (
-          <PeopleCheck size={iconSize} tint="#fff" onTint />
+          <PeopleCheck size={iconSize} tint="var(--pl-paper)" onTint />
         ) : (
           <Icon style={{ width: iconSize, height: iconSize }} strokeWidth={2.5} />
         )}
@@ -212,7 +212,7 @@ function PillBadge({
 
       <span
         className="min-w-0 truncate text-caption font-bold leading-none tracking-tight"
-        style={{ color: "#1f2937" }}
+        style={{ color: "var(--pl-ink)" }}
       >
         {label}
       </span>
@@ -224,7 +224,7 @@ function PillBadge({
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 620, damping: 24 }}
           className="flex flex-shrink-0 items-center justify-center rounded-full px-1.5 font-bold tabular-nums text-paper"
-          style={{ minWidth: 17, height: 16, fontSize: 10, background: tint }}
+          style={{ minWidth: 17, height: 16, fontSize: 12, background: tint }}
           aria-hidden
         >
           {countLabel}
@@ -247,7 +247,7 @@ function MotifDisc({ motif, chip, tint }: { motif: NotificationMotif; chip: numb
         right: -disc * 0.3,
         bottom: -disc * 0.28,
         background: tint,
-        border: "1.5px solid #fff",
+        border: "1.5px solid var(--pl-paper)",
         boxShadow: `0 1px 3px -1px ${tint}aa`,
       }}
     >
@@ -270,8 +270,8 @@ function PeopleCheck({ size, tint, onTint = false }: { size: number; tint: strin
           height: disc,
           right: -disc * 0.35,
           bottom: -disc * 0.3,
-          background: onTint ? "#fff" : tint,
-          color: onTint ? tint : "#fff",
+          background: onTint ? "var(--pl-paper)" : tint,
+          color: onTint ? tint : "var(--pl-paper)",
           border: onTint ? "1.5px solid currentColor" : "1.5px solid white",
         }}
       >

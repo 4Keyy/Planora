@@ -103,7 +103,7 @@ export function ColorBendsLayer() {
         <ErrorBoundary fallback={StaticBackground}>
           <Suspense fallback={StaticBackground}>
             <ColorBends
-              colors={["#d4d4d4", "#9e9e9e", "#616161"]}
+              colors={["var(--pl-line-strong)", "var(--pl-ink-subtle)", "var(--pl-ink-muted)"]}
               rotation={-65}
               speed={0.36}
               scale={1.4}

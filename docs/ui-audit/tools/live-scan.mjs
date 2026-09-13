@@ -313,6 +313,10 @@ const PROBE = () => {
   const paintedBehind = (el) => {
     const r = el.getBoundingClientRect()
     let scope = el.parentElement
+    // Paint order matters: a day cell can carry BOTH a grey "today" marker and a
+    // dark selection cap, and the cap paints last. Taking the first match
+    // reported white-on-grey for text that actually sits on ink.
+    let found = null
     for (let depth = 0; scope && depth < 3; depth++, scope = scope.parentElement) {
       for (const sib of scope.children) {
         if (sib === el || sib.contains(el)) continue
@@ -327,8 +331,9 @@ const PROBE = () => {
         const sr = sib.getBoundingClientRect()
         const covers = sr.left <= r.left + 1 && sr.right >= r.right - 1 &&
                        sr.top <= r.top + 1 && sr.bottom >= r.bottom - 1
-        if (covers) return c.rgb
+        if (covers) found = c.rgb          // keep going: later siblings paint on top
       }
+      if (found) return found
     }
     return null
   }

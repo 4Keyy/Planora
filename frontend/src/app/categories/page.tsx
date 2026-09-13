@@ -59,7 +59,7 @@ function CategoryCard({
   onDelete: () => void
 }) {
   const CategoryIcon = category.icon ? (ICON_MAP[category.icon] ?? Folder) : Folder
-  const accentColor = category.color || "#6366f1"
+  const accentColor = category.color || "var(--pl-accent)"
   const [isControlHover, setIsControlHover] = useState(false)
   const [isCardHovered, setIsCardHovered] = useState(false)
   const [isDeleteZoneHovered, setIsDeleteZoneHovered] = useState(false)
@@ -105,7 +105,7 @@ function CategoryCard({
                 animate="visible"
                 exit="hidden"
                 style={{
-                  background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 35%, #dc2626 100%)",
+                  background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 35%, var(--pl-alert) 100%)",
                   boxShadow: "-6px 0 20px rgba(239,68,68,0.18)",
                 }}
                 className="h-full w-full flex items-center justify-center text-paper cursor-pointer"
@@ -149,7 +149,7 @@ function CategoryCard({
 
         {/* Watermark icon */}
         <div className="absolute -right-7 -bottom-7 pointer-events-none opacity-[0.07] group-hover/card:opacity-[0.12] transition-opacity duration-slow">
-          <CategoryIcon className="h-32 w-32" style={{ color: "#000" }} strokeWidth={1} />
+          <CategoryIcon className="h-32 w-32" style={{ color: "var(--pl-ink)" }} strokeWidth={1} />
         </div>
 
         <div className="relative z-10 p-6">
@@ -224,7 +224,7 @@ function CategoryModal({
 }) {
   const [name, setName] = useState(initialData?.name ?? "")
   const [desc, setDesc] = useState(initialData?.description ?? "")
-  const [color, setColor] = useState(initialData?.color ?? "#6366f1")
+  const [color, setColor] = useState(initialData?.color ?? "var(--pl-accent)")
   const [icon, setIcon] = useState<string | null>(initialData?.icon ?? null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -257,7 +257,7 @@ function CategoryModal({
       const next = {
         name: initialData?.name ?? "",
         description: initialData?.description ?? "",
-        color: initialData?.color ?? "#6366f1",
+        color: initialData?.color ?? "var(--pl-accent)",
         icon: initialData?.icon ?? null,
       }
       setName(next.name)
@@ -784,7 +784,7 @@ export default function CategoriesPage() {
         initialData={editingCategory ? {
           name: editingCategory.name,
           description: editingCategory.description || "",
-          color: editingCategory.color || "#6366f1",
+          color: editingCategory.color || "var(--pl-accent)",
           icon: editingCategory.icon || null,
         } : undefined}
         title="Edit Category"

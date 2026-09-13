@@ -163,17 +163,17 @@ export default function BranchPage() {
   }, [todo, router, addToast])
 
   if (loading) {
-    return <p style={{ fontSize: 13, color: "#a3a3a3", padding: "8px 2px" }}>Loading branch…</p>
+    return <p style={{ fontSize: 14, color: "var(--pl-ink-subtle)", padding: "8px 2px" }}>Loading branch…</p>
   }
 
   if (notFound || !todo) {
     return (
       <div style={{ padding: "8px 2px" }}>
-        <p style={{ fontSize: 14, fontWeight: 700, color: "#0a0a0a", marginBottom: 8 }}>Task not found</p>
-        <p style={{ fontSize: 12.5, color: "#737373", marginBottom: 16 }}>
+        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", marginBottom: 8 }}>Task not found</p>
+        <p style={{ fontSize: 14, color: "var(--pl-ink-subtle)", marginBottom: 16 }}>
           It may have been deleted, or you don&apos;t have access to it.
         </p>
-        <Link href="/tasks" style={{ fontSize: 12, fontWeight: 800, color: "#4f46e5" }}>← Back to tasks</Link>
+        <Link href="/tasks" style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-accent)" }}>← Back to tasks</Link>
       </div>
     )
   }
@@ -186,7 +186,7 @@ export default function BranchPage() {
         display: "flex", flexDirection: "column",
         height: "calc(100vh - 152px)", minHeight: 560,
         background: "white",
-        border: "1px solid #f0f0f0",
+        border: "1px solid var(--pl-line)",
         borderRadius: 24,
         boxShadow: "0 20px 60px -24px rgba(0,0,0,0.18), 0 4px 14px -6px rgba(0,0,0,0.05)",
         overflow: "hidden",

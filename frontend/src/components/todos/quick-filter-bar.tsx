@@ -75,13 +75,13 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
                           animate={{ scale: 1 }}
                           transition={{ type: "spring", stiffness: 500, damping: 22 }}
                           className="h-4 w-4 rounded-md flex items-center justify-center ring-1 ring-white"
-                          style={{ backgroundColor: `${cat.color ?? "#9ca3af"}22` }}
+                          style={{ backgroundColor: `${cat.color ?? "var(--pl-ink-subtle)"}22` }}
                           title={cat.name}
                         >
                           {CatIcon ? (
-                            <CatIcon className="h-2.5 w-2.5" style={{ color: cat.color ?? "#9ca3af" }} />
+                            <CatIcon className="h-2.5 w-2.5" style={{ color: cat.color ?? "var(--pl-ink-subtle)" }} />
                           ) : (
-                            <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cat.color ?? "#9ca3af" }} />
+                            <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cat.color ?? "var(--pl-ink-subtle)" }} />
                           )}
                         </motion.div>
                       )

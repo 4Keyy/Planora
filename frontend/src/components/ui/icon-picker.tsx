@@ -147,7 +147,7 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
                     <motion.button
                       key={item.name}
                       type="button"
-                      whileHover={{ scale: 1.1, backgroundColor: "#f3f4f6" }}
+                      whileHover={{ scale: 1.1, backgroundColor: "var(--pl-gray-100)" }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => {
                         onIconSelect(item.name)

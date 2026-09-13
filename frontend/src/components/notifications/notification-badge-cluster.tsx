@@ -101,7 +101,7 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
               // Newest (left-most) sits on top; later discs tuck under it.
               zIndex: visible.length - i,
               // The white ring separates overlapping discs (stacked-avatar effect).
-              background: "#fff",
+              background: "var(--pl-paper)",
               boxShadow: `0 2px 8px -2px ${tint}66`,
             }}
             aria-hidden
@@ -142,7 +142,7 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
                 style={{
                   minWidth: 15,
                   height: 15,
-                  fontSize: 9.5,
+                  fontSize: 12,
                   background: frontTint,
                   boxShadow: `0 1px 4px -1px ${frontTint}aa`,
                   border: "1.5px solid white",
@@ -161,7 +161,7 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
           animate={{ scale: 1, opacity: 0.85 }}
           transition={{ type: "spring", stiffness: 520, damping: 26, delay: reduce ? 0 : visible.length * 0.05 }}
           className="ml-1 inline-flex items-center justify-center rounded-full bg-gray-100 px-1.5 font-bold tabular-nums text-ink-subtle"
-          style={{ height: 16, fontSize: 9.5, border: "1px solid rgba(0,0,0,0.06)" }}
+          style={{ height: 16, fontSize: 12, border: "1px solid rgba(0,0,0,0.06)" }}
           aria-hidden
         >
           +{overflow}

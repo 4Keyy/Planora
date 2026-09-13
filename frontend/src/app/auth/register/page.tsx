@@ -74,7 +74,7 @@ export default function RegisterPage() {
     if (/[^A-Za-z0-9]/.test(password)) s++
     const pct = Math.round((s / 6) * 100)
     const label = pct < 40 ? "Weak" : pct < 70 ? "Fair" : pct < 90 ? "Good" : "Strong"
-    const color = pct < 40 ? "#ef4444" : pct < 70 ? "#f97316" : pct < 90 ? "#eab308" : "#10b981"
+    const color = pct < 40 ? "var(--pl-alert)" : pct < 70 ? "var(--pl-warn)" : pct < 90 ? "var(--pl-warn)" : "var(--pl-positive)"
     return { pct, label, color }
   }, [password])
 

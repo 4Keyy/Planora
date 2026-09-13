@@ -266,7 +266,7 @@ function SharePopover({
           <span
             className={cn(
               "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-caption font-bold transition-colors",
-              isPublic ? "bg-paper text-ink" : "shadow-[inset_0_0_0_1.5px_#e5e5e5] text-transparent"
+              isPublic ? "bg-paper text-ink" : "shadow-[inset_0_0_0_1.5px_var(--pl-line)] text-transparent"
             )}
           >
             <Check className="h-3 w-3" strokeWidth={3} />
@@ -312,7 +312,7 @@ function SharePopover({
                   <span
                     className={cn(
                       "flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full transition-colors",
-                      selected ? "bg-ink text-paper" : "shadow-[inset_0_0_0_1.5px_#e5e5e5] text-transparent"
+                      selected ? "bg-ink text-paper" : "shadow-[inset_0_0_0_1.5px_var(--pl-line)] text-transparent"
                     )}
                   >
                     <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
@@ -679,11 +679,11 @@ export function CreateTodoPanel({
                     muted={!selectedCategory}
                     icon={
                       selectedCategory
-                        ? <SelectedCatIcon className="h-[18px] w-[18px]" style={{ color: selectedCategory.color ?? "#525252" }} />
+                        ? <SelectedCatIcon className="h-[18px] w-[18px]" style={{ color: selectedCategory.color ?? "var(--pl-ink-muted)" }} />
                         : <Folder className="h-[18px] w-[18px]" strokeWidth={2.2} />
                     }
                     iconClass={selectedCategory ? "" : "bg-gray-100 text-ink-subtle"}
-                    iconStyle={selectedCategory ? { background: `${selectedCategory.color ?? "#6b7280"}1A` } : undefined}
+                    iconStyle={selectedCategory ? { background: `${selectedCategory.color ?? "var(--pl-ink-muted)"}1A` } : undefined}
                     open={openPopover === "category"}
                     onToggle={() => togglePopover("category")}
                     onClear={selectedCategory ? () => setCategoryId(undefined) : undefined}

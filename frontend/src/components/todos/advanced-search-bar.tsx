@@ -205,7 +205,7 @@ export function AdvancedSearchBar({
                           ? "text-paper"
                           : "text-ink-muted hover:opacity-80"
                       )}
-                      style={currentCategory === cat.id ? { backgroundColor: cat.color || "#000" } : {}}
+                      style={currentCategory === cat.id ? { backgroundColor: cat.color || "var(--pl-ink)" } : {}}
                     >
                       {cat.name}
                     </motion.button>

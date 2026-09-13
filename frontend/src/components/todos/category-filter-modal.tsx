@@ -129,15 +129,15 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
                       >
                         <div 
                           className="h-10 w-10 rounded-lg flex items-center justify-center shadow-sm"
-                          style={{ backgroundColor: `${cat.color ?? "#9ca3af"}15` }}
+                          style={{ backgroundColor: `${cat.color ?? "var(--pl-ink-subtle)"}15` }}
                         >
                           {IconComponent ? (
                             <IconComponent
                               className="h-5 w-5"
-                              style={{ color: cat.color ?? "#9ca3af" }}
+                              style={{ color: cat.color ?? "var(--pl-ink-subtle)" }}
                             />
                           ) : (
-                            <Tag className="h-5 w-5" style={{ color: cat.color ?? "#9ca3af" }} />
+                            <Tag className="h-5 w-5" style={{ color: cat.color ?? "var(--pl-ink-subtle)" }} />
                           )}
                         </div>
                         <span className={`text-body-sm flex-1 truncate ${active ? "font-bold text-ink" : "font-bold"}`}>
