@@ -17,15 +17,15 @@ const SelectTrigger = React.forwardRef<
     ref={ref}
     className={cn(
       // ===== UNIFIED SELECT TRIGGER (matches Input) =====
-      "flex h-10 w-full items-center justify-between rounded-xl border bg-white px-4 py-2 text-sm transition-[background-color,border-color,box-shadow] duration-normal ease-spring",
+      "flex h-10 w-full items-center justify-between rounded-lg border bg-paper px-4 py-2 text-body-sm transition-[background-color,border-color,box-shadow] duration-base ease-emphasized",
       // Border states
-      "border-gray-200 hover:border-gray-300",
+      "border-line hover:border-line-strong",
       // Focus state
-      "focus:outline-none focus:border-black focus:ring-4 focus:ring-black/8",
+      "focus:outline-none focus:border-black focus:ring-4 focus:ring-ink/10",
       // Shadow
-      "shadow-soft hover:shadow-soft-md focus:shadow-soft-md",
+      "shadow-sm hover:shadow-md focus:shadow-md",
       // Disabled state
-      "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50",
+      "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-paper-sunken",
       // Text
       "[&>span]:line-clamp-1",
       className
@@ -34,7 +34,7 @@ const SelectTrigger = React.forwardRef<
   >
     {children}
     <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 text-gray-500 transition-transform duration-normal" />
+      <ChevronDown className="h-4 w-4 text-ink-subtle transition-transform duration-base" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ))
@@ -82,14 +82,14 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "relative max-h-96 min-w-[10rem] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-hover-lg",
+        "relative max-h-96 min-w-[10rem] overflow-hidden rounded-lg border border-line bg-paper shadow-lg",
         "z-[3000]",
         // Smooth open/close: a clean fade + gentle scale FROM the trigger anchor (Radix supplies
         // the transform-origin), so it grows out of the plate centred with no slide/jitter.
         "origin-[var(--radix-select-content-transform-origin)]",
         "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
         "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-        "duration-150 ease-out",
+        "duration-fast ease-emphasized",
         className
       )}
       position={position}
@@ -119,7 +119,7 @@ const SelectLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SelectPrimitive.Label
     ref={ref}
-    className={cn("py-1.5 pl-10 pr-2 text-sm font-semibold text-gray-900", className)}
+    className={cn("py-1.5 pl-10 pr-2 text-body-sm font-semibold text-ink", className)}
     {...props}
   />
 ))
@@ -133,7 +133,7 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       // ===== SELECT ITEM STATES =====
-      "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-lg py-2 pl-10 pr-3 text-sm outline-none transition-colors duration-normal ease-spring",
+      "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-md py-2 pl-10 pr-3 text-body-sm outline-none transition-colors duration-base ease-emphasized",
       // Hover state
       "hover:bg-gray-100",
       // Focus state

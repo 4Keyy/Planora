@@ -53,22 +53,22 @@ export function ConfirmDialog({
         border: string
     }> = {
         danger: {
-            bg: "bg-red-50",
-            icon: "text-red-600",
+            bg: "bg-alert-surface",
+            icon: "text-alert",
             button: "destructive",
-            border: "border-red-100",
+            border: "border-alert-surface",
         },
         warning: {
-            bg: "bg-amber-50",
-            icon: "text-amber-600",
+            bg: "bg-warn-surface",
+            icon: "text-warn",
             button: "default",
-            border: "border-amber-100",
+            border: "border-warn-surface",
         },
         info: {
-            bg: "bg-blue-50",
-            icon: "text-blue-600",
+            bg: "bg-accent-surface",
+            icon: "text-accent",
             button: "accent",
-            border: "border-blue-100",
+            border: "border-accent-surface",
         },
     }
     const variantStyles = stylesByVariant[variant]
@@ -92,7 +92,7 @@ export function ConfirmDialog({
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={TWEEN_BACKDROP}
-                            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
                             onClick={onClose}
                         />
                         <motion.div
@@ -106,17 +106,17 @@ export function ConfirmDialog({
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 16 }}
                             transition={SPRING_STANDARD}
-                            className="relative w-full max-w-sm rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl z-10 outline-none"
+                            className="relative w-full max-w-sm rounded-xl border border-line bg-paper p-6 shadow-xl z-10 outline-none"
                         >
                             <div className="flex items-start gap-4">
-                                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${variantStyles.bg} ${variantStyles.border} border`}>
+                                <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 ${variantStyles.bg} ${variantStyles.border} border`}>
                                     <AlertTriangle className={`h-6 w-6 ${variantStyles.icon}`} />
                                 </div>
                                 <div className="flex-1">
-                                    <h3 id={titleId} className="text-xl font-bold text-gray-900 leading-tight mb-2">{title}</h3>
-                                    <p id={descId} className="text-sm text-gray-500 leading-relaxed">{description}</p>
+                                    <h3 id={titleId} className="text-title-sm font-bold text-ink leading-tight mb-2">{title}</h3>
+                                    <p id={descId} className="text-body-sm text-ink-subtle leading-relaxed">{description}</p>
                                 </div>
-                                <button onClick={onClose} aria-label="Close" className="h-8 w-8 rounded-lg hover:bg-gray-50 flex items-center justify-center text-gray-400">
+                                <button onClick={onClose} aria-label="Close" className="h-8 w-8 rounded-md hover:bg-paper-sunken flex items-center justify-center text-ink-subtle">
                                     <X className="h-4 w-4" />
                                 </button>
                             </div>
@@ -127,19 +127,19 @@ export function ConfirmDialog({
                                         type="checkbox"
                                         checked={dontAskAgain}
                                         onChange={(e) => setDontAskAgain(e.target.checked)}
-                                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-400 cursor-pointer"
+                                        className="h-4 w-4 rounded border-line-strong text-ink focus:ring-gray-400 cursor-pointer"
                                     />
-                                    <span className="text-sm text-gray-600">{dontAskAgainLabel}</span>
+                                    <span className="text-body-sm text-ink-muted">{dontAskAgainLabel}</span>
                                 </label>
                             )}
 
                             <div className={`flex gap-3 ${dontAskAgainLabel ? "mt-4" : "mt-8"}`}>
-                                <Button variant="secondary" className="flex-1 rounded-2xl" onClick={onClose}>
+                                <Button variant="secondary" className="flex-1 rounded-xl" onClick={onClose}>
                                     {cancelText}
                                 </Button>
                                 <Button
                                     variant={variantStyles.button}
-                                    className="flex-1 rounded-2xl font-bold"
+                                    className="flex-1 rounded-xl font-bold"
                                     onClick={() => {
                                         onConfirm(dontAskAgain)
                                         onClose()

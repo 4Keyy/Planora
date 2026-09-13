@@ -35,7 +35,7 @@ const CreateTodoPanel = dynamic(
     // affordance), so reserve its footprint while the chunk streams in to avoid
     // a layout pop.
     loading: () => (
-      <div className="h-[84px] rounded-3xl border border-gray-200/80 bg-white shadow-sm" aria-hidden="true" />
+      <div className="h-[84px] rounded-xl border border-line/80 bg-paper shadow-sm" aria-hidden="true" />
     ),
   },
 )
@@ -78,11 +78,11 @@ function StatusPill({ count, label, emphasis }: { count: number; label: string; 
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
       className={cn(
-        "flex items-center gap-2 rounded-full border bg-white px-4 py-2 shadow-sm",
-        emphasis ? "border-gray-200" : "border-gray-100",
+        "flex items-center gap-2 rounded-full border bg-paper px-4 py-2 shadow-sm",
+        emphasis ? "border-line" : "border-line",
       )}
     >
-      <span className={cn("h-2 w-2 rounded-full", emphasis ? "bg-gray-950" : "bg-gray-300")} />
+      <span className={cn("h-2 w-2 rounded-full", emphasis ? "bg-ink" : "bg-gray-300")} />
       <span className="relative overflow-hidden">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
@@ -91,13 +91,13 @@ function StatusPill({ count, label, emphasis }: { count: number; label: string; 
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -10, opacity: 0 }}
             transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
-            className={cn("block text-sm font-black tabular-nums", emphasis ? "text-gray-950" : "text-gray-400")}
+            className={cn("block text-body-sm font-bold tabular-nums", emphasis ? "text-ink" : "text-ink-subtle")}
           >
             {count}
           </motion.span>
         </AnimatePresence>
       </span>
-      <span className={cn("text-sm font-bold", emphasis ? "text-gray-950" : "text-gray-400")}>{label}</span>
+      <span className={cn("text-body-sm font-bold", emphasis ? "text-ink" : "text-ink-subtle")}>{label}</span>
     </motion.div>
   )
 }
@@ -704,7 +704,7 @@ export default function TasksPage() {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: EASE_OUT_EXPO }}
-            className="mb-1.5 text-[11px] font-black uppercase tracking-[0.3em] text-gray-400"
+            className="mb-1.5 text-caption font-bold uppercase tracking-[0.3em] text-ink-subtle"
           >
             Workspace
           </motion.p>
@@ -712,7 +712,7 @@ export default function TasksPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.34, delay: 0.04, ease: EASE_OUT_EXPO }}
-            className="text-4xl font-black leading-none tracking-tight text-gray-950 sm:text-[44px]"
+            className="text-display-sm font-bold leading-none tracking-tight text-ink sm:text-display"
           >
             Tasks
           </motion.h1>
@@ -759,17 +759,17 @@ export default function TasksPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ ...SPRING_GENTLE, delay: 0.1 }}
-          className="rounded-2xl border border-dashed border-gray-200 bg-white p-16 text-center"
+          className="rounded-xl border border-dashed border-line bg-paper p-16 text-center"
         >
           <motion.div
             animate={{ y: [0, -4, 0] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
-            className="mx-auto h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center mb-3"
+            className="mx-auto h-14 w-14 rounded-xl bg-paper-sunken flex items-center justify-center mb-3"
           >
             <CheckCircle2 className="h-7 w-7 text-gray-200" />
           </motion.div>
-          <p className="font-semibold text-gray-900 mb-1">No tasks yet</p>
-          <p className="text-sm text-gray-400 mb-4">
+          <p className="font-semibold text-ink mb-1">No tasks yet</p>
+          <p className="text-body-sm text-ink-subtle mb-4">
             Create your first task to get started
           </p>
           <Button size="sm" onClick={() => setIsCreateOpen(true)}>
@@ -781,19 +781,19 @@ export default function TasksPage() {
         <div className="space-y-10">
           <div>
             {visibleTodos.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
+              <div className="rounded-xl border border-dashed border-line bg-paper p-10 text-center">
                 {filterCategoryIds.length > 0 ? (
                   <>
-                    <p className="text-sm text-gray-400 font-medium">No tasks in selected categories.</p>
+                    <p className="text-body-sm text-ink-subtle font-medium">No tasks in selected categories.</p>
                     <button
                       onClick={() => handleFilterChange([])}
-                      className="text-xs text-gray-400 hover:text-gray-900 font-medium mt-2 transition-colors"
+                      className="text-caption text-ink-subtle hover:text-ink font-medium mt-2 transition-colors"
                     >
                       Clear filter
                     </button>
                   </>
                 ) : (
-                  <p className="text-sm text-gray-400 font-medium">No active tasks.</p>
+                  <p className="text-body-sm text-ink-subtle font-medium">No active tasks.</p>
                 )}
               </div>
             ) : (
@@ -858,9 +858,9 @@ export default function TasksPage() {
             <div className="space-y-4">
               <button
                 onClick={() => setShowCompleted((prev) => !prev)}
-                className="flex items-center gap-3 text-sm font-black text-gray-400 hover:text-black transition-colors group px-1 w-full"
+                className="flex items-center gap-3 text-body-sm font-bold text-ink-subtle hover:text-ink transition-colors group px-1 w-full"
               >
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center transition-[background-color,color] ${showCompleted ? "bg-black text-white" : "bg-gray-100 text-gray-400 group-hover:bg-gray-200 group-hover:text-black"}`}>
+                <div className={`h-8 w-8 rounded-md flex items-center justify-center transition-[background-color,color] ${showCompleted ? "bg-ink text-paper" : "bg-gray-100 text-ink-subtle group-hover:bg-gray-200 group-hover:text-ink"}`}>
                   <motion.div
                     animate={{ rotate: showCompleted ? 90 : 0 }}
                     transition={{ type: "spring", stiffness: 280, damping: 22, mass: 0.8 }}
@@ -908,20 +908,20 @@ export default function TasksPage() {
                               />
                             )}
                           />
-                          <div className="rounded-[1.75rem] border border-gray-200 bg-white/90 p-4 sm:p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="rounded-[1.75rem] border border-line bg-paper/90 p-4 sm:p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div className="space-y-1">
-                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
+                              <p className="text-caption font-bold uppercase tracking-[0.2em] text-ink-subtle">
                                 {completedTotalCount > COMPLETED_PREVIEW_SIZE
                                   ? `Showing latest ${COMPLETED_PREVIEW_SIZE}`
                                   : "Completed archive preview"}
                               </p>
-                              <p className="text-sm text-gray-500 font-medium">
+                              <p className="text-body-sm text-ink-subtle font-medium">
                                 {completedTotalCount > COMPLETED_PREVIEW_SIZE
                                   ? `Open the archive to browse all ${completedTotalCount} completed tasks.`
                                   : "All completed tasks currently fit in this section."}
                               </p>
                             </div>
-                            <Button asChild size="sm" className="rounded-xl font-bold shadow-lg shadow-black/10">
+                            <Button asChild size="sm" className="rounded-lg font-bold shadow-lg shadow-black/10">
                               <Link href="/tasks/completed">
                                 <History className="h-4 w-4" />
                                 View all completed tasks

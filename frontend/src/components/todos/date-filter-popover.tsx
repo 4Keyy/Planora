@@ -59,8 +59,8 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
           the filter bar. Fixed h-10 keeps the plate exactly the same height as before. */}
       <div
         className={cn(
-          "flex h-10 items-center gap-0.5 rounded-xl border bg-gray-100/80 pl-1 pr-1 transition-colors",
-          open ? "border-gray-300 bg-white" : "border-gray-200/60",
+          "flex h-10 items-center gap-0.5 rounded-lg border bg-gray-100/80 pl-1 pr-1 transition-colors",
+          open ? "border-line-strong bg-paper" : "border-line/60",
         )}
       >
         <button
@@ -69,14 +69,14 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-controls={panelId}
-          className="flex h-8 max-w-[220px] items-center gap-2 rounded-lg px-2.5 text-xs font-bold text-gray-600 transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 cursor-pointer"
+          className="flex h-8 max-w-[220px] items-center gap-2 rounded-md px-2.5 text-caption font-bold text-ink-muted transition-colors hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 cursor-pointer"
         >
-          <CalendarSearch className="h-4 w-4 flex-shrink-0 text-gray-500" strokeWidth={1.8} aria-hidden="true" />
-          <span className={cn("truncate", hasFilter ? "text-gray-900" : "text-gray-500")}>
+          <CalendarSearch className="h-4 w-4 flex-shrink-0 text-ink-subtle" strokeWidth={1.8} aria-hidden="true" />
+          <span className={cn("truncate", hasFilter ? "text-ink" : "text-ink-subtle")}>
             {hasFilter ? formatDueRange(start, end) : "By date"}
           </span>
           <ChevronDown
-            className={cn("ml-auto h-3.5 w-3.5 flex-shrink-0 text-gray-400 transition-transform duration-200", open && "rotate-180")}
+            className={cn("ml-auto h-3.5 w-3.5 flex-shrink-0 text-ink-subtle transition-transform duration-base", open && "rotate-180")}
             aria-hidden="true"
           />
         </button>
@@ -90,7 +90,7 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
               animate={{ opacity: 1, scale: 1 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
               transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 cursor-pointer"
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-ink-subtle transition-colors hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 cursor-pointer"
             >
               <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden="true" />
             </motion.button>
@@ -110,15 +110,15 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             style={{ transformOrigin: "top right" }}
-            className="absolute right-0 top-full z-50 mt-2 w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl shadow-black/10"
+            className="absolute right-0 top-full z-50 mt-2 w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-line bg-paper shadow-xl shadow-black/10"
           >
-            <div className="flex items-center justify-between border-b border-gray-100 px-3.5 py-2.5">
-              <span className="text-[11px] font-black uppercase tracking-wider text-gray-500">Completed on</span>
+            <div className="flex items-center justify-between border-b border-line px-3.5 py-2.5">
+              <span className="text-caption font-bold uppercase tracking-wider text-ink-subtle">Completed on</span>
               {hasFilter && (
                 <button
                   type="button"
                   onClick={onClear}
-                  className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 transition-colors hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 rounded cursor-pointer"
+                  className="text-caption font-bold uppercase tracking-wider text-ink-subtle transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 rounded cursor-pointer"
                 >
                   Clear
                 </button>

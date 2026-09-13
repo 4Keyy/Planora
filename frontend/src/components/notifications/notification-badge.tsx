@@ -120,7 +120,7 @@ export const NotificationBadge = memo(function NotificationBadge({
           initial={reduce ? false : { scale: 0.5, y: -2, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
           transition={{ type: "spring", stiffness: 620, damping: 24 }}
-          className="absolute -top-1.5 -right-1.5 flex items-center justify-center rounded-full px-1 font-black tabular-nums text-white"
+          className="absolute -top-1.5 -right-1.5 flex items-center justify-center rounded-full px-1 font-bold tabular-nums text-paper"
           style={{
             minWidth: 15,
             height: 15,
@@ -211,7 +211,7 @@ function PillBadge({
       </span>
 
       <span
-        className="min-w-0 truncate text-[11.5px] font-extrabold leading-none tracking-tight"
+        className="min-w-0 truncate text-caption font-bold leading-none tracking-tight"
         style={{ color: "#1f2937" }}
       >
         {label}
@@ -223,7 +223,7 @@ function PillBadge({
           initial={reduce ? false : { scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 620, damping: 24 }}
-          className="flex flex-shrink-0 items-center justify-center rounded-full px-1.5 font-black tabular-nums text-white"
+          className="flex flex-shrink-0 items-center justify-center rounded-full px-1.5 font-bold tabular-nums text-paper"
           style={{ minWidth: 17, height: 16, fontSize: 10, background: tint }}
           aria-hidden
         >
@@ -240,7 +240,7 @@ function MotifDisc({ motif, chip, tint }: { motif: NotificationMotif; chip: numb
   const disc = Math.round(chip * 0.58)
   return (
     <span
-      className="absolute flex items-center justify-center rounded-full text-white"
+      className="absolute flex items-center justify-center rounded-full text-paper"
       style={{
         width: disc,
         height: disc,

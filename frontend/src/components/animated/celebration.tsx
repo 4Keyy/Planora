@@ -94,11 +94,11 @@ export function CompletionCelebration({
             animate={{ scale: [0.7, 1, 0.92], rotate: [ -18, 8, 0 ] }}
             transition={{ duration: variant === "card" ? 0.42 : 0.52, ease: [0.16, 1, 0.3, 1] }}
             className={cn(
-              "rounded-full bg-gray-900 flex items-center justify-center shadow-xl shadow-emerald-500/20",
+              "rounded-full bg-gray-900 flex items-center justify-center shadow-xl",
               variant === "card" ? "h-9 w-9" : "h-14 w-14"
             )}
           >
-            <svg className={cn("text-white", variant === "card" ? "h-5 w-5" : "h-7 w-7")} fill="currentColor" viewBox="0 0 24 24">
+            <svg className={cn("text-paper", variant === "card" ? "h-5 w-5" : "h-7 w-7")} fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
             </svg>
           </motion.div>
@@ -118,7 +118,7 @@ export function SuccessPulse({ position = "center" }: { position?: "center" | "i
         position === "center" ? "inset-0 flex items-center justify-center" : ""
       }`}
     >
-      <div className="w-full h-full rounded-full border-2 border-green-400" />
+      <div className="w-full h-full rounded-full border-2 border-positive" />
     </motion.div>
   )
 }

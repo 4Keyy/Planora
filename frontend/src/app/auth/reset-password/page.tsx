@@ -52,29 +52,29 @@ function ResetPasswordContent() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={TWEEN_DELIBERATE}
-        className="w-full max-w-sm rounded-3xl border border-gray-200/70 bg-white/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8"
+        className="w-full max-w-sm rounded-xl border border-line/70 bg-paper/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8"
       >
         <div className="mb-7 flex flex-col items-center gap-2.5 text-center">
           <span className="flex items-center gap-1.5">
             <span className="h-[7px] w-[7px] rounded-full bg-gray-900" />
-            <span className="text-lg font-black tracking-tight text-gray-900">Planora</span>
+            <span className="text-title-sm font-bold tracking-tight text-ink">Planora</span>
           </span>
         </div>
         <div className="space-y-1.5 mb-6">
-          <h1 className="text-2xl font-black tracking-tight text-gray-900">Set new password</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-title font-bold tracking-tight text-ink">Set new password</h1>
+          <p className="text-body-sm text-ink-subtle">
             Paste the token from your email and choose a new password.
           </p>
         </div>
 
         {done ? (
           <div className="space-y-4">
-            <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-4 text-sm text-emerald-700">
+            <div className="rounded-xl bg-positive-surface border border-positive-surface p-4 text-body-sm text-positive">
               Your password has been reset.
             </div>
             <button
               onClick={() => router.push("/auth/login")}
-              className="w-full rounded-2xl bg-gray-900 px-4 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-gray-900/10 transition-[background-color,transform] duration-200 hover:bg-gray-800 active:scale-[0.99]"
+              className="w-full rounded-xl bg-gray-900 px-4 py-3.5 text-body-sm font-semibold text-paper shadow-lg shadow-gray-900/10 transition-[background-color,transform] duration-base hover:bg-gray-800 active:scale-[0.99]"
             >
               Sign in
             </button>
@@ -82,47 +82,47 @@ function ResetPasswordContent() {
         ) : (
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label htmlFor="rp-token" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Reset token</label>
+              <label htmlFor="rp-token" className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Reset token</label>
               <input
                 id="rp-token"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
                 placeholder="Paste token"
                 autoComplete="off"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-[15px] text-gray-900 placeholder:text-gray-400 transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
+                className="w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="rp-password" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">New password</label>
+              <label htmlFor="rp-password" className="text-caption font-semibold text-ink-muted uppercase tracking-wider">New password</label>
               <input
                 id="rp-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-[15px] text-gray-900 placeholder:text-gray-400 transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
+                className="w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="rp-confirm" className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Confirm password</label>
+              <label htmlFor="rp-confirm" className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Confirm password</label>
               <input
                 id="rp-confirm"
                 type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 autoComplete="new-password"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-[15px] text-gray-900 placeholder:text-gray-400 transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
+                className="w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
               />
             </div>
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-2xl bg-gray-900 px-4 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-gray-900/10 transition-[background-color,opacity,transform] duration-200 hover:bg-gray-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-xl bg-gray-900 px-4 py-3.5 text-body-sm font-semibold text-paper shadow-lg shadow-gray-900/10 transition-[background-color,opacity,transform] duration-base hover:bg-gray-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? "Saving..." : "Reset password"}
             </button>
-            <div className="text-center text-sm text-gray-500">
-              <Link href="/auth/login" className="font-semibold text-gray-900 hover:underline">
+            <div className="text-center text-body-sm text-ink-subtle">
+              <Link href="/auth/login" className="font-semibold text-ink hover:underline">
                 Back to sign in
               </Link>
             </div>

@@ -32,8 +32,8 @@ export function AutosaveIndicator({ status, idleLabel, className }: AutosaveIndi
       role="status"
       aria-live="polite"
       className={cn(
-        "flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider",
-        status === "error" ? "text-red-500" : status === "saved" ? "text-emerald-600" : "text-gray-400",
+        "flex items-center gap-1.5 text-caption font-bold uppercase tracking-wider",
+        status === "error" ? "text-alert" : status === "saved" ? "text-positive" : "text-ink-subtle",
         className,
       )}
     >

@@ -201,8 +201,8 @@ export function Navbar() {
             style={{ borderRadius: 9999 }}
             className={cn(
               "pointer-events-auto relative flex items-center h-12",
-              "bg-white/96 backdrop-blur-xl",
-              "border border-gray-200/90",
+              "bg-paper/95 backdrop-blur-xl",
+              "border border-line/90",
               "shadow-[0_4px_28px_rgba(0,0,0,0.07),0_1px_6px_rgba(0,0,0,0.04)]",
             )}
             onMouseEnter={() => setExpanded(true)}
@@ -212,11 +212,11 @@ export function Navbar() {
             <motion.div layout transition={CONTENT_SPRING}>
               <Link
                 href="/dashboard"
-                className="flex items-center gap-1.5 pl-4 pr-3 h-12 hover:bg-gray-50/70 transition-colors duration-150"
+                className="flex items-center gap-1.5 pl-4 pr-3 h-12 hover:bg-paper-sunken/70 transition-colors duration-fast"
                 style={{ borderRadius: "9999px 0 0 9999px" }}
               >
                 <span className="h-[6px] w-[6px] rounded-full bg-gray-900 flex-shrink-0" />
-                <span className="text-sm font-black tracking-tight text-gray-900 select-none whitespace-nowrap">
+                <span className="text-body-sm font-bold tracking-tight text-ink select-none whitespace-nowrap">
                   Planora
                 </span>
               </Link>
@@ -257,8 +257,8 @@ export function Navbar() {
                             key={tab.href}
                             href={tab.href}
                             className={cn(
-                              "relative px-3.5 py-1.5 text-sm font-semibold rounded-full whitespace-nowrap transition-colors duration-150",
-                              isActive(tab.href) ? "text-gray-900" : "text-gray-500 hover:text-gray-700",
+                              "relative px-3.5 py-1.5 text-body-sm font-semibold rounded-full whitespace-nowrap transition-colors duration-fast",
+                              isActive(tab.href) ? "text-ink" : "text-ink-subtle hover:text-ink-muted",
                             )}
                           >
                             {isActive(tab.href) && (
@@ -281,7 +281,7 @@ export function Navbar() {
                             type="button"
                             onClick={() => setCreateMode(true)}
                             aria-label="Create task"
-                            className="h-8 w-8 rounded-full bg-gray-900 text-white flex items-center justify-center"
+                            className="h-8 w-8 rounded-full bg-gray-900 text-paper flex items-center justify-center"
                           >
                             <motion.span
                               animate={{ rotate: 0 }}
@@ -313,7 +313,7 @@ export function Navbar() {
                           placeholder="Add task…  try 'tomorrow at 5pm #work'"
                           disabled={creating}
                           className={cn(
-                            "w-56 sm:w-80 text-sm text-gray-900 placeholder:text-gray-400",
+                            "w-56 sm:w-80 text-body-sm text-ink placeholder:text-ink-subtle",
                             "bg-transparent outline-none",
                             creating && "opacity-50",
                           )}
@@ -322,7 +322,7 @@ export function Navbar() {
                           type="button"
                           onClick={exitCreate}
                           aria-label="Cancel create task"
-                          className="h-6 w-6 flex-shrink-0 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-150"
+                          className="h-6 w-6 flex-shrink-0 rounded-full flex items-center justify-center text-ink-subtle hover:text-ink-muted hover:bg-gray-100 transition-colors duration-fast"
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -368,28 +368,28 @@ export function Navbar() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.96 }}
                     transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
-                    className="absolute right-0 top-full mt-3 w-52 rounded-2xl border border-gray-200/90 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.10)] overflow-hidden"
+                    className="absolute right-0 top-full mt-3 w-52 rounded-xl border border-line/90 bg-paper shadow-[0_8px_32px_rgba(0,0,0,0.10)] overflow-hidden"
                     role="menu"
                   >
                     <div className="px-4 py-3 border-b border-gray-50">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{displayName}</p>
-                      <p className="text-xs text-gray-400 truncate mt-0.5">{user?.email}</p>
+                      <p className="text-body-sm font-semibold text-ink truncate">{displayName}</p>
+                      <p className="text-caption text-ink-subtle truncate mt-0.5">{user?.email}</p>
                     </div>
                     <div className="p-1.5 space-y-0.5">
                       <button
                         type="button"
                         onClick={() => { setDropOpen(false); router.push("/profile") }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 rounded-xl hover:bg-gray-50 transition-colors duration-150"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-body-sm text-ink-muted rounded-lg hover:bg-paper-sunken transition-colors duration-fast"
                         role="menuitem"
                       >
-                        <User className="h-4 w-4 text-gray-400" />
+                        <User className="h-4 w-4 text-ink-subtle" />
                         Profile
                       </button>
                       <div className="h-px bg-gray-100 mx-2" />
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 rounded-xl hover:bg-red-50 transition-colors duration-150"
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-body-sm text-alert rounded-lg hover:bg-alert-surface transition-colors duration-fast"
                         role="menuitem"
                       >
                         <LogOut className="h-4 w-4" />
@@ -419,7 +419,7 @@ export function Navbar() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
               onClick={() => setMobileOpen(false)}
-              className="fixed inset-0 bg-black/20 pointer-events-auto"
+              className="fixed inset-0 bg-ink/20 pointer-events-auto"
               aria-hidden="true"
             />
           )}
@@ -435,7 +435,7 @@ export function Navbar() {
             scale: 1,
           }}
           transition={{ duration: 0.32, ease: EASE_OUT_EXPO }}
-          className="pointer-events-auto relative z-10 flex h-14 items-center justify-between rounded-full border border-gray-200/90 bg-white/95 pl-4 pr-2 backdrop-blur-xl shadow-[0_4px_28px_rgba(0,0,0,0.07),0_1px_6px_rgba(0,0,0,0.04)]"
+          className="pointer-events-auto relative z-10 flex h-14 items-center justify-between rounded-full border border-line/90 bg-paper/95 pl-4 pr-2 backdrop-blur-xl shadow-[0_4px_28px_rgba(0,0,0,0.07),0_1px_6px_rgba(0,0,0,0.04)]"
         >
           <Link
             href="/dashboard"
@@ -443,7 +443,7 @@ export function Navbar() {
             className="flex items-center gap-1.5"
           >
             <span className="h-[6px] w-[6px] rounded-full bg-gray-900 flex-shrink-0" />
-            <span className="text-sm font-black tracking-tight text-gray-900 select-none">Planora</span>
+            <span className="text-body-sm font-bold tracking-tight text-ink select-none">Planora</span>
           </Link>
 
           <div className="flex items-center gap-0.5">
@@ -454,7 +454,7 @@ export function Navbar() {
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
               aria-expanded={mobileOpen}
               aria-haspopup="menu"
-              className="flex h-11 items-center gap-1.5 rounded-full pl-2 pr-1.5 transition-colors duration-150 active:bg-gray-100"
+              className="flex h-11 items-center gap-1.5 rounded-full pl-2 pr-1.5 transition-colors duration-fast active:bg-gray-100"
             >
               <span className="h-8 w-8 overflow-hidden rounded-full">
                 <Avatar
@@ -467,7 +467,7 @@ export function Navbar() {
                 />
               </span>
               <motion.span animate={{ rotate: mobileOpen ? 180 : 0 }} transition={ICON_SPRING} className="flex">
-                <ChevronDown className="h-4 w-4 text-gray-400" />
+                <ChevronDown className="h-4 w-4 text-ink-subtle" />
               </motion.span>
             </button>
           </div>
@@ -483,11 +483,11 @@ export function Navbar() {
               transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
               role="menu"
               aria-label="Main menu"
-              className="pointer-events-auto absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-3xl border border-gray-200/90 bg-white shadow-[0_16px_48px_rgba(0,0,0,0.14)]"
+              className="pointer-events-auto absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-xl border border-line/90 bg-paper shadow-[0_16px_48px_rgba(0,0,0,0.14)]"
             >
               {/* Quick add — same NLP-friendly create path as the desktop pill */}
-              <div className="border-b border-gray-100 p-2.5">
-                <div className="flex h-12 items-center gap-2 rounded-2xl border border-gray-200/70 bg-gray-50 px-3 transition-colors focus-within:border-gray-300 focus-within:bg-white">
+              <div className="border-b border-line p-2.5">
+                <div className="flex h-12 items-center gap-2 rounded-xl border border-line/70 bg-paper-sunken px-3 transition-colors focus-within:border-line-strong focus-within:bg-paper">
                   <Sparkles className="h-4 w-4 flex-shrink-0" style={{ color: "rgba(99,102,241,0.7)" }} />
                   <input
                     value={taskTitle}
@@ -496,7 +496,7 @@ export function Navbar() {
                     placeholder="Add a task…"
                     disabled={creating}
                     className={cn(
-                      "min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-none placeholder:text-gray-400",
+                      "min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-subtle",
                       creating && "opacity-50",
                     )}
                   />
@@ -507,7 +507,7 @@ export function Navbar() {
                     onClick={() => { handleCreate(); setMobileOpen(false) }}
                     disabled={!taskTitle.trim() || creating}
                     aria-label="Create task"
-                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-opacity disabled:opacity-40"
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-paper transition-opacity disabled:opacity-40"
                   >
                     <Plus className="h-4 w-4" strokeWidth={2.5} />
                   </motion.button>
@@ -526,37 +526,37 @@ export function Navbar() {
                       role="menuitem"
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex h-12 items-center justify-between rounded-2xl px-4 text-[15px] font-semibold transition-colors duration-150",
-                        active ? "bg-gray-900 text-white" : "text-gray-700 active:bg-gray-100",
+                        "flex h-12 items-center justify-between rounded-xl px-4 text-body-sm font-semibold transition-colors duration-fast",
+                        active ? "bg-gray-900 text-paper" : "text-ink-muted active:bg-gray-100",
                       )}
                     >
                       {tab.label}
-                      {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                      {active && <span className="h-1.5 w-1.5 rounded-full bg-paper" />}
                     </Link>
                   )
                 })}
               </nav>
 
               {/* Account */}
-              <div className="border-t border-gray-100 p-2">
+              <div className="border-t border-line p-2">
                 <div className="px-4 py-2">
-                  <p className="truncate text-sm font-semibold text-gray-900">{displayName}</p>
-                  {user?.email && <p className="mt-0.5 truncate text-xs text-gray-400">{user.email}</p>}
+                  <p className="truncate text-body-sm font-semibold text-ink">{displayName}</p>
+                  {user?.email && <p className="mt-0.5 truncate text-caption text-ink-subtle">{user.email}</p>}
                 </div>
                 <button
                   type="button"
                   onClick={() => { setMobileOpen(false); router.push("/profile") }}
                   role="menuitem"
-                  className="flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-[15px] font-medium text-gray-700 transition-colors duration-150 active:bg-gray-100"
+                  className="flex h-12 w-full items-center gap-3 rounded-xl px-4 text-body-sm font-medium text-ink-muted transition-colors duration-fast active:bg-gray-100"
                 >
-                  <User className="h-4 w-4 text-gray-400" />
+                  <User className="h-4 w-4 text-ink-subtle" />
                   Profile
                 </button>
                 <button
                   type="button"
                   onClick={handleLogout}
                   role="menuitem"
-                  className="flex h-12 w-full items-center gap-3 rounded-2xl px-4 text-[15px] font-medium text-red-500 transition-colors duration-150 active:bg-red-50"
+                  className="flex h-12 w-full items-center gap-3 rounded-xl px-4 text-body-sm font-medium text-alert transition-colors duration-fast active:bg-alert-surface"
                 >
                   <LogOut className="h-4 w-4" />
                   Sign out

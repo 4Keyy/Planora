@@ -44,14 +44,14 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       // relative + z-30: the optional dateControl opens a floating popover whose absolute child must
       // paint above the task grid that follows this plate in the DOM (a later non-positioned sibling).
-      className="relative z-30 bg-white/50 backdrop-blur-sm border border-gray-100 rounded-[2rem] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm w-full"
+      className="relative z-30 bg-paper/50 backdrop-blur-sm border border-line rounded-[2rem] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm w-full"
     >
       <div className="flex items-center gap-4 min-w-0">
-        <div className="h-10 w-10 rounded-2xl bg-black text-white flex items-center justify-center shadow-lg shadow-black/10 flex-shrink-0">
+        <div className="h-10 w-10 rounded-xl bg-ink text-paper flex items-center justify-center shadow-lg shadow-black/10 flex-shrink-0">
           <SlidersHorizontal className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">Quick Filter</h3>
+          <h3 className="text-body-sm font-bold text-ink uppercase tracking-wider">Quick Filter</h3>
           {/* Fixed-height subtitle row — children are absolutely positioned so the crossfade
               between the idle hint and the active-filter summary never changes the plate height. */}
           <div className="relative h-5 mt-0.5">
@@ -87,14 +87,14 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
                       )
                     })}
                   </div>
-                  <span className="text-xs font-bold text-gray-700 whitespace-nowrap">
-                    {overflow > 0 && <span className="text-gray-400">+{overflow} · </span>}
+                  <span className="text-caption font-bold text-ink-muted whitespace-nowrap">
+                    {overflow > 0 && <span className="text-ink-subtle">+{overflow} · </span>}
                     {selectedCats.length === 1 ? "1 category" : `${selectedCats.length} categories`}
                   </span>
                   <button
                     onClick={onClear}
                     aria-label="Clear category filter"
-                    className="ml-0.5 h-4 w-4 rounded-md flex items-center justify-center text-gray-400 hover:text-black hover:bg-gray-200/70 transition-colors flex-shrink-0"
+                    className="ml-0.5 h-4 w-4 rounded-md flex items-center justify-center text-ink-subtle hover:text-ink hover:bg-gray-200/70 transition-colors flex-shrink-0"
                   >
                     <X className="h-3 w-3" strokeWidth={2.5} />
                   </button>
@@ -106,7 +106,7 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 flex items-center text-xs text-gray-500 font-medium whitespace-nowrap"
+                  className="absolute inset-0 flex items-center text-caption text-ink-subtle font-medium whitespace-nowrap"
                 >
                   Filter tasks by category.
                 </motion.p>
@@ -117,14 +117,14 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
       </div>
       <div className="flex items-center gap-3 flex-shrink-0">
         {dateControl}
-        <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-gray-100/80 rounded-xl border border-gray-200/50">
-          <kbd className="font-mono bg-white px-2 py-0.5 rounded text-[10px] font-black border border-gray-200 shadow-sm text-gray-600">F</kbd>
-          <span className="text-[11px] font-bold text-gray-600 ml-1">to filter</span>
+        <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-gray-100/80 rounded-lg border border-line/50">
+          <kbd className="font-mono bg-paper px-2 py-0.5 rounded text-caption font-bold border border-line shadow-sm text-ink-muted">F</kbd>
+          <span className="text-caption font-bold text-ink-muted ml-1">to filter</span>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="rounded-xl font-bold text-xs h-10 border-gray-200 hover:bg-black hover:text-white hover:border-black transition-[background-color,border-color,color] px-6"
+          className="rounded-lg font-bold text-caption h-10 border-line hover:bg-ink hover:text-paper hover:border-black transition-[background-color,border-color,color] px-6"
           onClick={onOpen}
         >
           Open menu

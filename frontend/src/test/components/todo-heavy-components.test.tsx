@@ -128,10 +128,11 @@ describe("TodoCard", () => {
     expect(container.querySelector(".lucide-share2")).toBeInTheDocument()
     const sharedUrgentCard = container.querySelector(".task-card--shared-urgent")
     expect(sharedUrgentCard).not.toBeNull()
-    expect(sharedUrgentCard).toHaveClass("border-blue-400")
+    expect(sharedUrgentCard).toHaveClass("border-accent")
     // Red left border is applied via inline style, not a Tailwind class
-    expect((sharedUrgentCard as HTMLElement).style.borderLeftColor).toBe("rgb(248, 113, 113)")
-    expect(container.querySelector(".bg-red-400")).toBeNull()
+    expect((sharedUrgentCard as HTMLElement).style.borderLeftColor).toBe("var(--pl-alert)")
+    // the urgent left border is an inline style, not a background utility
+    expect(sharedUrgentCard!.className).not.toMatch(/bg-alert/)
     expect(screen.getByText(/Overdue/i)).toBeInTheDocument()
     expect(screen.getByText(/EXP:/)).toBeInTheDocument()
     expect(screen.getByText("2d delay")).toBeInTheDocument()
@@ -180,7 +181,7 @@ describe("TodoCard", () => {
     fireEvent.click(screen.getByText("Write coverage tests"))
     expect(onEdit).toHaveBeenCalledOnce()
 
-    const deleteButton = container.querySelector('button[class*="bg-red-500"]')
+    const deleteButton = container.querySelector('button[class*="bg-alert"]')
     expect(deleteButton).not.toBeNull()
     fireEvent.click(deleteButton as HTMLButtonElement)
     expect(onDelete).toHaveBeenCalledOnce()
@@ -262,9 +263,9 @@ describe("TodoCard", () => {
     const desktopDeleteZone = container.querySelector('div[class*="w-[68px]"]') as HTMLElement
     fireEvent.mouseEnter(desktopDeleteZone)
     await waitFor(() =>
-      expect(container.querySelector('div[class*="text-white"][class*="cursor-pointer"]')).not.toBeNull(),
+      expect(container.querySelector('div[class*="text-paper"][class*="cursor-pointer"]')).not.toBeNull(),
     )
-    const desktopDeletePanel = container.querySelector('div[class*="text-white"][class*="cursor-pointer"]') as HTMLElement
+    const desktopDeletePanel = container.querySelector('div[class*="text-paper"][class*="cursor-pointer"]') as HTMLElement
     fireEvent.click(desktopDeletePanel)
     expect(onDelete).toHaveBeenCalledOnce()
     fireEvent.mouseLeave(desktopDeleteZone)
@@ -350,9 +351,9 @@ describe("TodoCard", () => {
 
     const card = container.querySelector(".task-card--shared-urgent")
     expect(card).not.toBeNull()
-    expect(card).toHaveClass("border-blue-400")
+    expect(card).toHaveClass("border-accent")
     // Red left border is applied via inline style, not a Tailwind class
-    expect((card as HTMLElement).style.borderLeftColor).toBe("rgb(248, 113, 113)")
+    expect((card as HTMLElement).style.borderLeftColor).toBe("var(--pl-alert)")
     expect(screen.getByText("Focus")).toHaveClass("blur-[3px]")
   })
 })
@@ -470,8 +471,8 @@ describe("CreateTodoPanel", () => {
       target: { value: "x".repeat(4000) },
     })
 
-    expect(screen.getByText("160/200")).toHaveClass("text-red-500")
-    expect(screen.getByText("4000/5000")).toHaveClass("text-red-500")
+    expect(screen.getByText("160/200")).toHaveClass("text-alert")
+    expect(screen.getByText("4000/5000")).toHaveClass("text-alert")
   })
 
   it("closes on Escape while expanded and not creating", async () => {

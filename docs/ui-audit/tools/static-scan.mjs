@@ -103,21 +103,21 @@ const TOKEN_HEX = tokenHexSet()
 const scale = {
   // Tailwind utility + arbitrary value, plus raw CSS
   radius: [
-    ...hits(TSX, /\brounded(?:-(?:t|b|l|r|tl|tr|bl|br|s|e|ss|se|es|ee))?-(\[[^\]]+\]|none|sm|md|lg|xl|2xl|3xl|full)\b/),
+    ...hits(TSX, /\brounded(?:-(?:t|b|l|r|tl|tr|bl|br|s|e|ss|se|es|ee))?-(\[[^\]]+\]|none|sm|md|lg|xl|full)\b/),
     ...hits(CSS, /border-radius:\s*([^;]+);/),
   ],
   shadow: [
-    ...hits(TSX, /\bshadow-(\[[^\]]+\]|none|soft|soft-md|soft-lg|soft-xl|hover|hover-lg|focus|focus-accent|inner|card|card-hover|modal|input|sm|md|lg|xl|2xl)\b/),
+    ...hits(TSX, /\bshadow-(\[[^\]]+\]|none|sm|md|lg|xl)\b/),
     ...hits(CSS, /box-shadow:\s*([^;]+);/),
   ],
   duration: [
-    ...hits(TSX, /\bduration-(\[[^\]]+\]|fast|normal|slow|slower|\d+)\b/),
+    ...hits(TSX, /\bduration-(\[[^\]]+\]|instant|fast|base|slow|deliberate|\d+)\b/),
     ...hits(CSS, /(?:transition-duration|animation-duration):\s*([^;]+);/),
     ...hits(CSS, /animation:\s*[\w-]+\s+([\d.]+m?s)/),
     ...hits(TS_ALL, /duration:\s*([\d.]+)/),
   ],
   fontSize: [
-    ...hits(TSX, /\btext-(\[[^\]]+\]|xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)(?![\w-])/),
+    ...hits(TSX, /\btext-(\[[^\]]+\]|caption|body-sm|body|title-sm|title|display-sm|display|hero|xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)(?![\w-])/),
     ...hits(CSS, /font-size:\s*([^;]+);/),
   ],
   fontWeight: [
@@ -133,7 +133,7 @@ const scale = {
     ...hits(CSS, /z-index:\s*([^;]+);/),
   ],
   easing: [
-    ...hits(TSX, /\bease-(\[[^\]]+\]|spring|snappy|smooth|bounce|linear|in|out|in-out)\b/),
+    ...hits(TSX, /\bease-(\[[^\]]+\]|emphasized|standard|exit|linear|in|out|in-out)\b/),
     ...hits(CODE, /cubic-bezier\([^)]+\)/),
   ],
 }
@@ -143,13 +143,13 @@ const scale = {
 const DECLARED = {
   // design-tokens.ts spacing is a 4px scale; tailwind.config.ts adds 18/88/128.
   spacing: ['0', '1', '2', '3', '4', '5', '6', '8', '10', '12', '16', '20', '24', '18', '88', '128', 'auto', 'px'],
-  radius: ['none', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', 'full'],
-  shadow: ['none', 'soft', 'soft-md', 'soft-lg', 'soft-xl', 'hover', 'hover-lg', 'focus', 'focus-accent', 'inner'],
-  duration: ['fast', 'normal', 'slow', 'slower'],
-  fontSize: ['xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl'],
+  radius: ['none', 'sm', 'md', 'lg', 'xl', 'full'],
+  shadow: ['none', 'sm', 'md', 'lg', 'xl'],
+  duration: ['instant', 'fast', 'base', 'slow', 'deliberate'],
+  fontSize: ['caption', 'body-sm', 'body', 'title-sm', 'title', 'display-sm', 'display', 'hero'],
   fontWeight: ['normal', 'medium', 'semibold', 'bold'],
   zIndex: ['base', 'dropdown', 'sticky', 'overlay', 'modal', 'popover', 'toast', 'tooltip'],
-  easing: ['spring', 'snappy', 'smooth', 'bounce'],
+  easing: ['emphasized', 'standard', 'exit'],
 }
 
 // ─── 5. rule violations ─────────────────────────────────────────────────────

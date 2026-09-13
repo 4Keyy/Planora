@@ -363,7 +363,7 @@ export function TodoEditor({
     >
       <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
         <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "#ef4444" : "#8b5cf6", transition: "background 240ms ease" }} />
-        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "#ef4444" : "#8b5cf6", animation: "pl_pulse 1.6s ease-in-out infinite", transition: "background 240ms ease" }} />
+        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", animation: "pl_pulse 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite", transition: "background 240ms ease" }} />
       </div>
       <div style={{ position: "relative", display: "inline-block" }}>
         <span style={{ display: "block", fontSize: 10, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", color: "#6d28d9", opacity: pillHovered ? 0 : 1, transition: "opacity 180ms ease", userSelect: "none" }}>
@@ -573,7 +573,7 @@ export function EditTodoModal(props: EditTodoModalProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/60 backdrop-blur-md"
+          className="absolute inset-0 bg-ink/60 backdrop-blur-md"
         />
 
         {/* Modal card — fixed size; the branch in the middle flex-fills and scrolls internally. */}

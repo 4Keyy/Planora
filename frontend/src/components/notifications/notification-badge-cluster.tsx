@@ -138,7 +138,7 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
                 initial={reduce ? false : { scale: 0.5, y: -2, opacity: 0 }}
                 animate={{ scale: 1, y: 0, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 620, damping: 24 }}
-                className="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center rounded-full px-1 font-black tabular-nums text-white"
+                className="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center rounded-full px-1 font-bold tabular-nums text-paper"
                 style={{
                   minWidth: 15,
                   height: 15,
@@ -160,7 +160,7 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
           initial={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0 }}
           animate={{ scale: 1, opacity: 0.85 }}
           transition={{ type: "spring", stiffness: 520, damping: 26, delay: reduce ? 0 : visible.length * 0.05 }}
-          className="ml-1 inline-flex items-center justify-center rounded-full bg-gray-100 px-1.5 font-bold tabular-nums text-gray-500"
+          className="ml-1 inline-flex items-center justify-center rounded-full bg-gray-100 px-1.5 font-bold tabular-nums text-ink-subtle"
           style={{ height: 16, fontSize: 9.5, border: "1px solid rgba(0,0,0,0.06)" }}
           aria-hidden
         >

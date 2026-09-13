@@ -16,11 +16,11 @@ describe("Button", () => {
 
     const button = screen.getByRole("button", { name: "Save" })
     expect(button).toHaveClass("inline-flex")
-    expect(button).toHaveClass("bg-black")
+    expect(button).toHaveClass("bg-ink")
   })
 
   it("supports variant and size class generation", () => {
-    expect(buttonVariants({ variant: "destructive", size: "lg" })).toContain("bg-red-600")
+    expect(buttonVariants({ variant: "destructive", size: "lg" })).toContain("bg-alert")
     expect(buttonVariants({ variant: "destructive", size: "lg" })).toContain("h-12")
   })
 })
@@ -38,9 +38,9 @@ describe("Card components", () => {
       </Card>,
     )
 
-    expect(screen.getByTestId("card")).toHaveClass("rounded-2xl")
+    expect(screen.getByTestId("card")).toHaveClass("rounded-xl")
     expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument()
-    expect(screen.getByText("Summary")).toHaveClass("text-sm")
+    expect(screen.getByText("Summary")).toHaveClass("text-body-sm")
     expect(screen.getByText("Content")).toHaveClass("pt-0")
     expect(screen.getByText("Footer")).toHaveClass("items-center")
   })

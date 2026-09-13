@@ -117,10 +117,10 @@ const personName = (person: {
  * ------------------------------------------------------------------ */
 
 const CARD =
-  "rounded-2xl border border-gray-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03),0_14px_38px_-26px_rgba(15,23,42,0.20)] dark:border-gray-800 dark:bg-gray-900 dark:shadow-[0_1px_2px_rgba(0,0,0,0.4),0_14px_38px_-26px_rgba(0,0,0,0.7)]"
+  "rounded-xl border border-line bg-paper shadow-[0_1px_2px_rgba(15,23,42,0.03),0_14px_38px_-26px_rgba(15,23,42,0.20)]"
 
 const LABEL =
-  "block text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-gray-500"
+  "block text-caption font-bold uppercase tracking-[0.14em] text-ink-subtle"
 
 /* ------------------------------------------------------------------ *
  * Reusable helpers (names preserved from the original file)
@@ -138,7 +138,7 @@ function StatusPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 text-xs font-bold text-gray-700 dark:text-gray-300",
+        "inline-flex items-center gap-2 text-caption font-bold text-ink-muted",
         className
       )}
     >
@@ -147,8 +147,8 @@ function StatusPill({
         className={cn(
           "h-[7px] w-[7px] flex-shrink-0 rounded-full",
           active
-            ? "bg-gray-950 dark:bg-gray-100"
-            : "border-[1.5px] border-gray-300 dark:border-gray-600"
+            ? "bg-ink"
+            : "border-[1.5px] border-line-strong"
         )}
       />
       {children}
@@ -175,19 +175,19 @@ function SectionCard({
 }) {
   return (
     <section className={cn(CARD, "flex flex-col overflow-hidden", className)}>
-      <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
+      <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           {Icon && (
-            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border border-gray-200 bg-gray-50 text-gray-500 dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-400">
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border border-line bg-paper-sunken text-ink-subtle/60">
               <Icon className="h-4 w-4" strokeWidth={2.4} aria-hidden />
             </span>
           )}
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-black tracking-tight text-gray-950 dark:text-gray-50">
+            <h3 className="truncate text-body-sm font-bold tracking-tight text-ink">
               {title}
             </h3>
             {description && (
-              <p className="mt-0.5 truncate text-xs font-semibold text-gray-400 dark:text-gray-500">
+              <p className="mt-0.5 truncate text-caption font-semibold text-ink-subtle">
                 {description}
               </p>
             )}
@@ -218,10 +218,10 @@ function MetricTile({
   active?: boolean
 }) {
   return (
-    <div className="bg-white p-4 dark:bg-gray-900">
+    <div className="bg-paper p-4">
       <dt className={LABEL}>{label}</dt>
       <dd className="mt-2 flex items-baseline gap-2">
-        <span className="min-w-0 truncate text-xl font-black tabular-nums tracking-tight text-gray-950 dark:text-gray-50">
+        <span className="min-w-0 truncate text-title-sm font-bold tabular-nums tracking-tight text-ink">
           {value}
         </span>
         {active !== undefined && (
@@ -229,13 +229,13 @@ function MetricTile({
             aria-hidden
             className={cn(
               "h-[7px] w-[7px] flex-shrink-0 translate-y-[-2px] rounded-full",
-              active ? "bg-gray-950 dark:bg-gray-100" : "border-[1.5px] border-gray-300 dark:border-gray-600"
+              active ? "bg-ink" : "border-[1.5px] border-line-strong"
             )}
           />
         )}
       </dd>
       {detail && (
-        <p className="mt-1 truncate text-xs font-semibold text-gray-400 dark:text-gray-500">{detail}</p>
+        <p className="mt-1 truncate text-caption font-semibold text-ink-subtle">{detail}</p>
       )}
     </div>
   )
@@ -243,25 +243,25 @@ function MetricTile({
 
 function InfoTile({ label, value, icon: Icon }: { label: string; value: ReactNode; icon?: LucideIcon }) {
   return (
-    <div className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 dark:border-gray-800 dark:bg-gray-800/40">
+    <div className="rounded-lg border border-line bg-paper-sunken/80 p-4/40">
       <div className="flex items-center gap-2">
-        {Icon && <Icon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" aria-hidden />}
+        {Icon && <Icon className="h-3.5 w-3.5 text-ink-subtle" aria-hidden />}
         <span className={LABEL}>{label}</span>
       </div>
-      <div className="mt-2 break-words text-sm font-black text-gray-950 dark:text-gray-50">{value}</div>
+      <div className="mt-2 break-words text-body-sm font-bold text-ink">{value}</div>
     </div>
   )
 }
 
 function EmptyState({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description?: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/70 px-4 py-8 text-center dark:border-gray-700 dark:bg-gray-800/30">
-      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500">
+    <div className="rounded-lg border border-dashed border-line bg-paper-sunken/70 px-4 py-8 text-center/30">
+      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-paper text-ink-subtle">
         <Icon className="h-5 w-5" aria-hidden />
       </div>
-      <p className="mt-3 text-sm font-black text-gray-900 dark:text-gray-100">{title}</p>
+      <p className="mt-3 text-body-sm font-bold text-ink">{title}</p>
       {description && (
-        <p className="mx-auto mt-1 max-w-sm text-xs font-semibold text-gray-400 dark:text-gray-500">
+        <p className="mx-auto mt-1 max-w-sm text-caption font-semibold text-ink-subtle">
           {description}
         </p>
       )}
@@ -292,8 +292,8 @@ function Pager({
   label?: string
 }) {
   return (
-    <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4 dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-xs font-semibold text-gray-400 dark:text-gray-500">{label ?? "Page controls"}</span>
+    <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-caption font-semibold text-ink-subtle">{label ?? "Page controls"}</span>
       <div className="flex gap-2">
         <Button size="sm" variant="secondary" disabled={previousDisabled} onClick={onPrevious}>
           <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -314,7 +314,7 @@ function LoadingRows({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, index) => (
         <div
           key={index}
-          className="h-20 animate-pulse rounded-xl border border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/40"
+          className="h-20 animate-pulse rounded-lg border border-line bg-paper-sunken/40"
         />
       ))}
     </div>
@@ -325,10 +325,10 @@ function SectionHeading({ index, title, description }: { index: string; title: s
   return (
     <div className="mb-4">
       <span className={LABEL}>{title} · {index}</span>
-      <h2 className="mt-1.5 text-[clamp(20px,2.4vw,26px)] font-black tracking-tight text-gray-950 dark:text-gray-50">
+      <h2 className="mt-1.5 text-[clamp(20px,2.4vw,26px)] font-bold tracking-tight text-ink">
         {title}
       </h2>
-      <p className="mt-1 text-[13px] font-semibold text-gray-500 dark:text-gray-400">{description}</p>
+      <p className="mt-1 text-caption font-semibold text-ink-subtle">{description}</p>
     </div>
   )
 }
@@ -942,8 +942,8 @@ export default function ProfilePage() {
             >
               <label
                 className={cn(
-                  "group relative block h-[88px] w-[88px] cursor-pointer overflow-hidden rounded-[18px] border border-gray-200 dark:border-gray-800",
-                  avatarDragOver && "ring-2 ring-gray-950 ring-offset-2 dark:ring-gray-100 dark:ring-offset-gray-900"
+                  "group relative block h-[88px] w-[88px] cursor-pointer overflow-hidden rounded-[18px] border border-line",
+                  avatarDragOver && "ring-2 ring-ink ring-offset-2"
                 )}
               >
                 <Avatar
@@ -956,14 +956,14 @@ export default function ProfilePage() {
                 />
                 <span
                   className={cn(
-                    "absolute inset-0 flex items-center justify-center transition-opacity duration-200",
+                    "absolute inset-0 flex items-center justify-center transition-opacity duration-base",
                     avatarUploading
-                      ? "bg-white/75 opacity-100 dark:bg-gray-900/75"
-                      : "bg-black/40 text-white opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                      ? "bg-paper/75 opacity-100/75"
+                      : "bg-ink/40 text-paper opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                   )}
                 >
                   {avatarUploading ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-700 dark:text-gray-200" aria-hidden />
+                    <Loader2 className="h-6 w-6 animate-spin text-ink-muted" aria-hidden />
                   ) : (
                     <Camera className="h-6 w-6" aria-hidden />
                   )}
@@ -984,10 +984,10 @@ export default function ProfilePage() {
             </div>
 
             <div className="min-w-0 flex-1 basis-64">
-              <h1 className="truncate text-[clamp(25px,3.4vw,32px)] font-black leading-tight tracking-tight text-gray-950 dark:text-gray-50">
+              <h1 className="truncate text-[clamp(25px,3.4vw,32px)] font-bold leading-tight tracking-tight text-ink">
                 {displayName}
               </h1>
-              <p className="mt-1.5 truncate text-sm font-semibold text-gray-500 dark:text-gray-400">
+              <p className="mt-1.5 truncate text-body-sm font-semibold text-ink-subtle">
                 {user?.email || "—"}
               </p>
               <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -1002,7 +1002,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 dark:border-gray-800 dark:bg-gray-800 sm:grid-cols-4">
+          <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-gray-200 sm:grid-cols-4">
             <MetricTile label="Active sessions" value={security?.activeSessionsCount ?? sessions.length ?? "—"} />
             <MetricTile label="Member since" value={formatDateShort(user?.createdAt)} />
             <MetricTile label="Last login" value={formatDateShort(user?.lastLoginAt)} />
@@ -1032,14 +1032,14 @@ export default function ProfilePage() {
                       transition={TWEEN_FAST}
                       aria-current={isActive ? "true" : undefined}
                       className={cn(
-                        "relative flex w-full items-center gap-3 rounded-xl border border-transparent p-2.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-950 focus-visible:ring-offset-1 dark:focus-visible:ring-gray-100",
-                        !isActive && "hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        "relative flex w-full items-center gap-3 rounded-lg border border-transparent p-2.5 text-left transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-1",
+                        !isActive && "hover:bg-paper-sunken"
                       )}
                     >
                       {isActive && (
                         <motion.span
                           layoutId="rail-active-pill"
-                          className="absolute inset-0 rounded-xl bg-gray-100 dark:bg-gray-800"
+                          className="absolute inset-0 rounded-lg bg-gray-100"
                           transition={
                             prefersReducedMotion
                               ? { duration: 0 }
@@ -1052,8 +1052,8 @@ export default function ProfilePage() {
                         className={cn(
                           "relative z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border transition-colors",
                           isActive
-                            ? "border-gray-200 bg-white text-gray-950 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50"
-                            : "border-transparent text-gray-400 dark:text-gray-500"
+                            ? "border-line bg-paper text-ink"
+                            : "border-transparent text-ink-subtle"
                         )}
                       >
                         <Icon className="h-4 w-4" strokeWidth={2.4} aria-hidden />
@@ -1061,23 +1061,23 @@ export default function ProfilePage() {
                       <span className="relative z-10 min-w-0 flex-1">
                         <span
                           className={cn(
-                            "block truncate text-sm font-black tracking-tight",
-                            isActive ? "text-gray-950 dark:text-gray-50" : "text-gray-600 dark:text-gray-300"
+                            "block truncate text-body-sm font-bold tracking-tight",
+                            isActive ? "text-ink" : "text-ink-muted"
                           )}
                         >
                           {section.label}
                         </span>
-                        <span className="block truncate text-[11px] font-semibold text-gray-400 dark:text-gray-500">
+                        <span className="block truncate text-caption font-semibold text-ink-subtle">
                           {section.description}
                         </span>
                       </span>
                       {badge !== undefined && badge !== null && (
                         <span
                           className={cn(
-                            "relative z-10 flex-shrink-0 rounded-full px-2 py-1 text-[10px] font-black tabular-nums",
+                            "relative z-10 flex-shrink-0 rounded-full px-2 py-1 text-caption font-bold tabular-nums",
                             isActive
-                              ? "border border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400"
-                              : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                              ? "border border-line bg-paper text-ink-subtle"
+                              : "bg-gray-100 text-ink-subtle"
                           )}
                         >
                           {badge}
@@ -1093,28 +1093,28 @@ export default function ProfilePage() {
           <div className={cn(CARD, "mt-3.5 hidden p-5 lg:block")}>
             <p className={LABEL}>Account health</p>
             <div className="mt-3 flex items-baseline gap-1.5">
-              <span className="text-4xl font-black leading-none tracking-tight text-gray-950 dark:text-gray-50">
+              <span className="text-display-sm font-bold leading-none tracking-tight text-ink">
                 {30 + (security?.twoFactorEnabled ? 34 : 0) + (security?.failedLoginAttempts ? 0 : 20) + 16}
               </span>
-              <span className="text-sm font-black text-gray-400 dark:text-gray-500">/ 100</span>
+              <span className="text-body-sm font-bold text-ink-subtle">/ 100</span>
             </div>
             <ul className="mt-4 space-y-2.5">
-              <li className="flex items-center gap-2.5 text-xs font-bold text-gray-700 dark:text-gray-300">
-                <Check className="h-4 w-4 text-gray-950 dark:text-gray-100" aria-hidden />
+              <li className="flex items-center gap-2.5 text-caption font-bold text-ink-muted">
+                <Check className="h-4 w-4 text-ink" aria-hidden />
                 Email {isEmailVerified ? "verified" : "pending"}
               </li>
-              <li className="flex items-center gap-2.5 text-xs font-bold text-gray-700 dark:text-gray-300">
+              <li className="flex items-center gap-2.5 text-caption font-bold text-ink-muted">
                 <Fingerprint
                   className={cn(
                     "h-4 w-4",
-                    security?.twoFactorEnabled ? "text-gray-950 dark:text-gray-100" : "text-gray-400 dark:text-gray-500"
+                    security?.twoFactorEnabled ? "text-ink" : "text-ink-subtle"
                   )}
                   aria-hidden
                 />
                 Two-factor · {security?.twoFactorEnabled ? "on" : "off"}
               </li>
-              <li className="flex items-center gap-2.5 text-xs font-bold text-gray-700 dark:text-gray-300">
-                <Monitor className="h-4 w-4 text-gray-500 dark:text-gray-400" aria-hidden />
+              <li className="flex items-center gap-2.5 text-caption font-bold text-ink-muted">
+                <Monitor className="h-4 w-4 text-ink-subtle" aria-hidden />
                 {security?.activeSessionsCount ?? sessions.length ?? 0} active sessions
               </li>
             </ul>
@@ -1161,7 +1161,7 @@ export default function ProfilePage() {
                       </FieldGroup>
                     </div>
 
-                    <div className="my-5 h-px bg-gray-100 dark:bg-gray-800" />
+                    <div className="my-5 h-px bg-gray-100" />
 
                     <div
                       className="flex flex-wrap items-center gap-4"
@@ -1177,7 +1177,7 @@ export default function ProfilePage() {
                         if (file) handleAvatarUpload(file)
                       }}
                     >
-                      <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                      <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-paper">
                         {resolvedAvatarUrl && !avatarError ? (
                           <Image
                             src={resolvedAvatarUrl}
@@ -1189,21 +1189,21 @@ export default function ProfilePage() {
                             unoptimized
                           />
                         ) : (
-                          <span className="text-lg font-black text-gray-800 dark:text-gray-200">{initials}</span>
+                          <span className="text-title-sm font-bold text-ink">{initials}</span>
                         )}
                         {avatarUploading && (
-                          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/80 dark:bg-gray-900/80">
-                            <Loader2 className="h-5 w-5 animate-spin text-gray-600 dark:text-gray-300" aria-hidden />
+                          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-paper/80/80">
+                            <Loader2 className="h-5 w-5 animate-spin text-ink-muted" aria-hidden />
                           </div>
                         )}
                       </div>
 
                       <label
                         className={cn(
-                          "group flex min-w-0 flex-1 basis-56 cursor-pointer select-none items-center gap-3 rounded-xl border-[1.5px] border-dashed px-4 py-3.5 transition-colors duration-200",
+                          "group flex min-w-0 flex-1 basis-56 cursor-pointer select-none items-center gap-3 rounded-lg border-[1.5px] border-dashed px-4 py-3.5 transition-colors duration-base",
                           avatarDragOver
-                            ? "border-gray-950 bg-gray-950/[0.04] dark:border-gray-100 dark:bg-gray-100/[0.06]"
-                            : "border-gray-200 hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-gray-500 dark:hover:bg-gray-800/40",
+                            ? "border-ink bg-ink/[0.04]"
+                            : "border-line hover:border-gray-400 hover:bg-paper-sunken",
                           avatarUploading && "pointer-events-none opacity-60"
                         )}
                       >
@@ -1211,17 +1211,17 @@ export default function ProfilePage() {
                           className={cn(
                             "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] border transition-colors",
                             avatarDragOver
-                              ? "border-gray-950 bg-gray-950 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900"
-                              : "border-gray-200 bg-white text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-500"
+                              ? "border-ink bg-ink text-paper"
+                              : "border-line bg-paper text-ink-subtle"
                           )}
                         >
                           {avatarDragOver ? <Upload className="h-4 w-4" aria-hidden /> : <Camera className="h-4 w-4" aria-hidden />}
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-xs font-black text-gray-800 dark:text-gray-200">
+                          <span className="block text-caption font-bold text-ink">
                             {avatarDragOver ? "Drop to upload" : "Click or drag a photo to upload"}
                           </span>
-                          <span className="mt-0.5 block text-[10px] font-semibold text-gray-400 dark:text-gray-500">
+                          <span className="mt-0.5 block text-caption font-semibold text-ink-subtle">
                             JPG, PNG, WEBP · max 5 MB
                           </span>
                         </span>
@@ -1253,16 +1253,16 @@ export default function ProfilePage() {
               </SectionCard>
 
               <SectionCard icon={BadgeCheck} title="Account" description="Read-only account metadata.">
-                <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 dark:border-gray-800 dark:bg-gray-800 xl:grid-cols-4">
+                <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-gray-200 xl:grid-cols-4">
                   <MetricTile label="Email" value={user?.email || "—"} />
                   <MetricTile label="Verified" value={isEmailVerified ? "Yes" : "No"} />
                   <MetricTile label="Last login" value={formatDate(user?.lastLoginAt)} />
                   <MetricTile label="Roles" value={roles.length ? roles.join(", ") : "User"} />
                 </dl>
-                <div className="mt-3.5 flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3 dark:border-gray-800 dark:bg-gray-800/40">
+                <div className="mt-3.5 flex items-center justify-between gap-4 rounded-lg border border-line bg-paper-sunken/80 px-4 py-3/40">
                   <div className="min-w-0">
                     <span className={LABEL}>User ID</span>
-                    <span className="mt-1.5 block truncate font-mono text-xs font-bold text-gray-700 dark:text-gray-300">
+                    <span className="mt-1.5 block truncate font-mono text-caption font-bold text-ink-muted">
                       {user?.id || "—"}
                     </span>
                   </div>
@@ -1293,7 +1293,7 @@ export default function ProfilePage() {
                 {loadingSecurity ? (
                   <LoadingRows count={2} />
                 ) : (
-                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 dark:border-gray-800 dark:bg-gray-800 xl:grid-cols-3">
+                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-gray-200 xl:grid-cols-3">
                     <MetricTile
                       label="Two-factor"
                       value={security?.twoFactorEnabled ? "Enabled" : "Disabled"}
@@ -1351,22 +1351,22 @@ export default function ProfilePage() {
                     <div className="space-y-3">
                       <div
                         className={cn(
-                          "flex items-center gap-2.5 rounded-xl border px-3.5 py-3",
+                          "flex items-center gap-2.5 rounded-lg border px-3.5 py-3",
                           isEmailVerified
-                            ? "border-gray-100 bg-gray-50/80 dark:border-gray-800 dark:bg-gray-800/40"
-                            : "border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900"
+                            ? "border-line bg-paper-sunken/80"
+                            : "border-line-strong bg-paper"
                         )}
                       >
                         {isEmailVerified ? (
-                          <Check className="h-4 w-4 flex-shrink-0 text-gray-950 dark:text-gray-100" aria-hidden />
+                          <Check className="h-4 w-4 flex-shrink-0 text-ink" aria-hidden />
                         ) : (
-                          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-gray-500 dark:text-gray-400" aria-hidden />
+                          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-ink-subtle" aria-hidden />
                         )}
                         <span className="min-w-0">
-                          <span className="block truncate text-xs font-black text-gray-950 dark:text-gray-50">
+                          <span className="block truncate text-caption font-bold text-ink">
                             {user?.email || "—"}
                           </span>
-                          <span className="block text-[11px] font-semibold text-gray-400 dark:text-gray-500">
+                          <span className="block text-caption font-semibold text-ink-subtle">
                             {isEmailVerified ? "Verified" : "Not verified"}
                           </span>
                         </span>
@@ -1402,12 +1402,12 @@ export default function ProfilePage() {
                 {security?.twoFactorEnabled ? (
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-[11px] border border-gray-200 bg-gray-50 text-gray-950 dark:border-gray-800 dark:bg-gray-800/60 dark:text-gray-100">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-[11px] border border-line bg-paper-sunken text-ink/60">
                         <Check className="h-4 w-4" aria-hidden />
                       </span>
                       <div>
-                        <p className="text-sm font-black text-gray-950 dark:text-gray-50">Two-factor is enabled</p>
-                        <p className="text-xs font-semibold text-gray-400 dark:text-gray-500">
+                        <p className="text-body-sm font-bold text-ink">Two-factor is enabled</p>
+                        <p className="text-caption font-semibold text-ink-subtle">
                           A code is required at every new sign-in.
                         </p>
                       </div>
@@ -1428,7 +1428,7 @@ export default function ProfilePage() {
                 ) : twoFactorSetup ? (
                   <div className="mx-auto grid max-w-3xl items-center gap-6 sm:grid-cols-[auto_minmax(220px,1fr)]">
                     <div className="flex items-center gap-4">
-                      <div className="h-[132px] w-[132px] flex-shrink-0 overflow-hidden rounded-[13px] border border-gray-200 bg-white p-2 dark:border-gray-800">
+                      <div className="h-[132px] w-[132px] flex-shrink-0 overflow-hidden rounded-[13px] border border-line bg-paper p-2">
                         {twoFactorQrSrc && (
                           <Image
                             src={twoFactorQrSrc}
@@ -1442,13 +1442,13 @@ export default function ProfilePage() {
                       </div>
                       <div className="min-w-0">
                         <span className={LABEL}>Manual key</span>
-                        <code className="mt-2 block break-all rounded-lg border border-gray-200 bg-gray-100 px-2.5 py-2 font-mono text-xs font-bold text-gray-950 dark:border-gray-800 dark:bg-gray-800 dark:text-gray-100">
+                        <code className="mt-2 block break-all rounded-md border border-line bg-gray-100 px-2.5 py-2 font-mono text-caption font-bold text-ink">
                           {twoFactorSetup.secret}
                         </code>
                       </div>
                     </div>
                     <div className="space-y-3">
-                      <p className="text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
+                      <p className="text-caption font-semibold leading-relaxed text-ink-subtle">
                         Scan the code with an authenticator app, then enter the 6-digit code it shows.
                       </p>
                       <Input
@@ -1457,7 +1457,7 @@ export default function ProfilePage() {
                         aria-label="Six-digit verification code"
                         value={twoFactorCode}
                         onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="text-center font-black tracking-[0.32em]"
+                        className="text-center font-bold tracking-[0.32em]"
                       />
                       <div className="flex gap-2">
                         <Button onClick={handleConfirm2FA} className="flex-1">
@@ -1471,7 +1471,7 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-4">
-                    <p className="min-w-0 flex-1 basis-64 text-sm font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
+                    <p className="min-w-0 flex-1 basis-64 text-body-sm font-semibold leading-relaxed text-ink-subtle">
                       Add a second step at sign-in with any authenticator app for stronger protection.
                     </p>
                     <Button onClick={handleEnable2FA}>
@@ -1485,7 +1485,7 @@ export default function ProfilePage() {
               <div className="grid gap-[18px] md:grid-cols-2">
                 <SectionCard icon={LogOut} title="Session control" description="End all other signed-in sessions.">
                   <div className="flex flex-1 flex-col">
-                    <p className="text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
+                    <p className="text-caption font-semibold leading-relaxed text-ink-subtle">
                       Keeps this device signed in and revokes every other active session.
                     </p>
                     <div className="mt-auto flex gap-2 pt-4">
@@ -1505,7 +1505,7 @@ export default function ProfilePage() {
 
                 <SectionCard icon={Trash2} title="Delete account" description="Permanent and irreversible.">
                   <div className="flex flex-1 flex-col">
-                    <p className="text-xs font-semibold leading-relaxed text-gray-500 dark:text-gray-400">
+                    <p className="text-caption font-semibold leading-relaxed text-ink-subtle">
                       Erases your profile, tasks and shares. This cannot be undone.
                     </p>
                     <div className="mt-auto flex gap-2 pt-4">
@@ -1551,39 +1551,39 @@ export default function ProfilePage() {
                       <li
                         key={session.id}
                         className={cn(
-                          "flex items-center gap-4 rounded-xl border p-4",
+                          "flex items-center gap-4 rounded-lg border p-4",
                           session.isCurrent
-                            ? "border-gray-200 border-l-[3px] border-l-gray-950 bg-gray-50 dark:border-gray-700 dark:border-l-gray-100 dark:bg-gray-800/50"
-                            : "border-gray-100 dark:border-gray-800"
+                            ? "border-line border-l-[3px] border-l-ink bg-paper-sunken"
+                            : "border-line"
                         )}
                       >
                         <span
                           className={cn(
                             "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[11px]",
                             session.isCurrent
-                              ? "bg-gray-950 text-white dark:bg-gray-100 dark:text-gray-900"
-                              : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                              ? "bg-ink text-paper"
+                              : "bg-gray-100 text-ink-subtle"
                           )}
                         >
                           <DeviceIcon className="h-4 w-4" aria-hidden />
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-black text-gray-950 dark:text-gray-50">
+                            <span className="text-body-sm font-bold text-ink">
                               {session.deviceName || "Device"} · {session.browser || "Browser"}
                             </span>
                             {session.isCurrent && (
-                              <span className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-400 dark:text-gray-500">
+                              <span className="text-caption font-bold uppercase tracking-[0.1em] text-ink-subtle">
                                 This device
                               </span>
                             )}
                           </div>
-                          <p className="mt-1 truncate font-mono text-[11px] font-semibold text-gray-400 dark:text-gray-500">
+                          <p className="mt-1 truncate font-mono text-caption font-semibold text-ink-subtle">
                             {session.ipAddress || "—"} · {session.location || "Unknown"} · {formatDate(session.lastActivityAt || session.createdAt)}
                           </p>
                         </div>
                         {session.isCurrent ? (
-                          <span className="flex-shrink-0 text-[11px] font-black text-gray-400 dark:text-gray-500">Active</span>
+                          <span className="flex-shrink-0 text-caption font-bold text-ink-subtle">Active</span>
                         ) : (
                           <Button size="sm" variant="secondary" onClick={() => handleRevokeSession(session.id)}>
                             Revoke
@@ -1621,17 +1621,17 @@ export default function ProfilePage() {
                     {history.items.map((entry) => (
                       <li
                         key={entry.id}
-                        className="flex items-center gap-4 rounded-xl border border-gray-100 p-3.5 dark:border-gray-800"
+                        className="flex items-center gap-4 rounded-lg border border-line p-3.5"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-black text-gray-950 dark:text-gray-50">
+                          <div className="text-caption font-bold text-ink">
                             {formatDate(entry.loginAt)}
                           </div>
-                          <p className="mt-0.5 truncate text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                          <p className="mt-0.5 truncate text-caption font-semibold text-ink-subtle">
                             {[entry.browser, entry.device].filter(Boolean).join(" · ") || entry.userAgent} · {entry.location || "Unknown"} · {entry.ipAddress}
                           </p>
                           {!entry.isSuccessful && entry.failureReason && (
-                            <p className="mt-1 text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                            <p className="mt-1 text-caption font-bold text-ink-subtle">
                               Reason: {entry.failureReason}
                             </p>
                           )}
@@ -1640,13 +1640,13 @@ export default function ProfilePage() {
                           aria-hidden
                           className={cn(
                             "h-[7px] w-[7px] flex-shrink-0 rounded-full",
-                            entry.isSuccessful ? "bg-gray-300 dark:bg-gray-600" : "bg-gray-950 dark:bg-gray-100"
+                            entry.isSuccessful ? "bg-gray-300" : "bg-ink"
                           )}
                         />
                         <span
                           className={cn(
-                            "w-14 flex-shrink-0 text-right text-[11px] font-black",
-                            entry.isSuccessful ? "text-gray-400 dark:text-gray-500" : "text-gray-950 dark:text-gray-100"
+                            "w-14 flex-shrink-0 text-right text-caption font-bold",
+                            entry.isSuccessful ? "text-ink-subtle" : "text-ink"
                           )}
                         >
                           {entry.isSuccessful ? "Success" : "Failed"}
@@ -1712,7 +1712,7 @@ export default function ProfilePage() {
                         onKeyDown={(e) => {
                           if (e.key === "Enter") handleSendFriendRequestById()
                         }}
-                        className="font-mono text-xs"
+                        className="font-mono text-caption"
                       />
                       <Button variant="secondary" onClick={handleSendFriendRequestById}>
                         Add
@@ -1728,7 +1728,7 @@ export default function ProfilePage() {
                   title="Incoming"
                   description="Awaiting your decision."
                   action={
-                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-black text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-subtle">
                       {incomingRequests.length}
                     </span>
                   }
@@ -1738,7 +1738,7 @@ export default function ProfilePage() {
                       {incomingRequests.map((request) => (
                         <li
                           key={request.friendshipId}
-                          className="flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 dark:border-gray-800"
+                          className="flex items-center gap-3 rounded-lg border border-line p-2.5"
                         >
                           <Avatar
                             src={request.profilePictureUrl}
@@ -1749,10 +1749,10 @@ export default function ProfilePage() {
                             className="flex-shrink-0 rounded-full"
                           />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-black text-gray-950 dark:text-gray-50">
+                            <p className="truncate text-caption font-bold text-ink">
                               {personName(request)}
                             </p>
-                            <p className="truncate text-[11px] font-semibold text-gray-400 dark:text-gray-500">{request.email}</p>
+                            <p className="truncate text-caption font-semibold text-ink-subtle">{request.email}</p>
                           </div>
                           <Button size="sm" onClick={() => handleAcceptFriendRequest(request.friendshipId)}>
                             <Check className="h-4 w-4" aria-hidden />
@@ -1778,7 +1778,7 @@ export default function ProfilePage() {
                   title="Outgoing"
                   description="Waiting for a response."
                   action={
-                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-black text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-subtle">
                       {outgoingRequests.length}
                     </span>
                   }
@@ -1788,7 +1788,7 @@ export default function ProfilePage() {
                       {outgoingRequests.map((request) => (
                         <li
                           key={request.friendshipId}
-                          className="flex items-center gap-3 rounded-xl border border-gray-100 p-2.5 dark:border-gray-800"
+                          className="flex items-center gap-3 rounded-lg border border-line p-2.5"
                         >
                           <Avatar
                             src={request.profilePictureUrl}
@@ -1799,12 +1799,12 @@ export default function ProfilePage() {
                             className="flex-shrink-0 rounded-full opacity-70"
                           />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-black text-gray-950 dark:text-gray-50">
+                            <p className="truncate text-caption font-bold text-ink">
                               {personName(request)}
                             </p>
-                            <p className="truncate text-[11px] font-semibold text-gray-400 dark:text-gray-500">{request.email}</p>
+                            <p className="truncate text-caption font-semibold text-ink-subtle">{request.email}</p>
                           </div>
-                          <span className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-400 dark:text-gray-500">
+                          <span className="text-caption font-bold uppercase tracking-[0.1em] text-ink-subtle">
                             Pending
                           </span>
                         </li>
@@ -1821,7 +1821,7 @@ export default function ProfilePage() {
                 title="Friends"
                 description="Accepted connections."
                 action={
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-black text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-subtle">
                     {friends?.totalCount ?? 0}
                   </span>
                 }
@@ -1834,7 +1834,7 @@ export default function ProfilePage() {
                       {friends.items.map((friend) => (
                         <li
                           key={friend.id}
-                          className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm dark:border-gray-800 dark:hover:border-gray-600"
+                          className="flex items-center gap-3 rounded-lg border border-line p-3 transition-[transform,border-color,box-shadow] duration-base hover:-translate-y-0.5 hover:border-line-strong hover:shadow-sm"
                         >
                           <Avatar
                             src={friend.profilePictureUrl}
@@ -1845,10 +1845,10 @@ export default function ProfilePage() {
                             className="flex-shrink-0 rounded-full"
                           />
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-black text-gray-950 dark:text-gray-50">
+                            <p className="truncate text-caption font-bold text-ink">
                               {personName(friend)}
                             </p>
-                            <p className="truncate text-[11px] font-semibold text-gray-400 dark:text-gray-500">
+                            <p className="truncate text-caption font-semibold text-ink-subtle">
                               Friends since {formatDateShort(friend.friendsSince)}
                             </p>
                           </div>
@@ -1905,7 +1905,7 @@ export default function ProfilePage() {
                   }
                 >
                   {adminStats ? (
-                    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 dark:border-gray-800 dark:bg-gray-800 sm:grid-cols-4">
+                    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-gray-200 sm:grid-cols-4">
                       <MetricTile label="Total users" value={adminStats.totalUsers} />
                       <MetricTile label="Active users" value={adminStats.activeUsers} />
                       <MetricTile label="Locked users" value={adminStats.lockedUsers} active={!adminStats.lockedUsers} />
@@ -1970,7 +1970,7 @@ export default function ProfilePage() {
                             {adminUsers.items.map((adminUser) => (
                               <li
                                 key={adminUser.id}
-                                className="flex items-center gap-3 rounded-xl border border-gray-100 p-3 dark:border-gray-800"
+                                className="flex items-center gap-3 rounded-lg border border-line p-3"
                               >
                                 <Avatar
                                   firstName={adminUser.firstName}
@@ -1980,10 +1980,10 @@ export default function ProfilePage() {
                                   className="flex-shrink-0 rounded-full"
                                 />
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-[13px] font-black text-gray-950 dark:text-gray-50">
+                                  <p className="truncate text-caption font-bold text-ink">
                                     {personName(adminUser)}
                                   </p>
-                                  <p className="truncate text-[11px] font-semibold text-gray-400 dark:text-gray-500">
+                                  <p className="truncate text-caption font-semibold text-ink-subtle">
                                     {adminUser.email} · {adminUser.status}
                                   </p>
                                 </div>
@@ -2030,10 +2030,10 @@ export default function ProfilePage() {
                             className="flex-shrink-0 rounded-full"
                           />
                           <div className="min-w-0">
-                            <p className="truncate text-base font-black text-gray-950 dark:text-gray-50">
+                            <p className="truncate text-body font-bold text-ink">
                               {selectedUser.fullName || personName(selectedUser)}
                             </p>
-                            <p className="truncate text-sm font-semibold text-gray-500 dark:text-gray-400">
+                            <p className="truncate text-body-sm font-semibold text-ink-subtle">
                               {selectedUser.email}
                             </p>
                           </div>

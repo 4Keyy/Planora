@@ -17,13 +17,13 @@ const DropdownMenuContent = React.forwardRef<
       sideOffset={sideOffset}
       align={align}
       className={cn(
-        "z-50 min-w-[12rem] overflow-hidden rounded-xl border border-gray-100/60 bg-white p-1.5 text-black shadow-soft-xl",
+        "z-50 min-w-[12rem] overflow-hidden rounded-lg border border-line/60 bg-paper p-1.5 text-ink shadow-xl",
         // Smooth open/close: fade + gentle scale FROM the trigger anchor (Radix supplies the
         // transform-origin) so the menu grows centred out of its plate — no slide, no jitter.
         "origin-[var(--radix-dropdown-menu-content-transform-origin)]",
         "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
         "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-        "duration-150 ease-out",
+        "duration-fast ease-emphasized",
         className
       )}
       {...props}
@@ -41,7 +41,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors duration-200 ease-out focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-gray-50",
+      "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-body-sm outline-none transition-colors duration-base ease-emphasized focus:bg-accent-surface focus:text-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0 hover:bg-paper-sunken",
       inset && "pl-8",
       className
     )}

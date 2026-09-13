@@ -33,10 +33,10 @@ export function TaskDeletionBadge({ completedAt, className }: TaskDeletionBadgeP
       title={`Задача будет автоматически удалена ${exactDate}`}
       aria-label={`Задача будет удалена ${exactDate}`}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium leading-none select-none",
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-caption font-medium leading-none select-none",
         urgent
-          ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300"
-          : "border-gray-200 bg-gray-50 text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400",
+          ? "border-warn-surface bg-warn-surface text-warn"
+          : "border-line bg-paper-sunken text-ink-subtle",
         className,
       )}
     >

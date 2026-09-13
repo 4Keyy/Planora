@@ -53,8 +53,8 @@ function LimitCounter({ value, max }: { value: number; max: number }) {
   return (
     <span
       className={cn(
-        "text-[11px] font-black tabular-nums transition-colors duration-300",
-        isNearLimit ? "text-red-500" : "text-gray-300"
+        "text-caption font-bold tabular-nums transition-colors duration-slow",
+        isNearLimit ? "text-alert" : "text-ink-subtle"
       )}
     >
       {value}/{max}
@@ -119,16 +119,16 @@ function SelectorCard({
         whileTap={{ scale: 0.98 }}
         transition={SPRING_RESPONSIVE}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-2xl border bg-white p-3 text-left shadow-sm",
-          "transition-[border-color,box-shadow,background-color] duration-200",
+          "group flex w-full items-center gap-3 rounded-xl border bg-paper p-3 text-left shadow-sm",
+          "transition-[border-color,box-shadow,background-color] duration-base",
           open
-            ? "border-gray-300 shadow-md"
-            : "border-gray-200/80 hover:border-gray-300 hover:shadow-md"
+            ? "border-line-strong shadow-md"
+            : "border-line/80 hover:border-line-strong hover:shadow-md"
         )}
       >
         <span
           className={cn(
-            "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-colors duration-200",
+            "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors duration-base",
             iconClass
           )}
           style={iconStyle}
@@ -136,7 +136,7 @@ function SelectorCard({
           {icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">
+          <span className="block text-caption font-bold uppercase tracking-[0.14em] text-ink-subtle">
             {label}
           </span>
           {/* Fixed-height value row so the crossfade never resizes the card. */}
@@ -149,8 +149,8 @@ function SelectorCard({
                 exit={{ y: -8, opacity: 0 }}
                 transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
                 className={cn(
-                  "block truncate text-sm font-black leading-5 tracking-tight",
-                  muted ? "text-gray-400" : "text-gray-950"
+                  "block truncate text-body-sm font-bold leading-5 tracking-tight",
+                  muted ? "text-ink-subtle" : "text-ink"
                 )}
               >
                 {value}
@@ -171,7 +171,7 @@ function SelectorCard({
                 onClear()
               }
             }}
-            className="flex h-6 w-6 flex-shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            className="flex h-6 w-6 flex-shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted"
           >
             <X className="h-3.5 w-3.5" strokeWidth={2.5} />
           </span>
@@ -179,7 +179,7 @@ function SelectorCard({
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
           transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
-          className="flex-shrink-0 text-gray-300 transition-colors group-hover:text-gray-500"
+          className="flex-shrink-0 text-ink-subtle transition-colors group-hover:text-ink-subtle"
         >
           <ChevronDown className="h-4 w-4" strokeWidth={2.2} />
         </motion.span>
@@ -234,7 +234,7 @@ function SharePopover({
     <Popover open={open} onClose={onClose} width={320} align="right" containerRef={containerRef} portal>
       <PopoverHeader
         label="Share"
-        sub={<span className="text-[11px] font-semibold text-gray-400">{sub}</span>}
+        sub={<span className="text-caption font-semibold text-ink-subtle">{sub}</span>}
       />
       <div className="p-1.5">
         <button
@@ -245,28 +245,28 @@ function SharePopover({
             if (nextPublic) onChange([])
           }}
           className={cn(
-            "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left transition-colors duration-150",
-            isPublic ? "bg-gray-950 text-white" : "hover:bg-gray-50"
+            "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors duration-fast",
+            isPublic ? "bg-ink text-paper" : "hover:bg-paper-sunken"
           )}
         >
           <span
             className={cn(
-              "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
-              isPublic ? "bg-white/10 text-white" : "bg-gray-100 text-gray-500"
+              "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md",
+              isPublic ? "bg-paper/10 text-paper" : "bg-gray-100 text-ink-subtle"
             )}
           >
             <Globe2 className="h-4 w-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-black tracking-tight">All friends</span>
-            <span className={cn("block text-[11px] font-semibold", isPublic ? "text-white/55" : "text-gray-400")}>
+            <span className="block text-caption font-bold tracking-tight">All friends</span>
+            <span className={cn("block text-caption font-semibold", isPublic ? "text-paper/55" : "text-ink-subtle")}>
               Every accepted friend can see it
             </span>
           </span>
           <span
             className={cn(
-              "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-black transition-colors",
-              isPublic ? "bg-white text-gray-950" : "shadow-[inset_0_0_0_1.5px_#e5e5e5] text-transparent"
+              "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-caption font-bold transition-colors",
+              isPublic ? "bg-paper text-ink" : "shadow-[inset_0_0_0_1.5px_#e5e5e5] text-transparent"
             )}
           >
             <Check className="h-3 w-3" strokeWidth={3} />
@@ -276,7 +276,7 @@ function SharePopover({
         <div className="mx-1.5 my-1.5 h-px bg-gray-100" />
 
         {friends.length === 0 ? (
-          <div className="px-3 py-5 text-center text-xs font-bold text-gray-400">
+          <div className="px-3 py-5 text-center text-caption font-bold text-ink-subtle">
             No friends yet.
           </div>
         ) : (
@@ -292,27 +292,27 @@ function SharePopover({
                   aria-label={friendName(f)}
                   onClick={() => toggleFriend(f.id)}
                   className={cn(
-                    "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors duration-150",
-                    selected ? "bg-gray-50" : "hover:bg-gray-50"
+                    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast",
+                    selected ? "bg-paper-sunken" : "hover:bg-paper-sunken"
                   )}
                 >
-                  <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg">
+                  <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-md">
                     <Avatar
                       src={f.profilePictureUrl}
                       firstName={f.firstName}
                       lastName={f.lastName}
                       email={f.email}
                       size={28}
-                      className="rounded-lg"
+                      className="rounded-md"
                     />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-xs font-bold text-gray-800">
+                  <span className="min-w-0 flex-1 truncate text-caption font-bold text-ink">
                     {friendName(f)}
                   </span>
                   <span
                     className={cn(
                       "flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full transition-colors",
-                      selected ? "bg-gray-950 text-white" : "shadow-[inset_0_0_0_1.5px_#e5e5e5] text-transparent"
+                      selected ? "bg-ink text-paper" : "shadow-[inset_0_0_0_1.5px_#e5e5e5] text-transparent"
                     )}
                   >
                     <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
@@ -476,7 +476,7 @@ export function CreateTodoPanel({
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-gray-200/80 bg-white shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)]">
+    <div className="overflow-hidden rounded-xl border border-line/80 bg-paper shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)]">
       {/*
         Always-visible header — clicking opens/closes the panel.
         The + button is ONE persistent element that rotates 0° ↔ 45°,
@@ -486,8 +486,8 @@ export function CreateTodoPanel({
         type="button"
         onClick={onToggle}
         className={cn(
-          "group flex w-full items-center justify-between gap-4 rounded-t-3xl p-4 text-left transition-colors duration-200 hover:bg-gray-50/60 sm:p-5",
-          !isOpen && "rounded-b-3xl"
+          "group flex w-full items-center justify-between gap-4 rounded-t-md p-4 text-left transition-colors duration-base hover:bg-paper-sunken/60 sm:p-5",
+          !isOpen && "rounded-b-md"
         )}
         aria-label={isOpen ? "Close create task panel" : "Open create task panel"}
         aria-expanded={isOpen}
@@ -498,7 +498,7 @@ export function CreateTodoPanel({
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.94 }}
             transition={SPRING_RESPONSIVE}
-            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-gray-950 text-white shadow-md shadow-black/15"
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-ink text-paper shadow-md shadow-black/15"
           >
             <motion.span
               aria-hidden
@@ -521,8 +521,8 @@ export function CreateTodoPanel({
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.14, ease: EASE_OUT_EXPO }}
                 >
-                  <h3 className="text-sm font-black tracking-tight text-gray-950">New task</h3>
-                  <p className="truncate text-[11px] font-semibold text-gray-400">press <kbd className="rounded bg-gray-100 px-1 py-px font-mono text-[10px] text-gray-500">C</kbd> to open</p>
+                  <h3 className="text-body-sm font-bold tracking-tight text-ink">New task</h3>
+                  <p className="truncate text-caption font-semibold text-ink-subtle">press <kbd className="rounded bg-gray-100 px-1 py-px font-mono text-caption text-ink-subtle">C</kbd> to open</p>
                 </motion.div>
               ) : (
                 <motion.div
@@ -532,8 +532,8 @@ export function CreateTodoPanel({
                   exit={{ opacity: 0, y: 4 }}
                   transition={{ duration: 0.14, ease: EASE_OUT_EXPO }}
                 >
-                  <p className="text-sm font-black leading-none tracking-tight text-gray-950">New task</p>
-                  <p className="mt-0.5 text-[11px] font-semibold text-gray-400">Title is all you need</p>
+                  <p className="text-body-sm font-bold leading-none tracking-tight text-ink">New task</p>
+                  <p className="mt-0.5 text-caption font-semibold text-ink-subtle">Title is all you need</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -546,7 +546,7 @@ export function CreateTodoPanel({
           transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
           className="flex flex-shrink-0 items-center"
         >
-          <ChevronRight className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-700" />
+          <ChevronRight className="h-4 w-4 text-ink-subtle transition-colors group-hover:text-ink-muted" />
         </motion.div>
       </button>
 
@@ -578,7 +578,7 @@ export function CreateTodoPanel({
                   up while either field has focus. */}
               <motion.div
                 {...fieldMotion(0.06)}
-                className="border-l-2 border-gray-100 pl-4 transition-colors duration-300 focus-within:border-gray-900 sm:pl-6"
+                className="border-l-2 border-line pl-4 transition-colors duration-slow focus-within:border-gray-900 sm:pl-6"
               >
                 <div className="flex items-start gap-3">
                   <input
@@ -588,9 +588,9 @@ export function CreateTodoPanel({
                     placeholder="What needs to be done?"
                     maxLength={TITLE_MAX_LENGTH}
                     className={cn(
-                      "w-full border-none bg-transparent p-0 text-2xl font-black tracking-tight outline-none sm:text-[28px] sm:leading-tight",
-                      "placeholder:text-gray-300",
-                      titleNearLimit ? "text-red-600" : "text-gray-950"
+                      "w-full border-none bg-transparent p-0 text-title font-bold tracking-tight outline-none sm:text-display-sm sm:leading-tight",
+                      "placeholder:text-ink-subtle",
+                      titleNearLimit ? "text-alert" : "text-ink"
                     )}
                   />
                   <span className="mt-2 flex-shrink-0">
@@ -604,7 +604,7 @@ export function CreateTodoPanel({
                     placeholder="Add details — optional."
                     rows={2}
                     maxLength={DESCRIPTION_MAX_LENGTH}
-                    className="max-h-40 w-full resize-none border-none bg-transparent p-0 text-[15px] font-medium text-gray-700 outline-none placeholder:text-gray-400"
+                    className="max-h-40 w-full resize-none border-none bg-transparent p-0 text-body-sm font-medium text-ink-muted outline-none placeholder:text-ink-subtle"
                   />
                   <span className="flex-shrink-0">
                     <LimitCounter value={description.length} max={DESCRIPTION_MAX_LENGTH} />
@@ -622,7 +622,7 @@ export function CreateTodoPanel({
                     value={getPriorityLabel(priority)}
                     valueKey={priority}
                     icon={<Sparkles className="h-[18px] w-[18px]" strokeWidth={2.2} />}
-                    iconClass="bg-gray-950 text-white shadow-md shadow-black/15"
+                    iconClass="bg-ink text-paper shadow-md shadow-black/15"
                     open={openPopover === "priority"}
                     onToggle={() => togglePopover("priority")}
                   >
@@ -645,7 +645,7 @@ export function CreateTodoPanel({
                     valueKey={`${dueDateStart}|${dueDate}`}
                     muted={!dueDate}
                     icon={<Calendar className="h-[18px] w-[18px]" strokeWidth={2.2} />}
-                    iconClass={dueDate ? "bg-gray-950 text-white shadow-md shadow-black/15" : "bg-gray-100 text-gray-500"}
+                    iconClass={dueDate ? "bg-ink text-paper shadow-md shadow-black/15" : "bg-gray-100 text-ink-subtle"}
                     open={openPopover === "date"}
                     onToggle={() => togglePopover("date")}
                     onClear={dueDate ? () => { setDueDate(""); setDueDateStart("") } : undefined}
@@ -678,7 +678,7 @@ export function CreateTodoPanel({
                         ? <SelectedCatIcon className="h-[18px] w-[18px]" style={{ color: selectedCategory.color ?? "#525252" }} />
                         : <Folder className="h-[18px] w-[18px]" strokeWidth={2.2} />
                     }
-                    iconClass={selectedCategory ? "" : "bg-gray-100 text-gray-500"}
+                    iconClass={selectedCategory ? "" : "bg-gray-100 text-ink-subtle"}
                     iconStyle={selectedCategory ? { background: `${selectedCategory.color ?? "#6b7280"}1A` } : undefined}
                     open={openPopover === "category"}
                     onToggle={() => togglePopover("category")}
@@ -717,8 +717,8 @@ export function CreateTodoPanel({
                     }
                     iconClass={
                       isPublic || selectedFriendIds.length > 0
-                        ? "bg-gray-950 text-white shadow-md shadow-black/15"
-                        : "bg-gray-100 text-gray-500"
+                        ? "bg-ink text-paper shadow-md shadow-black/15"
+                        : "bg-gray-100 text-ink-subtle"
                     }
                     open={openPopover === "share"}
                     onToggle={() => togglePopover("share")}
@@ -744,7 +744,7 @@ export function CreateTodoPanel({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.98 }}
                     transition={TWEEN_FAST}
-                    className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-center text-[11px] font-bold text-red-600"
+                    className="rounded-lg border border-alert-surface bg-alert-surface px-3 py-2.5 text-center text-caption font-bold text-alert"
                   >
                     {formError}
                   </motion.div>
@@ -754,35 +754,35 @@ export function CreateTodoPanel({
 
             <motion.div
               {...fieldMotion(0.22)}
-              className="flex flex-col gap-3 rounded-b-3xl border-t border-gray-100 bg-gray-50/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+              className="flex flex-col gap-3 rounded-b-md border-t border-line bg-paper-sunken/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
             >
               <div className="hidden items-center gap-1.5 sm:flex">
-                <kbd className="rounded-md border border-gray-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-black text-gray-500 shadow-sm">
+                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-subtle shadow-sm">
                   {isMac ? "⌘" : "Ctrl"}
                 </kbd>
-                <kbd className="rounded-md border border-gray-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-black text-gray-500 shadow-sm">
+                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-subtle shadow-sm">
                   ↵
                 </kbd>
-                <span className="ml-1 text-[11px] font-bold text-gray-400">to create</span>
+                <span className="ml-1 text-caption font-bold text-ink-subtle">to create</span>
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="secondary"
                   onClick={onToggle}
                   disabled={creating}
-                  className="h-10 flex-1 rounded-xl border border-gray-200 bg-white px-5 font-bold text-gray-700 shadow-sm hover:bg-gray-50 sm:flex-none"
+                  className="h-10 flex-1 rounded-lg border border-line bg-paper px-5 font-bold text-ink-muted shadow-sm hover:bg-paper-sunken sm:flex-none"
                 >
                   Cancel
                 </Button>
                 <Button
                   className={cn(
-                    "group h-10 flex-1 rounded-xl bg-gray-950 px-6 font-black text-white shadow-lg shadow-black/15 hover:bg-black sm:flex-none",
-                    "disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+                    "group h-10 flex-1 rounded-lg bg-ink px-6 font-bold text-paper shadow-lg shadow-black/15 hover:bg-ink sm:flex-none",
+                    "disabled:bg-gray-200 disabled:text-ink-muted disabled:shadow-none"
                   )}
                   onClick={handleSubmit}
                   disabled={creating || !title.trim()}
                 >
-                  <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" strokeWidth={2.5} />
+                  <ArrowRight className="h-4 w-4 transition-transform duration-base group-hover:translate-x-0.5" strokeWidth={2.5} />
                   {creating ? "Creating..." : "Create task"}
                 </Button>
               </div>

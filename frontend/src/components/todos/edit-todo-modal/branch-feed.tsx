@@ -1130,6 +1130,7 @@ export function BranchFeed({
       {!loading && genesis && (
         <div
           ref={genesisCardRef}
+          className={genesisHighlight ? "genesis-highlight" : undefined}
           style={{
             position: "relative",
             zIndex: 1,
@@ -1140,7 +1141,6 @@ export function BranchFeed({
             marginLeft: -6,
             marginRight: -4,
             marginBottom: 14,
-            animation: genesisHighlight ? "genesis_highlight 1100ms ease-out" : undefined,
           }}
         >
           {/* Header row */}
@@ -2259,6 +2259,7 @@ function SubtaskCard({
     <motion.div
       layout
       ref={nodeRef}
+      className={flash ? "reply-flash" : undefined}
       initial={{ opacity: 0, y: 8, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.96, height: 0, marginTop: -2, marginBottom: 0 }}
@@ -2267,7 +2268,6 @@ function SubtaskCard({
       onMouseLeave={() => { setHovered(false); setDeleteHovered(false) }}
       style={{
         position: "relative", padding: "6px 0", borderRadius: 14,
-        animation: flash ? "reply_flash 1100ms ease-out" : undefined,
       }}
     >
       {/* ── Card row ── the subtask forks off the main rail into its own sub-branch. The completion
@@ -2939,6 +2939,7 @@ function MessageItem({
   return (
     <div
       ref={nodeRef}
+      className={flash ? "reply-flash" : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -2948,7 +2949,6 @@ function MessageItem({
         borderRadius: 12,
         background: hovered ? "#fafafa" : "transparent",
         transition: "background 140ms",
-        animation: flash ? "reply_flash 1100ms ease-out" : undefined,
       }}
     >
       {/* Avatar marker — centred on the rail (main rail, or the thread sub-rail when nested) */}

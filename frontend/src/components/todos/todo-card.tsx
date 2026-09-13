@@ -271,11 +271,11 @@ function TodoCardComponent({
   const isUrgentOrOverdue = todo.isVisuallyUrgent ?? fallbackIsVisuallyUrgent
   const isSharedUrgent = showShareBadge && isUrgentOrOverdue
   const borderColor = (() => {
-    if (isWorkingOnThis) return "border-indigo-500"
-    if (isSharedUrgent) return "border-blue-400"
-    if (isUrgentOrOverdue) return "border-red-400"
-    if (showShareBadge) return "border-blue-400"
-    return "border-gray-100" // Lighter default border for active tasks
+    if (isWorkingOnThis) return "border-accent"
+    if (isSharedUrgent) return "border-accent"
+    if (isUrgentOrOverdue) return "border-alert"
+    if (showShareBadge) return "border-accent"
+    return "border-line" // Lighter default border for active tasks
   })()
   const borderInlineStyle: React.CSSProperties = (() => {
     if (isCompleted) return {}
@@ -284,17 +284,17 @@ function TodoCardComponent({
         borderTopColor: "rgb(99 102 241)",
         borderRightColor: "rgb(99 102 241)",
         borderBottomColor: "rgb(99 102 241)",
-        borderLeftColor: "rgb(248 113 113)",
+        borderLeftColor: "var(--pl-alert)",
       }
     }
-    if (isSharedUrgent) return { borderLeftColor: "rgb(248 113 113)" }
+    if (isSharedUrgent) return { borderLeftColor: "var(--pl-alert)" }
     return {}
   })()
   const categoryShadowColor = todo.categoryColor?.trim()
   const hoverShadowColor = isWorkingOnThis
     ? "#818cf8"
     : categoryShadowColor
-      || (showShareBadge ? "#60a5fa" : isUrgentOrOverdue ? "#f87171" : null)
+      || (showShareBadge ? "var(--pl-accent)" : isUrgentOrOverdue ? "var(--pl-alert)" : null)
   const hoverShadow = hoverShadowColor ? `${hoverShadowColor}33` : "rgba(0,0,0,0.08)"
 
   const cardHoverShadow = isCardHovered && !isCompleted
@@ -302,11 +302,11 @@ function TodoCardComponent({
     : undefined
 
   const completionOverlayColor = isJoining
-    ? "bg-indigo-500/10"
+    ? "bg-accent/10"
     : isCompleting
-      ? "bg-emerald-500/10"
+      ? "bg-positive/10"
       : isReopening
-        ? "bg-sky-500/10"
+        ? "bg-accent/10"
         : ""
 
   const completionButtonAnimate = (() => {
@@ -427,9 +427,9 @@ function TodoCardComponent({
         }}
         className={cn(
           "group relative overflow-hidden border-2",
-          "hover:bg-white/40 hover:backdrop-blur-sm",
+          "hover:bg-paper/40 hover:backdrop-blur-sm",
           isCompleted
-            ? "border-gray-300 opacity-60 hover:opacity-80 hover:bg-white/10"
+            ? "border-line-strong opacity-60 hover:opacity-80 hover:bg-paper/10"
             : borderColor,
           isSharedUrgent && "task-card--shared-urgent",
           isSparse && "task-card--sparse",
@@ -456,10 +456,10 @@ function TodoCardComponent({
                   className={cn(
                     "absolute inset-y-0 w-1/2 -skew-x-12",
                     isJoining
-                      ? "bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent"
+                      ? "bg-gradient-to-r from-transparent via-accent-surface/80 to-transparent"
                       : isCompleting
-                        ? "bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent"
-                        : "bg-gradient-to-r from-transparent via-sky-200/70 to-transparent"
+                        ? "bg-gradient-to-r from-transparent via-positive/80 to-transparent"
+                        : "bg-gradient-to-r from-transparent via-accent-surface/70 to-transparent"
                   )}
                 />
               )}
@@ -489,7 +489,7 @@ function TodoCardComponent({
                     background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 35%, #dc2626 100%)",
                     boxShadow: "-6px 0 20px rgba(239,68,68,0.18)",
                   }}
-                  className="h-full w-full flex items-center justify-center text-white cursor-pointer"
+                  className="h-full w-full flex items-center justify-center text-paper cursor-pointer"
                   whileHover={{ filter: "brightness(1.12)" }}
                   onClick={(e) => { e.stopPropagation(); onDelete() }}
                 >
@@ -521,7 +521,7 @@ function TodoCardComponent({
                 e.stopPropagation();
                 onDelete();
               }}
-              className="p-2.5 rounded-full bg-red-500 text-white shadow-md hover:shadow-lg transition-all active:shadow-none"
+              className="p-2.5 rounded-full bg-alert text-paper shadow-md hover:shadow-lg transition-all active:shadow-none"
             >
               <Trash className="h-5 w-5" />
             </motion.button>
@@ -530,7 +530,7 @@ function TodoCardComponent({
 
         {/* Subtle category watermark */}
         {!isCompleted && CategoryIcon && !isCollapsed && (
-          <div className="absolute -right-7 -bottom-7 pointer-events-none opacity-[0.07] group-hover/card:opacity-[0.12] transition-opacity duration-300">
+          <div className="absolute -right-7 -bottom-7 pointer-events-none opacity-[0.07] group-hover/card:opacity-[0.12] transition-opacity duration-slow">
             <CategoryIcon
               className="h-32 w-32"
               style={{ color: "#000" }}
@@ -568,7 +568,7 @@ function TodoCardComponent({
                       void handleVisibilityToggle(false)
                     }}
                     className={cn(
-                      "h-6 w-6 flex items-center justify-center rounded-full border-1.5 border-gray-400 text-gray-600 hover:text-gray-900 hover:border-gray-600 hover:bg-gray-100 transition-[background-color,border-color,color,opacity,transform] shadow-xs",
+                      "h-6 w-6 flex items-center justify-center rounded-full border-[1.5px] border-gray-400 text-ink-muted hover:text-ink hover:border-gray-600 hover:bg-gray-100 transition-[background-color,border-color,color,opacity,transform] shadow-sm",
                       (isVisibilityPending || isCompletionPending) && "opacity-60 cursor-wait"
                     )}
                     aria-label="Expand task card"
@@ -584,7 +584,7 @@ function TodoCardComponent({
                     opacity: isVisibilityPending ? 0.62 : 1,
                   }}
                   transition={contentTransition}
-                  className="text-[11px] font-bold px-3 py-1 rounded-lg uppercase tracking-wider bg-gradient-to-r from-gray-100 to-gray-50 text-gray-700 whitespace-nowrap shadow-sm border border-gray-200 blur-[3px] group-hover/collapsed:blur-0 group-hover/card:blur-0 group-focus-within/collapsed:blur-0 group-hover/collapsed:border-gray-300 transition-[filter,border-color,opacity] duration-500 ease-snappy will-change-[filter]"
+                  className="text-caption font-bold px-3 py-1 rounded-md uppercase tracking-wider bg-gradient-to-r from-gray-100 to-gray-50 text-ink-muted whitespace-nowrap shadow-sm border border-line blur-[3px] group-hover/collapsed:blur-0 group-hover/card:blur-0 group-focus-within/collapsed:blur-0 group-hover/collapsed:border-line-strong transition-[filter,border-color,opacity] duration-deliberate ease-emphasized will-change-[filter]"
                 >
                   {cardCategoryLabel}
                 </motion.span>
@@ -607,7 +607,7 @@ function TodoCardComponent({
                   }}
                 >
                   <CategoryIcon
-                    className="h-5 w-5 transition-colors duration-300"
+                    className="h-5 w-5 transition-colors duration-slow"
                     style={{ color: isCardHovered ? "#6b7280" : "#9ca3af" }}
                     strokeWidth={1.5}
                   />
@@ -635,19 +635,19 @@ function TodoCardComponent({
                     aria-busy={isCompletionPending}
                     className={cn(
                       "h-8 w-8 rounded-full border-2 flex items-center justify-center",
-                      "transition-[box-shadow,ring,opacity] duration-150",
+                      "transition-[box-shadow,ring,opacity] duration-fast",
                       // Phase rings
-                      isJoining && "shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400/35",
-                      isCompleting && "shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/30",
-                      isReopening && "shadow-md shadow-sky-500/10 ring-2 ring-sky-300/20",
+                      isJoining && "shadow-lg ring-2 ring-accent/35",
+                      isCompleting && "shadow-lg ring-2 ring-positive/30",
+                      isReopening && "shadow-md ring-2 ring-accent/20",
                       // Working state rings (not in phase)
                       !isCompletionPending && isWorkingOnThis && !isCompleted && (
                         isButtonHovered
-                          ? "ring-2 ring-emerald-400/45 shadow-md shadow-emerald-100/50"
-                          : "ring-2 ring-indigo-300/45 shadow-sm shadow-indigo-100/40"
+                          ? "ring-2 ring-positive/45 shadow-md"
+                          : "ring-2 ring-accent-surface/45 shadow-sm"
                       ),
                       // Idle + joinable: violet ring on hover
-                      !isCompletionPending && !isWorkingOnThis && !isCompleted && canJoin && isButtonHovered && "ring-2 ring-violet-400/50 shadow-md shadow-violet-100/40",
+                      !isCompletionPending && !isWorkingOnThis && !isCompleted && canJoin && isButtonHovered && "ring-2 ring-accent/50 shadow-md",
                       // Cursor
                       isCompletionPending ? "cursor-wait" : "cursor-pointer",
                     )}
@@ -764,7 +764,7 @@ function TodoCardComponent({
                       whileHover={isVisibilityPending || isCompletionPending ? undefined : { scale: 1.2, rotate: 10 }}
                       whileTap={isVisibilityPending || isCompletionPending ? undefined : { scale: 0.9 }}
                       className={cn(
-                        "h-6 w-6 flex items-center justify-center rounded-full border-1.5 border-gray-300 text-gray-600 hover:text-gray-900 hover:border-gray-500 hover:bg-gray-100 transition-[background-color,border-color,color,opacity,transform] shadow-xs",
+                        "h-6 w-6 flex items-center justify-center rounded-full border-[1.5px] border-line-strong text-ink-muted hover:text-ink hover:border-gray-500 hover:bg-gray-100 transition-[background-color,border-color,color,opacity,transform] shadow-sm",
                         (isVisibilityPending || isCompletionPending) && "opacity-60 cursor-wait"
                       )}
                       aria-label="Collapse task card"
@@ -785,14 +785,14 @@ function TodoCardComponent({
                     >
                       <h3
                         className={cn(
-                          "font-black tracking-tight leading-snug break-words transition-colors duration-300 ease-out",
+                          "font-bold tracking-tight leading-snug break-words transition-colors duration-slow ease-emphasized",
                           isCompleting
-                            ? "text-lg md:text-xl text-gray-500 line-through decoration-emerald-500/70 decoration-2"
+                            ? "text-title-sm md:text-title-sm text-ink-subtle line-through decoration-positive/70 decoration-2"
                             : isCompleted
                               ? isReopening
-                                ? "text-base md:text-lg text-gray-700"
-                                : "text-base md:text-lg text-gray-400 group-hover/card:text-gray-700"
-                              : "text-lg md:text-xl text-gray-950 group-hover/card:text-black"
+                                ? "text-body md:text-title-sm text-ink-muted"
+                                : "text-body md:text-title-sm text-ink-subtle group-hover/card:text-ink-muted"
+                              : "text-title-sm md:text-title-sm text-ink group-hover/card:text-ink"
                         )}
                       >
                         {isCompleted && !isCompleting && !isReopening ? (
@@ -825,13 +825,13 @@ function TodoCardComponent({
                       className="flex items-center gap-2 flex-wrap"
                     >
                       {!isCompleted && todo.categoryName && (
-                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-gray-100 text-gray-600 whitespace-nowrap shadow-sm border border-gray-200/80 hover:border-gray-300 transition-all">
+                        <span className="text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-gray-100 text-ink-muted whitespace-nowrap shadow-sm border border-line/80 hover:border-line-strong transition-all">
                           {truncateText(todo.categoryName, 12)}
                         </span>
                       )}
                       {!isCompleted && (
                         <span
-                          className="flex items-center gap-1 text-[11px] font-bold tracking-wide"
+                          className="flex items-center gap-1 text-caption font-bold tracking-wide"
                           style={{ color: priorityConfig.color }}
                         >
                           <Zap className="h-3 w-3" />
@@ -843,7 +843,7 @@ function TodoCardComponent({
                           initial={{ scale: 0.9, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           className={cn(
-                            "text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-blue-100 text-blue-700 whitespace-nowrap shadow-sm border border-blue-200/80 flex items-center gap-1 hover:shadow-md transition-all",
+                            "text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-accent-surface text-accent whitespace-nowrap shadow-sm border border-accent-surface/80 flex items-center gap-1 hover:shadow-md transition-all",
                             isPublicName && "normal-case tracking-normal"
                           )}
                         >
@@ -867,14 +867,14 @@ function TodoCardComponent({
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             transition={{ type: "spring", stiffness: 480, damping: 26, delay: 0.06 }}
                             className={cn(
-                              "text-[10px] px-2.5 py-1 rounded-lg whitespace-nowrap shadow-sm border flex items-center gap-1 transition-[background-color,border-color,color,box-shadow] duration-300",
+                              "text-caption px-2.5 py-1 rounded-md whitespace-nowrap shadow-sm border flex items-center gap-1 transition-[background-color,border-color,color,box-shadow] duration-slow",
                               isEffectivelyWorking
-                                ? "font-bold bg-indigo-100 text-indigo-700 border-indigo-300/70 shadow-indigo-100/60 ring-1 ring-indigo-200/50"
-                                : "font-semibold bg-slate-50 text-slate-400 border-slate-200/70"
+                                ? "font-bold bg-accent-surface text-accent border-accent-surface/70 ring-1 ring-accent-surface/50"
+                                : "font-semibold bg-gray-50 text-gray-400 border-gray-200/70"
                             )}
                           >
                             <Users className="h-3 w-3 flex-shrink-0" />
-                            <span className="font-black tabular-nums tracking-tight">{label}</span>
+                            <span className="font-bold tabular-nums tracking-tight">{label}</span>
                             <AnimatePresence>
                               {isEffectivelyWorking && (
                                 <motion.span
@@ -883,7 +883,7 @@ function TodoCardComponent({
                                   animate={{ opacity: 1, maxWidth: "2.5rem" }}
                                   exit={{ opacity: 0, maxWidth: 0 }}
                                   transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
-                                  className="overflow-hidden text-indigo-500 font-bold"
+                                  className="overflow-hidden text-accent font-bold"
                                 >
                                   &nbsp;· you
                                 </motion.span>
@@ -899,7 +899,7 @@ function TodoCardComponent({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.1 }}
-                      className="text-sm md:text-base text-gray-600 line-clamp-2 leading-relaxed font-medium break-words mt-2 group-hover/card:text-gray-800 transition-colors duration-300 ease-out"
+                      className="text-body-sm md:text-body text-ink-muted line-clamp-2 leading-relaxed font-medium break-words mt-2 group-hover/card:text-ink transition-colors duration-slow ease-emphasized"
                     >
                       {truncateText(todo.description, 80)}
                     </motion.p>
@@ -909,21 +909,21 @@ function TodoCardComponent({
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.15 }}
-                      className="flex items-center gap-1.5 text-[11px] font-medium mt-2.5"
+                      className="flex items-center gap-1.5 text-caption font-medium mt-2.5"
                     >
-                      <Calendar className="h-3 w-3 flex-shrink-0 text-gray-400" />
+                      <Calendar className="h-3 w-3 flex-shrink-0 text-ink-subtle" />
                       {hasDueRange ? (
                         // hasDueRange guarantees both bounds are set, so the assertions are safe.
-                        <span className="flex items-center gap-1 text-gray-950">
+                        <span className="flex items-center gap-1 text-ink">
                           <span>{formatDate(todo.dueDateStart!)}</span>
-                          <span className="text-gray-400">→</span>
+                          <span className="text-ink-subtle">→</span>
                           <span>{formatDate(todo.dueDate!)}</span>
                         </span>
                       ) : (
-                        <span className="text-gray-950">{formatDate(todo.dueDate || "")}</span>
+                        <span className="text-ink">{formatDate(todo.dueDate || "")}</span>
                       )}
                       {isDueOverdue && (
-                        <span className="font-black uppercase text-[9px] tracking-wider ml-1 text-red-600 self-center leading-none">
+                        <span className="font-bold uppercase text-caption tracking-wider ml-1 text-alert self-center leading-none">
                           · Overdue
                         </span>
                       )}
@@ -934,17 +934,17 @@ function TodoCardComponent({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.2 }}
-                      className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-100/50"
+                      className="flex items-center gap-3 mt-4 pt-4 border-t border-line/50"
                     >
                       {todo.expectedDate && (
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200/60">
+                        <div className="flex items-center gap-1.5 text-caption font-bold text-ink-subtle bg-paper-sunken px-2 py-1 rounded-md border border-line/60">
                           <Clock className="h-3 w-3" />
                           <span>EXP: {formatDate(todo.expectedDate)}</span>
                         </div>
                       )}
                       {todo.delay && (
                         <div
-                          className="flex items-center gap-1.5 text-[10px] font-bold text-orange-700 bg-orange-50 px-2 py-1 rounded-lg border border-orange-200/80 shadow-sm"
+                          className="flex items-center gap-1.5 text-caption font-bold text-orange-700 bg-warn-surface px-2 py-1 rounded-md border border-orange-200/80 shadow-sm"
                         >
                           <AlertTriangle className="h-3 w-3" />
                           <span>{todo.delay} delay</span>

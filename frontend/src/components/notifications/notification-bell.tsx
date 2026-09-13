@@ -80,7 +80,7 @@ export function NotificationBell({ className }: { className?: string }) {
         aria-label={totalUnread > 0 ? `Notifications, ${totalUnread} unread` : "Notifications"}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="relative flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-800"
+        className="relative flex h-8 w-8 items-center justify-center rounded-full text-ink-subtle transition-colors duration-fast hover:bg-gray-100 hover:text-ink"
       >
         <Bell className="h-[18px] w-[18px]" strokeWidth={2.1} />
         <AnimatePresence>
@@ -91,7 +91,7 @@ export function NotificationBell({ className }: { className?: string }) {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
               transition={{ type: "spring", stiffness: 620, damping: 24 }}
-              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-[1.5px] border-white bg-gray-900 px-1 text-[9px] font-black tabular-nums text-white shadow-sm"
+              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full border-[1.5px] border-white bg-gray-900 px-1 text-caption font-bold tabular-nums text-paper shadow-sm"
             >
               {badge}
             </motion.span>
@@ -106,17 +106,17 @@ export function NotificationBell({ className }: { className?: string }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
-            className="absolute right-0 top-full z-[1100] mt-3 w-[min(92vw,360px)] overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)]"
+            className="absolute right-0 top-full z-[1100] mt-3 w-[min(92vw,360px)] overflow-hidden rounded-xl border border-line/90 bg-paper shadow-[0_12px_40px_rgba(0,0,0,0.12)]"
             role="menu"
             aria-label="Notifications"
           >
             <div className="flex items-center justify-between border-b border-gray-50 px-4 py-3">
-              <p className="text-sm font-bold text-gray-900">Notifications</p>
+              <p className="text-body-sm font-bold text-ink">Notifications</p>
               {totalUnread > 0 && (
                 <button
                   type="button"
                   onClick={() => void markAllRead()}
-                  className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                  className="flex items-center gap-1 rounded-full px-2 py-1 text-caption font-semibold text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink"
                 >
                   <CheckCheck className="h-3.5 w-3.5" />
                   Mark all read
@@ -126,7 +126,7 @@ export function NotificationBell({ className }: { className?: string }) {
 
             <div className="max-h-[60vh] overflow-y-auto overscroll-contain">
               {items.length === 0 ? (
-                <p className="px-4 py-10 text-center text-sm text-gray-400">You&apos;re all caught up</p>
+                <p className="px-4 py-10 text-center text-body-sm text-ink-subtle">You&apos;re all caught up</p>
               ) : (
                 items.map((n) => {
                   const kind = getNotificationKind(n.type)
@@ -138,8 +138,8 @@ export function NotificationBell({ className }: { className?: string }) {
                       onClick={() => openItem(n)}
                       role="menuitem"
                       className={cn(
-                        "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50",
-                        !n.isRead && "bg-gray-50/80",
+                        "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-paper-sunken",
+                        !n.isRead && "bg-paper-sunken/80",
                       )}
                     >
                       <span
@@ -150,10 +150,10 @@ export function NotificationBell({ className }: { className?: string }) {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
-                          <span className="truncate text-[13px] font-semibold text-gray-900">{n.title}</span>
-                          <span className="flex-shrink-0 text-[10px] text-gray-400">{formatRelative(n.occurredOn)}</span>
+                          <span className="truncate text-caption font-semibold text-ink">{n.title}</span>
+                          <span className="flex-shrink-0 text-caption text-ink-subtle">{formatRelative(n.occurredOn)}</span>
                         </span>
-                        <span className="mt-0.5 block text-xs text-gray-500 line-clamp-2">{n.message}</span>
+                        <span className="mt-0.5 block text-caption text-ink-subtle line-clamp-2">{n.message}</span>
                       </span>
                       {!n.isRead && (
                         <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: kind.tint }} />

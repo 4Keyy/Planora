@@ -29,11 +29,11 @@ describe("input and textarea wrappers", () => {
       <Textarea aria-label="description" maxLength={10} showCount value="12345678" readOnly />,
     )
 
-    expect(screen.getByText("8/10")).toHaveClass("text-red-500")
+    expect(screen.getByText("8/10")).toHaveClass("text-alert")
 
     rerender(<Textarea aria-label="description" maxLength={10} showCount value="1234567895" readOnly />)
 
-    expect(screen.getByText("10/10")).toHaveClass("text-red-500")
+    expect(screen.getByText("10/10")).toHaveClass("text-alert")
   })
 
   it("initializes textarea counts from default and empty values", () => {

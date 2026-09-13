@@ -35,16 +35,16 @@ function InputField({ label, error, children }: { label: string; error?: string;
   // readers announce the field name on focus (a bare sibling <label> is not associated).
   return (
     <label className="block space-y-1.5">
-      <span className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">{label}</span>
+      <span className="block text-caption font-semibold text-ink-muted uppercase tracking-wider">{label}</span>
       {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-caption text-alert">{error}</p>}
     </label>
   )
 }
 
-// text-[15px] is bumped to 16px on phones by globals.css (no iOS focus-zoom); py-3.5
+// text-body-sm is bumped to 16px on phones by globals.css (no iOS focus-zoom); py-3.5
 // gives a ~52px touch target. Matches the login screen's field styling.
-const inputClass = "w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-[15px] text-gray-900 placeholder:text-gray-400 transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
+const inputClass = "w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -112,16 +112,16 @@ export default function RegisterPage() {
         <div className="absolute inset-0 opacity-[0.06]"
           style={{ backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`, backgroundSize: "40px 40px" }}
         />
-        <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-paper/5 blur-3xl" />
 
         <div className="relative z-10">
-          <span className="text-white font-bold text-lg tracking-tight">Planora</span>
+          <span className="text-paper font-bold text-title-sm tracking-tight">Planora</span>
         </div>
 
         <div className="relative z-10 space-y-6">
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Start your workspace</div>
-            <h2 className="text-4xl font-bold text-white leading-tight">
+            <div className="text-caption font-semibold text-ink-subtle uppercase tracking-wider">Start your workspace</div>
+            <h2 className="text-display-sm font-bold text-paper leading-tight">
               Start managing<br />your life better.
             </h2>
           </div>
@@ -133,16 +133,16 @@ export default function RegisterPage() {
               { num: "Dates", label: "Scheduled" },
               { num: "Private", label: "By default" },
             ].map(s => (
-              <div key={s.label} className="rounded-xl bg-white/5 border border-white/10 p-4">
-                <div className="text-xl font-bold text-white">{s.num}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
+              <div key={s.label} className="rounded-lg bg-paper/5 border border-white/10 p-4">
+                <div className="text-title-sm font-bold text-paper">{s.num}</div>
+                <div className="text-caption text-ink-subtle mt-0.5">{s.label}</div>
               </div>
             ))}
           </div>
         </div>
 
         <div className="relative z-10">
-          <p className="text-gray-600 text-xs">© {mounted ? new Date().getFullYear() : "2026"} Planora</p>
+          <p className="text-ink-muted text-caption">© {mounted ? new Date().getFullYear() : "2026"} Planora</p>
         </div>
       </div>
 
@@ -152,19 +152,19 @@ export default function RegisterPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={TWEEN_DELIBERATE}
-          className="w-full max-w-sm space-y-7 rounded-3xl border border-gray-200/70 bg-white/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none"
+          className="w-full max-w-sm space-y-7 rounded-xl border border-line/70 bg-paper/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none"
         >
           <div className="space-y-1.5">
             {/* Mobile brand lockup — matches the login screen (phones drop the left panel). */}
             <div className="mb-7 flex flex-col items-center gap-2.5 text-center lg:hidden">
               <span className="flex items-center gap-1.5">
                 <span className="h-[7px] w-[7px] rounded-full bg-gray-900" />
-                <span className="text-lg font-black tracking-tight text-gray-900">Planora</span>
+                <span className="text-title-sm font-bold tracking-tight text-ink">Planora</span>
               </span>
-              <p className="text-[13px] font-medium text-gray-400">Real coordination for real life.</p>
+              <p className="text-caption font-medium text-ink-subtle">Real coordination for real life.</p>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-gray-900 lg:font-bold">Create account</h1>
-            <p className="text-sm text-gray-500">Free, forever. No credit card required.</p>
+            <h1 className="text-title font-bold tracking-tight text-ink lg:font-bold">Create account</h1>
+            <p className="text-body-sm text-ink-subtle">Free, forever. No credit card required.</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -192,7 +192,7 @@ export default function RegisterPage() {
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} tabIndex={-1}
                   aria-label={showPass ? "Hide password" : "Show password"}
-                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted">
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -201,11 +201,11 @@ export default function RegisterPage() {
                 <div className="mt-2 space-y-1">
                   <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full rounded-full transition-[width,background-color] duration-500"
+                      className="h-full rounded-full transition-[width,background-color] duration-deliberate"
                       style={{ width: `${strength.pct}%`, backgroundColor: strength.color }}
                     />
                   </div>
-                  <p className="text-xs" style={{ color: strength.color }}>{strength.label}</p>
+                  <p className="text-caption" style={{ color: strength.color }}>{strength.label}</p>
                 </div>
               )}
             </InputField>
@@ -221,7 +221,7 @@ export default function RegisterPage() {
                 />
                 <button type="button" onClick={() => setShowConfirm(!showConfirm)} tabIndex={-1}
                   aria-label={showConfirm ? "Hide password" : "Show password"}
-                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted">
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
@@ -232,7 +232,7 @@ export default function RegisterPage() {
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={TWEEN_FAST}
-                className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600"
+                className="rounded-lg bg-alert-surface border border-alert-surface px-4 py-3 text-body-sm text-alert"
               >
                 {error}
               </motion.div>
@@ -241,7 +241,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="group mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-4 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-gray-900/10 transition-[background-color,opacity,transform] duration-200 hover:bg-gray-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-3.5 text-body-sm font-semibold text-paper shadow-lg shadow-gray-900/10 transition-[background-color,opacity,transform] duration-base hover:bg-gray-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
@@ -254,9 +254,9 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p className="text-sm text-gray-500 text-center">
+          <p className="text-body-sm text-ink-subtle text-center">
             Already have an account?{" "}
-            <Link href="/auth/login" className="font-semibold text-gray-900 hover:underline">Sign in</Link>
+            <Link href="/auth/login" className="font-semibold text-ink hover:underline">Sign in</Link>
           </p>
         </motion.div>
       </div>

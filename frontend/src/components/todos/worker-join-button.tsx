@@ -42,21 +42,21 @@ export function WorkerJoinButton({
     return (
       <div
         {...hoverProps}
-        className="flex items-center border-t border-indigo-100 bg-indigo-50/70 px-4 py-2.5"
+        className="flex items-center border-t border-accent-surface bg-accent-surface/70 px-4 py-2.5"
         onClick={(e) => e.stopPropagation()}
       >
         <span className="relative flex h-2 w-2 flex-shrink-0 mr-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-70" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-indigo-500" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-70" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
         </span>
-        <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700">
+        <span className="text-caption font-bold uppercase tracking-wider text-accent">
           In work
         </span>
-        <span className="text-[11px] text-indigo-300 mx-1.5">·</span>
+        <span className="text-caption text-accent-surface mx-1.5">·</span>
         <button
           onClick={handle(onLeave)}
           disabled={pending}
-          className="text-[11px] font-semibold text-indigo-400 transition-colors hover:text-red-500 disabled:opacity-50"
+          className="text-caption font-semibold text-accent transition-colors hover:text-alert disabled:opacity-50"
         >
           {pending ? "···" : "leave"}
         </button>
@@ -68,11 +68,11 @@ export function WorkerJoinButton({
   if (isFull) {
     return (
       <div
-        className="flex items-center gap-1.5 border-t border-gray-100 bg-gray-50/40 px-4 py-2.5 text-gray-400"
+        className="flex items-center gap-1.5 border-t border-line bg-paper-sunken/40 px-4 py-2.5 text-ink-subtle"
         onClick={(e) => e.stopPropagation()}
       >
         <Lock className="h-3 w-3" />
-        <span className="text-[11px] font-black uppercase tracking-wider">Full</span>
+        <span className="text-caption font-bold uppercase tracking-wider">Full</span>
       </div>
     )
   }
@@ -85,16 +85,16 @@ export function WorkerJoinButton({
       {...hoverProps}
       className={cn(
         "group/join flex w-full items-center",
-        "border-t border-indigo-100/60 px-4 py-2.5",
-        "bg-transparent transition-colors hover:bg-indigo-50/50 disabled:opacity-60",
+        "border-t border-accent-surface/60 px-4 py-2.5",
+        "bg-transparent transition-colors hover:bg-accent-surface/50 disabled:opacity-60",
       )}
     >
-      <Zap className="h-3 w-3 text-indigo-300 mr-1.5 transition-colors group-hover/join:text-indigo-500" />
-      <span className="text-[11px] font-black uppercase tracking-wider text-indigo-400 transition-colors group-hover/join:text-indigo-600">
+      <Zap className="h-3 w-3 text-accent-surface mr-1.5 transition-colors group-hover/join:text-accent" />
+      <span className="text-caption font-bold uppercase tracking-wider text-accent transition-colors group-hover/join:text-accent">
         {pending ? "Joining···" : "Take it"}
       </span>
       {!pending && (
-        <span className="text-[11px] text-indigo-300 ml-1 transition-transform group-hover/join:translate-x-0.5 group-hover/join:text-indigo-400">
+        <span className="text-caption text-accent-surface ml-1 transition-transform group-hover/join:translate-x-0.5 group-hover/join:text-accent">
           →
         </span>
       )}

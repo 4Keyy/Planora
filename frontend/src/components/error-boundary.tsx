@@ -32,11 +32,11 @@ export class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback
 
       return (
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-          <div className="max-w-md w-full rounded-2xl border border-gray-100 bg-white p-8 shadow-lg text-center space-y-4">
-            <div className="text-4xl">⚠️</div>
-            <h2 className="text-xl font-bold text-gray-900">Something went wrong</h2>
-            <p className="text-sm text-gray-500">
+        <div className="flex min-h-screen items-center justify-center bg-paper-sunken px-4">
+          <div className="max-w-md w-full rounded-xl border border-line bg-paper p-8 shadow-lg text-center space-y-4">
+            <div className="text-display-sm">⚠️</div>
+            <h2 className="text-title-sm font-bold text-ink">Something went wrong</h2>
+            <p className="text-body-sm text-ink-subtle">
               An unexpected error occurred. Please refresh the page.
             </p>
             <button
@@ -44,12 +44,12 @@ export class ErrorBoundary extends Component<Props, State> {
                 this.setState({ hasError: false, error: null })
                 window.location.reload()
               }}
-              className="mt-2 inline-flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-700 transition-colors"
+              className="mt-2 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-5 py-2.5 text-body-sm font-semibold text-paper hover:bg-gray-700 transition-colors"
             >
               Reload page
             </button>
             {process.env.NODE_ENV === 'development' && this.state.error && (
-              <pre className="mt-4 text-left text-xs text-red-600 bg-red-50 rounded-xl p-4 overflow-auto max-h-40">
+              <pre className="mt-4 text-left text-caption text-alert bg-alert-surface rounded-lg p-4 overflow-auto max-h-40">
                 {this.state.error.message}
               </pre>
             )}

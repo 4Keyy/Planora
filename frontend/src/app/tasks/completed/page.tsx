@@ -402,12 +402,12 @@ export default function CompletedTasksPage() {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-[2rem] border border-gray-200 bg-gradient-to-br from-white via-gray-50 to-gray-100 p-6 md:p-8 shadow-xl">
+      <div className="rounded-[2rem] border border-line bg-gradient-to-br from-white via-gray-50 to-gray-100 p-6 md:p-8 shadow-xl">
         <Button
           asChild
           variant="ghost"
           size="sm"
-          className="mb-6 w-fit text-xs font-bold text-gray-500 hover:text-black"
+          className="mb-6 w-fit text-caption font-bold text-ink-subtle hover:text-ink"
         >
           <Link href="/tasks">
             <ArrowLeft className="h-4 w-4" />
@@ -417,23 +417,23 @@ export default function CompletedTasksPage() {
 
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-400 uppercase tracking-wider">
+            <p className="text-body-sm font-medium text-ink-subtle uppercase tracking-wider">
               Completed Archive
             </p>
-            <h1 className="text-3xl font-bold text-gray-900">Completed Tasks</h1>
-            <p className="text-gray-500">
+            <h1 className="text-display-sm font-bold text-ink">Completed Tasks</h1>
+            <p className="text-ink-subtle">
               Browse every finished task in one place, newest completions first.
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-3 rounded-[1.5rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-white shadow-lg shadow-black/10">
+          <div className="inline-flex items-center gap-3 rounded-[1.5rem] border border-white/70 bg-paper/80 px-4 py-3 shadow-sm">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-ink text-paper shadow-lg shadow-black/10">
               <History className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Archive</p>
-              <p className="text-lg font-black text-gray-900 leading-none">{totalCount}</p>
-              <p className="text-xs font-medium text-gray-500 mt-1">Completed tasks</p>
+              <p className="text-caption font-bold uppercase tracking-[0.2em] text-ink-subtle">Archive</p>
+              <p className="text-title-sm font-bold text-ink leading-none">{totalCount}</p>
+              <p className="text-caption font-medium text-ink-subtle mt-1">Completed tasks</p>
             </div>
           </div>
         </div>
@@ -477,16 +477,16 @@ export default function CompletedTasksPage() {
           breakpoints={COMPLETED_MASONRY_BREAKPOINTS}
         />
       ) : error ? (
-        <div className="rounded-2xl bg-red-50 border border-red-100 p-5 text-sm text-red-700">
+        <div className="rounded-xl bg-alert-surface border border-alert-surface p-5 text-body-sm text-alert">
           {error}
         </div>
       ) : totalCount === 0 ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="rounded-[2rem] border border-dashed border-gray-200 bg-white p-16 text-center shadow-sm"
+          className="rounded-[2rem] border border-dashed border-line bg-paper p-16 text-center shadow-sm"
         >
-          <div className="mx-auto h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center mb-4">
+          <div className="mx-auto h-16 w-16 rounded-xl bg-paper-sunken flex items-center justify-center mb-4">
             {hasDateFilter ? (
               <CalendarSearch className="h-8 w-8 text-gray-200" />
             ) : (
@@ -495,16 +495,16 @@ export default function CompletedTasksPage() {
           </div>
           {hasDateFilter ? (
             <>
-              <h2 className="text-lg font-black text-gray-900 mb-1">No tasks finished in this period</h2>
-              <p className="text-sm text-gray-400 font-medium mb-6">
+              <h2 className="text-title-sm font-bold text-ink mb-1">No tasks finished in this period</h2>
+              <p className="text-body-sm text-ink-subtle font-medium mb-6">
                 Nothing was completed {formatDueRange(searchStart, searchEnd)}. Try a wider range.
               </p>
               <Button variant="outline" onClick={clearDateFilter}>Clear date filter</Button>
             </>
           ) : (
             <>
-              <h2 className="text-lg font-black text-gray-900 mb-1">No completed tasks yet</h2>
-              <p className="text-sm text-gray-400 font-medium mb-6">
+              <h2 className="text-title-sm font-bold text-ink mb-1">No completed tasks yet</h2>
+              <p className="text-body-sm text-ink-subtle font-medium mb-6">
                 Finish a task and it will appear here.
               </p>
               <Button asChild>
@@ -549,7 +549,7 @@ export default function CompletedTasksPage() {
                   window.scrollTo({ top: 0, behavior: "smooth" })
                 }}
                 disabled={currentPage === 1}
-                className="rounded-xl border-gray-200 font-bold px-4"
+                className="rounded-lg border-line font-bold px-4"
               >
                 ← Previous
               </Button>
@@ -570,10 +570,10 @@ export default function CompletedTasksPage() {
                           window.scrollTo({ top: 0, behavior: "smooth" })
                         }}
                         className={cn(
-                          "w-8 h-8 rounded-lg text-xs font-bold transition-all",
+                          "w-8 h-8 rounded-md text-caption font-bold transition-all",
                           currentPage === pageNum
-                            ? "bg-black text-white shadow-lg shadow-black/10 scale-110"
-                            : "text-gray-400 hover:bg-gray-100 hover:text-black"
+                            ? "bg-ink text-paper shadow-lg shadow-black/10 scale-110"
+                            : "text-ink-subtle hover:bg-gray-100 hover:text-ink"
                         )}
                       >
                         {pageNum}
@@ -582,7 +582,7 @@ export default function CompletedTasksPage() {
                   }
 
                   if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                    return <span key={pageNum} className="text-gray-300">...</span>
+                    return <span key={pageNum} className="text-ink-subtle">...</span>
                   }
 
                   return null
@@ -597,7 +597,7 @@ export default function CompletedTasksPage() {
                   window.scrollTo({ top: 0, behavior: "smooth" })
                 }}
                 disabled={currentPage >= totalPages}
-                className="rounded-xl border-gray-200 font-bold px-4"
+                className="rounded-lg border-line font-bold px-4"
               >
                 Next →
               </Button>

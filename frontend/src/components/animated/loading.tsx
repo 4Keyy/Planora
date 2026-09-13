@@ -23,7 +23,7 @@ export function LoadingSpinner({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
 
   return (
     <motion.div
-      className={`${sizeMap[size]} border-gray-200 border-t-black rounded-full`}
+      className={`${sizeMap[size]} border-line border-t-black rounded-full`}
       animate={{ rotate: 360 }}
       transition={SPINNER_TRANSITION}
       style={{ willChange: "transform" }}
@@ -37,7 +37,7 @@ export function LoadingDots() {
       {[0, 1, 2].map((i) => (
         <motion.div
           key={i}
-          className="h-2 w-2 rounded-full bg-black"
+          className="h-2 w-2 rounded-full bg-ink"
           animate={{
             scale: [1, 1.25, 1],
             opacity: [0.4, 1, 0.4]
@@ -56,17 +56,17 @@ export function LoadingOverlay() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={TWEEN_UI}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-paper/70 backdrop-blur-sm"
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
         transition={OVERLAY_INNER_TRANSITION}
-        className="flex flex-col items-center gap-4 rounded-2xl bg-white/90 p-8 shadow-soft-xl backdrop-blur-xl border border-gray-100/60"
+        className="flex flex-col items-center gap-4 rounded-xl bg-paper/90 p-8 shadow-xl backdrop-blur-xl border border-line/60"
       >
         <LoadingSpinner size="lg" />
-        <p className="text-sm text-gray-600 font-medium">Loading...</p>
+        <p className="text-body-sm text-ink-muted font-medium">Loading...</p>
       </motion.div>
     </motion.div>
   )
@@ -79,11 +79,7 @@ export function SkeletonLoader({ className }: { className?: string }) {
       initial={{ opacity: 0.6 }}
       animate={{ opacity: [0.6, 1, 0.6] }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-      className={`skeleton rounded-xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 ${className}`}
-      style={{
-        backgroundSize: "200% 100%",
-        animation: "skeleton-shimmer 2s infinite",
-      }}
+      className={`skeleton rounded-lg ${className}`}
     />
   )
 }
@@ -93,7 +89,7 @@ export function SkeletonCard() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="rounded-2xl border border-gray-100/60 bg-white p-7 shadow-sm"
+      className="rounded-xl border border-line/60 bg-paper p-7 shadow-sm"
     >
       <div className="space-y-4">
         <SkeletonLoader className="h-6 w-3/4" />

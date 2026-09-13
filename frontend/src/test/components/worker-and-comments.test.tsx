@@ -555,7 +555,7 @@ describe("TaskComments", () => {
     // Use fireEvent.change to avoid the slow character-by-character simulation
     fireEvent.change(textarea, { target: { value: "a".repeat(1601) } })
     const counter = screen.getByText(/\/2000/)
-    expect(counter.className).toMatch(/amber/)
+    expect(counter.className).toMatch(/warn/)
   })
 
   it("refetches comments when refreshKey changes", async () => {

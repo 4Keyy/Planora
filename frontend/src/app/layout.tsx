@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </>
         ) : null}
       </head>
-      <body className={cn("text-gray-900 antialiased min-h-screen bg-transparent")}>
+      <body className={cn("text-ink antialiased min-h-screen bg-transparent")}>
         <ColorBendsLayer />
         <SecurityInitializer />
         <RealtimeManager />

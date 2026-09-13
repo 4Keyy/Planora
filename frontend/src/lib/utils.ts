@@ -1,5 +1,30 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge"
+import { tokens } from "@/lib/design-tokens"
+
+/**
+ * tailwind-merge has to be taught the project's scales.
+ *
+ * Out of the box it treats any unrecognised `text-*` class as a COLOUR (its
+ * `text-color` group matches anything), so `cn("text-body-sm", "text-ink-subtle")`
+ * looked like two colours in conflict and silently dropped the size. That is a
+ * whole-product failure mode with no error and no visual clue at build time —
+ * it surfaced as a card description rendering at the inherited size.
+ *
+ * Every custom scale below must stay in step with `design-tokens.ts`; the names
+ * are read from the token object so they cannot drift.
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      "font-size": [{ text: Object.keys(tokens.fontSize) }],
+      "font-weight": [{ font: Object.keys(tokens.fontWeight) }],
+      z: [{ z: Object.keys(tokens.layer) }],
+      ease: [{ ease: Object.keys(tokens.motion.ease) }],
+      duration: [{ duration: Object.keys(tokens.motion.duration) }],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

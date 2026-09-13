@@ -74,7 +74,7 @@ function ProgressCircle({ value, total }: { value: number; total: number }) {
             initial={{ strokeDasharray: "0, 100" }}
             animate={{ strokeDasharray: `${percentage}, 100` }}
             transition={{ ...PROGRESS_TRANSITION, type: "spring", stiffness: 80 }}
-            className="text-black"
+            className="text-ink"
             stroke="currentColor"
             strokeWidth="3.5"
             strokeLinecap="round"
@@ -88,9 +88,9 @@ function ProgressCircle({ value, total }: { value: number; total: number }) {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-base md:text-2xl font-black text-gray-900 tracking-tighter"
+            className="text-body md:text-title font-bold text-ink tracking-tighter"
           >
-            {percentage}<span className="text-sm md:text-lg">%</span>
+            {percentage}<span className="text-body-sm md:text-title-sm">%</span>
           </motion.span>
         </motion.div>
       </div>
@@ -98,7 +98,7 @@ function ProgressCircle({ value, total }: { value: number; total: number }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="text-[9px] md:text-[11px] font-black text-gray-400 uppercase tracking-[0.15em]"
+        className="text-caption md:text-caption font-bold text-ink-subtle uppercase tracking-[0.15em]"
       >
         Weekly Progress
       </motion.span>
@@ -700,14 +700,14 @@ export default function DashboardPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-br from-white via-white to-gray-50 rounded-2xl p-6 md:p-8 shadow-card border border-gray-100 relative overflow-hidden group hover:shadow-lg transition-all duration-500"
+        className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-br from-white via-white to-gray-50 rounded-xl p-6 md:p-8 shadow-md border border-line relative overflow-hidden group hover:shadow-lg transition-all duration-deliberate"
       >
         {/* Decorative background elements.
             PERF: this is a 320px element with blur-3xl. Animating its opacity on an
             infinite loop forced a full-frame repaint of a large blurred surface every
             frame for the lifetime of the page. Rendered statically instead. */}
         <div
-          className="absolute top-0 right-0 w-80 h-80 bg-black rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none opacity-[0.03]"
+          className="absolute top-0 right-0 w-80 h-80 bg-ink rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none opacity-[0.03]"
         />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-gray-400 rounded-full translate-y-1/3 -translate-x-1/3 blur-3xl pointer-events-none opacity-[0.01]" />
 
@@ -721,18 +721,18 @@ export default function DashboardPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="inline-flex items-center px-4 py-1.5 rounded-full bg-black/5 border border-black/10 mb-1"
+            className="inline-flex items-center px-4 py-1.5 rounded-full bg-ink/5 border border-black/10 mb-1"
           >
-            <p className="text-[10px] font-black text-black uppercase tracking-[0.2em]">Workspace Overview</p>
+            <p className="text-caption font-bold text-ink uppercase tracking-[0.2em]">Workspace Overview</p>
           </motion.div>
-          <h1 className="text-2xl md:text-3xl xl:text-4xl font-black text-gray-900 tracking-tight leading-tight">
+          <h1 className="text-title md:text-display-sm xl:text-display-sm font-bold text-ink tracking-tight leading-tight">
             You have{" "}
             <motion.span
               key={activeStatsCount}
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 15 }}
-              className="text-black inline-flex items-center px-2 py-1 rounded-xl bg-black/5 border border-black/10 hover:scale-110 transition-transform cursor-default font-black"
+              className="text-ink inline-flex items-center px-2 py-1 rounded-lg bg-ink/5 border border-black/10 hover:scale-110 transition-transform cursor-default font-bold"
             >
               {activeStatsCount}
             </motion.span>{" "}
@@ -744,7 +744,7 @@ export default function DashboardPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.15, duration: 0.4 }}
-          className="relative z-10 flex items-center justify-center md:justify-end gap-6 bg-white/60 backdrop-blur-xl rounded-2xl p-5 border border-white/80 shadow-sm self-center md:self-auto min-w-[200px] hover:shadow-md transition-all"
+          className="relative z-10 flex items-center justify-center md:justify-end gap-6 bg-paper/60 backdrop-blur-xl rounded-xl p-5 border border-white/80 shadow-sm self-center md:self-auto min-w-[200px] hover:shadow-md transition-all"
         >
           <ProgressCircle value={completedCountForStats} total={totalCountForStats} />
           <motion.div className="h-12 w-px bg-gradient-to-b from-transparent via-gray-200 to-transparent hidden sm:block" />
@@ -754,9 +754,9 @@ export default function DashboardPage() {
             transition={{ delay: 0.3 }}
             className="hidden sm:flex flex-col justify-center"
           >
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Weekly Stats</span>
-            <motion.span className="text-2xl font-black text-gray-900 leading-none">{completedCountForStats}</motion.span>
-            <span className="text-[10px] font-bold text-gray-500 mt-0.5">Completed</span>
+            <span className="text-caption font-bold text-ink-subtle uppercase tracking-[0.2em] mb-2">Weekly Stats</span>
+            <motion.span className="text-title font-bold text-ink leading-none">{completedCountForStats}</motion.span>
+            <span className="text-caption font-bold text-ink-subtle mt-0.5">Completed</span>
           </motion.div>
         </motion.div>
       </motion.div>
@@ -766,11 +766,11 @@ export default function DashboardPage() {
         {/* Todos */}
         <div className="lg:col-span-8 space-y-6">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
+            <h2 className="text-title-sm md:text-title font-bold text-ink tracking-tight flex items-center gap-3">
               Active Tasks
-              <span className="text-[10px] bg-gray-900 text-white px-2 py-0.5 rounded-full uppercase tracking-widest">{totalCount}</span>
+              <span className="text-caption bg-gray-900 text-paper px-2 py-0.5 rounded-full uppercase tracking-widest">{totalCount}</span>
             </h2>
-            <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")} className="text-xs font-bold text-gray-400 hover:text-black transition-colors">
+            <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")} className="text-caption font-bold text-ink-subtle hover:text-ink transition-colors">
               All tasks →
             </Button>
           </div>
@@ -786,7 +786,7 @@ export default function DashboardPage() {
           )}
 
           {error && !loading && (
-            <div className="rounded-2xl bg-red-50 border border-red-100 p-5 text-sm text-red-700">{error}</div>
+            <div className="rounded-xl bg-alert-surface border border-alert-surface p-5 text-body-sm text-alert">{error}</div>
           )}
 
           {!loading && !error && (
@@ -796,26 +796,26 @@ export default function DashboardPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: "spring", stiffness: 200, damping: 25 }}
-                  className="rounded-2xl border-2 border-dashed border-gray-200 bg-gradient-to-br from-white via-gray-50 to-gray-50 p-12 md:p-16 text-center shadow-sm hover:shadow-md transition-all"
+                  className="rounded-xl border-2 border-dashed border-line bg-gradient-to-br from-white via-gray-50 to-gray-50 p-12 md:p-16 text-center shadow-sm hover:shadow-md transition-all"
                 >
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.1 }}
-                    className="mx-auto h-20 w-20 rounded-2xl bg-gradient-to-br from-green-50 to-gray-50 flex items-center justify-center mb-6 border border-green-100"
+                    className="mx-auto h-20 w-20 rounded-xl bg-gradient-to-br from-positive-surface to-gray-50 flex items-center justify-center mb-6 border border-positive-surface"
                   >
                     <motion.div
                       animate={{ scale: [1, 1.2, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
                     >
-                      <CheckCircle2 className="h-10 w-10 text-green-400" />
+                      <CheckCircle2 className="h-10 w-10 text-positive" />
                     </motion.div>
                   </motion.div>
                   <motion.h3
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="text-2xl font-black text-gray-900 mb-2"
+                    className="text-title font-bold text-ink mb-2"
                   >
                     {firstRun ? "Welcome to Planora" : "Perfectly Clear!"}
                   </motion.h3>
@@ -823,7 +823,7 @@ export default function DashboardPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
-                    className="text-sm text-gray-500 mb-8 font-medium max-w-sm mx-auto leading-relaxed"
+                    className="text-body-sm text-ink-subtle mb-8 font-medium max-w-sm mx-auto leading-relaxed"
                   >
                     {firstRun
                       ? "Start with one task, then invite the person you want to coordinate with."
@@ -842,10 +842,10 @@ export default function DashboardPage() {
                         ["3", "Invite first friend", "Send a request by email."],
                         ["4", "Share a task", "Choose that friend in the task form."],
                       ].map(([step, title, body]) => (
-                        <div key={step} className="rounded-xl border border-gray-100 bg-white/80 p-3">
-                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Step {step}</div>
-                          <div className="mt-2 text-sm font-bold text-gray-900">{title}</div>
-                          <div className="mt-1 text-xs text-gray-500 leading-relaxed">{body}</div>
+                        <div key={step} className="rounded-lg border border-line bg-paper/80 p-3">
+                          <div className="text-caption font-bold uppercase tracking-[0.2em] text-ink-subtle">Step {step}</div>
+                          <div className="mt-2 text-body-sm font-bold text-ink">{title}</div>
+                          <div className="mt-1 text-caption text-ink-subtle leading-relaxed">{body}</div>
                         </div>
                       ))}
                     </motion.div>
@@ -856,7 +856,7 @@ export default function DashboardPage() {
                     transition={{ delay: 0.4 }}
                     className="flex flex-col sm:flex-row items-center justify-center gap-3"
                   >
-                    <Button size="lg" onClick={() => setIsCreateOpen(true)} className="rounded-xl font-bold shadow-lg shadow-black/20 hover:-translate-y-1">
+                    <Button size="lg" onClick={() => setIsCreateOpen(true)} className="rounded-lg font-bold shadow-lg shadow-black/20 hover:-translate-y-1">
                       <Plus className="h-5 w-5 mr-2" />
                       {firstRun ? "Create first task" : "New Task"}
                     </Button>
@@ -866,7 +866,7 @@ export default function DashboardPage() {
                           size="lg"
                           variant="outline"
                           onClick={() => router.push("/categories")}
-                          className="rounded-xl font-bold"
+                          className="rounded-lg font-bold"
                         >
                           Create category
                         </Button>
@@ -874,7 +874,7 @@ export default function DashboardPage() {
                           size="lg"
                           variant="outline"
                           onClick={() => router.push("/profile")}
-                          className="rounded-xl font-bold"
+                          className="rounded-lg font-bold"
                         >
                           Invite friend
                         </Button>
@@ -916,7 +916,7 @@ export default function DashboardPage() {
                       size="sm"
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="rounded-xl border-gray-300 font-bold px-3 sm:px-5 hover:border-gray-400 hover:shadow-md"
+                      className="rounded-lg border-line-strong font-bold px-3 sm:px-5 hover:border-gray-400 hover:shadow-md"
                       aria-label="Previous page"
                     >
                       <span className="sm:hidden">←</span>
@@ -939,10 +939,10 @@ export default function DashboardPage() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handlePageChange(pageNum)}
                             className={cn(
-                              "w-9 h-9 rounded-lg text-xs font-bold transition-all duration-200 border",
+                              "w-9 h-9 rounded-md text-caption font-bold transition-all duration-base border",
                               currentPage === pageNum
-                                ? "bg-gradient-to-br from-black to-gray-900 text-white shadow-lg shadow-black/30 scale-110 border-black"
-                                : "text-gray-600 hover:bg-gray-100 hover:text-black hover:border-gray-300 border-gray-200"
+                                ? "bg-gradient-to-br from-black to-gray-900 text-paper shadow-lg shadow-black/30 scale-110 border-black"
+                                : "text-ink-muted hover:bg-gray-100 hover:text-ink hover:border-line-strong border-line"
                             )}
                           >
                             {pageNum}
@@ -955,7 +955,7 @@ export default function DashboardPage() {
                             key={pageNum}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="text-gray-300 font-light px-0.5"
+                            className="text-ink-subtle font-normal px-0.5"
                           >
                             ···
                           </motion.span>
@@ -971,7 +971,7 @@ export default function DashboardPage() {
                       size="sm"
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage >= totalPages}
-                      className="rounded-xl border-gray-300 font-bold px-3 sm:px-5 hover:border-gray-400 hover:shadow-md"
+                      className="rounded-lg border-line-strong font-bold px-3 sm:px-5 hover:border-gray-400 hover:shadow-md"
                       aria-label="Next page"
                     >
                       <span className="sm:hidden">→</span>
@@ -998,7 +998,7 @@ export default function DashboardPage() {
           />
 
           {process.env.NODE_ENV === 'development' && (
-            <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 text-[10px] text-gray-400 text-center font-bold uppercase tracking-[0.2em]">
+            <div className="rounded-xl border border-line bg-paper-sunken/50 p-4 text-caption text-ink-subtle text-center font-bold uppercase tracking-[0.2em]">
               Planora Beta 0.1 · Local Dev
             </div>
           )}

@@ -27,14 +27,14 @@ export function SegmentError({ error, reset, segmentLabel }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-2xl py-16 text-center">
-      <h2 className="text-2xl font-semibold text-gray-900">
+      <h2 className="text-title font-semibold text-ink">
         Something went wrong while loading {segmentLabel}.
       </h2>
-      <p className="mt-2 text-sm text-gray-500">
+      <p className="mt-2 text-body-sm text-ink-subtle">
         The page hit an error and could not finish rendering. You can retry, or head back to the dashboard.
       </p>
       {error.digest ? (
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-caption text-ink-subtle">
           Reference id: <code className="font-mono">{error.digest}</code>
         </p>
       ) : null}
@@ -42,13 +42,13 @@ export function SegmentError({ error, reset, segmentLabel }: Props) {
         <button
           type="button"
           onClick={reset}
-          className="rounded-xl bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 transition"
+          className="rounded-lg bg-primary-600 px-4 py-2 text-body-sm font-medium text-paper shadow-sm hover:bg-primary-700 transition"
         >
           Retry
         </button>
         <Link
           href="/dashboard"
-          className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition"
+          className="rounded-lg border border-line bg-paper px-4 py-2 text-body-sm font-medium text-ink-muted shadow-sm hover:bg-paper-sunken transition"
         >
           Back to dashboard
         </Link>

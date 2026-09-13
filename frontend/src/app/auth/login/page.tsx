@@ -21,12 +21,12 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-// Shared auth-field styling. text-[15px] reads as 15px on desktop but is bumped to
+// Shared auth-field styling. text-body-sm reads as 15px on desktop but is bumped to
 // 16px on phones by globals.css (kills iOS focus-zoom); py-3.5 gives a ~52px touch
-// target. rounded-2xl + a soft focus ring match the rest of the mobile redesign.
+// target. rounded-xl + a soft focus ring match the rest of the mobile redesign.
 const FIELD_CLS =
-  "w-full rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-[15px] text-gray-900 placeholder:text-gray-400 transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
-const LABEL_CLS = "text-xs font-semibold uppercase tracking-wider text-gray-700"
+  "w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
+const LABEL_CLS = "text-caption font-semibold uppercase tracking-wider text-ink-muted"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -107,24 +107,24 @@ export default function LoginPage() {
           }}
         />
         {/* Glow */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 h-80 w-80 rounded-full bg-white/5 blur-3xl" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 h-80 w-80 rounded-full bg-paper/5 blur-3xl" />
 
         <div className="relative z-10">
-          <span className="text-white font-bold text-lg tracking-tight">Planora</span>
+          <span className="text-paper font-bold text-title-sm tracking-tight">Planora</span>
         </div>
 
         <div className="relative z-10 space-y-6">
-          <h2 className="text-4xl font-bold text-white leading-tight">
+          <h2 className="text-display-sm font-bold text-paper leading-tight">
             Your tasks,<br />perfectly organized.
           </h2>
-          <p className="text-gray-400 text-base leading-relaxed max-w-xs">
+          <p className="text-ink-subtle text-body leading-relaxed max-w-xs">
             Manage everything in one place with smart priorities, categories, and progress tracking.
           </p>
 
           <div className="flex flex-col gap-3 pt-2">
             {["Create tasks with priorities & due dates", "Organize with color-coded categories", "Track progress across all your projects"].map(text => (
-              <div key={text} className="flex items-center gap-3 text-sm text-gray-400">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+              <div key={text} className="flex items-center gap-3 text-body-sm text-ink-subtle">
+                <div className="h-1.5 w-1.5 rounded-full bg-positive flex-shrink-0" />
                 {text}
               </div>
             ))}
@@ -132,7 +132,7 @@ export default function LoginPage() {
         </div>
 
         <div className="relative z-10">
-          <p className="text-gray-600 text-xs">
+          <p className="text-ink-muted text-caption">
             © {mounted ? new Date().getFullYear() : "2026"} Planora
           </p>
         </div>
@@ -144,7 +144,7 @@ export default function LoginPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={TWEEN_DELIBERATE}
-          className="w-full max-w-sm space-y-7 rounded-3xl border border-gray-200/70 bg-white/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8 lg:space-y-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none"
+          className="w-full max-w-sm space-y-7 rounded-xl border border-line/70 bg-paper/75 p-6 shadow-[0_12px_44px_rgba(0,0,0,0.07)] backdrop-blur-xl sm:p-8 lg:space-y-8 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none lg:backdrop-blur-none"
         >
           {/* Header */}
           <div className="space-y-1.5">
@@ -153,12 +153,12 @@ export default function LoginPage() {
             <div className="mb-7 flex flex-col items-center gap-2.5 text-center lg:hidden">
               <span className="flex items-center gap-1.5">
                 <span className="h-[7px] w-[7px] rounded-full bg-gray-900" />
-                <span className="text-lg font-black tracking-tight text-gray-900">Planora</span>
+                <span className="text-title-sm font-bold tracking-tight text-ink">Planora</span>
               </span>
-              <p className="text-[13px] font-medium text-gray-400">Real coordination for real life.</p>
+              <p className="text-caption font-medium text-ink-subtle">Real coordination for real life.</p>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-gray-900 lg:font-bold">Sign in</h1>
-            <p className="text-sm text-gray-500">Enter your credentials to continue</p>
+            <h1 className="text-title font-bold tracking-tight text-ink lg:font-bold">Sign in</h1>
+            <p className="text-body-sm text-ink-subtle">Enter your credentials to continue</p>
           </div>
 
           {/* Form */}
@@ -173,7 +173,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 className={FIELD_CLS}
               />
-              {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+              {errors.email && <p className="text-caption text-alert">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -192,12 +192,12 @@ export default function LoginPage() {
                   onClick={() => setShowPass(!showPass)}
                   tabIndex={-1}
                   aria-label={showPass ? "Hide password" : "Show password"}
-                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted"
                 >
                   {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+              {errors.password && <p className="text-caption text-alert">{errors.password.message}</p>}
             </div>
 
             {requiresTwoFactor && (
@@ -214,17 +214,17 @@ export default function LoginPage() {
               </div>
             )}
 
-            <div className="flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center justify-between text-caption text-ink-subtle">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300"
+                  className="h-4 w-4 rounded border-line-strong"
                 />
                 Remember me
               </label>
-              <Link href="/auth/forgot-password" className="hover:text-gray-900 transition-colors">
+              <Link href="/auth/forgot-password" className="hover:text-ink transition-colors">
                 Forgot password?
               </Link>
             </div>
@@ -235,7 +235,7 @@ export default function LoginPage() {
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={TWEEN_FAST}
-                className="rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600"
+                className="rounded-lg bg-alert-surface border border-alert-surface px-4 py-3 text-body-sm text-alert"
               >
                 {error}
               </motion.div>
@@ -244,7 +244,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="group mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 px-4 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-gray-900/10 transition-[background-color,opacity,transform] duration-200 hover:bg-gray-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+              className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-3.5 text-body-sm font-semibold text-paper shadow-lg shadow-gray-900/10 transition-[background-color,opacity,transform] duration-base hover:bg-gray-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
@@ -258,9 +258,9 @@ export default function LoginPage() {
           </form>
 
           {/* Footer link */}
-          <p className="text-sm text-gray-500 text-center">
+          <p className="text-body-sm text-ink-subtle text-center">
             Don&apos;t have an account?{" "}
-            <Link href="/auth/register" className="font-semibold text-gray-900 hover:underline">
+            <Link href="/auth/register" className="font-semibold text-ink hover:underline">
               Create one
             </Link>
           </p>

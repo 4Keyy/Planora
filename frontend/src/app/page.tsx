@@ -43,14 +43,14 @@ export default function HomePage() {
         className="flex items-center justify-between px-4 pb-5 max-w-6xl mx-auto w-full sticky top-0 z-20"
         style={{ paddingTop: "calc(1.25rem + env(safe-area-inset-top, 0px))" }}
       >
-        <span className="text-base font-bold tracking-tight text-gray-900">Planora</span>
+        <span className="text-body font-bold tracking-tight text-ink">Planora</span>
         <div className="flex items-center gap-3">
-          <Link href="/auth/login" className="text-sm text-gray-500 hover:text-gray-900 transition-colors px-3 py-1.5" suppressHydrationWarning>
+          <Link href="/auth/login" className="text-body-sm text-ink-subtle hover:text-ink transition-colors px-3 py-1.5" suppressHydrationWarning>
             Sign in
           </Link>
           <Link
             href="/auth/register"
-            className="text-sm font-medium bg-gray-900 text-white px-4 py-2 rounded-xl hover:bg-gray-700 transition-colors"
+            className="text-body-sm font-medium bg-gray-900 text-paper px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
             suppressHydrationWarning
           >
             Get started
@@ -66,25 +66,25 @@ export default function HomePage() {
           transition={HERO_TRANSITION}
           className="space-y-8"
         >
-          <div className="inline-flex items-center gap-2 bg-white/70 backdrop-blur-sm border border-gray-200 rounded-full px-4 py-1.5 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <div className="inline-flex items-center gap-2 bg-paper/70 backdrop-blur-sm border border-line rounded-full px-4 py-1.5 text-caption font-semibold text-ink-muted uppercase tracking-wider">
+            <span className="h-1.5 w-1.5 rounded-full bg-positive" />
             Private coordination, beautifully designed
           </div>
 
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold text-gray-900 leading-[1.08] sm:leading-[1.05] tracking-tight text-balance">
+          <h1 className="text-display-sm sm:text-hero md:text-hero font-bold text-ink leading-[1.08] sm:leading-[1.05] tracking-tight text-balance">
             Real life needs
             <br />
-            <span className="text-gray-400">real coordination.</span>
+            <span className="text-ink-subtle">real coordination.</span>
           </h1>
 
-          <p className="text-lg sm:text-xl text-gray-500 max-w-xl mx-auto leading-relaxed">
+          <p className="text-title-sm sm:text-title-sm text-ink-subtle max-w-xl mx-auto leading-relaxed">
             Planora is a private task workspace for people who matter to you — share selectively, coordinate without noise, stay secure across every session.
           </p>
 
           <div className="flex w-full flex-col items-stretch justify-center gap-3 pt-2 sm:w-auto sm:flex-row sm:items-center">
             <button
               onClick={handleCta}
-              className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-gray-900 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-gray-900/10 transition-[background-color,transform] duration-200 hover:bg-gray-800 active:scale-[0.99]"
+              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-7 py-3.5 text-body-sm font-semibold text-paper shadow-lg shadow-gray-900/10 transition-[background-color,transform] duration-base hover:bg-gray-800 active:scale-[0.99]"
               suppressHydrationWarning
             >
               {ctaText}
@@ -92,7 +92,7 @@ export default function HomePage() {
             </button>
             <Link
               href="/auth/register"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-7 py-3.5 text-sm font-medium text-gray-600 transition-[background-color,border-color] duration-200 hover:border-gray-300 hover:bg-gray-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-line px-7 py-3.5 text-body-sm font-medium text-ink-muted transition-[background-color,border-color] duration-base hover:border-line-strong hover:bg-paper-sunken"
             >
               Create account
             </Link>
@@ -109,20 +109,20 @@ export default function HomePage() {
           {features.map((f) => (
             <div
               key={f.title}
-              className="rounded-2xl border border-white/60 bg-white/50 backdrop-blur-sm p-5 hover:bg-white/80 hover:border-white hover:shadow-md transition-[background-color,border-color,box-shadow,backdrop-filter] duration-200 group"
+              className="rounded-xl border border-white/60 bg-paper/50 backdrop-blur-sm p-5 hover:bg-paper/80 hover:border-white hover:shadow-md transition-[background-color,border-color,box-shadow,backdrop-filter] duration-base group"
             >
-              <div className="h-9 w-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center mb-4 shadow-sm group-hover:shadow-md transition-[box-shadow] duration-200">
-                <f.icon className="h-4 w-4 text-gray-700" />
+              <div className="h-9 w-9 rounded-lg bg-paper border border-line flex items-center justify-center mb-4 shadow-sm group-hover:shadow-md transition-[box-shadow] duration-base">
+                <f.icon className="h-4 w-4 text-ink-muted" />
               </div>
-              <p className="text-sm font-semibold text-gray-900 mb-1">{f.title}</p>
-              <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
+              <p className="text-body-sm font-semibold text-ink mb-1">{f.title}</p>
+              <p className="text-caption text-ink-subtle leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </motion.div>
       </section>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-xs text-gray-400 border-t border-white/60">
+      <footer className="py-6 text-center text-caption text-ink-subtle border-t border-white/60">
         © {mounted ? new Date().getFullYear() : "2026"} Planora. Private coordination for people you trust.
       </footer>
     </div>
