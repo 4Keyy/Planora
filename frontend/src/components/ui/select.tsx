@@ -83,7 +83,7 @@ const SelectContent = React.forwardRef<
       ref={ref}
       className={cn(
         "relative max-h-96 min-w-[10rem] overflow-hidden rounded-lg border border-line bg-paper shadow-lg",
-        "z-[3000]",
+        "z-popover",
         // Smooth open/close: a clean fade + gentle scale FROM the trigger anchor (Radix supplies
         // the transform-origin), so it grows out of the plate centred with no slide/jitter.
         "origin-[var(--radix-select-content-transform-origin)]",

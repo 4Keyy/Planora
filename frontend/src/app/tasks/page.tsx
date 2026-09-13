@@ -76,7 +76,7 @@ function StatusPill({ count, label, emphasis }: { count: number; label: string; 
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
+      transition={{ duration: 0.32, ease: EASE_OUT_EXPO }}
       className={cn(
         "flex items-center gap-2 rounded-full border bg-paper px-4 py-2 shadow-sm",
         emphasis ? "border-line" : "border-line",
@@ -90,7 +90,7 @@ function StatusPill({ count, label, emphasis }: { count: number; label: string; 
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -10, opacity: 0 }}
-            transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
+            transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
             className={cn("block text-body-sm font-bold tabular-nums", emphasis ? "text-ink" : "text-ink-subtle")}
           >
             {count}
@@ -703,7 +703,7 @@ export default function TasksPage() {
           <motion.p
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: EASE_OUT_EXPO }}
+            transition={{ duration: 0.32, ease: EASE_OUT_EXPO }}
             className="mb-1.5 text-caption font-bold uppercase tracking-[0.3em] text-ink-subtle"
           >
             Workspace
@@ -711,7 +711,7 @@ export default function TasksPage() {
           <motion.h1
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.34, delay: 0.04, ease: EASE_OUT_EXPO }}
+            transition={{ duration: 0.32, delay: 0.04, ease: EASE_OUT_EXPO }}
             className="text-display-sm font-bold leading-none tracking-tight text-ink sm:text-display"
           >
             Tasks
@@ -877,7 +877,7 @@ export default function TasksPage() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.28, ease: EASE_OUT_EXPO }}
+                    transition={{ duration: 0.32, ease: EASE_OUT_EXPO }}
                     className="overflow-hidden"
                   >
                     <div className="space-y-4">

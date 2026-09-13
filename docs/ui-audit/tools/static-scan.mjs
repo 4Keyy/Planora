@@ -145,11 +145,26 @@ const DECLARED = {
   spacing: ['0', '1', '2', '3', '4', '5', '6', '8', '10', '12', '16', '20', '24', '18', '88', '128', 'auto', 'px'],
   radius: ['none', 'sm', 'md', 'lg', 'xl', 'full'],
   shadow: ['none', 'sm', 'md', 'lg', 'xl'],
-  duration: ['instant', 'fast', 'base', 'slow', 'deliberate'],
+  // Both the utility names and the raw values, because framer-motion takes
+  // seconds and CSS takes milliseconds — all three spell the same five tokens.
+  duration: [
+    'instant', 'fast', 'base', 'slow', 'deliberate',
+    '0.1', '0.16', '0.22', '0.32', '0.48',            // framer seconds
+    '100ms', '160ms', '220ms', '320ms', '480ms',      // css
+    '0',                                              // "no animation"
+  ],
   fontSize: ['caption', 'body-sm', 'body', 'title-sm', 'title', 'display-sm', 'display', 'hero'],
   fontWeight: ['normal', 'medium', 'semibold', 'bold'],
-  zIndex: ['base', 'dropdown', 'sticky', 'overlay', 'modal', 'popover', 'toast', 'tooltip'],
-  easing: ['emphasized', 'standard', 'exit'],
+  // The eight named tiers, plus Tailwind's local 0-50 which is legitimately
+  // used for stacking INSIDE one component rather than across the app.
+  zIndex: [
+    'base', 'dropdown', 'sticky', 'overlay', 'modal', 'popover', 'toast', 'tooltip',
+    '0', '1', '2', '3', '5', '6', '10', '20', '30', '40', '50', 'auto',
+  ],
+  easing: [
+    'emphasized', 'standard', 'exit',
+    'cubic-bezier(0.16, 1, 0.3, 1)', 'cubic-bezier(0.4, 0, 0.2, 1)', 'cubic-bezier(0.4, 0, 1, 1)',
+  ],
 }
 
 // ─── 5. rule violations ─────────────────────────────────────────────────────

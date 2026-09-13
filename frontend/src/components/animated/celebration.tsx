@@ -69,7 +69,7 @@ export function CompletionCelebration({
     <div
       className={cn(
         "pointer-events-none overflow-hidden",
-        variant === "screen" ? "fixed inset-0 z-[3000]" : "absolute inset-0 z-40"
+        variant === "screen" ? "fixed inset-0 z-tooltip" : "absolute inset-0 z-40"
       )}
     >
       {confettiPieces.map((i) => (
@@ -113,7 +113,7 @@ export function SuccessPulse({ position = "center" }: { position?: "center" | "i
     <motion.div
       initial={{ scale: 0.8, opacity: 1 }}
       animate={{ scale: 1.2, opacity: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
+      transition={{ duration: 0.48, ease: "easeOut" }}
       className={`absolute pointer-events-none ${
         position === "center" ? "inset-0 flex items-center justify-center" : ""
       }`}

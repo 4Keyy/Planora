@@ -178,7 +178,7 @@ function SelectorCard({
         )}
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
+          transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
           className="flex-shrink-0 text-ink-subtle transition-colors group-hover:text-ink-subtle"
         >
           <ChevronDown className="h-4 w-4" strokeWidth={2.2} />
@@ -449,10 +449,10 @@ export function CreateTodoPanel({
   // CSS timing for the grid-row height transition
   const rowTransition = prefersReducedMotion
     ? "grid-template-rows 0.01s linear"
-    : "grid-template-rows 0.38s cubic-bezier(0.34, 1.2, 0.64, 1)"
+    : "grid-template-rows 0.38s var(--pl-ease-emphasized)"
   const contentOpacityTransition = prefersReducedMotion
     ? "opacity 0.01s linear"
-    : `opacity ${isOpen ? "0.18s 0.12s" : "0.10s 0s"} cubic-bezier(0.16,1,0.3,1)`
+    : `opacity ${isOpen ? "0.18s 0.12s" : "0.10s 0s"} var(--pl-ease-emphasized)`
 
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
 
@@ -523,7 +523,7 @@ export function CreateTodoPanel({
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.14, ease: EASE_OUT_EXPO }}
+                  transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
                 >
                   <h2 className="text-body-sm font-bold tracking-tight text-ink">New task</h2>
                   <p className="truncate text-caption font-semibold text-ink-subtle">press <kbd className="rounded bg-gray-100 px-1 py-px font-mono text-caption text-ink-subtle">C</kbd> to open</p>
@@ -534,7 +534,7 @@ export function CreateTodoPanel({
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 4 }}
-                  transition={{ duration: 0.14, ease: EASE_OUT_EXPO }}
+                  transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
                 >
                   <p className="text-body-sm font-bold leading-none tracking-tight text-ink">New task</p>
                   <p className="mt-0.5 text-caption font-semibold text-ink-subtle">Title is all you need</p>

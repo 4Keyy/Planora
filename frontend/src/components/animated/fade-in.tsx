@@ -157,7 +157,7 @@ export function SlideIn({
     <motion.div
       initial={{ opacity: 0, ...directionOffset[direction] }}
       animate={{ opacity: 1, x: 0, y: 0 }}
-      transition={{ duration: 0.25, ease: EASE_OUT_EXPO, delay }}
+      transition={{ duration: 0.22, ease: EASE_OUT_EXPO, delay }}
       className={className}
       {...props}
     >

@@ -48,7 +48,7 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <motion.div
             key="cat-backdrop"
             initial={{ opacity: 0 }}
@@ -84,7 +84,7 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
               <button
                 onClick={onClose}
                 aria-label="Close"
-                className="h-8 w-8 rounded-full flex items-center justify-center text-ink-subtle hover:text-ink hover:bg-gray-100 transition-all"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-ink-subtle hover:text-ink hover:bg-gray-100 transition-[color,background-color,border-color,opacity,transform,box-shadow]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -103,7 +103,7 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
                 <div className="grid gap-1">
                   <button
                     onClick={() => onChange([])}
-                    className={`flex items-center gap-4 px-4 py-3 rounded-xl text-left transition-all ${
+                    className={`flex items-center gap-4 px-4 py-3 rounded-xl text-left transition-[color,background-color,border-color,opacity,transform,box-shadow] ${
                       selected.length === 0
                         ? "bg-gray-900 text-paper shadow-lg shadow-black/10"
                         : "hover:bg-paper-sunken text-ink-muted"
@@ -123,7 +123,7 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
                       <button
                         key={cat.id}
                         onClick={() => toggle(cat.id)}
-                        className={`flex items-center gap-4 px-4 py-3 rounded-xl text-left transition-all ${
+                        className={`flex items-center gap-4 px-4 py-3 rounded-xl text-left transition-[color,background-color,border-color,opacity,transform,box-shadow] ${
                           active ? "bg-paper-sunken ring-1 ring-gray-200" : "hover:bg-paper-sunken text-ink-muted"
                         }`}
                       >

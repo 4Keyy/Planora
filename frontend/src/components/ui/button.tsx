@@ -16,13 +16,13 @@ const buttonVariants = cva(
           "bg-gray-100 text-ink shadow-sm hover:bg-gray-200 hover:shadow-md active:scale-[0.96] focus-visible:ring-gray-400/30 hover:translate-y-[-1px]",
 
         outline:
-          "border-2 border-line bg-paper text-ink hover:bg-paper-sunken hover:border-line-strong hover:shadow-sm active:scale-[0.96] focus-visible:ring-gray-300/30 transition-all",
+          "border-2 border-line bg-paper text-ink hover:bg-paper-sunken hover:border-line-strong hover:shadow-sm active:scale-[0.96] focus-visible:ring-gray-300/30 transition-[color,background-color,border-color,opacity,transform,box-shadow]",
 
         accent:
           "bg-gray-900 text-paper shadow-md hover:bg-ink hover:shadow-lg active:scale-[0.96] focus-visible:ring-black/30 hover:translate-y-[-2px]",
 
         ghost:
-          "text-ink-muted hover:bg-gray-100 hover:text-ink active:scale-[0.96] focus-visible:ring-gray-300/30 transition-all",
+          "text-ink-muted hover:bg-gray-100 hover:text-ink active:scale-[0.96] focus-visible:ring-gray-300/30 transition-[color,background-color,border-color,opacity,transform,box-shadow]",
 
         link:
           "text-ink underline-offset-4 hover:underline hover:opacity-80 active:opacity-70 focus-visible:ring-black/20 font-medium",

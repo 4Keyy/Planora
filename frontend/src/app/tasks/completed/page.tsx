@@ -570,7 +570,7 @@ export default function CompletedTasksPage() {
                           window.scrollTo({ top: 0, behavior: "smooth" })
                         }}
                         className={cn(
-                          "w-8 h-8 rounded-md text-caption font-bold transition-all",
+                          "w-8 h-8 rounded-md text-caption font-bold transition-[color,background-color,border-color,opacity,transform,box-shadow]",
                           currentPage === pageNum
                             ? "bg-ink text-paper shadow-lg shadow-black/10 scale-110"
                             : "text-ink-subtle hover:bg-gray-100 hover:text-ink"

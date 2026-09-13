@@ -43,7 +43,7 @@ const CARD_VISIBILITY_LAYOUT = {
 }
 
 const CARD_VISIBILITY_CONTENT = {
-  duration: 0.18,
+  duration: 0.16,
   ease: EASE_OUT_EXPO,
 } as const
 
@@ -424,7 +424,7 @@ function TodoCardComponent({
           boxShadow: cardHoverShadow,
           transitionProperty: "box-shadow, background-color, border-color, opacity",
           transitionDuration: "220ms",
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+          transitionTimingFunction: "var(--pl-ease-emphasized)",
           ...borderInlineStyle,
         }}
         className={cn(
@@ -493,7 +493,7 @@ function TodoCardComponent({
                 <motion.div
                   key="delete-panel"
                   variants={{
-                    hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } },
+                    hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } },
                     visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
                   }}
                   initial="hidden"
@@ -617,7 +617,7 @@ function TodoCardComponent({
                         : { rotate: 0, scale: 1 }
                   }
                   transition={{
-                    rotate: isCardHovered ? { duration: 0.6, repeat: Infinity } : { duration: 0.32 },
+                    rotate: isCardHovered ? { duration: 0.48, repeat: Infinity } : { duration: 0.32 },
                     scale: { duration: 0.32 },
                   }}
                 >
@@ -707,7 +707,7 @@ function TodoCardComponent({
                           initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
                           animate={{ opacity: 1, scale: 1, rotate: 360 }}
                           exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ duration: 0.42, ease: EASE_OUT_EXPO }}
+                          transition={{ duration: 0.48, ease: EASE_OUT_EXPO }}
                           className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent"
                         />
                       )}
@@ -825,7 +825,7 @@ function TodoCardComponent({
                               "bg-no-repeat [background-image:linear-gradient(#d1d5db,#d1d5db)]",
                               "[background-position:0_53%] [background-size:100%_2px]",
                               "[-webkit-box-decoration-break:clone] [box-decoration-break:clone]",
-                              "transition-[background-size] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
+                              "transition-[background-size] duration-deliberate ease-emphasized",
                               "group-hover/card:[background-size:0%_2px] motion-reduce:transition-none",
                             )}
                           >
@@ -843,7 +843,7 @@ function TodoCardComponent({
                       className="flex items-center gap-2 flex-wrap"
                     >
                       {!isCompleted && todo.categoryName && (
-                        <span className="text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-gray-100 text-ink-muted whitespace-nowrap shadow-sm border border-line/80 hover:border-line-strong transition-all">
+                        <span className="text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-gray-100 text-ink-muted whitespace-nowrap shadow-sm border border-line/80 hover:border-line-strong transition-[color,background-color,border-color,opacity,transform,box-shadow]">
                           {truncateText(todo.categoryName, 12)}
                         </span>
                       )}
@@ -853,7 +853,7 @@ function TodoCardComponent({
                           initial={{ scale: 0.9, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           className={cn(
-                            "text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-accent-surface text-accent whitespace-nowrap shadow-sm border border-accent-surface/80 flex items-center gap-1 hover:shadow-md transition-all",
+                            "text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-accent-surface text-accent whitespace-nowrap shadow-sm border border-accent-surface/80 flex items-center gap-1 hover:shadow-md transition-[color,background-color,border-color,opacity,transform,box-shadow]",
                             isPublicName && "normal-case tracking-normal"
                           )}
                         >

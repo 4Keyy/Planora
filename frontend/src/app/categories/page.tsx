@@ -83,7 +83,7 @@ function CategoryCard({
           boxShadow: isCardHovered ? `0 8px 32px -4px ${hoverShadow}, 0 4px 16px -2px ${hoverShadowSoft}` : undefined,
           transitionProperty: "box-shadow, background-color",
           transitionDuration: "300ms",
-          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+          transitionTimingFunction: "var(--pl-ease-emphasized)",
         }}
         className="group/card relative cursor-pointer rounded-xl border-2 border-gray-400 bg-transparent hover:bg-paper/40 hover:backdrop-blur-sm overflow-hidden"
       >
@@ -98,7 +98,7 @@ function CategoryCard({
               <motion.div
                 key="delete-panel"
                 variants={{
-                  hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } },
+                  hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } },
                   visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
                 }}
                 initial="hidden"
@@ -321,7 +321,7 @@ function CategoryModal({
       <AnimatePresence>
         {isOpen && (
       <div
-        className="fixed inset-0 z-[2000] flex items-center justify-center p-4"
+        className="fixed inset-0 z-modal flex items-center justify-center p-4"
         onClick={handleClose}
       >
         {/* Backdrop */}
@@ -338,7 +338,7 @@ function CategoryModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={SPRING_STANDARD}
-          className="relative z-[2001] max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] bg-paper shadow-xl scrollbar-hide"
+          className="relative z-modal max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] bg-paper shadow-xl scrollbar-hide"
           onClick={(e) => e.stopPropagation()}
         >
         <div className="p-6 md:p-8">
@@ -346,7 +346,7 @@ function CategoryModal({
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.32 }}
             className="flex items-start justify-between gap-4"
           >
             <div>
@@ -373,7 +373,7 @@ function CategoryModal({
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.05 }}
+                transition={{ duration: 0.32, delay: 0.05 }}
                 className="space-y-1.5"
               >
                 <label htmlFor="category-name" className="text-caption font-bold uppercase tracking-widest text-ink-subtle md:text-caption">
@@ -393,7 +393,7 @@ function CategoryModal({
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
+                transition={{ duration: 0.32, delay: 0.1 }}
                 className="space-y-1.5"
               >
                 <label htmlFor="category-description" className="text-caption font-bold uppercase tracking-widest text-ink-subtle md:text-caption">
@@ -413,7 +413,7 @@ function CategoryModal({
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.15 }}
+                transition={{ duration: 0.32, delay: 0.15 }}
                 className="space-y-1.5"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -437,7 +437,7 @@ function CategoryModal({
                           whileTap={{ scale: 0.95 }}
                           onClick={() => setIcon(item.name)}
                           className={cn(
-                            "flex h-11 w-full items-center justify-center rounded-xl border transition-all duration-fast",
+                            "flex h-11 w-full items-center justify-center rounded-xl border transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-fast",
                             isSelected
                               ? "border-black bg-ink text-paper shadow-lg shadow-black/15"
                               : "border-transparent bg-paper/80 text-ink-subtle hover:border-line hover:text-ink"
@@ -459,7 +459,7 @@ function CategoryModal({
                     initial={{ opacity: 0, y: -6, scale: 0.96 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
                     className="rounded-lg border border-alert-surface bg-alert-surface px-3 py-2.5 text-center text-caption font-bold text-alert"
                   >
                     {error || "Enter a name to save your changes"}
@@ -471,7 +471,7 @@ function CategoryModal({
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.2 }}
+              transition={{ duration: 0.32, delay: 0.2 }}
               className="space-y-4"
             >
               <div className="rounded-[1.75rem] bg-gradient-to-br from-gray-50 to-white p-4 ring-1 ring-gray-100">
@@ -517,7 +517,7 @@ function CategoryModal({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.25 }}
+            transition={{ duration: 0.32, delay: 0.25 }}
             className="mt-6 flex items-center gap-3 border-t border-line pt-5"
           >
             {autosave ? (

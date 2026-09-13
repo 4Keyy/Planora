@@ -699,8 +699,8 @@ export default function DashboardPage() {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-br from-white via-white to-gray-50 rounded-xl p-6 md:p-8 shadow-md border border-line relative overflow-hidden group hover:shadow-lg transition-all duration-deliberate"
+        transition={{ duration: 0.32, ease: "easeOut" }}
+        className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-br from-white via-white to-gray-50 rounded-xl p-6 md:p-8 shadow-md border border-line relative overflow-hidden group hover:shadow-lg transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-deliberate"
       >
         {/* Decorative background elements.
             PERF: this is a 320px element with blur-3xl. Animating its opacity on an
@@ -714,7 +714,7 @@ export default function DashboardPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1, duration: 0.4 }}
+          transition={{ delay: 0.1, duration: 0.32 }}
           className="relative z-10 space-y-3"
         >
           <motion.div
@@ -743,8 +743,8 @@ export default function DashboardPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
-          className="relative z-10 flex items-center justify-center md:justify-end gap-6 bg-paper/60 backdrop-blur-xl rounded-xl p-5 border border-white/80 shadow-sm self-center md:self-auto min-w-[200px] hover:shadow-md transition-all"
+          transition={{ delay: 0.15, duration: 0.32 }}
+          className="relative z-10 flex items-center justify-center md:justify-end gap-6 bg-paper/60 backdrop-blur-xl rounded-xl p-5 border border-white/80 shadow-sm self-center md:self-auto min-w-[200px] hover:shadow-md transition-[color,background-color,border-color,opacity,transform,box-shadow]"
         >
           <ProgressCircle value={completedCountForStats} total={totalCountForStats} />
           <motion.div className="h-12 w-px bg-gradient-to-b from-transparent via-gray-200 to-transparent hidden sm:block" />
@@ -796,7 +796,7 @@ export default function DashboardPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ type: "spring", stiffness: 200, damping: 25 }}
-                  className="rounded-xl border-2 border-dashed border-line bg-gradient-to-br from-white via-gray-50 to-gray-50 p-12 md:p-16 text-center shadow-sm hover:shadow-md transition-all"
+                  className="rounded-xl border-2 border-dashed border-line bg-gradient-to-br from-white via-gray-50 to-gray-50 p-12 md:p-16 text-center shadow-sm hover:shadow-md transition-[color,background-color,border-color,opacity,transform,box-shadow]"
                 >
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -939,7 +939,7 @@ export default function DashboardPage() {
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handlePageChange(pageNum)}
                             className={cn(
-                              "touch-target w-9 h-9 rounded-md text-caption font-bold transition-all duration-base border",
+                              "touch-target w-9 h-9 rounded-md text-caption font-bold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base border",
                               currentPage === pageNum
                                 ? "bg-gradient-to-br from-black to-gray-900 text-paper shadow-lg shadow-black/30 scale-110 border-black"
                                 : "text-ink-muted hover:bg-gray-100 hover:text-ink hover:border-line-strong border-line"

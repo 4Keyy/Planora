@@ -256,7 +256,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
               initial={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * 18 }}
               animate={{ opacity: 1, x: 0 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * -18 }}
-              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
               onMouseLeave={() => setHoverDay(null)}
               style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}
             >
@@ -304,7 +304,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                         aria-hidden
                         initial={reduce ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.18, ease: "easeOut" }}
+                        transition={{ duration: 0.16, ease: "easeOut" }}
                         style={{
                           position: "absolute", top: 3, bottom: 3,
                           left:  roundLeft  ? 2 : -2,

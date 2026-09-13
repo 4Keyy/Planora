@@ -106,7 +106,7 @@ export function NotificationBell({ className }: { className?: string }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
-            className="absolute right-0 top-full z-[1100] mt-3 w-[min(92vw,360px)] overflow-hidden rounded-xl border border-line/90 bg-paper shadow-[0_12px_40px_rgba(0,0,0,0.12)]"
+            className="absolute right-0 top-full z-dropdown mt-3 w-[min(92vw,360px)] overflow-hidden rounded-xl border border-line/90 bg-paper shadow-[0_12px_40px_rgba(0,0,0,0.12)]"
             role="menu"
             aria-label="Notifications"
           >

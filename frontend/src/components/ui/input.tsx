@@ -27,7 +27,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         : ""
 
     const baseClasses = cn(
-      "flex h-control w-full rounded-md border bg-paper px-4 py-2 text-body-sm font-medium transition-all duration-base ease-emphasized file:border-0 file:bg-transparent file:text-body-sm file:font-medium",
+      "flex h-control w-full rounded-md border bg-paper px-4 py-2 text-body-sm font-medium transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized file:border-0 file:bg-transparent file:text-body-sm file:font-medium",
       "border-line bg-paper/95",
       "hover:border-line-strong hover:bg-paper",
       "focus:outline-none focus:border-black focus:ring-4 focus:ring-black/10 focus:shadow-md focus:bg-paper",

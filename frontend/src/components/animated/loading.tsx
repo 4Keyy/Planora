@@ -4,8 +4,8 @@ import { motion } from "framer-motion"
 import { TWEEN_UI } from "@/lib/animations"
 
 // Module-level constants — defined once, never recreated on render
-const SPINNER_TRANSITION = { duration: 0.8, repeat: Infinity, ease: "linear" as const }
-const OVERLAY_INNER_TRANSITION = { duration: 0.3, delay: 0.1 }
+const SPINNER_TRANSITION = { duration: 0.48, repeat: Infinity, ease: "linear" as const }
+const OVERLAY_INNER_TRANSITION = { duration: 0.32, delay: 0.1 }
 
 const dotsTransition = (i: number) => ({
   duration: 1.2,

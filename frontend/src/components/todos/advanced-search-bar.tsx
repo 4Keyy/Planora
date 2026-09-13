@@ -95,7 +95,7 @@ export function AdvancedSearchBar({
           onChange={(e) => handleSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && handleClearSearch()}
           placeholder="Search tasks... (Cmd+K for advanced)"
-          className="w-full pl-10 pr-10 py-3 bg-paper border border-line rounded-xl placeholder:text-ink-subtle focus:outline-none focus:border-black focus:ring-2 focus:ring-black/5 transition-all"
+          className="w-full pl-10 pr-10 py-3 bg-paper border border-line rounded-xl placeholder:text-ink-subtle focus:outline-none focus:border-black focus:ring-2 focus:ring-black/5 transition-[color,background-color,border-color,opacity,transform,box-shadow]"
         />
         <AnimatePresence>
           {value && (
@@ -123,7 +123,7 @@ export function AdvancedSearchBar({
               whileTap={{ scale: 0.95 }}
               onClick={() => onStatusChange(status.value)}
               className={cn(
-                "px-3 py-1.5 rounded-full text-caption font-bold transition-all",
+                "px-3 py-1.5 rounded-full text-caption font-bold transition-[color,background-color,border-color,opacity,transform,box-shadow]",
                 currentStatus === status.value
                   ? "bg-ink text-paper shadow-lg shadow-black/20"
                   : "bg-gray-100 text-ink-muted hover:bg-gray-200"
@@ -165,7 +165,7 @@ export function AdvancedSearchBar({
                     whileHover={{ scale: 1.05 }}
                     onClick={() => onPriorityChange(priority.value)}
                     className={cn(
-                      "px-3 py-1.5 rounded-md text-caption font-bold transition-all",
+                      "px-3 py-1.5 rounded-md text-caption font-bold transition-[color,background-color,border-color,opacity,transform,box-shadow]",
                       currentPriority === priority.value
                         ? "bg-ink text-paper shadow-lg shadow-black/20"
                         : "bg-gray-100 text-ink-muted hover:bg-gray-200"
@@ -186,7 +186,7 @@ export function AdvancedSearchBar({
                     whileHover={{ scale: 1.05 }}
                     onClick={() => onCategoryChange("all")}
                     className={cn(
-                      "px-3 py-1.5 rounded-md text-caption font-bold transition-all",
+                      "px-3 py-1.5 rounded-md text-caption font-bold transition-[color,background-color,border-color,opacity,transform,box-shadow]",
                       currentCategory === "all"
                         ? "bg-ink text-paper"
                         : "bg-gray-100 text-ink-muted hover:bg-gray-200"
@@ -200,7 +200,7 @@ export function AdvancedSearchBar({
                       whileHover={{ scale: 1.05 }}
                       onClick={() => onCategoryChange(cat.id)}
                       className={cn(
-                        "px-3 py-1.5 rounded-md text-caption font-bold transition-all",
+                        "px-3 py-1.5 rounded-md text-caption font-bold transition-[color,background-color,border-color,opacity,transform,box-shadow]",
                         currentCategory === cat.id
                           ? "text-paper"
                           : "text-ink-muted hover:opacity-80"

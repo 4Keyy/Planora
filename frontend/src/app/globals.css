@@ -150,6 +150,12 @@
     --pl-gray-150: theme("colors.gray.150");
     --pl-gray-200: theme("colors.gray.200");
     --pl-gray-300: theme("colors.gray.300");
+    /* Motion curves, for the inline styles that a Tailwind class cannot reach. */
+    --pl-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    --pl-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --pl-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    --pl-radius-full: theme("borderRadius.full");
+    --pl-radius-sm: theme("borderRadius.sm");
   }
 
   /* Dark theme is FROZEN, not supported. The product pins `color-scheme: light`
@@ -271,7 +277,7 @@
 }
 *::-webkit-scrollbar { width: 4px; height: 4px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: theme("colors.gray.200"); border-radius: 99px; }
+*::-webkit-scrollbar-thumb { background: theme("colors.gray.200"); border-radius: var(--pl-radius-full); }
 *::-webkit-scrollbar-thumb:hover { background: theme("colors.gray.300"); }
 
 /* ── Branch surface ───────────────────────────────────────────────────────── */
@@ -292,7 +298,7 @@
    the sidebar's width — nothing jitters sideways. */
 .branch-scroll { scrollbar-gutter: stable; }
 .branch-scroll::-webkit-scrollbar       { width: 6px; }
-.branch-scroll::-webkit-scrollbar-thumb { background: theme("colors.line"); border-radius: 4px; }
+.branch-scroll::-webkit-scrollbar-thumb { background: theme("colors.line"); border-radius: var(--pl-radius-sm); }
 .branch-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* Compose attach-menu (rises from below) */
@@ -348,7 +354,7 @@
 .branch-typing-dot {
   width: 4px;
   height: 4px;
-  border-radius: 9999px;
+  border-radius: var(--pl-radius-full);
   background: currentColor;
   display: inline-block;
   animation: branch_typing_bounce 1s infinite ease-in-out both;

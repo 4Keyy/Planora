@@ -363,7 +363,7 @@ export function TodoEditor({
     >
       <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
         <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", transition: "background 240ms ease" }} />
-        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", animation: "pl_pulse 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite", transition: "background 240ms ease" }} />
+        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", animation: "pl_pulse 1.6s var(--pl-ease-standard) infinite", transition: "background 240ms ease" }} />
       </div>
       <div style={{ position: "relative", display: "inline-block" }}>
         <span style={{ display: "block", fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", color: "var(--pl-accent)", opacity: pillHovered ? 0 : 1, transition: "opacity 180ms ease", userSelect: "none" }}>
@@ -567,7 +567,7 @@ export function EditTodoModal(props: EditTodoModalProps) {
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[2000] flex items-center justify-center p-4"
+        className="fixed inset-0 z-modal flex items-center justify-center p-4"
         onClick={props.onClose}
       >
         {/* Backdrop */}
@@ -603,7 +603,7 @@ export function EditTodoModal(props: EditTodoModalProps) {
             borderRadius: 28,
             background: "white",
             boxShadow: "0 30px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.05)",
-            zIndex: 2001,
+            zIndex: 1301 /* tokens.layer.modal + 1 — the card above its own backdrop */,
           }}
         >
           <TodoEditor variant="modal" {...props} />

@@ -89,7 +89,7 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
               initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
-              transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
               className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-ink-subtle transition-colors hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 cursor-pointer"
             >
               <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden="true" />
@@ -108,7 +108,7 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.96 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             style={{ transformOrigin: "top right" }}
             className="absolute right-0 top-full z-50 mt-2 w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-line bg-paper shadow-xl shadow-black/10"
           >

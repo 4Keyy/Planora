@@ -15,8 +15,8 @@ const features = [
   { icon: CheckSquare, title: "Secure by default", desc: "Memory-only access tokens, httpOnly refresh cookies, CSRF protection, and short-lived sessions." },
 ]
 
-const HERO_TRANSITION = { duration: 0.4, ease: EASE_OUT_EXPO }
-const FEATURES_TRANSITION = { duration: 0.4, delay: 0.08, ease: EASE_OUT_EXPO }
+const HERO_TRANSITION = { duration: 0.32, ease: EASE_OUT_EXPO }
+const FEATURES_TRANSITION = { duration: 0.32, delay: 0.08, ease: EASE_OUT_EXPO }
 
 export default function HomePage() {
   const router = useRouter()

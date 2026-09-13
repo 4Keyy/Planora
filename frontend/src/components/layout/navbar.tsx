@@ -175,7 +175,7 @@ export function Navbar() {
       // page; the dropdown sheet/menu open DOWNWARD (top-full), so the X-only clip
       // never touches them. min-w-0 lets the flex children shrink instead of forcing
       // an intrinsic min-content width wider than the screen.
-      className="fixed inset-x-0 z-[1000] flex max-w-[100vw] justify-center overflow-x-clip px-3 pointer-events-none [&>*]:min-w-0"
+      className="fixed inset-x-0 z-sticky flex max-w-[100vw] justify-center overflow-x-clip px-3 pointer-events-none [&>*]:min-w-0"
       style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
     >
       {/* Desktop pill (pointer devices, sm and up). Hidden on phones, which can't
@@ -184,7 +184,7 @@ export function Navbar() {
         data-testid="navbar-desktop"
         initial={{ opacity: 0, y: -14, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.45, ease: EASE_OUT_EXPO }}
+        transition={{ duration: 0.48, ease: EASE_OUT_EXPO }}
         className="pointer-events-none hidden sm:block"
       >
         {/*
@@ -235,7 +235,7 @@ export function Navbar() {
                   key="nav-expand"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1, transition: { delay: 0.07, duration: 0.16 } }}
-                  exit={{ opacity: 0, transition: { duration: 0.08 } }}
+                  exit={{ opacity: 0, transition: { duration: 0.1 } }}
                   className="flex items-center pr-1"
                   style={{ minWidth: 0 }}
                 >
@@ -248,8 +248,8 @@ export function Navbar() {
                       <motion.div
                         key="tabs"
                         initial={{ opacity: 0, x: -4 }}
-                        animate={{ opacity: 1, x: 0, transition: { duration: 0.14, ease: EASE_OUT_EXPO } }}
-                        exit={{ opacity: 0, x: -4, transition: { duration: 0.09 } }}
+                        animate={{ opacity: 1, x: 0, transition: { duration: 0.16, ease: EASE_OUT_EXPO } }}
+                        exit={{ opacity: 0, x: -4, transition: { duration: 0.1 } }}
                         className="flex items-center gap-0.5"
                       >
                         {NAV_TABS.map(tab => (
@@ -298,7 +298,7 @@ export function Navbar() {
                         key="create"
                         initial={{ opacity: 0, x: 6 }}
                         animate={{ opacity: 1, x: 0, transition: { duration: 0.16, ease: EASE_OUT_EXPO } }}
-                        exit={{ opacity: 0, x: 6, transition: { duration: 0.09 } }}
+                        exit={{ opacity: 0, x: 6, transition: { duration: 0.1 } }}
                         className="flex items-center gap-2.5"
                       >
                         <Sparkles
@@ -417,7 +417,7 @@ export function Navbar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
+              transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
               onClick={() => setMobileOpen(false)}
               className="fixed inset-0 bg-ink/20 pointer-events-auto"
               aria-hidden="true"

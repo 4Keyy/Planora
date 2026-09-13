@@ -27,7 +27,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         : ""
 
     const baseClasses = cn(
-      "flex min-h-[120px] w-full rounded-lg border bg-paper px-4 py-3 text-body-sm leading-relaxed font-medium transition-all duration-base ease-emphasized resize-none",
+      "flex min-h-[120px] w-full rounded-lg border bg-paper px-4 py-3 text-body-sm leading-relaxed font-medium transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized resize-none",
       "border-line bg-paper/95",
       "hover:border-line-strong hover:bg-paper",
       "focus:outline-none focus:border-black focus:ring-4 focus:ring-black/10 focus:shadow-md focus:bg-paper",

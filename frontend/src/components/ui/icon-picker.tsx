@@ -112,7 +112,7 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
       <PopoverPrimitive.Trigger asChild>
         <button
           type="button"
-          className="flex items-center gap-3 w-full h-10 px-4 rounded-lg bg-paper-sunken hover:bg-gray-100 transition-all active:scale-95 group"
+          className="flex items-center gap-3 w-full h-10 px-4 rounded-lg bg-paper-sunken hover:bg-gray-100 transition-[color,background-color,border-color,opacity,transform,box-shadow] active:scale-95 group"
         >
           <SelectedIconComponent className="h-4 w-4 text-ink group-hover:text-ink transition-colors" />
           <span className="text-caption font-bold uppercase tracking-tighter text-ink-subtle group-hover:text-ink truncate">
@@ -136,8 +136,8 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
                 initial={{ opacity: 0, scale: 0.96, y: -6 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: -6 }}
-                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                className="z-[5000] w-[min(320px,calc(100vw-24px))] rounded-xl border border-line bg-paper p-4 shadow-[0_20px_50px_rgba(0,0,0,0.15)] outline-none"
+                transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                className="z-popover w-[min(320px,calc(100vw-24px))] rounded-xl border border-line bg-paper p-4 shadow-[0_20px_50px_rgba(0,0,0,0.15)] outline-none"
               >
                 <div className="grid max-h-[min(328px,calc(100vh-96px))] grid-cols-5 gap-2 overflow-y-auto p-4 custom-scrollbar">
                 {ICON_PICKER_ITEMS.map((item) => {
@@ -154,7 +154,7 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
                         setIsOpen(false)
                       }}
                       className={cn(
-                        "h-10 w-10 flex items-center justify-center rounded-xl transition-all",
+                        "h-10 w-10 flex items-center justify-center rounded-xl transition-[color,background-color,border-color,opacity,transform,box-shadow]",
                         isSelected
                           ? "bg-ink text-paper shadow-xl shadow-black/20"
                           : "text-ink hover:text-ink hover:bg-gray-100"

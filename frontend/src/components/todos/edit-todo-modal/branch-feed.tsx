@@ -1515,7 +1515,7 @@ export function BranchFeed({
           <div style={{
             display: "flex", alignItems: "center", gap: 6,
             marginBottom: 6,
-            animation: "chip_enter 180ms cubic-bezier(0.16,1,0.3,1) both",
+            animation: "chip_enter 180ms var(--pl-ease-emphasized) both",
           }}>
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 5,
@@ -1567,7 +1567,7 @@ export function BranchFeed({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 4 }}
-                transition={{ duration: 0.18 }}
+                transition={{ duration: 0.16 }}
                 style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 12, fontWeight: 600, color: "var(--pl-accent)" }}
               >
                 <span style={{ display: "inline-flex", gap: 2 }}>
@@ -1630,7 +1630,7 @@ export function BranchFeed({
                 padding: 6,
                 minWidth: 200,
                 zIndex: 50,
-                animation: "pop_in_up 160ms cubic-bezier(0.16,1,0.3,1) both",
+                animation: "pop_in_up 160ms var(--pl-ease-emphasized) both",
               }}
             >
               {/* Author-only: add the task description (disabled once one exists) */}
@@ -2565,7 +2565,7 @@ function SubtaskCard({
                     disabled={pending}
                     aria-label="Delete subtask"
                     variants={{
-                      hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } },
+                      hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } },
                       visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
                     }}
                     initial="hidden"
@@ -2825,7 +2825,7 @@ function ReplyThread({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.18 }}
+      transition={{ duration: 0.16 }}
       style={{ position: "relative", paddingLeft: contentPad, marginTop: -6, marginBottom: 8 }}
     >
       {/* Parent connector — joins the thread to whatever sits directly above it, ending exactly at
