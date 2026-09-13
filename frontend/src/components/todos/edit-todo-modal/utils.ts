@@ -40,10 +40,6 @@ const EN_MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","
 export const EN_MONTHS_LONG  = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 export const EN_DAYS_SHORT   = ["Mo","Tu","We","Th","Fr","Sa","Su"]
 
-// Keep Russian aliases for backward compatibility with date popover import
-export const RU_MONTHS_LONG = EN_MONTHS_LONG
-export const RU_DAYS_SHORT  = EN_DAYS_SHORT
-
 export function formatDatePretty(isoDate: string): string {
   if (!isoDate) return ""
   const d = new Date(isoDate)
@@ -111,7 +107,7 @@ export function formatDueRange(start: string | null | undefined, end: string | n
   return `${formatDatePretty(start)} – ${formatDatePretty(end)}`
 }
 
-export function formatRelativeRu(isoDate: string): string {
+export function formatRelativeDay(isoDate: string): string {
   const diff = new Date(isoDate).getTime() - Date.now()
   const days = Math.round(diff / 86_400_000)
   if (days === 0)  return "today"

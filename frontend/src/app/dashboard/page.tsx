@@ -8,7 +8,7 @@ import { Plus, CheckCircle2 } from "lucide-react"
 import axios from "axios"
 import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
-import { isAuthorAlreadyCompletedError } from "@/lib/errors"
+import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -441,11 +441,7 @@ export default function DashboardPage() {
       // neither reopen nor re-complete it, so block any toggle up-front (regardless of their own
       // per-viewer state) and tell them to duplicate instead — no premature "Task completed!" toast.
       if (existing.ownerCompleted === true) {
-        addToast({
-          type: "warning",
-          title: "Нельзя восстановить — автор завершил задачу",
-          description: "Сделайте копию, чтобы работать над своим вариантом.",
-        })
+        addToast(AUTHOR_COMPLETED_TOAST)
         return
       }
       try {
@@ -462,11 +458,7 @@ export default function DashboardPage() {
         addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
       } catch (e) {
         if (isAuthorAlreadyCompletedError(e)) {
-          addToast({
-            type: "warning",
-            title: "Нельзя восстановить — автор завершил задачу",
-            description: "Сделайте копию, чтобы работать над своим вариантом.",
-          })
+          addToast(AUTHOR_COMPLETED_TOAST)
         } else {
           addToast({ type: "error", title: "Failed to update task" })
         }

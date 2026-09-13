@@ -202,12 +202,12 @@ describe("TodoCard", () => {
 
     // Clicking complete surfaces the warning instead of finishing immediately.
     fireEvent.click(screen.getByRole("button", { name: "Mark as complete" }))
-    expect(await screen.findByText("Остались невыполненные под-задачи")).toBeInTheDocument()
+    expect(await screen.findByText("Some subtasks are still open")).toBeInTheDocument()
     expect(onComplete).not.toHaveBeenCalled()
 
     // Tick "don't show again" then confirm → completes AND records the opt-out preference.
     fireEvent.click(screen.getByRole("checkbox"))
-    fireEvent.click(screen.getByRole("button", { name: "Выполнить" }))
+    fireEvent.click(screen.getByRole("button", { name: "Complete anyway" }))
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
     expect(getBoolPreference(SUPPRESS_INCOMPLETE_SUBTASK_WARNING)).toBe(true)
@@ -230,7 +230,7 @@ describe("TodoCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mark as complete" }))
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
-    expect(screen.queryByText("Остались невыполненные под-задачи")).not.toBeInTheDocument()
+    expect(screen.queryByText("Some subtasks are still open")).not.toBeInTheDocument()
   })
 
   it("exercises desktop hover controls and neutral priority styling", async () => {

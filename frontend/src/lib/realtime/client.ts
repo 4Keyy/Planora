@@ -19,7 +19,7 @@ export interface BranchChangedPayload {
   timestamp: string
 }
 
-/** Ephemeral "is typing" presence for a branch room. `name` is "Имя Фамилия". */
+/** Ephemeral "is typing" presence for a branch room. `name` is "First Last". */
 export interface TypingPayload {
   taskId: string
   userId: string

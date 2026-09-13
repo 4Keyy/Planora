@@ -150,7 +150,7 @@ interface TypingState {
  *
  * `notifyTyping` throttles StartTyping to one signal per few seconds and schedules a StopTyping
  * after a short idle gap, so a burst of keystrokes produces minimal traffic. Indicators also carry
- * a TTL and are swept on an interval, so a dropped StopTyping never leaves a stuck "… печатает".
+ * a TTL and are swept on an interval, so a dropped StopTyping never leaves a stuck "… is typing".
  */
 export function useTyping(taskId: string | null | undefined, enabled: boolean): {
   typingNames: string[]

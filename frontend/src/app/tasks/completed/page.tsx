@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch } from "lucide-react"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
-import { isAuthorAlreadyCompletedError } from "@/lib/errors"
+import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -249,11 +249,7 @@ export default function CompletedTasksPage() {
     // everyone and the only path forward is to duplicate it.
     if (!isTodoOwner(existing, user?.userId)) {
       if (existing.ownerCompleted === true) {
-        addToast({
-          type: "warning",
-          title: "Нельзя восстановить — автор завершил задачу",
-          description: "Сделайте копию, чтобы работать над своим вариантом.",
-        })
+        addToast(AUTHOR_COMPLETED_TOAST)
         return
       }
       try {
@@ -263,11 +259,7 @@ export default function CompletedTasksPage() {
       } catch (error) {
         console.error("Failed to reopen viewer completion:", error)
         if (isAuthorAlreadyCompletedError(error)) {
-          addToast({
-            type: "warning",
-            title: "Нельзя восстановить — автор завершил задачу",
-            description: "Сделайте копию, чтобы работать над своим вариантом.",
-          })
+          addToast(AUTHOR_COMPLETED_TOAST)
         } else {
           addToast({ type: "error", title: "Failed to update task" })
         }

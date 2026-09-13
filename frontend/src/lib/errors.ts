@@ -56,6 +56,19 @@ export function isAuthorAlreadyCompletedError(err: unknown): boolean {
   return extractErrorMessage(err, "").includes("AUTHOR_ALREADY_COMPLETED")
 }
 
+/**
+ * Copy for the one refusal a viewer cannot act their way out of: the author closed the task
+ * globally, so no collaborator can reopen their own copy of it. Four routes raise this — the
+ * dashboard, both task lists and the branch page — and each carried its own transcription of
+ * the sentence, which is how three of them ended up still in Russian after the UI moved to
+ * English. One object, one wording, one place to change it.
+ */
+export const AUTHOR_COMPLETED_TOAST = {
+  type: "warning",
+  title: "Can't reopen — the author completed this task",
+  description: "Make a copy to keep working on your own version.",
+} as const
+
 function getResponseStatus(err: unknown): number | undefined {
   const e = getErrorRecord(err)
   const response = e?.response

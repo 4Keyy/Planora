@@ -4,7 +4,7 @@ import { RefObject, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import { Popover, PopoverHeader } from "../popover"
-import { RU_MONTHS_LONG, RU_DAYS_SHORT, computeNextDueRange, type DueRange } from "../utils"
+import { EN_MONTHS_LONG, EN_DAYS_SHORT, computeNextDueRange, type DueRange } from "../utils"
 
 interface DatePopoverProps {
   open: boolean
@@ -20,6 +20,14 @@ interface DatePopoverProps {
   /** Render in a viewport-fixed body portal (create panel / dashboard) so it can't stretch the page. */
   portal?: boolean
 }
+
+/**
+ * Gap between day cells, in px. The interval band bridges this gap with a negative
+ * inset so a multi-day range reads as one continuous bar — the two numbers MUST move
+ * together. Keeping them as separate literals is how a 1px change leaves hairline
+ * notches in the band that nobody notices until a screenshot is compared.
+ */
+const CELL_GAP = 2
 
 function pad(n: number): string { return String(n).padStart(2, "0") }
 function toISO(d: Date): string { return d.toISOString().split("T")[0] }
@@ -189,9 +197,20 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
         </div>
       )}
 
-      {/* Calendar */}
-      <div style={{ padding: 10, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
-        <div style={{ background: "white", border: "1px solid var(--pl-line)", borderRadius: 12, padding: 12 }}>
+      {/* Calendar.
+          The headless variant is hosted by the branch sidebar, which already draws the
+          border and the radius. Repeating them here produced a frame inside a frame and,
+          worse, consumed 22px of the 7-column grid — enough to push every day cell under
+          the 44px target. Headless therefore contributes padding only. */}
+      <div style={{ padding: headless ? 0 : 10, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
+        <div
+          style={{
+            background: "white",
+            border: headless ? "none" : "1px solid var(--pl-line)",
+            borderRadius: headless ? 0 : 12,
+            padding: 12,
+          }}
+        >
           {/* Nav row */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <button
@@ -219,7 +238,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                     fontSize: 12, fontWeight: 700, color: "var(--pl-ink)",
                   }}
                 >
-                  {RU_MONTHS_LONG[viewMonth]} {viewYear}
+                  {EN_MONTHS_LONG[viewMonth]} {viewYear}
                 </motion.span>
               </AnimatePresence>
             </div>
@@ -237,8 +256,8 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
           </div>
 
           {/* Week header */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-            {RU_DAYS_SHORT.map((d) => (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: CELL_GAP, marginBottom: 4 }}>
+            {EN_DAYS_SHORT.map((d) => (
               <div key={d} style={{
                 textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
                 textTransform: "uppercase", color: "var(--pl-ink-subtle)", padding: "2px 0",
@@ -258,7 +277,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
               exit={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * -18 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
               onMouseLeave={() => setHoverDay(null)}
-              style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}
+              style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: CELL_GAP }}
             >
               {cells.map((day, idx) => {
                 if (!day) return <div key={`e-${idx}`} />
@@ -298,7 +317,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
-                    {/* Interval band layer — bridges the 2px grid gap so it reads as continuous. */}
+                    {/* Interval band layer — bridges CELL_GAP so a range reads as one bar. */}
                     {inBand && (
                       <motion.span
                         aria-hidden
@@ -307,8 +326,8 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                         transition={{ duration: 0.16, ease: "easeOut" }}
                         style={{
                           position: "absolute", top: 3, bottom: 3,
-                          left:  roundLeft  ? 2 : -2,
-                          right: roundRight ? 2 : -2,
+                          left:  roundLeft  ? CELL_GAP : -CELL_GAP,
+                          right: roundRight ? CELL_GAP : -CELL_GAP,
                           borderTopLeftRadius:    roundLeft  ? 8 : 0,
                           borderBottomLeftRadius: roundLeft  ? 8 : 0,
                           borderTopRightRadius:    roundRight ? 8 : 0,

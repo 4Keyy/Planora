@@ -1,6 +1,7 @@
 import { Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getDeletionCountdown } from "@/utils/deletion-countdown"
+import { formatDateLong } from "@/lib/datetime"
 
 interface TaskDeletionBadgeProps {
   /** The task's global completion timestamp (`todo.completedAt`). */
@@ -22,16 +23,16 @@ export function TaskDeletionBadge({ completedAt, className }: TaskDeletionBadgeP
   const urgent = daysLeft <= 3
 
   const label =
-    daysLeft === 0 ? "удалится сегодня"
-    : daysLeft === 1 ? "удалится завтра"
-    : `удалится через ${daysLeft} дн.`
+    daysLeft === 0 ? "deletes today"
+    : daysLeft === 1 ? "deletes tomorrow"
+    : `deletes in ${daysLeft} days`
 
-  const exactDate = deleteAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
+  const exactDate = formatDateLong(deleteAt.toISOString())
 
   return (
     <span
-      title={`Задача будет автоматически удалена ${exactDate}`}
-      aria-label={`Задача будет удалена ${exactDate}`}
+      title={`This task is deleted automatically on ${exactDate}`}
+      aria-label={`This task is deleted on ${exactDate}`}
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-caption font-medium leading-none select-none",
         urgent

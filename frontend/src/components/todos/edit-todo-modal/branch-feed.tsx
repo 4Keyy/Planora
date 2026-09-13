@@ -28,12 +28,12 @@ const COMMENT_MAX = 2000
 const GENESIS_MAX = 5000
 const SUBTASK_MAX = 1500
 
-/** "Имя Фамилия печатает…" — names of others currently typing in this branch. */
+/** "Ada Lovelace is typing…" — names of others currently typing in this branch. */
 function formatTyping(names: string[]): string {
   if (names.length === 0) return ""
-  if (names.length === 1) return `${names[0]} печатает…`
-  if (names.length === 2) return `${names[0]} и ${names[1]} печатают…`
-  return `${names[0]} и ещё ${names.length - 1} печатают…`
+  if (names.length === 1) return `${names[0]} is typing…`
+  if (names.length === 2) return `${names[0]} and ${names[1]} are typing…`
+  return `${names[0]} and ${names.length - 1} more are typing…`
 }
 
 // Snappy spring for subtask micro-interactions (toggle pop, card enter/exit).
@@ -61,7 +61,9 @@ const THREAD_AVATAR       = 22                       // reply avatar size (small
 const THREAD_AVATAR_CY    = 21                       // avatar centre y from a reply row's top (margin+top+r)
 
 // Maps a system-event comment to a simple, monochrome icon that hints at its meaning.
-// Matches the English event sentences Todo emits (and keeps the legacy Russian keywords).
+// Matches the English event sentences Todo emits. The Russian keywords below are NOT dead
+// code and must not be swept: rows written before the UI moved to English are still stored
+// verbatim in the database, and dropping the keywords would silently blank their icons.
 // Markers are intentionally greyscale (see SystemEvent) so the rail stays calm and uncluttered.
 function getSystemEventIcon(content: string): LucideIcon {
   const t = content.toLowerCase()
@@ -703,7 +705,7 @@ export function BranchFeed({
     : Math.max(liveOpenSubtaskCount, seedOpenSubtaskCount)
 
   // Complete the task, but first warn when it still has unfinished subtasks (unless the viewer opted
-  // out). Confirming runs the normal complete action; "Продолжить работу" just dismisses.
+  // out). Confirming runs the normal complete action; "Keep working" just dismisses.
   const requestComplete = () => {
     if (!onCompleteTask || actionPending) return
     if (openSubtaskCount > 0 && !getBoolPreference(SUPPRESS_INCOMPLETE_SUBTASK_WARNING)) {
@@ -1893,7 +1895,7 @@ export function BranchFeed({
       </div>
 
       {/* Warn before finishing a task that still has unfinished subtasks. Confirming runs the normal
-          complete action; "Продолжить работу" just dismisses. */}
+          complete action; "Keep working" just dismisses. */}
       <ConfirmDialog
         isOpen={completeWarnOpen}
         onClose={() => setCompleteWarnOpen(false)}

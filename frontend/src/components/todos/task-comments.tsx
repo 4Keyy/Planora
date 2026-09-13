@@ -9,6 +9,7 @@ import { fetchComments, addComment, updateComment, deleteComment } from "@/lib/a
 import { getApiErrorMessage } from "@/lib/api"
 import type { TodoComment } from "@/types/todo"
 import { cn } from "@/lib/utils"
+import { formatDate } from "@/lib/datetime"
 
 const COMMENT_MAX = 2000
 const GENESIS_MAX = 5000
@@ -20,7 +21,7 @@ function formatRelative(iso: string): string {
   if (m < 60) return `${m}m ago`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h ago`
-  return new Date(iso).toLocaleDateString()
+  return formatDate(iso)
 }
 
 interface TaskCommentsProps {

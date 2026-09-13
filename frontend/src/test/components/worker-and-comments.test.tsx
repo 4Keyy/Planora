@@ -242,6 +242,7 @@ describe("WorkerJoinButton", () => {
 // ── TaskComments ───────────────────────────────────────────────────────────────
 
 import { fetchComments, addComment, updateComment, deleteComment } from "@/lib/api"
+import { formatDate } from "@/lib/datetime"
 
 const mockFetch = fetchComments as ReturnType<typeof vi.fn>
 const mockAdd = addComment as ReturnType<typeof vi.fn>
@@ -526,15 +527,17 @@ describe("TaskComments", () => {
     await waitFor(() => expect(screen.getByText("3h ago")).toBeInTheDocument())
   })
 
-  it("displays locale date for comments older than 24 hours", async () => {
+  it("displays an absolute date for comments older than 24 hours", async () => {
     const daysAgo = new Date(Date.now() - 2 * 24 * 60 * 60_000).toISOString()
     mockFetch.mockResolvedValueOnce({
       items: [baseComment({ createdAt: daysAgo })],
       totalCount: 1,
     })
     render(<TaskComments todoId="todo-1" isOwner={false} canComment={true} />)
-    const expected = new Date(daysAgo).toLocaleDateString()
-    await waitFor(() => expect(screen.getByText(expected)).toBeInTheDocument())
+    // Asserted through the shared helper, not `toLocaleDateString()`: the point of that helper
+    // is that the string does NOT depend on the host locale, so a test that re-derives it from
+    // the host would pass just as happily if the pinning were removed again.
+    await waitFor(() => expect(screen.getByText(formatDate(daysAgo))).toBeInTheDocument())
   })
 
   it("displays 'just now' for very recent comments", async () => {

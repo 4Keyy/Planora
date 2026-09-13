@@ -971,7 +971,7 @@ function TodoCardComponent({
       </motion.div>
 
       {/* Warn before finishing a task that still has unfinished subtasks. Confirming runs the normal
-          completion flow (animation + commit); "Продолжить работу" simply dismisses. */}
+          completion flow (animation + commit); "Keep working" simply dismisses. */}
       <ConfirmDialog
         isOpen={subtaskWarnOpen}
         onClose={() => setSubtaskWarnOpen(false)}

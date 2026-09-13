@@ -13,25 +13,25 @@ describe("TaskDeletionBadge", () => {
   it("shows a day countdown for a globally-completed task", () => {
     const completed = new Date(Date.now() - 20 * DAY).toISOString() // ~10 days left
     render(<TaskDeletionBadge completedAt={completed} />)
-    expect(screen.getByText(/удалится через \d+ дн\./)).toBeTruthy()
+    expect(screen.getByText(/deletes in \d+ days/)).toBeTruthy()
   })
 
   it("exposes the exact deletion date on the accessible label", () => {
     const completed = new Date(Date.now() - 5 * DAY).toISOString()
     render(<TaskDeletionBadge completedAt={completed} />)
-    const badge = screen.getByLabelText(/Задача будет удалена/)
+    const badge = screen.getByLabelText(/This task is deleted on/)
     expect(badge).toBeTruthy()
   })
 
-  it("reads 'удалится завтра' with one day left (urgent styling)", () => {
+  it("reads 'deletes tomorrow' with one day left (urgent styling)", () => {
     const completed = new Date(Date.now() - 29 * DAY).toISOString() // ~1 day left
     render(<TaskDeletionBadge completedAt={completed} />)
-    expect(screen.getByText("удалится завтра")).toBeTruthy()
+    expect(screen.getByText("deletes tomorrow")).toBeTruthy()
   })
 
-  it("reads 'удалится сегодня' once the window has elapsed", () => {
+  it("reads 'deletes today' once the window has elapsed", () => {
     const completed = new Date(Date.now() - 35 * DAY).toISOString() // past the window
     render(<TaskDeletionBadge completedAt={completed} />)
-    expect(screen.getByText("удалится сегодня")).toBeTruthy()
+    expect(screen.getByText("deletes today")).toBeTruthy()
   })
 })

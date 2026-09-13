@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 import axios from "axios"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
-import { isAuthorAlreadyCompletedError } from "@/lib/errors"
+import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
 import { Todo, PagedTodosResponse, type CreateTodoPayload, type UpdateTodoPayload, isCompletedTodoStatus, isTodoOwner, sameUserId, toApiTodoStatus } from "@/types/todo"
@@ -407,11 +407,7 @@ export default function TasksPage() {
       // toggle up-front (regardless of their per-viewer state) so the "can't restore" toast fires
       // immediately instead of after a premature "Task completed!".
       if (existingTodo.ownerCompleted === true) {
-        addToast({
-          type: "warning",
-          title: "Нельзя восстановить — автор завершил задачу",
-          description: "Сделайте копию, чтобы работать над своим вариантом.",
-        })
+        addToast(AUTHOR_COMPLETED_TOAST)
         return
       }
       try {
@@ -429,11 +425,7 @@ export default function TasksPage() {
       } catch (error) {
         console.error("Failed to update viewer completion:", error)
         if (isAuthorAlreadyCompletedError(error)) {
-          addToast({
-            type: "warning",
-            title: "Нельзя восстановить — автор завершил задачу",
-            description: "Сделайте копию, чтобы работать над своим вариантом.",
-          })
+          addToast(AUTHOR_COMPLETED_TOAST)
         } else {
           addToast({ type: "error", title: "Failed to update task" })
         }

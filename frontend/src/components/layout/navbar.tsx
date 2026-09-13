@@ -349,7 +349,11 @@ export function Navbar() {
                 aria-label={`User menu for ${displayName}`}
                 aria-haspopup="menu"
                 aria-expanded={dropOpen}
-                className="h-8 w-8 rounded-full overflow-hidden"
+                /* The avatar stays 32px visually; `touch-target` paints a 44x44
+                   hit area around it. No `overflow-hidden` here — Avatar clips
+                   itself, and clipping on this button would cut the expanded
+                   hit area straight back down to 32x32. */
+                className="touch-target h-8 w-8 rounded-full"
               >
                 <Avatar
                   src={user?.profilePictureUrl}

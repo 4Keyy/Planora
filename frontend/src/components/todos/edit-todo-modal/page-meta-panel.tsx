@@ -13,7 +13,7 @@ import {
   getPriorityColor,
   getPriorityLabel,
   formatDueRange,
-  formatRelativeRu,
+  formatRelativeDay,
   dueRangeDays,
 } from "./utils"
 
@@ -264,7 +264,7 @@ export function PageMetaPanel({
             <>
               {formatDueRange(dueDateStart, dueDate)}
               <span style={{ color: "var(--pl-ink-subtle)", fontWeight: 600 }}>
-                · {isRange ? `${rangeDays} days` : formatRelativeRu(dueDate)}
+                · {isRange ? `${rangeDays} days` : formatRelativeDay(dueDate)}
               </span>
             </>
           ) : "No due date"}

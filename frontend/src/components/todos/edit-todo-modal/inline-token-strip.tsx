@@ -13,7 +13,7 @@ import {
   getPriorityColor,
   getPriorityLabel,
   formatDueRange,
-  formatRelativeRu,
+  formatRelativeDay,
 } from "./utils"
 
 type OpenPopover = "priority" | "date" | "category" | "visibility" | null
@@ -179,7 +179,7 @@ export function InlineTokenStrip({
               <>
                 {formatDueRange(dueDateStart, dueDate)}
                 <span style={{ color: "var(--pl-ink-subtle)", fontWeight: 600, marginLeft: 2 }}>
-                  · {formatRelativeRu(dueDate)}
+                  · {formatRelativeDay(dueDate)}
                 </span>
               </>
             ) : (

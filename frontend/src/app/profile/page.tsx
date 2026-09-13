@@ -51,6 +51,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { TWEEN_FAST } from "@/lib/animations"
+import { formatDateTime as formatDate, formatDate as formatDateShort } from "@/lib/datetime"
 import type {
   UserDto,
   UserSecurityDto,
@@ -88,11 +89,6 @@ const sections: SectionConfig[] = [
   { id: "admin", index: "06", label: "Admin", description: "User operations", icon: Settings, adminOnly: true },
 ]
 
-const formatDate = (value?: string | null): string =>
-  value ? new Date(value).toLocaleString() : "—"
-
-const formatDateShort = (value?: string | null): string =>
-  value ? new Date(value).toLocaleDateString() : "—"
 
 const isGuid = (value: string): boolean =>
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value.trim())

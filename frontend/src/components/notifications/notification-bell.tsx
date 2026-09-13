@@ -9,6 +9,7 @@ import { EASE_OUT_EXPO } from "@/lib/animations"
 import { getNotificationKind } from "@/lib/notifications/types"
 import { ensurePermission } from "@/lib/notifications/web-notifications"
 import { useNotificationStore, type AppNotification } from "@/store/notifications"
+import { formatDate } from "@/lib/datetime"
 
 const EMPTY_GUID = "00000000-0000-0000-0000-000000000000"
 const ICON_SPRING = { type: "spring" as const, stiffness: 420, damping: 24 }
@@ -23,7 +24,7 @@ function formatRelative(iso: string): string {
   if (h < 24) return `${h}h`
   const d = Math.floor(h / 24)
   if (d < 7) return `${d}d`
-  return new Date(iso).toLocaleDateString()
+  return formatDate(iso)
 }
 
 /**
