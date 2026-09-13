@@ -203,3 +203,8 @@ graphify-out/
 
 # Redirected build output (dotnet build -p:OutDir, used when running services lock bin/)
 .build-out/
+
+# UI audit artifacts — regenerable by docs/ui-audit/tools/*.mjs, kept out of history.
+# Screenshots (~93 MB) and raw scan dumps (~9.5 MB) are evidence, not source.
+docs/ui-audit/shots/
+docs/ui-audit/tools/scan-*.json
