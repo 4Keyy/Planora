@@ -183,7 +183,11 @@ export function ColorBends({
     const container = containerRef.current
     if (!container) return
 
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    // The shader owns its own reduced-motion handling: neither the CSS rule in
+    // globals.css nor framer-motion's MotionConfig can reach a requestAnimationFrame
+    // loop. Below it renders one static frame and never starts the loop.
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+    const reduceMotion = motionQuery.matches
 
     // Scene
     const scene    = new Scene()
@@ -288,11 +292,28 @@ export function ColorBends({
     }
     document.addEventListener("visibilitychange", onVis)
 
+    // The preference can change while the page is open — a system setting, not a
+    // page load. Reading it once at mount left the loop running for anyone who
+    // turned reduced motion on without reloading.
+    const onMotionPreferenceChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        running = false
+        if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+        renderer.render(scene, camera)
+      } else if (rafRef.current === null && document.visibilityState !== "hidden") {
+        running = true
+        rafRef.current = requestAnimationFrame(loop)
+      }
+    }
+    motionQuery.addEventListener("change", onMotionPreferenceChange)
+
     return () => {
       running = false
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
       ro.disconnect()
       document.removeEventListener("visibilitychange", onVis)
+      motionQuery.removeEventListener("change", onMotionPreferenceChange)
       geometry.dispose()
       material.dispose()
       renderer.dispose()
