@@ -99,6 +99,25 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handle)
   }, [dropOpen])
 
+  /**
+   * Escape closes the user menu, and puts focus back on the trigger.
+   *
+   * Clicking outside already closed it, which is the pointer affordance; a
+   * keyboard user had no way out at all and had to tab through the entire menu to
+   * escape it. Returning focus to the trigger is the other half — without it the
+   * next Tab restarts from the top of the document.
+   */
+  useEffect(() => {
+    if (!dropOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      setDropOpen(false)
+      dropRef.current?.querySelector("button")?.focus()
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [dropOpen])
+
   // Keep pill expanded while create mode or dropdown is active
   const handleMouseLeave = useCallback(() => {
     if (!createMode && !dropOpen) setExpanded(false)

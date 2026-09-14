@@ -549,11 +549,37 @@ for (const mode of ['data', 'reduced-motion', 'dark-os']) {
             if (!el || el === document.body) return null
             const r = el.getBoundingClientRect()
             const s = getComputedStyle(el)
+            /**
+             * An outline that EXISTS is not an outline that can be SEEN.
+             * `outline-none` in Tailwind does not remove the outline — it sets
+             * `2px solid transparent`, which this probe used to record as
+             * "2px rgba(0,0,0,0)" and count as present. Every input on the auth
+             * screens read as having a focus indicator while being visually
+             * identical focused and unfocused.
+             *
+             * So: measure whether anything actually changed. A visible outline
+             * needs a non-zero width AND a non-transparent colour; a ring needs a
+             * box-shadow with a non-transparent layer.
+             */
+            const alpha = (c) => {
+              const m = /rgba?\(([^)]+)\)/.exec(c || '')
+              if (!m) return c && c !== 'transparent' ? 1 : 0
+              const parts = m[1].split(',').map((v) => parseFloat(v))
+              return parts.length > 3 ? parts[3] : 1
+            }
+            const outlineVisible = s.outlineStyle !== 'none'
+              && parseFloat(s.outlineWidth) > 0
+              && alpha(s.outlineColor) > 0.1
+            const shadowVisible = s.boxShadow !== 'none'
+              && /rgba?\([^)]*\)/.test(s.boxShadow)
+              && s.boxShadow.split(/,(?![^(]*\))/).some((layer) => alpha(layer) > 0.1)
             return {
               tag: el.tagName.toLowerCase(),
               name: (el.getAttribute('aria-label') || el.innerText || el.getAttribute('placeholder') || '').trim().slice(0, 40),
               y: Math.round(r.y), x: Math.round(r.x),
               outline: s.outlineStyle === 'none' ? 'none' : `${s.outlineWidth} ${s.outlineColor}`,
+              boxShadow: s.boxShadow === 'none' ? 'none' : s.boxShadow.slice(0, 120),
+              focusIndicatorVisible: outlineVisible || shadowVisible,
               visible: r.width > 0 && r.height > 0,
             }
           })

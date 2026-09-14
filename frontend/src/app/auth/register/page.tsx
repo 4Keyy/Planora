@@ -56,7 +56,7 @@ function InputField({
 
 // text-body-sm is bumped to 16px on phones by globals.css (no iOS focus-zoom); py-3.5
 // gives a ~52px touch target. Matches the login screen's field styling.
-const inputClass = "w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
+const inputClass = "w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color] focus:border-line-strong"
 
 export default function RegisterPage() {
   const router = useRouter()

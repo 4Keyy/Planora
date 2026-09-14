@@ -95,7 +95,7 @@ export function AdvancedSearchBar({
           onChange={(e) => handleSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && handleClearSearch()}
           placeholder="Search tasks... (Cmd+K for advanced)"
-          className="w-full pl-10 pr-10 py-3 bg-paper border border-line rounded-xl placeholder:text-ink-subtle focus:outline-none focus:border-black focus:ring-2 focus:ring-black/5 transition-[color,background-color,border-color,opacity,transform,box-shadow]"
+          className="w-full pl-10 pr-10 py-3 bg-paper border border-line rounded-xl placeholder:text-ink-subtle focus:border-ink transition-[color,background-color,border-color,opacity,transform,box-shadow]"
         />
         <AnimatePresence>
           {value && (

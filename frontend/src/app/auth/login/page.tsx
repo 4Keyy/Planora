@@ -26,7 +26,7 @@ type FormData = z.infer<typeof schema>
 // 16px on phones by globals.css (kills iOS focus-zoom); py-3.5 gives a ~52px touch
 // target. rounded-xl + a soft focus ring match the rest of the mobile redesign.
 const FIELD_CLS =
-  "w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
+  "w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color] focus:border-line-strong"
 
 export default function LoginPage() {
   const router = useRouter()

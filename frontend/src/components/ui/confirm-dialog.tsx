@@ -129,7 +129,7 @@ export function ConfirmDialog({
                                         type="checkbox"
                                         checked={dontAskAgain}
                                         onChange={(e) => setDontAskAgain(e.target.checked)}
-                                        className="h-4 w-4 rounded border-line-strong text-ink focus:ring-gray-400 cursor-pointer"
+                                        className="h-4 w-4 rounded border-line-strong text-ink cursor-pointer"
                                     />
                                     <span className="text-body-sm text-ink-muted">{dontAskAgainLabel}</span>
                                 </label>

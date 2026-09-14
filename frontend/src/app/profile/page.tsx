@@ -328,7 +328,7 @@ function SectionHeading({ index, title, description }: { index: string; title: s
   return (
     <div className="mb-4">
       <span className={LABEL}>{title} · {index}</span>
-      <h2 className="mt-1.5 text-[clamp(20px,2.4vw,26px)] font-bold tracking-tight text-ink">
+      <h2 className="mt-1.5 text-title-sm font-bold tracking-tight text-ink md:text-title">
         {title}
       </h2>
       <p className="mt-1 text-caption font-semibold text-ink-subtle">{description}</p>
@@ -1010,7 +1010,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="min-w-0 flex-1 basis-64">
-              <h1 className="truncate text-[clamp(25px,3.4vw,32px)] font-bold leading-tight tracking-tight text-ink">
+              <h1 className="truncate text-title font-bold leading-tight tracking-tight text-ink md:text-display-sm">
                 {displayName}
               </h1>
               <p className="mt-1.5 truncate text-body-sm font-semibold text-ink-subtle">
