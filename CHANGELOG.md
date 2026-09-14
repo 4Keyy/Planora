@@ -4,6 +4,128 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: frontend — a command palette, undo, and the motion that makes it feel alive (2026-09-14)
+
+Five of the twelve signature moments specified in `docs/ui-audit/BLUEPRINT.md`, built.
+
+**Command palette (Cmd/Ctrl+K).** The keyboard path used to stop at Tab. The palette
+searches the user's real tasks by subsequence — `bfl` finds "Book the FLights" — and
+lands on that task's branch from anywhere, and it shows the shortcut for every command
+it lists so it teaches the rest of the keyboard rather than replacing it. Results are
+scored, then regrouped: a pure score order interleaves the headings into
+"TASKS / ACTIONS / TASKS". It follows the ARIA combobox pattern, so focus stays in the
+input while `aria-activedescendant` moves and arrow keys never interrupt typing.
+
+**Undo instead of confirm.** Deleting a task no longer opens a dialog. The card leaves
+the list at once and the DELETE is only sent when a five-second window closes; undo
+cancels the timer so nothing ever reaches the server. That distinction matters — the API
+has no restore endpoint, so an optimistic delete with a "restore" button would be a lie.
+Verified with the network watched: delete sends nothing, undo leaves it still sending
+nothing five seconds later, and letting the window close sends exactly one request.
+Confirmation still guards deleting an account and revoking every session, which are
+irreversible on the server.
+
+**NumberRoll.** A counter that hard-swaps reads as a re-render; the eye registers
+"different", not "changed". Every digit is now its own column, staggered 30ms from the
+right — the order a carry propagates — so 9 → 10 grows a column instead of replacing a
+glyph. Three of the counters it replaced were keyed on their own value and therefore
+re-mounted on every change, springing in from scratch to report that one task had been
+completed.
+
+**InkCheck.** Completion is drawn rather than popped: ink grows from the centre and the
+stroke draws 80ms behind it. A checkmark that fades in announces "a state changed"; one
+whose stroke is drawn announces "you did that". The exit stays a plain fade, because
+un-completing is an undo, not an achievement.
+
+**A dashboard that answers the questions people arrive with.** The hero said one
+sentence — "You have 11 tasks." — across a 1440px screen. It now carries what is late,
+what is due today and what is shared, each a filter rather than a label. The weekly block
+said "3 Completed"; it now shows the week's shape in seven bars built from completion
+timestamps already in memory, as one spoken sentence rather than seven labelled bars.
+
+Cards also rise into place in reading order, 40ms apart and capped at eight steps —
+uncapped, the twentieth card waits most of a second and the stagger stops being rhythm.
+
+Documentation: `docs/design-system.md` gains the new primitives with the reasoning behind
+each, and `docs/frontend.md` gains a keyboard reference and the three rules that keep
+single-letter shortcuts from firing while someone is typing.
+
+Performance: JS chunks 1833.0 KB, up 18 KB from the post-three.js low — the palette alone
+is worth more than that out of the 506 KB three.js spent drawing one quad
+
+### feat: frontend — a design system that is enforced, not described (2026-09-14)
+
+The interface audit in `docs/ui-audit/` produced a defect register; this is what
+closing it changed. Every figure below is measured — statically over the source, and in
+a production build across a matrix of 12 routes × 9 viewports × 3 modes (264 cells).
+The tooling that produced them lives in `docs/ui-audit/tools/` and re-runs on demand.
+
+**Accessibility.** Contrast failures across the matrix went from 15 distinct pairs
+(worst 1.48:1) to zero. Every focus stop now carries an indicator clearing WCAG 2.4.11 —
+that took two passes, because the first only reached the auth screens. Tailwind's
+`outline-none` does not remove an outline; it sets `2px solid transparent`, which beats
+the deliberately zero-specificity `:where(...):focus-visible` rule in `globals.css`. Six
+auth routes, seven text controls in the branch editor, the navbar composer inputs and
+every `Button` variant were affected: the Button rings composited to between 1.12:1 and
+2.10:1 where 3:1 is required, and the inputs to nothing at all. `<main>` went from 7
+routes missing it to none; one `<title>` became twelve; unnamed controls went from 12 per
+list screen to zero; heading-level skips from 3 to zero. Targets under 24×24 are down to
+the inline links that WCAG 2.5.8 exempts.
+
+**A dead focus trap in every dialog.** `useFocusTrap` returned a `useRef`, and every modal
+mounts through `ModalPortal`, which renders `null` on its first pass. The effect ran a
+tick early, found `null`, and — because `active` never changed afterwards — never ran
+again. Focus never entered any dialog, Tab walked straight out to the page behind, and
+focus was never returned to the trigger. The hook's own tests passed throughout, because
+they mounted it without the portal that every caller uses. It is a callback ref now,
+verified by driving the real category modal: 40 Tab presses, zero escapes.
+
+**Silent-failure classes.** Several defects produced no build error, no type error and no
+failing test. A Tailwind class naming something the theme does not define emits no CSS at
+all — the segment error page's Retry button was styled `bg-primary-600`, a colour that has
+never existed here, and rendered as white text on a transparent background on every error
+page. `text-center/30` is an opacity modifier on a text-*align* utility and matched
+nothing, so that empty state was never centred. `accent-surface` (a background fill) was
+used as a text and icon colour in eight places at roughly 1.2:1, and `gray-400` — the same
+`#a3a3a3` the tokens publish as non-text-only — carried text in nine more.
+
+**The system itself.** `design-tokens.ts` is now the only place a visual value is
+declared; `tailwind.config.ts` derives its whole theme from it. The five rules that file
+opens by listing are enforced by `src/test/quality/design-tokens.contract.test.ts`, which
+reads the source tree — for a while the file named a test that did not exist. Colour
+literals that are genuinely data (the category swatches a user picks, notification tints,
+the colour picker's hue geometry) are exempted by an `@colour-data` marker in the file
+that holds them, because three separate sweeps had corrupted them by mistaking them for
+theme.
+
+**New primitives.** `StatusPanel` replaces six hand-built empty and error states that had
+drifted apart — 56px icon plates against 64px, a title that was a `<p>` on one screen and
+an `<h2>` on the next. `Field` owns the label-to-control association, `aria-describedby`,
+`aria-invalid` and the alert role, and takes its control as a render prop so those props
+cannot be dropped at a call site; it replaces four wrappers, one of which announced
+"Email Passwords don't match" as a field's name. `Overlay` collects portal, dialog
+semantics, focus trap, Escape and scroll lock. No overlay had locked page scroll, so a
+wheel over the backdrop scrolled the page underneath and a phone chained the scroll out
+of the sheet entirely.
+
+**Language.** The UI ships as `<html lang="en">`, but four routes still raised a Russian
+toast, presence read "печатает…", the auto-deletion badge counted down in Russian against
+a hardcoded `ru-RU` locale, and the subtask confirmation carried a full Slavic plural
+table. All of it is English. Four sites formatted dates with a bare
+`toLocaleDateString()`, which under force-dynamic resolves to the container's locale on
+the server and the visitor's in the browser — a hydration mismatch that costs the server
+pass. `lib/datetime.ts` pins the locale in one place.
+
+**Documentation.** `docs/design-system.md` and `docs/frontend.md` are new: every token with
+the contrast figure that justifies it, the enforced rules, the primitives, and the failure
+modes the system is built against. Recomputing those figures corrected six that had been
+transcribed wrong (alert is 6.47:1, not 7.00; focus 19.80:1, not 18.88).
+
+Performance: JS chunks 2229.4 KB → 1814.6 KB; fonts 24 files / 492 KB → 8 / 232 KB
+Performance: three.js removed — 506.7 KB to draw one fullscreen quad, replaced by ~90
+lines of raw WebGL with a pixel-identical result
+Refs: `docs/ui-audit/RESULTS.md` for the defect-by-defect record
+
 ### fix: launcher — detect a foreign process squatting on a Planora port (2026-08-24)
 
 `Test-PortFree` probed a port by binding `127.0.0.1`, which Windows grants even when another server

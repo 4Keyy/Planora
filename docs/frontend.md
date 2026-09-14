@@ -160,7 +160,39 @@ position.
 
 ---
 
-## 7. Component conventions
+## 7. The keyboard
+
+The keyboard is a first-class interface here, not an accessibility obligation. On a
+desktop this is where an experienced user lives.
+
+| Key | Does | Where |
+|---|---|---|
+| `Cmd/Ctrl + K` | Command palette — search tasks, jump anywhere, create | Anywhere, signed in |
+| `C` | Open the task composer | Dashboard, Tasks |
+| `F` | Open the category filter | Tasks |
+| `↑` `↓` | Move the selection | Command palette |
+| `Enter` | Open the selection | Command palette |
+| `Escape` | Close the topmost layer | Everywhere |
+
+Three rules keep this coherent:
+
+1. **A single letter never fires while the user is typing.** Every bare-letter handler
+   checks that the event target is not an `input`, a `textarea` or a `contenteditable`,
+   and that no modifier is held. Without that, typing "category" into a title field
+   opens the composer four times.
+2. **Escape peels one layer.** Handlers live on the layer that owns them and listen in
+   the bubble phase, so a popover inside a dialog can keep the key by calling
+   `stopPropagation()`. Escape closes the date picker, not the dialog under it.
+3. **A visible hint is `aria-hidden`, and the shortcut is declared with
+   `aria-keyshortcuts`.** A `<kbd>C</kbd>` left in the accessibility tree joins the
+   button's name, and "New Category" gets announced as "New Category c".
+
+The command palette shows the shortcut for every command it lists, so it teaches the
+rest of the keyboard rather than replacing it.
+
+---
+
+## 8. Component conventions
 
 ### Composition
 
@@ -190,7 +222,7 @@ name, because several screen readers do not announce it and it never appears on 
 
 ---
 
-## 8. Testing
+## 9. Testing
 
 | Suite | Command | Covers |
 |---|---|---|
@@ -231,15 +263,20 @@ the product actually ships**, not the unit in isolation.
 
 ---
 
-## 9. Performance
+## 10. Performance
 
 Measured in a production build, not in dev.
 
 | | |
 |---|---|
-| JS chunks | 1814.6 KB across 46 files (was 2229.4 KB) |
+| JS chunks | 1833.0 KB across 46 files (was 2229.4 KB) |
 | Fonts | 8 files, 232 KB (was 24 files, 492 KB) |
-| Max CLS across the matrix | 0.089 |
+| Max CLS across the matrix | 0.115 |
+| Max LCP across the matrix | 2384 ms |
+
+The bundle grew 18 KB from its low point when the command palette, the rolling
+counters and the undo window landed. That is the honest trade: the palette alone is
+worth more than 18 KB of the 506 KB that three.js used to spend on one quad.
 
 Decisions worth knowing:
 
@@ -255,7 +292,7 @@ Decisions worth knowing:
 
 ---
 
-## 10. Local development
+## 11. Local development
 
 ```bash
 cd frontend
@@ -281,7 +318,7 @@ Two traps this machine has hit before, recorded in
 
 ---
 
-## 11. The checklist before a frontend commit
+## 12. The checklist before a frontend commit
 
 1. `npx tsc --noEmit` — clean.
 2. `npm run build` — clean.

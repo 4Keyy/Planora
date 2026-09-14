@@ -395,16 +395,39 @@ composites to.
 
 ## 11. Primitives
 
+Nothing in `components/ui/` knows what a task is. A primitive that imports a `Todo`
+type has stopped being a primitive.
+
+### Structure
+
 | Component | Owns |
 |---|---|
 | `Button` | Variants, the three control sizes, the `loading` state that blocks re-entry without resizing |
 | `Field` | Label↔control association, `aria-describedby`, `aria-invalid`, `role="alert"` on the error |
 | `StatusPanel` | Every empty and error state. Two tones, three sizes |
 | `Overlay` | Portal, dialog semantics, focus trap, Escape, backdrop dismissal, scroll lock |
-| `PriorityMeter` | Priority as filled segments in one ink, plus a spoken name |
-| `Avatar` | Image, initials fallback, the optimizer's `sizes` |
 | `ConfirmDialog` | Destructive confirmation, with an optional "don't ask again" |
+| `Avatar` | Image, initials fallback, the optimizer's `sizes` |
+
+### Expression
+
+| Component | Owns |
+|---|---|
+| `NumberRoll` | A number that rolls digit by digit instead of swapping |
+| `InkCheck` | The completion mark, drawn rather than popped |
+| `PriorityMeter` | Priority as filled segments in one ink, plus a spoken name |
+| `WeekBars` | Seven days of completions, as one accessible sentence and seven bars |
+| `StatRow` | Live facts about the workspace, each one a filter you can press |
+
+### Flow
+
+| Component | Owns |
+|---|---|
+| `CommandPalette` | ⌘K / Ctrl+K: search tasks, jump anywhere, create |
+| `UndoBar` + `useUndoableAction` | Deferred destructive actions with a five-second window |
 | `Toast` | Transient messages, above the modal layer |
+
+---
 
 ### `Field` — why it takes a render prop
 
@@ -440,6 +463,90 @@ dialog was still up. The lock lifts only when the last holder releases it, and i
 replaces the scrollbar's width as body padding so the page behind does not jump
 sideways at the exact moment the dialog appears over it.
 
+### `NumberRoll` — why a counter must not swap
+
+A counter that hard-swaps reads as a re-render: the eye registers "different", not
+"changed". Rolling the digits makes the *direction* of change legible without a label —
+a task was completed and the count visibly went down.
+
+Each digit is its own column, so 199 → 200 moves the three columns it has to and leaves
+nothing else twitching. Columns stagger 30ms from the right, the order a carry actually
+propagates.
+
+Two details that are not optional:
+
+- **`tabular-nums`.** In a proportional face a `1` is narrower than a `7`, so a rolling
+  counter changes width mid-animation and shoves its own label sideways. Columns are
+  sized `1ch`, which with tabular figures is exactly one digit.
+- **The value appears once for assistive tech.** The animated columns are `aria-hidden`
+  and an `sr-only` node carries the number; otherwise a screen reader reads every
+  intermediate digit of every roll.
+
+Three counters were previously keyed on their own value, which re-mounted them on every
+change — so the dashboard headline sprang in from `scale: 0.8` to say a task had been
+completed.
+
+### `InkCheck` — the one moment that gets a choreography
+
+| Step | What | Duration | Curve |
+|---|---|---|---|
+| 1 | Ink grows from the centre | `fast` 160 | `emphasized` |
+| 2 | The stroke draws, 80ms behind | `fast` 160 | `emphasized` |
+
+A checkmark that fades in announces "a state changed". One whose stroke is *drawn*
+announces "you did that" — the motion traces the gesture a pen would make, so the
+feedback is about the act rather than the render. This is the only element in the
+product with a multi-step entrance, because completing a task is the only thing a task
+app is for.
+
+The fill is pinned to the `ink` token, never `currentColor`: the host button turns its
+own text white once a task completes, so `bg-current` painted white ink under a white
+stroke and the mark vanished at exactly the moment it mattered.
+
+The **exit** is a plain fade. Un-completing is an undo, not an achievement, and should
+not be drawn in reverse.
+
+### `UndoBar` — undo instead of confirm
+
+A confirmation asks a question the user already answered. It stops every deletion —
+including the ones that were meant — to guard against the few that were not, and it
+trains people to click through dialogs without reading.
+
+The important part is that this defers the **request**, not just the UI. The card
+leaves the list at once, but the DELETE is only sent when the five-second window closes;
+undo cancels the timer and nothing ever reaches the server. That is what makes it
+honest: the API has no restore endpoint, so an optimistic delete with a "restore" button
+would be a lie.
+
+Three cases the hook handles deliberately:
+
+| Case | Behaviour | Why |
+|---|---|---|
+| A second action starts while one is pending | The first commits immediately | Dropping it loses a deletion silently; queueing stacks bars nobody can read |
+| The component unmounts | Anything pending commits | Navigating away is not taking it back |
+| The server refuses after the window closed | The card comes back | Better than leaving the user believing a task is gone when it is not |
+
+**Confirmation still guards what this cannot.** Deleting an account and revoking every
+session are irreversible on the server, and five seconds is not consent.
+
+### `CommandPalette` — the keyboard is a first-class interface
+
+⌘K on a Mac, Ctrl+K everywhere else. It searches the user's real tasks by subsequence —
+`bfl` finds "**B**ook the **FL**ights" — and lands on that task's branch from anywhere.
+
+Two decisions worth keeping:
+
+- **Score, then regroup.** Ranking and grouping pull in opposite directions: a purely
+  score-ordered list interleaves the groups so the headings read "TASKS / ACTIONS /
+  TASKS". Scoring first keeps the best match at the top of its own group; regrouping
+  after keeps each heading appearing exactly once.
+- **The ARIA combobox pattern, not a focus walk.** Focus stays in the input and
+  `aria-activedescendant` moves, so arrow keys never interrupt typing and the
+  highlighted row is still announced.
+
+Tasks load once per opening rather than per keystroke, and a failed fetch still leaves a
+palette that navigates.
+
 ---
 
 ## 12. Failure modes this system is built against
@@ -453,7 +560,6 @@ Each of these shipped. None produced a build error, a type error, or a failing t
 | A `useRef` focus trap on a portalled dialog never engages | The portal mounts a tick late, the effect finds `null` and never re-runs. Every modal shipped with a dead trap while the hook's own tests passed | The hook uses a callback ref backed by state; the portal case is a test |
 | `pointer-events` inheritance kills a pseudo-element hit area | The target looks 44×44 to a measuring script and accepts no taps | Explicit `pointer-events: auto`, documented in the utility |
 | An opacity modifier on a non-colour utility (`text-center/30`) | Matches nothing. That empty state was never centred | `class-audit.mjs` |
-| A shortcut hint inside a button's accessible name | "New Category" announced as "New Category c" | `aria-hidden` on the hint, `aria-keyshortcuts` on the button |
 | A codemod rewriting tokens inside CSS value strings | `animation: "… ease-out"` became an invalid `ease-emphasized`; the animation silently stopped | Never run a token codemod over string values without re-running the build and `class-audit.mjs` |
 | `outline-none` suppressing the one focus indicator | Tailwind sets `2px solid transparent`, not `none`, so a probe that checks for an outline's presence sees one. Six auth routes had no visible focus at all | `focus-scan.mjs`, which measures the indicator's contrast |
 | A per-component focus ring replacing the global one | Four Button variants at 1.12:1 to 2.10:1, where 2.4.11 asks for 3:1 | The same scan, plus the rule above: only `globals.css` declares the indicator |
