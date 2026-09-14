@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
-import { motion } from "framer-motion"
+import { motion, useReducedMotion } from "framer-motion"
 import { X, ExternalLink, ArrowLeft } from "lucide-react"
 import { ModalPortal }      from "@/components/ui/modal-portal"
 import { useAutosave }      from "@/hooks/use-autosave"
@@ -10,15 +10,19 @@ import { useFocusTrap }     from "@/hooks/use-focus-trap"
 import { useAuthStore }     from "@/store/auth"
 import { useFriends }       from "@/hooks/use-friends"
 import { SPRING_STANDARD }  from "@/lib/animations"
+import { editorDialogRect, originTransform, takeOrigin } from "@/lib/shared-origin"
 import { Todo, type UpdateTodoPayload, isTodoOwner } from "@/types/todo"
 import { Category }         from "@/types/category"
 import { BranchFeed }       from "./branch-feed"
 import { InlineTokenStrip } from "./inline-token-strip"
 import { PageMetaPanel }    from "./page-meta-panel"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
+import { PresenceRow } from "@/components/ui/presence-row"
+import { RedactionBadge, type Audience } from "@/components/ui/redaction-badge"
 import {
   getPriorityNumber,
   getPriorityString,
+  todoToOwnerPayload,
 } from "./utils"
 
 type OpenPopover = "priority" | "date" | "category" | "visibility" | null
@@ -43,34 +47,6 @@ function samePayloadExceptDescription(a: UpdateTodoPayload, b: UpdateTodoPayload
   )
 }
 
-/**
- * Build the owner payload that the modal's local state is initialised from, straight
- * from a task. Used as the autosave baseline so a freshly-opened task is never seen as
- * "dirty". Mirrors the field initialisation and `buildOwnerPayload` normalisation.
- */
-function todoToOwnerPayload(todo: Todo): UpdateTodoPayload {
-  const visFriends = todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0
-  const shared = todo.isPublic ? [] : (todo.sharedWithUserIds ?? [])
-  const dueDate = todo.dueDate
-    ? new Date(new Date(todo.dueDate).toISOString().split("T")[0]).toISOString()
-    : null
-  const dueDateStart = todo.dueDateStart
-    ? new Date(new Date(todo.dueDateStart).toISOString().split("T")[0]).toISOString()
-    : null
-  return {
-    title: todo.title.trim(),
-    description: (todo.description ?? "").trim() || null,
-    priority: getPriorityNumber(getPriorityString(todo.priority)),
-    dueDate,
-    dueDateStart,
-    clearDueDate: !todo.dueDate,
-    categoryId: todo.categoryId || null,
-    isPublic: false,
-    sharedWithUserIds: visFriends ? shared : [],
-    requiredWorkers: visFriends ? 1 + shared.length : null,
-    clearRequiredWorkers: !visFriends,
-  }
-}
 
 export interface TodoEditorProps {
   /** "modal" wraps the editor in the centred dialog chrome; "page" renders it inline on its
@@ -167,6 +143,44 @@ export function TodoEditor({
   const effectiveInProgress = workOverride ?? inProgress
 
   const [pillHovered, setPillHovered] = useState(false)
+
+  /**
+   * Who is actually in this task, with faces.
+   *
+   * The server resolves live worker identities only for SUBTASK reads — a
+   * top-level task carries `workerUserIds` and a count, and nothing else. Asking
+   * the list endpoint to enrich them would mean an identity lookup per task
+   * across a 200-task page, which is the N+1 this codebase already avoids for
+   * author names.
+   *
+   * So the names are resolved on this side, against the friend list the editor
+   * has already loaded for the audience picker. It costs no request, and the only
+   * people it CAN fail to name are people the viewer is not friends with — who,
+   * by `INV-AZ-3`, cannot be in a task the viewer is looking at.
+   */
+  const presentMembers = useMemo(() => {
+    const ids = todo.workerUserIds ?? []
+    if (ids.length === 0) return []
+    const byId = new Map(friends.map((f) => [f.id.toLowerCase(), f]))
+    return ids.map((id) => {
+      const friend = byId.get(id.toLowerCase())
+      return {
+        id,
+        name: friend ? `${friend.firstName} ${friend.lastName}`.trim() : null,
+        avatarUrl: friend?.profilePictureUrl ?? null,
+      }
+    })
+  }, [todo.workerUserIds, friends])
+
+  /**
+   * Audience as the badge understands it.
+   *
+   * `isPublic` is deliberately never produced here: the editor writes
+   * `isPublic: false` on every save and expresses reach through the shared list
+   * instead, so a task that reports `public` in this UI would be describing a
+   * state the product no longer creates.
+   */
+  const audience: Audience = visMode === "private" ? "private" : "shared"
 
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null)
   const titleH1Ref       = useRef<HTMLHeadingElement>(null)
@@ -548,7 +562,19 @@ export function TodoEditor({
         {renderTitle(22, 12, 8)}
       </div>
 
-      {/* ── (3) Inline token meta strip ── */}
+      {/* ── (3) Who is in here, and who can see it ── */}
+      {(presentMembers.length > 0 || audience !== "private") && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 pb-3 sm:px-[26px]">
+          <PresenceRow members={presentMembers} required={todo.requiredWorkers} size="sm" />
+          <RedactionBadge
+            audience={audience}
+            viewerCount={audience === "shared" ? sharedIds.length : undefined}
+            size="sm"
+          />
+        </div>
+      )}
+
+      {/* ── (4) Inline token meta strip ── */}
       <div className="px-4 pb-[18px] sm:px-[22px]">
         <InlineTokenStrip {...metaProps} />
       </div>
@@ -565,13 +591,48 @@ export function TodoEditor({
 }
 
 /**
+ * The dialog's own geometry, named so `@/lib/shared-origin` can predict where the
+ * surface will land without measuring it after mount. Measuring first would mean
+ * one frame painted at the wrong place before the transition starts.
+ */
+export const EDITOR_DIALOG_GEOMETRY = {
+  maxWidth: 660,
+  maxHeight: 880,
+  /** The wrapper's `p-4`. */
+  gutter: 16,
+  heightRatio: 0.9,
+} as const
+
+/**
  * In-place dialog wrapper around {@link TodoEditor} — backdrop, centred card, and close-on-backdrop.
  * The standalone `/branch/{id}` page renders {@link TodoEditor} directly with `variant="page"`.
+ *
+ * The surface grows out of the card that was pressed — see `@/lib/shared-origin` for
+ * why that matters and why it is not a framer-motion `layoutId`. When no origin was
+ * recorded (the command palette, a notification, a deep link) it falls back to the
+ * plain centred entrance, which is the honest thing to show: nothing on screen was
+ * the source.
  */
 export function EditTodoModal(props: EditTodoModalProps) {
   // The wrapper is mounted only while the modal is shown, so the trap is always active here.
   const dialogRef = useFocusTrap<HTMLDivElement>(true)
   useScrollLock(true)
+  const reduce = useReducedMotion() ?? false
+
+  /*
+   * Resolved once, in a state initialiser, for two reasons. The slot is consumed on
+   * read, so a re-render must not find it empty and fall back mid-animation; and the
+   * viewport is read here rather than during render of a Server Component tree —
+   * this wrapper is client-only and mounted from an event, so `window` is present.
+   */
+  const [entrance] = useState(() => {
+    if (reduce || typeof window === "undefined") return null
+    const origin = takeOrigin()
+    if (!origin) return null
+    const target = editorDialogRect(window.innerWidth, window.innerHeight, EDITOR_DIALOG_GEOMETRY)
+    return originTransform(origin, target)
+  })
+
   return (
     <ModalPortal>
       <div
@@ -593,9 +654,22 @@ export function EditTodoModal(props: EditTodoModalProps) {
           aria-modal="true"
           aria-label={props.todo?.title ? `Task: ${props.todo.title}` : "Task details"}
           tabIndex={-1}
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={
+            entrance
+              ? { opacity: 0, scale: entrance.scale, x: entrance.x, y: entrance.y }
+              : { opacity: 0, scale: 0.95, y: 20 }
+          }
+          animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+          /*
+           * It leaves the way it came, so closing returns the reader's eye to the row
+           * they opened. Faster than the entrance on purpose: an exit that takes as
+           * long as an entrance reads as the app being slow to let go.
+           */
+          exit={
+            entrance
+              ? { opacity: 0, scale: entrance.scale, x: entrance.x, y: entrance.y }
+              : { opacity: 0, scale: 0.95, y: 20 }
+          }
           transition={SPRING_STANDARD}
           onClick={(e) => e.stopPropagation()}
           style={{

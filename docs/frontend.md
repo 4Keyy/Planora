@@ -168,13 +168,32 @@ desktop this is where an experienced user lives.
 | Key | Does | Where |
 |---|---|---|
 | `Cmd/Ctrl + K` | Command palette — search tasks, jump anywhere, create | Anywhere, signed in |
-| `C` | Open the task composer | Dashboard, Tasks |
+| `?` | The keyboard map itself | Anywhere |
+| `C` | Capture a task — one field, no selectors | Dashboard, Tasks |
 | `F` | Open the category filter | Tasks |
-| `↑` `↓` | Move the selection | Command palette |
-| `Enter` | Open the selection | Command palette |
 | `Escape` | Close the topmost layer | Everywhere |
+| `J` `K` / `↑` `↓` | Move the cursor | Task list |
+| `G` `G` / `Shift + G` | First / last task | Task list |
+| `Enter` | Open the task under the cursor | Task list, palette |
+| `Space` | Complete or reopen it | Task list |
+| `E` | Edit it | Task list |
+| `1`–`5` | Set its priority (owner only) | Task list |
+| `X` | Add it to the selection | Task list |
+| `Shift + J/K` / `Shift + ↑/↓` | Extend the selection | Task list |
+| `Cmd/Ctrl + A` | Select everything visible | Task list |
+| `Delete` / `Backspace` | Delete it, with a five-second undo | Task list |
 
-Three rules keep this coherent:
+**One list is the source of truth.** `SHORTCUT_GROUPS` in
+`components/ui/shortcuts-overlay.tsx` is exported and consumed by the `?` map; a second
+hand-written list would drift the moment a binding moved. The table above is the only
+copy that is not generated, and it is the one to check when a binding changes.
+
+**The `⌘` vs `Ctrl` spelling is resolved after mount, never during render.** The server
+has no `navigator`, so reading the platform in render emits `Ctrl` from the server and
+`⌘` from the client and React discards the entire server pass as a hydration mismatch.
+`useIsApplePlatform()` defaults to the `Ctrl` spelling and corrects itself in an effect.
+
+Four rules keep this coherent:
 
 1. **A single letter never fires while the user is typing.** Every bare-letter handler
    checks that the event target is not an `input`, a `textarea` or a `contenteditable`,
@@ -186,9 +205,35 @@ Three rules keep this coherent:
 3. **A visible hint is `aria-hidden`, and the shortcut is declared with
    `aria-keyshortcuts`.** A `<kbd>C</kbd>` left in the accessibility tree joins the
    button's name, and "New Category" gets announced as "New Category c".
+4. **A destructive key acts on the cursor, never on the selection.** `Delete` removes
+   the one task under the cursor. Deleting a gathered selection is a press on the
+   selection bar, which states the count first — a keystroke that silently took twelve
+   tasks because an `x` scrolled out of view is not one anybody can take back.
 
 The command palette shows the shortcut for every command it lists, so it teaches the
-rest of the keyboard rather than replacing it.
+rest of the keyboard rather than replacing it, and `?` shows the whole map.
+
+### The list cursor is an id, not an index
+
+`useListNavigation` keys the cursor on the task's id. An index survives nothing the
+list does to itself — completing a task removes a row, a filter replaces the array, a
+realtime update reorders it — and an index-based cursor then points at a different task
+than the one being read. When the active id genuinely disappears the cursor falls back
+to the nearest surviving position rather than to nothing; losing your place entirely is
+what makes keyboard navigation feel broken.
+
+The cursor is exposed as `aria-current="true"`, **not** `aria-selected`. Earning
+`aria-selected` would mean making rows `role="option"` inside a `role="listbox"`, and an
+`option` may not contain focusable descendants — every row here carries a checkbox and a
+menu. Claiming listbox semantics anyway would leave a screen reader announcing controls
+that, by its own model of the page, cannot exist. Multi-selection is therefore a
+`data-selected` attribute for styling, and the fact is spoken by the count on the
+selection bar.
+
+The hook is single-instance per page, and that falls out of the design rather than being
+configured: the first listener's `preventDefault()` trips the second's
+`defaultPrevented` guard. That is correct for a list nested in a list; two independent
+lists on one screen would need a scope, and nothing asks for one today.
 
 ---
 

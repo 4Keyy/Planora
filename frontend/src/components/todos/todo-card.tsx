@@ -20,6 +20,8 @@ import { PriorityMeter } from "@/components/ui/priority-meter"
 import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNING } from "@/lib/ui-preferences"
 import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
 import { InkCheck } from "@/components/ui/ink-check"
+import { rememberOrigin } from "@/lib/shared-origin"
+import type { ListRowProps } from "@/hooks/use-list-navigation"
 
 /** Priority is a magnitude, not a category — see components/ui/priority-meter.tsx. */
 const PRIORITY_CONFIG: Record<string, { num: number }> = {
@@ -69,6 +71,12 @@ interface TodoCardProps {
   onToggleHidden?: () => Promise<void>
   onJoin?: () => Promise<void>
   variant?: "default" | "completed"
+  /**
+   * Roving tabindex, the ref and the selection flags from `useListNavigation`.
+   * Optional: a card outside a navigable list (the dashboard's preview strip)
+   * passes nothing and stays an ordinary card.
+   */
+  rowProps?: ListRowProps
 }
 
 /**
@@ -82,6 +90,7 @@ function TodoCardComponent({
   onToggleHidden,
   onJoin,
   variant = "default",
+  rowProps,
 }: TodoCardProps) {
   const shouldReduceMotion = useReducedMotion()
   const [optimisticCollapsed, setOptimisticCollapsed] = useState<boolean | null>(null)
@@ -363,6 +372,7 @@ function TodoCardComponent({
   return (
     <>
       <motion.div
+        {...rowProps}
         layout
         initial={VARIANTS_CARD.hidden}
         animate={
@@ -397,12 +407,30 @@ function TodoCardComponent({
             window.open(`/branch/${todo.id}`, "_blank", "noopener,noreferrer")
             return
           }
+          // Hand the editor the rect of this exact card so its surface grows out of the
+          // row that was pressed rather than appearing from the middle of the screen.
+          // `currentTarget` is the card root, which is what should be measured — a click
+          // on the title would otherwise record the title's box. See lib/shared-origin.ts.
+          rememberOrigin(e.currentTarget)
           onEdit()
         }}
         className={cn(
           "relative group/card",
           isVisibilityPending || isCompletionPending ? "cursor-wait" : "cursor-pointer",
-          isCompleted ? "opacity-60 hover:opacity-70" : "z-10"
+          isCompleted ? "opacity-60 hover:opacity-70" : "z-10",
+          /*
+           * The keyboard cursor. `[&[data-active]]` rather than Tailwind's
+           * `data-[active]:` shorthand because the attribute is valueless — the
+           * shorthand compiles to `[data-active="active"]` and would match nothing.
+           *
+           * An outline, not a ring: the card's own rounding varies with its state,
+           * and `outline` follows `border-radius` without needing to be told. It is
+           * offset outwards so it never sits on top of the card's content, and it is
+           * deliberately NOT the focus indicator — focus may legitimately be
+           * elsewhere on the page while the list still has a cursor.
+           */
+          "[&[data-active]]:outline [&[data-active]]:outline-2 [&[data-active]]:outline-offset-2 [&[data-active]]:outline-ink",
+          "[&[data-selected]]:outline [&[data-selected]]:outline-2 [&[data-selected]]:outline-offset-2 [&[data-selected]]:outline-accent",
         )}
       >
       {/* Unread notification plate — top-right, above the card surface (the Card clips its own
@@ -1009,5 +1037,22 @@ function TodoCardComponent({
  */
 export const TodoCard = memo(
   TodoCardComponent,
-  (prev, next) => prev.todo === next.todo && prev.variant === next.variant,
+  /*
+   * Callback identity is deliberately ignored — the tasks page re-creates every
+   * handler on each render and comparing them would re-render 200 cards for
+   * nothing (the handlers read live data through refs; see the page).
+   *
+   * `rowProps` is the exception that has to be compared field by field. Its object
+   * identity changes on every render, so comparing the object would defeat the
+   * memo entirely; ignoring it would freeze the keyboard cursor on whichever card
+   * happened to hold it first, which is the same defect wearing a different hat.
+   * Its `ref` and `onFocus` are cached per id by the hook, so only these three
+   * values can actually change.
+   */
+  (prev, next) =>
+    prev.todo === next.todo &&
+    prev.variant === next.variant &&
+    prev.rowProps?.tabIndex === next.rowProps?.tabIndex &&
+    prev.rowProps?.["data-active"] === next.rowProps?.["data-active"] &&
+    prev.rowProps?.["data-selected"] === next.rowProps?.["data-selected"],
 )

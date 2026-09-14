@@ -33,6 +33,7 @@ import { ErrorBoundary } from "@/components/error-boundary"
 import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
 import { MotionPreferencesProvider } from "@/components/motion-preferences-provider"
 import { CommandPalette } from "@/components/command-palette"
+import { ShortcutsHelp } from "@/components/ui/shortcuts-overlay"
 
 export const metadata = {
   // Every route sets its own title through this template, so tabs, history and
@@ -131,6 +132,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               it survives a route change without remounting mid-keystroke. It
               renders nothing at all until a signed-in user opens it. */}
           <CommandPalette />
+          {/* The `?` map. Mounted beside the palette for the same reason: the two
+              are one story — the palette does anything by name, the map teaches
+              the keys that do the common things without it. Renders nothing until
+              the key is pressed. */}
+          <ShortcutsHelp />
           <Toaster />
         </MotionPreferencesProvider>
       </body>

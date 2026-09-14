@@ -418,14 +418,26 @@ type has stopped being a primitive.
 | `PriorityMeter` | Priority as filled segments in one ink, plus a spoken name |
 | `WeekBars` | Seven days of completions, as one accessible sentence and seven bars |
 | `StatRow` | Live facts about the workspace, each one a filter you can press |
+| `PresenceRow` | Who is in a task, as faces — and an arrival as an event |
+| `RedactionBadge` | Who can see it, as an arc you watch open or close |
 
 ### Flow
 
 | Component | Owns |
 |---|---|
 | `CommandPalette` | ⌘K / Ctrl+K: search tasks, jump anywhere, create |
+| `ShortcutsOverlay` + `SHORTCUT_GROUPS` | The `?` map, and the single list every other surface reads its key spellings from |
+| `useListNavigation` | The list cursor, the selection, and every bare-letter binding over a list of ids |
+| `SelectionBar` | What to do with a gathered selection, with the count stated before the verb |
 | `UndoBar` + `useUndoableAction` | Deferred destructive actions with a five-second window |
+| `UpdatePill` + `useDeferredUpdates` | Somebody else's change, offered rather than applied |
 | `Toast` | Transient messages, above the modal layer |
+
+### Transition
+
+| Module | Owns |
+|---|---|
+| `lib/shared-origin` | The card-to-dialog transition: the rect a dialog grows out of, and the geometry that gets it there |
 
 ---
 

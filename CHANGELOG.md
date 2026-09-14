@@ -4,6 +4,74 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat: frontend — the keyboard, the people, and the transition that explains the model (2026-09-14)
+
+The remaining signature moments from `docs/ui-audit/BLUEPRINT.md`, plus the keyboard
+model section 11.2 specified and the product did not have.
+
+**The list has a cursor.** `J`/`K` or the arrows move it, `Enter` opens, `Space`
+completes, `E` edits, `1`–`5` set priority, `X` gathers a selection, `Shift`+arrow
+extends it, `⌘A` takes everything and `Delete` removes the one under the cursor with the
+five-second undo window. `G G` and `Shift+G` jump to the ends. The cursor is keyed on the
+task's **id**, never an index: completing a task removes a row and a filter replaces the
+whole array, and an index-based cursor then points at a different task than the one being
+read. Priority sends the whole task rather than `{ priority }` — the endpoint is a PUT, so
+a partial body would clear the title, the date and the audience.
+
+**`?` shows the map.** One exported `SHORTCUT_GROUPS` is the only list; the `⌘` versus
+`Ctrl` spelling is resolved in an effect after mount, because reading `navigator` during
+render emits one spelling from the server and the other from the client and React throws
+the whole server pass away as a hydration mismatch.
+
+**Capture in six seconds.** A 56×56 control in the phone's thumb zone that expands into a
+single field — the button and the bar share a `layoutId`, so the circle *becomes* the bar
+rather than crossfading into it. No priority, no date, no category, no audience: a
+decision at the moment of capture is why a thought stops being written down at all.
+
+**The dialog grows out of the card that opened it.** Opening a task is the one navigation
+that carries a claim — *this card is that screen* — and a dialog that fades in from the
+centre of the viewport says the opposite. The pressed card's rect is recorded on the press
+and the editor animates from it, by keyboard as well as by pointer. Not a framer-motion
+`layoutId`: that would give all 200 memoised cards a projection node and a measure on
+every list change, for an effect used on one card at a time. The scale is uniform and
+clamped — independent x and y would match the card exactly and shear every glyph in the
+dialog on the way.
+
+**Presence and redaction, as shapes.** `PresenceRow` shows who is in a task as faces, and
+treats the difference between two id sets as an event: a new face springs in and is ringed
+once by a stroke that draws itself. First mount is deliberately not an event — a page load
+would otherwise ring everyone at once and teach, on first exposure, that the ring means
+nothing. `RedactionBadge` draws the audience as an arc that opens and closes, so the one
+promise this product makes that a list app does not is a shape rather than a word.
+
+**Realtime that does not move the list under the pointer.** An arriving change is applied
+only at the top of the list with nothing else open; anywhere else it queues behind a pill.
+Inserting above the viewport moves every row under a click the user had already committed
+to. Deletions are exempt — they only shorten the list, and leaving a pressable card for a
+task that no longer exists earns a 404 for doing the obvious thing.
+
+**A selection is worth having only if something can be done to it.** The selection bar
+states the count before the verb, deletes the whole batch under one undo window, and takes
+no keyboard binding of its own.
+
+**Fixed along the way.** The weekly ring interpolated a `strokeDasharray` string over
+1500ms with a spring layered on a tween — three times the ceiling the motion scale sets,
+and long enough that the number beside it finished rolling while the arc was still moving;
+it is now drawn with `pathLength` over `deliberate` 480ms, on the same beat as the numeral.
+`useShortcutsOverlay` guarded `contenteditable` with `isContentEditable` alone, which
+reports on an ancestor rather than the node an event came from — `?` was reaching through
+every rich-text field in the product. `UpdatePill` returned `null` above its own
+`AnimatePresence`, so its exit had never once run. Quick capture showed its error in a live
+region with no `aria-describedby`, so a user who left the field and came back had no way to
+find out why their task was refused.
+
+**Also.** `class-audit.mjs` was reading prose out of comments inside `cn()` calls and
+reporting words like `border-radius` as dead utilities. A tool that reports defects which
+do not exist is worse than one that misses some, because every future run has to be
+re-adjudicated by hand.
+
+Tests: 905 passing, up from 718.
+
 ### feat: frontend — a command palette, undo, and the motion that makes it feel alive (2026-09-14)
 
 Five of the twelve signature moments specified in `docs/ui-audit/BLUEPRINT.md`, built.

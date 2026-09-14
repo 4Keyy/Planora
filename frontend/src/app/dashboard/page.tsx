@@ -39,8 +39,8 @@ import { StatusPanel } from "@/components/ui/status-panel"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { WeekBars } from "@/components/ui/week-bars"
 import { StatRow } from "@/components/ui/stat-row"
+import { DURATION_DELIBERATE, EASE_OUT_EXPO } from "@/lib/animations"
 
-const PROGRESS_TRANSITION = { duration: 1.5, ease: "easeOut" } as const
 const DASHBOARD_MASONRY_BREAKPOINTS = [
   { maxWidth: 1200, columns: 2 },
   { maxWidth: 768, columns: 1 },
@@ -55,6 +55,9 @@ const normalizeCategoryResponse = (response: CategoryResponse): Category[] => {
   return Array.isArray(data) ? data : data.items ?? []
 }
 
+/** The ring's own arc, declared once so the track and the fill cannot diverge. */
+const RING_PATH = "M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+
 function ProgressCircle({ value, total }: { value: number; total: number }) {
   const percentage = total > 0 ? Math.round((value / total) * 100) : 0
   return (
@@ -64,27 +67,36 @@ function ProgressCircle({ value, total }: { value: number; total: number }) {
       className="flex flex-col items-center gap-3"
     >
       <div className="relative h-24 w-24 md:h-32 md:w-32">
-        <svg className="h-full w-full drop-shadow-sm" viewBox="0 0 36 36">
-          {/* Background circle */}
+        <svg className="h-full w-full" viewBox="0 0 36 36">
+          {/* The track — the whole of the week, unfilled. */}
           <path
-            className="text-gray-100"
+            className="text-line"
             stroke="currentColor"
             strokeWidth="3.5"
             fill="none"
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+            d={RING_PATH}
           />
-          {/* Progress path with animation */}
+          {/*
+           * The ring is DRAWN, not revealed: `pathLength` is framer-motion's one
+           * sanctioned non-transform animation, and it lets the arc be expressed as
+           * the fraction it is (0-1) instead of a hand-built `strokeDasharray`
+           * string. The previous version interpolated that string over 1500ms with
+           * a spring layered on top of a tween — three times the ceiling the motion
+           * scale sets for anything, and long enough that the number beside it had
+           * finished rolling while the arc was still moving. Drawing over
+           * `deliberate` (480ms) puts the two on the same beat, which is the whole
+           * point: the ring and the numeral are one statement about the week.
+           */}
           <motion.path
-            initial={{ strokeDasharray: "0, 100" }}
-            animate={{ strokeDasharray: `${percentage}, 100` }}
-            transition={{ ...PROGRESS_TRANSITION, type: "spring", stiffness: 80 }}
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: percentage / 100 }}
+            transition={{ duration: DURATION_DELIBERATE, ease: EASE_OUT_EXPO }}
             className="text-ink"
             stroke="currentColor"
             strokeWidth="3.5"
             strokeLinecap="round"
             fill="none"
-            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-            filter="drop-shadow(0 2px 4px rgba(0,0,0,0.1))"
+            d={RING_PATH}
           />
         </svg>
         <motion.div className="absolute inset-0 flex items-center justify-center">

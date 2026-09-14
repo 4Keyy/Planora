@@ -5,8 +5,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { CheckCircle2, ChevronRight, History, FolderOpen } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { CheckCircle2, ChevronRight, History, FolderOpen, Trash2 } from "lucide-react"
+import { cn, truncateText } from "@/lib/utils"
 import axios from "axios"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
@@ -52,6 +52,12 @@ import { StatusPanel } from "@/components/ui/status-panel"
 import { OPEN_CREATE_EVENT } from "@/components/command-palette"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
+import { useListNavigation } from "@/hooks/use-list-navigation"
+import { rememberOrigin } from "@/lib/shared-origin"
+import { todoToOwnerPayload } from "@/components/todos/edit-todo-modal/utils"
+import { SelectionBar } from "@/components/ui/selection-bar"
+import { QuickCapture } from "@/components/todos/quick-capture"
+import { UpdatePill, useDeferredUpdates } from "@/components/ui/update-pill"
 
 const ACTIVE_PAGE_SIZE = 200
 const COMPLETED_PREVIEW_SIZE = 20
@@ -149,6 +155,17 @@ export default function TasksPage() {
   const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([])
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
 
+  /**
+   * Whether the list itself has the screen.
+   *
+   * One flag, three consumers, because they are all asking the same question and
+   * must not be able to answer it differently: the keyboard detaches, the capture
+   * bubble hides so it cannot float over a backdrop or be reached by Tab from
+   * behind one, and realtime updates queue instead of landing under a dialog the
+   * user is reading.
+   */
+  const listKeysEnabled = !editingTodo && !isCreateOpen && !isCategoryModalOpen
+
   // Smooth scroll to top when large panels collapse
   useCollapseScroll(isCreateOpen)
   useCollapseScroll(showCompleted)
@@ -200,6 +217,25 @@ export default function TasksPage() {
     const open = () => setIsCreateOpen(true)
     window.addEventListener(OPEN_CREATE_EVENT, open)
     return () => window.removeEventListener(OPEN_CREATE_EVENT, open)
+  }, [])
+
+  /*
+   * Warm the editor chunk once the page is idle. It stays code-split — the First
+   * Load payload is unchanged — but the fetch no longer sits between the press and
+   * the dialog. That matters for more than latency: the card-to-dialog transition
+   * animates from a rect captured at press time, and a rect older than a second is
+   * discarded as stale (lib/shared-origin.ts), so a cold chunk fetch would silently
+   * cost the first open of every session its transition.
+   */
+  useEffect(() => {
+    const warm = () => { void import("@/components/todos/edit-todo-modal") }
+    const idle = window.requestIdleCallback
+    if (typeof idle === "function") {
+      const handle = idle(warm, { timeout: 2000 })
+      return () => window.cancelIdleCallback?.(handle)
+    }
+    const t = window.setTimeout(warm, 1200)
+    return () => window.clearTimeout(t)
   }, [])
 
   const handleFilterChange = useCallback((ids: string[]) => {
@@ -389,17 +425,39 @@ export default function TasksPage() {
     }
   }, [enrichTodosWithAuthorNames, fetchCompletedPreview])
 
+  /**
+   * Somebody else's change, offered rather than applied.
+   *
+   * Reconciling on arrival moved every card below the insertion point — under a
+   * pointer that was already aimed, and under a reading position the user had
+   * scrolled to. The queue holds the change until it is safe: at the top of the
+   * list, with no dialog or composer open. See components/ui/update-pill.tsx for
+   * the policy; this decides only what "busy" means on this page.
+   */
+  const incoming = useDeferredUpdates<string>({
+    busy: !listKeysEnabled,
+    onApply: useCallback((taskIds: string[]) => {
+      // De-duplicated: three edits to one task while the queue was held is still
+      // one task to re-read, and three refetches would race each other's writes.
+      for (const id of new Set(taskIds)) void reconcileTaskById(id)
+    }, [reconcileTaskById]),
+  })
+
   useFeedSync(useCallback((signal) => {
     if (sameUserId(signal.actorId, user?.userId)) return
     if (signal.action === "task.deleted") {
+      // A deletion is NOT deferred. Leaving a card the user can press for a task
+      // that no longer exists earns them a 404 for doing the obvious thing;
+      // removal also only ever shortens the list, so nothing slides under the
+      // pointer the way an insert does.
       setTodos((prev) => prev.filter((t) => t.id !== signal.taskId))
       setCompletedPreview((prev) => prev.filter((t) => t.id !== signal.taskId))
       // Keep the completed count badge honest after a remote delete.
       void fetchCompletedPreview()
       return
     }
-    void reconcileTaskById(signal.taskId)
-  }, [reconcileTaskById, fetchCompletedPreview, user?.userId]))
+    incoming.push(signal.taskId)
+  }, [incoming, fetchCompletedPreview, user?.userId]))
 
   const handleComplete = async (id: string) => {
     const existingTodo = todosRef.current.find((t) => t.id === id) ?? completedPreviewRef.current.find((t) => t.id === id)
@@ -607,6 +665,92 @@ export default function TasksPage() {
     }
   }
 
+  /**
+   * The capture path: a title and nothing else.
+   *
+   * It deliberately does NOT reuse `handleCreate`, for one reason that matters —
+   * `handleCreate` catches its own failure and raises a toast. `QuickCapture` keeps
+   * the typed text and shows the error inline only if the promise rejects, so
+   * swallowing the error here would clear the field and lose the thought the user
+   * had just stopped to write down. The rejection is the contract.
+   */
+  const handleQuickCapture = useCallback(async (title: string) => {
+    const res = await api.post<ApiResponse<Todo>>("/todos/api/v1/todos", { title })
+    const created = parseApiResponse<Todo>(res.data)
+    if (created?.id) {
+      const [enriched] = await enrichTodosWithAuthorNames([created])
+      setTodos((prev) => (prev.some((t) => t.id === created.id) ? prev : [enriched, ...prev]))
+    }
+    void fetchActiveTodos({ silent: true })
+  }, [enrichTodosWithAuthorNames, fetchActiveTodos])
+
+  /**
+   * Delete a whole selection under ONE undo window.
+   *
+   * Looping `requestDelete` would be the obvious implementation and it is wrong:
+   * `useUndoableAction` holds a single pending action and commits the previous one
+   * whenever a new one starts, so ten calls would commit nine deletions instantly
+   * and leave a window over only the last. Building one action that carries every
+   * id keeps the promise the bar makes — the whole batch is reversible, or none of
+   * it is.
+   */
+  const requestDeleteMany = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    const snapshot = todosRef.current
+    // Positions from the list as it stands, so undo restores the order rather than
+    // dropping everything back on top.
+    const removed = ids
+      .map((id) => ({ index: snapshot.findIndex((t) => t.id === id), todo: snapshot.find((t) => t.id === id) }))
+      .filter((entry): entry is { index: number; todo: Todo } => entry.todo !== undefined)
+      .sort((a, b) => a.index - b.index)
+    if (removed.length === 0) return
+
+    const gone = new Set(removed.map((r) => r.todo.id))
+    setTodos((prev) => prev.filter((t) => !gone.has(t.id)))
+
+    const restore = () =>
+      setTodos((prev) => {
+        const next = [...prev]
+        // Ascending, so each insertion index is still valid once the earlier ones
+        // have been put back.
+        for (const { index, todo } of removed) {
+          if (next.some((t) => t.id === todo.id)) continue
+          next.splice(index < 0 || index > next.length ? next.length : index, 0, todo)
+        }
+        return next
+      })
+
+    undoable.run({
+      label: removed.length === 1
+        ? `“${truncateText(removed[0].todo.title, 40)}” deleted`
+        : `${removed.length} tasks deleted`,
+      commit: async () => {
+        const results = await Promise.allSettled(
+          removed.map((r) => api.delete(`/todos/api/v1/todos/${r.todo.id}`)),
+        )
+        const failed = removed.filter((_, i) => results[i].status === "rejected")
+        if (failed.length === 0) return
+        // Partial failure puts back exactly the ones that are still there. Telling
+        // the user "some failed" while showing them gone is the worst of both.
+        addToast({
+          type: "error",
+          title: failed.length === removed.length
+            ? "Failed to delete the tasks"
+            : `${failed.length} of ${removed.length} could not be deleted`,
+        })
+        setTodos((prev) => {
+          const next = [...prev]
+          for (const { index, todo } of failed) {
+            if (next.some((t) => t.id === todo.id)) continue
+            next.splice(index < 0 || index > next.length ? next.length : index, 0, todo)
+          }
+          return next
+        })
+      },
+      rollback: restore,
+    })
+  }, [undoable, addToast])
+
   const handleToggleHidden = useCallback(async (todoId: string) => {
     const existing = todosRef.current.find(t => t.id === todoId) ?? completedPreviewRef.current.find(t => t.id === todoId)
     if (!existing) return
@@ -702,6 +846,51 @@ export default function TasksPage() {
     [visibleTodos, visibleCount],
   )
   const hasMoreTodos = visibleCount < visibleTodos.length
+
+  // ── The keyboard ───────────────────────────────────────────────────────────
+  /*
+   * The cursor covers the MOUNTED window, not the whole filtered list. Letting it
+   * address a task that has not been rendered yet would mean `j` walking off the
+   * bottom into rows with no element to scroll to and no card to outline — the
+   * cursor would appear to vanish. The window grows as the user scrolls, so the
+   * reachable set grows with it.
+   */
+  const navIds = useMemo(() => renderedTodos.map((t) => t.id), [renderedTodos])
+
+
+  const nav = useListNavigation({
+    ids: navIds,
+    enabled: listKeysEnabled,
+    onActivate: (id) => {
+      const todo = todosRef.current.find((t) => t.id === id)
+      if (!todo) return
+      // Hand over the same rect a click would have, so Enter and a pointer open
+      // the editor identically. See lib/shared-origin.ts.
+      rememberOrigin(nav.getRowNode(id))
+      setEditingTodo(todo)
+    },
+    onEdit: (id) => {
+      const todo = todosRef.current.find((t) => t.id === id)
+      if (!todo) return
+      rememberOrigin(nav.getRowNode(id))
+      setEditingTodo(todo)
+    },
+    onToggleComplete: (id) => { void handleComplete(id) },
+    onDelete: (id) => {
+      const todo = todosRef.current.find((t) => t.id === id)
+      if (todo) requestDelete(todo)
+    },
+    onPriority: (id, level) => {
+      const todo = todosRef.current.find((t) => t.id === id)
+      if (!todo) return
+      // Only the owner may re-prioritise; a shared viewer pressing `3` would get a
+      // 403 and a toast for a key they were never offered.
+      if (!isTodoOwner(todo, user?.userId)) return
+      // The whole task, not `{ priority }` — the endpoint is a PUT, so a partial
+      // body clears every field it omits. See todoToOwnerPayload.
+      void handleUpdate(id, { ...todoToOwnerPayload(todo), priority: level })
+    },
+  })
 
   useEffect(() => {
     if (!hasMoreTodos) return
@@ -810,6 +999,9 @@ export default function TasksPage() {
               )
             ) : (
               <>
+              {/* Held realtime changes, offered above the list they would have
+                  moved. Renders nothing while the queue is empty. */}
+              <UpdatePill count={incoming.count} onShow={incoming.show} noun="update" />
               <MasonryColumns
                 items={renderedTodos}
                 getKey={(todo) => todo.id}
@@ -820,6 +1012,7 @@ export default function TasksPage() {
                   <TodoCard
                     todo={todo}
                     variant="default"
+                    rowProps={nav.getRowProps(todo.id)}
                     onComplete={() => handleComplete(todo.id)}
                     onDelete={() => requestDelete(todo)}
                     onEdit={() => setEditingTodo(todo)}
@@ -1021,6 +1214,51 @@ export default function TasksPage() {
           />
         )}
       </AnimatePresence>
+
+      {/*
+        Capture, before anything else. It is `position: fixed` in the phone's thumb
+        zone, and it is hidden whenever a dialog owns the screen — otherwise it
+        floats over the backdrop and is reachable by Tab from behind it.
+      */}
+      <QuickCapture onCapture={handleQuickCapture} hidden={!listKeysEnabled} />
+
+      <SelectionBar
+        count={nav.selectedIds.length}
+        onClear={nav.clearSelection}
+        actions={[
+          {
+            id: "complete",
+            label: "Complete",
+            icon: CheckCircle2,
+            onRun: () => {
+              const ids = nav.selectedIds
+              nav.clearSelection()
+              // Sequentially, not Promise.all: the completion path refetches and
+              // rewrites the list, and ten of those racing produces ten different
+              // answers about what the list contains.
+              void ids.reduce<Promise<unknown>>(
+                (chain, id) => chain.then(() => handleComplete(id)),
+                Promise.resolve(),
+              )
+            },
+          },
+          {
+            id: "delete",
+            label: "Delete",
+            icon: Trash2,
+            destructive: true,
+            onRun: () => {
+              const ids = nav.selectedIds
+              nav.clearSelection()
+              // One undo entry per task would stack five seconds of bars nobody can
+              // read, so the selection is deleted as one action with one window —
+              // `useUndoableAction` commits the previous pending action when a new
+              // one starts, which is exactly the behaviour a batch needs.
+              requestDeleteMany(ids)
+            },
+          },
+        ]}
+      />
 
       <UndoBar pending={undoable.pending} onUndo={undoable.undo} />
 
