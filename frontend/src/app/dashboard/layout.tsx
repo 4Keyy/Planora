@@ -10,7 +10,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <div className="min-h-screen bg-transparent">
                 <Navbar />
                 <main className="pt-20">
-                    <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-5 lg:px-6 py-6 md:py-10">
+                    {/*
+                      pb-28 (112px) rather than a symmetric py: the capture control
+                      is fixed over the bottom of this scroll region — 56px of
+                      bubble, a 16px gutter, 16px of air and the home indicator.
+                      Without it the last card is permanently half-covered.
+                    */}
+                    <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-5 lg:px-6 pt-6 md:pt-10 pb-28">
                         {children}
                     </div>
                 </main>

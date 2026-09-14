@@ -9,7 +9,7 @@ import axios from "axios"
 import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
-import { cn } from "@/lib/utils"
+import { cn, truncateText } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
 import { Todo, isTodoOwner, sameUserId, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
@@ -29,7 +29,6 @@ const CreateTodoPanel = dynamic(
   () => import("@/components/todos/create-todo-panel").then((m) => ({ default: m.CreateTodoPanel })),
   { ssr: false },
 )
-import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
@@ -40,6 +39,8 @@ import { NumberRoll } from "@/components/ui/number-roll"
 import { WeekBars } from "@/components/ui/week-bars"
 import { StatRow } from "@/components/ui/stat-row"
 import { DURATION_DELIBERATE, EASE_OUT_EXPO } from "@/lib/animations"
+import { QuickCapture } from "@/components/todos/quick-capture"
+import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 
 const DASHBOARD_MASONRY_BREAKPOINTS = [
   { maxWidth: 1200, columns: 2 },
@@ -137,7 +138,8 @@ export default function DashboardPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
-  const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
+  /** Deletions wait five seconds in here instead of behind a confirmation dialog. */
+  const undoable = useUndoableAction()
   const [mounted, setMounted] = useState(false)
   const [firstRun, setFirstRun] = useState(false)
   const firstRunAutoOpenedRef = useRef(false)
@@ -307,20 +309,6 @@ export default function DashboardPage() {
     if (liveSyncTimerRef.current) clearTimeout(liveSyncTimerRef.current)
   }, [])
 
-  // Press "C" — open create panel (skip when typing or panel already open)
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== "c") return
-      if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
-      if (isCreateOpen) return
-      const target = e.target as HTMLElement
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
-      e.preventDefault()
-      setIsCreateOpen(true)
-    }
-    window.addEventListener("keydown", handler, true)
-    return () => window.removeEventListener("keydown", handler, true)
-  }, [isCreateOpen])
 
   useEffect(() => {
     // Only run once store is hydrated AND component is mounted
@@ -453,22 +441,80 @@ export default function DashboardPage() {
     void Promise.all([fetchTodos(1, { silent: true }), fetchStats()])
   }
 
-  const confirmDelete = async () => {
-    if (!deletingTodo) return
-    try {
-      await api.delete(`/todos/api/v1/todos/${deletingTodo.id}`)
-      setTodos(prev => prev.filter(t => t.id !== deletingTodo.id))
-      setStatsTodos(prev => prev.filter(t => t.id !== deletingTodo.id))
-      
-      const isCompleted = ["done", "completed"].includes(String(deletingTodo.status).toLowerCase())
-      if (!isCompleted) {
-        setTotalCount(prev => Math.max(0, prev - 1))
-      }
-      
-      addToast({ type: "success", title: "Task deleted" })
-    } catch { addToast({ type: "error", title: "Failed to delete" }) }
-    finally { setDeletingTodo(null) }
-  }
+  /**
+   * Capture: a title, and the promise left to reject.
+   *
+   * Not `handleCreate` with a synthesised payload — that one closes the create
+   * panel, clears the first-run state and raises a success toast, none of which
+   * apply here. The toast in particular would be noise: the field collapsing back
+   * into the button already said it worked, and a message that repeats what the
+   * screen just showed is a message people learn to ignore.
+   */
+  const handleQuickCapture = useCallback(async (title: string) => {
+    const res = await api.post<ApiResponse<Todo>>("/todos/api/v1/todos", { title })
+    const created = parseApiResponse<Todo>(res.data)
+    if (created?.id) {
+      const [enriched] = await enrichTodosWithAuthorNames([created])
+      const prepend = (prev: Todo[]) => (prev.some((t) => t.id === created.id) ? prev : [enriched, ...prev])
+      setTodos(prepend)
+      setStatsTodos(prepend)
+      setTotalCount((c) => c + 1)
+    }
+    void Promise.all([fetchTodos(1, { silent: true }), fetchStats()])
+  }, [enrichTodosWithAuthorNames, fetchTodos, fetchStats])
+
+  /**
+   * Delete with a window, not a dialog — the same affordance `/tasks` has.
+   *
+   * Two screens that delete the same object two different ways is not a nuance a
+   * user models; it is a product that contradicts itself. The dialog here also
+   * claimed "This action cannot be undone", which was true of the request and
+   * false of the intent — the whole point of the window is that the request has
+   * not been sent yet.
+   *
+   * The card leaves both lists at once and remembers where it was in each, so undo
+   * puts it back in place rather than on top. The request is sent only when the
+   * five-second window closes; undo cancels the timer and nothing reaches the
+   * server. See components/ui/undo-bar.tsx for why that is the honest shape: the
+   * API has no restore endpoint.
+   */
+  const requestDelete = useCallback((todo: Todo) => {
+    const listIndex = todosRef.current.findIndex((t) => t.id === todo.id)
+    const statsIndex = statsTodosRef.current.findIndex((t) => t.id === todo.id)
+    const wasCompleted = ["done", "completed"].includes(String(todo.status).toLowerCase())
+
+    const restoreInto = (index: number) => (prev: Todo[]) => {
+      if (prev.some((t) => t.id === todo.id)) return prev
+      const next = [...prev]
+      next.splice(index < 0 || index > next.length ? next.length : index, 0, todo)
+      return next
+    }
+
+    setTodos((prev) => prev.filter((t) => t.id !== todo.id))
+    setStatsTodos((prev) => prev.filter((t) => t.id !== todo.id))
+    if (!wasCompleted) setTotalCount((c) => Math.max(0, c - 1))
+
+    const restore = () => {
+      setTodos(restoreInto(listIndex))
+      setStatsTodos(restoreInto(statsIndex))
+      if (!wasCompleted) setTotalCount((c) => c + 1)
+    }
+
+    undoable.run({
+      label: `“${truncateText(todo.title, 40)}” deleted`,
+      commit: async () => {
+        try {
+          await api.delete(`/todos/api/v1/todos/${todo.id}`)
+        } catch {
+          addToast({ type: "error", title: "Failed to delete task" })
+          // The server refused, so put it back rather than leave the user
+          // believing a task is gone when it is not.
+          restore()
+        }
+      },
+      rollback: restore,
+    })
+  }, [undoable, addToast])
 
   const handleComplete = useCallback(async (todoId: string) => {
     const existing = todosRef.current.find(t => t.id === todoId) || statsTodosRef.current.find(t => t.id === todoId)
@@ -954,7 +1000,7 @@ export default function DashboardPage() {
                       todo={todo}
                       variant="default"
                       onComplete={() => handleComplete(todo.id)}
-                      onDelete={() => setDeletingTodo(todo)}
+                      onDelete={() => requestDelete(todo)}
                       onEdit={() => setEditingTodo(todo)}
                       onToggleHidden={() => handleToggleHidden(todo.id)}
                       onJoin={async () => handleJoin(todo.id)}
@@ -1054,7 +1100,6 @@ export default function DashboardPage() {
             onSubmit={handleCreate}
             onCreateCategory={fetchCategories}
             onDeleteCategory={handleDeleteCategory}
-            shortcutHint="c"
           />
 
           {process.env.NODE_ENV === 'development' && (
@@ -1089,14 +1134,18 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      <ConfirmDialog
-        isOpen={!!deletingTodo}
-        onClose={() => setDeletingTodo(null)}
-        onConfirm={confirmDelete}
-        title="Delete Task?"
-        description={`Are you sure you want to delete "${deletingTodo?.title}"? This action cannot be undone.`}
-        confirmText="Delete Task"
-      />
+      {/*
+        `C` means the same thing on every screen that has it: capture, one field.
+        Both pages previously bound `C` to the full create panel, which asks for
+        priority, date, category and audience before it will take a task — the
+        opposite of capture, and not what the keyboard map promises. The panel is
+        still here; it is opened by pressing its own header, which is always on
+        screen, or from the command palette.
+      */}
+      <QuickCapture onCapture={handleQuickCapture} hidden={!!editingTodo || isCreateOpen} />
+
+      <UndoBar pending={undoable.pending} onUndo={undoable.undo} />
+
     </div>
   )
 }

@@ -168,8 +168,14 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 - `Services/TodoApi/Planora.Todo.Application/Features/Todos`
 - `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs`
 - `Services/TodoApi/Planora.Todo.Domain/Enums`
-- `frontend/src/app/todos/page.tsx`
-- `frontend/src/app/todos/completed/page.tsx`
+- `frontend/src/app/tasks/page.tsx`
+- `frontend/src/app/tasks/completed/page.tsx`
+- `frontend/src/hooks/use-list-navigation.ts` — the list cursor and multi-selection
+- `frontend/src/components/todos/quick-capture.tsx`
+- `frontend/src/components/ui/selection-bar.tsx`
+- `frontend/src/components/ui/update-pill.tsx`
+- `frontend/src/components/ui/undo-bar.tsx`
+- `frontend/src/lib/shared-origin.ts` — the card → editor transition geometry
 
 ### Key Rules
 
@@ -449,6 +455,214 @@ Two ways to reach it: **Ctrl/⌘-click a task card** opens the page in a **new t
 still opens the modal), and the modal's top chrome has a grey **"Open page"** button (same row as
 the In Progress pill) that opens it in a new tab. Both compute the URL from the task id;
 `TodoCard` handles the modifier-click, `TodoEditor` (modal variant) renders the button.
+
+### The keyboard over the task list
+
+`/tasks` answers to a cursor that walks the list without the pointer
+(`frontend/src/hooks/use-list-navigation.ts`, wired in `frontend/src/app/tasks/page.tsx`).
+One `keydown` listener on `window` serves the whole list: one listener per row would be one
+per mounted card, and it would require each row to hold DOM focus before its keys did
+anything, which is not how a list reads to a keyboard user. The hook never moves focus — the
+row under the cursor is simply the one tabbable row (roving `tabindex`), so `Tab` enters the
+list once and the keys take over from there.
+
+| Key | Acts on | Behaviour |
+|---|---|---|
+| `J` / `↓` | the cursor | Move down one row. Clamped at both ends, never wrapped — wrapping from the last row to the first teleports the reader somewhere they did not ask to be |
+| `K` / `↑` | the cursor | Move up one row. With no cursor yet, `J` lands on the first row and `K` on the last |
+| `Shift+J` / `Shift+K` / `Shift+↑` / `Shift+↓` | cursor + selection | Move and extend the selection. Moving back over a row that is already selected shrinks the selection instead of growing it in both directions |
+| `G` `G` | the cursor | Jump to the first row. The two presses must fall inside 500 ms (`CHORD_WINDOW_MS`); any other key cancels a half-typed chord |
+| `Shift+G` | the cursor | Jump to the last row |
+| `Enter` | the row under the cursor | Open its branch editor |
+| `Space` | the row under the cursor | Complete or reopen it — the same `handleComplete` path the card's check button takes |
+| `E` | the row under the cursor | Opens the same editor as `Enter`; the page wires `onEdit` and `onActivate` to one handler |
+| `1`–`5` | the row under the cursor | Set priority. The page drops the key unless the viewer owns the task (a shared viewer would earn a `403` for a key nobody offered them), and sends the whole task through `todoToOwnerPayload` because the endpoint is a `PUT` and a partial body clears what it omits |
+| `X` | the row under the cursor | Add it to, or remove it from, the selection. The selection is always re-ordered to match the list |
+| `Cmd/Ctrl+A` | every reachable row | Select all of them, and seat the cursor on the first row if it has none — row actions bail on a null cursor, so `⌘A` followed by `Space` or `Delete` used to do nothing. An empty list gives the browser its default back |
+| `Delete` / `Backspace` | the row under the cursor **only** | Delete it, through the undo window described below |
+| `Escape` | one layer per press | Clears the selection first; a second press drops the cursor. Deliberately not `preventDefault`-ed, so an outer layer keeps its own meaning for the key |
+
+Two rules are not obvious from the key list:
+
+- **The cursor is an id, not an index.** An index survives nothing this list does to
+  itself — completing a task removes a row, a filter change replaces the whole array, a
+  realtime reconcile reorders it — and an index-based cursor then points at a different task
+  than the one being read. When the active id genuinely disappears the cursor falls back to
+  the nearest surviving position rather than to nothing. The same reconcile drops ids from the
+  selection once they leave the list, so a bulk action can never be sent for a task that is
+  already gone.
+- **`Delete` acts on the cursor, never on the selection.** A keystroke that silently took
+  twelve tasks because an `x` earlier had scrolled out of view is not one anybody can take
+  back. A gathered selection is deleted from the selection bar instead, which states the count
+  before the word "Delete" — both on screen and in the button's accessible name.
+
+Guards, all of them in the hook:
+
+| Guard | Prevents |
+|---|---|
+| `event.defaultPrevented` bails | a widget closer to the event that already claimed the key from being second-guessed; it is also what makes the hook single-instance per page |
+| Target is an `input`, `textarea`, `select`, or inside a `[contenteditable]` (tested with `closest()`, not only `isContentEditable`) | typing "extra jam" into the composer editing a task, toggling three others and deleting one |
+| `Enter` / `Space` bail when the target is inside a `button`, `a[href]`, `summary`, or `[role="button"]` | one press both firing the row's own control and the list's binding |
+| `Meta` / `Ctrl` / `Alt` bail, except for the select-all chord | claiming `Ctrl+D` (bookmark) as a delete |
+| Arrow keys and `Space` are `preventDefault`-ed | the page scrolling on top of the hook's own `scrollIntoView`, and `Space` paging down on every completion |
+
+The listener is attached in the **bubble** phase, so a popover or menu inside a row can keep a
+key with `stopPropagation()`; a capture-phase listener on `window` could not be overruled.
+
+**Scope.** The cursor addresses the *mounted* window of cards, not the whole filtered list —
+the page mounts 24 cards and grows by 24 as the user scrolls (`INITIAL_VISIBLE_TASKS` /
+`VISIBLE_TASKS_CHUNK`), and letting the cursor walk off into rows with no element would make
+it appear to vanish. The hook detaches entirely (`enabled: false`) whenever the branch editor,
+the create panel, or the category-filter modal is open — one flag, `listKeysEnabled`, also
+hides quick capture and marks realtime arrivals as unsafe to apply, so the three cannot answer
+the question differently. Detaching leaves the cursor where it was, so closing the dialog
+returns the user to their place.
+
+The `?` overlay (`frontend/src/components/ui/shortcuts-overlay.tsx`) is the on-screen copy of
+this map, and `SHORTCUT_GROUPS` there is exported so the command palette prints the same
+strings. See `docs/frontend.md` §7 for the cross-page keyboard model.
+
+### Quick capture
+
+`frontend/src/components/todos/quick-capture.tsx` is a 56×56 button fixed in the bottom-right
+thumb zone (centred as a bar from `sm` up) that expands into **one field and nothing else**.
+The full create panel asks for priority, due date, category and audience before it accepts a
+task; every one of those is a decision, and a decision at the moment of capture is why a
+thought stops being written down at all. Priority, dates, category, audience and description
+are deliberately absent here and are added later from the card or the branch. The button and
+the expanded pill share one `layoutId`, so the circle stretches into the bar rather than being
+swapped for it.
+
+| Aspect | Behaviour |
+|---|---|
+| Submit | `Enter` (or the ✓ button). The title is trimmed; an empty or whitespace-only field is a silent no-op, not an error |
+| Double-submit guard | a `useRef` flag written synchronously inside the submit handler. `pending` drives the spinner, but a second `Enter` can land in the same tick, before React has re-rendered and disabled the button — both handlers would read `pending === false` and create two identical tasks |
+| Rejection | the typed text **stays on screen**, focus returns to the field, and the message renders as a `role="alert"` with an `id` the input references through `aria-describedby`, so it is re-read on every return to the field. Clearing the field on failure would destroy the only copy of the thought |
+| Title limit | 200 characters (`TITLE_MAX_LENGTH`), matching the create panel, so capture cannot produce a task the editor would reject |
+| Collapsing | `Escape`, the ✕, or `hidden` flipping on **discards** the draft. Blurring does not, while there is text in the field — a tap landing just outside the pill on a 390px screen would otherwise throw away a half-typed sentence |
+| Hidden | while a dialog, the create panel or the filter modal owns the screen, so it cannot float over a backdrop or be reached by `Tab` from behind one |
+
+The page's handler (`handleQuickCapture`) deliberately does **not** reuse `handleCreate`:
+`handleCreate` catches its own failure and raises a toast, and swallowing the error here would
+let the component clear the field. The rejected promise is the contract. On success the created
+task is inserted optimistically and the list reconciles silently in the background.
+
+The component owns the bare `c` shortcut on `document`, gated on modifiers, an in-progress IME
+composition, and any text-entry target. **It owns it on every screen that mounts quick
+capture**, which is `/dashboard` and `/tasks`.
+
+That is a deliberate correction. Both pages previously bound `C` to the full create panel with
+their own capture-phase listener on `window`, so `c` never reached this component and the key
+did the opposite of what the keyboard map promised: it opened the surface that asks for
+priority, due date, category and audience before it will accept a task. One key now means one
+thing. The full panel is still on both screens — its collapsed header **is** the "new task"
+affordance — and it is opened by pressing that header, or from the command palette's "Create
+task", which dispatches `OPEN_CREATE_EVENT`.
+
+### Deleting a task, and deleting a selection
+
+Deleting a task has **no confirmation dialog**. The card leaves the list immediately and the
+`DELETE` request is only sent when a five-second window closes (`WINDOW_MS` in
+`frontend/src/components/ui/undo-bar.tsx`); undo cancels the timer and nothing ever reaches the
+server. That is what makes the affordance honest — the API has no restore endpoint, so an
+optimistic delete with a "restore" button would be a lie. A confirmation still belongs on
+anything the window cannot cover (deleting an account, revoking every session): those are
+irreversible server-side, and five seconds is not consent.
+
+Both `/dashboard` and `/tasks` work this way. The dashboard used to raise a `ConfirmDialog`
+whose description read "This action cannot be undone", which was true of the request and false
+of the intent — the point of the window is that the request has not been sent yet. Two screens
+deleting the same object two different ways is not a nuance a user models; it is a product
+contradicting itself. `/tasks/completed` still deletes through the dialog, because an archive
+entry is not in a list anyone is scanning and the undo bar has nowhere to sit there.
+
+| Aspect | Rule |
+|---|---|
+| Single delete | `requestDelete` removes the card optimistically (active tasks only — a completed card stays until the request lands) and remembers its index, so undo puts it back **in place** rather than on top. A server refusal re-inserts it at the same index and toasts |
+| Selection delete | `requestDeleteMany` builds **one** undoable action carrying every id. Looping `requestDelete` would be wrong: `useUndoableAction` holds a single pending action and commits the previous one whenever a new one starts, so ten calls would commit nine deletions instantly and leave a window over only the last |
+| Label | `“{title}” deleted` for one, `{n} tasks deleted` for a batch |
+| Commit | `Promise.allSettled` over the ids, so one refusal does not abandon the rest |
+| Partial failure | exactly the tasks that still exist are put back, at their recorded indices (ascending, so each index is still valid once the earlier ones are restored), and the toast names the split: `{failed} of {total} could not be deleted` |
+| Bulk complete | runs the completions **sequentially**, not with `Promise.all` — the completion path refetches and rewrites the list, and ten of those racing produce ten different answers about what the list contains |
+| Keyboard | no shortcut triggers a bulk action. Every selection-bar action is a press, and the destructive one is drawn in the product's one saturated colour and placed last |
+
+### Realtime arrivals on the task list
+
+A remote change that reconciles on arrival moves every card below the insertion point — under
+a pointer that was already aimed at a row, and under the reading position the user had
+scrolled to. So arrivals are **held and offered** rather than applied
+(`useDeferredUpdates` + `UpdatePill` in `frontend/src/components/ui/update-pill.tsx`, the
+`useFeedSync` callback in `frontend/src/app/tasks/page.tsx`).
+
+| Signal | What happens |
+|---|---|
+| The signal's actor is the current user | ignored — the local optimistic update already applied it |
+| `task.deleted` | applied **immediately**, never queued. Leaving a pressable card for a task that no longer exists earns the user a `404` for doing the obvious thing, and a removal only ever shortens the list, so nothing slides under the pointer the way an insert does. The completed count is re-fetched so the badge stays honest |
+| Anything else | pushed into the queue, which applies it live only when **both** hold: the list is within 24px of the top (`DEFAULT_THRESHOLD`, measured on `window` here) **and** nothing is busy — `busy` on this page is `!listKeysEnabled`, i.e. the editor, the create panel or the filter modal is open. At the top an insert pushes content down without disturbing anything, and there is nothing above the fold to lose |
+
+Pressing the pill flushes the whole queue and scrolls to the top; the ids are de-duplicated
+first, because three edits to one task while the queue was held are still one task to re-read
+and three refetches would race each other's writes. Reaching the top by scrolling does **not**
+drain the queue on its own — a user scrolling up to re-read something has not asked for the
+list to change under them, and a pill that vanished unpressed would leave them wondering what
+they missed. `clear()` exists for the caller that has just refetched, so queued items are not
+inserted a second time.
+
+The pill is drawn out of flow (a zero-height sticky strip with the button overflowing it), so
+its appearance and disappearance shift nothing; the list column must therefore not have an
+`overflow-hidden` ancestor, which would clip it. Its screen-reader announcement is
+count-free and fires once per batch: the region is a sibling of the button, holds text written
+once on mount, and is unmounted with the batch, so a burst of ten realtime ticks cannot become
+ten interruptions. The count lives on the button's `aria-label`, which is read on arrival
+rather than shouted on change.
+
+### Presence and redaction in the task editor
+
+The branch editor's header carries two marks above the meta strip, rendered only when there is
+something to say (someone is working, or the task is not private) —
+`frontend/src/components/todos/edit-todo-modal/modal.tsx`.
+
+**Presence** (`frontend/src/components/ui/presence-row.tsx`) draws the people in the task as
+overlapping faces, with the `N of {requiredWorkers}` fraction beside them when a capacity is
+set. A newly arrived face springs in and is ringed once by an accent stroke that draws itself
+(`pathLength`) and then fades. First mount is deliberately not an arrival: a page load would
+otherwise ring every participant at once and teach the user, on first exposure, that the ring
+means nothing. Multiple arrivals in one payload are staggered by 60 ms so the eye can count
+them. The ring is skipped entirely under `prefers-reduced-motion`. Accessibility is one
+sentence — "{first name} and N others are working on this. N of M needed." — and every visual
+part below it is `aria-hidden`, so a screen-reader user is not walked through a crowd one
+person at a time.
+
+**What actually drives it.** The server resolves live worker identities (`TodoItemDto.Workers`,
+name + avatar from Auth at query time) **only for subtask reads** — `GetSubtasksQueryHandler`
+is the one handler that populates the field, and the AutoMapper profile explicitly ignores it.
+A top-level task carries `workerUserIds` and `workerCount` and nothing else. So the editor
+resolves the names **client-side**, matching those ids against the friend list it has already
+loaded for the audience picker (`useFriends`, one cached fetch shared across consumers). That
+costs no extra request and avoids an identity lookup per task across a 200-task page, which is
+the N+1 the list endpoints already avoid for author names. A worker id that is not in the
+viewer's friend list resolves to no name and no avatar, and reads as "Someone" in the
+sentence.
+
+**Redaction** (`frontend/src/components/ui/redaction-badge.tsx`) states the audience as a ring
+whose gap opens and closes, beside the word:
+
+| Audience | Ring |
+|---|---|
+| `private` | one narrow cut (12% of the circumference) plus a filled centre dot — you, the only viewer. The dot is what separates it from `public` at the 14px size, where the gap is about two pixels |
+| `shared` | cut open from 16%, widening 4.5% per viewer, saturating at 50% (eight viewers) — past half the circumference the mark stops reading as a ring and starts reading as a bracket. The viewer count rolls beside it |
+| `public` | a closed ring |
+
+The mark is geometry, not hue: the drawn arc is `ink` and the cut arc is `line`, so it survives
+greyscale and every kind of colour blindness, and it does not compete with the one saturated
+colour the product reserves for `alert`. Animating the dash pattern is the system's one
+sanctioned exception to "transform and opacity only" — no transform turns an arc into a longer
+arc. The whole mark, word and count collapse into a single node with one name
+(`role="img"`), so the audience is not announced twice.
+
+The editor never produces `public` from this control: it writes `isPublic: false` on every save
+and expresses reach through the shared list, so the badge reports `private` or `shared` only.
+The viewer count is the length of that shared list.
 
 ### Frontend Behavior
 

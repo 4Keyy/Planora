@@ -286,9 +286,252 @@ Three separate mechanisms, because no single one reaches everywhere:
 
 If you write a rAF loop, it is your job to handle the third case. Nothing else will.
 
+
+### The four laws
+
+Every animation in the product obeys all four. A preset that cannot be expressed
+under them is a preset that should not exist.
+
+1. **Transform and opacity only.** Plus `pathLength` on an SVG, which is the single
+   exception and is a real one: no transform turns an arc into a longer arc. Scaling
+   the circle changes its size; rotating it moves the gap without resizing it.
+2. **A response to a tap finishes within 320ms.** `deliberate` (480ms) is for a number
+   roller and a progress ring — things reporting a fact, not answering a press.
+3. **No `transition: all`, no `filter`, no `box-shadow` inside a variant.** A shadow on
+   hover belongs in CSS (`hover:shadow-md`), where it costs nothing.
+4. **One preset per meaning.** An earlier generation of `animations.ts` shipped both
+   `VARIANTS_MODAL` and `VARIANTS_MODAL_BOUNCE`, both `TAP_PRESS` and
+   `TAP_PRESS_ENHANCED`, and 30 of its 47 exports were used nowhere.
+
+### Direction carries meaning
+
+| Motion | Means |
+|---|---|
+| Arriving from below, `y: 8 → 0` | New content, in reading order |
+| Leaving upward, `y: 0 → -8` | Dismissed, withdrawn |
+| Growing from a point | *This* became *that* — the same object, a different form |
+| Drawn (`pathLength`) | You did this. The motion traces the gesture |
+| Rolling | A quantity changed, and by how much |
+| Fading only | A state changed. The weakest statement available |
+
+A thing that *fades* in announces that a render happened. A thing that is *drawn*
+announces that a person did something. Spend the second one rarely.
+
 ---
 
-## 9. Control sizing
+## 9. Choreography
+
+The system above is the vocabulary. This section is the small number of places the
+product spends it, with the exact specification each one is built to. These are not
+decoration: each one answers a question the interface would otherwise have to answer
+in words.
+
+### 9.1 Completion — ink
+
+`components/ui/ink-check.tsx`. The only element in the product with a multi-step
+entrance, because completing a task is the only thing a task app is for.
+
+| Step | What | Duration | Curve |
+|---|---|---|---|
+| 1 | Ink fills from the centre, `scale 0 → 1` | `fast` 160 | `emphasized` |
+| 2 | The stroke draws, `pathLength 0 → 1`, 80ms behind | `fast` 160 | `emphasized` |
+
+The fill is pinned to the `ink` token and never `currentColor`. The host button turns
+its own text white once a task completes, so `bg-current` painted white ink under a
+white stroke and the mark vanished at exactly the moment it mattered.
+
+**The exit is a plain fade.** Un-completing is an undo, not an achievement, and must
+not be drawn in reverse.
+
+### 9.2 A number changing — the roller
+
+`components/ui/number-roll.tsx`. Every digit is its own column; a column slides by one
+line height over `deliberate` 480ms on `emphasized`, staggered **30ms from the right**
+— the order a carry actually propagates.
+
+Two details that are not optional:
+
+- **`tabular-nums`, columns sized `1ch`.** In a proportional face a `1` is narrower
+  than a `7`, so a rolling counter changes width mid-animation and shoves its own
+  label sideways.
+- **The value appears once for assistive technology.** The columns are `aria-hidden`
+  and an `sr-only` node carries the number, or a screen reader reads every intermediate
+  digit of every roll. This is why `getByText` on a rolled digit throws in tests and
+  `getAllByText` is correct.
+
+The roller must not impose its own line box. Forcing `height: 1em; line-height: 1`
+made it shorter than the surrounding text, moved the count pill 3px and took CLS from
+0.090 to 0.208. It uses an inline grid instead, so the column stack occupies exactly
+one normal line.
+
+### 9.3 Card to dialog — the shared element
+
+`lib/shared-origin.ts`. Opening a task is the one navigation in the product that
+carries a claim: **this card is that screen.** A dialog that fades in from the centre
+of the viewport says the opposite — that a new, unrelated thing appeared — and the
+reader has to re-find their place in the list when it closes.
+
+| Step | What | Duration |
+|---|---|---|
+| 1 | The pressed card's rect is recorded, on the press | — |
+| 2 | The dialog mounts at that rect: uniform `scale`, `x`/`y` centre-to-centre, `opacity 0` | — |
+| 3 | It grows to its own geometry | `SPRING_STANDARD` |
+| 4 | Closing returns along the same path | `SPRING_STANDARD` |
+
+Three decisions inside it:
+
+- **Not a framer-motion `layoutId`.** That is the documented technique and it would
+  make every card in the list a layout-animated node. The tasks page renders up to 200
+  memoised `TodoCard`s inside a masonry; giving each a projection node costs a measure
+  on every list change — filtering, completing, an undo window closing — for an effect
+  used on one card at a time.
+- **Uniform scale, from the width ratio.** Scaling x and y independently would match
+  the card's rectangle exactly and shear every glyph in the dialog on the way. Text
+  stretched vertically for 220ms reads as a rendering fault, not as motion.
+- **Clamped, and consumed.** A card 1/12th the dialog's width would start at
+  `scale: 0.08` — a speck expanding across the screen, theatre rather than
+  orientation, so the floor is `0.55`. The recorded rect is *consumed* on read and
+  expires after 1s, so a dialog opened from the palette, a notification or a deep link
+  finds nothing and falls back to the plain entrance. That is the honest thing to
+  show: nothing on screen was the source.
+
+The tasks page warms the dialog's code-split chunk on idle, because a cold chunk fetch
+would push the open past the 1s expiry and silently cost the first open of every
+session its transition.
+
+### 9.4 Presence arriving
+
+`components/ui/presence-row.tsx`. The central event of a collaboration product is
+another person appearing inside your task.
+
+| Step | What | Spec |
+|---|---|---|
+| 1 | The face springs in | `scale 0.6 → 1`, `opacity 0 → 1`, `SPRING_GENTLE` |
+| 2 | An `accent` ring draws around it | `pathLength 0 → 1`, `base` 220 |
+| 3 | The ring fades, once the stroke has closed | `exit` 160, delayed by 220 |
+| 4 | Multiple arrivals stagger | 60ms apart |
+
+**First mount is not an event.** Somebody who was already in the task when the page
+loaded did not just walk in. Without that rule every page load rings every participant
+at once and teaches the user, on their very first exposure, that the ring means
+nothing. The previous id set is held in a ref; an unchanged set must not clear the
+arrival either, or a parent re-render cuts the ring off mid-draw.
+
+The whole stack is `aria-hidden` behind one `sr-only` sentence. Labelling each avatar
+makes a screen-reader user walk a crowd one person at a time to learn what a sighted
+user takes in at a glance, and a decorative ring would announce on every join.
+
+### 9.5 Redaction narrowing
+
+`components/ui/redaction-badge.tsx`. The one promise this product makes that a list app
+does not is that a task can be shown to some people and not others. Rendered as a word
+it is a promise the eye skips on its way to the title.
+
+The audience is an arc. `private` is a nearly closed ring with a filled centre —
+you, the only viewer. `shared` is cut open by a wedge that widens with the count, from
+a 16% base by 4.5% per viewer, saturating at 50% (eight viewers) because past half the
+circumference the mark stops reading as a ring and starts reading as a bracket.
+`public` is complete. Changing audience animates `pathLength`/`pathOffset` over `base`
+220ms on `emphasized`, so the user watches the circle open or close — legible in
+peripheral vision before any of the three words has been read.
+
+Geometry, not hue. A privacy scale painted green/amber/red would compete with `alert`
+for the product's one saturated colour and collapse under dichromacy the way the old
+five-colour priority palette did.
+
+### 9.6 Undo instead of confirmation
+
+`components/ui/undo-bar.tsx`. A confirmation dialog asks a question the user already
+answered. It stops every deletion — including the ones that were meant — to guard
+against the few that were not, and it trains people to click through dialogs unread.
+
+| Step | What | Spec |
+|---|---|---|
+| 1 | The card leaves | `opacity → 0`, `exit` |
+| 2 | Its neighbours close the gap | `layout`, `SPRING_STANDARD` |
+| 3 | The bar arrives from below | `y 100% → 0`, `base` 220, `emphasized` |
+| 4 | The countdown bar drains over 5s | `scaleX 1 → 0`, linear |
+
+**It defers the request, not just the UI.** The card leaves at once; the DELETE is sent
+only when the window closes, and undo cancels the timer so nothing ever reaches the
+server. That is what makes it honest: the API has no restore endpoint, so an optimistic
+delete with a "restore" button would be a lie.
+
+| Case | Behaviour | Why |
+|---|---|---|
+| A second action starts | The first commits immediately | Dropping it loses a deletion silently; queueing stacks bars nobody can read |
+| The component unmounts | Anything pending commits | Navigating away is not taking it back |
+| The server refuses after the window | The card comes back | Better than leaving the user believing a task is gone when it is not |
+| A whole selection is deleted | **One** action carrying every id | Looping the single-action hook would commit all but the last instantly |
+
+Confirmation still guards what this cannot reverse: deleting an account, revoking every
+session. Five seconds is not consent.
+
+### 9.7 Capture
+
+`components/todos/quick-capture.tsx`. A 56×56 control in the phone's easy thumb arc
+(blueprint 10.1: y 560–844 of 844) that **becomes** the input bar — both surfaces share
+one `layoutId`, projected by `SPRING_RESPONSIVE`. A crossfade between two separate
+elements would read as "one thing vanished, another appeared", which is the wrong
+story: the user pressed a button and it opened.
+
+No selectors on the first step, and this is a product decision rather than an
+unfinished one. Priority, date, category and audience are each a decision, and a
+decision at the moment of capture is why a thought stops being written down at all.
+Structure is added later from the card or the branch, where the user is sitting down
+and looking at the work.
+
+### 9.8 Somebody else's change
+
+`components/ui/update-pill.tsx`. A realtime list that inserts above the viewport moves
+every row under the pointer, and the click the user had already committed to lands on
+whatever slid into that position.
+
+| Condition | What happens |
+|---|---|
+| At the top of the list, nothing else open | Applied immediately |
+| Scrolled away | Queued; the pill offers it |
+| A composer or dialog is open | Queued, regardless of scroll position |
+| The change is a deletion | Applied immediately — it only shortens the list |
+
+The pill is drawn out of flow: a zero-height sticky strip with the button overflowing
+it, so its appearance shifts nothing. A pill that reflowed the list to announce that
+the list must not reflow would be the joke version of this component.
+
+The live region carries **no count**, and its text never changes. `aria-live` fires on
+every mutation inside the region, so a region wrapped around a realtime counter turns a
+burst of ten ticks into ten interruptions, each cutting off the last — a screen-reader
+denial of service driven by other people's typing. The number lives on the button's
+accessible name, which is read on arrival rather than announced on change.
+
+### 9.9 The list appearing
+
+Cards rise 8px in reading order, `base` 220 on `emphasized`, 40ms apart and **capped at
+eight steps**. Past the eighth the delay outlasts the reader's patience and the last
+cards appear to be loading rather than arriving. Skeletons match the card's dimensions
+so the swap costs no layout shift.
+
+### 9.10 The weekly ring
+
+`pathLength 0 → value` over `deliberate` 480ms on `emphasized`, with the numeral
+rolling on the same beat — the ring and the number are one statement about the week,
+and they must finish together. The previous version interpolated a `strokeDasharray`
+string over 1500ms with a spring layered on top of a tween: three times the ceiling the
+scale sets for anything, and long enough that the number had finished rolling while the
+arc was still moving.
+
+### 9.11 What is deliberately not animated
+
+| Thing | Why |
+|---|---|
+| Route transitions beyond a 160ms fade | A `transform` on `app/template.tsx` creates a containing block that captures every `position: fixed` element inside the page. The navbar's active-tab indicator carries the transition instead, via `layoutId` |
+| Colour changes through framer-motion | Not composited. `transition-colors duration-fast` in CSS costs nothing |
+| Anything on a list at rest | A list that breathes is a list that cannot be read |
+| Error states | An error is not a moment to celebrate the animation system |
+
+---
+
+## 10. Control sizing
 
 | Token | Value | Use for |
 |---|---|---|
@@ -330,7 +573,7 @@ overlap and steal each other's taps. Those need real spacing.
 
 ---
 
-## 10. Accessibility floor
+## 11. Accessibility floor
 
 Every one of these is measured across a matrix of 12 routes × 9 viewports × 3 modes
 (264 cells) by `docs/ui-audit/tools/live-scan.mjs`, and statically by
@@ -393,7 +636,7 @@ composites to.
 
 ---
 
-## 11. Primitives
+## 12. Primitives
 
 Nothing in `components/ui/` knows what a task is. A primitive that imports a `Todo`
 type has stopped being a primitive.
@@ -559,9 +802,264 @@ Two decisions worth keeping:
 Tasks load once per opening rather than per keystroke, and a failed fetch still leaves a
 palette that navigates.
 
+### `useListNavigation` — the cursor is an id
+
+An index survives nothing this list does to itself. Completing a task removes a row, a
+filter change replaces the whole array, a realtime update reorders it — and an
+index-based cursor then points at a different task than the one the user was reading.
+When the active id genuinely disappears the cursor falls back to the nearest surviving
+position rather than to nothing: losing your place entirely is what makes keyboard
+navigation feel broken, and it is the most common way a hook like this is wrong.
+
+Three guards that are the difference between a working list and a demo:
+
+| Guard | Without it |
+|---|---|
+| The event target is not an `input`, `textarea`, `select` or `[contenteditable]` — tested with `closest()`, not `isContentEditable` alone | Typing "extra jam" into a composer edits a task, toggles three others and deletes one |
+| A focused `button`/`a`/`[role=button]` keeps `Enter` and `Space` | One press both completes the task and opens it |
+| `enabled: false` **detaches** the listener rather than filtering inside it | An open dialog has keys pulled out from under it |
+
+`Shift` rewrites the character it produces: `Shift+j` arrives as `"J"`, not as `"j"`
+with `shiftKey`. Reading `event.shiftKey` on the `"j"` branch matched nothing, and the
+extend-selection binding was dead code that typechecked.
+
+One `window` listener serves the whole list, in the **bubble** phase so a popover inside
+a row can claim a key with `stopPropagation()`. That makes the hook single-instance per
+page — a second list's `defaultPrevented` guard trips on the first's `preventDefault()`
+— which is right for a list nested in a list and would need a scope for anything else.
+
+### `PresenceRow` — first mount is not an event
+
+The difference between two consecutive id sets is an arrival. The set that was already
+there when the page loaded is not: somebody who was in the task before you opened it did
+not just walk in. Without that rule a page load rings every participant simultaneously
+and teaches the user, on their first exposure, that the ring means nothing.
+
+An *unchanged* set must not clear the arrival either. The parent re-renders for reasons
+of its own — a sibling's state, a poll returning identical data — and recomputing
+"nobody is new" on those renders cuts the ring off mid-draw.
+
+Worker names are resolved on the client against the friend list the editor has already
+loaded. The server resolves live worker identities only for subtask reads; asking the
+list endpoint to enrich them would be an identity lookup per task across a 200-task
+page, which is the N+1 this codebase already avoids for author names. The only people
+it can fail to name are people the viewer is not friends with — who, by `INV-AZ-3`,
+cannot be in a task the viewer is looking at.
+
+### `RedactionBadge` — the one sanctioned non-transform animation
+
+Rule 1 of the motion system is transform and opacity only, and this is the exception it
+allows. It is a real exception rather than a shortcut: **no transform turns an arc into
+a longer arc.** Scaling the circle changes its size; rotating it moves the gap without
+resizing it. framer-motion's `pathLength`/`pathOffset` set `pathLength="1"` on the
+element and write the dash pattern in normalised units, so each frame interpolates two
+attributes of one SVG element — no layout, no reflow of the label beside it.
+
+`initial={false}`: the badge must be correct on its first paint. Animating in from a
+closed ring would show every task as private for 220ms on load.
+
+### `UpdatePill` — an `aria-live` region that stays silent
+
+`aria-live` fires on every mutation inside the region. A region wrapped around a
+realtime counter turns a burst of ten ticks into ten interruptions, each cutting off the
+last. Three things together prevent that, and all three are required:
+
+1. **The region holds no count.** It says updates exist; how many is on the button's
+   accessible name, which is read on arrival and never announced on change.
+2. **The region is a sibling of the button**, so the rolling digits — which mutate the
+   DOM on every arrival — are outside it.
+3. **The text is written once, by an effect, into a region that rendered empty.**
+   Mounting a live region with its text already in place is the case browsers disagree
+   about; mutating one already on the page is the case they all handle.
+
+The region mounts and unmounts with the batch, so each batch earns exactly one
+announcement.
+
+### `SelectionBar` — the count before the verb
+
+A menu hides how many rows an action is about to touch behind a click, and "delete" is
+not a word anybody should read without that number beside it. The count is larger than
+the labels and rolls when it changes, so a selection that grew while the user was
+reading cannot be missed.
+
+**No shortcut triggers a bulk action.** A destructive keystroke acting on an invisible
+set is the one keyboard affordance that cannot be taken back.
+
+It sits on the `sticky` tier, not `toast`: the undo bar a bulk delete raises has to be
+able to appear over it. Two elements on the same tier at the same height are decided by
+source order, which is not a decision anyone made.
+
+### `QuickCapture` — the circle becomes the bar
+
+Both surfaces share one `layoutId`, so framer-motion projects the 56px circle into the
+pill and back. A crossfade between two separate elements reads as "one thing vanished,
+another appeared", which is the wrong story: the user pressed a button and it opened.
+
+Deliberately absent, and not an oversight to be fixed later: priority, due date,
+category, audience, description. Each is a decision, and a decision at the moment of
+capture is why a thought stops being written down at all.
+
+Escape collapses and **discards** the draft. A stale sentence reappearing in the field
+three hours later is more surprising than retyping six words. Blur does not collapse
+while there is text — a tap landing just outside the pill is easy on a 390px screen.
+
 ---
 
-## 12. Failure modes this system is built against
+## 13. The two devices
+
+Planora is used on exactly two devices and they are not the same product with
+different margins. The phone is the device of the hands: a person captures something
+while standing up, and glances at what is late. The desktop is the device of the head:
+the same person sits down, plans, and works through a list.
+
+### The phone: reachability decides the layout
+
+| Band (390 × 844) | What may live there |
+|---|---|
+| 0 – 140 | The screen's title. **Nothing interactive** |
+| 140 – 360 | Reading, secondary links |
+| 360 – 560 | Content, cards |
+| 560 – 844 | **Every primary action** |
+
+The capture control sits in the last band, bottom-right, because that is the only
+corner a right-handed grip reaches without the phone moving in the hand. Anything
+`position: fixed` over the bottom of a scroll region has to be paid for: the region
+needs `pb-28` (112px — the 56px control, its 16px gutter, 16px of air, and the home
+indicator) or the last card is permanently half-covered. That is the item people report
+as "the one I cannot tap".
+
+Safe areas are `pt-safe` / `pb-safe` / `pl-safe` / `pr-safe` in `globals.css`. Any fixed
+element touching an edge uses them.
+
+**Where the phone hits a wall, say so.** Seven 44px calendar cells need 320px; at 360px
+the app's own gutters leave 328px, which is 8px for the entire calendar frame. Those
+cells are 39.7 × 44 at 360px — above WCAG 2.5.8's 24 × 24 floor, below this project's
+stricter 44. That is arithmetic, not an oversight, and it is recorded rather than
+quietly rounded away.
+
+### The desktop: density, and the keyboard
+
+At 1440px the question is not whether things fit but whether the screen earns its width.
+A hero band holding one sentence across 1440px is a screen that has been filled rather
+than used.
+
+The keyboard is a first-class interface here, not an accessibility obligation — see
+[`frontend.md` § The keyboard](frontend.md#7-the-keyboard) for every binding. Two rules
+belong to the design system rather than to the implementation:
+
+- **Every action that has a key shows it.** The command palette prints the shortcut
+  beside each command; the `?` map prints all of them. A product that hides its
+  keyboard in documentation has a keyboard that nobody uses.
+- **Hover belongs only to what is clickable.** Card actions appear under the cursor over
+  `fast` 160 on `standard`. On a device with no cursor — detected by
+  `@media (hover: hover)`, never by width — they are always visible.
+
+---
+
+## 14. Words
+
+The interface writes in English, in plain declarative sentences, and it is consistent
+about which word means which thing.
+
+### Rules
+
+1. **A button names its action.** "Save", "Delete", "Share" — never "OK", never "Done",
+   never "Submit". A user reading a button should know what will have happened.
+2. **An error says what went wrong and what to do.** One without the other is a dead
+   end; a reference id belongs beside them, not instead of them.
+3. **No codes, no jargon, no stack traces** in anything a user reads. `StatusPanel`
+   deliberately has no slot for `error.message` for this reason — it takes a
+   `referenceId` instead.
+4. **Small caps only at `caption` 12px, and only for section dividers.** Uppercase is a
+   structural signal here, not emphasis.
+5. **Sentence case everywhere else**, including buttons and headings.
+6. **No Russian in shipped strings.** 1153 characters across ten files were removed;
+   what remains is keyword data for legacy icon matching, marked as data.
+
+### One concept, one word
+
+| Concept | The word | Never |
+|---|---|---|
+| A unit of work | **task** | todo, item, entry |
+| A nested unit | **subtask** | child, sub-item |
+| A task with its timeline | **branch** | thread, discussion, feed |
+| The people you share with | **circle** | friends, team, members |
+| Who can see a task | **audience** | visibility, sharing list |
+| Hiding fields from part of the circle | **redaction** | hiding, privacy mode |
+| Taking a task into work | **take** | claim, assign, start |
+
+A synonym is not a stylistic choice. Two words for one concept make a reader wonder
+what the difference is, and there is no answer.
+
+### Refusals
+
+| Situation | What it says |
+|---|---|
+| The network is unreachable | "Can't reach Planora. Check your connection and try again." |
+| The server failed | "Something went wrong on our side. Try again in a moment." |
+| No permission | "You don't have access to this task. Ask its owner to share it with you." |
+| Gone | "This task no longer exists. It may have been deleted." |
+| The session expired | "Your session expired. Sign in to continue." |
+
+Five situations, five sentences. Collapsing them into one generic message saves nothing
+and costs the user the only clue they had.
+
+---
+
+## 15. Showing data
+
+The small decisions that are wrong in most products, and where they are made here.
+
+| Kind | Rule | Where |
+|---|---|---|
+| Dates | One locale, `UI_LOCALE = "en-US"`, always explicit | `lib/datetime.ts` |
+| Numbers that change | Rolled, `tabular-nums`, sized `1ch` | `NumberRoll` |
+| Numbers at rest | `tabular-nums` wherever a column of them can line up | — |
+| A quantity with a target | "3 of 5", with the first number rolled | `PresenceRow` |
+| A magnitude | Filled length, never hue | `PriorityMeter` |
+| A person | Face, then name, then initials — in that order of preference | `Avatar` |
+| A count of people | Faces up to four, then `+N` | `PresenceRow` |
+| Nothing | A `StatusPanel`, never an empty container | `StatusPanel` |
+
+**Never call `toLocaleDateString()` without a locale.** The implicit locale differs
+between the server and the browser, so the server renders `9/14/2026`, the client
+renders `14/09/2026`, and React discards the entire server pass as a hydration
+mismatch. This has happened here.
+
+**A `+1` chip is not a collapse.** It is exactly as wide as the face it replaces, so
+hiding a single overflowing person trades a human being for a numeral and reclaims no
+space. Collapse only when it buys something.
+
+---
+
+## 16. Anatomy: the task card
+
+The card is the product's main object, and it is where every rule above has to hold at
+once. It is worth reading as a worked example.
+
+| Element | Token | Rule it obeys |
+|---|---|---|
+| Title | `title-sm` / `font-bold` / `ink` | Truncated at 40 characters; the full title is on the dialog it opens |
+| Completion control | `InkCheck`, 44 × 44 | The one multi-step entrance in the product |
+| Priority | `PriorityMeter` | Magnitude as filled length — never hue (rule 5) |
+| Category | `caption`, the user's own colour | `@colour-data`: their choice, stored against their data |
+| Due date | `caption`, `alert` only when overdue | The product's one saturated colour, spent on the one thing that earns it |
+| Presence | `PresenceRow` | One `sr-only` sentence, never a label per face |
+| Keyboard cursor | `outline-2 outline-offset-2 outline-ink` | An outline, not a ring: it follows `border-radius` without being told, and it is **not** the focus indicator — focus may legitimately be elsewhere while the list still has a cursor |
+| Selection | `outline-accent` | `data-selected`, because `aria-selected` is not legal on a row that contains buttons |
+| The whole surface | — | Press records its rect for the dialog to grow from |
+
+Three things the card must not do, each of which it did at some point:
+
+- **Encode a state only in colour.** Completed is opacity plus a struck title plus a
+  filled mark, not a green tint.
+- **Animate at rest.** A card that breathes is a card that cannot be read past.
+- **Claim ARIA it cannot honour.** It is not a `listbox` `option`, because it contains
+  focusable children; it says `aria-current` and stops there.
+
+---
+
+## 17. Failure modes this system is built against
 
 Each of these shipped. None produced a build error, a type error, or a failing test.
 
@@ -579,7 +1077,7 @@ Each of these shipped. None produced a build error, a type error, or a failing t
 
 ---
 
-## 13. Extending the system
+## 18. Extending the system
 
 1. **Reach for an existing token first.** A new value needs a reason that names what the
    existing ones cannot express.

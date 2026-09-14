@@ -192,20 +192,6 @@ export default function TasksPage() {
     return () => window.removeEventListener("keydown", handler, true)
   }, [])
 
-  // Press "C" — open create panel
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== "c") return
-      if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
-      if (isCreateOpen) return
-      const target = e.target as HTMLElement
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
-      e.preventDefault()
-      setIsCreateOpen(true)
-    }
-    window.addEventListener("keydown", handler, true)
-    return () => window.removeEventListener("keydown", handler, true)
-  }, [isCreateOpen])
 
   /**
    * The command palette's "Create task" lands here. It dispatches an event rather
