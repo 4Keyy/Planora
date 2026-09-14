@@ -40,14 +40,22 @@ function Digit({ digit, up, delay, reduce }: { digit: string; up: boolean; delay
 
   return (
     /**
-     * `1ch` is exactly one digit wide here, because `tabular-nums` makes every
-     * figure the same advance width — so the column needs no hidden copy of its own
-     * digit to size itself. The copy also made the value appear three times in the
-     * DOM, which turned a simple `getByText("5")` into an ambiguous match.
+     * An inline GRID, one cell, with both the outgoing and incoming digit stacked in
+     * it. That is what makes the column size itself: the cell takes the digit's own
+     * width and, crucially, the surrounding line box's height.
+     *
+     * The first attempt forced `height: 1em; line-height: 1`, which is shorter than
+     * the line box of the text around it — so dropping a roller into a pill moved
+     * that pill 3px and put a layout shift on every screen with a counter. A
+     * hidden copy of the digit sized it correctly but made the value appear three
+     * times in the DOM, turning `getByText("5")` into an ambiguous match.
+     *
+     * `1ch` keeps the width stable while a digit changes: with `tabular-nums` every
+     * figure has that exact advance width.
      */
     <span
-      className="relative inline-block overflow-hidden tabular-nums"
-      style={{ height: "1em", lineHeight: 1, width: "1ch" }}
+      className="inline-grid overflow-hidden tabular-nums"
+      style={{ width: "1ch", gridTemplateAreas: '"d"' }}
     >
       <AnimatePresence initial={false} mode="popLayout">
         <motion.span
@@ -56,7 +64,8 @@ function Digit({ digit, up, delay, reduce }: { digit: string; up: boolean; delay
           animate={{ y: "0%", opacity: 1 }}
           exit={{ y: up ? "-100%" : "100%", opacity: 0 }}
           transition={{ duration: DURATION_DELIBERATE, ease: EASE_OUT_EXPO, delay }}
-          className="absolute inset-0 block"
+          style={{ gridArea: "d" }}
+          className="block text-center"
         >
           {digit}
         </motion.span>
