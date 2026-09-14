@@ -333,7 +333,7 @@ export function Navbar() {
                           disabled={creating}
                           className={cn(
                             "w-56 sm:w-80 text-body-sm text-ink placeholder:text-ink-subtle",
-                            "bg-transparent outline-none",
+                            "bg-transparent",
                             creating && "opacity-50",
                           )}
                         />
@@ -520,7 +520,7 @@ export function Navbar() {
                     placeholder="Add a task…"
                     disabled={creating}
                     className={cn(
-                      "min-w-0 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-subtle",
+                      "min-w-0 flex-1 bg-transparent text-body text-ink placeholder:text-ink-subtle",
                       creating && "opacity-50",
                     )}
                   />

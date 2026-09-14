@@ -326,7 +326,7 @@ export function TodoEditor({
         rows={1}
         style={{
           ...box,
-          resize: "none", border: "none", outline: "none",
+          resize: "none", border: "none",
           background: "var(--pl-paper-sunken)", fontFamily: "inherit", overflow: "hidden",
           transition: "background 140ms",
         }}
@@ -609,7 +609,7 @@ export function EditTodoModal(props: EditTodoModalProps) {
             maxHeight: 880,
             overflow: "hidden",
             borderRadius: 28,
-            background: "white",
+            background: "var(--pl-paper)",
             boxShadow: "0 30px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.05)",
             /* Local stacking, not a global tier: the card and its backdrop are
                siblings inside one z-modal container, so 1 is the whole claim being

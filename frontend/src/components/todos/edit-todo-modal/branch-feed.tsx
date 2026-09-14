@@ -1179,13 +1179,13 @@ export function BranchFeed({
                 onClick={() => { setEditingGenesis(true); setGenesisEditContent(genesis.content) }}
                 style={{
                   display: "flex", alignItems: "center", gap: 4,
-                  background: "white", border: "1px solid var(--pl-line)",
+                  background: "var(--pl-paper)", border: "1px solid var(--pl-line)",
                   borderRadius: 8, padding: "5px 10px", cursor: "pointer",
                   fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
                   textTransform: "uppercase", color: "var(--pl-ink-muted)",
                 }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "white" }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper)" }}
               >
                 <Pencil size={10} />
                 Edit
@@ -1211,9 +1211,9 @@ export function BranchFeed({
                   if (e.key === "Escape") setEditingGenesis(false)
                 }}
                 style={{
-                  width: "100%", background: "white", border: "1px solid var(--pl-line)", borderRadius: 12,
+                  width: "100%", background: "var(--pl-paper)", border: "1px solid var(--pl-line)", borderRadius: 12,
                   padding: 12, fontSize: 14, lineHeight: 1.6, resize: "none",
-                  fontFamily: "inherit", color: "var(--pl-ink)", outline: "none", boxSizing: "border-box",
+                  fontFamily: "inherit", color: "var(--pl-ink)", boxSizing: "border-box",
                   minHeight: 60, overflowY: "hidden",
                 }}
               />
@@ -1234,7 +1234,7 @@ export function BranchFeed({
                     background: "var(--pl-ink)", border: "none", borderRadius: 9,
                     padding: "6px 12px", cursor: "pointer",
                     fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
-                    textTransform: "uppercase", color: "white",
+                    textTransform: "uppercase", color: "var(--pl-paper)",
                   }}
                 >
                   {submitting ? "…" : genesisEditContent.trim() ? "Save" : "Delete"}
@@ -1628,7 +1628,7 @@ export function BranchFeed({
                 position: "absolute",
                 bottom: "calc(100% + 8px)",
                 left: 0,
-                background: "white",
+                background: "var(--pl-paper)",
                 border: "1px solid var(--pl-gray-150)",
                 borderRadius: 14,
                 boxShadow: "0 8px 30px -4px rgba(0,0,0,0.12), 0 2px 8px -2px rgba(0,0,0,0.06)",
@@ -1871,7 +1871,7 @@ export function BranchFeed({
             }
             disabled={submitting}
             style={{
-              flex: 1, background: "transparent", border: "none", outline: "none",
+              flex: 1, background: "transparent", border: "none",
               minHeight: 44, padding: "11px 10px", fontSize: 14, fontWeight: 500, lineHeight: 1.5,
               fontFamily: "inherit", color: "var(--pl-ink)",
               resize: "none", maxHeight: 80, overflowY: "auto",
@@ -1891,8 +1891,8 @@ export function BranchFeed({
             }}
           >
             {submitting && composeMode === "subtask"
-              ? <Loader2 size={14} color="white" className="animate-spin" />
-              : <Send size={14} color={newContent.trim() && !submitting ? "white" : "var(--pl-ink-subtle)"} />}
+              ? <Loader2 size={14} color="var(--pl-paper)" className="animate-spin" />
+              : <Send size={14} color={newContent.trim() && !submitting ? "var(--pl-paper)" : "var(--pl-ink-subtle)"} />}
           </button>
         </div>
       </div>
@@ -1984,7 +1984,7 @@ function DaySeparator({ label }: { label: string }) {
   return (
     <div style={{ position: "relative", display: "flex", alignItems: "center", padding: "10px 0 6px", marginLeft: -RAIL_GUTTER, zIndex: 1 }}>
       <span style={{
-        background: "white",
+        background: "var(--pl-paper)",
         border: "1px solid var(--pl-line)",
         borderRadius: 100,
         padding: "2px 10px",
@@ -2334,7 +2334,7 @@ function SubtaskCard({
           <AnimatePresence mode="wait" initial={false}>
             {done ? (
               <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
-                <Check size={15} color="white" strokeWidth={3} />
+                <Check size={15} color="var(--pl-paper)" strokeWidth={3} />
               </motion.span>
             ) : viewerWorking && hovered ? (
               // You're working and hovering → a click completes it.
@@ -2388,7 +2388,7 @@ function SubtaskCard({
               onBlur={commitEdit}
               maxLength={SUBTASK_MAX}
               rows={1}
-              style={{ ...SUBTASK_TITLE_BOX, background: "white", border: "1.5px solid var(--pl-accent-surface)", outline: "none", color: "var(--pl-ink)", resize: "none", maxHeight: 160, overflowY: "auto" }}
+              style={{ ...SUBTASK_TITLE_BOX, background: "var(--pl-paper)", border: "1.5px solid var(--pl-accent-surface)", color: "var(--pl-ink)", resize: "none", maxHeight: 160, overflowY: "auto" }}
             />
           ) : (
             <span
@@ -2520,7 +2520,7 @@ function SubtaskCard({
                     style={{
                       display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
                       minHeight: 36, padding: "0 12px", borderRadius: 999,
-                      border: "1px solid var(--pl-gray-150)", background: "white",
+                      border: "1px solid var(--pl-gray-150)", background: "var(--pl-paper)",
                       cursor: pending ? "default" : "pointer",
                       fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
                       textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1,
@@ -2532,11 +2532,11 @@ function SubtaskCard({
                     onMouseEnter={(e) => {
                       if (pending) return
                       const b = e.currentTarget as HTMLButtonElement
-                      b.style.background = "var(--pl-ink)"; b.style.color = "white"; b.style.borderColor = "var(--pl-ink)"
+                      b.style.background = "var(--pl-ink)"; b.style.color = "var(--pl-paper)"; b.style.borderColor = "var(--pl-ink)"
                     }}
                     onMouseLeave={(e) => {
                       const b = e.currentTarget as HTMLButtonElement
-                      b.style.background = "white"; b.style.color = "var(--pl-ink-muted)"; b.style.borderColor = "var(--pl-line)"
+                      b.style.background = "var(--pl-paper)"; b.style.color = "var(--pl-ink-muted)"; b.style.borderColor = "var(--pl-line)"
                     }}
                   >
                     {pending
@@ -2580,7 +2580,7 @@ function SubtaskCard({
                     style={{
                       position: "absolute", inset: 0, border: "none", padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      color: "white", cursor: pending ? "default" : "pointer",
+                      color: "var(--pl-paper)", cursor: pending ? "default" : "pointer",
                       background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 38%, var(--pl-alert) 100%)",
                       boxShadow: "-6px 0 18px rgba(239,68,68,0.18)",
                     }}
@@ -3082,15 +3082,15 @@ function MessageItem({
               if (e.key === "Escape") onEditCancel()
             }}
             style={{
-              width: "100%", border: "1px solid var(--pl-line)", borderRadius: 10, outline: "none",
+              width: "100%", border: "1px solid var(--pl-line)", borderRadius: 10,
               padding: "8px 10px", fontSize: 14, lineHeight: 1.55, fontFamily: "inherit",
-              resize: "none", background: "white", color: "var(--pl-ink)", boxSizing: "border-box",
+              resize: "none", background: "var(--pl-paper)", color: "var(--pl-ink)", boxSizing: "border-box",
             }}
           />
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={() => onEditSave(c.id)} disabled={submitting} style={{
               background: "var(--pl-ink)", border: "none", borderRadius: 8, padding: "4px 10px",
-              fontSize: 12, fontWeight: 700, color: "white", cursor: "pointer",
+              fontSize: 12, fontWeight: 700, color: "var(--pl-paper)", cursor: "pointer",
             }}>Save</button>
             <button onClick={onEditCancel} style={{
               background: "none", border: "none", padding: "4px 8px",

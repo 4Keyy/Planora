@@ -79,14 +79,14 @@ function MetaButton({ onClick, isOpen, muted, label, popover, containerRef }: Me
           minHeight: 44, padding: "9px 11px", borderRadius: 12,
           border: `1px solid ${isOpen ? "var(--pl-line)" : "var(--pl-line)"}`,
           cursor: muted ? "default" : "pointer",
-          background: isOpen ? "var(--pl-paper-sunken)" : "white",
+          background: isOpen ? "var(--pl-paper-sunken)" : "var(--pl-paper)",
           color: "var(--pl-ink)", textAlign: "left",
           opacity: muted ? 0.5 : 1,
           fontSize: 14, fontWeight: 700, letterSpacing: "-0.005em",
           transition: "background 120ms, border-color 120ms",
         }}
         onMouseEnter={(e) => { if (!muted) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)" }}
-        onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.background = "white" }}
+        onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper)" }}
       >
         {label}
         <ChevronDown size={13} strokeWidth={2} color="var(--pl-ink-subtle)" style={{ marginLeft: "auto", flexShrink: 0, transition: "transform 160ms", transform: isOpen ? "rotate(180deg)" : "none" }} />
@@ -226,7 +226,7 @@ export function PageMetaPanel({
         >
           Visibility
         </SectionLabel>
-        <div style={{ border: "1px solid var(--pl-line)", borderRadius: 14, overflow: "hidden", background: "white" }}>
+        <div style={{ border: "1px solid var(--pl-line)", borderRadius: 14, overflow: "hidden", background: "var(--pl-paper)" }}>
           <VisibilityPanel
             mode={visMode}
             onModeChange={onVisModeChange}
@@ -274,7 +274,7 @@ export function PageMetaPanel({
             44px day columns actually fit. See `.calendar-bleed` in globals.css. */}
         <div
           className="calendar-bleed"
-          style={{ borderWidth: 1, borderStyle: "solid", borderColor: "var(--pl-line)", overflow: "hidden", background: "white" }}
+          style={{ borderWidth: 1, borderStyle: "solid", borderColor: "var(--pl-line)", overflow: "hidden", background: "var(--pl-paper)" }}
         >
           <DateCalendar start={dueDateStart} end={dueDate} onChange={onDueRangeChange} readOnly={ownerLocked} headless hideQuickPicks />
         </div>

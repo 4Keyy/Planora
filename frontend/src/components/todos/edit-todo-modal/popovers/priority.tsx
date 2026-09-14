@@ -67,7 +67,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
                         height: 14,
                         borderRadius: 2,
                         background: isActive
-                          ? (filled ? "white" : "rgba(255,255,255,0.22)")
+                          ? (filled ? "var(--pl-paper)" : "rgba(255,255,255,0.22)")
                           : (filled ? "var(--pl-ink-subtle)" : "var(--pl-line)"),
                         transition: "background 120ms",
                       }}
@@ -82,7 +82,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
                   fontSize: 14,
                   fontWeight: 700,
                   letterSpacing: "-0.01em",
-                  color: isActive ? "white" : "var(--pl-ink)",
+                  color: isActive ? "var(--pl-paper)" : "var(--pl-ink)",
                   lineHeight: 1.2,
                 }}>
                   {p.label}
@@ -99,7 +99,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
 
               {/* Check mark */}
               {isActive && (
-                <span style={{ fontSize: 12, color: "white", flexShrink: 0 }}>✓</span>
+                <span style={{ fontSize: 12, color: "var(--pl-paper)", flexShrink: 0 }}>✓</span>
               )}
             </button>
           )

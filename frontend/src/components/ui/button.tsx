@@ -6,30 +6,37 @@ import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
   // ===== BASE STYLES (unified across all variants) =====
-  "touch-target inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized focus-visible:outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group",
+  /**
+   * No focus styling here on purpose. Every variant used to paint its own ring —
+   * `ring-black/30`, `ring-gray-400/30`, `ring-gray-300/30`, `ring-alert/30` — and
+   * all four measured between 1.12:1 and 2.10:1 against white, where WCAG 2.4.11
+   * asks for 3:1. `focus-visible:outline-none` also suppressed the one indicator
+   * that does clear it. globals.css now paints every button, at 19.80:1.
+   */
+  "touch-target inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group",
   {
     variants: {
       variant: {
         default:
-          "bg-ink text-paper shadow-md hover:bg-gray-900 hover:shadow-lg active:scale-[0.96] focus-visible:ring-black/30 hover:translate-y-[-2px] duration-base",
+          "bg-ink text-paper shadow-md hover:bg-gray-900 hover:shadow-lg active:scale-[0.96] hover:translate-y-[-2px] duration-base",
 
         secondary:
-          "bg-gray-100 text-ink shadow-sm hover:bg-gray-200 hover:shadow-md active:scale-[0.96] focus-visible:ring-gray-400/30 hover:translate-y-[-1px]",
+          "bg-gray-100 text-ink shadow-sm hover:bg-gray-200 hover:shadow-md active:scale-[0.96] hover:translate-y-[-1px]",
 
         outline:
-          "border-2 border-line bg-paper text-ink hover:bg-paper-sunken hover:border-line-strong hover:shadow-sm active:scale-[0.96] focus-visible:ring-gray-300/30 transition-[color,background-color,border-color,opacity,transform,box-shadow]",
+          "border-2 border-line bg-paper text-ink hover:bg-paper-sunken hover:border-line-strong hover:shadow-sm active:scale-[0.96] transition-[color,background-color,border-color,opacity,transform,box-shadow]",
 
         accent:
-          "bg-gray-900 text-paper shadow-md hover:bg-ink hover:shadow-lg active:scale-[0.96] focus-visible:ring-black/30 hover:translate-y-[-2px]",
+          "bg-gray-900 text-paper shadow-md hover:bg-ink hover:shadow-lg active:scale-[0.96] hover:translate-y-[-2px]",
 
         ghost:
-          "text-ink-muted hover:bg-gray-100 hover:text-ink active:scale-[0.96] focus-visible:ring-gray-300/30 transition-[color,background-color,border-color,opacity,transform,box-shadow]",
+          "text-ink-muted hover:bg-gray-100 hover:text-ink active:scale-[0.96] transition-[color,background-color,border-color,opacity,transform,box-shadow]",
 
         link:
-          "text-ink underline-offset-4 hover:underline hover:opacity-80 active:opacity-70 focus-visible:ring-black/20 font-medium",
+          "text-ink underline-offset-4 hover:underline hover:opacity-80 active:opacity-70 font-medium",
 
         destructive:
-          "bg-alert text-paper shadow-md hover:bg-alert hover:shadow-lg active:scale-[0.96] focus-visible:ring-alert/30 hover:translate-y-[-2px]",
+          "bg-alert text-paper shadow-md hover:bg-alert hover:shadow-lg active:scale-[0.96] hover:translate-y-[-2px]",
       },
       size: {
         sm: "h-control-sm rounded-md px-4 text-caption font-semibold tracking-wide",

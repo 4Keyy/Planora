@@ -359,7 +359,7 @@ function CategoryModal({
                   placeholder="Work, Personal, Projects..."
                   maxLength={50}
                   showCount
-                  className="h-12 rounded-xl border-none bg-paper-sunken/60 text-body font-bold placeholder:text-ink-subtle focus-visible:bg-paper-sunken focus-visible:ring-0 md:h-14 md:text-title-sm"
+                  className="h-12 rounded-xl border-none bg-paper-sunken/60 text-body font-bold placeholder:text-ink-subtle focus-visible:bg-paper-sunken md:h-14 md:text-title-sm"
                 />
               </motion.div>
 
@@ -379,7 +379,7 @@ function CategoryModal({
                   placeholder="Optional..."
                   maxLength={500}
                   showCount
-                  className="h-12 rounded-xl border-none bg-paper-sunken/60 text-body-sm font-bold placeholder:text-ink-subtle focus-visible:bg-paper-sunken focus-visible:ring-0"
+                  className="h-12 rounded-xl border-none bg-paper-sunken/60 text-body-sm font-bold placeholder:text-ink-subtle focus-visible:bg-paper-sunken"
                 />
               </motion.div>
 

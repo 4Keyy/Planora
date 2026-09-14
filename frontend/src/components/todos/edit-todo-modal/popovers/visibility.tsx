@@ -105,7 +105,7 @@ export function VisibilityPanel({
                 padding: "8px 4px", borderRadius: 11, border: "none", cursor: "pointer",
                 gap: 4,
                 background: isActive ? "var(--pl-ink)" : "var(--pl-paper-sunken)",
-                color: isActive ? "white" : "var(--pl-ink)",
+                color: isActive ? "var(--pl-paper)" : "var(--pl-ink)",
                 transition: "background 120ms, color 120ms",
               }}
             >
@@ -203,7 +203,7 @@ export function VisibilityPanel({
                         display: "flex", alignItems: "center", justifyContent: "center",
                         background: isSelected ? "var(--pl-ink)" : "transparent",
                         boxShadow: isSelected ? "none" : "inset 0 0 0 1.5px var(--pl-line)",
-                        fontSize: 12, fontWeight: 700, color: "white",
+                        fontSize: 12, fontWeight: 700, color: "var(--pl-paper)",
                         transition: "background 100ms, box-shadow 100ms",
                       }}>
                         {isSelected ? "✓" : ""}

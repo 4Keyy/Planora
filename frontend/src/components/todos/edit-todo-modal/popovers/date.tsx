@@ -186,7 +186,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                   padding: "6px 10px", borderRadius: 100, border: "none", cursor: "pointer",
                   fontSize: 12, fontWeight: 700, letterSpacing: "-0.01em",
                   background: isActive ? "var(--pl-ink)" : "var(--pl-paper-sunken)",
-                  color: isActive ? "white" : "var(--pl-ink)",
+                  color: isActive ? "var(--pl-paper)" : "var(--pl-ink)",
                   transition: "background 120ms, color 120ms",
                 }}
               >
@@ -205,7 +205,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
       <div style={{ padding: headless ? 0 : 10, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
         <div
           style={{
-            background: "white",
+            background: "var(--pl-paper)",
             border: headless ? "none" : "1px solid var(--pl-line)",
             borderRadius: headless ? 0 : 12,
             padding: 12,
@@ -376,7 +376,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                       position: "relative", zIndex: 1,
                       fontSize: 12,
                       fontWeight: isCap || isToday ? 700 : 500,
-                      color: isCap ? "white" : (inSolid || isPreviewCap) ? "var(--pl-ink-muted)" : "var(--pl-ink)",
+                      color: isCap ? "var(--pl-paper)" : (inSolid || isPreviewCap) ? "var(--pl-ink-muted)" : "var(--pl-ink)",
                       transition: "color 120ms",
                     }}>
                       {day}

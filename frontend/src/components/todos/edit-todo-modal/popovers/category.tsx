@@ -131,8 +131,7 @@ export function CategoryPopover({
             style={{
               width: "100%", marginBottom: 14,
               background: "var(--pl-paper-sunken)", border: "1px solid var(--pl-line)", borderRadius: 12,
-              minHeight: 44, padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--pl-ink)",
-              outline: "none", boxSizing: "border-box", fontFamily: "inherit",
+              minHeight: 44, padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", boxSizing: "border-box", fontFamily: "inherit",
             }}
           />
 
@@ -174,7 +173,7 @@ export function CategoryPopover({
                       aspectRatio: "1/1", borderRadius: 10, border: "none", cursor: "pointer",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       background: isActive ? "var(--pl-ink)" : "var(--pl-paper-sunken)",
-                      color: isActive ? "white" : "var(--pl-ink-muted)",
+                      color: isActive ? "var(--pl-paper)" : "var(--pl-ink-muted)",
                       transition: "background 100ms, color 100ms",
                       padding: 6,
                     }}
@@ -217,7 +216,7 @@ export function CategoryPopover({
                 flex: 2, padding: "10px 0", borderRadius: 12, border: "none",
                 cursor: name.trim() && !saving ? "pointer" : "not-allowed",
                 background: name.trim() && !saving ? "var(--pl-ink)" : "var(--pl-line)",
-                color: name.trim() && !saving ? "white" : "var(--pl-ink-subtle)",
+                color: name.trim() && !saving ? "var(--pl-paper)" : "var(--pl-ink-subtle)",
                 fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
                 boxShadow: name.trim() && !saving ? "0 4px 14px rgba(0,0,0,0.18)" : "none",
                 transition: "background 120ms, box-shadow 120ms",

@@ -177,7 +177,7 @@ export default function BranchPage() {
         // scrolls internally so the title/meta stay put.
         display: "flex", flexDirection: "column",
         height: "calc(100vh - 152px)", minHeight: 560,
-        background: "white",
+        background: "var(--pl-paper)",
         border: "1px solid var(--pl-line)",
         borderRadius: 24,
         boxShadow: "0 20px 60px -24px rgba(0,0,0,0.18), 0 4px 14px -6px rgba(0,0,0,0.05)",

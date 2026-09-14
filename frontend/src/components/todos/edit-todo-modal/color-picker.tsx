@@ -249,8 +249,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
             spellCheck={false}
             style={{
               flex: 1, border: "none", background: "transparent",
-              fontSize: 12, fontWeight: 700, color: "var(--pl-ink)",
-              outline: "none", fontFamily: "monospace", letterSpacing: "0.04em",
+              fontSize: 12, fontWeight: 700, color: "var(--pl-ink)", fontFamily: "monospace", letterSpacing: "0.04em",
               padding: "8px 0",
             }}
           />

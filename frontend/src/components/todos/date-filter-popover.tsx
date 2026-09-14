@@ -69,7 +69,7 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-controls={panelId}
-          className="touch-target flex h-8 max-w-[220px] items-center gap-2 rounded-md px-2.5 text-caption font-bold text-ink-muted transition-colors hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 cursor-pointer"
+          className="touch-target flex h-8 max-w-[220px] items-center gap-2 rounded-md px-2.5 text-caption font-bold text-ink-muted transition-colors hover:bg-paper hover:text-ink cursor-pointer"
         >
           <CalendarSearch className="h-4 w-4 flex-shrink-0 text-ink-subtle" strokeWidth={1.8} aria-hidden="true" />
           <span className={cn("truncate", hasFilter ? "text-ink" : "text-ink-muted")}>
@@ -90,7 +90,7 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
               animate={{ opacity: 1, scale: 1 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
               transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-ink-subtle transition-colors hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 cursor-pointer"
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-ink-subtle transition-colors hover:bg-paper hover:text-ink cursor-pointer"
             >
               <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden="true" />
             </motion.button>
@@ -118,7 +118,7 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
                 <button
                   type="button"
                   onClick={onClear}
-                  className="text-caption font-bold uppercase tracking-wider text-ink-subtle transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 rounded cursor-pointer"
+                  className="text-caption font-bold uppercase tracking-wider text-ink-subtle transition-colors hover:text-ink rounded cursor-pointer"
                 >
                   Clear
                 </button>

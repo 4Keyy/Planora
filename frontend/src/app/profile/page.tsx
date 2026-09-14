@@ -1058,7 +1058,7 @@ export default function ProfilePage() {
                       transition={TWEEN_FAST}
                       aria-current={isActive ? "true" : undefined}
                       className={cn(
-                        "relative flex w-full items-center gap-3 rounded-lg border border-transparent p-2.5 text-left transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-1",
+                        "relative flex w-full items-center gap-3 rounded-lg border border-transparent p-2.5 text-left transition-colors duration-fast",
                         !isActive && "hover:bg-paper-sunken"
                       )}
                     >
