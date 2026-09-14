@@ -77,6 +77,12 @@ Use this guide from the symptom outward. Prefer gateway URLs for browser/API che
 | Frontend build fails on lint separately | lint is explicit CI gate, Next build ignores build-time lint hook | run `npm --prefix frontend run lint` |
 | Auth interceptor loops | public auth calls accidentally used main API client | use `frontend/src/lib/auth-public.ts` for refresh/validate/auth bootstrap |
 | Category filter stuck | localStorage contains old filter state | clear `todos-cat-filter` localStorage key |
+| `ChunkLoadError`, and JS/CSS served as `text/plain` | the app was rebuilt while `next start` was running, leaving a torn `.next` | stop the server, `rm -rf frontend/.next`, rebuild, restart. It presents as an application crash but nothing in the source is wrong |
+| `next-env.d.ts` shows as modified with no edit | it is generated, and dev and production builds write different paths into it (`.next/dev/types` vs `.next/types`) | `git checkout -- frontend/next-env.d.ts`; never commit the flip |
+| A dev-server page renders blank with no error | the HMR websocket is blocked (a VPN or local proxy), so React never hydrates | verify against a production build (`npm run build && npm start`); the blank page is a dev-environment artefact, not a product defect |
+| A Tailwind class has no visual effect and no error | the class names something the theme does not define — the theme REPLACES Tailwind's palette, so `bg-primary-600`, `text-orange-700` and the like emit no CSS at all | `npm run build` then `node docs/ui-audit/tools/class-audit.mjs`; it lists every class that emitted no rule |
+| A size class disappears when combined with a colour class | `tailwind-merge` treats an unrecognised `text-*` as a colour and drops the size | every custom scale must be registered in `extendTailwindMerge` in `frontend/src/lib/utils.ts` |
+| A `.touch-target` hit area accepts no taps | `pointer-events` is inherited, or an ancestor/self has `overflow: hidden` clipping the pseudo-element | keep the explicit `pointer-events: auto` in the utility; remove `overflow-hidden` from the control itself |
 
 ## CI Problems
 
