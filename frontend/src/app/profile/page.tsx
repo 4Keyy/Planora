@@ -52,6 +52,7 @@ import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { TWEEN_FAST } from "@/lib/animations"
 import { formatDateTime as formatDate, formatDate as formatDateShort } from "@/lib/datetime"
+import { StatusPanel } from "@/components/ui/status-panel"
 import type {
   UserDto,
   UserSecurityDto,
@@ -249,20 +250,13 @@ function InfoTile({ label, value, icon: Icon }: { label: string; value: ReactNod
   )
 }
 
-function EmptyState({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description?: string }) {
-  return (
-    <div className="rounded-lg border border-dashed border-line bg-paper-sunken/70 px-4 py-8 text-center/30">
-      <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-paper text-ink-subtle">
-        <Icon className="h-5 w-5" aria-hidden />
-      </div>
-      <p className="mt-3 text-body-sm font-bold text-ink">{title}</p>
-      {description && (
-        <p className="mx-auto mt-1 max-w-sm text-caption font-semibold text-ink-subtle">
-          {description}
-        </p>
-      )}
-    </div>
-  )
+/**
+ * Thin alias over the shared primitive. Every one of these sits inside a section
+ * that already carries its own heading, so the title renders as a `<p>` — a second
+ * heading here would put a phantom level in the page outline.
+ */
+function EmptyState({ icon, title, description }: { icon: LucideIcon; title: string; description?: string }) {
+  return <StatusPanel size="compact" as="p" icon={icon} title={title} description={description} />
 }
 
 function FieldGroup({ label, children }: { label: string; children: ReactNode }) {

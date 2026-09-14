@@ -220,7 +220,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
               </div>
             </div>
           ) : (
-            <p className="text-body-sm text-indigo-900/80 whitespace-pre-wrap break-words leading-relaxed">
+            <p className="text-body-sm text-ink-muted whitespace-pre-wrap break-words leading-relaxed">
               {genesis.content}
             </p>
           )}

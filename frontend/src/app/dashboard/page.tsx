@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Plus, CheckCircle2 } from "lucide-react"
+import { Plus, CheckCircle2, AlertTriangle } from "lucide-react"
 import axios from "axios"
 import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
@@ -35,6 +35,7 @@ import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
 import { TASK_CREATED_EVENT, type TaskCreatedDetail } from "@/lib/events"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
+import { StatusPanel } from "@/components/ui/status-panel"
 
 const PROGRESS_TRANSITION = { duration: 1.5, ease: "easeOut" } as const
 const DASHBOARD_MASONRY_BREAKPOINTS = [
@@ -778,7 +779,13 @@ export default function DashboardPage() {
           )}
 
           {error && !loading && (
-            <div className="rounded-xl bg-alert-surface border border-alert-surface p-5 text-body-sm text-alert">{error}</div>
+            <StatusPanel
+              tone="alert"
+              icon={AlertTriangle}
+              title="Couldn't load your tasks"
+              description={error}
+              action={{ label: "Try again", onClick: () => void fetchTodos() }}
+            />
           )}
 
           {!loading && !error && (

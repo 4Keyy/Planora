@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, CheckCircle2, History, CalendarSearch } from "lucide-react"
+import { ArrowLeft, CheckCircle2, History, CalendarSearch, AlertTriangle } from "lucide-react"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
 import { ensureFriendNames } from "@/lib/friend-names"
@@ -34,6 +34,7 @@ import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
 import { DateFilterPopover } from "@/components/todos/date-filter-popover"
 import { formatDueRange } from "@/components/todos/edit-todo-modal/utils"
 import { buildCompletionWindow } from "@/utils/completion-window"
+import { StatusPanel } from "@/components/ui/status-panel"
 
 const PAGE_SIZE = 20
 const COMPLETED_MASONRY_BREAKPOINTS = [
@@ -469,40 +470,29 @@ export default function CompletedTasksPage() {
           breakpoints={COMPLETED_MASONRY_BREAKPOINTS}
         />
       ) : error ? (
-        <div className="rounded-xl bg-alert-surface border border-alert-surface p-5 text-body-sm text-alert">
-          {error}
-        </div>
+        <StatusPanel
+          tone="alert"
+          icon={AlertTriangle}
+          title="Couldn't load your completed tasks"
+          description={error}
+          action={{ label: "Try again", onClick: () => void fetchCompletedTodos() }}
+        />
       ) : totalCount === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="rounded-[2rem] border border-dashed border-line bg-paper p-16 text-center shadow-sm"
-        >
-          <div className="mx-auto h-16 w-16 rounded-xl bg-paper-sunken flex items-center justify-center mb-4">
-            {hasDateFilter ? (
-              <CalendarSearch className="h-8 w-8 text-gray-200" />
-            ) : (
-              <CheckCircle2 className="h-8 w-8 text-gray-200" />
-            )}
-          </div>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           {hasDateFilter ? (
-            <>
-              <h2 className="text-title-sm font-bold text-ink mb-1">No tasks finished in this period</h2>
-              <p className="text-body-sm text-ink-subtle font-medium mb-6">
-                Nothing was completed {formatDueRange(searchStart, searchEnd)}. Try a wider range.
-              </p>
-              <Button variant="outline" onClick={clearDateFilter}>Clear date filter</Button>
-            </>
+            <StatusPanel
+              icon={CalendarSearch}
+              title="No tasks finished in this period"
+              description={`Nothing was completed ${formatDueRange(searchStart, searchEnd)}. Try a wider range.`}
+              action={{ label: "Clear date filter", onClick: clearDateFilter }}
+            />
           ) : (
-            <>
-              <h2 className="text-title-sm font-bold text-ink mb-1">No completed tasks yet</h2>
-              <p className="text-body-sm text-ink-subtle font-medium mb-6">
-                Finish a task and it will appear here.
-              </p>
-              <Button asChild>
-                <Link href="/tasks">Go to active tasks</Link>
-              </Button>
-            </>
+            <StatusPanel
+              icon={CheckCircle2}
+              title="No completed tasks yet"
+              description="Finish a task and it will appear here."
+              action={{ label: "Go to active tasks", href: "/tasks" }}
+            />
           )}
         </motion.div>
       ) : (

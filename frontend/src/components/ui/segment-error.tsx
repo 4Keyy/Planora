@@ -1,18 +1,28 @@
 "use client"
 
 import { useEffect } from "react"
-import Link from "next/link"
+import { AlertTriangle } from "lucide-react"
+import { StatusPanel } from "@/components/ui/status-panel"
 
 /**
  * Shared segment-level error boundary content. Next.js renders this when an
- * uncaught error escapes a route segment's React tree. Kept minimal — the
- * user sees a friendly message and a Reset action (per Next.js spec), plus
- * an escape hatch back to /dashboard.
+ * uncaught error escapes a route segment's React tree. The user sees a friendly
+ * message and a Reset action (per the Next.js contract), plus an escape hatch
+ * back to /dashboard.
  *
- * The error itself is reported via console.error for the existing global
- * error reporter (the ErrorBoundary in app/layout.tsx) to pick up; we do
- * not surface the raw error.message to users (potential PII / stack-trace
- * leak risk).
+ * The error is reported through console.error for the global reporter (the
+ * ErrorBoundary in app/layout.tsx) to pick up. `error.message` is never shown:
+ * a raw server message can carry a stack trace or another user's data, and it
+ * tells the reader nothing. The digest is shown instead — an opaque id they can
+ * quote in a bug report.
+ *
+ * This used to hand-roll its own buttons, and the primary one was styled
+ * `bg-primary-600` — a colour that does not exist in the theme, so the class
+ * emitted no CSS at all and the Retry button rendered as white text on a
+ * transparent background. It was invisible on every error page in the product,
+ * and nothing in the type system, the build or the test suite could see it.
+ * Going through StatusPanel and Button means the styling is now covered by the
+ * same tests and the same token scale as everything else.
  */
 type Props = {
   error: Error & { digest?: string }
@@ -26,33 +36,15 @@ export function SegmentError({ error, reset, segmentLabel }: Props) {
   }, [error, segmentLabel])
 
   return (
-    <div className="mx-auto w-full max-w-2xl py-16 text-center">
-      <h2 className="text-title font-semibold text-ink">
-        Something went wrong while loading {segmentLabel}.
-      </h2>
-      <p className="mt-2 text-body-sm text-ink-subtle">
-        The page hit an error and could not finish rendering. You can retry, or head back to the dashboard.
-      </p>
-      {error.digest ? (
-        <p className="mt-3 text-caption text-ink-subtle">
-          Reference id: <code className="font-mono">{error.digest}</code>
-        </p>
-      ) : null}
-      <div className="mt-8 flex items-center justify-center gap-3">
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-lg bg-primary-600 px-4 py-2 text-body-sm font-medium text-paper shadow-sm hover:bg-primary-700 transition"
-        >
-          Retry
-        </button>
-        <Link
-          href="/dashboard"
-          className="rounded-lg border border-line bg-paper px-4 py-2 text-body-sm font-medium text-ink-muted shadow-sm hover:bg-paper-sunken transition"
-        >
-          Back to dashboard
-        </Link>
-      </div>
-    </div>
+    <StatusPanel
+      size="page"
+      tone="alert"
+      icon={AlertTriangle}
+      title={`Something went wrong while loading ${segmentLabel}.`}
+      description="The page hit an error and could not finish rendering. You can retry, or head back to the dashboard."
+      referenceId={error.digest}
+      action={{ label: "Retry", onClick: reset }}
+      secondaryAction={{ label: "Back to dashboard", href: "/dashboard" }}
+    />
   )
 }

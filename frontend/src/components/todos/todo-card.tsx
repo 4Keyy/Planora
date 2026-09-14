@@ -954,7 +954,7 @@ function TodoCardComponent({
                       )}
                       {todo.delay && (
                         <div
-                          className="flex items-center gap-1.5 text-caption font-bold text-orange-700 bg-warn-surface px-2 py-1 rounded-md border border-orange-200/80 shadow-sm"
+                          className="flex items-center gap-1.5 text-caption font-bold text-warn bg-warn-surface px-2 py-1 rounded-md border border-warn/30 shadow-sm"
                         >
                           <AlertTriangle className="h-3 w-3" />
                           <span>{todo.delay} delay</span>

@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Plus, CheckCircle2, ChevronRight, History } from "lucide-react"
+import { Plus, CheckCircle2, ChevronRight, History, FolderOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import axios from "axios"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
@@ -49,6 +49,7 @@ import { readFilter, writeFilter } from "@/utils/category-filter"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
+import { StatusPanel } from "@/components/ui/status-panel"
 
 const ACTIVE_PAGE_SIZE = 200
 const COMPLETED_PREVIEW_SIZE = 20
@@ -751,43 +752,30 @@ export default function TasksPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ ...SPRING_GENTLE, delay: 0.1 }}
-          className="rounded-xl border border-dashed border-line bg-paper p-16 text-center"
         >
-          <motion.div
-            animate={{ y: [0, -4, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
-            className="mx-auto h-14 w-14 rounded-xl bg-paper-sunken flex items-center justify-center mb-3"
-          >
-            <CheckCircle2 className="h-7 w-7 text-gray-200" />
-          </motion.div>
-          <p className="font-semibold text-ink mb-1">No tasks yet</p>
-          <p className="text-body-sm text-ink-subtle mb-4">
-            Create your first task to get started
-          </p>
-          <Button size="sm" onClick={() => setIsCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-1.5" />
-            Create task
-          </Button>
+          <StatusPanel
+            icon={CheckCircle2}
+            title="No tasks yet"
+            description="Create your first task to get started."
+            action={{ label: "Create task", onClick: () => setIsCreateOpen(true) }}
+          />
         </motion.div>
       ) : (
         <div className="space-y-10">
           <div>
             {visibleTodos.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-line bg-paper p-10 text-center">
-                {filterCategoryIds.length > 0 ? (
-                  <>
-                    <p className="text-body-sm text-ink-subtle font-medium">No tasks in selected categories.</p>
-                    <button
-                      onClick={() => handleFilterChange([])}
-                      className="text-caption text-ink-subtle hover:text-ink font-medium mt-2 transition-colors"
-                    >
-                      Clear filter
-                    </button>
-                  </>
-                ) : (
-                  <p className="text-body-sm text-ink-subtle font-medium">No active tasks.</p>
-                )}
-              </div>
+              filterCategoryIds.length > 0 ? (
+                <StatusPanel
+                  size="compact"
+                  as="p"
+                  icon={FolderOpen}
+                  title="No tasks in the selected categories"
+                  description="Nothing here matches the filter. Widen it, or clear it to see everything."
+                  action={{ label: "Clear filter", onClick: () => handleFilterChange([]) }}
+                />
+              ) : (
+                <StatusPanel size="compact" as="p" icon={CheckCircle2} title="No active tasks" />
+              )
             ) : (
               <>
               <MasonryColumns
