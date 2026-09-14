@@ -611,7 +611,11 @@ export function EditTodoModal(props: EditTodoModalProps) {
             borderRadius: 28,
             background: "white",
             boxShadow: "0 30px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.05)",
-            zIndex: 1301 /* tokens.layer.modal + 1 — the card above its own backdrop */,
+            /* Local stacking, not a global tier: the card and its backdrop are
+               siblings inside one z-modal container, so 1 is the whole claim being
+               made. The previous value was a hand-computed 1301, which only stayed
+               correct while nobody moved `modal` on the layer scale. */
+            zIndex: 1,
           }}
         >
           <TodoEditor variant="modal" {...props} />

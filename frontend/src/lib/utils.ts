@@ -1,3 +1,10 @@
+/**
+ * @colour-data — colour-space geometry.
+ *
+ * The constants below are the WCAG relative-luminance coefficients and sRGB
+ * transfer-function breakpoints used to decide whether a user's chosen category
+ * colour needs light or dark ink on it. They are arithmetic, not design choices.
+ */
 import { clsx, type ClassValue } from "clsx"
 import { extendTailwindMerge } from "tailwind-merge"
 import { tokens } from "@/lib/design-tokens"

@@ -1,4 +1,11 @@
 "use client"
+/**
+ * @colour-data — hue-wheel geometry.
+ *
+ * The gradient stops below are the six primaries of the HSL colour wheel. They
+ * describe the picker's coordinate space; they are not a palette and substituting
+ * tokens for them would make the wheel stop being a wheel.
+ */
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CATEGORY_COLOR_SWATCHES } from "./utils"

@@ -157,6 +157,14 @@ export function getHueFromId(id: string): number {
  * only on a 16px icon and a 6px dot, which keeps an arbitrary user choice from
  * ever becoming a contrast failure.
  */
+/**
+ * @colour-data — a user's own choice, not the product's palette.
+ *
+ * These twelve are the swatches a person picks from when naming a category, and the
+ * value they choose is stored against their data. Rewriting them to design tokens
+ * would silently repaint every category every existing user has made. A sweep has
+ * done exactly that once already.
+ */
 export const CATEGORY_COLOR_SWATCHES = [
   "#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6",
   "#ec4899","#06b6d4","#84cc16","#f97316","#6366f1",

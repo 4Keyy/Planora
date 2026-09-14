@@ -1,4 +1,12 @@
 /**
+ * @colour-data — per-type identity, not theme.
+ *
+ * Each notification kind carries its own tint the way an app carries its own icon:
+ * the hue IS the identifier, which is why these are not drawn from the semantic
+ * palette. They tint a 16px glyph and never sit behind text, so an arbitrary hue
+ * here can never become a contrast failure.
+ */
+/**
  * NOTE: the `tint` values below are DATA, not theme. Each notification kind is
  * distinguishable by its own hue, and a sweep that collapsed them onto the
  * semantic palette erased that distinction — several kinds became the same

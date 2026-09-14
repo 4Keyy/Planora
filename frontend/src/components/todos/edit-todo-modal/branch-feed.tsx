@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNING } from "@/lib/ui-preferences"
 import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
 import { FriendAvatar } from "./friend-avatar"
+import { tokens } from "@/lib/design-tokens"
 import {
   formatDayLabel,
   formatTimeHHMM,
@@ -1633,7 +1634,7 @@ export function BranchFeed({
                 boxShadow: "0 8px 30px -4px rgba(0,0,0,0.12), 0 2px 8px -2px rgba(0,0,0,0.06)",
                 padding: 6,
                 minWidth: 200,
-                zIndex: 50,
+                zIndex: tokens.layer.popover,
                 animation: "pop_in_up 160ms var(--pl-ease-emphasized) both",
               }}
             >

@@ -1,3 +1,6 @@
+/**
+ * @colour-data — defaults attached to user-created categories.
+ */
 import {
   Folder, CheckCircle2, Clock, Target, Briefcase, Home, ShoppingCart, Heart, Star, Zap,
   Coffee, Book, Code, Music, Camera, Palette, Dumbbell, Plane, Car, Bike, Gamepad2,

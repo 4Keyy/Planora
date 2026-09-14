@@ -3,6 +3,7 @@
 import { ReactNode, RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion } from "framer-motion"
+import { tokens } from "@/lib/design-tokens"
 
 interface PopoverProps {
   open: boolean
@@ -133,7 +134,7 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
               width,
               maxHeight: pos.maxHeight,
               overflowY: "auto",
-              zIndex: 1400 /* tokens.layer.popover — above a modal, below a toast */,
+              zIndex: tokens.layer.popover,
               transformOrigin: pos.transformOrigin,
               background: "white",
               borderRadius: 16,
@@ -159,7 +160,7 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
   return (
     <AnimatePresence>
       {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 8px)", zIndex: 50, ...alignStyle }}>
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", zIndex: tokens.layer.popover, ...alignStyle }}>
           <motion.div
             ref={ref}
             role="dialog"

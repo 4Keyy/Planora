@@ -10,8 +10,10 @@
  *
  *   1. No colour literal appears in a component. Ever.
  *   2. No text smaller than `caption` (12px) ships.
- *   3. Only the four declared font weights are used — 400/500/600/700.
- *      There is no 900 face loaded, so `font-bold` renders as 800 and is banned.
+ *   3. Only the four declared font weights are used — 400/500/600/700. Those are
+ *      exactly the four faces `app/layout.tsx` loads, so a weight outside the
+ *      scale has no file behind it and the browser answers with a synthetic
+ *      (smeared) bold instead of an error.
  *   4. Every focus indicator clears WCAG 2.2 §2.4.11 at >= 3:1 against its background.
  *   5. Priority is never encoded by hue — see `PriorityMeter`. Five hues collapse
  *      under deuteranopia (measured OKLab distance 0.049 between the two lowest).
@@ -121,8 +123,12 @@ const fontSize = {
 } as const
 
 /**
- * Four weights, and only four. `@fontsource` loads 300-800; there is no 900 face,
- * so `font-bold` silently renders as 800 — measured identical to the pixel.
+ * Four weights, and only four — and `app/layout.tsx` loads exactly these four, in
+ * the latin and latin-ext subsets. Asking for anything else costs a synthetic
+ * face: the browser smears the nearest real weight and reports nothing. The
+ * product used to ship six weights (300-800) across four subsets — 24 font files
+ * for an English UI — while one stray `font-weight: 900` in the colour picker
+ * asked for a face that has never existed here.
  */
 const fontWeight = {
   normal: "400",
