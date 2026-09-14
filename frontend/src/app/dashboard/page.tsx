@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Plus, CheckCircle2, AlertTriangle } from "lucide-react"
+import { Plus, CheckCircle2, AlertTriangle, CalendarClock, Users } from "lucide-react"
 import axios from "axios"
 import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
@@ -37,6 +37,8 @@ import { TASK_CREATED_EVENT, type TaskCreatedDetail } from "@/lib/events"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
 import { NumberRoll } from "@/components/ui/number-roll"
+import { WeekBars } from "@/components/ui/week-bars"
+import { StatRow } from "@/components/ui/stat-row"
 
 const PROGRESS_TRANSITION = { duration: 1.5, ease: "easeOut" } as const
 const DASHBOARD_MASONRY_BREAKPOINTS = [
@@ -366,6 +368,37 @@ export default function DashboardPage() {
     const filtered = todos.filter(t => t.isCompletedByViewer !== true)
     return sortTasks(filtered)
   }, [todos])
+
+  /**
+   * The three questions a person actually arrives at a dashboard with: what is
+   * late, what is today, and what are other people waiting on me for. A total —
+   * which is all this hero used to say — answers none of them.
+   *
+   * Computed from the active list already in memory: no extra request, and the
+   * numbers cannot disagree with the cards underneath them.
+   */
+  const heroStats = useMemo(() => {
+    const endOfToday = new Date()
+    endOfToday.setHours(23, 59, 59, 999)
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+
+    let overdue = 0
+    let dueToday = 0
+    let shared = 0
+
+    for (const t of activeTodos) {
+      if (t.dueDate) {
+        const due = new Date(t.dueDate)
+        if (!Number.isNaN(due.getTime())) {
+          if (due < startOfToday) overdue++
+          else if (due <= endOfToday) dueToday++
+        }
+      }
+      if (t.isPublic || (t.sharedWithUserIds?.length ?? 0) > 0) shared++
+    }
+    return { overdue, dueToday, shared }
+  }, [activeTodos])
 
   useEffect(() => {
     if (loading) return
@@ -725,6 +758,17 @@ export default function DashboardPage() {
             </span>{" "}
             tasks.
           </h1>
+
+          {/* Each of these is a filter, not a label: the number is half an answer
+              and pressing it should show the tasks it counted. */}
+          <StatRow
+            className="mt-5"
+            stats={[
+              { id: "overdue", label: "overdue", value: heroStats.overdue, icon: AlertTriangle, tone: "alert", onSelect: () => router.push("/tasks") },
+              { id: "today", label: "due today", value: heroStats.dueToday, icon: CalendarClock, onSelect: () => router.push("/tasks") },
+              { id: "shared", label: "shared", value: heroStats.shared, icon: Users, onSelect: () => router.push("/tasks") },
+            ]}
+          />
         </motion.div>
 
         <motion.div
@@ -739,11 +783,22 @@ export default function DashboardPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="hidden sm:flex flex-col justify-center"
+            className="hidden w-full max-w-[180px] sm:flex flex-col justify-center"
           >
-            <span className="text-caption font-bold text-ink-subtle uppercase tracking-[0.2em] mb-2">Weekly Stats</span>
-            <motion.span className="text-title font-bold text-ink leading-none">{completedCountForStats}</motion.span>
-            <span className="text-caption font-bold text-ink-subtle mt-0.5">Completed</span>
+            <span className="text-caption font-bold text-ink-subtle uppercase tracking-[0.2em]">Weekly Stats</span>
+            <span className="mt-1.5 flex items-baseline gap-1.5">
+              <span className="text-title font-bold leading-none text-ink">
+                <NumberRoll value={completedCountForStats} />
+              </span>
+              <span className="text-caption font-bold text-ink-subtle">completed</span>
+            </span>
+            {/* The shape of the week, not just its total. Built from the completion
+                timestamps already loaded for the ring, so it costs no request and
+                cannot disagree with the number above it. */}
+            <WeekBars
+              className="mt-3"
+              completions={recentCompletedStatsTodos.map((t) => t.completedAt ?? t.updatedAt)}
+            />
           </motion.div>
         </motion.div>
       </motion.div>
