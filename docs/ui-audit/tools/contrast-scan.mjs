@@ -110,21 +110,72 @@ function simulateCvd(rgb, type) {
   return out.map((c) => clamp01(toGamma(clamp01(c))))
 }
 
-// ─── the declared palettes ──────────────────────────────────────────────────
+// ─── the declared palette, read from the tokens ─────────────────────────────
 
-const GRAY = {
-  50: '#fafafa', 100: '#f5f5f5', 150: '#eeeeee', 200: '#e5e5e5', 300: '#d4d4d4',
-  400: '#a3a3a3', 500: '#737373', 600: '#525252', 700: '#404040', 800: '#262626', 900: '#171717',
+/**
+ * Read out of design-tokens.ts rather than transcribed here.
+ *
+ * This file used to carry its own copy — `accent.DEFAULT #0ea5e9`,
+ * `success.DEFAULT #10b981`, `warning.DEFAULT #f59e0b` and the rest — written before
+ * the token file existed. None of those colours has shipped for some time, so the
+ * scan opened every run by reporting a dozen contrast failures against a palette
+ * the product does not use. A tool that cries wolf is worse than no tool.
+ *
+ * A regex, because this is plain .mjs and the tokens are TypeScript. It is enough:
+ * the token file is a flat object of string literals by construction.
+ */
+const TOKENS_SRC = fs.readFileSync(
+  new URL('../../../frontend/src/lib/design-tokens.ts', import.meta.url),
+  'utf8',
+)
+
+function readTokenColours(src) {
+  const body = src.slice(src.indexOf('const color = {'), src.indexOf('// ─── Type'))
+  const flat = {}
+  const gray = {}
+  // `gray: { 50: "#fafafa", … }` is the only nested member.
+  const grayBlock = /gray:\s*\{([^}]*)\}/.exec(body)
+  if (grayBlock) {
+    for (const m of grayBlock[1].matchAll(/(\d+):\s*"(#[0-9a-fA-F]{3,8})"/g)) gray[m[1]] = m[2]
+  }
+  const withoutGray = grayBlock ? body.replace(grayBlock[0], '') : body
+  for (const m of withoutGray.matchAll(/^\s*([A-Za-z][A-Za-z0-9]*):\s*"(#[0-9a-fA-F]{3,8})"/gm)) {
+    flat[m[1]] = m[2]
+  }
+  return { flat, gray }
 }
 
-const SEMANTIC = {
-  'accent.DEFAULT': '#0ea5e9', 'accent.hover': '#0284c7', 'accent.active': '#0369a1',
-  'success.DEFAULT': '#10b981', 'success.hover': '#059669',
-  'error.DEFAULT': '#ef4444', 'error.hover': '#dc2626',
-  'warning.DEFAULT': '#f59e0b', 'warning.hover': '#d97706',
-  'info.DEFAULT': '#3b82f6', 'info.hover': '#2563eb',
-}
+const TOKEN_COLOURS = readTokenColours(TOKENS_SRC)
+const GRAY = TOKEN_COLOURS.gray
+/** Every named colour the product ships, whatever its job. */
+const SEMANTIC = TOKEN_COLOURS.flat
 
+/**
+ * Which tokens are asked to carry TEXT on a light surface.
+ *
+ * Without this the scan measured `paper` against `paper` and reported 1:1 FAIL --
+ * true, meaningless, and indistinguishable in the output from a real defect. A
+ * surface is not failing 1.4.3 by being a surface.
+ *
+ * `inkFaint` is in the list deliberately: it is the one token declared NON-TEXT,
+ * and seeing it fail here on every run is the point.
+ */
+const TEXT_ON_LIGHT = new Set([
+  'ink', 'inkMuted', 'inkSubtle', 'inkFaint', 'accent', 'alert', 'positive', 'warn', 'focus',
+])
+
+/** Tokens whose job is a border or another non-text mark: 1.4.11 wants 3:1. */
+const NON_TEXT_MARKS = new Set(['line', 'lineStrong', 'inkFaint', 'focus'])
+
+/** Text that belongs on the dark auth panel, where white is the wrong background. */
+const TEXT_ON_INK = new Set(['paperMuted', 'paperSubtle', 'accentInk', 'alertInk', 'paper'])
+
+/**
+ * The RETIRED priority palette. Nothing below ships — priority is a five-segment
+ * meter in one ink now (see `PriorityMeter`). It is kept because the CVD figures it
+ * produces are the evidence for that decision: under deuteranopia the two lowest
+ * separate by an OKLab distance of 0.049, beneath the just-noticeable threshold.
+ */
 const PRIORITY = {
   veryLow: { bg: '#fafafa', text: '#737373', border: '#e5e5e5' },
   low: { bg: '#f0fdf4', text: '#059669', border: '#bbf7d0' },
@@ -154,6 +205,7 @@ for (const [surfName, surfHex] of Object.entries(SURFACES)) {
     })
   }
   for (const [k, hex] of Object.entries(SEMANTIC)) {
+    if (!TEXT_ON_LIGHT.has(k) && !NON_TEXT_MARKS.has(k)) continue   // a surface is not failing by being one
     const ratio = contrast(hexToRgb(hex), bg)
     textPairs.push({
       fg: k, fgHex: hex, bg: surfName, bgHex: surfHex, ratio,
@@ -161,6 +213,13 @@ for (const [surfName, surfHex] of Object.entries(SURFACES)) {
     })
   }
 }
+
+/** The reverse ramp, measured where it is used: on the dark auth panel. */
+const inkSurface = hexToRgb(SEMANTIC.ink || '#171717')
+const onInkPairs = [...TEXT_ON_INK].filter((k) => SEMANTIC[k]).map((k) => {
+  const ratio = contrast(hexToRgb(SEMANTIC[k]), inkSurface)
+  return { fg: k, fgHex: SEMANTIC[k], ratio, aaNormal: ratio >= 4.5, aaLarge: ratio >= 3 }
+})
 
 // priority chips: their own text on their own bg
 const priorityPairs = Object.entries(PRIORITY).map(([name, c]) => {
@@ -237,12 +296,23 @@ for (const vision of ['normal', 'protanopia', 'deuteranopia']) {
 }
 
 // ─── 4. what the focus ring is worth ────────────────────────────────────────
-// globals.css:98 — outline: 2px solid rgba(0,0,0,0.35) — composite over each surface.
+/**
+ * The indicator is `outline: 2px solid theme("colors.focus")` in globals.css, read
+ * from the token rather than transcribed — this block used to hardcode an
+ * `rgba(0,0,0,0.35)` that the stylesheet had long since stopped using, and went on
+ * reporting 2.44:1 FAIL for an indicator measuring 19.80:1.
+ *
+ * The token is opaque, so there is nothing to composite; the ratio is the plain
+ * contrast against each surface.
+ */
+// Straight from the token table read above, for the same reason everything else
+// is: the hardcoded rgba(0,0,0,0.35) this replaced had been wrong long enough to
+// report 2.44:1 FAIL for an indicator measuring 19.80:1 PASS.
+const FOCUS_HEX = SEMANTIC.focus || '#0a0a0a'
 const focusRing = Object.entries(SURFACES).map(([name, hex]) => {
   const bg = hexToRgb(hex)
-  const composited = bg.map((c) => c * (1 - 0.35) + 0 * 0.35)
-  const ratio = contrast(composited, bg)
-  return { surface: name, effectiveHex: rgbToHex(composited), ratio, passes1411: ratio >= 3 }
+  const ratio = contrast(hexToRgb(FOCUS_HEX), bg)
+  return { surface: name, effectiveHex: FOCUS_HEX, ratio, passes1411: ratio >= 3 }
 })
 
 // ─── report ─────────────────────────────────────────────────────────────────
@@ -281,7 +351,7 @@ for (const p of report.textContrast.filter((x) => x.bg === 'white')) {
   )
 }
 
-console.log('\n── priority chips: own text on own background ──')
+console.log('\n── RETIRED priority chips (kept as the evidence for PriorityMeter) ──')
 console.log('priority   text     bg       ratio  AA-norm  border vs white (1.4.11)')
 for (const p of report.priorityChips) {
   console.log(
@@ -289,15 +359,45 @@ for (const p of report.priorityChips) {
   )
 }
 
-console.log('\n── focus ring (globals.css:98, rgba(0,0,0,0.35)) vs 1.4.11 ──')
-for (const f of report.focusRing) console.log(`${f.surface.padEnd(22)} ${f.effectiveHex}  ${String(f.ratio).padStart(5)}  ${f.passes1411 ? 'ok' : 'FAIL'}`)
-
-console.log('\n── palette drift: globals.css oklch var vs tailwind.config hex ──')
-for (const d of report.paletteDrift) {
-  console.log(`${d.varName.padEnd(14)} css ${String(d.cssAsHex).padEnd(8)} vs token ${String(d.tokenHex).padEnd(8)} ΔOKLab ${String(d.deltaOkLab).padStart(7)}  ${d.verdict}`)
+console.log('\n── the reverse ramp: text on the dark auth panel ──')
+for (const p of onInkPairs.sort((a, b) => a.ratio - b.ratio)) {
+  console.log(`${String(p.ratio).padStart(5)}  ${p.aaNormal ? ' ok ' : 'FAIL'}   ${p.fg.padEnd(18)} ${p.fgHex}`)
 }
 
-console.log('\n── priority colours under colour-vision deficiency ──')
+console.log(`\n── focus indicator (design-tokens colors.focus = ${FOCUS_HEX}) vs 1.4.11 ──`)
+for (const f of report.focusRing) console.log(`${f.surface.padEnd(22)} ${f.effectiveHex}  ${String(f.ratio).padStart(5)}  ${f.passes1411 ? 'ok' : 'FAIL'}`)
+
+/**
+ * Palette drift: the same colour declared in two places, disagreeing.
+ *
+ * This compared `oklch()` variables in globals.css against hexes in the Tailwind
+ * config, back when the product declared its palette twice. It does not any more —
+ * tailwind.config.ts derives its theme from design-tokens.ts, so there is no second
+ * declaration left to drift. Every row printed "undefined vs token", which is the
+ * correct answer and a useless thing to emit on every run.
+ *
+ * Kept, silent, so the check speaks up the moment anyone reintroduces a parallel
+ * palette.
+ */
+const drifted = report.paletteDrift.filter((d) => d.status !== 'variable not found')
+if (drifted.length) {
+  console.log('\n── palette drift: a colour is declared in two places ──')
+  for (const d of drifted) {
+    console.log(`${d.varName.padEnd(14)} css ${String(d.cssAsHex).padEnd(8)} vs token ${String(d.tokenHex).padEnd(8)} ΔOKLab ${String(d.deltaOkLab).padStart(7)}  ${d.verdict}`)
+  }
+}
+
+/**
+ * The evidence behind rule 5, not a live palette.
+ *
+ * These five hues are what priority used to be encoded in, and the numbers below
+ * are the reason `PriorityMeter` exists: under deuteranopia the two lowest
+ * priorities separate by an OKLab distance of 0.049, under the just-noticeable
+ * threshold — two different priorities that look like one colour. The product now
+ * carries priority as filled segments in a single ink plus a spoken name, so
+ * nothing printed here ships.
+ */
+console.log('\n── why priority is not a hue: the retired palette under CVD ──')
 for (const [vision, data] of Object.entries(report.priorityCvd)) {
   console.log(`\n${vision}: ${data.swatches.map((s) => `${s.name}=${s.hex}`).join('  ')}`)
   console.log(`  closest pairs: ${data.closestPairs.map((p) => `${p.pair} ${p.distance}`).join(' | ')}`)

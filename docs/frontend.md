@@ -199,6 +199,7 @@ name, because several screen readers do not announce it and it never appears on 
 | Usability contract | `src/test/quality/usability-contract.test.tsx` | Copy and affordances that must not regress |
 | Dead-CSS scan | `node docs/ui-audit/tools/class-audit.mjs` | Classes that emit no rule. **Needs a build first** |
 | Static a11y | `node docs/ui-audit/tools/a11y-static.mjs` | Names, keyboard paths, tab order |
+| Focus indicators | `node docs/ui-audit/tools/focus-scan.mjs` | Every focus stop, measured against 2.4.11's 3:1. **Needs a running server** |
 | Live matrix | `node docs/ui-audit/tools/live-scan.mjs` | 12 routes × 9 viewports × 3 modes |
 | E2E | `npx playwright test` | Real flows against a live stack |
 
@@ -211,6 +212,15 @@ one of those was broken at some point while the UI looked perfectly fine.
 A test that re-derives its expectation from the same mechanism it is testing proves
 nothing. `formatDate` is asserted against a literal string, not against
 `toLocaleDateString()` — otherwise removing the locale pinning would keep the test green.
+
+### Never suppress the focus indicator
+
+`globals.css` declares it once, through a `:where()` selector with zero specificity so
+a component can add to it and nothing needs to fight it. Two idioms take it away
+silently: Tailwind's `outline-none` sets `2px solid transparent` rather than removing
+anything, and an inline `outline: "none"` beats the stylesheet outright. Both shipped
+here, leaving six auth routes and every Button variant with no visible focus at all.
+See [`design-system.md`](design-system.md) for the measured figures.
 
 ### The lesson from the focus trap
 
@@ -278,6 +288,8 @@ Two traps this machine has hit before, recorded in
 3. `npx vitest run` — green, branches ≥ 85%.
 4. `node ../docs/ui-audit/tools/class-audit.mjs` — every class emits a rule.
 5. `node ../docs/ui-audit/tools/a11y-static.mjs` — no unnamed control, no unreachable one.
+5b. If you touched anything focusable, `node ../docs/ui-audit/tools/focus-scan.mjs` against a
+   running production server — every focus stop still clears 3:1.
 6. If the change is visible, look at it in a real browser at 390px and at 1440px.
 7. Docs updated — this page, [`design-system.md`](design-system.md), or
    [`features.md`](features.md), whichever the change touched.

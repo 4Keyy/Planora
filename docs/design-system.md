@@ -30,7 +30,7 @@ something measurably went wrong without it.
 | 1 | No colour literal in a component | 441 uses across 98 distinct values, none of them coordinated | `rule 1 — no colour literal in a component` |
 | 2 | No text below 12px | 47% of the product's text sat under the floor: 9px ×57, 10px ×729, 11px ×573 | `rule 2 — no text below 12px` |
 | 3 | Four font weights, and exactly four loaded faces | A weight with no file behind it gets a synthetic, smeared face and no error | `rule 3 — four font weights, and four loaded faces` |
-| 4 | One focus indicator, clearing 3:1 | 8 of 8 focus indicators failed WCAG 2.4.11 | `rule 4 — one focus indicator, clearing 2.4.11` |
+| 4 | One focus indicator, clearing 3:1 | 8 of 8 failed WCAG 2.4.11; later, six auth routes and every Button variant had none that could be seen | `rule 4 — one focus indicator, clearing 2.4.11` |
 | 5 | Priority is never encoded by hue alone | Five priority hues collapse under deuteranopia — OKLab distance 0.049 between the two lowest, below the just-noticeable threshold | `rule 5 — priority is never encoded by hue alone` |
 
 ### The `@colour-data` exemption
@@ -87,8 +87,8 @@ regions is `line`.
 | `paper` | `#ffffff` | The page |
 | `paper-sunken` | `#fafafa` | Recessed fills, plates, inactive tabs |
 | `paper-raised` | `#ffffff` | Cards over `paper-sunken` |
-| `paper-muted` | `#e5e5e5` | Text **on** an ink surface — 14.4:1 on ink |
-| `paper-subtle` | `#a3a3a3` | Muted text on an ink surface — 7.44:1 on ink |
+| `paper-muted` | `#e5e5e5` | Text **on** an ink surface — 14.23:1 on ink |
+| `paper-subtle` | `#a3a3a3` | Muted text on an ink surface — 7.11:1 on ink |
 
 The auth pages carry a dark marketing panel, so the ramp has to run in reverse there.
 Reusing `ink-muted` on `#171717` measured 2.29:1, which is why `paper-muted` and
@@ -100,13 +100,13 @@ Reusing `ink-muted` on `#171717` measured 2.29:1, which is why `paper-muted` and
 |---|---|---|---|
 | `accent` | `#0369a1` | 5.93:1 | Links, active tab, selection. The previous `#0ea5e9` measured 2.77:1 and could not carry text |
 | `accent-surface` | `#e0f2fe` | — | A **background fill**. Eight places used it as a text colour at ~1.2:1 |
-| `alert` | `#b91c1c` | 7.00:1 | Overdue, or a destructive action being confirmed. Nothing else |
+| `alert` | `#b91c1c` | 6.47:1 | Overdue, or a destructive action being confirmed. Nothing else |
 | `alert-surface` | `#fef2f2` | — | Background behind alert content |
-| `positive` | `#15803d` | 4.53:1 | Confirmation. State, never decoration |
+| `positive` | `#15803d` | 5.02:1 | Confirmation. State, never decoration |
 | `positive-surface` | `#f0fdf4` | — | Background behind positive content |
-| `warn` | `#a16207` | 4.93:1 | Approaching a limit, unverified email |
+| `warn` | `#a16207` | 4.92:1 | Approaching a limit, unverified email |
 | `warn-surface` | `#fffbeb` | — | Background behind warn content |
-| `focus` | `#0a0a0a` | 18.88:1 | The focus indicator, everywhere |
+| `focus` | `#0a0a0a` | 19.80:1 | The focus indicator, everywhere. Declared once, in `globals.css` |
 
 **A `-surface` token is a background.** It is never a text or icon colour. The rule is
 mechanical: if a token's name ends in `-surface`, `text-*` and icon `color` are wrong.
@@ -340,20 +340,56 @@ Every one of these is measured across a matrix of 12 routes × 9 viewports × 3 
 |---|---|
 | 1.4.3 Contrast (text) | 4.5:1, or 3:1 at 18.66px+ bold / 24px+. `ink-subtle` is the floor |
 | 1.4.11 Non-text contrast | 3:1 for control borders, icons that carry meaning, focus indicators |
-| 2.4.7 / 2.4.11 Focus | One indicator, 18.88:1 on paper, with a light halo for dark surfaces |
+| 2.4.7 / 2.4.11 Focus | **One** indicator, declared once in `globals.css`, 19.80:1 on paper, with a light halo for dark surfaces |
 | 2.5.8 Target size | 24×24 minimum (AA), 44×44 target (ours). Inline links in a sentence are exempt |
 | 2.1.1 Keyboard | Everything operable. `tabIndex={-1}` on a real control is a failure |
 | 1.3.1 Info and relationships | One `<h1>` per route, no skipped levels, `<main>` on every route |
 | 4.1.2 Name, role, value | `title` is **not** an accessible name — it is unannounced by several screen readers and never appears on touch |
 
-### Why the two scanners both exist
+### The focus indicator is declared once, and nothing may suppress it
 
-`live-scan.mjs` measures what is on screen, which means it only ever sees states the
-fixture data produces. An icon button that appears only for the owner of a comment, or
-a control inside a menu nobody opened, is invisible to it — that is exactly how eight
+`globals.css` paints it, for every focusable element, through a `:where()` selector
+with deliberately zero specificity so a component can *add* to it. Nothing may take
+it away. Two idioms do exactly that, silently:
+
+- **Tailwind's `outline-none` does not remove an outline.** It sets
+  `2px solid transparent`, which wins on specificity and renders as nothing. The
+  replacement `focus:ring-*` then has to carry the whole indicator on its own, and
+  in this product every one of them was too faint to: `ring-black/30` composites to
+  `#b3b3b3` (2.10:1), `ring-gray-400/30` to `#e3e3e3` (1.28:1), `ring-gray-300/30`
+  to `#f2f2f2` (1.12:1).
+- **An inline `outline: "none"` beats the stylesheet outright**, and seven text
+  controls in the branch editor carried one.
+
+Neither is visible while reading the component, and both shipped. Never write
+`outline-none`, `focus:outline-none` or `focus-visible:outline-none`. The single
+exception is a dialog *panel* that holds `tabIndex={-1}` to receive focus as a
+container: it is not a control and should not be outlined.
+
+`docs/ui-audit/tools/focus-scan.mjs` tabs through every focus stop on the
+authenticated routes and measures the indicator's contrast — the colour composited
+over paper, against paper — rather than asking whether one is present. 174 stops,
+all clearing 3:1.
+
+### Why the scanners all exist
+
+Each answers a question the others structurally cannot.
+
+`live-scan.mjs` measures what is on screen, so it only ever sees states the fixture
+data produces. An icon button that appears only for the owner of a comment, or a
+control inside a menu nobody opened, is invisible to it — that is how eight
 `accent-surface`-on-white text colours and three unnamed icon buttons survived a clean
-browser sweep. `a11y-static.mjs` reads source, so its coverage does not depend on
-reaching a state.
+browser sweep.
+
+`a11y-static.mjs` reads source, so its coverage does not depend on reaching a state —
+but it cannot see anything that only exists once styles are computed.
+
+`class-audit.mjs` compares the classes in source against the rules in the built
+stylesheet, which is the only way to catch a class that names nothing.
+
+`focus-scan.mjs` drives the keyboard, because a focus indicator only exists in the
+`:focus-visible` state and no static read of the source will tell you what it
+composites to.
 
 ---
 
@@ -419,6 +455,9 @@ Each of these shipped. None produced a build error, a type error, or a failing t
 | An opacity modifier on a non-colour utility (`text-center/30`) | Matches nothing. That empty state was never centred | `class-audit.mjs` |
 | A shortcut hint inside a button's accessible name | "New Category" announced as "New Category c" | `aria-hidden` on the hint, `aria-keyshortcuts` on the button |
 | A codemod rewriting tokens inside CSS value strings | `animation: "… ease-out"` became an invalid `ease-emphasized`; the animation silently stopped | Never run a token codemod over string values without re-running the build and `class-audit.mjs` |
+| `outline-none` suppressing the one focus indicator | Tailwind sets `2px solid transparent`, not `none`, so a probe that checks for an outline's presence sees one. Six auth routes had no visible focus at all | `focus-scan.mjs`, which measures the indicator's contrast |
+| A per-component focus ring replacing the global one | Four Button variants at 1.12:1 to 2.10:1, where 2.4.11 asks for 3:1 | The same scan, plus the rule above: only `globals.css` declares the indicator |
+| A `<kbd>` shortcut hint inside a button | It joins the accessible name — "New Category" announced as "New Category c" | `aria-hidden` on the hint, `aria-keyshortcuts` on the button |
 
 ---
 
@@ -437,7 +476,15 @@ Each of these shipped. None produced a build error, a type error, or a failing t
 5. **Run the gates.**
 
 ```bash
-cd frontend && npm run build && npx vitest run && node ../docs/ui-audit/tools/class-audit.mjs && node ../docs/ui-audit/tools/a11y-static.mjs
+cd frontend && npm run build && npx vitest run
+cd .. && node docs/ui-audit/tools/class-audit.mjs && node docs/ui-audit/tools/a11y-static.mjs
+```
+
+`focus-scan.mjs` and `live-scan.mjs` need a running production server; start one,
+then:
+
+```bash
+node docs/ui-audit/tools/focus-scan.mjs
 ```
 
 ---

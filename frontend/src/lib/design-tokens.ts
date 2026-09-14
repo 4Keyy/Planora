@@ -53,8 +53,8 @@ const color = {
    * ink ramp has to run in reverse there: reusing `inkMuted` on `#171717`
    * measured 2.29:1.
    */
-  paperMuted: "#e5e5e5",   // 14.4:1 on ink
-  paperSubtle: "#a3a3a3",  // 7.44:1 on ink — muted, still compliant
+  paperMuted: "#e5e5e5",   // 14.23:1 on ink
+  paperSubtle: "#a3a3a3",  // 7.11:1 on ink — muted, still compliant
   paperSunken: "#fafafa",
   paperRaised: "#ffffff",
 
@@ -68,21 +68,21 @@ const color = {
 
   /**
    * The only saturated colour in the product, and it means exactly one thing:
-   * something is overdue, or a destructive action is being confirmed. 7.00:1
+   * something is overdue, or a destructive action is being confirmed. 6.47:1
    */
   alert: "#b91c1c",
   alertSurface: "#fef2f2",
   alertInk: "#ffffff",
 
-  /** Confirmation. Used for state, never for decoration. 4.53:1 */
+  /** Confirmation. Used for state, never for decoration. 5.02:1 */
   positive: "#15803d",
   positiveSurface: "#f0fdf4",
 
-  /** Caution: approaching a limit, unverified email. 4.93:1 */
+  /** Caution: approaching a limit, unverified email. 4.92:1 */
   warn: "#a16207",
   warnSurface: "#fffbeb",
 
-  /** Focus indicator. 18.88:1 on paper; the halo keeps it visible on dark. */
+  /** Focus indicator. 19.80:1 on paper; the halo keeps it visible on dark. */
   focus: "#0a0a0a",
   focusHalo: "rgba(255, 255, 255, 0.9)",
 

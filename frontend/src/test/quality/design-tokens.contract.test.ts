@@ -157,7 +157,7 @@ describe("rule 4 — one focus indicator, clearing 2.4.11", () => {
 
   it("clears 3:1 against paper", () => {
     // 2.4.11 asks for 3:1. Eight of eight focus indicators failed it before the
-    // scale was unified; this one measures 18.88:1.
+    // scale was unified; this one measures 19.80:1.
     expect(ratio(tokens.color.focus, tokens.color.paper)).toBeGreaterThanOrEqual(3)
   })
 
