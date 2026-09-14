@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Plus, CheckCircle2, ChevronRight, History, FolderOpen } from "lucide-react"
+import { CheckCircle2, ChevronRight, History, FolderOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import axios from "axios"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
@@ -39,7 +39,6 @@ const CreateTodoPanel = dynamic(
     ),
   },
 )
-import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
 import { TASK_CREATED_EVENT, type TaskCreatedDetail } from "@/lib/events"
@@ -52,6 +51,7 @@ import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
 import { OPEN_CREATE_EVENT } from "@/components/command-palette"
 import { NumberRoll } from "@/components/ui/number-roll"
+import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 
 const ACTIVE_PAGE_SIZE = 200
 const COMPLETED_PREVIEW_SIZE = 20
@@ -141,7 +141,8 @@ export default function TasksPage() {
   completedPreviewRef.current = completedPreview
 
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
-  const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
+  /** Deletions wait five seconds in here instead of behind a confirmation dialog. */
+  const undoable = useUndoableAction()
   const [commentsRefreshKey, setCommentsRefreshKey] = useState(0)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
@@ -475,27 +476,52 @@ export default function TasksPage() {
     }
   }
 
-  const confirmDelete = async () => {
-    if (!deletingTodo) return
+  /**
+   * Delete with an undo window instead of a confirmation.
+   *
+   * The card leaves the list immediately; the DELETE is only sent once the window
+   * closes. Undo cancels the timer, so nothing ever reaches the server — which is
+   * what makes this honest, since the API has no restore endpoint to put the task
+   * back with.
+   */
+  const requestDelete = (todo: Todo) => {
+    const wasCompleted = isCompletedTodoStatus(todo.status)
+    // Remember where it was, so undo puts it back in place rather than on top.
+    const index = todos.findIndex((t) => t.id === todo.id)
 
-    const todoToDelete = deletingTodo
+    if (!wasCompleted) setTodos((prev) => prev.filter((t) => t.id !== todo.id))
 
-    try {
-      await api.delete(`/todos/api/v1/todos/${todoToDelete.id}`)
-
-      if (isCompletedTodoStatus(todoToDelete.status)) {
-        await fetchCompletedPreview()
-      } else {
-        setTodos((prev) => prev.filter((t) => t.id !== todoToDelete.id))
-      }
-
-      addToast({ type: "success", title: "Task deleted" })
-    } catch (error) {
-      console.error("Failed to delete todo:", error)
-      addToast({ type: "error", title: "Failed to delete task" })
-    } finally {
-      setDeletingTodo(null)
-    }
+    undoable.run({
+      label: `“${todo.title.length > 40 ? `${todo.title.slice(0, 40)}…` : todo.title}” deleted`,
+      commit: async () => {
+        try {
+          await api.delete(`/todos/api/v1/todos/${todo.id}`)
+          if (wasCompleted) await fetchCompletedPreview()
+        } catch (error) {
+          console.error("Failed to delete todo:", error)
+          addToast({ type: "error", title: "Failed to delete task" })
+          // The server refused, so put the card back rather than leave the user
+          // believing a task is gone when it is not.
+          if (!wasCompleted) {
+            setTodos((prev) => {
+              if (prev.some((t) => t.id === todo.id)) return prev
+              const next = [...prev]
+              next.splice(index < 0 ? next.length : index, 0, todo)
+              return next
+            })
+          }
+        }
+      },
+      rollback: () => {
+        if (wasCompleted) return
+        setTodos((prev) => {
+          if (prev.some((t) => t.id === todo.id)) return prev
+          const next = [...prev]
+          next.splice(index < 0 ? next.length : index, 0, todo)
+          return next
+        })
+      },
+    })
   }
 
   const handleUpdate = async (id: string, payload: UpdateTodoPayload) => {
@@ -795,7 +821,7 @@ export default function TasksPage() {
                     todo={todo}
                     variant="default"
                     onComplete={() => handleComplete(todo.id)}
-                    onDelete={() => setDeletingTodo(todo)}
+                    onDelete={() => requestDelete(todo)}
                     onEdit={() => setEditingTodo(todo)}
                     onToggleHidden={() => handleToggleHidden(todo.id)}
                     onJoin={async () => {
@@ -888,7 +914,7 @@ export default function TasksPage() {
                                 todo={todo}
                                 variant="completed"
                                 onComplete={() => handleComplete(todo.id)}
-                                onDelete={() => setDeletingTodo(todo)}
+                                onDelete={() => requestDelete(todo)}
                                 onEdit={() => setEditingTodo(todo)}
                                 onToggleHidden={() => handleToggleHidden(todo.id)}
                               />
@@ -996,14 +1022,7 @@ export default function TasksPage() {
         )}
       </AnimatePresence>
 
-      <ConfirmDialog
-        isOpen={!!deletingTodo}
-        onClose={() => setDeletingTodo(null)}
-        onConfirm={confirmDelete}
-        title="Delete Task?"
-        description={`Are you sure you want to delete "${deletingTodo?.title}"? This action cannot be undone.`}
-        confirmText="Delete Task"
-      />
+      <UndoBar pending={undoable.pending} onUndo={undoable.undo} />
 
       <CategoryFilterModal
         isOpen={isCategoryModalOpen}
