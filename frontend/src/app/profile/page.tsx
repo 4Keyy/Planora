@@ -53,6 +53,7 @@ import { cn } from "@/lib/utils"
 import { TWEEN_FAST } from "@/lib/animations"
 import { formatDateTime as formatDate, formatDate as formatDateShort } from "@/lib/datetime"
 import { StatusPanel } from "@/components/ui/status-panel"
+import { Field, FIELD_LABEL_CLASS, type FieldControlProps } from "@/components/ui/field"
 import type {
   UserDto,
   UserSecurityDto,
@@ -116,8 +117,19 @@ const personName = (person: {
 const CARD =
   "rounded-xl border border-line bg-paper shadow-[0_1px_2px_rgba(15,23,42,0.03),0_14px_38px_-26px_rgba(15,23,42,0.20)]"
 
-const LABEL =
-  "block text-caption font-bold uppercase tracking-[0.14em] text-ink-subtle"
+/**
+ * Eyebrow label for the page's metadata rows (a `<dt>`, a section caption). It is
+ * the SAME style a form field's label uses — there is one eyebrow in this product,
+ * not three. It used to be `font-bold tracking-[0.14em] text-ink-subtle` here,
+ * `font-semibold tracking-wider text-ink-muted` on the auth screens and
+ * `font-bold tracking-widest text-ink-subtle` on the categories page; nobody could
+ * see the difference while reading any one of those files.
+ *
+ * `ink-muted` (7.81:1) rather than `ink-subtle` (4.74:1): this text is 12px and
+ * uppercase, the hardest combination to read, and it should sit well clear of the
+ * 4.5:1 floor rather than on it.
+ */
+const LABEL = FIELD_LABEL_CLASS
 
 /* ------------------------------------------------------------------ *
  * Reusable helpers (names preserved from the original file)
@@ -259,13 +271,14 @@ function EmptyState({ icon, title, description }: { icon: LucideIcon; title: str
   return <StatusPanel size="compact" as="p" icon={icon} title={title} description={description} />
 }
 
-function FieldGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block space-y-2">
-      <span className={LABEL}>{label}</span>
-      {children}
-    </label>
-  )
+/**
+ * Adapter over the shared `Field`. The old version wrapped the control in a
+ * `<label>` and offered no error slot at all, so a failed profile save could only
+ * be reported through a toast that a screen-reader user might have already
+ * dismissed. `Field` associates the label by id and leaves room for an error.
+ */
+function FieldGroup({ label, children }: { label: string; children: (props: FieldControlProps) => ReactNode }) {
+  return <Field label={label}>{children}</Field>
 }
 
 function Pager({
@@ -1157,20 +1170,26 @@ export default function ProfilePage() {
                   <>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <FieldGroup label="First name">
+                        {(field) => (
                         <Input
+                          {...field}
                           value={profileForm.firstName}
                           onChange={(e) => setProfileForm((s) => ({ ...s, firstName: e.target.value }))}
                           maxLength={100}
                           showCount
                         />
+                        )}
                       </FieldGroup>
                       <FieldGroup label="Last name">
+                        {(field) => (
                         <Input
+                          {...field}
                           value={profileForm.lastName}
                           onChange={(e) => setProfileForm((s) => ({ ...s, lastName: e.target.value }))}
                           maxLength={100}
                           showCount
                         />
+                        )}
                       </FieldGroup>
                     </div>
 
@@ -1698,8 +1717,10 @@ export default function ProfilePage() {
               <SectionCard icon={UserPlus} title="Add a friend" description="By account email, or by their User ID.">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FieldGroup label="By email">
+                    {(field) => (
                     <div className="flex gap-2">
                       <Input
+                        {...field}
                         type="email"
                         autoComplete="off"
                         placeholder="friend@planora.app"
@@ -1714,10 +1735,13 @@ export default function ProfilePage() {
                         Send
                       </Button>
                     </div>
+                    )}
                   </FieldGroup>
                   <FieldGroup label="By user ID">
+                    {(field) => (
                     <div className="flex gap-2">
                       <Input
+                        {...field}
                         autoComplete="off"
                         placeholder="00000000-0000-0000-0000-000000000000"
                         value={friendIdInput}
@@ -1731,6 +1755,7 @@ export default function ProfilePage() {
                         Add
                       </Button>
                     </div>
+                    )}
                   </FieldGroup>
                 </div>
               </SectionCard>

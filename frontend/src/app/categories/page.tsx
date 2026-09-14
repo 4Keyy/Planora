@@ -19,6 +19,7 @@ import { useAutosave } from "@/hooks/use-autosave"
 import { ColorPicker } from "@/components/todos/edit-todo-modal/color-picker"
 import { cn, truncateText } from "@/lib/utils"
 import { ICON_MAP } from "@/lib/icon-map"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field"
 
 type CategoryFormData = {
   name: string
@@ -376,11 +377,12 @@ function CategoryModal({
                 transition={{ duration: 0.32, delay: 0.05 }}
                 className="space-y-1.5"
               >
-                <label htmlFor="category-name" className="text-caption font-bold uppercase tracking-widest text-ink-subtle md:text-caption">
-                  Name *
+                <label htmlFor="category-name" className={FIELD_LABEL_CLASS}>
+                  Name <span className="text-alert" aria-hidden="true">*</span>
                 </label>
                 <Input
                   id="category-name"
+                  required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Work, Personal, Projects..."

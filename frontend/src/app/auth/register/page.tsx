@@ -14,6 +14,7 @@ import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { getRegisterErrorMessage } from "@/lib/errors"
 import type { AuthRegisterResponse } from "@/types/auth"
+import { Field, type FieldControlProps } from "@/components/ui/field"
 
 const schema = z.object({
   firstName: z.string().min(2, "At least 2 characters"),
@@ -30,15 +31,26 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-function InputField({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  // The wrapping <label> implicitly associates the text with the nested control, so screen
-  // readers announce the field name on focus (a bare sibling <label> is not associated).
+/**
+ * Adapter over the shared `Field`. It used to wrap the control in a `<label>`,
+ * which associates the name but puts the error message inside the label too —
+ * a screen reader then announced "Email Passwords don't match" as the field's
+ * NAME, and nothing marked the control invalid. `Field` gives the error its own
+ * `aria-describedby` entry and sets `aria-invalid` on the control itself.
+ */
+function InputField({
+  label,
+  error,
+  children,
+}: {
+  label: string
+  error?: string
+  children: (props: FieldControlProps) => React.ReactNode
+}) {
   return (
-    <label className="block space-y-1.5">
-      <span className="block text-caption font-semibold text-ink-muted uppercase tracking-wider">{label}</span>
+    <Field label={label} error={error}>
       {children}
-      {error && <p className="text-caption text-alert">{error}</p>}
-    </label>
+    </Field>
   )
 }
 
@@ -170,21 +182,24 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <InputField label="First name" error={errors.firstName?.message}>
-                <input {...register("firstName")} placeholder="Jane" autoComplete="given-name" className={inputClass} />
+                {(field) => <input {...register("firstName")} {...field} placeholder="Jane" autoComplete="given-name" className={inputClass} />}
               </InputField>
               <InputField label="Last name" error={errors.lastName?.message}>
-                <input {...register("lastName")} placeholder="Doe" autoComplete="family-name" className={inputClass} />
+                {(field) => <input {...register("lastName")} {...field} placeholder="Doe" autoComplete="family-name" className={inputClass} />}
               </InputField>
             </div>
 
             <InputField label="Email" error={errors.email?.message}>
-              <input {...register("email")} type="email" placeholder="you@example.com" autoComplete="email" className={inputClass} />
+              {(field) => <input {...register("email")} {...field} type="email" placeholder="you@example.com" autoComplete="email" className={inputClass} />}
             </InputField>
 
             <InputField label="Password" error={errors.password?.message}>
+              {(field) => (
+              <>
               <div className="relative">
                 <input
                   {...register("password")}
+                  {...field}
                   type={showPass ? "text" : "password"}
                   placeholder="Create a strong password"
                   autoComplete="new-password"
@@ -205,15 +220,19 @@ export default function RegisterPage() {
                       style={{ width: `${strength.pct}%`, backgroundColor: strength.color }}
                     />
                   </div>
-                  <p className="text-caption" style={{ color: strength.color }}>{strength.label}</p>
+                  <p className="text-caption font-medium" style={{ color: strength.color }}>{strength.label}</p>
                 </div>
+              )}
+              </>
               )}
             </InputField>
 
             <InputField label="Confirm password" error={errors.confirmPassword?.message}>
+              {(field) => (
               <div className="relative">
                 <input
                   {...register("confirmPassword")}
+                  {...field}
                   type={showConfirm ? "text" : "password"}
                   placeholder="••••••••"
                   autoComplete="new-password"
@@ -225,6 +244,7 @@ export default function RegisterPage() {
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              )}
             </InputField>
 
             {error && (

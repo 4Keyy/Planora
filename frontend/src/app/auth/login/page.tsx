@@ -14,6 +14,7 @@ import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { getLoginErrorMessage, isTwoFactorChallenge } from "@/lib/errors"
 import type { AuthLoginResponse } from "@/types/auth"
+import { Field } from "@/components/ui/field"
 
 const schema = z.object({
   email: z.string().email("Invalid email"),
@@ -26,7 +27,6 @@ type FormData = z.infer<typeof schema>
 // target. rounded-xl + a soft focus ring match the rest of the mobile redesign.
 const FIELD_CLS =
   "w-full rounded-xl border border-line bg-paper px-4 py-3.5 text-body-sm text-ink placeholder:text-ink-subtle transition-[border-color,box-shadow] focus:border-gray-400 focus:outline-none focus:ring-4 focus:ring-gray-900/5"
-const LABEL_CLS = "text-caption font-semibold uppercase tracking-wider text-ink-muted"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -163,55 +163,60 @@ export default function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1.5">
-              <label htmlFor="login-email" className={LABEL_CLS}>Email</label>
-              <input
-                {...register("email")}
-                id="login-email"
-                type="email"
-                placeholder="you@example.com"
-                autoComplete="email"
-                className={FIELD_CLS}
-              />
-              {errors.email && <p className="text-caption text-alert">{errors.email.message}</p>}
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="login-password" className={LABEL_CLS}>Password</label>
-              <div className="relative">
+            <Field label="Email" error={errors.email?.message}>
+              {(field) => (
                 <input
-                  {...register("password")}
-                  id="login-password"
-                  type={showPass ? "text" : "password"}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  className={`${FIELD_CLS} pr-12`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  tabIndex={-1}
-                  aria-label={showPass ? "Hide password" : "Show password"}
-                  className="touch-target absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted"
-                >
-                  {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {errors.password && <p className="text-caption text-alert">{errors.password.message}</p>}
-            </div>
-
-            {requiresTwoFactor && (
-              <div className="space-y-1.5">
-                <label htmlFor="login-2fa" className={LABEL_CLS}>2FA Code</label>
-                <input
-                  value={twoFactorCode}
-                  onChange={(e) => setTwoFactorCode(e.target.value)}
-                  id="login-2fa"
-                  inputMode="numeric"
-                  placeholder="123456"
+                  {...register("email")}
+                  {...field}
+                  type="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
                   className={FIELD_CLS}
                 />
-              </div>
+              )}
+            </Field>
+
+            <Field label="Password" error={errors.password?.message}>
+              {(field) => (
+                <div className="relative">
+                  <input
+                    {...register("password")}
+                    {...field}
+                    type={showPass ? "text" : "password"}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    className={`${FIELD_CLS} pr-12`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(!showPass)}
+                    tabIndex={-1}
+                    aria-label={showPass ? "Hide password" : "Show password"}
+                    className="touch-target absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted"
+                  >
+                    {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              )}
+            </Field>
+
+            {requiresTwoFactor && (
+              <Field
+                label="2FA Code"
+                hint="Six digits from your authenticator app."
+              >
+                {(field) => (
+                  <input
+                    {...field}
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    className={FIELD_CLS}
+                  />
+                )}
+              </Field>
             )}
 
             <div className="flex items-center justify-between text-caption text-ink-subtle">
