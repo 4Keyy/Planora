@@ -2414,9 +2414,13 @@ function SubtaskCard({
           {/* Inline actions — revealed on hover, hidden under the delete panel. Taking a
               subtask into work lives in the footer below; the only title-row action is
               owner editing. */}
+          {/* gap 8, not 2. These buttons carry `.touch-target`, which expands the hit
+              area 4px on every side; at gap 2 a second button's expanded area would
+              OVERLAP this one by 6px and the two would steal each other's taps. The
+              utility documents that constraint and this is the row it applies to. */}
           {!editing && isOwner && (
             <div style={{
-              display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginTop: 1,
+              display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginTop: 1,
               opacity: hovered && !deleteHovered ? 1 : 0, transition: "opacity 140ms",
               pointerEvents: hovered && !deleteHovered ? "auto" : "none",
             }}>

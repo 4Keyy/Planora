@@ -187,17 +187,33 @@ const PROBE = () => {
       x: +r.x.toFixed(1),
       y: +r.y.toFixed(1),
       sel: sel(el),
+      parent: el.parentElement,
       disabled: el.disabled === true || el.getAttribute('aria-disabled') === 'true',
     })
   }
+  // The DOM node cannot be serialised across the evaluate boundary.
+  const strip = (list) => list.map(({ parent, ...rest }) => rest)
   R.targets = {
     total: targets.length,
-    under44: targets.filter((t) => (t.w < 44 || t.h < 44) && !t.disabled),
-    under24: targets.filter((t) => (t.w < 24 || t.h < 24) && !t.disabled),
-    unnamed: targets.filter((t) => !t.name),
+    under44: strip(targets.filter((t) => (t.w < 44 || t.h < 44) && !t.disabled)),
+    under24: strip(targets.filter((t) => (t.w < 24 || t.h < 24) && !t.disabled)),
+    unnamed: strip(targets.filter((t) => !t.name)),
   }
-  // Crowding: any two enabled targets whose boxes are closer than 8px.
+  /**
+   * Crowding: two targets a thumb cannot reliably separate.
+   *
+   * The interesting case is two INDEPENDENT controls placed too close — a "leave"
+   * next to a "delete". Two cells of a calendar grid, or the halves of a
+   * PRIVATE/PUBLIC segmented control, are adjacent BY DESIGN and are exactly what
+   * WCAG 2.5.8's contiguous-group exception is for. Counting those made this
+   * metric useless: 2,763 pairs across the matrix, of which 2,484 were one
+   * calendar's day cells sitting 2px apart as a month grid must.
+   *
+   * So siblings under the same parent are reported separately from the pairs that
+   * actually indicate a spacing problem.
+   */
   const crowded = []
+  const crowdedSiblings = []
   for (let i = 0; i < targets.length; i++) {
     for (let j = i + 1; j < targets.length; j++) {
       const a = targets[i], b = targets[j]
@@ -205,11 +221,14 @@ const PROBE = () => {
       const dy = Math.max(0, Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h)))
       if (dx === 0 && dy === 0) continue // overlapping/nested — not a spacing issue
       const gap = Math.max(dx, dy)
-      if (gap > 0 && gap < 8) crowded.push({ a: a.name || a.sel, b: b.name || b.sel, gap: +gap.toFixed(1) })
+      if (!(gap > 0 && gap < 8)) continue
+      const pair = { a: a.name || a.sel, b: b.name || b.sel, gap: +gap.toFixed(1) }
+      ;(a.parent && a.parent === b.parent ? crowdedSiblings : crowded).push(pair)
     }
   }
   R.targets.crowdedPairs = crowded.slice(0, 25)
   R.targets.crowdedCount = crowded.length
+  R.targets.crowdedSiblingCount = crowdedSiblings.length
 
   // ── 2. horizontal overflow: find the SOURCE, not the symptom ──
   const docW = document.documentElement.clientWidth

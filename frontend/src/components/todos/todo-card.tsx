@@ -19,6 +19,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { PriorityMeter } from "@/components/ui/priority-meter"
 import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNING } from "@/lib/ui-preferences"
 import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
+import { InkCheck } from "@/components/ui/ink-check"
 
 /** Priority is a magnitude, not a category — see components/ui/priority-meter.tsx. */
 const PRIORITY_CONFIG: Record<string, { num: number }> = {
@@ -691,12 +692,16 @@ function TodoCardComponent({
                       {!isJoining && (isCompleted || isCompleting) && !isReopening && (
                         <motion.div
                           key="check"
-                          initial={{ scale: 0.78, rotate: -18, opacity: 0 }}
-                          animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
                           exit={{ scale: 0.78, rotate: 16, opacity: 0 }}
                           transition={COMPLETION_BUTTON_TRANSITION}
                         >
-                          <Check className="h-5 w-5 stroke-[3]" />
+                          {/* The ink fill and the drawn stroke ARE the animation here —
+                              see InkCheck. The wrapper only handles the exit, because a
+                              mark being taken away is an undo, not an achievement, and
+                              should not be drawn in reverse. */}
+                          <InkCheck size={20} />
                         </motion.div>
                       )}
 

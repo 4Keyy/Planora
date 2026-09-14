@@ -102,7 +102,7 @@ export default function LoginPage() {
         {/* Grid bg */}
         <div className="absolute inset-0 opacity-[0.06]"
           style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
+            backgroundImage: `radial-gradient(circle at 1px 1px, var(--pl-paper) 1px, transparent 0)`,
             backgroundSize: "40px 40px"
           }}
         />

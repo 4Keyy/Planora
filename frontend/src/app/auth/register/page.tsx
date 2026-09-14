@@ -122,7 +122,7 @@ export default function RegisterPage() {
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-gray-900 flex-col justify-between p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.06]"
-          style={{ backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`, backgroundSize: "40px 40px" }}
+          style={{ backgroundImage: `radial-gradient(circle at 1px 1px, var(--pl-paper) 1px, transparent 0)`, backgroundSize: "40px 40px" }}
         />
         <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-paper/5 blur-3xl" />
 

@@ -145,7 +145,7 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
                   fontSize: 12,
                   background: frontTint,
                   boxShadow: `0 1px 4px -1px ${frontTint}aa`,
-                  border: "1.5px solid white",
+                  border: "1.5px solid var(--pl-paper)",
                 }}
               >
                 {totalLabel}

@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { EASE_OUT_EXPO } from "@/lib/animations"
+import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
 
 /**
  * Route transition wrapper. A `template.tsx` re-mounts on every navigation
@@ -19,7 +19,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
+      transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
     >
       {children}
     </motion.div>

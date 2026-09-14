@@ -76,8 +76,13 @@ const distinct = (list) => [...new Set(list.map((h) => h.value))].sort()
 
 // ─── 1. colour literals ─────────────────────────────────────────────────────
 
-// A hex colour must be exactly 3/4/6/8 hex digits, not a longer token.
-const HEX = /#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])/g
+/**
+ * A hex colour is exactly 3/4/6/8 hex digits and nothing longer — and, crucially,
+ * is not the opening of a GLSL preprocessor directive. `#define MAX_COLORS` inside
+ * the shader string in color-bends.tsx parses as the colour `#def` otherwise, and
+ * got itself reported as an "invented colour" on every run.
+ */
+const HEX = /#(?!define\b|include\b|version\b|ifdef\b|endif\b)([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])/g
 const hexTsx = hits(TSX, HEX).map((h) => ({ ...h, value: '#' + h.value.toLowerCase() }))
 const hexTs = hits(TS_ALL, HEX).map((h) => ({ ...h, value: '#' + h.value.toLowerCase() }))
 const hexCss = hits(CSS, HEX).map((h) => ({ ...h, value: '#' + h.value.toLowerCase() }))

@@ -36,6 +36,7 @@ import { applyCategoryPatch } from "@/utils/todo-utils"
 import { TASK_CREATED_EVENT, type TaskCreatedDetail } from "@/lib/events"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
+import { NumberRoll } from "@/components/ui/number-roll"
 
 const PROGRESS_TRANSITION = { duration: 1.5, ease: "easeOut" } as const
 const DASHBOARD_MASONRY_BREAKPOINTS = [
@@ -85,14 +86,10 @@ function ProgressCircle({ value, total }: { value: number; total: number }) {
           />
         </svg>
         <motion.div className="absolute inset-0 flex items-center justify-center">
-          <motion.span
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-body md:text-title font-bold text-ink tracking-tighter"
-          >
-            {percentage}<span className="text-body-sm md:text-title-sm">%</span>
-          </motion.span>
+          <span className="text-body md:text-title font-bold text-ink tracking-tighter">
+            <NumberRoll value={percentage} />
+            <span className="text-body-sm md:text-title-sm">%</span>
+          </span>
         </motion.div>
       </div>
       <motion.span
@@ -720,15 +717,12 @@ export default function DashboardPage() {
           </motion.div>
           <h1 className="text-title md:text-display-sm xl:text-display-sm font-bold text-ink tracking-tight leading-tight">
             You have{" "}
-            <motion.span
-              key={activeStatsCount}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 15 }}
-              className="text-ink inline-flex items-center px-2 py-1 rounded-lg bg-ink/5 border border-black/10 hover:scale-110 transition-transform cursor-default font-bold"
-            >
-              {activeStatsCount}
-            </motion.span>{" "}
+            {/* The headline number rolls. It was keyed on its own value, so every
+                change re-mounted it and it sprang in from 0.8 scale — which reads as
+                "this component rendered", not "you have one fewer task". */}
+            <span className="text-ink inline-flex items-center rounded-lg border border-black/10 bg-ink/5 px-2 py-1 font-bold">
+              <NumberRoll value={activeStatsCount} announce />
+            </span>{" "}
             tasks.
           </h1>
         </motion.div>

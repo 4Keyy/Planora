@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion"
 import { Check, GitBranch, MessageCircle, Users, type LucideIcon } from "lucide-react"
 import { getNotificationKind, type NotificationMotif } from "@/lib/notifications/types"
 import { cn } from "@/lib/utils"
+import { NumberRoll } from "@/components/ui/number-roll"
 
 interface NotificationBadgeProps {
   /** The notification type (latest for a task) — drives the glyph, tint, label and motif. */
@@ -115,8 +116,11 @@ export const NotificationBadge = memo(function NotificationBadge({
       )}
 
       {showCount && count > 1 && (
+        /* No `key={count}` here. Keying on the value re-mounted the badge on every
+           change, so the whole plate sprang in again for a 7 → 8; NumberRoll moves
+           just the digit that actually changed. The spring stays for the badge's
+           FIRST appearance, which is a real arrival. */
         <motion.span
-          key={count}
           initial={reduce ? false : { scale: 0.5, y: -2, opacity: 0 }}
           animate={{ scale: 1, y: 0, opacity: 1 }}
           transition={{ type: "spring", stiffness: 620, damping: 24 }}
@@ -127,10 +131,10 @@ export const NotificationBadge = memo(function NotificationBadge({
             fontSize: 12,
             background: tint,
             boxShadow: `0 1px 4px -1px ${tint}aa`,
-            border: "1.5px solid white",
+            border: "1.5px solid var(--pl-paper)",
           }}
         >
-          {count > 99 ? "99+" : count}
+          {count > 99 ? "99+" : <NumberRoll value={count} />}
         </motion.span>
       )}
     </motion.span>
@@ -272,7 +276,7 @@ function PeopleCheck({ size, tint, onTint = false }: { size: number; tint: strin
           bottom: -disc * 0.3,
           background: onTint ? "var(--pl-paper)" : tint,
           color: onTint ? tint : "var(--pl-paper)",
-          border: onTint ? "1.5px solid currentColor" : "1.5px solid white",
+          border: onTint ? "1.5px solid currentColor" : "1.5px solid var(--pl-paper)",
         }}
       >
         <Check style={{ width: disc * 0.6, height: disc * 0.6 }} strokeWidth={4} />

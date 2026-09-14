@@ -50,6 +50,8 @@ import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
+import { OPEN_CREATE_EVENT } from "@/components/command-palette"
+import { NumberRoll } from "@/components/ui/number-roll"
 
 const ACTIVE_PAGE_SIZE = 200
 const COMPLETED_PREVIEW_SIZE = 20
@@ -84,20 +86,12 @@ function StatusPill({ count, label, emphasis }: { count: number; label: string; 
       )}
     >
       <span className={cn("h-2 w-2 rounded-full", emphasis ? "bg-ink" : "bg-gray-300")} />
-      <span className="relative overflow-hidden">
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.span
-            key={count}
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -10, opacity: 0 }}
-            transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
-            className={cn("block text-body-sm font-bold tabular-nums", emphasis ? "text-ink" : "text-ink-subtle")}
-          >
-            {count}
-          </motion.span>
-        </AnimatePresence>
-      </span>
+      {/* Was a single column that swapped the whole number; now every digit rolls on
+          its own, so 9 → 10 grows a column instead of replacing a glyph. */}
+      <NumberRoll
+        value={count}
+        className={cn("text-body-sm font-bold", emphasis ? "text-ink" : "text-ink-subtle")}
+      />
       <span className={cn("text-body-sm font-bold", emphasis ? "text-ink" : "text-ink-subtle")}>{label}</span>
     </motion.div>
   )
@@ -194,6 +188,18 @@ export default function TasksPage() {
     window.addEventListener("keydown", handler, true)
     return () => window.removeEventListener("keydown", handler, true)
   }, [isCreateOpen])
+
+  /**
+   * The command palette's "Create task" lands here. It dispatches an event rather
+   * than importing this page's state, because the palette is mounted at the root
+   * and has no idea which screen is showing. On any other screen nothing listens,
+   * and the palette's own navigation takes the user here first.
+   */
+  useEffect(() => {
+    const open = () => setIsCreateOpen(true)
+    window.addEventListener(OPEN_CREATE_EVENT, open)
+    return () => window.removeEventListener(OPEN_CREATE_EVENT, open)
+  }, [])
 
   const handleFilterChange = useCallback((ids: string[]) => {
     setFilterCategoryIds(ids)

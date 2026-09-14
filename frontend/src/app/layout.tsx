@@ -32,6 +32,7 @@ import { RealtimeManager } from "@/components/realtime-manager"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
 import { MotionPreferencesProvider } from "@/components/motion-preferences-provider"
+import { CommandPalette } from "@/components/command-palette"
 
 export const metadata = {
   // Every route sets its own title through this template, so tabs, history and
@@ -126,6 +127,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ErrorBoundary>
             {children}
           </ErrorBoundary>
+          {/* Mounted at the root so Cmd/Ctrl+K reaches it from any screen, and so
+              it survives a route change without remounting mid-keystroke. It
+              renders nothing at all until a signed-in user opens it. */}
+          <CommandPalette />
           <Toaster />
         </MotionPreferencesProvider>
       </body>

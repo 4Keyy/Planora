@@ -103,15 +103,24 @@ export function MasonryColumns<T>({
             className="flex flex-col flex-1 min-w-0"
             style={{ gap: `${gap}px` }}
           >
-            {colItems.map((item) => (
-              <motion.div 
-                layout 
-                key={getKey(item)} 
+            {colItems.map((item, row) => (
+              <motion.div
+                layout
+                key={getKey(item)}
                 className="w-full"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={MASONRY_ITEM_TRANSITION}
+                /* `y`, not `scale`. A card that scales up reads as a popup; a card
+                   that rises into place reads as a list settling, which is what this
+                   is. 8px is enough to see and small enough not to look like travel. */
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{
+                  ...MASONRY_ITEM_TRANSITION,
+                  /* Stagger across the grid in reading order, capped at eight steps.
+                     Uncapped, the ninth card waits 360ms and the twentieth waits most
+                     of a second — the stagger stops being rhythm and becomes lag. */
+                  delay: Math.min(row * columnCount + idx, 8) * 0.04,
+                }}
               >
                 {renderItem(item)}
               </motion.div>

@@ -674,8 +674,13 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* Header.
+          Stacked on phones rather than wrapped. As a `flex-wrap` row at 390px the
+          action started beside the title and dropped below it once the title block
+          had its final height, an 84px jump that put this route's CLS at 0.129 —
+          past the 0.1 threshold. Stacking removes the transition entirely, and a
+          full-width primary action is the better phone layout anyway. */}
+      <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
           <p className="text-body-sm font-medium text-ink-subtle uppercase tracking-wider mb-1">
             Organization
@@ -685,7 +690,7 @@ export default function CategoriesPage() {
             {categories.length} {categories.length === 1 ? "category" : "categories"}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
+        <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
           {/* The shortcut hint is a visual affordance. Left in the accessibility
               tree it became part of the button's name — a screen reader announced
               "New Category c". `aria-keyshortcuts` is the attribute that actually
