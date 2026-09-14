@@ -187,7 +187,7 @@ function SectionCard({
       <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           {Icon && (
-            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border border-line bg-paper-sunken text-ink-subtle/60">
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border border-line bg-paper-sunken text-ink-subtle">
               <Icon className="h-4 w-4" strokeWidth={2.4} aria-hidden />
             </span>
           )}
@@ -1434,7 +1434,7 @@ export default function ProfilePage() {
                 {security?.twoFactorEnabled ? (
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-[11px] border border-line bg-paper-sunken text-ink/60">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-[11px] border border-line bg-paper-sunken text-ink-muted">
                         <Check className="h-4 w-4" aria-hidden />
                       </span>
                       <div>

@@ -1535,6 +1535,8 @@ export function BranchFeed({
               </span>
               <button
                 onClick={exitComposeMode}
+                aria-label={composeMode === "description" ? "Cancel writing a description" : "Cancel adding a subtask"}
+                className="touch-target"
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center",
                   width: 16, height: 16, borderRadius: 4, border: "none",

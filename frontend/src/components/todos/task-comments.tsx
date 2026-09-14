@@ -154,21 +154,23 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {genesis.isEdited && (
-                <span className="text-caption text-accent-surface italic">edited</span>
+                <span className="text-caption text-ink-subtle italic">edited</span>
               )}
-              <span className="text-caption text-accent-surface">{formatRelative(genesis.createdAt)}</span>
+              <span className="text-caption text-ink-subtle">{formatRelative(genesis.createdAt)}</span>
               {isOwner && editingId !== genesis.id && (
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => { setEditingId(genesis.id); setEditContent(genesis.content) }}
-                    className="text-accent-surface hover:text-accent transition-colors p-0.5 rounded"
+                    className="touch-target text-ink-subtle hover:text-accent transition-colors p-0.5 rounded"
+                    aria-label="Edit description"
                     title="Edit description"
                   >
                     <Pencil className="h-3 w-3" />
                   </button>
                   <button
                     onClick={() => handleDelete(genesis.id)}
-                    className="text-accent-surface hover:text-alert transition-colors p-0.5 rounded"
+                    className="touch-target text-ink-subtle hover:text-alert transition-colors p-0.5 rounded"
+                    aria-label="Delete description"
                     title="Delete description"
                   >
                     <Trash2 className="h-3 w-3" />
@@ -184,7 +186,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
               <Textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="text-body-sm min-h-[80px] resize-none bg-paper/70 border-accent-surface focus-visible:ring-accent-surface rounded-lg leading-relaxed"
+                className="text-body-sm min-h-[80px] resize-none bg-paper/70 border-line-strong rounded-lg leading-relaxed"
                 maxLength={GENESIS_MAX}
                 autoFocus
                 onKeyDown={(e) => {
@@ -195,7 +197,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
               <div className="flex items-center justify-between gap-2">
                 <span className={cn(
                   "text-caption",
-                  editContent.length > GENESIS_MAX * 0.85 ? "text-warn" : "text-accent-surface"
+                  editContent.length > GENESIS_MAX * 0.85 ? "text-warn" : "text-ink-subtle"
                 )}>
                   {editContent.length}/{GENESIS_MAX}
                 </span>
@@ -229,13 +231,13 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
 
       {/* ── Discussion Stream ───────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <p className="text-caption font-semibold uppercase tracking-wide text-gray-400">
+        <p className="text-caption font-semibold uppercase tracking-wide text-ink-subtle">
           Task {streamCount > 0 && `· ${streamCount}`}
         </p>
       </div>
 
       {loading ? (
-        <p className="text-caption text-gray-400">Loading…</p>
+        <p className="text-caption text-ink-subtle">Loading…</p>
       ) : (
         <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
           {hasMore && (
@@ -248,7 +250,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
           )}
 
           {stream.length === 0 && (
-            <p className="text-caption text-gray-400 italic">No messages yet.</p>
+            <p className="text-caption text-ink-subtle italic">No messages yet.</p>
           )}
 
           {stream.map((c) => {
@@ -257,7 +259,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                 <div key={c.id} className="flex flex-col items-center gap-0.5 py-1">
                   <div className="flex items-center gap-2 w-full">
                     <div className="flex-1 h-px bg-gray-100" />
-                    <span className="text-caption text-gray-400 text-center px-2 shrink-0">{c.content}</span>
+                    <span className="text-caption text-ink-subtle text-center px-2 shrink-0">{c.content}</span>
                     <div className="flex-1 h-px bg-gray-100" />
                   </div>
                   <span className="text-caption text-ink-subtle">{formatRelative(c.createdAt)}</span>
@@ -281,7 +283,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-caption font-semibold text-gray-800">{c.authorName}</span>
-                  <span className="text-caption text-gray-400 shrink-0">
+                  <span className="text-caption text-ink-subtle shrink-0">
                     {formatRelative(c.createdAt)}
                     {c.isEdited && " · edited"}
                   </span>
@@ -318,14 +320,14 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                     {c.isOwn && (
                       <button
                         onClick={() => { setEditingId(c.id); setEditContent(c.content) }}
-                        className="text-caption text-gray-400 hover:text-gray-600 flex items-center gap-0.5"
+                        className="text-caption text-ink-subtle hover:text-ink-muted flex items-center gap-0.5"
                       >
                         <Pencil className="h-2.5 w-2.5" /> Edit
                       </button>
                     )}
                     <button
                       onClick={() => handleDelete(c.id)}
-                      className="text-caption text-gray-400 hover:text-alert flex items-center gap-0.5"
+                      className="text-caption text-ink-subtle hover:text-alert flex items-center gap-0.5"
                     >
                       <Trash2 className="h-2.5 w-2.5" /> Delete
                     </button>
@@ -356,7 +358,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
             }}
           />
           <div className="flex items-center justify-between">
-            <span className={cn("text-caption", newContent.length > COMMENT_MAX * 0.8 ? "text-warn" : "text-gray-400")}>
+            <span className={cn("text-caption", newContent.length > COMMENT_MAX * 0.8 ? "text-warn" : "text-ink-subtle")}>
               {newContent.length}/{COMMENT_MAX}
             </span>
             <Button

@@ -880,7 +880,7 @@ function TodoCardComponent({
                               "text-caption px-2.5 py-1 rounded-md whitespace-nowrap shadow-sm border flex items-center gap-1 transition-[background-color,border-color,color,box-shadow] duration-slow",
                               isEffectivelyWorking
                                 ? "font-bold bg-accent-surface text-accent border-accent-surface/70 ring-1 ring-accent-surface/50"
-                                : "font-semibold bg-gray-50 text-gray-400 border-gray-200/70"
+                                : "font-semibold bg-gray-50 text-ink-subtle border-line"
                             )}
                           >
                             <Users className="h-3 w-3 flex-shrink-0" />

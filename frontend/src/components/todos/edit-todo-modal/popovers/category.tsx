@@ -167,6 +167,8 @@ export function CategoryPopover({
                     key={iconKey}
                     type="button"
                     onClick={() => setIcon(iconKey)}
+                    aria-label={iconKey}
+                    aria-pressed={isActive}
                     title={iconKey}
                     style={{
                       aspectRatio: "1/1", borderRadius: 10, border: "none", cursor: "pointer",

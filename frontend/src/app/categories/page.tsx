@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback, useId } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { SPRING_STANDARD, TWEEN_UI } from "@/lib/animations"
+import { TWEEN_UI } from "@/lib/animations"
 import { Plus, Folder, Trash2, X } from "lucide-react"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
@@ -13,13 +13,13 @@ import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
 import { ICON_PICKER_ITEMS } from "@/components/ui/icon-picker"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { ModalPortal } from "@/components/ui/modal-portal"
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator"
 import { useAutosave } from "@/hooks/use-autosave"
 import { ColorPicker } from "@/components/todos/edit-todo-modal/color-picker"
 import { cn, truncateText } from "@/lib/utils"
 import { ICON_MAP } from "@/lib/icon-map"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
+import { Overlay } from "@/components/ui/overlay"
 
 type CategoryFormData = {
   name: string
@@ -282,19 +282,6 @@ function CategoryModal({
   }, [autosave, flush, onClose])
 
   /**
-   * Close on Escape key
-   */
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        handleClose()
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [handleClose])
-
-  /**
    * Handle explicit create (create mode only — editing autosaves).
    */
   const handleSave = async () => {
@@ -314,34 +301,18 @@ function CategoryModal({
     }
   }
 
+  const headingId = useId()
   const PreviewIcon = icon ? (ICON_MAP[icon] ?? Folder) : Folder
   const isEditing = !!initialData
 
   return (
-    <ModalPortal>
-      <AnimatePresence>
-        {isOpen && (
-      <div
-        className="fixed inset-0 z-modal flex items-center justify-center p-4"
-        onClick={handleClose}
-      >
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-ink/60 backdrop-blur-md"
-        />
-
-        {/* Modal */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={SPRING_STANDARD}
-          className="relative z-modal max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] bg-paper shadow-xl scrollbar-hide"
-          onClick={(e) => e.stopPropagation()}
-        >
+    <Overlay
+      open={isOpen}
+      onClose={handleClose}
+      hideHeader
+      labelledBy={headingId}
+      className="max-w-4xl rounded-[2rem] scrollbar-hide"
+    >
         <div className="p-6 md:p-8">
           {/* Header */}
           <motion.div
@@ -351,7 +322,7 @@ function CategoryModal({
             className="flex items-start justify-between gap-4"
           >
             <div>
-              <h2 className="text-title-sm md:text-title font-bold text-ink tracking-tight">
+              <h2 id={headingId} className="text-title-sm md:text-title font-bold text-ink tracking-tight">
                 {title}
               </h2>
               <p className="mt-1 text-caption font-bold uppercase tracking-widest text-ink-subtle md:text-caption">
@@ -556,11 +527,7 @@ function CategoryModal({
             )}
           </motion.div>
         </div>
-        </motion.div>
-      </div>
-        )}
-      </AnimatePresence>
-    </ModalPortal>
+    </Overlay>
   )
 }
 
@@ -719,10 +686,19 @@ export default function CategoriesPage() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <Button onClick={() => setIsCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-1.5" />
+          {/* The shortcut hint is a visual affordance. Left in the accessibility
+              tree it became part of the button's name — a screen reader announced
+              "New Category c". `aria-keyshortcuts` is the attribute that actually
+              carries a shortcut to assistive tech. */}
+          <Button onClick={() => setIsCreateOpen(true)} aria-keyshortcuts="c">
+            <Plus className="h-4 w-4 mr-1.5" aria-hidden="true" />
             New Category
-            <kbd className="hidden md:flex font-mono bg-paper/20 text-paper/70 px-1.5 py-0.5 rounded text-caption font-bold border border-white/20 leading-tight ml-1.5">c</kbd>
+            <kbd
+              aria-hidden="true"
+              className="hidden md:flex font-mono bg-paper/20 text-paper/70 px-1.5 py-0.5 rounded text-caption font-bold border border-white/20 leading-tight ml-1.5"
+            >
+              c
+            </kbd>
           </Button>
         </div>
       </div>
@@ -738,10 +714,10 @@ export default function CategoriesPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="rounded-xl border-2 border-dashed border-gray-400 bg-transparent p-16 text-center"
+          className="rounded-xl border-2 border-dashed border-line-strong bg-transparent p-16 text-center"
         >
           <div className="mx-auto h-14 w-14 rounded-xl bg-paper-sunken flex items-center justify-center mb-3">
-            <Folder className="h-7 w-7 text-gray-200" />
+            <Folder className="h-7 w-7 text-ink-subtle" aria-hidden="true" />
           </div>
           <p className="font-semibold text-ink mb-1">No categories yet</p>
           <p className="text-body-sm text-ink-subtle mb-4">

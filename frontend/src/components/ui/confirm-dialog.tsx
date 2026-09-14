@@ -8,6 +8,7 @@ import type { ButtonProps } from "./button"
 import { ModalPortal } from "./modal-portal"
 import { SPRING_STANDARD, TWEEN_BACKDROP } from "@/lib/animations"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
+import { useScrollLock } from "@/hooks/use-scroll-lock"
 
 interface ConfirmDialogProps {
     isOpen: boolean
@@ -43,6 +44,7 @@ export function ConfirmDialog({
     }, [isOpen])
 
     const dialogRef = useFocusTrap<HTMLDivElement>(isOpen)
+    useScrollLock(isOpen)
     const titleId = React.useId()
     const descId = React.useId()
 

@@ -15,6 +15,7 @@ import { Category }         from "@/types/category"
 import { BranchFeed }       from "./branch-feed"
 import { InlineTokenStrip } from "./inline-token-strip"
 import { PageMetaPanel }    from "./page-meta-panel"
+import { useScrollLock } from "@/hooks/use-scroll-lock"
 import {
   getPriorityNumber,
   getPriorityString,
@@ -527,6 +528,8 @@ export function TodoEditor({
           {/* Close button */}
           <button
             onClick={onClose}
+            aria-label="Close task"
+            className="touch-target"
             style={{
               width: 30, height: 30, borderRadius: 10, border: "none",
               display: "flex", alignItems: "center", justifyContent: "center",
@@ -568,6 +571,7 @@ export function TodoEditor({
 export function EditTodoModal(props: EditTodoModalProps) {
   // The wrapper is mounted only while the modal is shown, so the trap is always active here.
   const dialogRef = useFocusTrap<HTMLDivElement>(true)
+  useScrollLock(true)
   return (
     <ModalPortal>
       <div
