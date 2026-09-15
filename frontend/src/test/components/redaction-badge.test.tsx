@@ -203,3 +203,40 @@ describe("RedactionBadge", () => {
     expect(Number(smallPx)).toBeLessThan(Number(mediumPx))
   })
 })
+
+describe("RedactionBadge — mark only", () => {
+  it("draws the arc and nothing else when the caller prints the word", () => {
+    render(<RedactionBadge audience="shared" viewerCount={3} showLabel={false} />)
+    expect(screen.queryByText("Shared")).toBeNull()
+    expect(screen.queryAllByText("3")).toHaveLength(0)
+  })
+
+  it("contributes no accessible name inside a control that already has one", () => {
+    // The editor's visibility token is a button whose own text says "shared · 3".
+    // A role="img" nested in it would have a screen reader read the fact twice, in
+    // two grammars.
+    const { container } = render(
+      <button type="button">
+        <RedactionBadge audience="shared" viewerCount={3} showLabel={false} />
+        shared · 3
+      </button>,
+    )
+    expect(screen.queryByRole("img")).toBeNull()
+    expect(container.querySelector('[aria-hidden="true"]')).not.toBeNull()
+    expect(screen.getByRole("button")).toHaveAccessibleName("shared · 3")
+  })
+
+  it("still names itself when it carries the word", () => {
+    render(<RedactionBadge audience="private" />)
+    expect(screen.getByRole("img", { name: /Private\. Only you/ })).toBeInTheDocument()
+  })
+
+  it("keeps its own name when it is the control", () => {
+    // A pressable badge names the state AND what pressing does, so a screen-reader
+    // user learns it is a control rather than a status.
+    render(<RedactionBadge audience="private" showLabel={false} onClick={() => {}} />)
+    expect(
+      screen.getByRole("button", { name: /Private\. Only you can see this\. Change who can see it\./ }),
+    ).toBeInTheDocument()
+  })
+})

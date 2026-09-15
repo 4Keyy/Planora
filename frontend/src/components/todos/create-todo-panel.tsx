@@ -38,7 +38,6 @@ interface CreateTodoPanelProps {
   onSubmit: (payload: CreateTodoPayload) => Promise<void>
   onCreateCategory: () => Promise<void>
   onDeleteCategory: (id: string) => Promise<void>
-  shortcutHint?: string
 }
 
 const TITLE_MAX_LENGTH = 200
@@ -526,7 +525,16 @@ export function CreateTodoPanel({
                   transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
                 >
                   <h2 className="text-body-sm font-bold tracking-tight text-ink">New task</h2>
-                  <p className="truncate text-caption font-semibold text-ink-subtle">press <kbd className="rounded bg-gray-100 px-1 py-px font-mono text-caption text-ink-subtle">C</kbd> to open</p>
+                  {/*
+                    This used to read "press C to open", which stopped being true when
+                    `C` was given to quick capture — the one key, one meaning rule. A
+                    printed key that does something else is worse than no key at all:
+                    the user learns the wrong binding and finds out later, from a
+                    surface that disagrees with this one.
+                  */}
+                  <p className="truncate text-caption font-semibold text-ink-subtle">
+                    Date, category, audience
+                  </p>
                 </motion.div>
               ) : (
                 <motion.div

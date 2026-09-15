@@ -125,14 +125,23 @@ describe("TodoCard", () => {
 
     expect(screen.getByText("Write coverage tests")).toBeInTheDocument()
     expect(container).toHaveTextContent("5/5")
-    expect(container.querySelector(".lucide-share2")).toBeInTheDocument()
-    const sharedUrgentCard = container.querySelector(".task-card--shared-urgent")
-    expect(sharedUrgentCard).not.toBeNull()
-    expect(sharedUrgentCard).toHaveClass("border-accent")
-    // Red left border is applied via inline style, not a Tailwind class
-    expect((sharedUrgentCard as HTMLElement).style.borderLeftColor).toBe("var(--pl-alert)")
-    // the urgent left border is an inline style, not a background utility
-    expect(sharedUrgentCard!.className).not.toMatch(/bg-alert/)
+
+    // The owner of a shared task gets the redaction arc, not a generic share icon:
+    // the useful fact is who can see it, which they already know they shared.
+    // This fixture is `isPublic: true`, which outranks the shared list: public is
+    // the broader reach, and the arc closes completely to say so.
+    expect(screen.getByRole("img", { name: /Public\. Anyone with the link/ })).toBeInTheDocument()
+    expect(container.querySelector(".lucide-share2")).toBeNull()
+
+    // The border says ONE thing, and overdue outranks everything else. It used to
+    // return `border-accent` for "shared" too, so a shared task and a task somebody
+    // had taken into work were drawn identically and the border said nothing.
+    const card = container.querySelector(".border-alert")
+    expect(card).not.toBeNull()
+    expect(card).not.toHaveClass("border-accent")
+    // Not in progress, so no second edge and no inline override.
+    expect((card as HTMLElement).style.borderLeftColor).toBe("")
+    expect(card!.className).not.toMatch(/bg-alert/)
     expect(screen.getByText(/Overdue/i)).toBeInTheDocument()
     expect(screen.getByText(/EXP:/)).toBeInTheDocument()
     expect(screen.getByText("2d delay")).toBeInTheDocument()
@@ -317,7 +326,7 @@ describe("TodoCard", () => {
 
     expect(screen.getByText("No category")).toBeInTheDocument()
     expect(screen.getByText("No category")).toHaveClass("blur-[3px]")
-    expect(container.querySelector(".task-card--shared-urgent")).not.toBeNull()
+    expect(container.querySelector(".border-alert")).not.toBeNull()
     expect(screen.queryByText("Write coverage tests")).not.toBeInTheDocument()
 
     const collapsed = container.querySelector(".group\\/collapsed") as HTMLElement
@@ -349,11 +358,11 @@ describe("TodoCard", () => {
       />,
     )
 
-    const card = container.querySelector(".task-card--shared-urgent")
+    // `isVisuallyUrgent` arrives on the redacted DTO with no dueDate or priority to
+    // derive it from, so the server's verdict has to survive on its own.
+    const card = container.querySelector(".border-alert")
     expect(card).not.toBeNull()
-    expect(card).toHaveClass("border-accent")
-    // Red left border is applied via inline style, not a Tailwind class
-    expect((card as HTMLElement).style.borderLeftColor).toBe("var(--pl-alert)")
+    expect(card).not.toHaveClass("border-accent")
     expect(screen.getByText("Focus")).toHaveClass("blur-[3px]")
   })
 })
@@ -380,12 +389,13 @@ describe("CreateTodoPanel", () => {
         onSubmit={vi.fn()}
         onCreateCategory={vi.fn()}
         onDeleteCategory={vi.fn()}
-        shortcutHint="C"
       />,
     )
 
     expect(screen.getByText("New task")).toBeInTheDocument()
-    expect(screen.getByText(/press/i)).toBeInTheDocument()
+    // No key advertised here: `C` belongs to quick capture, which is a different
+    // surface with a different contract.
+    expect(screen.getByText(/Date, category, audience/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Open create task panel" }))
     expect(onToggle).toHaveBeenCalledOnce()

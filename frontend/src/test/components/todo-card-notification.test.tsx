@@ -89,3 +89,52 @@ describe("TodoCard notification mark", () => {
     expect(screen.queryByText("→")).not.toBeInTheDocument()
   })
 })
+
+describe("TodoCard — the border says one thing", () => {
+  /**
+   * Three states used to compete for the card's border, and `accent` was returned
+   * for two of them. The design system spends `accent` on links, the active tab and
+   * SELECTION — so an accent border on an unselected card is the one thing on screen
+   * most likely to be misread while a multi-selection is up.
+   */
+  const withBorder = (overrides: Partial<Todo>) => {
+    const { container } = render(
+      <TodoCard
+        todo={{ ...todo, ...overrides } as Todo}
+        onComplete={vi.fn()}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+      />,
+    )
+    const card = container.querySelector(".border-2") as HTMLElement
+    return card.className
+  }
+
+  it("marks a card that needs answering today, and nothing else", () => {
+    expect(withBorder({ isVisuallyUrgent: true })).toContain("border-alert")
+  })
+
+  it("leaves an in-progress card on the plain line", () => {
+    // In progress is already said twice a few pixels away — the accent chip and the
+    // accent ring on the completion control. A third copy costs the accent its meaning.
+    const cls = withBorder({ isVisuallyUrgent: false, status: "In Progress", isWorking: true })
+    expect(cls).toContain("border-line")
+    expect(cls).not.toContain("border-accent")
+  })
+
+  it("leaves a merely shared card on the plain line", () => {
+    // Sharing is a property, not a state, and the redaction arc says how wide the
+    // audience is — which a border colour cannot.
+    const cls = withBorder({ isVisuallyUrgent: false, isPublic: true, hasSharedAudience: true })
+    expect(cls).toContain("border-line")
+    expect(cls).not.toContain("border-accent")
+  })
+
+  it("keeps the alert border when a task is both overdue and in progress", () => {
+    // Precedence, not a blend. The previous version painted three sides an indigo
+    // that exists in no token and no other file in the product.
+    const cls = withBorder({ isVisuallyUrgent: true, status: "In Progress", isWorking: true })
+    expect(cls).toContain("border-alert")
+    expect(cls).not.toContain("border-accent")
+  })
+})

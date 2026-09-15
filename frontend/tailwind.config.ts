@@ -10,9 +10,18 @@ import { tailwindTheme, tokens } from "./src/lib/design-tokens"
  * 98 uses to 19, simply because `extend` left both available. A scale that can be
  * bypassed is not a scale.
  *
- * `spacing` is the exception and stays on Tailwind's defaults: every one of the
- * 949 spacing values in the codebase already sits on the 4px grid, so there is
- * nothing to fix and replacing it would break `h-5`, `p-7`, `h-3.5` everywhere.
+ * `spacing` is the exception and stays on Tailwind's full default scale — which
+ * means the 4px grid PLUS its half-steps: `0.5` (2px), `1.5` (6px), `2.5` (10px)
+ * and `3.5` (14px), 214 uses between them. An earlier version of this comment
+ * claimed every spacing value in the codebase sat on the 4px grid; it does not,
+ * and saying so made the scale look tidier than it is.
+ *
+ * Keeping them is still the right call. The half-steps are what optical alignment
+ * is made of — a 6px gap between an icon and its label, a 10px inset on a chip —
+ * and the alternative is 214 arbitrary values, which the design system forbids
+ * outright. `space` in `design-tokens.ts` is therefore the LAYOUT scale, the ten
+ * steps a section or a card is built from; the half-steps exist below it for
+ * setting one element against another inside a single control.
  */
 const config = {
   darkMode: ["class"],

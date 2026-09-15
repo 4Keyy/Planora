@@ -1,11 +1,12 @@
 "use client"
 
 import { useRef, type RefObject, type ReactNode } from "react"
-import { Calendar, Globe2, Lock } from "lucide-react"
+import { Calendar } from "lucide-react"
 import { PriorityPopover }   from "./popovers/priority"
 import { DatePopover }       from "./popovers/date"
 import { CategoryPopover }   from "./popovers/category"
 import { VisibilityPopover } from "./popovers/visibility"
+import { RedactionBadge } from "@/components/ui/redaction-badge"
 import { ICON_MAP }          from "@/lib/icon-map"
 import { Category }          from "@/types/category"
 import { FriendDto }         from "@/types/auth"
@@ -125,14 +126,30 @@ export function InlineTokenStrip({
   const CatIcon        = activeCat?.icon ? (ICON_MAP[activeCat.icon] ?? null) : null
   const AuthorCatIcon  = authorCategoryIcon ? (ICON_MAP[authorCategoryIcon] ?? null) : null
   const showAuthorHint = !activeCat && !isOwner && !!authorCategoryName
+  /*
+   * "shared", not "public". The editor writes `isPublic: false` on every save and
+   * expresses reach through the shared list, so a token reading "public" described a
+   * state this screen cannot produce — and contradicted every other surface in the
+   * product, which calls the same thing shared.
+   */
 
+  /*
+   * Three states, not two, because "friends mode with nobody named" is not the
+   * same thing as "shared with zero people" — it is the whole circle, which is
+   * what the audience picker itself calls "all friends". The token used to print
+   * `shared · 0`, which reads as shared with nobody while the task was in fact
+   * visible to everyone the user knows: the most consequential thing this screen
+   * can say, said backwards.
+   */
   const visLabel = visMode === "private"
     ? "private"
-    : `public · ${sharedIds.length}`
+    : sharedIds.length > 0
+      ? `shared · ${sharedIds.length}`
+      : "all friends"
 
   return (
     // From `sm` up this is a single non-wrapping row: the right-anchored visibility
-    // token is fixed-width (private ⇄ public · N) so nothing reflows. On phones the
+    // token is fixed-width (private ⇄ shared · N) so nothing reflows. On phones the
     // four tokens cannot fit one ~280px line, so the row WRAPS instead of overflowing
     // the modal and clipping the visibility token off the right edge.
     <div
@@ -265,12 +282,29 @@ export function InlineTokenStrip({
           containerRef={visibilityRef}
           label={
             <>
-              {visMode === "private"
-                ? <Lock size={12} strokeWidth={2} />
-                : <Globe2 size={12} strokeWidth={2} />
-              }
-              {/* Fixed-width label so toggling private⇄public never changes the token width. */}
-              <span style={{ display: "inline-block", minWidth: 54, textAlign: "left" }}>{visLabel}</span>
+              {/*
+               * The arc, on the control that changes it.
+               *
+               * A padlock and a globe are two pictures of two states; the ring is one
+               * picture of a scale, and it MOVES when the audience does — the cut
+               * opens and closes over 220ms, which is legible in peripheral vision
+               * before either word has been read. That is BLUEPRINT moment 7, and it
+               * belongs here rather than beside the title: the mark should sit on the
+               * thing you press to change it, not on a second, static copy of the
+               * same fact somewhere else on the screen.
+               */}
+              <RedactionBadge
+                audience={visMode === "private" ? "private" : "shared"}
+                // No count when nobody is named: the arc then shows the base cut for
+                // "some people", which is what "all friends" is. Passing 0 would draw
+                // the narrowest shared arc there is — the opposite of the truth.
+                viewerCount={visMode === "private" || sharedIds.length === 0 ? undefined : sharedIds.length}
+                size="sm"
+                showLabel={false}
+              />
+              {/* Fixed width so changing the audience never reflows the row. Sized for
+                  the longest of the three labels, "all friends". */}
+              <span style={{ display: "inline-block", minWidth: 72, textAlign: "left" }}>{visLabel}</span>
             </>
           }
           popover={

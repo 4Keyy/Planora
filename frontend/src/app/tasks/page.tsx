@@ -49,7 +49,6 @@ import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
-import { OPEN_CREATE_EVENT } from "@/components/command-palette"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
@@ -93,9 +92,17 @@ function StatusPill({ count, label, emphasis }: { count: number; label: string; 
     >
       <span className={cn("h-2 w-2 rounded-full", emphasis ? "bg-ink" : "bg-gray-300")} />
       {/* Was a single column that swapped the whole number; now every digit rolls on
-          its own, so 9 → 10 grows a column instead of replacing a glyph. */}
+          its own, so 9 → 10 grows a column instead of replacing a glyph.
+
+          `minDigits={2}` is a layout guarantee, not padding. These pills start at
+          `0` while the list loads and settle on a real count, and on a 390px screen
+          that one extra digit was enough to push this header past its wrap point:
+          the title row went to two lines and everything below it jumped 54px —
+          0.119 CLS, the worst cell in the matrix. Layout is decided by the
+          viewport; it is never allowed to be decided by the data. */}
       <NumberRoll
         value={count}
+        minDigits={2}
         className={cn("text-body-sm font-bold", emphasis ? "text-ink" : "text-ink-subtle")}
       />
       <span className={cn("text-body-sm font-bold", emphasis ? "text-ink" : "text-ink-subtle")}>{label}</span>
@@ -192,18 +199,6 @@ export default function TasksPage() {
     return () => window.removeEventListener("keydown", handler, true)
   }, [])
 
-
-  /**
-   * The command palette's "Create task" lands here. It dispatches an event rather
-   * than importing this page's state, because the palette is mounted at the root
-   * and has no idea which screen is showing. On any other screen nothing listens,
-   * and the palette's own navigation takes the user here first.
-   */
-  useEffect(() => {
-    const open = () => setIsCreateOpen(true)
-    window.addEventListener(OPEN_CREATE_EVENT, open)
-    return () => window.removeEventListener(OPEN_CREATE_EVENT, open)
-  }, [])
 
   /*
    * Warm the editor chunk once the page is idle. It stays code-split — the First

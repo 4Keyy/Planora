@@ -18,7 +18,6 @@ import { InlineTokenStrip } from "./inline-token-strip"
 import { PageMetaPanel }    from "./page-meta-panel"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
 import { PresenceRow } from "@/components/ui/presence-row"
-import { RedactionBadge, type Audience } from "@/components/ui/redaction-badge"
 import {
   getPriorityNumber,
   getPriorityString,
@@ -172,15 +171,6 @@ export function TodoEditor({
     })
   }, [todo.workerUserIds, friends])
 
-  /**
-   * Audience as the badge understands it.
-   *
-   * `isPublic` is deliberately never produced here: the editor writes
-   * `isPublic: false` on every save and expresses reach through the shared list
-   * instead, so a task that reports `public` in this UI would be describing a
-   * state the product no longer creates.
-   */
-  const audience: Audience = visMode === "private" ? "private" : "shared"
 
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null)
   const titleH1Ref       = useRef<HTMLHeadingElement>(null)
@@ -562,15 +552,16 @@ export function TodoEditor({
         {renderTitle(22, 12, 8)}
       </div>
 
-      {/* ── (3) Who is in here, and who can see it ── */}
-      {(presentMembers.length > 0 || audience !== "private") && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 pb-3 sm:px-[26px]">
+      {/*
+        ── (3) Who is in here ──
+        Presence only. The audience lives on the visibility token in the strip
+        below, which is the control that changes it; a second static copy up here
+        said "Shared 0" beside a token reading "public · 0" — two marks for one
+        fact, disagreeing with each other on screen at the same time.
+      */}
+      {presentMembers.length > 0 && (
+        <div className="px-4 pb-3 sm:px-[26px]">
           <PresenceRow members={presentMembers} required={todo.requiredWorkers} size="sm" />
-          <RedactionBadge
-            audience={audience}
-            viewerCount={audience === "shared" ? sharedIds.length : undefined}
-            size="sm"
-          />
         </div>
       )}
 

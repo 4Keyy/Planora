@@ -199,11 +199,24 @@ export function useTyping(taskId: string | null | undefined, enabled: boolean): 
     const offStopped = realtime.on("UserStoppedTyping", (p) => apply(p, false))
     const sweep = setInterval(recompute, 2_000)
 
+    /*
+     * Captured here, not read in the cleanup.
+     *
+     * `typersRef.current` is read when the cleanup RUNS, which is after the next
+     * task id has already been committed — so a cleanup that dereferenced the ref
+     * would clear the map belonging to the branch the user has just moved to,
+     * dropping its typing indicators until the next keystroke arrives. Holding the
+     * map this effect actually subscribed with makes the cleanup match its own
+     * subscription. The ref itself is stable, so this is the same object today;
+     * it stops being the same object the moment anyone reassigns it.
+     */
+    const typers = typersRef.current
+
     return () => {
       offTyping()
       offStopped()
       clearInterval(sweep)
-      typersRef.current.clear()
+      typers.clear()
       setTypingNames([])
     }
   }, [taskId, enabled, recompute])

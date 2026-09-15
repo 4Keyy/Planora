@@ -67,3 +67,58 @@ describe("NumberRoll", () => {
     expect(container.querySelectorAll(".overflow-hidden")).toHaveLength(1)
   })
 })
+
+describe("NumberRoll — reserved width", () => {
+  /**
+   * The bug this exists for: the tasks header wrapped to a second line the moment a
+   * count went from one digit to two, and everything below it jumped 54px. A number
+   * is allowed to change; the box around it is not.
+   */
+  it("reserves room for the digits it does not have yet", () => {
+    const { container } = render(<NumberRoll value={7} minDigits={2} />)
+    const columns = container.querySelector('[aria-hidden="true"]') as HTMLElement
+    expect(columns.style.minWidth).toBe("2ch")
+  })
+
+  it("occupies the same width at one digit as it will at two", () => {
+    /**
+     * This is the whole contract, and jsdom cannot measure it directly — it has no
+     * layout. It can be asserted by construction instead: every column is exactly
+     * `1ch` (guaranteed by `tabular-nums`), so `n` columns is `n ch`. At 7 there is
+     * one column plus a reservation of `2ch`; at 24 there are two columns and no
+     * reservation. Both are two characters wide, which is why the header stops
+     * reflowing when the count settles.
+     */
+    const columns = (c: HTMLElement) => c.querySelector('[aria-hidden="true"]') as HTMLElement
+    const width = (c: HTMLElement) => {
+      const el = columns(c)
+      return el.style.minWidth || `${el.querySelectorAll(":scope > span").length}ch`
+    }
+
+    const { container, rerender } = render(<NumberRoll value={7} minDigits={2} />)
+    expect(width(container)).toBe("2ch")
+
+    rerender(<NumberRoll value={24} minDigits={2} />)
+    expect(width(container)).toBe("2ch")
+  })
+
+  it("stops reserving once the value outgrows the reservation", () => {
+    // A minimum, never a maximum: 100 must not be clipped into two digits.
+    const { container } = render(<NumberRoll value={100} minDigits={2} />)
+    const columns = container.querySelector('[aria-hidden="true"]') as HTMLElement
+    expect(columns.style.minWidth).toBe("")
+    expect(container.querySelector(".sr-only")).toHaveTextContent("100")
+  })
+
+  it("reserves nothing by default", () => {
+    const { container } = render(<NumberRoll value={7} />)
+    expect((container.querySelector('[aria-hidden="true"]') as HTMLElement).style.minWidth).toBe("")
+  })
+
+  it("does not zero-pad — it only reserves the space", () => {
+    // Padding would change the value the user reads; this changes only the box.
+    const { container } = render(<NumberRoll value={7} minDigits={3} />)
+    expect(container.querySelector(".sr-only")).toHaveTextContent("7")
+    expect(container.textContent).not.toContain("007")
+  })
+})

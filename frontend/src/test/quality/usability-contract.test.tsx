@@ -44,14 +44,18 @@ describe("frontend usability contract", () => {
         onSubmit={vi.fn()}
         onCreateCategory={vi.fn()}
         onDeleteCategory={vi.fn()}
-        shortcutHint="c"
       />,
     )
 
     expect(screen.getByText("New task")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Open create task panel" })).toHaveAttribute("aria-expanded", "false")
-    // shortcut hint rendered as kbd element inside the subtitle
-    expect(screen.getByText("C")).toBeInTheDocument()
+
+    // The subtitle says what this panel is FOR, and deliberately advertises no key.
+    // It used to print "press C to open" — and `C` opens quick capture, which asks
+    // for a title and nothing else. A printed key that does something else teaches
+    // the wrong binding, and the user only finds out from a surface that disagrees.
+    expect(screen.getByText(/Date, category, audience/i)).toBeInTheDocument()
+    expect(screen.queryByText(/press/i)).toBeNull()
   })
 
   it("autofocuses task creation and exposes core controls through accessible roles", () => {

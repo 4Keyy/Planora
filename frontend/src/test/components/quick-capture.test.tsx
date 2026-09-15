@@ -334,3 +334,26 @@ describe("QuickCapture placement", () => {
     expect(bubble()).toBeInTheDocument()
   })
 })
+
+describe("QuickCapture — where the collapsed control is drawn", () => {
+  it("hides the collapsed bubble above sm by default", () => {
+    // A 56px circle floating over the middle of a 1440px card grid reads as a stray
+    // element, not a control. The desktop reaches capture by `C`, by the palette, or
+    // by the create panel whose header is always on screen.
+    render(<QuickCapture onCapture={vi.fn()} />)
+    expect(screen.getByRole("button", { name: "New task" }).className).toContain("sm:hidden")
+  })
+
+  it("keeps the bubble at every width when the caller pins the corner", () => {
+    render(<QuickCapture onCapture={vi.fn()} placement="corner" />)
+    expect(screen.getByRole("button", { name: "New task" }).className).not.toContain("sm:hidden")
+  })
+
+  it("still opens at any width, because the key is not gated on a breakpoint", async () => {
+    // Hiding the bubble must not take the shortcut with it — a desktop user pressing
+    // `C` is the main way capture is reached there.
+    render(<QuickCapture onCapture={vi.fn()} />)
+    await userEvent.keyboard("c")
+    expect(await screen.findByRole("textbox", { name: /new task/i })).toBeInTheDocument()
+  })
+})

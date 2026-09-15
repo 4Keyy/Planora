@@ -18,6 +18,8 @@ import type { LucideIcon } from "lucide-react"
 import { ModalPortal } from "@/components/ui/modal-portal"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
+import { useIsApplePlatform } from "@/components/ui/shortcuts-overlay"
+import { OPEN_CAPTURE_EVENT } from "@/components/todos/quick-capture"
 import { api } from "@/lib/api"
 import type { PagedTodosResponse } from "@/types/todo"
 import { EASE_OUT_EXPO, DURATION_FAST, SPRING_STANDARD } from "@/lib/animations"
@@ -51,11 +53,9 @@ type Command = {
   run: () => void
 }
 
-const OPEN_CREATE_EVENT = "planora:open-create"
-
-/** Fires the same create panel the "c" shortcut opens. */
-function requestCreate() {
-  window.dispatchEvent(new CustomEvent(OPEN_CREATE_EVENT))
+/** Fires the same quick capture the "c" key opens. */
+function requestCapture() {
+  window.dispatchEvent(new CustomEvent(OPEN_CAPTURE_EVENT))
 }
 
 /**
@@ -101,7 +101,17 @@ export function CommandPalette() {
   const dialogRef = useFocusTrap<HTMLDivElement>(open)
   useScrollLock(open)
 
-  const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+  /*
+   * Resolved after mount, never during render, and shared with the `?` map so the
+   * two cannot print different spellings of the same key.
+   *
+   * The previous line read `navigator.platform` inline. The server has no
+   * `navigator`, so it rendered "Ctrl" while a Mac client rendered "⌘" — and React
+   * throws the entire server pass away on a text mismatch rather than patching it.
+   * The palette is mounted in the root layout, so that was a full client re-render
+   * on every navigation for every Mac user, with nothing in the console to say so.
+   */
+  const isMac = useIsApplePlatform()
 
   // ── open / close ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -173,21 +183,32 @@ export function CommandPalette() {
       router.push(href)
     }
     const base: Command[] = [
+      /**
+       * One creation entry, and it is the same thing `C` does.
+       *
+       * It used to open the full composer while advertising `C` beside it — and `C`
+       * opens quick capture, which asks for a title and nothing else. A palette that
+       * prints a key next to a row it does not perform is worse than one that prints
+       * no key at all: the user learns the wrong binding and only finds out later.
+       *
+       * The heavy composer keeps no palette entry, and loses nothing by it: its
+       * collapsed header is permanently on screen on both routes that have it.
+       */
       {
-        id: "new-task",
-        label: "Create task",
-        hint: "Opens the composer on Tasks",
+        id: "capture-task",
+        label: "Capture a task",
+        hint: "Just a title — details come later",
         icon: Plus,
         shortcut: "C",
         group: "Actions",
         run: () => {
           close()
-          // Navigate first: only the Tasks screen owns the composer, so firing the
-          // event from the dashboard would land on nobody. Pushing to a route we are
-          // already on is a no-op, and the frame of delay lets that page mount its
-          // listener before the event arrives.
+          // Navigate first: only the screens that mount capture are listening, so
+          // firing from a route without it would land on nobody. Pushing to the
+          // route we are already on is a no-op, and the frame of delay lets that
+          // page mount its listener before the event arrives.
           router.push("/tasks")
-          requestAnimationFrame(requestCreate)
+          requestAnimationFrame(requestCapture)
         },
       },
       { id: "go-dashboard", label: "Dashboard", hint: "Today at a glance", icon: LayoutDashboard, group: "Go to", run: go("/dashboard") },
@@ -412,4 +433,3 @@ export function CommandPalette() {
   )
 }
 
-export { OPEN_CREATE_EVENT }

@@ -37,6 +37,9 @@ import { cn } from "@/lib/utils"
  * whenever a modal, overlay or sheet owns the screen.
  */
 
+/** The palette asks for capture through this rather than importing the component. */
+export const OPEN_CAPTURE_EVENT = "planora:open-capture"
+
 /** Matches the create panel's own title limit, so capture cannot produce a task the editor would reject. */
 const TITLE_MAX_LENGTH = 200
 
@@ -46,10 +49,17 @@ export interface QuickCaptureProps {
   /** Hidden while a modal/overlay owns the screen. */
   hidden?: boolean
   /**
-   * Where the control sits. `responsive` (the default) is a corner bubble in the
-   * phone's thumb zone and a centred bar from `sm` up, because on a 1440px desktop
-   * a bottom-right bubble is the furthest point from where the eye already is,
-   * while on a 390x844 phone it is the only comfortable place to reach.
+   * Where the control sits.
+   *
+   * `responsive` (the default) is a corner bubble in the phone's thumb zone, and on
+   * `sm` and up the collapsed bubble is **not drawn at all** — the desktop reaches
+   * capture through the `C` key, the command palette, or the full create panel whose
+   * header is permanently on screen, and a 56px circle floating over the middle of a
+   * 1440px card grid reads as a stray element rather than a control. The expanded bar
+   * is centred at those widths, because once it is open it is the thing being used.
+   *
+   * `corner` and `center` pin the choice for a caller that knows better than the
+   * breakpoint.
    */
   placement?: "responsive" | "corner" | "center"
   className?: string
@@ -136,6 +146,22 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
     }
     document.addEventListener("keydown", onKeyDown)
     return () => document.removeEventListener("keydown", onKeyDown)
+  }, [hidden, open])
+
+  /**
+   * The command palette's "Capture a task" lands here.
+   *
+   * An event rather than an import, for the same reason the create panel uses one:
+   * the palette is mounted in the root layout and has no idea which screen is
+   * showing or where this component sits in it. On a route that does not mount
+   * capture, nothing listens — and the palette navigates to Tasks first, so there
+   * is always something listening by the time the event fires.
+   */
+  useEffect(() => {
+    if (hidden) return
+    const onOpen = () => open()
+    window.addEventListener(OPEN_CAPTURE_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_CAPTURE_EVENT, onOpen)
   }, [hidden, open])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -274,7 +300,14 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
                 enterKeyHint="done"
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}
-                className="min-w-0 flex-1 bg-transparent text-body font-medium text-ink placeholder:font-normal placeholder:text-ink-subtle"
+                /*
+                 * `rounded-md px-2` exists for the focus ring, not for decoration.
+                 * The global indicator is an outline, and an outline traces the
+                 * element's own `border-radius` — on a square-cornered input inside
+                 * a fully rounded pill that drew a hard rectangle across the middle
+                 * of the bar. The padding keeps the ring off the glyphs.
+                 */
+                className="min-w-0 flex-1 rounded-md bg-transparent px-2 text-body font-medium text-ink placeholder:font-normal placeholder:text-ink-subtle"
               />
 
               <Button
@@ -297,6 +330,20 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
             onClick={open}
             aria-label="New task"
             /*
+             * The collapsed bubble is a PHONE affordance, and it hides above `sm`.
+             *
+             * A 56px circle floating over the middle of a 1440px card grid reads as
+             * a stray element, not as a control: there is no thumb zone on a desktop
+             * and the eye is nowhere near the bottom centre of the window. The
+             * desktop already has three better paths to the same thing — the `C` key
+             * (which still works at every width, because the listener is not gated on
+             * a breakpoint), the command palette's "Capture a task", and the full
+             * create panel whose header is permanently on screen.
+             *
+             * The EXPANDED bar is not hidden: once `C` opens it on a desktop, it
+             * belongs on screen wherever it was opened from.
+             */
+            /*
              * Deliberately no `aria-expanded`. This button does not stay put and
              * toggle a region beside it — it is REPLACED by the form, and focus
              * moves into the field. `aria-expanded={false}` on a control that can
@@ -308,7 +355,10 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
             // 56x56 in the bottom-right gutter: blueprint 10.1 puts the thumb's
             // comfortable arc at y 560-844 of 844, and this is the only corner a
             // right-handed grip reaches without the phone moving in the hand.
-            className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-ink shadow-lg transition-transform duration-fast active:scale-[0.94]"
+            className={cn(
+              "pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-ink shadow-lg transition-transform duration-fast active:scale-[0.94]",
+              placement === "responsive" && "sm:hidden",
+            )}
           >
             <Plus className="h-6 w-6" aria-hidden="true" strokeWidth={2.5} />
           </motion.button>

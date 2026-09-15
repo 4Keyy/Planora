@@ -44,6 +44,19 @@ export interface RedactionBadgeProps {
   size?: "sm" | "md"
   /** Renders as a button when set, so the badge itself can cycle the audience. */
   onClick?: () => void
+  /**
+   * Draw the mark alone.
+   *
+   * For the caller that already prints the word beside it — the editor's meta
+   * strip, where the token's own text has to stay a fixed width so toggling the
+   * audience cannot reflow the row. Two copies of "Shared" a few pixels apart is
+   * not emphasis, it is a bug report waiting to be filed.
+   *
+   * In this mode the mark is `aria-hidden`. The caller printing the word is also
+   * the thing that gets announced, and a second accessible name nested inside it
+   * would have a screen reader read the fact twice, in two different grammars.
+   */
+  showLabel?: boolean
   className?: string
 }
 
@@ -131,6 +144,7 @@ export function RedactionBadge({
   viewerCount,
   size = "md",
   onClick,
+  showLabel = true,
   className,
 }: RedactionBadgeProps) {
   const { dash, gap } = redactionArc(audience, viewerCount)
@@ -204,10 +218,27 @@ export function RedactionBadge({
   const contents = (
     <>
       {mark}
-      {label}
-      {count}
+      {showLabel && label}
+      {showLabel && count}
     </>
   )
+
+  /**
+   * Mark-only, inside a control that already names itself.
+   *
+   * The editor's visibility token is a button whose own text says "shared · 2". A
+   * `role="img"` in there would contribute a second name to the same control and a
+   * screen reader would read "Shared with 2 people. shared · 2" — the fact twice,
+   * in two grammars. Decorative is the honest answer: the word beside it is doing
+   * the work, and the button is what gets announced.
+   */
+  if (!showLabel && !onClick) {
+    return (
+      <span aria-hidden="true" className={cn("inline-flex items-center", className)}>
+        {mark}
+      </span>
+    )
+  }
 
   if (onClick) {
     return (

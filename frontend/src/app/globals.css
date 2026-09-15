@@ -204,7 +204,10 @@
     .calendar-bleed {
       margin-inline: 0;
       border-inline-width: 1px;
-      border-radius: 14px;
+      /* `md`, not a hand-picked 14px. The radius scale is 8/12/16/20 and this was
+         the one value in the product sitting between two of its steps — invisible
+         on screen, and exactly the kind of drift a scale exists to prevent. */
+      border-radius: var(--pl-radius-md);
     }
   }
 }

@@ -32,6 +32,23 @@ export interface NumberRollProps {
   className?: string
   /** Announce changes politely. Use on counters a user is waiting on, not on every badge. */
   announce?: boolean
+  /**
+   * Reserve room for this many digits, so the counter's box does not change width
+   * when the value gains one.
+   *
+   * This is a layout guarantee, not a formatting one — the number is **not**
+   * zero-padded, it is only given the space. A counter that starts at `0` while
+   * data loads and settles on `24` grows by a digit, and on a phone that single
+   * digit was enough to push the tasks header past its wrap point: the whole
+   * title row reflowed to two lines and every element below it jumped 54px, for
+   * a measured CLS of 0.119 on a 390px screen.
+   *
+   * The rule it encodes is worth stating plainly: **layout must be decided by the
+   * viewport, never by the data.** Anything sized to its current value will
+   * eventually resize to a different one, and the moment it does is exactly the
+   * moment the user is reading.
+   */
+  minDigits?: number
 }
 
 /** One digit column. Keyed on the digit so a change mounts a new one and the old exits. */
@@ -74,7 +91,7 @@ function Digit({ digit, up, delay, reduce }: { digit: string; up: boolean; delay
   )
 }
 
-export function NumberRoll({ value, direction, className, announce }: NumberRollProps) {
+export function NumberRoll({ value, direction, className, announce, minDigits }: NumberRollProps) {
   const reduce = useReducedMotion() ?? false
   const previous = useRef(value)
   // Rendered only after mount, so the first paint is the final value and the
@@ -92,6 +109,14 @@ export function NumberRoll({ value, direction, className, announce }: NumberRoll
 
   const digits = String(value).split("")
 
+  /**
+   * Reserved width, in `ch`. With `tabular-nums` every figure has exactly that
+   * advance, so `minWidth` here is the width of `minDigits` digits — no more, and
+   * no zero-padding. The value stays right-aligned inside it, which is where a
+   * number belongs when its neighbours are numbers.
+   */
+  const reserved = minDigits && minDigits > digits.length ? { minWidth: `${minDigits}ch` } : undefined
+
   return (
     <span
       className={cn("inline-flex tabular-nums", className)}
@@ -99,7 +124,7 @@ export function NumberRoll({ value, direction, className, announce }: NumberRoll
     >
       {/* The value, once, for assistive technology. */}
       <span className="sr-only">{value}</span>
-      <span aria-hidden="true" className="inline-flex">
+      <span aria-hidden="true" className="inline-flex justify-end" style={reserved}>
         {digits.map((d, i) => (
           <Digit
             key={`${digits.length}-${i}`}

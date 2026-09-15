@@ -446,7 +446,6 @@ export function ColorBends({
       drawRef.current = null
       if (canvas.parentElement === container) container.removeChild(canvas)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bandWidth, frequency, intensity, iterations, mouseInfluence, noise, parallax, scale, speed, transparent, warpStrength])
 
   // ── Uniform sync (lightweight, no context rebuild) ─────────────────────────

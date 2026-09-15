@@ -21,6 +21,7 @@ import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNI
 import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
 import { InkCheck } from "@/components/ui/ink-check"
 import { rememberOrigin } from "@/lib/shared-origin"
+import { RedactionBadge } from "@/components/ui/redaction-badge"
 import type { ListRowProps } from "@/hooks/use-list-navigation"
 
 /** Priority is a magnitude, not a category — see components/ui/priority-meter.tsx. */
@@ -281,32 +282,38 @@ function TodoCardComponent({
 
   // Determine border color based on priority and sharing
   const isUrgentOrOverdue = todo.isVisuallyUrgent ?? fallbackIsVisuallyUrgent
-  const isSharedUrgent = showShareBadge && isUrgentOrOverdue
-  const borderColor = (() => {
-    if (isWorkingOnThis) return "border-accent"
-    if (isSharedUrgent) return "border-accent"
-    if (isUrgentOrOverdue) return "border-alert"
-    if (showShareBadge) return "border-accent"
-    return "border-line" // Lighter default border for active tasks
-  })()
-  const borderInlineStyle: React.CSSProperties = (() => {
-    if (isCompleted) return {}
-    if (isWorkingOnThis && isUrgentOrOverdue) {
-      return {
-        borderTopColor: "rgb(99 102 241)",
-        borderRightColor: "rgb(99 102 241)",
-        borderBottomColor: "rgb(99 102 241)",
-        borderLeftColor: "var(--pl-alert)",
-      }
-    }
-    if (isSharedUrgent) return { borderLeftColor: "var(--pl-alert)" }
-    return {}
-  })()
+
+  /**
+   * The border says exactly one thing: **this needs answering today.**
+   *
+   * It used to say three. `border-accent` was returned for "in progress", for
+   * "shared", and for "shared AND overdue" — so a task somebody had taken into
+   * work and a task merely visible to a friend were drawn identically, and the
+   * border stopped carrying information at all. The combined case painted three
+   * sides `rgb(99 102 241)`, an indigo that exists in no token, no palette and no
+   * other file in the product, which the design system's first rule forbids.
+   *
+   * Both of the other two facts already have their own mark, which is why the
+   * border does not need to repeat either:
+   *
+   * - **Shared** is the redaction arc in the meta row. It is a property of the
+   *   task, not a state it is in, and the arc says how wide the audience is —
+   *   which a border colour cannot.
+   * - **In progress** is the accent chip ("2/3 · you") and the accent ring on the
+   *   completion control, both a few pixels away.
+   *
+   * And `accent` has an owner. The design system spends it on links, the active
+   * tab and **selection** — so while a multi-selection is up, an accent border on
+   * an unselected card is the one thing on screen most likely to be misread as
+   * selected. A border that competes with the selection outline is worse than a
+   * border that says less.
+   */
+  const borderColor = isUrgentOrOverdue ? "border-alert" : "border-line"
+
   const categoryShadowColor = todo.categoryColor?.trim()
   const hoverShadowColor = isWorkingOnThis
     ? "var(--pl-accent)"
-    : categoryShadowColor
-      || (showShareBadge ? "var(--pl-accent)" : isUrgentOrOverdue ? "var(--pl-alert)" : null)
+    : categoryShadowColor || (isUrgentOrOverdue ? "var(--pl-alert)" : null)
   const hoverShadow = hoverShadowColor ? `${hoverShadowColor}33` : "rgba(0,0,0,0.08)"
 
   const cardHoverShadow = isCardHovered && !isCompleted
@@ -454,7 +461,6 @@ function TodoCardComponent({
           transitionProperty: "box-shadow, background-color, border-color, opacity",
           transitionDuration: "220ms",
           transitionTimingFunction: "var(--pl-ease-emphasized)",
-          ...borderInlineStyle,
         }}
         className={cn(
           "group relative overflow-hidden border-2",
@@ -462,7 +468,6 @@ function TodoCardComponent({
           isCompleted
             ? "border-line-strong opacity-60 hover:opacity-80 hover:bg-paper/10"
             : borderColor,
-          isSharedUrgent && "task-card--shared-urgent",
           isSparse && "task-card--sparse",
           isInfoDense && "task-card--dense"
         )}
@@ -881,17 +886,38 @@ function TodoCardComponent({
                         </span>
                       )}
                       {!isCompleted && <PriorityMeter value={priorityConfig.num} size="sm" />}
-                      {showShareBadge && (
+                      {/*
+                       * Two different facts, and they were previously one chip.
+                       *
+                       * For the OWNER the interesting thing about a shared task is *who
+                       * can see it*, which is a shape rather than a word — the arc
+                       * narrows as the audience does, and the count rolls beside it.
+                       * A generic share icon said only "not private", which the owner
+                       * already knew when they shared it.
+                       *
+                       * For a VIEWER the interesting thing is *whose task this is*.
+                       * That is attribution, not audience: the viewer cannot change who
+                       * else can see it, and the arc would be answering a question they
+                       * did not ask. So they keep the name.
+                       */}
+                      {showShareBadge && isOwner && (
+                        <RedactionBadge
+                          audience={todo.isPublic ? "public" : "shared"}
+                          viewerCount={todo.isPublic ? undefined : friendCount}
+                          size="sm"
+                        />
+                      )}
+                      {showShareBadge && !isOwner && (
                         <motion.span
                           initial={{ scale: 0.9, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           className={cn(
-                            "text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-accent-surface text-accent whitespace-nowrap shadow-sm border border-accent-surface/80 flex items-center gap-1 hover:shadow-md transition-[color,background-color,border-color,opacity,transform,box-shadow]",
+                            "text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-paper-sunken text-ink-muted whitespace-nowrap shadow-sm border border-line flex items-center gap-1 hover:shadow-md transition-[color,background-color,border-color,opacity,transform,box-shadow]",
                             isPublicName && "normal-case tracking-normal"
                           )}
                         >
-                          <Share2 className="h-3 w-3" />
-                          {!isOwner && publicBadgeLabel}
+                          <Share2 className="h-3 w-3" aria-hidden="true" />
+                          {publicBadgeLabel}
                         </motion.span>
                       )}
                       {(todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) && !isCompleted && (() => {
