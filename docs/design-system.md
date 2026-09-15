@@ -35,7 +35,7 @@ something measurably went wrong without it.
 
 ### The `@colour-data` exemption
 
-Four files legitimately contain colour literals, because in them colour is **data**,
+Five files legitimately contain colour literals, because in them colour is **data**,
 not theme:
 
 | File | What the colours are |
@@ -44,6 +44,7 @@ not theme:
 | `lib/notifications/types.ts` | Per-notification-type tints. Identity, the way an app icon is identity. |
 | `lib/utils.ts` | WCAG luminance coefficients and sRGB transfer breakpoints, used to decide ink over a user's chosen colour. |
 | `components/todos/edit-todo-modal/color-picker.tsx` | The six primaries of the HSL wheel. Coordinate space, not a palette. |
+| `lib/icon-map.ts` | The default colour attached to a newly created category. The user owns it from the moment it is theirs. |
 
 Each carries an `@colour-data` marker in a comment with its reason, and the contract
 test keys off that marker rather than a list held elsewhere. Three separate sweeps
@@ -410,6 +411,15 @@ another person appearing inside your task.
 | 2 | An `accent` ring draws around it | `pathLength 0 → 1`, `base` 220 |
 | 3 | The ring fades, once the stroke has closed | `exit` 160, delayed by 220 |
 | 4 | Multiple arrivals stagger | 60ms apart |
+| 5 | The row breathes once | `scale 1 → 1.006 → 1`, `slow` 320, `standard` |
+
+**The breath is the one purely decorative motion in the product**, and it is here
+rather than anywhere else because a person appearing inside your task is the central
+event of a collaboration product and nothing else in the interface is. 0.6% is
+deliberately below the threshold at which motion reads as an animation — it reads as
+the row having been touched, where anything larger would make a colleague joining
+feel like an alert. It is keyed on the arriving ids, so it restarts for each real
+arrival and does nothing on the re-renders in between.
 
 **First mount is not an event.** Somebody who was already in the task when the page
 loaded did not just walk in. Without that rule every page load rings every participant
@@ -520,16 +530,64 @@ string over 1500ms with a spring layered on top of a tween: three times the ceil
 scale sets for anything, and long enough that the number had finished rolling while the
 arc was still moving.
 
-### 9.11 What is deliberately not animated
+### 9.11 The route transition, and the measurement that settled it
+
+A route change fades over `base` 220ms. **Opacity only** — and that is now a
+measured decision rather than an argued one.
+
+BLUEPRINT moment 9 asks for the content to rise 8px as it fades. A transform on
+`app/template.tsx` creates a containing block, and a `position: fixed` descendant
+anchors to that block instead of the viewport; this page tree has fixed descendants
+(quick capture, the selection bar, the undo bar). That objection had been stated for
+a long time without being tested, so it was tested.
+
+framer-motion genuinely cleans up after itself. On the shipped build, an element
+that runs a `y` animation and settles reports:
+
+| Read | Value |
+|---|---|
+| inline `transform` | `none` |
+| computed `transform` | `none` |
+| `will-change` | `auto` |
+| a `position: fixed` child | anchors to the viewport |
+
+So the containing block really does stop existing, and the expected cost was a
+fixed control drifting 8px for 220ms. **The measurement disagreed, and the reason
+is worth keeping.** What costs is not the drift — it is the instant the containing
+block disappears. The fixed control is laid out against the transformed ancestor
+for the length of the animation and against the viewport from one frame later, and
+the browser records the difference as a layout shift.
+
+`/tasks` at 390px, four runs each:
+
+| Template | CLS |
+|---|---|
+| `opacity` only | **0.0037** |
+| with `y: 8 → 0` | **0.0600**, 0.0607, 0.0600 |
+
+Sixteen times worse on the product's main screen, for an 8px rise, and the shift is
+attributable to one node: the capture control's wrapper, at 339ms, exactly when the
+transform is cleared. The transform could be bought back by portalling every fixed
+control out of the page tree — three components, and a new set of stacking and
+focus-order questions. It is not worth eight pixels.
+
+The navbar's active-tab indicator carries the continuity between routes instead,
+moving by `layoutId`. That half of moment 9 is built.
+
+The blueprint's other half — the outgoing content leaving at `y: -8` — cannot be
+built here at all. A `template.tsx` is destroyed and recreated by the router, and
+no `AnimatePresence` spans the old route and the new one, so there is no moment at
+which the outgoing content still exists to animate.
+
+### 9.12 What is deliberately not animated
 
 | Thing | Why |
 |---|---|
-| Route transitions beyond a 160ms fade | A `transform` on `app/template.tsx` creates a containing block that captures every `position: fixed` element inside the page. The navbar's active-tab indicator carries the transition instead, via `layoutId` |
+| Route content beyond the fade | Measured above: a transform costs 16× the CLS for an 8px rise |
 | Colour changes through framer-motion | Not composited. `transition-colors duration-fast` in CSS costs nothing |
 | Anything on a list at rest | A list that breathes is a list that cannot be read |
 | Error states | An error is not a moment to celebrate the animation system |
-
----
+| The outgoing half of a route change | Nothing in the App Router keeps it alive long enough |
 
 ## 10. Control sizing
 
@@ -575,8 +633,8 @@ overlap and steal each other's taps. Those need real spacing.
 
 ## 11. Accessibility floor
 
-Every one of these is measured across a matrix of 12 routes × 9 viewports × 3 modes
-(264 cells) by `docs/ui-audit/tools/live-scan.mjs`, and statically by
+Every one of these is measured across the matrix of routes × viewports × modes
+by `docs/ui-audit/tools/live-scan.mjs` (88 cells on the last run), and statically by
 `docs/ui-audit/tools/a11y-static.mjs`.
 
 | Criterion | The rule here |
@@ -1075,6 +1133,36 @@ Each of these shipped. None produced a build error, a type error, or a failing t
 | `outline-none` suppressing the one focus indicator | Tailwind sets `2px solid transparent`, not `none`, so a probe that checks for an outline's presence sees one. Six auth routes had no visible focus at all | `focus-scan.mjs`, which measures the indicator's contrast |
 | A per-component focus ring replacing the global one | Four Button variants at 1.12:1 to 2.10:1, where 2.4.11 asks for 3:1 | The same scan, plus the rule above: only `globals.css` declares the indicator |
 | A `<kbd>` shortcut hint inside a button | It joins the accessible name — "New Category" announced as "New Category c" | `aria-hidden` on the hint, `aria-keyshortcuts` on the button |
+
+---
+
+### The escape hatches, and why each one is allowed
+
+Three rules in this document can be broken, and the product breaks each of them in a
+small, countable number of places. Naming them here is what keeps the count small: a
+scanner reporting twelve `!important` with no explanation teaches the reader to skim
+the section, and the thirteenth — the one that is wrong — goes in unnoticed.
+
+| Hatch | Uses | Why it is the only answer |
+|---|---|---|
+| `!important` | **12**, all in `globals.css` | Four outrank a stylesheet the product does not own (`react-remove-scroll-bar` injects `margin-right: …px !important` to compensate for a disappearing scrollbar; ours lives on `<html>` and never disappears, so the compensation only shoves the page sideways). One pins mobile form controls to 16px, because iOS Safari zooms the whole page when a focused control is smaller and the fix has to outrank a Tailwind utility. Four are the reduced-motion kill switch, which by definition must beat every author style. |
+| Inline `style` | **388**, 78% of them in `edit-todo-modal/` | Exact pixel geometry the token scales do not carry — a 6px inset, a 22px avatar. The alternative is an arbitrary Tailwind value, which the design system forbids outright, so this is the lesser of the two. **Every value is token-backed**: 0 hex literals, 0 `"white"`, measured. The branch editor is a subtree built this way end to end; converting working, tested UI wholesale would be churn, not quality. New code outside it uses utilities. |
+| A non-transform animation | **2 kinds** | `pathLength` on an SVG, because no transform turns an arc into a longer arc — the completion stroke, the weekly ring, the presence ring, the redaction arc. And `stroke-dasharray`/`pathOffset`, which is the same exception wearing a different name. |
+
+Everything else in the rules is absolute. `transition-all`: **0**. `dark:` utilities:
+**0**. Colour inside a motion variant: **0**. `box-shadow` inside a motion variant:
+**0**. CSS keyframes touching a non-composited property: **0 of 9**.
+
+Two data exemptions work the same way, declaring themselves in the file rather than in
+a list held elsewhere — a list goes stale the first time a file moves:
+
+- **`@colour-data`** — colour is the user's own choice or a coordinate space, not theme.
+  Five files. The contract test and the static scanner both read the marker.
+- **`@legacy-data`** — a string is stored data, not interface copy. One file: the
+  keyword matcher that picks an icon for system events written before the UI moved to
+  English. Those rows are still in the database verbatim and are never rewritten, so
+  deleting the keywords would change no string a user reads and would silently blank
+  the icon on every event older than the migration.
 
 ---
 

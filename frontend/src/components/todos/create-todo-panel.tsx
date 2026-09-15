@@ -157,32 +157,43 @@ function SelectorCard({
             </AnimatePresence>
           </span>
         </span>
-        {onClear && (
-          <span
-            role="button"
-            tabIndex={0}
-            aria-label={clearLabel}
-            onClick={e => { e.stopPropagation(); onClear() }}
-            onKeyDown={e => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                e.stopPropagation()
-                onClear()
-              }
-            }}
-            className="flex h-6 w-6 flex-shrink-0 cursor-pointer items-center justify-center rounded-md text-ink-subtle transition-colors hover:bg-gray-100 hover:text-ink-muted"
-          >
-            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-          </span>
-        )}
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
           transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
-          className="flex-shrink-0 text-ink-subtle transition-colors group-hover:text-ink-subtle"
+          className={cn(
+            "flex-shrink-0 text-ink-subtle transition-colors group-hover:text-ink-subtle",
+            // Room for the clear control, which now sits OUTSIDE this button.
+            onClear && "mr-8",
+          )}
         >
           <ChevronDown className="h-4 w-4" strokeWidth={2.2} />
         </motion.span>
       </motion.button>
+
+      {/*
+       * The clear control is a SIBLING of the trigger, not a child of it.
+       *
+       * It used to be a `role="button"` span inside the `<button>`, and nesting one
+       * control in another is invalid: the accessibility tree has nowhere to put the
+       * inner one, so a screen reader announces a single button whose name is the
+       * card's — and the clear action simply does not exist for anyone not using a
+       * pointer. The `stopPropagation` it carried was the tell: a control that has to
+       * stop its own parent from also firing is a control in the wrong place.
+       *
+       * Absolutely positioned over the trigger's right edge so the card's layout is
+       * unchanged, and given a real `<button>` with the touch target the design system
+       * requires.
+       */}
+      {onClear && (
+        <button
+          type="button"
+          aria-label={clearLabel}
+          onClick={onClear}
+          className="absolute right-9 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-ink-subtle transition-colors duration-fast hover:bg-gray-100 hover:text-ink-muted"
+        >
+          <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+        </button>
+      )}
       {children}
     </div>
   )

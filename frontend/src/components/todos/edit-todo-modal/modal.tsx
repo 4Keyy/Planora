@@ -68,6 +68,15 @@ export interface TodoEditorProps {
   onDuplicate?: () => Promise<void>
   onDescriptionChange?: (newDescription: string) => void
   commentsRefreshKey?: number
+  /**
+   * Open with the title already in edit mode, caret placed.
+   *
+   * The task list binds this to `E`, whose printed description is "Edit it in
+   * place". Ignored for a viewer who does not own the task: they cannot rename it,
+   * and opening a field they are not allowed to save would be a worse lie than the
+   * one this fixes.
+   */
+  openInTitleEdit?: boolean
 }
 
 /** Props for the modal wrapper — same as the editor but the close handler is required. */
@@ -92,6 +101,7 @@ export function TodoEditor({
   onDuplicate,
   onDescriptionChange,
   commentsRefreshKey,
+  openInTitleEdit = false,
 }: TodoEditorProps) {
   const viewerId = useAuthStore((s) => s.user?.userId)
 
@@ -116,7 +126,15 @@ export function TodoEditor({
   )
   const [categoryId,   setCategoryId]   = useState<string | null>(todo.categoryId ?? null)
   const [openPopover,  setOpenPopover]  = useState<OpenPopover>(null)
-  const [editingTitle, setEditingTitle] = useState(false)
+  /*
+   * Opened straight into title editing by the list's `E` key.
+   *
+   * The keyboard map promises "Edit it in place", and for a while `E` opened the
+   * same dialog `Enter` did — the map said one thing and the key did another, which
+   * is the exact defect that was fixed for `C`. The title IS editable in place here;
+   * it just needed the door opened with the caret already in it.
+   */
+  const [editingTitle, setEditingTitle] = useState(openInTitleEdit && isOwner)
 
   const initialVis = (todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0)
     ? "friends" as const

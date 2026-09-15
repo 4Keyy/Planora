@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { Avatar } from "@/components/ui/avatar"
 import { NumberRoll } from "@/components/ui/number-roll"
-import { DURATION_UI, EASE_OUT_EXPO, SPRING_GENTLE, TWEEN_EXIT } from "@/lib/animations"
+import { DURATION_SLOW, DURATION_UI, EASE_OUT_EXPO, EASE_STANDARD, SPRING_GENTLE, TWEEN_EXIT } from "@/lib/animations"
 import { cn } from "@/lib/utils"
 
 /**
@@ -159,7 +159,29 @@ export function PresenceRow({ members, required, max = 4, size = "md", className
   if (members.length === 0) return null
 
   return (
-    <div className={cn("inline-flex items-center gap-2.5", className)}>
+    /**
+     * The row breathes once when somebody arrives — `scale 1 → 1.006 → 1`.
+     *
+     * This is BLUEPRINT moment 4, step 4, and it is the **only** purely decorative
+     * motion the product allows itself. It earns the exception because of what it
+     * marks: a person appearing inside your task is the central event of a
+     * collaboration product, and nothing else in the interface is.
+     *
+     * 0.6% is deliberately below the threshold at which motion reads as an
+     * animation. It reads as the row having been touched. Anything larger would
+     * make a colleague joining feel like an alert.
+     *
+     * Keyed on the arriving ids, so it restarts for each real arrival and does
+     * nothing on the re-renders in between; `false` on the first mount, for the
+     * same reason the ring is — the people already here did not just walk in.
+     */
+    <motion.div
+      key={[...arrivals].sort().join("|") || "settled"}
+      initial={false}
+      animate={arrivals.size > 0 && !reduce ? { scale: [1, 1.006, 1] } : { scale: 1 }}
+      transition={{ duration: DURATION_SLOW, ease: EASE_STANDARD }}
+      className={cn("inline-flex items-center gap-2.5", className)}
+    >
       <span className="sr-only">{presenceSentence(members, need)}</span>
 
       <div aria-hidden="true" className="flex items-center">
@@ -256,6 +278,6 @@ export function PresenceRow({ members, required, max = 4, size = "md", className
           {need}
         </span>
       )}
-    </div>
+    </motion.div>
   )
 }

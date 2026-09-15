@@ -154,6 +154,8 @@ export default function TasksPage() {
   completedPreviewRef.current = completedPreview
 
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
+  /** `E` opens the editor with the title already in edit mode; `Enter` does not. */
+  const [openInTitleEdit, setOpenInTitleEdit] = useState(false)
   /** Deletions wait five seconds in here instead of behind a confirmation dialog. */
   const undoable = useUndoableAction()
   const [commentsRefreshKey, setCommentsRefreshKey] = useState(0)
@@ -848,12 +850,16 @@ export default function TasksPage() {
       // Hand over the same rect a click would have, so Enter and a pointer open
       // the editor identically. See lib/shared-origin.ts.
       rememberOrigin(nav.getRowNode(id))
+      setOpenInTitleEdit(false)
       setEditingTodo(todo)
     },
     onEdit: (id) => {
       const todo = todosRef.current.find((t) => t.id === id)
       if (!todo) return
       rememberOrigin(nav.getRowNode(id))
+      // `E` is the only path that lands in the title. The keyboard map promises
+      // "Edit it in place", and until now it opened exactly what Enter opened.
+      setOpenInTitleEdit(true)
       setEditingTodo(todo)
     },
     onToggleComplete: (id) => { void handleComplete(id) },
@@ -996,7 +1002,7 @@ export default function TasksPage() {
                     rowProps={nav.getRowProps(todo.id)}
                     onComplete={() => handleComplete(todo.id)}
                     onDelete={() => requestDelete(todo)}
-                    onEdit={() => setEditingTodo(todo)}
+                    onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
                     onToggleHidden={() => handleToggleHidden(todo.id)}
                     onJoin={async () => {
                       if (isTodoOwner(todo, user?.userId)) {
@@ -1089,7 +1095,7 @@ export default function TasksPage() {
                                 variant="completed"
                                 onComplete={() => handleComplete(todo.id)}
                                 onDelete={() => requestDelete(todo)}
-                                onEdit={() => setEditingTodo(todo)}
+                                onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
                                 onToggleHidden={() => handleToggleHidden(todo.id)}
                               />
                             )}
@@ -1128,6 +1134,7 @@ export default function TasksPage() {
       <AnimatePresence>
         {editingTodo && (
           <EditTodoModal
+            openInTitleEdit={openInTitleEdit}
             todo={editingTodo}
             categories={categories}
             onClose={() => setEditingTodo(null)}

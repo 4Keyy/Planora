@@ -263,3 +263,46 @@ describe("PresenceRow", () => {
     expect(container.firstElementChild).toHaveClass("mt-2")
   })
 })
+
+describe("PresenceRow — the one decorative motion", () => {
+  /**
+   * BLUEPRINT moment 4, step 4. The row breathes once when somebody arrives, and
+   * this is the only purely decorative motion the product allows itself — it earns
+   * the exception because a person appearing inside your task is the central event
+   * of a collaboration product, and nothing else in the interface is.
+   *
+   * The `key` is what makes it an event rather than a state: it restarts for each
+   * real arrival and does nothing on the re-renders in between. Asserting on the
+   * key is asserting on the mechanism, which here IS the behaviour — jsdom will not
+   * run the keyframes, and a test that waited for a 0.6% scale would be waiting
+   * for nothing.
+   */
+  const container = (el: HTMLElement) => el.firstElementChild as HTMLElement
+
+  it("does not breathe on first mount", () => {
+    // The people already here did not just walk in.
+    const { container: c } = render(<PresenceRow members={[ada, alan]} />)
+    expect(container(c).getAttribute("style") ?? "").not.toContain("scale")
+  })
+
+  it("restarts for a real arrival and stays put on an unchanged set", async () => {
+    const { container: c, rerender } = render(<PresenceRow members={[ada]} />)
+    const settled = container(c).outerHTML
+
+    rerender(<PresenceRow members={[ada, alan]} />)
+    await waitFor(() => expect(container(c).outerHTML).not.toBe(settled))
+    const afterArrival = container(c).outerHTML
+
+    // A parent re-render with the same people is not an event.
+    rerender(<PresenceRow members={[ada, alan]} />)
+    expect(container(c).outerHTML).toBe(afterArrival)
+  })
+
+  it("stays still under prefers-reduced-motion", async () => {
+    mockMatchMedia(true)
+    const { container: c, rerender } = render(<PresenceRow members={[ada]} />)
+    rerender(<PresenceRow members={[ada, alan]} />)
+    await waitFor(() => expect(c.querySelector(".sr-only")).toHaveTextContent("Alan Turing"))
+    expect(container(c).getAttribute("style") ?? "").not.toContain("scale(1.006)")
+  })
+})

@@ -4,6 +4,58 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): finish the map, and let one measurement overrule an argument (2026-09-15)
+
+**`E` no longer lies.** The keyboard map prints "Edit it in place" beside it, and `E`
+opened exactly what `Enter` opened. The title was already editable in place in the
+branch; it just needed the door opened with the caret in it. Ignored for a viewer who
+does not own the task — opening a field somebody cannot save would be a worse lie than
+the one it fixes.
+
+**The one decorative motion the product allows itself now exists.** BLUEPRINT moment 4
+step 4 asks the surface to breathe once when a person arrives; the `breath` keyframe
+had been sitting in the Tailwind config, declared and used nowhere, shipping as dead
+CSS in every build. It is built on `PresenceRow` — presence lives there — as
+`scale 1 → 1.006 → 1` over `slow` 320, keyed on the arriving ids so it is an event
+rather than a state. The keyframe is gone; framer owns the motion.
+
+**A `role="button"` span was nested inside a `<button>`.** The create panel's clear
+control had its own hand-written key handler and a `stopPropagation` — the tell that a
+control is in the wrong place. Nesting one control in another leaves the inner one out
+of the accessibility tree entirely, so clearing a date or a category did not exist for
+anyone not using a pointer. It is a real sibling `<button>` now, and its test presses
+Enter on a focused control instead of dispatching a bare `keydown`, which would have
+passed against the old span and against nothing a browser does.
+
+**Moment 9 was built, measured, and reverted — and that is the useful part.** The
+long-standing reason for refusing a transform on `app/template.tsx` was argued rather
+than measured, so it was measured. framer-motion does clean up: an element that runs a
+`y` animation and settles reports `transform: none`, `will-change: auto`, and a fixed
+child of it anchors to the viewport. But the cost is not the drift during the
+animation — it is the instant the containing block disappears, when a fixed control
+stops being laid out against the ancestor and starts being laid out against the
+viewport. `/tasks` at 390px, four runs each: **0.0037** with opacity alone, **0.0600 /
+0.0607 / 0.0600** with the transform. Sixteen times worse on the product's main screen
+for an 8px rise, attributable to one node at 339ms. Reverted, with the numbers written
+into both `template.tsx` and the design system so nobody has to re-derive them.
+
+**The scanners were still reporting things that are not there.** `static-scan`'s
+clickable-element check used `[^>]*?` to read a tag's attributes, which cannot span an
+`onClick={(e) => …}` — the `>` in the arrow ends the match, so a handled control read
+as unhandled and a `stopPropagation` shield read as a control. Replacing it with a
+brace- and quote-counting reader surfaced a `<p onDoubleClick>` that the truncation had
+been hiding, and then an apostrophe in a `// button's gating` comment sent the new
+reader thousands of characters into the next component — the same defect that broke
+`a11y-static.mjs` once before, which is why both parsers now skip comments first. With
+that done: **0 unsafe clickable elements**. Click shields and dismissal backdrops are
+recognised for what they are, and a `@legacy-data` marker now exempts stored keywords
+from the Cyrillic sweep the way `@colour-data` exempts a user's own colours.
+
+Final matrix, 88 cells: 0 contrast failures, 0 of 237 focus stops without an indicator,
+0 unnamed controls, 0 horizontal overflow, 0 heading skips, 0 routes without `<main>`,
+0 console errors, worst CLS **0.0106**, worst LCP 2668ms. Tests **927** passing, lint
+and types clean, 0 dead utility classes, 375 documentation links resolving.
+
 ### fix: frontend — one key, one meaning, and a header that stops jumping (2026-09-15)
 
 A coherence pass over the surfaces the previous entry added, plus the defects that

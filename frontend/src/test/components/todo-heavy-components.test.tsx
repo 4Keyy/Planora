@@ -742,7 +742,19 @@ describe("CreateTodoPanel", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Due date" })).not.toHaveTextContent("No date"),
     )
-    fireEvent.keyDown(screen.getByRole("button", { name: "Clear due date" }), { key: "Enter" })
+    /*
+     * Focus it and press Enter, rather than dispatching a bare `keydown`.
+     *
+     * The clear control used to be a `role="button"` span nested inside the plate's
+     * own `<button>`, carrying a hand-written key handler because a span has none —
+     * and nesting one control inside another means the inner one is not in the
+     * accessibility tree at all. It is a real sibling `<button>` now, so Enter
+     * reaches it the way the platform delivers it. A raw `fireEvent.keyDown` would
+     * pass against the old span and against nothing a browser actually does.
+     */
+    const clear = screen.getByRole("button", { name: "Clear due date" })
+    clear.focus()
+    await userEvent.keyboard("{Enter}")
     expect(screen.getByRole("button", { name: "Due date" })).toHaveTextContent("No date")
   })
 
@@ -1002,3 +1014,44 @@ describe("EditTodoModal", () => {
   })
 })
 
+
+describe("EditTodoModal — opened into title editing", () => {
+  /**
+   * The keyboard map prints "Edit it in place" beside `E`. For a while `E` opened
+   * exactly what `Enter` opened, which is the same defect that was fixed for `C`:
+   * a printed key doing something other than what it says teaches the wrong
+   * binding, and the user only finds out from a surface that disagrees.
+   */
+  const open = (props: Partial<Parameters<typeof EditTodoModal>[0]> = {}) =>
+    render(
+      <EditTodoModal
+        todo={baseTodo()}
+        categories={categories}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onSaveViewerPreference={vi.fn()}
+        onCreateCategory={vi.fn()}
+        {...props}
+      />,
+    )
+
+  it("puts the caret in the title when asked", async () => {
+    open({ openInTitleEdit: true })
+    const field = await screen.findByDisplayValue("Write coverage tests")
+    expect(field.tagName).toBe("TEXTAREA")
+  })
+
+  it("opens read-only by default, the way a click does", () => {
+    open()
+    expect(screen.queryByDisplayValue("Write coverage tests")).toBeNull()
+    expect(screen.getByRole("heading", { name: "Write coverage tests" })).toBeInTheDocument()
+  })
+
+  it("ignores the request for a viewer who cannot rename it", () => {
+    // Opening a field somebody is not allowed to save is a worse lie than the one
+    // this feature fixes.
+    resetAuthState("someone-else")
+    open({ openInTitleEdit: true })
+    expect(screen.queryByDisplayValue("Write coverage tests")).toBeNull()
+  })
+})

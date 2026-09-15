@@ -263,17 +263,88 @@ const tabularNums = hits(TSX, /tabular-nums/)
 const roleAttr = hits(TSX, /role="([a-z]+)"/)
 const ariaAttr = hits(TSX, /\b(aria-[a-zA-Z]+)=/)
 
-// Interactive handlers on non-interactive elements (WCAG 4.1.2 / 2.1.1 risk).
+/**
+ * Interactive handlers on non-interactive elements (WCAG 4.1.2 / 2.1.1 risk).
+ *
+ * Two shapes are NOT that, and counting them buries the ones that are:
+ *
+ * - **A click shield.** `onClick={(e) => e.stopPropagation()}` on a status band
+ *   inside a clickable card is not a control — it is the absence of one, stopping
+ *   the card beneath from firing. It offers nothing to operate, so there is
+ *   nothing for a keyboard to reach. A handler whose whole body is
+ *   `stopPropagation` and/or `preventDefault` is exactly this.
+ * - **A backdrop.** A full-screen dismiss layer is dismissed by Escape, which is
+ *   what 2.1.1 actually asks for; giving it a role and a tab stop would put a
+ *   focusable "close" in the tab order of every dialog in the product.
+ *
+ * `hasKey` is also read from the whole tag rather than one line: these handlers
+ * span several, and a multi-line `onKeyDown` used to read as absent.
+ */
+const CLICK_SHIELD = /onClick=\{\s*\(?\s*\w*\s*\)?\s*=>\s*\{?\s*\w+\.(?:stopPropagation|preventDefault)\(\)\s*;?\s*(?:\w+\.(?:stopPropagation|preventDefault)\(\)\s*;?\s*)?\}?\s*\}/
+const BACKDROP = /\b(?:fixed|absolute)\b[^"'`]*\binset-0\b/
+
+/**
+ * An opening tag's attributes, read by counting rather than by regex.
+ *
+ * `[^>]*?` cannot span an attribute containing `>` — and every arrow function does:
+ * `onClick={(e) => e.stopPropagation()}` ends the match at the `=`'s own `>`. The
+ * truncated remainder then shows no `onKeyDown`, no `role` and no `stopPropagation`,
+ * so a click shield reads as an unhandled control and a handled control reads as
+ * unhandled. Both directions of wrong, from one greedy character class.
+ *
+ * It must also skip COMMENTS before it looks for quotes. A handler body routinely
+ * carries one, and an apostrophe in ordinary prose — `// matching the Edit button's
+ * gating` — opens a string that never closes, so the reader runs to the next
+ * apostrophe thousands of characters away and returns some other component's
+ * attributes. That exact comment made this scanner report a `<p onDoubleClick>` as
+ * an unhandled `onClick`; the same apostrophe broke `a11y-static.mjs` once before,
+ * which is why both parsers now handle comments first.
+ *
+ * Returns null when the tag never closes, which means the source did not parse and
+ * guessing is worse than skipping.
+ */
+function readTagAttrs(text, from) {
+  let depth = 0
+  let quote = null
+  for (let i = from; i < text.length; i++) {
+    const c = text[i]
+    if (quote) {
+      if (c === quote && text[i - 1] !== '\\') quote = null
+      continue
+    }
+    if (c === '/' && text[i + 1] === '/') {
+      const nl = text.indexOf('\n', i)
+      if (nl === -1) return null
+      i = nl
+      continue
+    }
+    if (c === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2)
+      if (end === -1) return null
+      i = end + 1
+      continue
+    }
+    if (c === '"' || c === "'" || c === '`') { quote = c; continue }
+    if (c === '{') { depth++; continue }
+    if (c === '}') { depth--; continue }
+    if (c === '>' && depth === 0) return text.slice(from, i)
+  }
+  return null
+}
+
 const clickableDiv = []
 for (const f of TSX) {
-  // Match an opening tag and check whether it is a div/span/li carrying onClick.
-  for (const m of f.text.matchAll(/<(div|span|li|p|section|article|td|tr)\b([^>]*?)>/gs)) {
-    if (!/\bonClick=/.test(m[2])) continue
+  for (const m of f.text.matchAll(/<(div|span|li|p|section|article|td|tr)\b/g)) {
+    const attrs = readTagAttrs(f.text, m.index + m[0].length)
+    if (attrs === null) continue
+    if (!/\bonClick=/.test(attrs)) continue
+    if (CLICK_SHIELD.test(attrs)) continue
     const line = f.text.slice(0, m.index).split('\n').length
-    const hasRole = /\brole=/.test(m[2])
-    const hasTab = /\btabIndex=/.test(m[2])
-    const hasKey = /\bonKeyDown=|\bonKeyUp=|\bonKeyPress=/.test(m[2])
-    clickableDiv.push({ rel: f.rel, line, tag: m[1], hasRole, hasTab, hasKey, value: m[1] })
+    const hasRole = /\brole=/.test(attrs)
+    const hasTab = /\btabIndex=/.test(attrs)
+    const hasKey = /\bonKeyDown=|\bonKeyUp=|\bonKeyPress=/.test(attrs)
+    const isBackdrop = BACKDROP.test(attrs)
+    clickableDiv.push({ rel: f.rel, line, tag: m[1], hasRole, hasTab, hasKey, isBackdrop, value: m[1] })
   }
 }
 
@@ -312,9 +383,21 @@ const animatingFiles = TS_ALL.filter((f) => /framer-motion|motion\.|animate=|req
 // Text truncation — candidates for overflow defects on 360px.
 const truncation = hits(TSX, /\b(truncate|line-clamp-\d+|text-ellipsis|overflow-hidden)\b/)
 
-// Localisation: Cyrillic in an English product.
+/**
+ * Localisation: Cyrillic in an English product.
+ *
+ * A file declaring `@legacy-data` is exempt, the same way `@colour-data` exempts a
+ * file whose colours are a user's own choice. The one case here is a keyword matcher
+ * against rows written before the UI moved to English: those rows are still in the
+ * database verbatim and are never rewritten, so removing the keywords would change
+ * no string a user reads and would silently blank the icon on every event older than
+ * the migration. Keeping the exemption next to the values — rather than in a list
+ * held here — is what stops it going stale when the file moves.
+ */
+const LEGACY_DATA_MARKER = '@legacy-data'
 const cyrillic = []
 for (const f of TS_ALL) {
+  if (f.text.includes(LEGACY_DATA_MARKER)) continue
   f.lines.forEach((text, i) => {
     const m = text.match(/[Ѐ-ӿ]+/g)
     if (m) cyrillic.push({ rel: f.rel, line: i + 1, chars: m.join('').length, sample: text.trim().slice(0, 100) })
@@ -396,7 +479,7 @@ const report = {
     ariaAttributes: ariaAttr.length,
     ariaBreakdown: freq(ariaAttr).map((e) => ({ attr: e.value, count: e.count })),
     clickableNonButtons: clickableDiv.length,
-    clickableNonButtonsUnsafe: clickableDiv.filter((d) => !d.hasRole || !d.hasTab || !d.hasKey),
+    clickableNonButtonsUnsafe: clickableDiv.filter((d) => !d.isBackdrop && (!d.hasRole || !d.hasTab || !d.hasKey)),
     tabularNums: tabularNums.length,
     tabularNumsWhere: tabularNums.map((h) => `${h.rel}:${h.line}`),
   },

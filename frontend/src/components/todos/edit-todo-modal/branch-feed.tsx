@@ -61,11 +61,20 @@ const THREAD_MAIN_RAIL_X  = RAIL_CENTER - RAIL_GUTTER // main rail x in the thre
 const THREAD_AVATAR       = 22                       // reply avatar size (smaller than a rail message)
 const THREAD_AVATAR_CY    = 21                       // avatar centre y from a reply row's top (margin+top+r)
 
-// Maps a system-event comment to a simple, monochrome icon that hints at its meaning.
-// Matches the English event sentences Todo emits. The Russian keywords below are NOT dead
-// code and must not be swept: rows written before the UI moved to English are still stored
-// verbatim in the database, and dropping the keywords would silently blank their icons.
-// Markers are intentionally greyscale (see SystemEvent) so the rail stays calm and uncluttered.
+/**
+ * Maps a system-event comment to a simple, monochrome icon that hints at its meaning.
+ *
+ * @legacy-data — the Russian keywords below are STORED DATA, not interface copy.
+ *
+ * The product's UI is English, and a sweep for Cyrillic is a legitimate thing to run
+ * against it. These five lines must survive that sweep: rows written before the UI
+ * moved to English are still in the database, verbatim, and they are never rewritten.
+ * Dropping the keywords would not change a single string a user reads — it would
+ * silently blank the icon on every event older than the migration, which is the kind
+ * of regression that looks like a rendering bug for months.
+ *
+ * Markers are intentionally greyscale (see SystemEvent) so the rail stays calm.
+ */
 function getSystemEventIcon(content: string): LucideIcon {
   const t = content.toLowerCase()
   if (t.includes("subtask") || t.includes("под-задач") || t.includes("подзадач")) return ListTree

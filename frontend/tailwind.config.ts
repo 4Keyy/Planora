@@ -89,11 +89,6 @@ const config = {
           from: { transform: "translateX(-100%)" },
           to: { transform: "translateX(100%)" },
         },
-        /** Presence breath — the one decorative motion the product allows. */
-        breath: {
-          "0%, 100%": { transform: "scale(1)" },
-          "50%": { transform: "scale(1.006)" },
-        },
       },
       animation: {
         "fade-in": `fade-in ${tokens.motion.duration.base}ms cubic-bezier(${tokens.motion.ease.emphasized.join(", ")})`,
@@ -101,7 +96,6 @@ const config = {
         "slide-up": `slide-up ${tokens.motion.duration.base}ms cubic-bezier(${tokens.motion.ease.emphasized.join(", ")})`,
         "scale-in": `scale-in ${tokens.motion.duration.base}ms cubic-bezier(${tokens.motion.ease.emphasized.join(", ")})`,
         shimmer: `shimmer 1200ms linear infinite`,
-        breath: `breath ${tokens.motion.duration.slow}ms cubic-bezier(${tokens.motion.ease.standard.join(", ")})`,
       },
 
       // Control heights, so a button and a field can never disagree.
