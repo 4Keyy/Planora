@@ -58,8 +58,8 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | [`ui-audit/INVENTORY.md`](ui-audit/INVENTORY.md) | Routes × states, the `ui/` components, overlays, icons |
 | [`ui-audit/BLUEPRINT.md`](ui-audit/BLUEPRINT.md) | The design blueprint: product thesis, the two-device behavioural model, tokens, primitives, the task card, presence and redaction, the motion system, and twelve signature moments |
 | [`ui-audit/EXECUTION.md`](ui-audit/EXECUTION.md) | The execution plan, phase by phase, with verification commands |
-| [`ui-audit/RESULTS.md`](ui-audit/RESULTS.md) | What was actually changed, measured before and after — including the audit's own errors |
-| [`ui-audit/tools/`](ui-audit/tools/) | The measurement harness: static scan, contrast scan, live browser matrix, dead-CSS scan, static a11y scan, API fixtures |
+| [`ui-audit/RESULTS.md`](ui-audit/RESULTS.md) | What was actually changed, measured before and after — including the audit's own errors, where the implementation departs from the blueprint and why, and what is still not built. Written in Russian |
+| [`ui-audit/tools/`](ui-audit/tools/) | The measurement harness. Every one exits non-zero on a finding, so any of them can gate a commit: `static-scan` (scales, colour literals, rule violations), `contrast-scan` (WCAG ratios from the tokens), `live-scan` (the browser matrix — routes x viewports x modes), `focus-scan` (every focus stop, measured against 2.4.11), `class-audit` (Tailwind classes that emit no CSS), `a11y-static` (unnamed controls, div-with-onClick), `link-check` (every relative markdown link and anchor in the repo), `mock-api` (deterministic fixtures, so the authenticated routes are measurable without the backend) |
 
 ### Research (pre-implementation)
 
@@ -105,14 +105,22 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | Gateway routes | `Planora.ApiGateway/ocelot.json`, `Planora.ApiGateway/ocelot.Docker.json` |
 | Frontend API client | `frontend/src/lib/api.ts`, `frontend/src/lib/auth-public.ts`, `frontend/src/lib/csrf.ts`, `frontend/src/store/auth.ts` |
 | Design tokens | `frontend/src/lib/design-tokens.ts`, `frontend/tailwind.config.ts`, `frontend/src/app/globals.css`, `frontend/src/lib/animations.ts` |
-| UI primitives | `frontend/src/components/ui/` — `button`, `field`, `status-panel`, `overlay`, `priority-meter`, `confirm-dialog`, `toast` |
-| Design-system enforcement | `frontend/src/test/quality/design-tokens.contract.test.ts`, `docs/ui-audit/tools/class-audit.mjs`, `docs/ui-audit/tools/a11y-static.mjs` |
+| UI primitives | `frontend/src/components/ui/` — `button`, `field`, `status-panel`, `overlay`, `priority-meter`, `confirm-dialog`, `toast`, `card`, `avatar` |
+| Motion primitives | `frontend/src/components/ui/number-roll.tsx`, `ink-check.tsx`, `week-bars.tsx`, `undo-bar.tsx` |
+| Collaboration primitives | `frontend/src/components/ui/presence-row.tsx` (who is in a task, and arrival as an event), `redaction-badge.tsx` (audience as an arc that opens and closes) |
+| Realtime display policy | `frontend/src/components/ui/update-pill.tsx` — `UpdatePill` and `useDeferredUpdates`: apply live only at the top of the list with nothing open, queue everywhere else |
+| Keyboard model | `frontend/src/hooks/use-list-navigation.ts` (cursor, multi-select), `frontend/src/components/ui/shortcuts-overlay.tsx` (`SHORTCUT_GROUPS` — the single source of truth for every key), `frontend/src/components/command-palette.tsx` |
+| Selection and capture | `frontend/src/components/ui/selection-bar.tsx`, `frontend/src/components/todos/quick-capture.tsx` |
+| Card → dialog transition | `frontend/src/lib/shared-origin.ts`, consumed in `frontend/src/components/todos/edit-todo-modal/modal.tsx` |
+| Frontend hooks | `frontend/src/hooks/` — `use-list-navigation`, `use-focus-trap`, `use-scroll-lock`, `use-autosave`, `use-collapse-scroll`, `use-friends` |
+| Design-system enforcement | `frontend/src/test/quality/design-tokens.contract.test.ts`, `docs/ui-audit/tools/class-audit.mjs`, `docs/ui-audit/tools/a11y-static.mjs`, `docs/ui-audit/tools/focus-scan.mjs` |
+| Documentation enforcement | `docs/ui-audit/tools/link-check.mjs` — 375 relative links across 67 files, checked file and anchor |
 | Auth endpoints | `Services/AuthApi/Planora.Auth.Api/Controllers` |
 | Todo endpoints & sharing | `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`, `Services/TodoApi/Planora.Todo.Application/Features/Todos` |
 | Category endpoints | `Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs` |
 | Messaging endpoints | `Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs` |
 | Collaboration (comment timeline) endpoints | `Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs` |
-| Realtime endpoints & hubs | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Api/Hubs` |
+| Realtime endpoints & hubs | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs` |
 | Database models | `*/Infrastructure/Persistence/*DbContext.cs`, `*/Infrastructure/Persistence/Configurations` |
 | Backend tests | `tests/Planora.UnitTests`, `tests/Planora.ErrorHandlingTests` |
 | Frontend tests | `frontend/src/test`, `frontend/playwright.config.ts`, `frontend/e2e` |
@@ -135,5 +143,16 @@ Update docs when changing:
 - database entities, EF configurations, schema bootstrap, indices, or seed data;
 - frontend routes, auth-token handling, API-client behaviour, hidden-task behaviour;
 - design tokens, UI primitives, motion, or anything else in [`design-system.md`](design-system.md);
+- keyboard shortcuts — any change to `SHORTCUT_GROUPS` or to the keys `use-list-navigation.ts`
+  answers to, including a key that moves from one owner to another. The `?` overlay prints that
+  array, so a binding the code no longer serves becomes a printed promise the product breaks;
+- what realtime does to a list on arrival, or what counts as "busy" for `useDeferredUpdates` —
+  the rule decides whether someone else's change moves rows under a click already committed to;
+- whether a destructive action is guarded by confirmation or by the undo window, on any screen.
+  The two must not disagree about the same object: [`features.md`](features.md) records which
+  screen uses which and why;
+- a signature moment from [`ui-audit/BLUEPRINT.md`](ui-audit/BLUEPRINT.md) being built, changed,
+  or deliberately built differently from its spec — the deviation and its reason belong in
+  [`ui-audit/RESULTS.md`](ui-audit/RESULTS.md), not only in a code comment;
 - tests, CI jobs, security checks, or launch scripts;
 - production deployment assumptions, secret names, license terms, or vulnerability disclosure policy.

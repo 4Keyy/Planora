@@ -117,7 +117,9 @@ If the feature changes sharing or hidden behavior, also inspect:
 1. Add or update route under `frontend/src/app`.
 2. Keep API calls in `frontend/src/lib` or a dedicated hook.
 3. Use existing DTO/type helpers under `frontend/src/types`.
-4. Use existing UI components under `frontend/src/components`.
+4. Use existing UI components under `frontend/src/components`. If the screen needs something
+   general that does not exist yet, build it as a primitive — see
+   [Adding A UI Primitive](#adding-a-ui-primitive) — rather than a one-off inside the feature.
 5. Add tests in `frontend/src/test`.
 6. Run lint, type-check, and tests.
 
@@ -139,7 +141,7 @@ The currently lazy-loaded surfaces are:
 |---|---|---|
 | `EditTodoModal` | first click of an edit affordance | `tasks/page.tsx`, `dashboard/page.tsx`, `tasks/completed/page.tsx` |
 | `CreateTodoPanel` | first time the create panel opens | `tasks/page.tsx`, `dashboard/page.tsx` |
-| `ColorBends` (WebGL background) | hydration of `ColorBendsLayer` | `app/layout.tsx` |
+| `ColorBends` (WebGL background) | hydration of `ColorBendsLayer`, via React `lazy` rather than `next/dynamic` — it is already inside a client component that decides at runtime whether the shader runs at all | `components/backgrounds/color-bends-layer.tsx`, mounted from `app/layout.tsx` |
 
 When adding a new heavy component (rule of thumb: > 10 kB gzipped, or
 pulls in framer-motion or three.js), prefer:
@@ -173,7 +175,11 @@ The `Avatar` component (`frontend/src/components/ui/avatar.tsx`) wraps
 multi-select, comment authors) want to stay lazy and out of the LCP
 budget. The one exception is the navbar's current-user avatar — it
 sits above the fold on every authenticated page and is an LCP
-candidate. Pass `priority` there:
+candidate. It appears twice in `components/layout/navbar.tsx` — once in
+the desktop bar (`hidden sm:block`) and once in the mobile menu trigger
+(`sm:hidden`) — and both carry `priority`. Only one is ever visible, and
+both point at the same `src`, so the two tags resolve to one request.
+Pass `priority` there:
 
 ```tsx
 <Avatar
@@ -191,6 +197,79 @@ Setting it elsewhere wastes network on images the user never sees,
 and Next.js will warn in dev when more than one `priority` image is
 visible at once.
 
+## Adding A UI Primitive
+
+A primitive is a component in `frontend/src/components/ui/` — `Button`, `Field`, `Overlay`,
+`StatusPanel`, `NumberRoll`, `RedactionBadge` and the rest. It is held to a higher bar than a
+feature component, because everything else is assembled out of it: a defect in a primitive is a
+defect on every screen at once.
+
+1. **One file in `frontend/src/components/ui/`**, kebab-case, exporting the component and its
+   props interface. Feature components live in `components/todos/`, `components/notifications/`,
+   `components/layout/`; nothing belongs in `ui/` unless a second, unrelated surface could use it.
+2. **It must not import a domain type.** Nothing in `components/ui/` knows what a task is — a
+   primitive that imports `Todo` has stopped being a primitive and has become a feature component
+   in the wrong folder. No file in that folder imports from `@/types` today. This one is held by
+   review, not by a scanner, so it is the one to check by eye.
+3. **Colour, size, weight, focus and priority follow the five rules** in
+   [`design-system.md`](design-system.md) § 1 — each is enforced by a named test in
+   `frontend/src/test/quality/design-tokens.contract.test.ts`, which runs as part of
+   `npm run test`. The same file rejects a `z-index` of 10 or more that is not on the layer
+   scale; single digits are local stacking and are fine.
+4. **Take the token, do not invent one.** If no existing token expresses what the component
+   needs, follow [`design-system.md`](design-system.md) § 18 "Extending the system": the new
+   value goes into `lib/design-tokens.ts`, never straight into `tailwind.config.ts`, and a new
+   colour is committed with its measured contrast figure.
+5. **Animation is free to be declarative.** The root layout wraps the tree in `MotionConfig
+   reducedMotion="user"`, so any `framer-motion` animation inside a primitive honours
+   `prefers-reduced-motion` with no per-component code. A primitive that animates by some other
+   means — a shader, a manual `requestAnimationFrame`, a CSS keyframe — owns that check itself.
+6. **Write the test next to its siblings**, as `frontend/src/test/components/<name>.test.tsx`.
+   Test the association and the announcement, not the class list: what the control is named, what
+   it is described by, what a screen reader is told when it changes. See
+   [`frontend.md`](frontend.md) § 9.
+7. **Run the gates before committing.**
+
+```powershell
+# Everything below runs from the repository root.
+npm --prefix frontend run lint
+npm --prefix frontend run type-check
+npm --prefix frontend run test
+npm --prefix frontend run build      # class-audit reads frontend/.next/static
+
+node docs/ui-audit/tools/class-audit.mjs
+node docs/ui-audit/tools/a11y-static.mjs
+```
+
+`class-audit.mjs` catches the failure a compiler cannot: a utility class that the Tailwind config
+no longer emits produces no CSS and no error, and the element quietly loses its style. It compares
+every utility-looking token in a `className` against the rules actually present in the built
+stylesheet, so it needs a fresh `npm run build` — without `frontend/.next/static` it exits `2`.
+
+`a11y-static.mjs` reads source rather than a rendered page, so it sees states the live sweep can
+never reach (an icon button that only an owner gets, a control inside a menu nobody opened). It
+flags three things: an icon-only control with no accessible name (`title` does not count — several
+screen readers never announce it and touch never shows it), an `onClick` on a non-interactive
+element with no keyboard equivalent, and an interactive element pulled out of the tab order with
+`tabIndex={-1}`. It resolves `frontend/src` from the current directory, so run it from the
+repository root.
+
+`focus-scan.mjs` measures whether the focus indicator can actually be *seen* — it composites the
+indicator colour over paper and reports anything under WCAG 2.4.11's 3:1. It drives Playwright
+against a production build and stubs the API through `mock-api.mjs`, so the .NET stack need not be
+running, but a server must be listening on `127.0.0.1:3200`:
+
+```powershell
+# terminal 1 — after npm --prefix frontend run build
+Push-Location frontend; npx next start -p 3200; Pop-Location
+
+# terminal 2 — from the repository root
+node docs/ui-audit/tools/focus-scan.mjs
+```
+
+All three exit non-zero on a finding, so any of them can gate a build. Why each one exists, and
+what it caught, is [`design-system.md`](design-system.md) § 11.
+
 ## Database Changes
 
 1. Change the domain/entity in the owning service.
@@ -201,7 +280,23 @@ visible at once.
 
 Do not create cross-service foreign keys. IDs may reference another service's concept, but the owning service must validate through service contracts.
 
-Generated `Migrations/` folders are ignored by repository policy. Clean local/Docker installs work without committed migrations because startup creates schema from the current EF model when no migrations are present. For production-grade schema evolution, generate and manage migrations in the deployment branch/environment that owns the database.
+`.gitignore` still lists `**/Migrations/**`, but that pattern no longer describes the policy:
+`INV-FLOW-1` requires a schema change to ship with its migration, and Todo and Realtime both have
+committed migration folders that were force-added past the ignore. **Never delete a `Migrations/`
+folder during a cleanup** — `Planora.Migrator` treats an applied migration that is missing from the
+compiled assembly as drift and refuses to apply anything for that service (`INV-FLOW-5`).
+
+What happens at boot differs per service, and it matters when you add the first migration to one:
+
+| Service | At startup | Consequence |
+|---|---|---|
+| Auth, Category, Collaboration, Messaging | `DatabaseStartup.EnsureReadyAsync` finds no migrations and calls `EnsureCreatedAsync` | The first migration you add flips that service onto the `MigrateAsync` path; an existing dev database built by `EnsureCreatedAsync` has no `__EFMigrationsHistory` and must be recreated |
+| Todo | same helper, but migrations exist, so pending ones are applied (with retry) | Add the migration and restart |
+| Realtime | no `DatabaseStartup` call at all | Apply by hand: `dotnet run --project tools/Planora.Migrator -- --service realtime` |
+
+For production, migrations are applied by `Planora.Migrator` as a one-shot step before rollout,
+never by two service replicas racing each other (`INV-FLOW-4`). Full ownership and table-by-table
+detail: [`database.md`](database.md).
 
 ## gRPC Contract Changes
 
@@ -237,6 +332,7 @@ When changing behavior, update docs in the same change:
 - DB/migration changed -> `docs/database.md`;
 - auth/security changed -> `docs/auth-security.md`, `SECURITY.md`;
 - frontend workflow changed -> `docs/features.md`, `docs/development.md`;
+- UI primitive, design token or motion rule changed -> `docs/design-system.md`, `docs/frontend.md`;
 - test command/coverage changed -> `docs/testing.md`, `TESTING.md`.
 - e2e or CI workflow changed -> `docs/testing.md`, `docs/deployment.md`, `README.md`.
 - production/secret process changed -> `docs/production.md`, `docs/secrets-management.md`, `SECURITY.md`.
@@ -249,13 +345,13 @@ The repository ignores generated and machine-local state:
 - `bin/`, `obj/`, `.next/`, coverage, test results, Playwright reports;
 - `*.tsbuildinfo`;
 - `build_output.txt` and other generated command output captures;
-- generated EF `Migrations/` folders;
+- `**/Migrations/**` — but see [Database Changes](#database-changes): the folders that exist are deliberately tracked, and `git add -f` is the only way a new one enters. Ask before force-adding;
 - local AI/agent/editor state such as `.claude/`, `.codex/`, `.agents/`, `.cursor/`, `.gemini/`, `.mcp/`, `.roo/`, `.kiro/`, and local Claude/Codex/Gemini/OpenCode/Qwen JSON files;
 - local knowledge-base/editor workspace state such as `.obsidian/`.
 
 `AGENTS.md` is intentionally the repository-level policy file for documentation discipline. Put machine-local or personal agent instructions in `AGENTS.local.md` or tool-specific local files instead.
 
-Do not commit local agent settings, generated build outputs, secrets, database files, Docker override files, or generated migration folders.
+Do not commit local agent settings, generated build outputs, secrets, database files, or Docker override files.
 
 Mark uncertain behavior as "requires owner clarification" instead of documenting guesses.
 
@@ -264,6 +360,7 @@ Mark uncertain behavior as "requires owner clarification" instead of documenting
 - [ ] Change is scoped to one clear behavior or documentation area.
 - [ ] Backend build/tests pass if backend changed.
 - [ ] Frontend lint/type-check/tests pass if frontend changed.
+- [ ] `class-audit.mjs`, `a11y-static.mjs` and `focus-scan.mjs` pass if a component or a token changed.
 - [ ] Playwright e2e passes if auth/todos/sharing/hidden behavior changed.
 - [ ] Markdown docs checks pass if docs changed.
 - [ ] API docs updated for route/DTO/status changes.

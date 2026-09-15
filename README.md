@@ -45,16 +45,17 @@ throwaway UI. **Planora refuses to compromise on either.**
 - **👀 Observable by default.** Structured, correlation-enriched Serilog logging and end-to-end
   OpenTelemetry traces & metrics across every service — so you can actually *see* a request
   travel the gateway → service → database → event bus.
-- **⚡ A frontend that feels alive.** Next.js 16 App Router, a fluid Framer Motion design system,
-  a live collaboration timeline, real-time SignalR notifications, and an animated WebGL
-  background — fast, accessible, and strict-typed end to end.
+- **⚡ A frontend built for the keyboard.** Next.js 16 App Router, a Framer Motion design system
+  with its own token set, a command palette on `⌘K` / `Ctrl K`, capture on `C`, a `?` map of every
+  binding, a live collaboration timeline, SignalR notifications, and a WebGL ribbon background
+  drawn by a single fragment shader — no scene-graph library in the bundle.
 - **🛠️ Developer experience that respects your time.** One PowerShell command boots the entire
   stack (it even auto-installs the right .NET SDK and starts Docker), with health gating, a
   graceful shutdown, and **one-flag Wi-Fi sharing** so a teammate can open the app from their
   phone in seconds.
-- **🧪 Quality you can prove.** Backend builds with warnings-as-errors; unit, integration, and
-  architecture tests; a 370-test frontend suite; Playwright end-to-end flows; and a supply-chain
-  security pipeline (CodeQL, Trivy, gitleaks, dependency audit, signed SBOM) on every push.
+- **🧪 Quality you can prove.** Backend builds with warnings-as-errors; unit, architecture, and
+  error-handling tests; 905 frontend Vitest tests across 79 files; Playwright end-to-end flows; and
+  a supply-chain security pipeline (CodeQL, Trivy, gitleaks, dependency audit, signed SBOM).
 
 > **In one line:** Planora is what "I built a task app" looks like when it's actually built like
 > production software.
@@ -70,14 +71,17 @@ throwaway UI. **Planora refuses to compromise on either.**
 | **Profiles** | Editable profile, avatar upload (server-side image processing), and a security center. |
 | **Friendships** | Send / accept / decline friend requests; sharing is friends-only by design. |
 | **Tasks** | Create, prioritise, schedule, and categorise tasks with colour- and icon-coded categories and custom ordering. |
-| **Sharing & privacy** | Make a task public or share it with specific friends — with **per-viewer state**: each participant has their own *hidden* and *completed* flags that never leak onto the owner. |
+| **Sharing & privacy** | Share a task with named friends or with every accepted friend at once. Sharing never leaves the friend graph — nothing is published to the internet. Each participant carries their own *hidden* and *completed* flags, which never leak onto the owner, and a task hidden by a viewer is redacted by the backend rather than by the UI. |
 | **"Take it into work" (In Progress)** | Collaborators can join a shared task as a worker, with worker counts and capacity — or leave at any time. |
 | **Branch timeline** | Every task has a beautiful, continuous activity rail: a pinned Author's Note, threaded comments, and auto-generated system events (created / started / left / completed) — all materialised reliably via the outbox/inbox pattern and updated live. |
 | **Direct messaging** | One-to-one messages between friends. |
 | **Real-time notifications** | SignalR push with a Redis backplane keeps every device in sync. |
-| **Polish** | A Framer Motion design language, an animated WebGL background, keyboard shortcuts, optimistic UI, and accessibility-minded forms. |
+| **The keyboard** | A command palette on `⌘K` / `Ctrl K`, capture on `C` from every screen that has it, `?` for the full map, and `J`/`K`, `G G`, `Shift G`, `Space`, `E`, `1`–`5`, `X` over the task list. Every action that has a key shows it. |
+| **Undo instead of confirm** | Deleting a task — on the task list or on the dashboard — drops an undo bar for five seconds instead of asking a question first. |
+| **Redaction as a shape** | An owner sees how far a shared task reaches as an arc that narrows with the audience; a viewer sees whose task it is instead. |
 
-Full behaviour, rule by rule, lives in **[`docs/features.md`](docs/features.md)**.
+Full behaviour, rule by rule, lives in **[`docs/features.md`](docs/features.md)**; the design rules
+behind it in **[`docs/design-system.md`](docs/design-system.md)**.
 
 ---
 
@@ -94,7 +98,7 @@ Full behaviour, rule by rule, lives in **[`docs/features.md`](docs/features.md)*
         │  API    │  │  API    │ │   API    │ │    API    │ │     API      │ │   API    │
         └────┬────┘  └────┬────┘ └────┬─────┘ └─────┬─────┘ └──────┬───────┘ └────┬─────┘
              │            │           │             │              │              │
-          auth_db      todo_db     category_db   messaging_db  collaboration_db  (Redis)
+          auth_db      todo_db     category_db   messaging_db  collaboration_db  realtime_db
              └────────── gRPC (x-service-key) ──────────┴──── RabbitMQ event bus ─┘
 ```
 
@@ -110,7 +114,7 @@ the `BuildingBlocks` projects.
 | **Category API** | User categories with colour, icon, and ordering | `planora_category` | `5281` (gRPC `5282`) |
 | **Messaging API** | Direct user-to-user messages | `planora_messaging` | `5058` |
 | **Collaboration API** | Task comment timeline: user / genesis / system comments + notifications | `planora_collaboration` | `5060` |
-| **Realtime API** | SignalR notifications with a Redis backplane | Redis only | `5032` |
+| **Realtime API** | SignalR fan-out with a Redis backplane, plus a durable notification read-model so an offline recipient is caught up on reconnect | `planora_realtime` + Redis | `5032` |
 | **Frontend** | Next.js 16 App Router, Zustand state, Axios API client | — | `3000` |
 
 Infrastructure runs on **PostgreSQL** (`5433`), **Redis** (`6379`), and **RabbitMQ** (`5672`,
@@ -147,7 +151,7 @@ Backend package versions are managed centrally in
 | **API gateway** | [Ocelot `24.1.0`](https://www.nuget.org/packages/Ocelot) · [Ocelot.Provider.Polly `24.1.0`](https://www.nuget.org/packages/Ocelot.Provider.Polly) |
 | **CQRS / validation / mapping** | [MediatR `12.5.0`](https://www.nuget.org/packages/MediatR) · [FluentValidation `11.12.0`](https://www.nuget.org/packages/FluentValidation) · [AutoMapper `15.1.3`](https://www.nuget.org/packages/AutoMapper) |
 | **Data access** | [EF Core `10.0.8`](https://www.nuget.org/packages/Microsoft.EntityFrameworkCore) · [Npgsql.EntityFrameworkCore.PostgreSQL `10.0.2`](https://www.nuget.org/packages/Npgsql.EntityFrameworkCore.PostgreSQL) |
-| **Messaging / events** | [RabbitMQ.Client `7.2.1`](https://www.nuget.org/packages/RabbitMQ.Client) · [MassTransit `8.5.9`](https://www.nuget.org/packages/MassTransit) |
+| **Messaging / events** | [RabbitMQ.Client `7.2.1`](https://www.nuget.org/packages/RabbitMQ.Client) — used directly; the outbox dispatcher and inbox live in `BuildingBlocks`, not in a bus framework |
 | **Internal RPC** | [Grpc.AspNetCore `2.80.0`](https://www.nuget.org/packages/Grpc.AspNetCore) · [Google.Protobuf `3.34.1`](https://www.nuget.org/packages/Google.Protobuf) |
 | **Caching / rate-limiting** | [StackExchange.Redis `2.12.14`](https://www.nuget.org/packages/StackExchange.Redis) · [Microsoft.Extensions.Caching.StackExchangeRedis `10.0.8`](https://www.nuget.org/packages/Microsoft.Extensions.Caching.StackExchangeRedis) · [RedisRateLimiting.AspNetCore `1.2.1`](https://www.nuget.org/packages/RedisRateLimiting.AspNetCore) |
 | **Resilience** | [Polly `8.6.6`](https://www.nuget.org/packages/Polly) · [Microsoft.Extensions.Http.Resilience `10.5.0`](https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience) |
@@ -163,11 +167,12 @@ Backend package versions are managed centrally in
 | Purpose | Packages |
 |---|---|
 | **Framework** | [next `16.2`](https://www.npmjs.com/package/next) · [react `18.3`](https://www.npmjs.com/package/react) · [react-dom `18.3`](https://www.npmjs.com/package/react-dom) · [typescript `5.7`](https://www.npmjs.com/package/typescript) |
-| **State / data** | [zustand `5`](https://www.npmjs.com/package/zustand) · [@tanstack/react-query `5`](https://www.npmjs.com/package/@tanstack/react-query) · [axios `1.17`](https://www.npmjs.com/package/axios) |
-| **Forms / validation** | [react-hook-form `7.78`](https://www.npmjs.com/package/react-hook-form) · [zod `3.24`](https://www.npmjs.com/package/zod) · [@hookform/resolvers](https://www.npmjs.com/package/@hookform/resolvers) |
-| **UI / styling** | [tailwindcss `3.4`](https://www.npmjs.com/package/tailwindcss) · [@radix-ui/*](https://www.npmjs.com/package/@radix-ui/react-dialog) primitives (shadcn-generated, scaffolded with the `shadcn` CLI via `npx`) · [lucide-react](https://www.npmjs.com/package/lucide-react) · [class-variance-authority](https://www.npmjs.com/package/class-variance-authority) · [tailwind-merge](https://www.npmjs.com/package/tailwind-merge) · [clsx](https://www.npmjs.com/package/clsx) · [Plus Jakarta Sans](https://www.npmjs.com/package/@fontsource/plus-jakarta-sans) |
-| **Motion / 3D** | [framer-motion `11`](https://www.npmjs.com/package/framer-motion) · [three `0.184`](https://www.npmjs.com/package/three) |
-| **Testing** | [vitest `4`](https://www.npmjs.com/package/vitest) · [@testing-library/react](https://www.npmjs.com/package/@testing-library/react) · [@playwright/test `1.57`](https://www.npmjs.com/package/@playwright/test) |
+| **State / data** | [zustand `5`](https://www.npmjs.com/package/zustand) · [axios `1.18`](https://www.npmjs.com/package/axios) |
+| **Forms / validation** | [react-hook-form `7.80`](https://www.npmjs.com/package/react-hook-form) · [zod `3.24`](https://www.npmjs.com/package/zod) · [@hookform/resolvers `3.9`](https://www.npmjs.com/package/@hookform/resolvers) |
+| **UI / styling** | [tailwindcss `3.4`](https://www.npmjs.com/package/tailwindcss) · Radix primitives — [dropdown-menu](https://www.npmjs.com/package/@radix-ui/react-dropdown-menu), [popover](https://www.npmjs.com/package/@radix-ui/react-popover), [slot](https://www.npmjs.com/package/@radix-ui/react-slot) · [lucide-react](https://www.npmjs.com/package/lucide-react) · [class-variance-authority](https://www.npmjs.com/package/class-variance-authority) · [tailwind-merge](https://www.npmjs.com/package/tailwind-merge) · [clsx](https://www.npmjs.com/package/clsx) · [Plus Jakarta Sans](https://www.npmjs.com/package/@fontsource/plus-jakarta-sans) |
+| **Motion** | [framer-motion `11`](https://www.npmjs.com/package/framer-motion). The ribbon background is raw WebGL 1 — one fragment shader over one quad — and pulls in no 3D library. |
+| **Realtime** | [@microsoft/signalr `10`](https://www.npmjs.com/package/@microsoft/signalr) |
+| **Testing** | [vitest `4`](https://www.npmjs.com/package/vitest) · [@testing-library/react `16`](https://www.npmjs.com/package/@testing-library/react) · [@playwright/test `1.61`](https://www.npmjs.com/package/@playwright/test) |
 
 ### Infrastructure & delivery
 
@@ -202,6 +207,13 @@ strong secrets:
 openssl rand -base64 48   # JWT_SECRET
 openssl rand -base64 32   # GRPC_SERVICE_KEY
 openssl rand -base64 24   # POSTGRES_PASSWORD / REDIS_PASSWORD
+```
+
+Without OpenSSL on the path, PowerShell generates the same lengths:
+
+```powershell
+$b = [byte[]]::new(48); [Security.Cryptography.RandomNumberGenerator]::Fill($b)
+[Convert]::ToBase64String($b)          # 48 bytes → JWT_SECRET; use 32 / 24 for the others
 ```
 
 ### 2. Start everything with Docker Compose
@@ -239,6 +251,7 @@ across every run, including `-Clean`.
 .\Start-Planora-Local.ps1 -SkipBuild      # fastest restart — reuse existing build output
 .\Start-Planora-Local.ps1 -Clean          # full clean rebuild (wipe bin/obj/.next, data preserved)
 .\Start-Planora-Local.ps1 -Lan            # also share on your Wi-Fi/LAN (prints a share URL)
+.\Start-Planora-Local.ps1 -Prod           # LAN share, but Release builds + a real `next build`
 .\Start-Planora-Local.ps1 -SkipFrontend   # backend + gateway only
 .\Start-Planora-Local.ps1 -Stop           # stop everything this script started
 .\Start-Planora-Local.ps1 -Help           # all options (Get-Help … -Full for annotated docs)
@@ -252,8 +265,12 @@ across every run, including `-Clean`.
 | `-SkipFrontend` | Start the backend + gateway only. |
 | `-NoBrowser` | Do not open the browser when the frontend is ready. |
 | `-Lan` | Open **and verify** the firewall for `3000` + `5132`, actively self-test reachability, and print a **READY** verdict (see below). |
+| `-Prod` | Everything `-Lan` does, in a production configuration: Release backend builds, `ASPNETCORE_ENVIRONMENT=Production`, the Redis-backed distributed rate limiter, and `next build` + `next start` instead of the dev server. A local run terminates no TLS, so it serves plain HTTP and sets `Security__RequireHttps=false` to keep the auth cookies usable. |
 | `-ExitAfterHealthCheck` | Start, verify every `/health`, then shut down (CI / smoke test). |
 | `-Stop` | Stop everything this launcher started and free the ports. Infra/volumes untouched. |
+
+`Start-Planora-Docker.ps1` takes `-Clean`, `-SkipFrontend`, `-NoBrowser`, `-ExitAfterHealthCheck`,
+`-Stop`, and `-Help`; `-SkipBuild`, `-Lan`, and `-Prod` belong to the local launcher only.
 
 Logs land in `.\logs` (a transcript plus a file per service). The companion
 **`Start-Planora-Docker.ps1`** runs the entire stack (services included) inside Docker.
@@ -287,7 +304,7 @@ required secret is missing. The full annotated reference lives in
 |---|---|
 | `JWT_SECRET` | Shared HMAC-SHA256 JWT signing key (**≥ 32 chars**). Every service must share the same value. |
 | `GRPC_SERVICE_KEY` | Internal service-to-service gRPC auth key (**≥ 16 chars**), validated on every hop. |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` | PostgreSQL credentials (bound to `127.0.0.1:5433`). |
+| `POSTGRES_PASSWORD` | PostgreSQL password (bound to `127.0.0.1:5433`). `POSTGRES_USER` has a default of `postgres` in `.env.example` and is the only credential Compose does not demand. |
 | `REDIS_PASSWORD` | Redis password (`requirepass` is enforced; bound to `127.0.0.1:6379`). |
 | `RABBITMQ_USER` / `RABBITMQ_PASSWORD` | RabbitMQ credentials (management UI on `127.0.0.1:15672`). |
 
@@ -319,10 +336,16 @@ cd frontend && npm run test
 cd frontend && npm run e2e
 ```
 
-Continuous integration runs the full matrix on every push and pull request: the backend build
-(`-warnaserror`) and tests, the frontend lint / type-check / test / build pipeline, Playwright e2e,
-EF migration scripts, OpenAPI linting, markdown lint, and a security suite — **CodeQL**, **Trivy**
-IaC scanning, **gitleaks** secret detection, dependency audits, and a signed **CycloneDX SBOM**.
+CI is split across workflows rather than one matrix, so a docs-only change does not boot Postgres:
+
+| Workflow | Runs on | What it does |
+|---|---|---|
+| [`ci.yml`](.github/workflows/ci.yml) | every push and pull request | markdown lint + offline link check, the backend build (`-warnaserror`) and tests, the frontend lint / type-check / test / build pipeline, coverage artefacts |
+| [`security.yml`](.github/workflows/security.yml) | push, pull request, and weekly | **gitleaks**, **CodeQL**, **Trivy** IaC scanning, `dotnet list package --vulnerable`, `npm audit`, and a Sigstore-signed **CycloneDX SBOM** |
+| [`e2e.yml`](.github/workflows/e2e.yml) | pull requests touching services, gateway, frontend, or compose | Playwright flows against the full Docker stack |
+| [`openapi.yml`](.github/workflows/openapi.yml) | pull requests touching services or contracts | emits one OpenAPI document per HTTP service as a reviewable artefact |
+| [`migrations.yml`](.github/workflows/migrations.yml) | pull requests touching `Services/**/Migrations/**` | emits idempotent `dotnet ef migrations script` SQL per service |
+| [`perf-smoke.yml`](.github/workflows/perf-smoke.yml) | manual dispatch only | k6 load scenarios against the Docker stack |
 
 ---
 
@@ -340,6 +363,7 @@ Planora/
 ├── tests/                    # xUnit unit / architecture / error-handling tests
 ├── perf/                     # k6 load-test scenarios
 ├── deploy/fly/               # Fly.io deployment manifests
+├── scripts/                  # PowerShell modules the launchers import (PID, ports, health)
 ├── Start-Planora-Local.ps1   # Local (host-process) stack orchestrator for Windows
 ├── Start-Planora-Docker.ps1  # Docker-based stack orchestrator
 └── docs/                     # Living documentation
@@ -351,12 +375,14 @@ Planora/
 
 | Doc | What's inside |
 |---|---|
-| [`docs/overview.md`](docs/overview.md) | System overview and feature status |
+| [`docs/overview.md`](docs/overview.md) | Product, domain model, scenarios, boundaries |
 | [`docs/architecture.md`](docs/architecture.md) | Services, boundaries, request and event flow |
 | [`docs/codebase-map.md`](docs/codebase-map.md) | Where everything lives |
 | [`docs/database.md`](docs/database.md) | Schemas, ownership, migrations |
 | [`docs/API.md`](docs/API.md) | Gateway routes and endpoints |
 | [`docs/features.md`](docs/features.md) | Feature-by-feature behaviour |
+| [`docs/frontend.md`](docs/frontend.md) | Rendering model, data access, state, realtime, every key binding |
+| [`docs/design-system.md`](docs/design-system.md) | Tokens with measured contrast, the enforced rules, primitives, motion |
 | [`docs/configuration.md`](docs/configuration.md) | Every environment variable, explained |
 | [`docs/auth-security.md`](docs/auth-security.md) | Auth flow, CSRF, token rotation, 2FA |
 | [`docs/testing.md`](docs/testing.md) | Test strategy and coverage |

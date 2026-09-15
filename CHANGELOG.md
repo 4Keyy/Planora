@@ -4,6 +4,75 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix: frontend — one key, one meaning, and a header that stops jumping (2026-09-15)
+
+A coherence pass over the surfaces the previous entry added, plus the defects that
+pass turned up.
+
+**`C` was bound twice.** Both `/dashboard` and `/tasks` registered a capture-phase
+listener that opened the *full* create panel, so the bare `c` inside `QuickCapture`
+never fired on either screen — while the `?` map printed "Capture a new task" beside
+it. The key did the opposite of what it promised: it opened the surface that asks for
+priority, due date, category and audience before it will accept a task, which is the
+decision-at-capture the quick path exists to avoid. Both page handlers are gone,
+`QuickCapture` owns the key everywhere it is mounted, and the command palette's one
+creation entry is now "Capture a task" — a palette that prints a key beside a row it
+does not perform teaches the wrong binding, and the user finds out later from a
+surface that disagrees. The create panel's own "press C to open" subtitle and its
+never-read `shortcutHint` prop went with them.
+
+**Two screens deleted the same object two different ways.** The dashboard raised a
+`ConfirmDialog` reading "This action cannot be undone", which was true of the request
+and false of the intent — the whole point of the five-second window is that nothing has
+been sent yet. It now uses the same `useUndoableAction` path as the task list,
+restoring into both the page list and the stats list at their recorded indices.
+`/tasks/completed` keeps the dialog: an archive entry is not in a list anyone is
+scanning, and the undo bar has nowhere to sit there.
+
+**The task header reflowed when the count gained a digit.** The status pills start at
+`0` while the list loads and settle on a real number, and on a 390px screen that one
+extra character pushed the title row past its wrap point: everything below jumped 54px,
+for a measured CLS of **0.119** — the worst cell in the matrix. `NumberRoll` now takes
+`minDigits`, which reserves the space without zero-padding the value. The same cell now
+measures **0.0037**, and no cell in the matrix exceeds 0.04.
+
+**The card said three things with one colour.** `border-accent` was returned for "in
+progress", for "shared", and for both at once, so a task somebody had taken into work
+and a task merely visible to a friend were drawn identically. The combined case painted
+three sides `rgb(99 102 241)` — an indigo in no token, no palette and no other file,
+which the design system's first rule forbids outright. The border now says exactly one
+thing, overdue outranks in progress, and sharing is said by the redaction arc instead —
+which is also now on the editor's visibility token, the control that changes it, rather
+than as a second static copy beside the title that read "Shared 0" while the token two
+lines below read "public · 0".
+
+**Also fixed:** the command palette read `navigator.platform` during render to choose
+between `⌘` and `Ctrl`, which is a hydration mismatch on every Mac — it now shares the
+`?` map's after-mount resolution. The `OPEN_CREATE_EVENT` channel had no dispatcher
+left and was removed end to end. Quick capture's input drew a hard-cornered focus ring
+across the middle of a fully rounded pill, and its collapsed bubble floated over the
+centre of a 1440px card grid — it is a phone affordance and now hides above `sm`, while
+the key that opens it stays bound at every width. A `border-radius: 14px` in
+`globals.css` was the one value in the product sitting between two steps of its own
+scale. Two ESLint warnings — a stale disable directive and a ref read in an effect
+cleanup — are gone; the frontend now lints clean with zero warnings.
+
+**The measurement tools were reporting things that were not there.** `static-scan`
+counted prose in comments as colour literals (a doc comment reading "`#abc` or
+`#aabbcc`"), a GLSL `#define` as a third, every `repeat: Infinity` loop as a duration
+violation, and `zIndex: tokens.layer.popover` as a z-index named "tokens"; it also did
+not know about the `@colour-data` exemption its sibling contract test keys off, and its
+detail JSON is only written with `--json`, so a reader who opened it after a fresh run
+got a report from whenever it was last written. All six are fixed, and the tool now
+says when the file on disk is older than the run. With the noise gone the product
+measures **0 colour literals** and **0 genuinely off-scale values**. A new
+`link-check.mjs` checks every relative markdown link and anchor in the repository —
+375 across 67 files, all resolving.
+
+Tests: **917** passing (79 files), coverage 94.75% statements / 86.18% branches /
+94.91% functions / 96.37% lines against an 85% gate. Build clean, lint clean, zero dead
+utility classes, 0 invisible focus indicators across 237 focus stops.
+
 ### feat: frontend — the keyboard, the people, and the transition that explains the model (2026-09-14)
 
 The remaining signature moments from `docs/ui-audit/BLUEPRINT.md`, plus the keyboard

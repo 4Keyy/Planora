@@ -15,7 +15,7 @@ This guide takes a clean local checkout to a running Planora app.
 Evidence:
 
 - `Directory.Build.props` sets `TargetFramework` to `net10.0`.
-- `frontend/package.json` uses `next` `^15.5.15`, React `18.3.1`, TypeScript `^5.7.2`.
+- `frontend/package.json` uses `next` `^16.2.9`, React `^18.3.1`, TypeScript `^5.7.2`. There is no `engines` field; CI installs Node 20.
 - `docker-compose.yml` defines PostgreSQL 16, Redis 7, RabbitMQ 3.13, and backend containers.
 - `Start-Planora-*.ps1` imports helper modules from `scripts/*.psm1`; those files avoid non-ASCII punctuation so Windows PowerShell can parse them reliably.
 
@@ -95,6 +95,11 @@ Both launchers also accept `-Stop` and `-Help`:
 - `-Help` on either prints the full option list and exits. Both also support
   `-SkipFrontend`, `-NoBrowser`, and `-ExitAfterHealthCheck`.
 
+`-SkipBuild`, `-Lan`, and `-Prod` exist on `Start-Planora-Local.ps1` only.
+`-Lan` opens the Windows Firewall for ports `3000` and `5132` (inbound, LocalSubnet
+only — it asks for elevation once), self-tests that the LAN IP actually answers, and
+prints a share URL another device on the same Wi-Fi can open.
+
 ### Production-config run (`-Prod`)
 
 `Start-Planora-Local.ps1 -Prod` shares on the LAN exactly like `-Lan`, but runs the whole stack in a
@@ -105,7 +110,25 @@ terminates no TLS it serves plain HTTP on the LAN and sets `Security__RequireHtt
 browser still accepts the auth cookies; real deployments keep `Secure` cookies behind their HTTPS
 front door. The first production frontend build adds about a minute to startup.
 
-On a first clean database start, Auth, Todo, Category, Messaging, and Collaboration initialize their schemas automatically. If local EF migrations exist, they are applied. If no migrations exist, startup creates the schema from the current EF model. This is intentional because generated `Migrations/` folders are not committed.
+### Schema Bootstrap On First Start
+
+On a first clean database start every DB-owning service initializes its own schema — there is no
+separate migration step. `DatabaseStartup.EnsureReadyAsync` looks at what the assembly ships: if it
+carries EF migrations it applies the pending ones with `MigrateAsync`, and if it carries none it
+creates the schema from the current EF model with `EnsureCreatedAsync` and logs a warning saying so.
+
+Which path each service takes today:
+
+| Service | Migrations in the repository | Startup path |
+|---|---|---|
+| Todo | yes — 7 files under `Services/TodoApi/Planora.Todo.Infrastructure/Migrations/` | `MigrateAsync` |
+| Realtime | yes — `20260615211750_InitialRealtimeNotifications` | `MigrateAsync` |
+| Auth, Category, Messaging, Collaboration | no | `EnsureCreatedAsync` |
+
+`.gitignore` carries `**/Migrations/**`, so a migration you generate locally stays yours by default;
+the Todo and Realtime files predate that rule, are tracked, and must not be deleted in a cleanup.
+Do not mix the two paths on one persistent database — see
+[`database.md`](database.md#startup-and-schema-initialization).
 
 ## 3. Verify The System
 
@@ -122,6 +145,7 @@ Expected local URLs:
 | Todo aggregate health via gateway | `http://localhost:5132/todos/health` |
 | Category aggregate health via gateway | `http://localhost:5132/categories/health` |
 | Messaging aggregate health via gateway | `http://localhost:5132/messaging/health` |
+| Collaboration aggregate health via gateway | `http://localhost:5132/collaboration/health` |
 | Realtime aggregate health via gateway | `http://localhost:5132/realtime/health` |
 | RabbitMQ UI | `http://localhost:15672` |
 
@@ -137,13 +161,14 @@ The frontend calls the gateway through `NEXT_PUBLIC_API_URL`, defaulting to `htt
 1. Open `http://localhost:3000`.
 2. Register a new user.
 3. Create a category.
-4. Create a todo assigned to that category.
+4. Create a todo assigned to that category — press `C` for quick capture, or use the create panel.
 5. Mark the todo as done or move it through status changes.
-6. Open the profile/security page and confirm the user profile loads.
+6. Press `?` to confirm the shortcut map renders; the task list should answer `J`/`K`.
+7. Open the profile/security page and confirm the user profile loads.
 
 Relevant implementation:
 
-- frontend routes: `frontend/src/app/auth/register/page.tsx`, `frontend/src/app/todos/page.tsx`, `frontend/src/app/categories/page.tsx`, `frontend/src/app/profile/page.tsx`
+- frontend routes: `frontend/src/app/auth/register/page.tsx`, `frontend/src/app/tasks/page.tsx`, `frontend/src/app/categories/page.tsx`, `frontend/src/app/profile/page.tsx`
 - API client: `frontend/src/lib/api.ts`
 - auth store: `frontend/src/store/auth.ts`
 - backend controllers: `AuthenticationController.cs`, `TodosController.cs`, `CategoriesController.cs`, `UsersController.cs`

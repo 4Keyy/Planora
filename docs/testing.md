@@ -57,6 +57,8 @@ Watch mode:
 npm --prefix frontend run test:watch
 ```
 
+`npx vitest run` against a clean tree currently reports **79 test files and 905 tests, all passing**. Treat that pair as the number to beat, not a target: a run that reports fewer files than the tree contains means a file failed to collect, which Vitest reports as a collection error rather than a failure and is easy to scroll past.
+
 ## Playwright E2E
 
 The e2e suite exercises the gateway and real backend services rather than mocked frontend state.
@@ -100,9 +102,9 @@ Component coverage in `frontend/src/test/components/todo-heavy-components.test.t
 
 `frontend/src/test/utils/todo-utils.test.ts` covers `applyCategoryPatch` — the helper that zeros all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) when a user removes a task's category, compensating for the backend silently ignoring `null` category IDs on PUT.
 
-`frontend/src/test/components/worker-and-comments.test.tsx` covers `WorkerJoinButton` (11 tests) and `TaskComments` (25 tests). `WorkerJoinButton` tests: isOwner null-render, isWorking strip + leave button, isFull lock icon, take-it button + join call, pending/debounce state, arrow hidden during join, `onControlHoverChange` for both hover-tracked branches. `TaskComments` tests: loading skeleton, empty state, comment list render, `isEdited` label, comment count header, `canComment=false` hides input, add comment on button click and Ctrl+Enter, empty-content submit guard, error display on API failure, edit/delete controls shown for own or owner-visible comments, enter edit mode and save, Cancel button and Escape key cancel edit, Ctrl+Enter keyboard save, error display on update/delete failure, Load-earlier pagination, `formatRelative` time branches (just now / Xm ago / Xh ago / locale date), char-count amber warning.
+`frontend/src/test/components/worker-and-comments.test.tsx` holds 48 tests across three groups: `WorkerJoinButton` (11), `TaskComments` (26), and `TaskComments genesis card` (11). `WorkerJoinButton` tests: isOwner null-render, isWorking strip + leave button, isFull lock icon, take-it button + join call, pending/debounce state, arrow hidden during join, `onControlHoverChange` for both hover-tracked branches. `TaskComments` tests: loading skeleton, empty state, comment list render, `isEdited` label, comment count header, `canComment=false` hides input, add comment on button click and Ctrl+Enter, empty-content submit guard, error display on API failure, edit/delete controls shown for own or owner-visible comments, enter edit mode and save, Cancel button and Escape key cancel edit, Ctrl+Enter keyboard save, error display on update/delete failure, Load-earlier pagination, `formatRelative` time branches (just now / Xm ago / Xh ago / locale date), char-count amber warning.
 
-`frontend/src/test/components/color-bends.test.tsx` covers the WebGL animated background system (31 tests):
+`frontend/src/test/components/color-bends.test.tsx` covers the WebGL animated background system (49 tests):
 
 - `hexToVec3()` — black, white, red, 3-digit shorthand (`#f00`/`#fff`), neutral gray channel equality, gray palette light-to-dark progression, hash-optional input, `Vector3` instance type, determinism.
 - `ColorBends` component — div container presence, single-div invariant, `WebGLRenderer` instance created on mount, canvas appended to container, `requestAnimationFrame` started on mount, no RAF when `prefers-reduced-motion` is active, `cancelAnimationFrame` called on unmount, `renderer.dispose()` and `renderer.forceContextLoss()` called on unmount, `ResizeObserver` observed on mount and disconnected on unmount, `pointermove` listener added to window and removed on unmount, `visibilitychange` listener added to document and removed on unmount, full gray config accepted without throwing, extra `className` applied to container div, no throw when unmounted before RAF fires.
@@ -132,6 +134,53 @@ npm --prefix frontend run e2e:report
 ```
 
 `E2E_VERIFY_EMAIL_FROM_LOGS=false` exists as a skip switch for environments that cannot expose Docker logs, but the full auth/sharing flow requires email verification because friendship requests require verified active users.
+
+## Frontend Test Traps
+
+The frontend suite runs in jsdom, which has no layout, no compositor and no platform. Every item below is a place where a test can pass while the component it covers is broken, so each one is written as the trap, the fix, and the file that exercises it.
+
+### Testing motion and reduced motion
+
+framer-motion reads `prefers-reduced-motion` once per module instance. `initPrefersReducedMotion()` in `frontend/node_modules/framer-motion/dist/es/utils/reduced-motion/index.mjs` sets a module-level `hasReducedMotionListener.current = true`, then caches the media query result into `prefersReducedMotion.current`. `useReducedMotion` (`.../use-reduced-motion.mjs`) calls that initialiser only while the flag is still false, and reads the cached value into `useState`.
+
+So the first test in a file that renders anything calling `useReducedMotion` locks the value for every test after it. Re-stubbing `window.matchMedia` in a later test changes nothing: the listener is already installed and the value already cached. The test passes alone and fails in the suite, which is the worst failure mode a test can have.
+
+Mock the hook rather than the media query. The pattern at the top of `frontend/src/test/components/presence-row.test.tsx`:
+
+```ts
+const reduceMotion = { current: false }
+
+vi.mock("framer-motion", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("framer-motion")>()
+  return { ...actual, useReducedMotion: () => reduceMotion.current }
+})
+```
+
+One switch drives every test in the file, and it drives the thing the component actually depends on. The `matchMedia` stub stays for the code that reads the query directly; it is no longer what decides the animation.
+
+Exit animations are the other half of the same problem. framer-motion does not drive an `exit` variant to completion in jsdom, so assert the effect — the callback that fired, the row that left the data — and never the exit itself. `frontend/src/test/components/dashboard-primitives.test.tsx` asserts that the undo window's commit never happens rather than that the undo bar disappeared. Where the removal genuinely is the behaviour under test, poll for it with `waitFor` instead of asserting it synchronously, as `frontend/src/test/components/date-filter-popover.test.tsx` does for the popover's Escape close.
+
+### Other jsdom traps
+
+| Trap | Why the test lies | Fix | Exercised by |
+|---|---|---|---|
+| Portalled content is not under the render `container` | `Overlay` mounts through `ModalPortal` into `<body>`, so a container query finds an empty div and reports zero — which reads as "the overlay renders no pairs" rather than "the query looked in the wrong subtree" | query `document.body` | `frontend/src/test/components/shortcuts-overlay.test.tsx` |
+| `NumberRoll` renders its digit twice by design | The animated column carries one copy and `<span class="sr-only">` the other, so `getByText` throws "found multiple elements" on a component that is behaving correctly | `getAllByText` | `frontend/src/test/components/redaction-badge.test.tsx` |
+| `HTMLElement.prototype.scrollIntoView` shadows an `Element.prototype` stub | `frontend/src/test/setup.ts` already defines the method on `HTMLElement.prototype`. A spy installed on `Element.prototype` is never reached, because the call on an `HTMLElement` resolves the nearer prototype first — so it records zero calls and the assertion fails against working code | spy on `HTMLElement.prototype` | `frontend/src/test/hooks/use-list-navigation.test.tsx` |
+| `userEvent.keyboard("J")` does not set `shiftKey` | It types the character `J` with `shiftKey: false`. A Shift binding tested this way covers nothing and stays green | write `{Shift>}J{/Shift}` | `frontend/src/test/hooks/use-list-navigation.test.tsx` |
+| jsdom has no layout, so it never updates `scrollY` and never fires `scroll` | A scroll-dependent policy is simply never entered, and every branch of it reads as the top-of-list case | assign `window.scrollY` / `element.scrollTop` and dispatch a `scroll` event by hand | `frontend/src/test/components/update-pill.test.tsx` |
+
+The `use-list-navigation` Shift case is not hypothetical. Shift rewrites the character it produces, so `Shift+j` arrives as `"J"`, not as `"j"` with `shiftKey` set; reading `event.shiftKey` on the `"j"` branch matched nothing and the vim-style extend-selection was dead code that typechecked. `frontend/src/hooks/use-list-navigation.ts` folds `"J"` back to `"j"` before dispatch so `Shift+J` and `Shift+↓` are genuinely one binding.
+
+### What a good test asserts here
+
+Assert what a user or assistive technology can observe: a role, an accessible name, the text that appeared, the callback that was called with which arguments. Do not assert a class name or an internal state field — those change when someone restyles or refactors, which is churn, and they stay unchanged when the behaviour breaks, which is the expensive direction.
+
+The exception is a class that *is* the behaviour. `UpdatePill` keeps an `h-0` container when the count is zero specifically so the presence boundary outlives the thing that animates; `expect(container.firstElementChild).toHaveClass("h-0")` is an assertion about layout contract, not about styling taste.
+
+What this costs when it goes wrong is on record. `useFocusTrap` returns a callback ref backed by state rather than a `useRef`, because every modal in the product mounts through `ModalPortal`, which renders `null` on its first pass and creates the portal from its own effect. With a `useRef` the trap's effect ran one tick early, found `ref.current === null`, returned, and — because `active` never changed afterwards — never ran again. Every dialog in the product shipped a focus trap that did nothing: focus stayed on the page behind, Tab walked straight out, and focus was never returned to the trigger on close.
+
+The hook's own tests passed the whole time, because they mounted it without a portal — the one configuration no caller uses. `frontend/src/test/hooks/use-focus-trap.test.tsx` now ends with a test that mounts the trap inside a real `ModalPortal` and waits for focus to land, so the covered configuration is the shipped one.
 
 ## Performance / Load (k6)
 
@@ -349,6 +398,7 @@ Use this after feature changes or before a release.
 | EF repository/query behavior | repository or infrastructure tests |
 | Frontend API client behavior | `frontend/src/test/lib` |
 | Frontend component behavior | `frontend/src/test/components` or `frontend/src/test/app` |
+| Frontend hook behavior | `frontend/src/test/hooks` — mount the hook in the configuration its callers use, not the simplest one that compiles |
 | Auth store/session behavior | `frontend/src/test/store/auth.test.ts` |
 | Todo sorting/filter/type behavior | `frontend/src/test/utils` and `frontend/src/test/types` |
 

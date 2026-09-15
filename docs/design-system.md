@@ -1044,6 +1044,7 @@ once. It is worth reading as a worked example.
 | Priority | `PriorityMeter` | Magnitude as filled length — never hue (rule 5) |
 | Category | `caption`, the user's own colour | `@colour-data`: their choice, stored against their data |
 | Due date | `caption`, `alert` only when overdue | The product's one saturated colour, spent on the one thing that earns it |
+| The border | `border-alert` when overdue, `border-line` otherwise | **One fact, and only one.** It used to return `border-accent` for "in progress", for "shared", and for both — so a task somebody had taken into work and a task merely visible to a friend were drawn identically. The other two facts have their own marks a few pixels away, and `accent` belongs to selection |
 | Presence | `PresenceRow` | One `sr-only` sentence, never a label per face |
 | Keyboard cursor | `outline-2 outline-offset-2 outline-ink` | An outline, not a ring: it follows `border-radius` without being told, and it is **not** the focus indicator — focus may legitimately be elsewhere while the list still has a cursor |
 | Selection | `outline-accent` | `data-selected`, because `aria-selected` is not legal on a row that contains buttons |
