@@ -43,6 +43,16 @@ const TS_ALL = collect(SRC, (n) => /\.(ts|tsx)$/.test(n))
 const CSS = collect(SRC, (n) => /\.css$/.test(n))
 const CODE = [...TS_ALL, ...CSS]
 
+/**
+ * The file that DECLARES a scale cannot violate it.
+ *
+ * design-tokens.ts is where every radius, duration, tier and curve is written
+ * down, so scanning it for scale drift reports the declaration itself: a z-index
+ * named "layer", another named "Object", and an easing built from a template
+ * literal. Three findings, none of them about the product.
+ */
+const SCALE_CODE = CODE.filter((f) => f.rel !== 'src/lib/design-tokens.ts')
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 /** Every regex match across a file set, as {value, rel, line} hits. */
@@ -52,6 +62,35 @@ function hits(files, re) {
     f.lines.forEach((text, i) => {
       for (const m of text.matchAll(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g'))) {
         out.push({ value: m[1] ?? m[0], rel: f.rel, line: i + 1, raw: m[0] })
+      }
+    })
+  }
+  return out
+}
+
+/**
+ * framer-motion `duration:` values, excluding the ones that belong to a loop.
+ *
+ * A LOOP is not a UI response, and the motion rules say so explicitly: the 320ms
+ * ceiling governs the answer to a tap, while a spinner, a shimmer or a breathing
+ * pulse may take as long as it reads well. Every one of the nine "violations" this
+ * used to report was a `repeat: Infinity` animation — a 1.2s dot cascade, a 1.6s
+ * hint bob, a 1.9s notification pulse, a 2s skeleton breath. Re-adjudicating them
+ * by hand on every run teaches the reader to skim this section, which is exactly
+ * where a real violation would then hide.
+ *
+ * The `repeat` can sit on a different line from the `duration` — both spellings
+ * occur — so the test is a small window around the hit rather than a lookahead.
+ */
+function jsDurations(files) {
+  const WINDOW = 3
+  const out = []
+  for (const f of files) {
+    f.lines.forEach((text, i) => {
+      for (const m of text.matchAll(/duration:\s*([\d.]+)/g)) {
+        const near = f.lines.slice(Math.max(0, i - WINDOW), i + WINDOW + 1).join('\n')
+        if (/repeat:\s*(Infinity|\d+)/.test(near)) continue
+        out.push({ value: m[1], rel: f.rel, line: i + 1, raw: m[0] })
       }
     })
   }
@@ -83,9 +122,41 @@ const distinct = (list) => [...new Set(list.map((h) => h.value))].sort()
  * got itself reported as an "invented colour" on every run.
  */
 const HEX = /#(?!define\b|include\b|version\b|ifdef\b|endif\b)([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])/g
-const hexTsx = hits(TSX, HEX).map((h) => ({ ...h, value: '#' + h.value.toLowerCase() }))
-const hexTs = hits(TS_ALL, HEX).map((h) => ({ ...h, value: '#' + h.value.toLowerCase() }))
-const hexCss = hits(CSS, HEX).map((h) => ({ ...h, value: '#' + h.value.toLowerCase() }))
+
+/**
+ * Comments are not code, and prose about colour is not colour.
+ *
+ * A doc comment reading "`#abc` or `#aabbcc` to a 0..1 RGB triple" was reported as
+ * two invented colours on every run, and the shader's `#define` as a third. Both
+ * are sentences. A scanner that reports findings which do not exist costs more than
+ * one that misses some: every future run has to be re-adjudicated by hand, and the
+ * real finding hiding among them gets waved through with the rest.
+ *
+ * Blanked rather than deleted, so every line number stays exactly where it was.
+ */
+const stripComments = (f) => ({
+  ...f,
+  lines: f.text
+    .replace(/\/\*[\s\S]*?\*\//g, (b) => b.replace(/[^\n]/g, ' '))
+    .replace(/(^|[^:\\])\/\/[^\n]*/g, (m, p) => p + ' '.repeat(m.length - p.length))
+    .split('\n'),
+})
+
+/**
+ * Files where colour IS data, not theme — a user's own category swatch, the hue
+ * wheel's coordinate space, WCAG luminance coefficients. Each declares itself with
+ * an `@colour-data` marker and a reason, and `design-tokens.contract.test.ts` keys
+ * off the same marker. Reading the marker here rather than keeping a second list
+ * is the point: a list held in the tool goes stale the first time a file moves.
+ */
+const COLOUR_DATA_MARKER = '@colour-data'
+const isColourData = (f) => f.text.includes(COLOUR_DATA_MARKER)
+
+const colourSources = (files) => files.filter((f) => !isColourData(f)).map(stripComments)
+
+const hexTsx = hits(colourSources(TSX), HEX).map((h) => ({ ...h, value: '#' + h.value.toLowerCase() }))
+const hexTs = hits(colourSources(TS_ALL), HEX).map((h) => ({ ...h, value: '#' + h.value.toLowerCase() }))
+const hexCss = hits(CSS.map(stripComments), HEX).map((h) => ({ ...h, value: '#' + h.value.toLowerCase() }))
 const rgbLit = hits(CODE, /rgba?\([^)]*\)/)
 const oklchLit = hits(CODE, /oklch\([^)]*\)/)
 
@@ -119,7 +190,7 @@ const scale = {
     ...hits(TSX, /\bduration-(\[[^\]]+\]|instant|fast|base|slow|deliberate|\d+)\b/),
     ...hits(CSS, /(?:transition-duration|animation-duration):\s*([^;]+);/),
     ...hits(CSS, /animation:\s*[\w-]+\s+([\d.]+m?s)/),
-    ...hits(TS_ALL, /duration:\s*([\d.]+)/),
+    ...jsDurations(TS_ALL),
   ],
   fontSize: [
     ...hits(TSX, /\btext-(\[[^\]]+\]|caption|body-sm|body|title-sm|title|display-sm|display|hero|xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)(?![\w-])/),
@@ -134,12 +205,15 @@ const scale = {
   ],
   zIndex: [
     ...hits(TSX, /\bz-(\[[^\]]+\]|base|dropdown|sticky|overlay|modal|popover|toast|tooltip|auto|\d+)\b/),
-    ...hits(CODE, /zIndex:\s*['"]?([\w\d]+)['"]?/),
+    // A token reference is a token USE, not a raw value. The old pattern captured
+    // the identifier after the colon, so `zIndex: tokens.layer.popover` was reported
+    // as a z-index literally named "tokens" — three of them, on every run.
+    ...hits(SCALE_CODE, /zIndex:\s*(?!tokens\.)['"]?([\w\d]+)['"]?/),
     ...hits(CSS, /z-index:\s*([^;]+);/),
   ],
   easing: [
     ...hits(TSX, /\bease-(\[[^\]]+\]|emphasized|standard|exit|linear|in|out|in-out)\b/),
-    ...hits(CODE, /cubic-bezier\([^)]+\)/),
+    ...hits(SCALE_CODE, /cubic-bezier\([^)]+\)/),
   ],
 }
 
@@ -147,8 +221,16 @@ const scale = {
 
 const DECLARED = {
   // design-tokens.ts spacing is a 4px scale; tailwind.config.ts adds 18/88/128.
-  spacing: ['0', '1', '2', '3', '4', '5', '6', '8', '10', '12', '16', '20', '24', '18', '88', '128', 'auto', 'px'],
-  radius: ['none', 'sm', 'md', 'lg', 'xl', 'full'],
+  // Tailwind's default spacing, which this config deliberately keeps whole: the
+  // 4px grid AND its half-steps. See tailwind.config.ts for why the half-steps earn
+  // their place. Listing them here is what stops the scan reporting optical
+  // alignment as drift.
+  spacing: [
+    '0', '0.5', '1', '1.5', '2', '2.5', '3', '3.5', '4', '5', '6', '7', '8', '9', '10',
+    '11', '12', '14', '16', '18', '20', '24', '28', '32', '36', '40', '44', '48',
+    '56', '64', '72', '80', '88', '96', '128', 'auto', 'px',
+  ],
+  radius: ['none', '0', 'sm', 'md', 'lg', 'xl', 'full'],
   shadow: ['none', 'sm', 'md', 'lg', 'xl'],
   // Both the utility names and the raw values, because framer-motion takes
   // seconds and CSS takes milliseconds — all three spell the same five tokens.
@@ -331,10 +413,30 @@ const report = {
 // ─── output ─────────────────────────────────────────────────────────────────
 
 const jsonFlag = process.argv.indexOf('--json')
+const DEFAULT_JSON = path.join('docs', 'ui-audit', 'tools', 'scan-static.json')
 if (jsonFlag !== -1) {
   const out = process.argv[jsonFlag + 1] ?? 'scan-static.json'
   fs.writeFileSync(out, JSON.stringify(report, null, 2))
-  console.log(`written: ${out}`)
+  console.log(`\nwritten: ${out}`)
+} else if (fs.existsSync(DEFAULT_JSON)) {
+  /**
+   * Say so when the detail file on disk is OLDER than this run.
+   *
+   * The summary above is always fresh; `scan-static.json` is only written with
+   * `--json`. A reader who ran the tool, saw the counts, then opened the JSON for
+   * the file:line detail got a report from whenever it was last written — which
+   * cost real time here, adjudicating "violations" against line numbers that had
+   * moved months ago. A stale artefact sitting beside a fresh summary is a trap;
+   * naming it is the cheapest possible guard.
+   */
+  const age = Date.now() - fs.statSync(DEFAULT_JSON).mtimeMs
+  const hours = Math.floor(age / 3_600_000)
+  if (hours >= 1) {
+    console.log(
+      `\nnote: ${DEFAULT_JSON} is ${hours}h old and was NOT rewritten by this run.` +
+        `\n      Re-run with --json ${DEFAULT_JSON} before reading it for file:line detail.`,
+    )
+  }
 }
 
 const r = report
