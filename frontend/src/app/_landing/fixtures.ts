@@ -32,6 +32,15 @@ export const FIXTURE_FRIENDS: LandingFriend[] = [
 /** The three friends the hero console starts with — enough to open the cut, few enough to read. */
 export const HERO_FRIENDS = FIXTURE_FRIENDS.slice(0, 3)
 
+/**
+ * A fixed instant, because a landing page rendered on the server and again on the client
+ * must agree byte for byte, and `Date.now()` is the classic way to make it not.
+ *
+ * None of these fixtures carries a due date, and that is deliberate rather than lazy. A
+ * hard-coded date is overdue from the moment it passes, so a landing page built on one
+ * would show permanently late tasks — two of three cards framed in `alert`, the product's
+ * single saturated colour, spent on nothing. Dates are described in prose instead.
+ */
 const NOW = "2026-03-02T09:00:00.000Z"
 
 function task(partial: Partial<Todo> & Pick<Todo, "id" | "title">): Todo {
@@ -53,7 +62,6 @@ export const CONSOLE_TASKS: Todo[] = [
     id: "fx-task-1",
     title: "Book the flights for the spring trip",
     priority: "High",
-    dueDate: "2026-03-09T00:00:00.000Z",
     categoryName: "Travel",
     sharedWithUserIds: ["fx-1", "fx-2"],
     hasSharedAudience: true,
@@ -62,9 +70,7 @@ export const CONSOLE_TASKS: Todo[] = [
     id: "fx-task-2",
     title: "Renew the household insurance policy",
     priority: "Urgent",
-    dueDate: "2026-02-24T00:00:00.000Z",
     categoryName: "Home",
-    isVisuallyUrgent: true,
   }),
   task({
     id: "fx-task-3",
@@ -81,7 +87,6 @@ export const SHARED_TASK: Todo = task({
   id: "fx-shared",
   title: "Plan the weekend menu and grocery run",
   priority: "Medium",
-  dueDate: "2026-03-06T00:00:00.000Z",
   categoryName: "Home",
   authorName: "Dana Whitfield",
   sharedWithUserIds: ["fx-viewer"],

@@ -1181,7 +1181,7 @@ Signed out, production build, 9 viewports (`--set public --mock --anon`):
 | Live demos | 0 | 5 |
 | Interactive targets | 4 | 36 |
 | Focus stops without a visible indicator | — | 0 of 37 |
-| Headings | 1 `h1`, no `h2` | 1 `h1` + 9 `h2`, no level skips |
+| Headings | 1 `h1`, no `h2` | 1 `h1` + 8 `h2` + 6 `h3`, no level skips |
 | CLS | 0.0007 | **0** at every viewport, in all three modes |
 | LCP, median of 5 runs, worst viewport | — | 668 ms |
 
