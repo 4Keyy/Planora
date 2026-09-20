@@ -78,6 +78,15 @@ interface TodoCardProps {
    * passes nothing and stays an ordinary card.
    */
   rowProps?: ListRowProps
+  /**
+   * Who is looking. Normally the signed-in user, read from the auth store — this prop
+   * exists so a surface with no session can still say who the viewer is. The landing
+   * page mounts this card on fixtures for an anonymous visitor, where the store holds
+   * no user and every card would otherwise render as somebody else's.
+   *
+   * Optional and store-backed by default, so no existing call site changes.
+   */
+  viewerId?: string | null
 }
 
 /**
@@ -92,6 +101,7 @@ function TodoCardComponent({
   onJoin,
   variant = "default",
   rowProps,
+  viewerId: viewerIdProp,
 }: TodoCardProps) {
   const shouldReduceMotion = useReducedMotion()
   const [optimisticCollapsed, setOptimisticCollapsed] = useState<boolean | null>(null)
@@ -106,7 +116,8 @@ function TodoCardComponent({
   const [subtaskWarnOpen, setSubtaskWarnOpen] = useState(false)
   const mountedRef = useRef(true)
   const celebrationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const viewerId = useAuthStore((s) => s.user?.userId)
+  const storeViewerId = useAuthStore((s) => s.user?.userId)
+  const viewerId = viewerIdProp ?? storeViewerId
   // Live unread roll-up for this task — drives the top-right notification mark. Subscribing here
   // (not via props) keeps the card's memo intact while still updating the badge in real time.
   const unread = useTaskUnread(todo.id)

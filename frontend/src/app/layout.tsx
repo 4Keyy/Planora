@@ -113,6 +113,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         ) : null}
       </head>
       <body className={cn("text-ink antialiased min-h-screen bg-transparent")}>
+        {/* 2.4.1 Bypass Blocks. Visually hidden until focused, then a real control in the
+            top-left. Every route carries a <main> (auth/layout.tsx exists for that reason
+            alone), so the target is always there to jump to. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-tooltip focus:inline-flex focus:min-h-control focus:items-center focus:rounded-md focus:border focus:border-line-strong focus:bg-paper focus:px-4 focus:text-body-sm focus:font-semibold focus:text-ink"
+        >
+          Skip to content
+        </a>
         <ColorBendsLayer />
         <SecurityInitializer />
         <RealtimeManager />

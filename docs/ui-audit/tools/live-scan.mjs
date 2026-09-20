@@ -50,6 +50,9 @@ const EMAIL = arg('email', null)
 const PASSWORD = arg('password', null)
 const ONLY = arg('only', null) // comma-separated route filter
 const MOCK = has('mock')
+// Mock the API but stay SIGNED OUT — the only way to measure the public set with no
+// backend. Without it --mock mints a token and /auth/login redirects to /dashboard.
+const ANON = has('anon')
 const DATASET = arg('dataset', 'rich')   // rich | empty | extreme
 const LATENCY = Number(arg('latency', '0'))
 const FAIL_WITH = arg('fail', null) ? Number(arg('fail', null)) : null
@@ -461,7 +464,7 @@ for (const mode of ['data', 'reduced-motion', 'dark-os']) {
         reducedMotion: mode === 'reduced-motion' ? 'reduce' : 'no-preference',
         colorScheme: mode === 'dark-os' ? 'dark' : 'light',
       })
-      if (MOCK) await installMockApi(context, { dataset: DATASET, latencyMs: LATENCY, failWith: FAIL_WITH })
+      if (MOCK) await installMockApi(context, { dataset: DATASET, latencyMs: LATENCY, failWith: FAIL_WITH, anon: ANON })
       else if (SET !== 'public') await login(context)
       const page = await context.newPage()
 

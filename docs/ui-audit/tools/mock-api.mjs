@@ -141,6 +141,18 @@ export async function installMockApi(context, opts = {}) {
   const dataset = opts.dataset ?? 'rich'
   const latency = opts.latencyMs ?? 0
   const failWith = opts.failWith ?? null
+  /**
+   * Signed-OUT mocking. The client only DECODES the access token, so mocking
+   * /auth/refresh with a minted one is enough to reach an authenticated state — which
+   * is exactly what makes the public set unmeasurable: /auth/login then redirects to
+   * /dashboard and the recorded cells describe the dashboard, not the login page.
+   *
+   * With `anon`, /auth/refresh answers 204 No Content, which is what the real server
+   * sends when there is no refresh cookie (docs/features.md, Edge Cases). The silent
+   * restore fails the way it does for a first-time visitor, the public routes render
+   * signed out, and the run still needs no backend.
+   */
+  const anon = opts.anon ?? false
 
   // The CSRF token is read from a readable cookie (lib/csrf.ts:35-42); seeding it
   // means the client never needs the token endpoint.
@@ -186,6 +198,9 @@ export async function installMockApi(context, opts = {}) {
         headers: { 'set-cookie': 'XSRF-TOKEN=mock-csrf-token; Path=/' },
         body: JSON.stringify({ token: 'mock-csrf-token' }),
       })
+    }
+    if (anon && p.endsWith('/auth/refresh')) {
+      return route.fulfill({ status: 204, body: '' })
     }
     if (p.endsWith('/auth/refresh') || p.endsWith('/auth/login')) {
       return json(route, {

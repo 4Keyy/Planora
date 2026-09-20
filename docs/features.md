@@ -1098,6 +1098,50 @@ Allowlisted product event names:
 - `SESSION_RESTORED`
 - `TOKEN_REFRESH_FAILED`
 
+## The Landing Page
+
+### Purpose
+
+Say the one thing Planora does that a list app does not — a task carries the list of people who
+can see it — and let a signed-out visitor verify it with their hands before making an account.
+
+### Implementation
+
+- `frontend/src/app/page.tsx` — the shell, a **server component**
+- `frontend/src/app/_landing/` — the client islands, colocated with the route
+- `frontend/src/lib/landing-audience.ts` — the audience derivation and the sharing ceiling
+
+### Key Rules
+
+| Rule | Why |
+|---|---|
+| The shell is a server component; `"use client"` lives in the islands | The `h1` is the LCP element. The previous version was `"use client"` end to end, which put it inside a tree waiting on hydration |
+| Heavy blocks are `next/dynamic` with **`ssr` left on** | Turning SSR off swaps a placeholder for content after hydration, which is a layout shift |
+| Every demo mounts the component the product ships | A copy diverges on the first change and the page starts lying about the product |
+| `deriveAudience` never returns `public` | The editor writes `isPublic: false` on every save and no route serves a task to an anonymous reader, so a reachable `public` arc would be a plain lie |
+| The closed ring appears once, via `showLabel={false}` with no `onClick` | That is the component's `aria-hidden` mark-only branch. The labelled variant announces "Public", which is false about every task in this product |
+| Faces in the audience row are `Avatar`, **not** `PresenceRow` | `PresenceRow` is the worker primitive; its spoken sentence reads "… are working on this", which is false about an audience |
+| One `useListNavigation` instance on the route | It is single-instance by construction: the first listener's `preventDefault()` makes a second list deaf |
+| No second `ShortcutsOverlay` | `ShortcutsHelp` in `app/layout.tsx` already owns a global capture-phase `?`, so the key already works here |
+| Fixtures are labelled as fixtures on screen | The product is not launched; invented people presented as customers would be fabricated social proof |
+
+### Measured
+
+Signed out, production build, 9 viewports (`--set public --mock --anon`):
+
+| | Before | After |
+|---|---|---|
+| Meaningful blocks | 2 | 9 |
+| Live demos | 0 | 5 |
+| Interactive targets | 4 | 36 |
+| Focus stops without a visible indicator | — | 0 of 37 |
+| Headings | 1 `h1`, no `h2` | 1 `h1` + 9 `h2`, no level skips |
+| CLS | 0.0007 | **0** at every viewport, in all three modes |
+| LCP, median of 5 runs, worst viewport | — | 668 ms |
+
+The LCP figure is a **median of five runs** on purpose: the same code measured 372, 2656, 372,
+2708 and 380 ms at 1440 px, so a single run cannot separate a regression from noise.
+
 ## Animated Background
 
 The app ships a fragment-shader background (`ColorBends`) rendered via

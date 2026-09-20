@@ -1043,8 +1043,17 @@ about which word means which thing.
 | A task with its timeline | **branch** | thread, discussion, feed |
 | The people you share with | **circle** | friends, team, members |
 | Who can see a task | **audience** | visibility, sharing list |
-| Hiding fields from part of the circle | **redaction** | hiding, privacy mode |
+| Who can see a task, and hiding it from your own list | **redaction** | hiding, privacy mode |
 | Taking a task into work | **take** | claim, assign, start |
+
+> **`redaction` names what is built, not what was planned.** The word covers the
+> audience arc (`RedactionBadge`) and per-viewer hiding, where a task you have put out
+> of sight reads `Hidden task` because the server redacted it before it reached you. It
+> does **not** cover showing different people different subsets of a task's fields:
+> that is designed and not implemented, and nothing in `Services/` does it. This row
+> previously read "hiding fields from part of the circle", which reserved the
+> vocabulary for a feature the product does not have — and the landing page duly
+> promised it in those words for as long as the row stood.
 
 A synonym is not a stylistic choice. Two words for one concept make a reader wonder
 what the difference is, and there is no answer.

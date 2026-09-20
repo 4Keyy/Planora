@@ -4,6 +4,43 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): the landing page says the one thing, and lets you check it (2026-09-21)
+
+**`/` went from two blocks to nine, five of which you can put your hands on.** The old page
+described the product in four cards; this one mounts the product's own controls on fixtures. The
+audience arc opens as you add people, the real `useListNavigation` drives real `TodoCard`s with
+`j`/`k`/`Space`/`Delete`, the undo window runs its five seconds in front of you, and `?` opens
+the application's actual shortcut map — because `ShortcutsHelp` was already mounted globally and
+the key already worked here.
+
+**Three claims on the old page were wrong, and are gone.** "Per-viewer redaction — show exactly
+what each person should see" promised owner-controlled field-level redaction, which does not exist
+in the code: the only redaction in `Services/` swaps a hidden task's title for "Hidden task".
+"Short-lived sessions" was wrong (the session is seven days). A bare "CSRF protection" overstated
+a middleware registered in the Auth API only. `design-system.md` § 14 had reserved the word
+`redaction` for the unbuilt feature, which is how the promise got written in the first place; that
+row now describes what is built, and the one unbuilt capability carries an explicit roadmap marker
+on the page.
+
+**The security block proves instead of promising.** A button asks the browser for every cookie
+JavaScript can read on the origin and prints the names — never the values — and `refresh_token` is
+not among them, because `HttpOnly` means it cannot be. The guarantee fails in front of the visitor,
+in their own browser, with no network request and nothing to take on faith.
+
+**`/auth/login` has a signed-out baseline for the first time.** Every scan in the repository since
+2026-09-12 passed `--mock`, which mints an access token, so the login cells recorded `/dashboard`
+— 65 targets and an `h1` reading "You have 11 tasks." `mock-api.mjs` now takes `--anon`, answering
+`/auth/refresh` with `204 No Content` the way the real server does when there is no refresh cookie.
+The first honest run immediately surfaced three targets under 44 px on the sign-in form that no
+scan could previously see.
+
+Performance: LCP median of five runs, worst viewport 668 ms; CLS **0** at every viewport in all
+three modes, against a 0.0007 baseline and a 0.0014 invariant. The shell became a server component
+so the LCP text ships in the first byte instead of waiting on hydration. The median is not
+decoration: the same code measured 372, 2656, 372, 2708 and 380 ms at 1440 px, so a single run
+cannot tell a regression from noise.
+
+
 ### fix(frontend): finish the map, and let one measurement overrule an argument (2026-09-15)
 
 **`E` no longer lies.** The keyboard map prints "Edit it in place" beside it, and `E`
