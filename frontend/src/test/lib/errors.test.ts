@@ -64,8 +64,15 @@ describe('auth error messages', () => {
     expect(isServerUnavailableError({ message: 'Failed to fetch' })).toBe(true)
   })
 
+  it('separates a malformed request from wrong credentials', () => {
+    // 401 is "those credentials are wrong"; 400 is "that request was malformed", which
+    // is not the user's password. Collapsing them sent people off to reset a password
+    // that was never the problem, and this test asserted that behaviour.
+    expect(getLoginErrorMessage({ response: { status: 401 } })).toBe('Incorrect email or password.')
+    expect(getLoginErrorMessage({ response: { status: 400 } })).toBe('Something went wrong on our side. Try again in a moment.')
+  })
+
   it('maps remaining login status families to user-safe messages', () => {
-    expect(getLoginErrorMessage({ response: { status: 400 } })).toBe('Incorrect email or password.')
     expect(getLoginErrorMessage({ response: { status: 403 } })).toBe('Account is locked. Please contact support.')
     expect(getLoginErrorMessage({ response: { status: 500 } })).toBe('Server error. Please try again later.')
     expect(getLoginErrorMessage({ response: { status: 418 } })).toBe('Unable to sign in. Please try again.')

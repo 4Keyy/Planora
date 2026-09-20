@@ -78,6 +78,19 @@ function getResponseStatus(err: unknown): number | undefined {
   return typeof status === "number" ? status : undefined
 }
 
+/** The server's error code, from either shape the API uses. */
+function getErrorCode(err: unknown): string | null {
+  const e = getErrorRecord(err)
+  const data = e?.response && typeof e.response === "object"
+    ? ((e.response as Record<string, unknown>).data as Record<string, unknown> | undefined)
+    : undefined
+  const nested = data?.error && typeof data.error === "object"
+    ? (data.error as Record<string, unknown>).code
+    : undefined
+  const code = data?.code ?? nested
+  return typeof code === "string" ? code : null
+}
+
 function getRawErrorText(err: unknown): string {
   return extractErrorMessage(err, "").toLowerCase()
 }
@@ -99,7 +112,18 @@ export function isServerUnavailableError(err: unknown): boolean {
   )
 }
 
+/**
+ * A two-factor challenge, by error code where the server sends one.
+ *
+ * This used to be substring sniffing on the message alone, which makes the branch
+ * hostage to prose: reword the server's sentence and the client silently stops asking
+ * for the code, leaving the user staring at "Incorrect email or password" with a
+ * correct password in the field. The code is checked first; the text stays as a
+ * fallback for deployments still sending the older message, and dropping it would be a
+ * behaviour change dressed up as a cleanup.
+ */
 export function isTwoFactorChallenge(err: unknown): boolean {
+  if (getErrorCode(err) === "TWO_FACTOR_REQUIRED") return true
   const raw = getRawErrorText(err)
   return raw.includes("two-factor") || raw.includes("two factor") || raw.includes("2fa")
 }
@@ -110,7 +134,11 @@ export function getLoginErrorMessage(err: unknown): string {
   }
 
   const status = getResponseStatus(err)
-  if (status === 401 || status === 400) return "Incorrect email or password."
+  // 401 is "those credentials are wrong". 400 is "that request was malformed", which is
+  // not the user's password — reporting it as one sends them off to reset a password
+  // that was never the problem.
+  if (status === 401) return "Incorrect email or password."
+  if (status === 400) return "Something went wrong on our side. Try again in a moment."
   if (status === 403) return "Account is locked. Please contact support."
   if (status && status >= 500) return "Server error. Please try again later."
 

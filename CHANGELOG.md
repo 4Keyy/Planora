@@ -4,6 +4,45 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): one refusal, one message, one place — and one password rule (2026-09-21)
+
+**The sign-in and create-account screens stopped saying things twice and stopped saying
+things wrong.** Every submit-time failure fired an inline banner *and* a toast carrying the
+same sentence — so a sighted reader saw it twice, while a screen-reader user heard it once
+from the toast and had nothing left beside the field to return to, because the banner had
+neither `role` nor `aria-live`. The banner now announces and the duplicate toast is gone. A
+409 lands on the email field instead of a banner, so the offending control is the one marked
+`aria-invalid`. 401 and 400 no longer share a sentence: reporting a malformed request as
+"Incorrect email or password" sent people off to reset a password that was never the problem.
+Two-factor is detected by error code rather than by sniffing the message text for "2fa" — a
+branch that was hostage to the server's prose.
+
+**One password rule, in one file.** Sign-in accepted `min(6)`; create-account required 8 plus
+four character classes; `confirmPassword` was a third rule again, `min(6)` with no message, so
+failing it showed an empty error. The sign-in form was advertising a shape of password that
+could not have been created. `lib/password-policy.ts` now holds the rule both screens import,
+mirroring the server's own validator, and `confirmPassword` is no longer posted to the API —
+it is an agreement between two fields, and sending it transmitted the password twice.
+
+**The dark panel became a panel again.** Half the viewport, six marketing claims and a 2×2
+grid of "statistics" whose numbers were words — on a screen whose only job is one form, which
+was therefore the smaller half of its own page. It is now 2/5 wide with one sentence, and
+`aria-hidden`, because it carries no action and a desktop screen-reader user was walking all
+of it before reaching the email field. The wordmark moved into the form column at every
+breakpoint, in the same change, so hiding the panel costs no orientation.
+
+**The password strength meter was animating `width`.** A layout property, on every keystroke,
+over `deliberate` 480ms — a duration the scale reserves for a number roller and a progress
+ring, four times the 320ms ceiling for a response to input. It is `transform: scaleX` on a
+full-width track now, so it composites and cannot shift anything. The static scanner could not
+see it: it greps for `transition-all`.
+
+Measured signed out over 9 viewports: max CLS 0.0011 on sign-in and 0.0001 on create-account,
+0 contrast failures, 0 unnamed controls, 0 focus stops without an indicator, 0 console errors.
+The `Remember me` checkbox measured 16×16 and now carries `.touch-target`; the only remaining
+sub-44 targets on either screen are links inside a sentence, which WCAG 2.5.8 exempts.
+
+
 ### feat(frontend): the landing page says the one thing, and lets you check it (2026-09-21)
 
 **`/` went from two blocks to nine, five of which you can put your hands on.** The old page

@@ -1098,6 +1098,52 @@ Allowlisted product event names:
 - `SESSION_RESTORED`
 - `TOKEN_REFRESH_FAILED`
 
+## Sign-in And Create-account Screens
+
+### Purpose
+
+Get a returning person in, and a new one signed up, without spending their attention on
+anything else.
+
+### Implementation
+
+- `frontend/src/app/auth/login/page.tsx`, `frontend/src/app/auth/register/page.tsx`
+- `frontend/src/components/auth/auth-chrome.tsx` — the dark panel, the wordmark, the error banner
+- `frontend/src/components/auth/password-input.tsx` — the password field and its reveal toggle
+- `frontend/src/lib/password-policy.ts` — the password rule, declared once
+
+### Key Rules
+
+| Rule | Why |
+|---|---|
+| Neither screen grows | "Six times bigger" applies to the landing page. A sign-in page made six times bigger is six times worse; interactive targets stayed at 7 and 9 |
+| The dark panel is `aria-hidden`, 2/5 wide, and holds one sentence | It is decorative. At half the viewport with six claims in it, the form was the smaller half of its own page, and a screen-reader user walked all of it before reaching the email field |
+| The wordmark lives in the form column at every breakpoint | It used to be `lg:hidden`, taking its desktop appearance from the panel. With the panel hidden from assistive tech that would leave nothing saying where you are |
+| One refusal, one message, one place | The banner carries `role="alert"`; the duplicate toast on the same failure is gone. A sighted reader saw the sentence twice and a screen-reader user heard it once with nothing left beside the field |
+| A 409 lands on the email field | `Field` then marks it `aria-invalid` and announces it, instead of leaving the user to guess which of five fields the server meant |
+| 401 and 400 say different things | 401 is wrong credentials; 400 is a malformed request, and reporting it as a bad password sends people to reset one that was never the problem |
+| Two-factor is detected by error code | Substring sniffing on the message made the branch hostage to prose — reword the server's sentence and the client silently stops asking for the code |
+| One password rule, in `lib/password-policy.ts` | Sign-in accepted `min(6)` while create-account required 8 plus four classes, so sign-in advertised a password that could not have been created |
+| `confirmPassword` is never posted | It is an agreement between two fields; sending it transmitted the password twice |
+| The strength meter animates `transform: scaleX` | It animated `width` — a layout property — over `deliberate` 480ms, four times the ceiling for a response to a keystroke |
+| Create-account waits for the session restore | It had neither a hydration gate nor an authenticated redirect, so a signed-in visitor could sit on it indefinitely |
+
+### Measured
+
+Signed out (`--set public --mock --anon`), 9 viewports, production build:
+
+| | `/auth/login` | `/auth/register` |
+|---|---|---|
+| Max CLS | 0.0011 | 0.0001 |
+| Contrast failures | 0 | 0 |
+| Unnamed controls | 0 | 0 |
+| Focus stops without an indicator | 0 of 8 | 0 of 10 |
+| Targets under 44×44 | 1 — `Create one`, a link inside a sentence | 1 — `Sign in`, the same exception |
+| Console errors | 0 | 0 |
+
+The remaining sub-44 targets are the WCAG 2.5.8 exception for a link within a sentence, and are
+deliberate. The `Remember me` checkbox previously measured 16×16 and now carries `.touch-target`.
+
 ## The Landing Page
 
 ### Purpose
