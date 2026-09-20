@@ -191,6 +191,20 @@ const nextConfig = {
       },
     ]
   },
+  async redirects() {
+    // The short paths people actually type, bookmark and paste into emails. The real
+    // routes live under /auth/*, and without these both of these are hard 404s — there
+    // is no /login page and nothing else in the config maps to one.
+    //
+    // Permanent (308), because the destination is not going to move and a 308 keeps the
+    // method, which matters if anything ever POSTs to one of these by mistake.
+    return [
+      { source: '/login', destination: '/auth/login', permanent: true },
+      { source: '/register', destination: '/auth/register', permanent: true },
+      { source: '/signin', destination: '/auth/login', permanent: true },
+      { source: '/signup', destination: '/auth/register', permanent: true },
+    ]
+  },
   async rewrites() {
     // Same-origin API proxy. When the dev server is reached through a tunnel /
     // single-forwarded-port (e.g. a phone that can hit :3000 but not the gateway's

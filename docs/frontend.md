@@ -160,6 +160,19 @@ position.
 
 ---
 
+## 6b. Short route aliases
+
+`/login`, `/register`, `/signin` and `/signup` are **308 redirects** to `/auth/login` and
+`/auth/register`, declared in `redirects()` in `next.config.js`.
+
+They exist because those are the paths people type, bookmark and paste into emails, and
+without them every one of those is a hard 404 — the pages live under `/auth/*` and nothing
+else in the config mapped to them. 308 rather than 302 because the destination is not going
+to move, and 308 preserves the method if anything ever POSTs to one by mistake.
+
+Note the ordering constraint this shares with `rewrites()`: the API proxies are deliberately
+scoped to `/auth/api/*` so they never shadow the frontend's own `/auth/*` pages.
+
 ## 7. The keyboard
 
 The keyboard is a first-class interface here, not an accessibility obligation. On a

@@ -4,6 +4,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): /login and /register stop being 404s (2026-09-21)
+
+Those are the paths people type, bookmark and paste into emails, and every one of them was a
+hard 404: the pages live under `/auth/*`, `next.config.js` had no `redirects()` function at
+all, and nothing else mapped them. `/login`, `/register`, `/signin` and `/signup` now answer
+308 to the real routes — permanent because the destination is not going to move, and 308
+rather than 302 because it preserves the method if anything ever POSTs to one by mistake.
+
+
 ### fix(frontend): one refusal, one message, one place — and one password rule (2026-09-21)
 
 **The sign-in and create-account screens stopped saying things twice and stopped saying
