@@ -4,6 +4,49 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix: the password-reset email led to a 404, and the shader ran on NaN (2026-09-21)
+
+**Nobody could reset a password.** `FrontendLinkBuilder.PasswordReset` built its link as
+`/reset-password?token=…`, and that route does not exist — the screen lives at
+`/auth/reset-password`. The line directly beneath it, for email verification, gets the `/auth`
+prefix right, so this was a one-word asymmetry that killed an entire recovery flow. Fixed at the
+source, and `/reset-password` plus `/verify-email` now answer 308 to the real routes, because the
+broken links are already in people's inboxes and stay valid for 24 hours.
+
+**The animated background was rendering with NaN colours.** `ColorBendsLayer` passed
+`["var(--pl-line-strong)", …]` into `hexToVec3`, which strips a leading `#` and then calls
+`parseInt("va", 16)`. All three tones reached the GPU as `[NaN, NaN, NaN]` through a clean
+`uniform3fv` call with `uColorCount = 3` — no error, no warning, a broken background on every
+route. A uniform cannot resolve a CSS custom property; WebGL never sees the cascade. The colours
+now come from `tokens.color` as real hex, and `hexToVec3` returns mid-grey with a dev warning
+instead of NaN for anything that is not a hex triple. Every existing test for it passed a valid
+hex, which is exactly why this shipped.
+
+**The skip link had no target on any auth screen.** `auth/layout.tsx` exists for the sole purpose
+of giving those five screens a `<main>` landmark, and it had no `id` — so the root layout's
+`href="#main"` pointed at nothing on all five. One attribute.
+
+**`useBranchRoom` retried the socket forever for anyone without a session.** It starts the
+connection itself instead of waiting for `useRealtimeLifecycle`, which made it the only realtime
+entry point with no authentication check. With no token `accessTokenFactory` returns `""`, the
+handshake fails, and the client's own backoff retries at 2s/5s/10s/30s indefinitely, logging each
+round. Harmless on a guarded route — which is why it was never noticed — and a permanent
+background loop anywhere public. Its test seeded no session and passed anyway; it now seeds one
+for the happy path and asserts silence for the three ways a session can be absent.
+
+**The audit mock had four wrong response shapes, and the branch has been rendering empty under
+`--mock` for as long as the file has existed.** `fetchComments` reads `{ items, totalCount }`;
+the mock returned a bare array, so `items` was `undefined`, `(res.items ?? [])` collapsed to
+`[]`, and the feed drew nothing. `/viewer-preferences` answered `{ hiddenFields,
+redactedFieldNames }` where the client reads `hiddenByViewer`/`completedByViewer`;
+`/notifications/summary` answered `{ unreadCount, total }` where `SummaryDto` wants
+`{ totalUnread, perTask[] }`, so the bell always read zero; and `/notifications` returned an
+object where `loadList` maps over an array. All four now match what the client actually reads,
+and the branch scan confirms it: the feed renders its Author's Note, its messages and its
+subtasks. Some earlier audit numbers for branch-bearing routes therefore described a partly
+broken mock.
+
+
 ### fix(frontend): /login and /register stop being 404s (2026-09-21)
 
 Those are the paths people type, bookmark and paste into emails, and every one of them was a

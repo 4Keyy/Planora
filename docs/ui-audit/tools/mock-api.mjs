@@ -249,15 +249,31 @@ export async function installMockApi(context, opts = {}) {
     if (p.endsWith('/users')) return json(route, { items: [], totalCount: 0 })
 
     // ── notifications ──
-    if (p.includes('/notifications/summary')) return json(route, { unreadCount: dataset === 'empty' ? 0 : 3, total: 3 })
-    if (p.includes('/notifications')) {
-      return json(route, dataset === 'empty' ? { items: [], totalCount: 0 } : {
-        items: [
-          { id: 'n1', type: 'TaskShared', title: 'Sam shared a task with you', body: 'Book the flights for the spring trip', isRead: false, createdAt: iso(0) },
-          { id: 'n2', type: 'Comment', title: 'New comment', body: 'Looks good to me', isRead: false, createdAt: iso(-1) },
+    // SummaryDto (store/notifications.ts:47) wants totalUnread + perTask[]. The old
+    // { unreadCount, total } left totalUnread undefined, so the bell read 0 and no
+    // per-task badge ever lit — the exact surface this mock exists to exercise.
+    if (p.includes('/notifications/summary')) {
+      if (dataset === 'empty') return json(route, { totalUnread: 0, perTask: [] })
+      return json(route, {
+        totalUnread: 3,
+        perTask: [
+          { taskId: 'todo-0', count: 2, latestType: 'CommentAdded', groups: [{ type: 'CommentAdded', count: 2, latestOccurredOnUtc: iso(0) }] },
+          { taskId: 'todo-1', count: 1, latestType: 'TaskShared', groups: [{ type: 'TaskShared', count: 1, latestOccurredOnUtc: iso(0) }] },
         ],
-        totalCount: 2,
       })
+    }
+    // A BARE ARRAY of NotificationPayload: loadList (store/notifications.ts:136) does
+    // `(res.data ?? []).map(normalize)`, so an object threw and the catch left the bell
+    // empty. normalize() reads userId / taskId / actorId / message / occurredOnUtc —
+    // none of which the old { title, body } shape carried.
+    if (p.includes('/notifications/read')) return json(route, { success: true })
+    if (p.includes('/notifications')) {
+      if (dataset === 'empty') return json(route, [])
+      return json(route, [
+        { id: 'n1', userId: USER.userId, taskId: 'todo-0', actorId: '22222222-2222-4222-8222-222222222222', type: 'TaskShared', title: 'Sam shared a task with you', message: 'Book the flights for the spring trip', isRead: false, occurredOnUtc: iso(0) },
+        { id: 'n2', userId: USER.userId, taskId: 'todo-0', actorId: '22222222-2222-4222-8222-222222222222', type: 'CommentAdded', title: 'New comment', message: 'I can take the second half.', isRead: false, occurredOnUtc: iso(-1) },
+        { id: 'n3', userId: USER.userId, taskId: 'todo-1', actorId: '33333333-3333-4333-8333-333333333333', type: 'TaskShared', title: 'Jo shared a task with you', message: 'Renew the household insurance policy', isRead: false, occurredOnUtc: iso(-1) },
+      ])
     }
 
     // ── categories ──
@@ -267,11 +283,19 @@ export async function installMockApi(context, opts = {}) {
     }
 
     // ── comments ──
+    // PAGED, not a bare array: fetchComments (lib/api.ts:462) types the response as
+    // PagedCommentsResponse and reads `.items`. Returning the array made `res.items`
+    // undefined, so `(res.items ?? [])` collapsed to [] and the branch feed rendered
+    // EMPTY under --mock for as long as this file has existed. Subtasks below are the
+    // opposite case and are deliberately bare; the two are not symmetric.
     if (p.includes('/comments')) {
-      return json(route, dataset === 'empty' ? [] : [
+      const comments = dataset === 'empty' ? [] : [
         { id: 'c1', todoItemId: 'todo-0', authorId: USER.userId, authorName: 'Audit Reviewer', content: 'Starting on this today.', createdAt: iso(-1), isOwn: true, isEdited: false, isGenesisComment: true },
         { id: 'c2', todoItemId: 'todo-0', authorId: '22222222-2222-4222-8222-222222222222', authorName: 'Sam Rivera', content: dataset === 'extreme' ? UNBREAKABLE : 'I can take the second half.', createdAt: iso(0), isOwn: false, isEdited: false },
-      ])
+        { id: 'c3', todoItemId: 'todo-0', authorId: USER.userId, authorName: 'Audit Reviewer', content: 'Good — I will book the outbound.', createdAt: iso(0), isOwn: true, isEdited: false, replyToType: 'comment', replyToId: 'c2', replyToAuthorId: '22222222-2222-4222-8222-222222222222', replyToAuthorName: 'Sam Rivera', replyToPreview: 'I can take the second half.' },
+      ]
+      if (method !== 'GET') return json(route, comments[1] ?? comments[0] ?? {})
+      return json(route, { items: comments, totalCount: comments.length })
     }
 
     // ── todos ──
@@ -291,7 +315,22 @@ export async function installMockApi(context, opts = {}) {
         requiredWorkers: i === 1 ? 2 : null,
       })))
     }
-    if (p.includes('/viewer-preferences')) return json(route, { hiddenFields: [], redactedFieldNames: [] })
+    // setViewerPreference (lib/api.ts:368) reads todoId / hiddenByViewer /
+    // viewerCategoryId / completedByViewer / ownerCompleted. The old shape
+    // ({ hiddenFields, redactedFieldNames }) matched nothing the client asks for, so
+    // every hide/complete round-trip came back undefined and the optimistic state stood.
+    if (p.includes('/viewer-preferences')) {
+      const vpId = p.split('/todos/')[1]?.split('/')[0] ?? 'todo-0'
+      let body = {}
+      try { body = JSON.parse(route.request().postData() ?? '{}') } catch { body = {} }
+      return json(route, {
+        todoId: vpId,
+        hiddenByViewer: body.hiddenByViewer ?? false,
+        viewerCategoryId: body.viewerCategoryId ?? null,
+        completedByViewer: body.completedByViewer ?? null,
+        ownerCompleted: false,
+      })
+    }
     if (p.includes('/todos')) {
       const idMatch = p.match(/\/todos\/([^/]+)$/)
       if (idMatch && method === 'GET' && idMatch[1] !== 'todos') {

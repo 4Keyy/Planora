@@ -203,6 +203,12 @@ const nextConfig = {
       { source: '/register', destination: '/auth/register', permanent: true },
       { source: '/signin', destination: '/auth/login', permanent: true },
       { source: '/signup', destination: '/auth/register', permanent: true },
+      // Password-reset emails sent before FrontendLinkBuilder was corrected point at
+      // /reset-password, which never existed. Those links are already in people's
+      // inboxes and stay valid for 24 hours, so the alias has to outlive the fix.
+      // The query string rides along automatically.
+      { source: '/reset-password', destination: '/auth/reset-password', permanent: true },
+      { source: '/verify-email', destination: '/auth/verify-email', permanent: true },
     ]
   },
   async rewrites() {

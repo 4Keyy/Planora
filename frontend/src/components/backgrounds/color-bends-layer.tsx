@@ -2,6 +2,7 @@
 
 import { Suspense, lazy, useEffect, useState } from "react"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { tokens } from "@/lib/design-tokens"
 
 const ColorBends = lazy(() =>
   import("./color-bends").then(m => ({ default: m.ColorBends }))
@@ -59,6 +60,24 @@ function prefersLightweightBackground(): boolean {
   return coarsePointer || smallViewport
 }
 
+/**
+ * The shader's three tones, as hex, read from the token module.
+ *
+ * These used to be passed as `var(--pl-line-strong)` and friends. `hexToVec3` strips a
+ * leading "#" and then `parseInt("va", 16)`, so every channel of every colour resolved
+ * to NaN and the shader ran its colour branch on NaN with `uColorCount = 3`. A CSS
+ * custom property is resolved by the CSS engine; WebGL never sees the cascade, so a
+ * uniform has to be given a real value.
+ *
+ * Reading them from `tokens.color` rather than re-typing the hex keeps rule 1 — no
+ * colour literal in a component — and means a token change reaches the background.
+ */
+const SHADER_COLORS = [
+  tokens.color.lineStrong,
+  tokens.color.inkSubtle,
+  tokens.color.inkMuted,
+]
+
 /** Static, GPU-cheap approximation of the ColorBends palette for mobile. */
 const STATIC_BACKGROUND =
   "radial-gradient(120% 85% at 12% 0%, rgba(158,158,158,0.12), transparent 60%)," +
@@ -103,7 +122,7 @@ export function ColorBendsLayer() {
         <ErrorBoundary fallback={StaticBackground}>
           <Suspense fallback={StaticBackground}>
             <ColorBends
-              colors={["var(--pl-line-strong)", "var(--pl-ink-subtle)", "var(--pl-ink-muted)"]}
+              colors={SHADER_COLORS}
               rotation={-65}
               speed={0.36}
               scale={1.4}

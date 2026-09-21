@@ -6,5 +6,5 @@ import { ReactNode } from "react"
  * on any of the five screens.
  */
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return <main className="min-h-screen bg-transparent">{children}</main>
+  return <main id="main" className="min-h-screen bg-transparent">{children}</main>
 }

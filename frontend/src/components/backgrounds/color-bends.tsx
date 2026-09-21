@@ -155,9 +155,23 @@ export interface ColorBendsProps {
 /** An RGB triple in 0..1, the form the `uColors` uniform array wants. */
 export type Rgb = [number, number, number]
 
-/** `#abc` or `#aabbcc` (with or without the hash) to a 0..1 RGB triple. */
+/**
+ * `#abc` or `#aabbcc` (with or without the hash) to a 0..1 RGB triple.
+ *
+ * Anything else returns mid-grey rather than NaN. This is not defensiveness for its own
+ * sake: the layer above shipped `var(--pl-line-strong)` here for a while, which parsed
+ * to `[NaN, NaN, NaN]`, uploaded cleanly through `uniform3fv`, and produced a broken
+ * background with no error anywhere. A uniform cannot resolve a CSS custom property —
+ * WebGL never sees the cascade — so the failure has to be visible at the boundary.
+ */
 export function hexToVec3(hex: string): Rgb {
   const h = hex.replace("#", "").trim()
+  if (!/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(h)) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`ColorBends: "${hex}" is not a hex colour. A uniform cannot resolve a CSS variable.`)
+    }
+    return [0.5, 0.5, 0.5]
+  }
   const full = h.length === 3
     ? [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)]
     : [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]

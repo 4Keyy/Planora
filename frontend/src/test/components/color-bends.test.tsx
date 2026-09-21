@@ -2,6 +2,7 @@ import { render, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { hexToVec3, ColorBends } from "@/components/backgrounds/color-bends"
 import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
+import { tokens } from "@/lib/design-tokens"
 
 // ─── WebGL context mock ───────────────────────────────────────────────────────
 //
@@ -120,6 +121,37 @@ describe("hexToVec3()", () => {
   it("expands 3-digit shorthand #fff to (1,1,1)", () => {
     const v = hexToVec3("#fff")
     expect(v[0]).toBeCloseTo(1); expect(v[1]).toBeCloseTo(1); expect(v[2]).toBeCloseTo(1)
+  })
+
+  // ── The NaN regression ──────────────────────────────────────────────────────
+  //
+  // Every case above passes a valid hex, which is why this shipped: the layer handed
+  // `hexToVec3` the strings "var(--pl-line-strong)", "var(--pl-ink-subtle)" and
+  // "var(--pl-ink-muted)". `.replace("#","")` leaves them untouched, `parseInt("va", 16)`
+  // is NaN, and all three colours went to the GPU as [NaN, NaN, NaN] through a clean
+  // `uniform3fv` call with uColorCount = 3. No error, no warning, a broken background.
+  //
+  // A uniform cannot resolve a CSS custom property — WebGL never sees the cascade.
+
+  it("never returns NaN for a CSS custom property", () => {
+    const v = hexToVec3("var(--pl-line-strong)")
+    expect(v.every(Number.isFinite)).toBe(true)
+  })
+
+  it("never returns NaN for any non-hex input", () => {
+    for (const bad of ["var(--x)", "rebeccapurple", "rgb(1,2,3)", "", "#", "#12", "#12345", "nonsense"]) {
+      const v = hexToVec3(bad)
+      expect(v.every(Number.isFinite), `hexToVec3(${JSON.stringify(bad)}) produced a non-finite channel`).toBe(true)
+    }
+  })
+
+  it("gives the real token hex real channels", () => {
+    // The three tones the background actually ships, from tokens.color.
+    for (const hex of [tokens.color.lineStrong, tokens.color.inkSubtle, tokens.color.inkMuted]) {
+      const v = hexToVec3(hex)
+      expect(v.every(Number.isFinite)).toBe(true)
+      expect(v.every((c) => c > 0 && c < 1)).toBe(true)
+    }
   })
 
   it("converts #808080 to equal rgb channels", () => {
