@@ -181,10 +181,12 @@ export default function HomePage() {
             <Reveal>
               <SectionHeading eyebrow="The real thing" title="Press ? right now." />
               <p className="mt-4 max-w-2xl text-body text-ink-muted">
-                That is not a picture of a shortcut map — it is the product&rsquo;s own, and every
-                key it lists is bound on this page. Delete is a five-second question: undo cancels
-                a timer, so the request is never sent. After five seconds it is sent, and there is
-                no restore. We would rather say that than offer a button that does not exist.
+                That is not a picture of a shortcut map — it is the product&rsquo;s own, opened by
+                the product&rsquo;s own handler. It lists the whole keyboard, grouped by where each
+                group applies; the list keys below are the ones bound on this page, and they are
+                driving the real cards. Delete is a five-second question: undo cancels a timer, so
+                the request is never sent. After five seconds it is sent, and there is no restore.
+                We would rather say that than offer a button that does not exist.
               </p>
             </Reveal>
             <Reveal step={1} className="mt-10">

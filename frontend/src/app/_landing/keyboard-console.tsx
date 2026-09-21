@@ -104,7 +104,7 @@ export function KeyboardConsole() {
       </div>
 
       <div>
-        <p className={FIELD_LABEL_CLASS}>Keys, on this page</p>
+        <p className={FIELD_LABEL_CLASS}>Bound on this page</p>
         <dl className="mt-3 flex flex-col gap-2">
           {KEYS.map(({ keys, does }) => (
             <div key={keys} className="flex items-baseline justify-between gap-4">
@@ -124,8 +124,9 @@ export function KeyboardConsole() {
           ))}
         </dl>
         <p className="mt-4 text-caption text-ink-subtle">
-          On a phone there is no keyboard to promise, so this list is here to read rather than to
-          use.
+          Every key above works right here. The <code>?</code> map also lists the palette, capture
+          and branch keys, which belong to screens behind sign-in. On a phone there is no keyboard
+          to promise, so this list is here to read rather than to use.
         </p>
       </div>
 
