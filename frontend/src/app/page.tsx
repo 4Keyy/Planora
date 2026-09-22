@@ -4,6 +4,8 @@ import dynamic from "next/dynamic"
 import { LandingNav } from "./_landing/landing-nav"
 import { AudienceConsole } from "./_landing/audience-console"
 import { DemoSandbox } from "./_landing/demo-sandbox"
+import { AudienceSpine } from "./_landing/audience-spine"
+import { Parallax } from "./_landing/parallax"
 import { Reveal } from "./_landing/reveal"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
@@ -150,10 +152,12 @@ export default function HomePage() {
         <section className="border-t border-line bg-paper-sunken">
           <div className="container-app py-16 sm:py-20">
             <Reveal>
-              <SectionHeading
-                eyebrow="How far it reaches"
-                title="Sharing stops at the friends you named."
-              />
+              <Parallax>
+                <SectionHeading
+                  eyebrow="How far it reaches"
+                  title="Sharing stops at the friends you named."
+                />
+                </Parallax>
             </Reveal>
             <Reveal step={1} className="mt-10">
               <SharingCeiling />
@@ -165,10 +169,12 @@ export default function HomePage() {
         <section className="border-t border-line">
           <div className="container-app py-16 sm:py-20">
             <Reveal>
-              <SectionHeading
-                eyebrow="When someone shares with you"
-                title="A shared task is in your list, not in charge of it."
-              />
+              <Parallax>
+                <SectionHeading
+                  eyebrow="When someone shares with you"
+                  title="A shared task is in your list, not in charge of it."
+                />
+                </Parallax>
             </Reveal>
             <Reveal step={1} className="mt-10">
               <ViewerSide />
@@ -180,8 +186,9 @@ export default function HomePage() {
         <section className="border-t border-line bg-paper-sunken">
           <div className="container-app py-16 sm:py-20">
             <Reveal>
-              <SectionHeading eyebrow="The real thing" title="Press ? right now." />
-              <p className="mt-4 max-w-2xl text-body text-ink-muted">
+              <Parallax>
+                <SectionHeading eyebrow="The real thing" title="Press ? right now." />
+                <p className="mt-4 max-w-2xl text-body text-ink-muted">
                 Then press <kbd className="text-body-sm">⌘K</kbd> and search. Then move with
                 <kbd className="text-body-sm">J</kbd>/<kbd className="text-body-sm">K</kbd> and hit
                 <kbd className="text-body-sm">⏎</kbd>. None of that is a picture: the cards below
@@ -190,8 +197,9 @@ export default function HomePage() {
                 layer, in your browser, on invented people. Delete is a five-second question: undo
                 cancels a timer, so the request is never sent. After five seconds it is sent, and
                 there is no restore. We would rather say that than offer a button that does not
-                exist.
-              </p>
+                  exist.
+                </p>
+              </Parallax>
             </Reveal>
             <Reveal step={1} className="mt-10">
               {/* The sandbox seeds a session and swaps the transport before the console
@@ -208,10 +216,12 @@ export default function HomePage() {
         <section className="border-t border-line">
           <div className="container-app py-16 sm:py-20">
             <Reveal>
-              <SectionHeading
-                eyebrow="What a task holds"
-                title="Priority is a length, never a colour."
-              />
+              <Parallax>
+                <SectionHeading
+                  eyebrow="What a task holds"
+                  title="Priority is a length, never a colour."
+                />
+                </Parallax>
             </Reveal>
             <Reveal step={1} className="mt-10">
               <PriorityDemo />
@@ -223,10 +233,12 @@ export default function HomePage() {
         <section className="border-t border-line bg-paper-sunken">
           <div className="container-app py-16 sm:py-20">
             <Reveal>
-              <SectionHeading
-                eyebrow="Where the talking happens"
-                title="Every task has a timeline of its own."
-              />
+              <Parallax>
+                <SectionHeading
+                  eyebrow="Where the talking happens"
+                  title="Every task has a timeline of its own."
+                />
+                </Parallax>
             </Reveal>
             <Reveal step={1} className="mt-10 max-w-2xl">
               <div className="rounded-lg border border-line bg-paper-raised p-6 shadow-sm">
@@ -275,10 +287,12 @@ export default function HomePage() {
         <section className="border-t border-line">
           <div className="container-app py-16 sm:py-20">
             <Reveal>
-              <SectionHeading
-                eyebrow="Your session"
-                title="Three claims, and one you can check without trusting us."
-              />
+              <Parallax>
+                <SectionHeading
+                  eyebrow="Your session"
+                  title="Three claims, and one you can check without trusting us."
+                />
+                </Parallax>
             </Reveal>
 
             <div className="mt-10 grid gap-8 lg:grid-cols-2 lg:gap-12">
@@ -303,14 +317,16 @@ export default function HomePage() {
         <section className="border-t border-line bg-paper-sunken">
           <div className="container-app py-16 sm:py-20">
             <Reveal>
-              <SectionHeading
-                eyebrow="Before you find out later"
-                title="What Planora deliberately does not do."
-              />
-              <p className="mt-4 max-w-2xl text-body text-ink-muted">
-                Each of these is a decision you can see in the code, not a gap waiting to be
-                filled. The first one is the whole product.
-              </p>
+              <Parallax>
+                <SectionHeading
+                  eyebrow="Before you find out later"
+                  title="What Planora deliberately does not do."
+                />
+                <p className="mt-4 max-w-2xl text-body text-ink-muted">
+                  Each of these is a decision you can see in the code, not a gap waiting to be
+                  filled. The first one is the whole product.
+                </p>
+              </Parallax>
             </Reveal>
 
             <Reveal step={1} className="mt-10">
@@ -357,6 +373,10 @@ export default function HomePage() {
           </div>
         </section>
       </main>
+
+      {/* Outside <main> and outside every animated wrapper: this is position: fixed, and
+          a transform on an ancestor re-parents a fixed node silently. */}
+      <AudienceSpine />
 
       <footer className="border-t border-line">
         <div className="container-app py-8 text-center">

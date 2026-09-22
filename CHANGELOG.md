@@ -4,6 +4,41 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): the landing page's argument follows the scroll (2026-09-22)
+
+**One mark, riding the whole page.** The page argues a single thing — a task carries the list of
+people who can see it — and the redaction arc is that argument as a drawing. Rather than appear
+once and scroll away it now tracks the reader: private in the hero, opening as the sharing section
+explains reach, holding at the eight-viewer ceiling, closing again by the time the page is talking
+about the session. One continuous statement instead of a sequence of effects.
+
+**Scroll drives an integer, not a fraction.** You can share a task with three people, never with
+3.7, so a continuously-interpolated arc would depict a state the product cannot hold. Scroll picks
+a whole viewer count and `RedactionBadge` animates between counts on its own shipped 220ms
+`pathLength` transition — which reads as continuous because consecutive steps overlap, while never
+drawing a lie. React stays out of the frame loop: `useMotionValueEvent` writes to a ref and calls
+`setState` only when the integer changes, so the whole page costs about a dozen renders end to end.
+
+**Section headings drift, and it is free.** `transform` and `opacity` composite — they cannot
+produce a layout shift — so scroll choreography costs nothing against this route's CLS invariant.
+Measured: **0** across 45 cells. What transforms do cost is containing blocks, and that is the real
+constraint: a transform on an ancestor silently re-parents a `fixed` or `sticky` descendant. So the
+drift is applied only to headings and prose, never to the nav (`sticky`) and never to a block
+holding a non-portalled fixed control. The nav is still `position: sticky` after the change, checked.
+
+**A leak found by looking at a screenshot.** Seeding a sandbox session made the nav read "Open
+Planora" to a visitor with no account, and following it would land them on a guarded route the real
+API cannot serve — the sandbox answers for the landing page, not for the app. The nav now ignores a
+demo session.
+
+**The measurement protocol earned its keep.** A first pass over three runs reported a median LCP of
+1732 ms at 390 px and failed the 1200 ms ceiling. The five-run median specified in the plan reports
+**324 ms** at that viewport and 652 ms at the worst one. The raw samples show why: outliers of
+1724–2432 ms appear sporadically across viewports and runs on identical code, and a median of three
+is vulnerable to two of them landing together. Median of five, as written down, or the gate reports
+noise as regression.
+
+
 ### feat(frontend): the landing page runs on the product's real data layer (2026-09-22)
 
 **⌘K, ⏎ and E now work on `/`, and the page can finally say so.** The keyboard block's claim was

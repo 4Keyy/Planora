@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { ArrowRight } from "lucide-react"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
+import { isDemoSession } from "@/lib/demo/flag"
 
 /**
  * The nav, and the one primary action.
@@ -30,7 +31,17 @@ export function LandingNav() {
   useEffect(() => setMounted(true), [])
 
   const settled = mounted && hasHydrated && hasRestoredSession
-  const signedIn = settled && isAuthenticated
+  /**
+   * The demo sandbox seeds a session so the palette and the list work further down the
+   * page, and that session must not reach this button. Without the check the nav reads
+   * "Open Planora" to a visitor who has no account, and following it lands them on a
+   * guarded route the real API cannot serve — the sandbox answering for the landing page
+   * only, not for the app.
+   *
+   * Read during render rather than through state on purpose: this is the render that the
+   * seeding triggers, and by the time it runs the flag is already set.
+   */
+  const signedIn = settled && isAuthenticated && !isDemoSession()
 
   const go = () => {
     if (signedIn && useAuthStore.getState().isTokenValid()) router.push("/dashboard")
