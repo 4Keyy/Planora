@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuthStore } from "@/store/auth"
+import { isDemoSession } from "@/lib/demo/flag"
 import { useNotificationStore } from "@/store/notifications"
 import { isSystemNotification } from "@/lib/notifications/types"
 import { notifySystem } from "@/lib/notifications/web-notifications"
@@ -22,6 +23,21 @@ export function useRealtimeLifecycle(): void {
   const accessToken = useAuthStore((s) => s.accessToken)
 
   useEffect(() => {
+    // The landing page's sandbox seeds a session so the palette and the list work, and
+    // realtime is the one subsystem a browser cannot answer: a WebSocket handshake needs
+    // a server. Without this the sandbox opens a socket, fails against a gateway that is
+    // not there, and retries on the client's own backoff indefinitely — measured at 486
+    // console errors on a single page view.
+    //
+    // The check belongs HERE rather than in RealtimeManager's render, because the flag is
+    // a plain module value: a render-time guard is evaluated once, before the sandbox has
+    // seeded anything, and never re-evaluated. This effect re-runs when the session
+    // changes, which is exactly when the flag is already set.
+    //
+    // Skipping it is the truthful behaviour, not a concession — with no socket the product
+    // falls back to the 9-second poll it already documents, and the sandbox answers that.
+    if (isDemoSession()) return
+
     if (!isAuthenticated || !accessToken) {
       void realtime.stop()
       return
@@ -43,6 +59,10 @@ export function useNotificationsLifecycle(): void {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   useEffect(() => {
+    // Same reason as above: the sandbox has no notification service, and this hook's
+    // 20-second fallback poll would otherwise run for the whole visit.
+    if (isDemoSession()) return
+
     if (!isAuthenticated) {
       useNotificationStore.getState().reset()
       return

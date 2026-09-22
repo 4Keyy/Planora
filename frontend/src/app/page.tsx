@@ -3,6 +3,7 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 import { LandingNav } from "./_landing/landing-nav"
 import { AudienceConsole } from "./_landing/audience-console"
+import { DemoSandbox } from "./_landing/demo-sandbox"
 import { Reveal } from "./_landing/reveal"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
@@ -181,16 +182,24 @@ export default function HomePage() {
             <Reveal>
               <SectionHeading eyebrow="The real thing" title="Press ? right now." />
               <p className="mt-4 max-w-2xl text-body text-ink-muted">
-                That is not a picture of a shortcut map — it is the product&rsquo;s own, opened by
-                the product&rsquo;s own handler. It lists the whole keyboard, grouped by where each
-                group applies; the list keys below are the ones bound on this page, and they are
-                driving the real cards. Delete is a five-second question: undo cancels a timer, so
-                the request is never sent. After five seconds it is sent, and there is no restore.
-                We would rather say that than offer a button that does not exist.
+                Then press <kbd className="text-body-sm">⌘K</kbd> and search. Then move with
+                <kbd className="text-body-sm">J</kbd>/<kbd className="text-body-sm">K</kbd> and hit
+                <kbd className="text-body-sm">⏎</kbd>. None of that is a picture: the cards below
+                are the product&rsquo;s own, the palette is the product&rsquo;s own, and the branch
+                that opens is the product&rsquo;s own — running against the product&rsquo;s own data
+                layer, in your browser, on invented people. Delete is a five-second question: undo
+                cancels a timer, so the request is never sent. After five seconds it is sent, and
+                there is no restore. We would rather say that than offer a button that does not
+                exist.
               </p>
             </Reveal>
             <Reveal step={1} className="mt-10">
-              <KeyboardConsole />
+              {/* The sandbox seeds a session and swaps the transport before the console
+                  mounts. The palette and the list both guard on isAuthenticated, so
+                  rendering them first would give one frame where every key is dead. */}
+              <DemoSandbox>
+                <KeyboardConsole />
+              </DemoSandbox>
             </Reveal>
           </div>
         </section>

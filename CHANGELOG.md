@@ -4,6 +4,47 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): the landing page runs on the product's real data layer (2026-09-22)
+
+**⌘K, ⏎ and E now work on `/`, and the page can finally say so.** The keyboard block's claim was
+downgraded a commit ago because it was false — the palette returns `null` without a session and
+most of the map was dead. Rather than soften the copy permanently, the page now earns it: a demo
+sandbox swaps `api.defaults.adapter` for an in-memory implementation of the product's own HTTP
+contract and seeds a session, so ⌘K opens the real command palette and searches real tasks, ⏎
+opens the real branch editor with its Author's Note, presence line, redaction badge and subtasks,
+and E opens it with the caret in the title.
+
+**What is real, precisely.** The transport is replaced — the layer below everything. Above it, run
+unchanged: the request interceptor (Authorization from the store, the CSRF echo, `traceparent`),
+the response interceptor (401-refresh-retry, 403-CSRF-retry, cancellation, the error-logging
+policy), all sixteen typed functions in `lib/api.ts`, and `parseApiResponse`'s three envelope
+shapes. The previous demos held their own React state, which looked identical and proved far less:
+an optimistic update that is never contradicted by a refetch is not evidence of anything.
+
+**Mutations really mutate.** Completing a task moves it between the active and completed lists;
+deleting one takes its branch with it; a posted comment comes back on the next read; a reply
+carries the quoted author and preview. `useUndoableAction` still defers the DELETE for five
+seconds and drops the timer on undo, so on this page — exactly as in the product — an undone
+delete never reaches the API at all.
+
+**Two shapes the adapter gets right because the audit mock got them wrong.** `/comments` is paged
+and `/subtasks` is bare; `fetchComments` reads `.items` while `branch-feed` spreads the response
+directly. They are not symmetric, and either one backwards fails silently. Matchers are also
+ordered narrow-to-wide, because `/todos` as a substring swallows `/todos/{id}/subtasks`.
+
+**One defect found and fixed while building it.** Seeding a session turned on the global
+`RealtimeManager`, which had only ever been inert on the landing page because nobody was
+authenticated there. It opened a SignalR socket, failed against a gateway that was not there, and
+retried on its own backoff indefinitely: 486 console errors on a single page view. The gate lives
+inside the lifecycle effects rather than in the component's render, because the flag is a plain
+module value and a render-time guard is evaluated once, before the sandbox has seeded anything,
+and never again. Measured after: 0 console errors across 9 viewports.
+
+Measured with the sandbox live, signed out, 9 viewports: CLS **0** everywhere, 36 interactive
+targets, 0 under 44×44, 0 unnamed, 0 contrast failures, 0 horizontal scroll, 0 console errors,
+37 focus stops with 0 missing an indicator, one `h1` and no level skips.
+
+
 ### fix: the password-reset email led to a 404, and the shader ran on NaN (2026-09-21)
 
 **Nobody could reset a password.** `FrontendLinkBuilder.PasswordReset` built its link as
