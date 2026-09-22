@@ -2,6 +2,7 @@
 
 import { useRef, type ReactNode } from "react"
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion"
+import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
 
 /**
  * A scroll-linked drift, for a section's own heading.
@@ -26,6 +27,18 @@ import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "fr
  *
  * `MotionConfig reducedMotion="user"` does not reach a MotionValue we compute ourselves,
  * so the reduced-motion branch is explicit: the transform is simply not subscribed.
+ *
+ * ## It also fades in, and that is not decoration
+ *
+ * A section heading that is opacity-1 at first paint is an LCP candidate, and during
+ * progressive load a below-the-fold heading is briefly inside the viewport — long enough
+ * to be recorded with a load-time timestamp. Dropping the fade when this replaced the old
+ * `Reveal` wrapper moved LCP from the hero at ~350ms to a section `h2` at ~1770ms on
+ * three viewports, consistently, across five runs.
+ *
+ * Fading in is what these sections were always meant to do — they are revealed on scroll —
+ * so the fix is the design intent rather than a metric trick: at load these headings are
+ * genuinely not visible, and LCP counting them was the artifact.
  */
 export function Parallax({
   children,
@@ -63,7 +76,15 @@ export function Parallax({
 
   return (
     <div ref={ref} className={className}>
-      <motion.div style={{ y }}>{children}</motion.div>
+      <motion.div
+        style={{ y }}
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
+      >
+        {children}
+      </motion.div>
     </div>
   )
 }

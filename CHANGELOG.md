@@ -4,6 +4,51 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): the landing page stops looking like nine of the same section (2026-09-22)
+
+The owner's verdict on the previous pass was that nothing much had changed to look at, and that
+was fair. The work had gone into defects and the data layer — real, and invisible. The page itself
+was still nine identically centred sections, every heading at `display-sm`, separated by nine
+identical hairlines: **eight type sizes exist and it used three**, with `hero` and `title` spent
+nowhere at all.
+
+**The rhythm varies now.** One `hero` statement at 64px where there had been 32. `display` for the
+three turns in the argument. `title` inside the cards. Numbered sections, so the page reads as an
+argument with parts rather than a stack. One **inverted full-bleed band** in the middle — a
+surface, not a theme, using the reverse ink ramp the design system keeps for exactly this — with
+the branch card floating white on `ink`. And **one section where the reading direction turns
+sideways**, spent on the list of things the product refuses to do, because that is the page's most
+unusual claim and it deserves its most unusual movement.
+
+**Elements arrive individually.** Eight cards appearing together read as one render; eight cards
+50ms apart read as a list being laid down. Capped at eight steps, per § 9.9.
+
+None of this touches colour or the type scale, because the headroom was never there. It was in
+composition, scale contrast and motion, which the system leaves wide open.
+
+**Two regressions caught by the gate, both mine.**
+
+*Ninety contrast failures.* The section numerals were `ink-faint` on the reasoning that
+`aria-hidden` made them decorative strokes. Measured at 2.42:1 and 2.52:1 against a required 3:1 —
+and the design system is flat about it: "`text-ink-faint` is never correct." A 32px numeral a
+sighted reader uses to place themselves in a page is text, whatever the aria attribute says. Now
+`ink-subtle` at 4.74:1.
+
+*LCP moved from ~350ms to ~1770ms on three viewports, consistently.* Not noise — the median of five
+said so. Recomposing had dropped the fade-in from the section headings and the demo blocks, so they
+were `opacity: 1` at first paint and therefore LCP candidates; during progressive load a
+below-the-fold paragraph is briefly inside the viewport, and the ceiling block's prose (49,392px²)
+beat the hero (39,102px²) with a load-time timestamp. `loadMs` was flat throughout — the page was
+never slower, the metric had moved to a later-painting element. Restoring the fade fixed it, and
+the fade was the design intent all along: these sections are revealed on scroll, so at load they
+are genuinely not visible and LCP counting them was the artifact.
+
+Measured after, five runs, nine viewports, signed out: **median LCP 456 ms** worst viewport against
+a 1200 ms ceiling, **CLS 0** across 45 cells against a 0.0014 invariant, 0 contrast failures, 0
+targets under 44×44, 0 unnamed, 0 horizontal scroll, 0 console errors. Clean in all three modes —
+data, reduced-motion and dark-OS.
+
+
 ### feat(frontend): the landing page's argument follows the scroll (2026-09-22)
 
 **One mark, riding the whole page.** The page argues a single thing — a task carries the list of
