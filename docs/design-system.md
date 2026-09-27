@@ -352,9 +352,21 @@ line height over `deliberate` 480ms on `emphasized`, staggered **30ms from the r
 
 Two details that are not optional:
 
-- **`tabular-nums`, columns sized `1ch`.** In a proportional face a `1` is narrower
-  than a `7`, so a rolling counter changes width mid-animation and shoves its own
-  label sideways.
+- **`tabular-nums`, and the column sized by the digit.** In a proportional face a `1`
+  is narrower than a `7`, so a rolling counter changes width mid-animation and shoves
+  its own label sideways. The column is *not* told a width: it was once pinned to
+  `1ch` with `overflow: hidden`, on the belief that tabular figures are exactly `1ch`
+  wide. They are not — `ch` is the advance of the font's default zero, which in Plus
+  Jakarta Sans is proportional: 7.00px against 8.41px for the tabular figure actually
+  drawn at 14px bold. Every digit in every counter lost its right edge. The grid cell now
+  takes the tabular advance itself, and the roll is clipped vertically only
+  (`clip-path: inset(0 -0.25em)`), which also clips the outgoing digit that
+  `popLayout` lifts out.
+- **Reserved width is drawn, not computed.** `minDigits` puts an invisible run of that
+  many tabular zeros (CSS generated content, so never read aloud and never matched by a
+  query) in the same grid cell as the digits; the cell takes the wider of the two. A
+  `minWidth` in `ch` repeated the bug above and reserved 24px for two digits that
+  draw 28px wide.
 - **The value appears once for assistive technology.** The columns are `aria-hidden`
   and an `sr-only` node carries the number, or a screen reader reads every intermediate
   digit of every roll. This is why `getByText` on a rolled digit throws in tests and
@@ -789,8 +801,9 @@ propagates.
 Two details that are not optional:
 
 - **`tabular-nums`.** In a proportional face a `1` is narrower than a `7`, so a rolling
-  counter changes width mid-animation and shoves its own label sideways. Columns are
-  sized `1ch`, which with tabular figures is exactly one digit.
+  counter changes width mid-animation and shoves its own label sideways. Each column
+  is sized by its own digit and clipped vertically only — never pinned to `1ch`, which
+  in this face is narrower than a tabular figure (§9.2).
 - **The value appears once for assistive tech.** The animated columns are `aria-hidden`
   and an `sr-only` node carries the number; otherwise a screen reader reads every
   intermediate digit of every roll.
@@ -1080,7 +1093,7 @@ The small decisions that are wrong in most products, and where they are made her
 | Kind | Rule | Where |
 |---|---|---|
 | Dates | One locale, `UI_LOCALE = "en-US"`, always explicit | `lib/datetime.ts` |
-| Numbers that change | Rolled, `tabular-nums`, sized `1ch` | `NumberRoll` |
+| Numbers that change | Rolled, `tabular-nums`, sized by the digit, reserved with `minDigits` | `NumberRoll` |
 | Numbers at rest | `tabular-nums` wherever a column of them can line up | — |
 | A quantity with a target | "3 of 5", with the first number rolled | `PresenceRow` |
 | A magnitude | Filled length, never hue | `PriorityMeter` |

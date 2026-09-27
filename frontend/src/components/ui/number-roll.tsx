@@ -67,13 +67,22 @@ function Digit({ digit, up, delay, reduce }: { digit: string; up: boolean; delay
      * hidden copy of the digit sized it correctly but made the value appear three
      * times in the DOM, turning `getByText("5")` into an ambiguous match.
      *
-     * `1ch` keeps the width stable while a digit changes: with `tabular-nums` every
-     * figure has that exact advance width.
+     * The column is sized by the digit, never told a width. It used to be pinned to
+     * `1ch` on the belief that `tabular-nums` makes every figure exactly that wide. It
+     * does not: `ch` is the advance of the font's DEFAULT zero, and in Plus Jakarta Sans
+     * that zero is proportional — 7.00px at 14px bold, against 8.41px for the tabular
+     * figures actually drawn. With `overflow: hidden` on a box 17% too narrow, the right
+     * edge of every digit in the product was shaved off, in every badge and counter. The
+     * grid cell now takes the tabular advance itself, which is the same for every digit,
+     * so the width is still stable while a digit rolls.
+     *
+     * The clip is vertical only. The roll needs the column to hide the digit sliding in
+     * and out above and below; it never needed to clip sideways, and a bold glyph's ink
+     * may overhang its advance. `clip-path` rather than `overflow` because it also clips
+     * the outgoing digit that `popLayout` lifts out as `position: absolute` — `relative`
+     * makes this column its containing block, so it lands where it was.
      */
-    <span
-      className="inline-grid overflow-hidden tabular-nums"
-      style={{ width: "1ch", gridTemplateAreas: '"d"' }}
-    >
+    <span data-digit="" className="relative inline-grid tabular-nums [clip-path:inset(0_-0.25em)]">
       <AnimatePresence initial={false} mode="popLayout">
         <motion.span
           key={digit}
@@ -81,8 +90,7 @@ function Digit({ digit, up, delay, reduce }: { digit: string; up: boolean; delay
           animate={{ y: "0%", opacity: 1 }}
           exit={{ y: up ? "-100%" : "100%", opacity: 0 }}
           transition={{ duration: DURATION_DELIBERATE, ease: EASE_OUT_EXPO, delay }}
-          style={{ gridArea: "d" }}
-          className="block text-center"
+          className="block [grid-area:1/1]"
         >
           {digit}
         </motion.span>
@@ -110,12 +118,18 @@ export function NumberRoll({ value, direction, className, announce, minDigits }:
   const digits = String(value).split("")
 
   /**
-   * Reserved width, in `ch`. With `tabular-nums` every figure has exactly that
-   * advance, so `minWidth` here is the width of `minDigits` digits — no more, and
-   * no zero-padding. The value stays right-aligned inside it, which is where a
-   * number belongs when its neighbours are numbers.
+   * The reservation is drawn, not computed. A `minWidth` in `ch` repeats the column
+   * bug one level up — it reserves the width of proportional zeros, so the box was
+   * still 17% short of two real digits and 7 → 24 still nudged its neighbours.
+   *
+   * Instead an invisible run of `minDigits` zeros, in the same font and the same
+   * tabular figures, shares one grid cell with the digits, and the cell takes the wider
+   * of the two. It is a pseudo-element on purpose: CSS-generated text is not in the
+   * DOM, so it is never read aloud and never matches a `getByText`. No zero-padding —
+   * only the space. The value stays right-aligned inside it, which is where a number
+   * belongs when its neighbours are numbers.
    */
-  const reserved = minDigits && minDigits > digits.length ? { minWidth: `${minDigits}ch` } : undefined
+  const reserve = minDigits && minDigits > digits.length ? "0".repeat(minDigits) : undefined
 
   return (
     <span
@@ -124,17 +138,26 @@ export function NumberRoll({ value, direction, className, announce, minDigits }:
     >
       {/* The value, once, for assistive technology. */}
       <span className="sr-only">{value}</span>
-      <span aria-hidden="true" className="inline-flex justify-end" style={reserved}>
-        {digits.map((d, i) => (
-          <Digit
-            key={`${digits.length}-${i}`}
-            digit={d}
-            up={up}
-            // Stagger from the right: that is the order a carry propagates.
-            delay={mounted && !reduce ? ((digits.length - 1 - i) * 30) / 1000 : 0}
-            reduce={reduce || !mounted}
-          />
-        ))}
+      <span
+        aria-hidden="true"
+        data-reserve={reserve}
+        className={cn(
+          "inline-grid",
+          reserve && "before:invisible before:content-[attr(data-reserve)] before:[grid-area:1/1]"
+        )}
+      >
+        <span className="inline-flex justify-self-end [grid-area:1/1]">
+          {digits.map((d, i) => (
+            <Digit
+              key={`${digits.length}-${i}`}
+              digit={d}
+              up={up}
+              // Stagger from the right: that is the order a carry propagates.
+              delay={mounted && !reduce ? ((digits.length - 1 - i) * 30) / 1000 : 0}
+              reduce={reduce || !mounted}
+            />
+          ))}
+        </span>
       </span>
     </span>
   )

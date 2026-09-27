@@ -4,6 +4,31 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): every rolling number lost the right edge of its digits (2026-09-27)
+
+Reported as "the numbers on the right are slightly cut off, almost everywhere on the site" — and
+measured: `NumberRoll`, which renders every counter, badge count and stat in the product, pinned
+each digit column to `width: 1ch` with `overflow: hidden`. The design system documented this as
+safe because "with tabular figures `1ch` is exactly one digit". It is not. `ch` is the advance of the
+font's *default* zero, which in Plus Jakarta Sans is proportional: **7.00px at 14px bold, against
+8.41px** for the tabular figure actually drawn. Every digit lost ~17% of its width on the right —
+1.2px on a 12px badge, 2.05px on a 24px counter.
+
+The column is now sized by the digit itself (an inline grid cell takes the tabular advance) and
+clipped **vertically only**, with `clip-path: inset(0 -0.25em)` — the roll only ever needed to hide
+the digit sliding in above and below, and `clip-path` also clips the outgoing digit that
+`popLayout` lifts out as `position: absolute` (the column is `relative` so it lands in place).
+
+`minDigits` had the same bug one level up: it reserved `minWidth: Nch`, 24px for two digits that
+draw 28.09px, so 7 → 24 still nudged its neighbours. The reservation is now **drawn rather than
+computed** — an invisible run of N tabular zeros as CSS generated content in the same grid cell, so
+the cell takes the wider of the two, measured by the font itself. Generated content is never read
+aloud and never matches a test query.
+
+Verified in the browser: column width equals glyph width on all seven counters on `/` (overhang
+0.00px), and the two-digit reservation measures 28.09px. The tests that encoded the `1ch` assumption
+were rewritten to assert the real contract.
+
 ### feat(frontend): the landing page stops looking like nine of the same section (2026-09-22)
 
 The owner's verdict on the previous pass was that nothing much had changed to look at, and that
