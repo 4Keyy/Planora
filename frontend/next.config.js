@@ -116,6 +116,10 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  // A second build directory, so a verification build never rewrites the `.next` a running
+  // `next start` is serving — rebuilding under a live server tears it into an error page.
+  // Unset in every normal run; see docs/development.md.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   compress: true,
   // Trust the host's own LAN IPs in dev so a teammate opening the shared `next dev -H 0.0.0.0`
   // URL gets the internal `/_next/*` resources (incl. the HMR websocket) instead of cross-origin

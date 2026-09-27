@@ -29,6 +29,15 @@ Verified in the browser: column width equals glyph width on all seven counters o
 0.00px), and the two-digit reservation measures 28.09px. The tests that encoded the `1ch` assumption
 were rewritten to assert the real contract.
 
+### build(frontend): verify in a side build directory, beside a running server (2026-09-27)
+
+`next build` rewrites `frontend/.next` in place, and rebuilding under a live `next start` tears it
+into an error page. `next.config.js` now takes `distDir` from `NEXT_DIST_DIR` (default `.next`), and
+`class-audit.mjs` reads the same variable, so a verification build can live in `.next-verify`
+while the launcher keeps serving `.next`. ESLint and Vitest now ignore `.next-*/` — without that,
+one side build produced 101 lint "errors" and 203 warnings, every one of them in generated chunks.
+`.gitignore` covers the side directories. See `docs/development.md`.
+
 ### feat(frontend): the landing page stops looking like nine of the same section (2026-09-22)
 
 The owner's verdict on the previous pass was that nothing much had changed to look at, and that

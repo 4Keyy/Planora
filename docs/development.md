@@ -270,6 +270,29 @@ node docs/ui-audit/tools/focus-scan.mjs
 All three exit non-zero on a finding, so any of them can gate a build. Why each one exists, and
 what it caught, is [`design-system.md`](design-system.md) § 11.
 
+### Building beside a running server (`NEXT_DIST_DIR`)
+
+`next build` rewrites `frontend/.next` in place. Doing that while a `next start` is serving the same
+directory tears it: the running server keeps old chunk names, the new manifest points at files it
+never loaded, and every route renders the error boundary until the server is restarted. When
+something is already listening on `.next` (the launcher's `npm run start` on :3000, say), build and
+verify in a directory of your own instead:
+
+```powershell
+Push-Location frontend
+$env:NEXT_DIST_DIR = ".next-verify"
+npm run build
+npx next start -p 3200          # serves .next-verify, leaves .next alone
+Pop-Location
+$env:NEXT_DIST_DIR = ".next-verify"; node docs/ui-audit/tools/class-audit.mjs
+```
+
+`frontend/next.config.js` sets `distDir` from the variable and `class-audit.mjs` reads the same one.
+Unset, both use `.next`. The side directories match `frontend/.next-*/` in `.gitignore`. Next adds
+the directory's `types` glob to `frontend/tsconfig.json` and may touch `next-env.d.ts` — revert both
+before committing. Never set `NEXT_DIST_DIR` in an `.env` file: it is a tooling switch for one shell,
+not configuration.
+
 ## Database Changes
 
 1. Change the domain/entity in the owning service.

@@ -224,6 +224,15 @@ Code:
 - `docker-compose.yml`
 - `.env.example`
 
+## Frontend build directory (`NEXT_DIST_DIR`)
+
+`frontend/next.config.js` sets Next's `distDir` from `NEXT_DIST_DIR`, defaulting to `.next`, and
+`docs/ui-audit/tools/class-audit.mjs` reads the same variable. It exists for one job: building and
+verifying in a side directory (e.g. `.next-verify`) while another `next start` is serving `.next`,
+which a rebuild in place would tear. It is deliberately **not** in `.env.example` — set it in a single
+shell for a single build, never in an `.env` file. See [`development.md`](development.md) §
+"Building beside a running server".
+
 ## Frontend API URL
 
 `frontend/next.config.js` reads:
