@@ -14,6 +14,27 @@ Planora uses JWT access tokens and server-side refresh tokens.
 
 The frontend persists user metadata and expiry timestamps in session storage, but not raw access or refresh tokens.
 
+### The landing page's sandbox session
+
+The landing page (`/`) runs the product's real task list and command palette against an in-memory
+transport, and those components require a session, so it seeds one: an unsigned `alg: none` JWT
+the client decodes and never verifies (`frontend/src/lib/demo/enable.ts`). The server never sees it,
+and three rules keep it that way:
+
+- **It installs only after `restoreSession()` has finished, and only when there is no real
+  session** (`frontend/src/app/_landing/demo-sandbox.tsx`). Installing on mount raced the restore:
+  an anonymous visitor's failed refresh called `clearAuth()`, which broadcasts a logout to every
+  other tab over `BroadcastChannel`; a seeded token already in the store was POSTed to the real
+  `validate-token` endpoint; and a signed-in visitor's real token was overwritten, then erased when
+  the sandbox tore down. A signed-in visitor now keeps their session and the block links to
+  `/tasks`.
+- **Teardown is silent and complete.** `disableDemo()` restores the previous axios adapter, calls
+  `clearAuth(true)` (no broadcast), restores the page's real `XSRF-TOKEN` cookie, and removes the
+  persisted identity — as does `pagehide`, so a reload never starts from a made-up user.
+- **It never reaches the auth endpoints.** Every call the sandbox makes goes through `api`, whose
+  transport is the in-memory adapter; realtime is off for a demo session; and the only code that
+  talks to `lib/auth-public.ts` — the restore — has already run before the seed exists.
+
 ### Reading the user id from claims — always check `sub` AND `NameIdentifier`
 
 The access token carries the user id in the JWT `sub` claim, but every service's JWT handler runs with the default inbound claim mapping (`JwtBearerOptions.MapInboundClaims = true`), which **remaps `sub` to `ClaimTypes.NameIdentifier`** on the validated principal. Server code must therefore resolve the subject as `User.FindFirst("sub") ?? User.FindFirst(ClaimTypes.NameIdentifier)` (the SignalR hub is unaffected — `Context.UserIdentifier` already derives from `NameIdentifier`). Reading only the raw `"sub"` claim returns null against a real token and 401s every call.

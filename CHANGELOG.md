@@ -4,6 +4,36 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): the landing sandbox could sign visitors out of their other tabs (2026-09-28)
+
+Found while checking the sandbox notice's claim that "nothing leaves this tab" — it was false,
+and the reason was worse than a leak. `DemoSandbox` seeded its fake session on mount, racing the
+real `restoreSession()`:
+
+- **Anonymous visitor.** The silent refresh failed a moment after the seed and called
+  `clearAuth()` — wiping the demo session, so the landing keys went dead, and **broadcasting a
+  logout to every other open tab**.
+- **Seed first.** Restore found a token and POSTed the unsigned demo JWT to the real server's
+  `validate-token` (through `lib/auth-public.ts`, which the adapter swap does not cover). The
+  server said invalid; `clearAuth()` broadcast again.
+- **Signed-in visitor.** Restore's refresh overwrote the demo token with the real one, and on
+  leaving `/` the sandbox's teardown erased that real session — the next click to `/dashboard`
+  found them signed out.
+
+The sandbox now waits for `hasRestoredSession` and installs only for a visitor with no real
+session; a signed-in visitor keeps theirs and gets "You're signed in — Open my tasks" instead.
+While installed it restores the page's real `XSRF-TOKEN` on teardown (it used to overwrite it
+for good), removes the persisted demo identity on `pagehide`, and re-seeds silently if a logout
+broadcast from another tab clears it. A skeleton holds the console's footprint while it waits.
+Verified live: the only auth request on `/` is the page's own restore, before the seed exists.
+
+The console now behaves like `/tasks`: completing waits for the server and says "Task
+completed!", failures are toasts rather than silent rollbacks, priority is owner-only and sends
+the whole task, and the list stops listening while the editor is open (Escape in the editor
+used to drop the list's cursor too). The key legend lights the row of the key just pressed.
+
+Security: a page visit could end the visitor's sessions in other tabs.
+
 ### fix(frontend): clicking a task no longer draws a ring that will not go away (2026-09-28)
 
 Reported on the landing page's keyboard block — "click a task and a frame appears around it; it

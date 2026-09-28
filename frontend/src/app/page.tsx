@@ -4,6 +4,7 @@ import dynamic from "next/dynamic"
 import { LandingNav } from "./_landing/landing-nav"
 import { AudienceConsole } from "./_landing/audience-console"
 import { DemoSandbox } from "./_landing/demo-sandbox"
+import { ConsoleSkeleton } from "./_landing/console-skeleton"
 import { AudienceSpine } from "./_landing/audience-spine"
 import { Parallax } from "./_landing/parallax"
 import { HorizontalBand, StaggerItem } from "./_landing/scroll-kit"
@@ -271,10 +272,11 @@ export default function HomePage() {
               </p>
             </StaggerItem>
             <StaggerItem index={1} className="mt-12">
-              {/* The sandbox seeds a session and swaps the transport before the console
-                  mounts. The palette and the list both guard on isAuthenticated, so
-                  rendering them first would give one frame where every key is dead. */}
-              <DemoSandbox>
+              {/* The sandbox waits for the real session restore, then seeds a session and
+                  swaps the transport before the console mounts — the palette and the list
+                  both guard on isAuthenticated. The skeleton holds the console's footprint
+                  meanwhile, so the swap moves nothing. */}
+              <DemoSandbox placeholder={<ConsoleSkeleton />}>
                 <KeyboardConsole />
               </DemoSandbox>
             </StaggerItem>

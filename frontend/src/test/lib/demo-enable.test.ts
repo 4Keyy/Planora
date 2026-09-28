@@ -106,3 +106,35 @@ describe("state lifecycle", () => {
     expect(demo.todos().some((t) => t.id === "dt-1")).toBe(true)
   })
 })
+
+describe("containment", () => {
+  const cookie = (name: string) =>
+    document.cookie
+      .split("; ")
+      .find((c) => c.startsWith(`${name}=`))
+      ?.slice(name.length + 1) ?? null
+
+  it("puts the page's real CSRF cookie back on teardown", () => {
+    // Overwriting it for good meant the first write after leaving `/` carried a token
+    // the server never issued, rescued only by the interceptor's 403 retry.
+    document.cookie = "XSRF-TOKEN=real-token-value; Path=/"
+    enableDemo("/")
+    expect(cookie("XSRF-TOKEN")).toBe("demo-csrf")
+    disableDemo()
+    expect(cookie("XSRF-TOKEN")).toBe("real-token-value")
+  })
+
+  it("removes the demo CSRF cookie when there was none before", () => {
+    document.cookie = "XSRF-TOKEN=; Path=/; Max-Age=0"
+    enableDemo("/")
+    disableDemo()
+    expect(cookie("XSRF-TOKEN")).toBeNull()
+  })
+
+  it("forgets the persisted demo identity when the page goes away", () => {
+    enableDemo("/")
+    expect(window.sessionStorage.getItem("planora-auth") ?? "").toContain(DEMO_USER.userId)
+    window.dispatchEvent(new Event("pagehide"))
+    expect(window.sessionStorage.getItem("planora-auth")).toBeNull()
+  })
+})
