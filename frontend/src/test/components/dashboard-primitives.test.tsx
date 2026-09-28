@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { StrictMode, type ReactNode } from "react"
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AlertTriangle, Users } from "lucide-react"
@@ -181,5 +182,88 @@ describe("UndoBar", () => {
     render(<UndoHarness onCommit={vi.fn()} onRollback={vi.fn()} />)
     await userEvent.click(screen.getByText("delete"))
     expect(await screen.findByRole("status")).toHaveAttribute("aria-live", "polite")
+  })
+})
+
+/**
+ * StrictMode calls state updaters twice in development, so a commit or rollback
+ * made from inside one ran twice: an Undo re-inserted the task twice and a
+ * superseded delete was sent twice. Every count here is exactly one, under the
+ * same StrictMode the app runs in.
+ */
+describe("useUndoableAction under StrictMode", () => {
+  const strict = ({ children }: { children: ReactNode }) => <StrictMode>{children}</StrictMode>
+  const action = (label = "Task deleted") => ({ label, commit: vi.fn(), rollback: vi.fn() })
+
+  const mount = () => renderHook(() => useUndoableAction(), { wrapper: strict })
+
+  it("rolls back exactly once on undo and never commits what it rolled back", () => {
+    vi.useFakeTimers()
+    const { result, unmount } = mount()
+    const deleted = action()
+
+    act(() => result.current.run(deleted))
+    act(() => result.current.undo())
+    expect(deleted.rollback).toHaveBeenCalledTimes(1)
+    expect(result.current.pending).toBeNull()
+
+    // A second press on a bar that is already leaving must not roll back again.
+    act(() => result.current.undo())
+    act(() => vi.advanceTimersByTime(UNDO_WINDOW_MS * 2))
+    unmount()
+    expect(deleted.rollback).toHaveBeenCalledTimes(1)
+    expect(deleted.commit).not.toHaveBeenCalled()
+  })
+
+  it("commits exactly once when the window closes", () => {
+    vi.useFakeTimers()
+    const { result, unmount } = mount()
+    const deleted = action()
+
+    act(() => result.current.run(deleted))
+    expect(result.current.pending).toBe(deleted)
+    act(() => vi.advanceTimersByTime(UNDO_WINDOW_MS - 1))
+    expect(deleted.commit).not.toHaveBeenCalled()
+
+    act(() => vi.advanceTimersByTime(1))
+    expect(deleted.commit).toHaveBeenCalledTimes(1)
+    expect(result.current.pending).toBeNull()
+
+    unmount()
+    expect(deleted.commit).toHaveBeenCalledTimes(1)
+    expect(deleted.rollback).not.toHaveBeenCalled()
+  })
+
+  it("commits the first action exactly once when a second one supersedes it", () => {
+    vi.useFakeTimers()
+    const { result } = mount()
+    const first = action("Task deleted")
+    const second = action("2 tasks deleted")
+
+    act(() => result.current.run(first))
+    act(() => result.current.run(second))
+    expect(first.commit).toHaveBeenCalledTimes(1)
+    expect(second.commit).not.toHaveBeenCalled()
+    expect(result.current.pending).toBe(second)
+
+    // The first action's timer must not fire a second commit later, and the
+    // second action still gets its own full window.
+    act(() => vi.advanceTimersByTime(UNDO_WINDOW_MS))
+    expect(first.commit).toHaveBeenCalledTimes(1)
+    expect(second.commit).toHaveBeenCalledTimes(1)
+  })
+
+  it("commits exactly once on unmount", () => {
+    vi.useFakeTimers()
+    const { result, unmount } = mount()
+    const deleted = action()
+
+    act(() => result.current.run(deleted))
+    unmount()
+    expect(deleted.commit).toHaveBeenCalledTimes(1)
+
+    act(() => vi.advanceTimersByTime(UNDO_WINDOW_MS * 2))
+    expect(deleted.commit).toHaveBeenCalledTimes(1)
+    expect(deleted.rollback).not.toHaveBeenCalled()
   })
 })

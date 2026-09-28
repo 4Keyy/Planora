@@ -25,6 +25,16 @@ view under the pointer, and **`Space` after a click completed the clicked task**
 scrolling the page. A hidden cursor is now a place, not a target: the row keys return before any
 `preventDefault`. `aria-current` follows the ring, and `TodoCard`'s memo compares it on its own.
 
+### fix(frontend): one Undo could restore a deleted task twice (2026-09-28)
+
+`useUndoableAction` called `commit()` and `rollback()` from inside `setPending(prev => …)`
+updaters. Updaters must be pure, and React StrictMode (on) runs them twice in development: one
+Undo rolled back twice — on the landing page the deleted task came back as two rows — and a
+superseded action could be committed twice. The pending action now lives in a ref that is
+read-and-cleared exactly once by whoever settles it (the timer, Undo, a superseding `run`, or
+unmount); state only mirrors it for rendering. Tests render the hook under `<StrictMode>` and
+count every call.
+
 ### fix(frontend): every rolling number lost the right edge of its digits (2026-09-27)
 
 Reported as "the numbers on the right are slightly cut off, almost everywhere on the site" — and
