@@ -4,6 +4,28 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): every page arrived blank until its JavaScript ran (2026-09-28)
+
+Found while measuring the new landing page, where LCP had turned bimodal — the same build
+measured ~500 ms on one run and 3.9–9 s on the next, always on the `h1`, which is not animated.
+`lcp-probe.mjs` (new, in `docs/ui-audit/tools/`) printed every LCP entry, font arrival and long
+task on one timeline, and the slow runs had **no `h1` entry at all**: FCP at ~560 ms, then a
+648 px² button as the "largest" paint at 2.5 s.
+
+The root `app/template.tsx` faded every route in from `initial={{ opacity: 0 }}`, and framer-motion
+writes that into the server HTML as `style="opacity:0"`. Every first visit to every page was a
+blank page until hydration had finished and the fade had played — on a slow device a blank screen,
+with scripts blocked a blank screen forever — and when hydration collided with other main-thread
+work the `h1` painted while invisible and never became an LCP candidate. The template now starts
+visible on the server and on the first client render (`initial={false}`, so hydration agrees), and
+only navigations inside the app fade.
+
+The hero's entrance no longer touches text either: at 430px the paragraph is the largest element
+on screen, and animating it from opacity 0 put LCP at 1976 ms. The words are simply there; the
+buttons and the card arrive after them.
+
+Performance: landing LCP, worst viewport median of five runs, 9,096 ms → under 500 ms.
+
 ### feat(frontend): the landing page reads like a person wrote it, and ends on a picture (2026-09-28)
 
 The owner asked for texts that are "not neural" — marketing, but never pushy. The page's copy was

@@ -172,22 +172,21 @@ export default function HomePage() {
         <section className="container-app pb-20 pt-16 sm:pb-28 sm:pt-24">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
             <div>
-              {/* The entrance is CSS, not framer-motion, on purpose: it runs before
-                  hydration, so a slow script can never leave the hero invisible, and it
-                  never touches the h1 — the LCP element paints at once, and the lines
-                  around it arrive in reading order after it. `both` holds the first
-                  keyframe through each delay; under reduced motion globals.css collapses
-                  the animation and the final state applies. */}
-              <p className={cn(FIELD_LABEL_CLASS, HERO_IN, "[animation-delay:40ms]")}>
-                Private shared tasks
-              </p>
+              {/* The words are simply there; only the things you press arrive. The entrance
+                  is CSS rather than framer-motion so it runs before hydration, and it never
+                  touches text: an element that starts at opacity 0 is not an LCP candidate
+                  until it has finished appearing, and at 430px the paragraph below is the
+                  largest thing on screen — animating it measured LCP at 1976 ms against
+                  ~280 ms everywhere else. `both` holds the first keyframe through each
+                  delay; under reduced motion globals.css collapses the animation. */}
+              <p className={FIELD_LABEL_CLASS}>Private shared tasks</p>
               {/* The one `hero` on the page. It steps down at narrow widths because 64px
                   at 390 is about six characters a line — a heading that has become a
                   column of hyphens. */}
               <h1 className="mt-5 text-display-sm font-bold tracking-tight text-ink sm:text-display lg:text-hero">
                 Every task carries the list of people who can see it.
               </h1>
-              <p className={cn("mt-7 max-w-xl text-body text-ink-muted", HERO_IN, "[animation-delay:120ms]")}>
+              <p className="mt-7 max-w-xl text-body text-ink-muted">
                 Share a task with the people it&rsquo;s for, and only them. Every person you add
                 opens the ring a little wider, so one glance tells you how far a task has gone.
                 There is no public link to leak.
@@ -197,7 +196,7 @@ export default function HomePage() {
                 className={cn(
                   "mt-9 flex flex-col gap-3 sm:flex-row sm:items-center",
                   HERO_IN,
-                  "[animation-delay:180ms]"
+                  "[animation-delay:80ms]"
                 )}
               >
                 <Link
@@ -218,7 +217,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className={cn(HERO_IN, "[animation-delay:240ms]")}>
+            <div className={cn(HERO_IN, "[animation-delay:160ms]")}>
               <AudienceConsole />
             </div>
           </div>

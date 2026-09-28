@@ -591,6 +591,17 @@ built here at all. A `template.tsx` is destroyed and recreated by the router, an
 no `AnimatePresence` spans the old route and the new one, so there is no moment at
 which the outgoing content still exists to animate.
 
+**The first page of a visit is not faded at all.** The fade used to start every page
+from `initial={{ opacity: 0 }}`, which framer-motion writes into the server HTML as
+`style="opacity:0"` — so every first visit was a blank page until hydration had
+finished and the fade had played, and with scripts blocked it stayed blank. It also made
+LCP bimodal on `/`: the `h1` reported at ~540 ms when hydration was early and not at
+all when hydration collided with other main-thread work, leaving a 648 px² button as the
+"largest" paint at 2.5 s. The template now starts visible on the server and on the first
+client render (`initial={false}`, so hydration agrees), and only navigations inside the
+app fade — the transition this was for. Measured on `/`, median of five, nine
+viewports: worst LCP 3.9–9 s → under 500 ms.
+
 ### 9.12 What is deliberately not animated
 
 | Thing | Why |
