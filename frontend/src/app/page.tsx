@@ -61,7 +61,7 @@ const ViewerSide = dynamic(() => import("./_landing/viewer-side").then((m) => m.
 const KeyboardConsole = dynamic(() =>
   import("./_landing/keyboard-console").then((m) => m.KeyboardConsole)
 )
-const PriorityDemo = dynamic(() => import("./_landing/priority-demo").then((m) => m.PriorityDemo))
+const TaskBuilder = dynamic(() => import("./_landing/task-builder").then((m) => m.TaskBuilder))
 const SessionProbe = dynamic(() => import("./_landing/session-probe").then((m) => m.SessionProbe))
 
 /** Straight from docs/overview.md § What Planora Deliberately Does Not Do. */
@@ -296,11 +296,17 @@ export default function HomePage() {
               <SectionHead
                 n="05"
                 eyebrow="What a task holds"
-                title="Priority is a length, never a colour."
+                title="Make one. It takes ten seconds."
               />
             </Parallax>
-            <StaggerItem className="mt-12">
-              <PriorityDemo />
+            <StaggerItem className="mt-7 max-w-2xl">
+              <p className="text-body text-ink-muted">
+                Name it, say how much it matters, give it a day or a rough week, and pick who sees
+                it. The card beside the controls is the one you&rsquo;d get in the app.
+              </p>
+            </StaggerItem>
+            <StaggerItem index={1} className="mt-12">
+              <TaskBuilder />
             </StaggerItem>
           </div>
         </section>

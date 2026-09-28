@@ -4,6 +4,25 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): "Make one" — build a real task card in ten seconds (2026-09-28)
+
+The owner called block 5 boring and asked for a much more beautiful, animated, interactive block.
+It was five number buttons, a 14px meter and a bullet list of what a task can hold.
+
+A list of features is a brochure; the card is the product. The block is now a builder: name a task
+(the default title types itself in on first sight), say how much it matters, give it a day or a
+rough week, pick a category, share it with Dana or Tom, add a note — and the shipped `TodoCard`
+assembles itself beside the controls. Its own controls are live: the circle ticks it off and back,
+a press on its body puts you in the title field, delete takes it away and offers "Make another".
+One sentence under the card explains the last change, and a Greyscale switch keeps the old block's
+point — priority is a length, never a colour — as something you can check.
+
+Dates are computed at the moment of the click and always lie in the future (a fixed date would go
+overdue and frame the card in the product's alarm colour); before the clock is known the near
+option reads "In three days" so server and client agree. Category colours come from the palette
+users actually pick from (`CATEGORY_COLOR_SWATCHES`). The mapping lives in
+`lib/landing-task-builder.ts` with tests, including a year rollover. `priority-demo.tsx` is gone.
+
 ### feat(frontend): "Reading the ring" — a gauge you drive and a legend you keep (2026-09-28)
 
 The owner asked for block 2 to be more interesting, clearer, more useful and animated. It was a
