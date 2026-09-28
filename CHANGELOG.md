@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): "Tick it off for me" on the landing page did nothing (2026-09-28)
+
+Reported by the owner, and the cause was two lies deep. The block set `isCompletedByViewer` on the
+card's todo — a field `TodoCard` never reads, since it renders "done" from its `variant` prop —
+and handed the card no-op handlers, so the button changed nothing and the card's own check circle
+played its animation and snapped back. The copy under it also claimed a viewer "cannot reopen" a
+shared task they ticked, which the product allows until the owner has finished it for everyone.
+
+The block is now two screens — Dana's list and yours — with every control wired: your card's own
+circle ticks it off for you, its eye hides it, Dana's circle finishes it for everyone, and buttons
+under each list do the same for anyone who would rather not hunt for a circle. The hidden copy is
+the server's real projection (`HiddenTodoDtoFactory`: "Hidden task", no author, no description, no
+audience, none of the owner's category). A dot on the line between the lists shows where each change
+goes — yours stops halfway, Dana's crosses over — and one live sentence says it in words. State is a
+pure reducer, `lib/landing-viewer.ts`, tested against the three product rules.
+
 ### fix(frontend): the landing sandbox could sign visitors out of their other tabs (2026-09-28)
 
 Found while checking the sandbox notice's claim that "nothing leaves this tab" — it was false,
