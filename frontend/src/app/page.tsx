@@ -62,7 +62,7 @@ const KeyboardConsole = dynamic(() =>
   import("./_landing/keyboard-console").then((m) => m.KeyboardConsole)
 )
 const TaskBuilder = dynamic(() => import("./_landing/task-builder").then((m) => m.TaskBuilder))
-const SessionProbe = dynamic(() => import("./_landing/session-probe").then((m) => m.SessionProbe))
+const TrustLab = dynamic(() => import("./_landing/trust-lab").then((m) => m.TrustLab))
 
 /** Straight from docs/overview.md § What Planora Deliberately Does Not Do. */
 const NOT_DOING: { what: string; how: string }[] = [
@@ -97,23 +97,6 @@ const NOT_DOING: { what: string; how: string }[] = [
   {
     what: "Third-party analytics",
     how: "Events are allowlisted and logged on our own servers. There is no SDK to load.",
-  },
-]
-
-const SECURITY: { claim: string; detail: string }[] = [
-  {
-    claim: "Your access token lives in memory",
-    detail: "It is never written to disk, and it goes away when you close the tab.",
-  },
-  {
-    claim: "The server keeps only a hash of your refresh token",
-    detail:
-      "A SHA-256 hash, never the token itself. A copy of our database is not a copy of your session.",
-  },
-  {
-    claim: "Sign-in and account changes are CSRF-protected",
-    detail:
-      "A double-submit token guards the Auth API. That is the scope today, and we would rather name it than imply more.",
   },
 ]
 
@@ -370,32 +353,26 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── 07 · The session ─────────────────────────────────────────────── */}
+        {/* ── 07 · Reliability and privacy ─────────────────────────────────── */}
         <section className="border-t border-line">
           <div className="container-app py-20 sm:py-28">
             <Parallax>
               <SectionHead
                 n="07"
-                eyebrow="Your session"
-                title="Three claims, and one you can check without trusting us."
+                eyebrow="Reliability and privacy"
+                title="Your work stays put. And it stays yours."
+                size="display"
               />
             </Parallax>
-
-            <div className="mt-12 grid gap-10 lg:grid-cols-2 lg:gap-16">
-              <ul className="flex flex-col gap-8">
-                {SECURITY.map(({ claim, detail }, i) => (
-                  <StaggerItem key={claim} index={i}>
-                    <li>
-                      <p className="text-title-sm font-bold tracking-tight text-ink">{claim}</p>
-                      <p className="mt-2 text-body-sm text-ink-muted">{detail}</p>
-                    </li>
-                  </StaggerItem>
-                ))}
-              </ul>
-              <StaggerItem index={1}>
-                <SessionProbe />
-              </StaggerItem>
-            </div>
+            <StaggerItem className="mt-7 max-w-2xl">
+              <p className="text-body text-ink-muted">
+                Six things you can check rather than take on trust. Five of them run right here, in
+                your browser.
+              </p>
+            </StaggerItem>
+            <StaggerItem index={1} className="mt-12">
+              <TrustLab />
+            </StaggerItem>
           </div>
         </section>
 

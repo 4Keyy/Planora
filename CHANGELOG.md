@@ -4,6 +4,30 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): "Stays put. Stays yours." — reliability and privacy you can poke (2026-09-28)
+
+The owner called section 07 (a cookie probe about "your session") useless and asked for
+reliability and privacy instead, told plainly, in a beautiful interactive block. The probe also
+proved less than it said: on `/` the refresh cookie is scoped to the auth path and an anonymous
+visitor has none, so "refresh_token is not readable" was true for reasons unrelated to `HttpOnly`.
+
+Two tabs, three proofs each, every claim taken from a code-verified list:
+
+- **Stays put** — *Undo sends nothing*: the product's `useUndoableAction` with a counter of the
+  requests it would send (undo inside five seconds and it stays at zero). *It saves while you type*:
+  the product's `useAutosave` against a pretend server, counting keys against saves. *A change and
+  its notice travel together*: an illustration, captioned as one, of outbox delivery surviving a
+  server restart.
+- **Stays yours** — *We keep a fingerprint, not the key*: a random session key and its SHA-256,
+  computed on the spot. *No trackers on the line*: every origin this page has contacted, read from
+  the browser's own records, plus the cookie names scripts can see. *Every guess costs 210,000
+  rounds*: one PBKDF2-SHA512 guess timed on the visitor's device at the real setting.
+
+Each tab ends with an "Also true" list (session renewal, reconnects, lockout after five wrong
+passwords, reuse detection for stolen session keys, session list, two-step sign-in with a QR code
+drawn on our server). Nothing says "encrypted", "backed up" or "never lost", because none of that is
+true of the code today. Helpers are in `lib/landing-trust.ts` with tests; `session-probe.tsx` is gone.
+
 ### feat(frontend): "Make one" — build a real task card in ten seconds (2026-09-28)
 
 The owner called block 5 boring and asked for a much more beautiful, animated, interactive block.
