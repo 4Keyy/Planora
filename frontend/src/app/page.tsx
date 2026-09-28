@@ -188,9 +188,9 @@ export default function HomePage() {
                 Every task carries the list of people who can see it.
               </h1>
               <p className="mt-7 max-w-xl text-body text-ink-muted">
-                Press the ring. This is the app&rsquo;s own control, on three invented friends —
-                not a picture of it. Private means you and nobody else. Add a friend and the ring
-                cuts open a little wider.
+                Share a task with the people it&rsquo;s for, and only them. Every person you add
+                opens the ring a little wider, so one glance tells you how far a task has gone.
+                There is no public link to leak.
               </p>
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">

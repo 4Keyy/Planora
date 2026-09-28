@@ -4,6 +4,26 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): the hero card becomes a surprise party you can spoil (2026-09-28)
+
+The owner asked for the landing page's first card — "the control card" — to be more beautiful,
+clearer, more intuitive and more interesting. It was a small grey panel: a label, an 18px mark,
+three chips and a line reading "0 people can read it", under a paragraph that told visitors to
+"press the ring", which was not pressable.
+
+It is now one concrete task where who sees it obviously matters: **"Plan Mira's surprise
+party"**. Share it with Dana and Tom and the product's ring opens a little wider each time, a
+line is drawn from you to each of them, and one sentence says who can see it. Add Mira — nothing
+stops you — and her seat wobbles and the card says "So much for the surprise." The idea the
+page exists to sell, that a task carries its audience, is learned in one tap.
+
+The ring is `AudienceRing`, a large drawing of the same `redactionArc` the 14px badge on every
+task uses, and the task row carries the shipped `RedactionBadge` itself. Empty seats are dashed
+outlines with a plus rather than dimmed avatars (dimmed initials are text below the contrast
+floor), the sentence is the one live region and is reserved at two lines, the chips' avatars are
+hidden from the accessible name ("Share with Dana", not "DW Share with Dana"), and a bounded hint
+nudges the first chip twice if nobody has pressed anything, then never again.
+
 ### fix(frontend): "Tick it off for me" on the landing page did nothing (2026-09-28)
 
 Reported by the owner, and the cause was two lies deep. The block set `isCompletedByViewer` on the
