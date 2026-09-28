@@ -147,6 +147,12 @@ export interface ColorBendsProps {
   iterations?:     number
   intensity?:      number
   bandWidth?:      number
+  /**
+   * Degrees the bands turn per viewport height scrolled. 0 (the default) leaves scroll
+   * out of it. Read through a ref inside the frame loop and eased like the pointer, so a
+   * scroll never re-renders React and never touches the context-creating effect.
+   */
+  scrollTurn?:     number
   className?:      string
 }
 
@@ -240,11 +246,15 @@ export function ColorBends({
   iterations    = 1,
   intensity     = 1.5,
   bandWidth     = 6,
+  scrollTurn    = 0,
   className     = "",
 }: ColorBendsProps) {
   const containerRef  = useRef<HTMLDivElement>(null)
   const rotationRef   = useRef(rotation)
   const autoRotateRef = useRef(autoRotate)
+  const scrollTurnRef = useRef(scrollTurn)
+  // The eased scroll contribution, in degrees.
+  const scrollDegRef  = useRef(0)
   // Pointer in clip space: where it is, and where the render loop has eased to.
   const ptrTargetRef  = useRef<[number, number]>([0, 0])
   const ptrCurrentRef = useRef<[number, number]>([0, 0])
@@ -348,7 +358,13 @@ export function ColorBends({
 
       gl.uniform1f(u.uTime!, elapsed)
 
-      const deg = (rotationRef.current % 360) + autoRotateRef.current * elapsed
+      // Scroll turns the bands a few degrees per screen, eased so a flick reads as a
+      // drift. `scrollY` and `innerHeight` are cheap reads: no layout is forced.
+      const turn = scrollTurnRef.current
+      const scrollTarget = turn ? (window.scrollY / Math.max(1, window.innerHeight)) * turn : 0
+      scrollDegRef.current += (scrollTarget - scrollDegRef.current) * Math.min(1, dt * 4)
+
+      const deg = (rotationRef.current % 360) + autoRotateRef.current * elapsed + scrollDegRef.current
       const rad = (deg * Math.PI) / 180
       gl.uniform2f(u.uRot!, Math.cos(rad), Math.sin(rad))
 
@@ -466,6 +482,7 @@ export function ColorBends({
   useEffect(() => {
     rotationRef.current   = rotation
     autoRotateRef.current = autoRotate
+    scrollTurnRef.current = scrollTurn
 
     const gl = glRef.current
     const prog = progRef.current
@@ -484,7 +501,7 @@ export function ColorBends({
     // Repaint immediately: when the loop is parked (reduced motion) a colour change
     // would otherwise not appear until the next resize.
     drawRef.current?.()
-  }, [rotation, autoRotate, colors])
+  }, [rotation, autoRotate, colors, scrollTurn])
 
   // ── Global pointer tracking (works even with pointer-events-none) ──────────
   useEffect(() => {

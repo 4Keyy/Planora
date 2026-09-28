@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, lazy, useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { tokens } from "@/lib/design-tokens"
 
@@ -89,7 +90,45 @@ const StaticBackground = (
   <div className="w-full h-full" style={{ background: STATIC_BACKGROUND }} aria-hidden="true" />
 )
 
-/** Drop once into the root layout — gives every page the ColorBends background. */
+/**
+ * The one route that runs the live shader (BLUEPRINT § 12.1): the landing page, where the
+ * background is part of the argument. Every other route keeps the static gradient in the
+ * same palette — a list you work in gains nothing from a render loop, and the loop is a
+ * cost on every frame of every screen.
+ */
+const LIVE_ROUTE = "/"
+
+/** Degrees the bands turn per screen scrolled on the landing page: a drift, not a spin. */
+const SCROLL_TURN = 14
+
+/**
+ * Run `fn` once the page has loaded and the main thread is idle.
+ *
+ * The shader's first frame compiles a program and uploads buffers — a long task, measured at
+ * 244 ms at 1440 px and 733 ms at 2560 px in the audit's headless browser. Started at mount it
+ * landed on top of hydration, and the landing page's first paint was the thing that waited.
+ * After `load` and an idle callback, it waits for them instead.
+ */
+function whenIdleAfterLoad(fn: () => void): () => void {
+  let idle: number | null = null
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const schedule = () => {
+    const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number })
+      .requestIdleCallback
+    if (ric) idle = ric(fn, { timeout: 2000 })
+    else timer = setTimeout(fn, 600)
+  }
+  if (document.readyState === "complete") schedule()
+  else window.addEventListener("load", schedule, { once: true })
+  return () => {
+    window.removeEventListener("load", schedule)
+    const cic = (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback
+    if (idle !== null && cic) cic(idle)
+    if (timer) clearTimeout(timer)
+  }
+}
+
+/** Drop once into the root layout — gives every page the background, live only on `/`. */
 export function ColorBendsLayer() {
   // HYDRATION: the server has no `navigator`/`window`, so it can only ever render
   // the static gradient. To guarantee the first client paint matches that markup
@@ -100,12 +139,20 @@ export function ColorBendsLayer() {
   // emitted the static <div>, which is exactly the mismatch React was flagging.
   const [live, setLive] = useState(false)
   const [iterations, setIterations] = useState(1)
+  const pathname = usePathname()
+  const onLiveRoute = pathname === LIVE_ROUTE
 
   useEffect(() => {
+    if (!onLiveRoute) {
+      setLive(false)
+      return
+    }
     if (prefersLightweightBackground()) return // phones/tablets/save-data stay static
-    setIterations(detectIterations())
-    setLive(true)
-  }, [])
+    return whenIdleAfterLoad(() => {
+      setIterations(detectIterations())
+      setLive(true)
+    })
+  }, [onLiveRoute])
 
   return (
     <div className="fixed inset-0 -z-10 pointer-events-none">
@@ -134,6 +181,7 @@ export function ColorBendsLayer() {
               iterations={iterations}
               intensity={1.2}
               bandWidth={6}
+              scrollTurn={SCROLL_TURN}
               transparent
             />
           </Suspense>

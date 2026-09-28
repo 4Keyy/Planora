@@ -318,6 +318,39 @@ under them is a preset that should not exist.
 A thing that *fades* in announces that a render happened. A thing that is *drawn*
 announces that a person did something. Spend the second one rarely.
 
+### Scroll-linked motion — a third class, public pages only
+
+Everything above answers an event: a press, an arrival, a change. The landing page adds
+motion driven by **scroll position** — a heading drifting a few pixels, a band travelling
+sideways, a mark that follows the reader. It lives in `app/_landing/scroll-kit.tsx`,
+`parallax.tsx` and `audience-spine.tsx`, and it is held to five rules, each learned the
+hard way:
+
+1. **Transform and opacity only, which is also why it is affordable.** A composited
+   property cannot produce a layout shift, so scroll choreography costs nothing against a
+   route's CLS invariant — measured 0 across 45 cells.
+2. **Never on an ancestor of `fixed` or `sticky`.** A transformed ancestor silently becomes
+   the containing block and re-parents the node: the landing nav is `sticky` and sits outside
+   every animated wrapper, and the spine is a sibling of `<main>`.
+3. **`MotionConfig` does not reach a computed MotionValue.** `useScroll` → `useTransform` →
+   `useSpring` is invisible to `reducedMotion="user"`, so every scroll component carries its
+   own `useReducedMotion()` branch that renders the final state (the horizontal band becomes a
+   grid, the pinned stage stops pinning).
+4. **Scroll does not render React.** `useMotionValueEvent` writes to a ref and calls
+   `setState` only when a derived *integer* changes — the spine re-renders about a dozen times
+   over the whole page, not once a frame.
+5. **Anything revealed by scroll fades in, and that is not decoration.** A below-the-fold block
+   painted at `opacity: 1` is an LCP candidate during progressive load; dropping the fade once
+   moved LCP from the hero at ~350 ms to a section heading at ~1770 ms, on three viewports, over
+   five runs. `Parallax` and `StaggerItem` both fade.
+
+Units matter: `useSpring` given a string such as `"8%"` parses the number and drops the unit, so
+the band travelled 8px instead of a third of its width. Spring the number, then template the
+unit on with `useMotionTemplate`.
+
+The app routes do not use this class. A list you work in should not move because you scrolled
+it (§ 9.12).
+
 ---
 
 ## 9. Choreography

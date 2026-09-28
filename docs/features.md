@@ -1212,15 +1212,17 @@ The LCP figure is a **median of five runs** on purpose: the same code measured 3
 
 ## Animated Background
 
-The app ships a fragment-shader background (`ColorBends`) rendered via
-Three.js, wrapped in a lazy + Suspense layer (`ColorBendsLayer`) that is
-dropped once into the root layout and sits behind all content.
+The app ships a fragment-shader background (`ColorBends`, raw WebGL) wrapped in a lazy +
+Suspense layer (`ColorBendsLayer`) that is dropped once into the root layout and sits behind all
+content. **It runs live only on the landing page (`/`)** — BLUEPRINT § 12.1 — and every other route
+shows the static gradient in the same palette: a list you work in gains nothing from a render loop
+that costs every frame.
 
 ### Defaults
 
 | Setting | Value |
 |---|---|
-| Colors | `["#d4d4d4", "#9e9e9e", "#616161"]` (light → mid → dark grey) |
+| Colors | `tokens.color.lineStrong`, `inkSubtle`, `inkMuted` — `#767676`, `#737373`, `#525252`, read from `lib/design-tokens.ts` rather than re-typed (the shader's `hexToVec3` cannot parse `var(--pl-*)`; passing CSS variables once fed it `NaN`) |
 | Rotation | `-65°` |
 | Speed | `0.36` |
 | Scale | `1.4` |
@@ -1233,12 +1235,19 @@ dropped once into the root layout and sits behind all content.
 | Intensity | `1.2` |
 | BandWidth | `6` |
 | Transparent | `true` |
+| ScrollTurn | `14` degrees per viewport height scrolled (landing only) |
 
 ### Implementation
 
-- `frontend/src/components/backgrounds/color-bends.tsx` — Three.js component; exports `ColorBends` and `hexToVec3`.
+- `frontend/src/components/backgrounds/color-bends.tsx` — the raw WebGL component (one program, one quad); exports `ColorBends` and `hexToVec3`.
 - `frontend/src/components/backgrounds/color-bends-layer.tsx` — lazy + Suspense wrapper; chooses fragment-shader iterations per device, applies `fixed inset-0 -z-10 pointer-events-none`.
 - Iteration heuristic (`useState(detectIterations)` so first paint is final): ≤ 2 cores → 1, 4–7 cores → 2, ≥ 8 cores → 3.
+- **Started after `load` and an idle callback**, never at mount. The first frame compiles a program
+  and uploads buffers — a long task measured at 244 ms at 1440 px and 733 ms at 2560 px in the audit's
+  headless browser — and at mount it landed on top of hydration and the landing page's first paint.
+- **Scroll turns the bands** a few degrees per screen (`scrollTurn`). The value is read through a ref
+  inside the frame loop and eased like the pointer, so scrolling never re-renders React and never
+  reaches the effect that owns the GL context.
 - Honours `prefers-reduced-motion: reduce` directly (single static frame, no RAF loop). Framer-motion components honour the same preference via the global `MotionConfig reducedMotion="user"` in `frontend/src/app/layout.tsx`.
 - Pauses on `visibilitychange` (tab hidden) and resumes on tab visible.
 - Pointer tracking via `window` (not container) so mouse influence still applies through `pointer-events-none`.

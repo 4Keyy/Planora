@@ -1,5 +1,11 @@
 import { render, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+// The live shader runs on "/" only. Defaulting the pathname to "/" keeps the device
+// heuristics below honest: without it every layer test would be static for the route's
+// sake, and a test for "static on a low-core device" would pass for the wrong reason.
+const nav = vi.hoisted(() => ({ pathname: "/" as string | null }))
+vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }))
+
 import { hexToVec3, ColorBends } from "@/components/backgrounds/color-bends"
 import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
 import { tokens } from "@/lib/design-tokens"
@@ -458,6 +464,32 @@ describe("ColorBends", () => {
 // ─── ColorBendsLayer ──────────────────────────────────────────────────────────
 
 describe("ColorBendsLayer", () => {
+  afterEach(() => {
+    nav.pathname = "/"
+  })
+
+  it("goes live on the landing page only after load and an idle moment", async () => {
+    vi.useFakeTimers()
+    try {
+      render(<ColorBendsLayer />)
+      // Mounted, loaded (jsdom is "complete"), but not yet idle: still the static gradient,
+      // so the shader's first long task cannot land on top of hydration.
+      expect(GLMock.contexts).toHaveLength(0)
+      await vi.advanceTimersByTimeAsync(700)
+    } finally {
+      vi.useRealTimers()
+    }
+    await waitFor(() => expect(GLMock.contexts.length).toBeGreaterThan(0))
+  })
+
+  it("stays static on every other route, even on a capable desktop", async () => {
+    nav.pathname = "/tasks"
+    const { container } = render(<ColorBendsLayer />)
+    await new Promise((r) => setTimeout(r, 900))
+    expect(GLMock.contexts).toHaveLength(0)
+    expect(container.querySelector('div[aria-hidden="true"]')?.getAttribute("style") ?? "").toContain("gradient")
+  })
+
   it("renders without crashing", () => {
     expect(() => render(<ColorBendsLayer />)).not.toThrow()
   })

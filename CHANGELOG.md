@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### perf(frontend): the background shader runs only on the landing page, after load, and follows the scroll (2026-09-28)
+
+BLUEPRINT § 12.1 decided the live background belongs to `/` alone, and the owner confirmed it in the
+redesign plan; it had been running on every route. `ColorBendsLayer` now reads the pathname: every
+other route shows the static gradient in the same palette, with no WebGL context and no render loop.
+
+On `/` the shader no longer starts at mount. Its first frame is a long task — 244 ms at 1440 px and
+733 ms at 2560 px in the audit's headless browser — and at mount it landed on top of hydration and
+the first paint. It now waits for `load` and an idle callback. And the plan's "scroll leads the
+background" is built: a new `scrollTurn` prop turns the bands a few degrees per screen, read through
+a ref inside the existing frame loop and eased, so scrolling never re-renders React or touches the
+effect that owns the GL context. The layer's device-heuristic tests used to pass for the wrong reason
+once the route mattered; they now run on `/`, and two tests pin the route scope and the deferral.
+
 ### fix(frontend): every page arrived blank until its JavaScript ran (2026-09-28)
 
 Found while measuring the new landing page, where LCP had turned bimodal — the same build
