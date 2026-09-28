@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { FIELD_LABEL_CLASS } from "./field-label"
 import { cn } from "@/lib/utils"
 
 /**
@@ -59,9 +60,8 @@ export interface FieldProps {
   children: (props: FieldControlProps) => React.ReactNode
 }
 
-/** One label style for the whole product. */
-export const FIELD_LABEL_CLASS =
-  "block text-caption font-semibold uppercase tracking-wider text-ink-muted"
+/** One label style for the whole product — declared in `field-label.ts`; see there for why. */
+export { FIELD_LABEL_CLASS }
 
 export function Field({
   label,

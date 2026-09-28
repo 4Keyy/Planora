@@ -1,5 +1,5 @@
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
-import { FIELD_LABEL_CLASS } from "@/components/ui/field"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 
 /**
  * The console's footprint, held while the sandbox waits for the session restore.

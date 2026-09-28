@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): every section label on the landing page had lost its style (2026-09-28)
+
+`FIELD_LABEL_CLASS` was exported from `components/ui/field.tsx`, a `"use client"` module. The
+landing page is a server component, and a server component that imports a constant from a client
+module does not receive the string — it receives a client reference. Passed straight to `className`
+it happened to render; passed through `cn()`, as `SectionHead` has always done, it vanished. So every
+section eyebrow on `/` ("Reading the ring", "What a task holds", …) rendered as plain 16px body text
+instead of the uppercase 12px caption the design system specifies, and nothing reported it.
+
+The constant now lives in `components/ui/field-label.ts`, a plain module, and `field.tsx` re-exports
+it, so client imports are unchanged. Server components import it from the plain module. A test pins
+that both paths yield the same string.
+
 ### feat(frontend): "Stays put. Stays yours." — reliability and privacy you can poke (2026-09-28)
 
 The owner called section 07 (a cookie probe about "your session") useless and asked for
