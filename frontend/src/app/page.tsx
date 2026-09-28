@@ -222,12 +222,18 @@ export default function HomePage() {
             <Parallax>
               <SectionHead
                 n="02"
-                eyebrow="How far it reaches"
-                title="Sharing stops at the friends you named."
+                eyebrow="Reading the ring"
+                title="One glance tells you who's in."
                 size="display"
               />
             </Parallax>
-            <StaggerItem className="mt-12">
+            <StaggerItem className="mt-7 max-w-2xl">
+              <p className="text-body text-ink-muted">
+                The ring sits on every task you share. Drag the slider and it opens person by
+                person, until it stops. Here is how to read it.
+              </p>
+            </StaggerItem>
+            <StaggerItem index={1} className="mt-12">
               <SharingCeiling />
             </StaggerItem>
           </div>

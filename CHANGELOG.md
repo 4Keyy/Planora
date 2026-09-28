@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): "Reading the ring" — a gauge you drive and a legend you keep (2026-09-28)
+
+The owner asked for block 2 to be more interesting, clearer, more useful and animated. It was a
++/- stepper beside an 18px mark and a column of prose about "the state Planora cannot enter".
+
+The useful thing hiding in it was that the ring on every shared task is a gauge. The block now
+teaches reading it in a few seconds: on the left the ring at 224px with the count rolling in its
+centre and the faces of whoever can see the task; on the right a slider (plus −/+ for anyone who
+prefers buttons) and a legend — Private, Shared, Past eight, and Public, which is set apart as
+"Not possible" and never lit. A marker slides between legend rows, a "Stops widening" tag appears
+over the cut at eight, and one live sentence reads the gauge in words. On first sight, if untouched,
+the count sweeps 0 → 3 so the ring opens three times; any press hands over at once.
+
+The geometry is the product's own `redactionArc` via `AudienceRing`. The reading, the slider's
+`aria-valuetext` ("Only you", "1 person", "9 people") and the noun under the count are pure
+helpers in `lib/landing-audience.ts`, and `ringReading` cannot return `public`.
+
 ### feat(frontend): the hero card becomes a surprise party you can spoil (2026-09-28)
 
 The owner asked for the landing page's first card — "the control card" — to be more beautiful,
