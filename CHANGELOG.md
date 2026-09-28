@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): the landing page reads like a person wrote it, and ends on a picture (2026-09-28)
+
+The owner asked for texts that are "not neural" — marketing, but never pushy. The page's copy was
+accurate and written for a code reviewer: "no .dark block and no dark: utility", "access checks over
+gRPC", "the editor writes isPublic: false on every save". Every line is still checkable against the
+code; it is now written for someone choosing a task app. Section 04 says what the keys do in one
+breath; section 06 calls its timeline a still frame and points at the live one; the refusals say
+"no trash, no restore button" and "nothing repeats and nothing pings you".
+
+The hero arrives in reading order — eyebrow, paragraph, buttons, card, 40–240ms apart — through a CSS
+animation rather than framer-motion, so it runs before hydration and a slow script can never leave
+the hero invisible; the `h1`, the LCP element, is never animated. The branch timeline in section 06
+lays its messages down one at a time. The closing section is a card with the product's ring drawn —
+when it scrolls into view, not on mount, so the first draw happens where someone sees it — around
+"You and three others", closing the argument the private ring in the hero opened. The footer gains
+the wordmark and its two links, lifted clear of the fixed audience mark.
+
 ### fix(frontend): the landing hero was 2px wider than a phone and cut at the right (2026-09-28)
 
 Measured at 390px: the hero's whole column — eyebrow, heading, buttons, card — ended at x=392. The

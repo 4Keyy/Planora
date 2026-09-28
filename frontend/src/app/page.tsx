@@ -6,6 +6,7 @@ import { AudienceConsole } from "./_landing/audience-console"
 import { DemoSandbox } from "./_landing/demo-sandbox"
 import { ConsoleSkeleton } from "./_landing/console-skeleton"
 import { AudienceSpine } from "./_landing/audience-spine"
+import { ClosingRing } from "./_landing/closing-ring"
 import { Parallax } from "./_landing/parallax"
 import { HorizontalBand, StaggerItem } from "./_landing/scroll-kit"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
@@ -46,6 +47,9 @@ import { cn } from "@/lib/utils"
  * (0.0000–0.0014) is not something to spend on a loading flicker.
  */
 
+/** The hero's entrance: y 8 → 0 with a fade, 220ms, held at the first frame through its delay. */
+const HERO_IN = "animate-slide-up [animation-fill-mode:both]"
+
 export const metadata: Metadata = {
   // The root layout's `%s · Planora` template applies to child segments, not to the
   // segment that declares it — so this one spells the brand out itself.
@@ -64,39 +68,44 @@ const KeyboardConsole = dynamic(() =>
 const TaskBuilder = dynamic(() => import("./_landing/task-builder").then((m) => m.TaskBuilder))
 const TrustLab = dynamic(() => import("./_landing/trust-lab").then((m) => m.TrustLab))
 
-/** Straight from docs/overview.md § What Planora Deliberately Does Not Do. */
+/**
+ * Straight from docs/overview.md § What Planora Deliberately Does Not Do, in the words a
+ * visitor uses. The previous version was accurate and written for a code reviewer —
+ * "no .dark block and no dark: utility" is true and means nothing to someone choosing a
+ * task app. Every line here is still checkable against the code.
+ */
 const NOT_DOING: { what: string; how: string }[] = [
   {
     what: "Publish to the open internet",
-    how: "Sharing resolves against your accepted friends before a single row is read, and the editor writes isPublic: false on every save.",
+    how: "A task reaches only friends who accepted your invite. There's no publish button and no public link.",
   },
   {
     what: "Restore a deleted task",
-    how: "Delete is final once the five-second window closes. There is no restore endpoint, so there is no restore button.",
+    how: "You get five seconds to undo. After that there's no way back: no trash, no restore button.",
   },
   {
     what: "A dark theme",
-    how: "One palette, defined on :root. There is no .dark block and no dark: utility anywhere in the product.",
+    how: "One light palette, tuned for contrast and reading. We'd rather do one well.",
   },
   {
     what: "Nested subtasks",
-    how: "The tree is exactly two levels. A subtask cannot have subtasks, and the domain throws if you try.",
+    how: "A task and its subtasks, two levels. That's where the nesting stops.",
   },
   {
     what: "Recurring tasks or reminders",
-    how: "A task has dates, not a schedule. No recurrence rule and no due-date notifier exists anywhere.",
+    how: "A task has dates, not a schedule. Nothing repeats and nothing pings you.",
   },
   {
     what: "File attachments",
-    how: "The only upload in the whole product is your avatar.",
+    how: "The only thing you can upload is your profile photo.",
   },
   {
-    what: "Category hierarchies",
-    how: "Categories are a flat list, and the frontend has no parent field to set.",
+    what: "Folders inside categories",
+    how: "Categories are one flat list. You name them and pick their colours.",
   },
   {
-    what: "Third-party analytics",
-    how: "Events are allowlisted and logged on our own servers. There is no SDK to load.",
+    what: "Ad or analytics trackers",
+    how: "No tracking scripts load on any page. What the app reports about itself goes to our own servers and nowhere else.",
   },
 ]
 
@@ -163,20 +172,34 @@ export default function HomePage() {
         <section className="container-app pb-20 pt-16 sm:pb-28 sm:pt-24">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
             <div>
-              <p className={FIELD_LABEL_CLASS}>Private shared tasks</p>
+              {/* The entrance is CSS, not framer-motion, on purpose: it runs before
+                  hydration, so a slow script can never leave the hero invisible, and it
+                  never touches the h1 — the LCP element paints at once, and the lines
+                  around it arrive in reading order after it. `both` holds the first
+                  keyframe through each delay; under reduced motion globals.css collapses
+                  the animation and the final state applies. */}
+              <p className={cn(FIELD_LABEL_CLASS, HERO_IN, "[animation-delay:40ms]")}>
+                Private shared tasks
+              </p>
               {/* The one `hero` on the page. It steps down at narrow widths because 64px
                   at 390 is about six characters a line — a heading that has become a
                   column of hyphens. */}
               <h1 className="mt-5 text-display-sm font-bold tracking-tight text-ink sm:text-display lg:text-hero">
                 Every task carries the list of people who can see it.
               </h1>
-              <p className="mt-7 max-w-xl text-body text-ink-muted">
+              <p className={cn("mt-7 max-w-xl text-body text-ink-muted", HERO_IN, "[animation-delay:120ms]")}>
                 Share a task with the people it&rsquo;s for, and only them. Every person you add
                 opens the ring a little wider, so one glance tells you how far a task has gone.
                 There is no public link to leak.
               </p>
 
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div
+                className={cn(
+                  "mt-9 flex flex-col gap-3 sm:flex-row sm:items-center",
+                  HERO_IN,
+                  "[animation-delay:180ms]"
+                )}
+              >
                 <Link
                   href="/auth/register"
                   className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
@@ -195,7 +218,9 @@ export default function HomePage() {
               </div>
             </div>
 
-            <AudienceConsole />
+            <div className={cn(HERO_IN, "[animation-delay:240ms]")}>
+              <AudienceConsole />
+            </div>
           </div>
         </section>
 
@@ -244,20 +269,18 @@ export default function HomePage() {
             <Parallax>
               <SectionHead
                 n="04"
-                eyebrow="Not a picture of the product"
+                eyebrow="Try the keyboard"
                 title="Press ? right now."
                 size="display"
               />
             </Parallax>
             <StaggerItem className="mt-7 max-w-2xl">
               <p className="text-body text-ink-muted">
-                Then press <kbd className="text-body-sm font-semibold">⌘K</kbd> and search. Then
-                move with <kbd className="text-body-sm font-semibold">J</kbd>/
-                <kbd className="text-body-sm font-semibold">K</kbd> and hit{" "}
-                <kbd className="text-body-sm font-semibold">⏎</kbd>. None of it is a mock-up: the
-                cards are the product&rsquo;s own, the palette is the product&rsquo;s own, and the
-                branch that opens is the product&rsquo;s own — running against the
-                product&rsquo;s own data layer, in your browser, on invented people.
+                Then press <kbd className="text-body-sm font-semibold">⌘K</kbd> and search. Move with{" "}
+                <kbd className="text-body-sm font-semibold">J</kbd> and{" "}
+                <kbd className="text-body-sm font-semibold">K</kbd>, open a task with{" "}
+                <kbd className="text-body-sm font-semibold">⏎</kbd>. These are the app&rsquo;s real
+                cards, command palette and task editor, running in your browser on made-up tasks.
               </p>
             </StaggerItem>
             <StaggerItem index={1} className="mt-12">
@@ -318,27 +341,36 @@ export default function HomePage() {
                   <RedactionBadge audience="shared" viewerCount={2} size="sm" />
                 </div>
 
+                {/* One message at a time, in the order they were sent: a timeline read top to
+                    bottom should also arrive top to bottom. Each item is its own StaggerItem so
+                    the list is laid down rather than rendered. */}
                 <ol className="mt-7 flex flex-col gap-6 border-l border-line pl-6">
                   <li>
-                    <p className="text-body-sm font-semibold text-ink">Dana</p>
-                    <p className="mt-1 text-body-sm text-ink-muted">
-                      Outbound is cheapest on the Tuesday. Shall I hold two seats?
-                    </p>
+                    <StaggerItem index={1}>
+                      <p className="text-body-sm font-semibold text-ink">Dana</p>
+                      <p className="mt-1 text-body-sm text-ink-muted">
+                        Outbound is cheapest on the Tuesday. Shall I hold two seats?
+                      </p>
+                    </StaggerItem>
                   </li>
                   <li>
-                    <p className="text-body-sm font-semibold text-ink">Mira</p>
-                    <p className="mt-1 text-body-sm text-ink-muted">
-                      Tuesday works. I cannot do the early flight though.
-                    </p>
+                    <StaggerItem index={3}>
+                      <p className="text-body-sm font-semibold text-ink">Mira</p>
+                      <p className="mt-1 text-body-sm text-ink-muted">
+                        Tuesday works. I can&rsquo;t do the early flight though.
+                      </p>
+                    </StaggerItem>
                   </li>
-                  <li className="flex items-start gap-3">
-                    <span className="mt-0.5">
-                      <InkCheck size={16} />
-                    </span>
-                    <p className="text-body-sm text-ink-muted">
-                      <span className="font-semibold text-ink">Dana</span> completed a step ·
-                      09:41
-                    </p>
+                  <li>
+                    <StaggerItem index={5} className="flex items-start gap-3">
+                      <span className="mt-0.5">
+                        <InkCheck size={16} />
+                      </span>
+                      <p className="text-body-sm text-ink-muted">
+                        <span className="font-semibold text-ink">Dana</span> completed a step ·
+                        09:41
+                      </p>
+                    </StaggerItem>
                   </li>
                 </ol>
               </div>
@@ -346,8 +378,8 @@ export default function HomePage() {
 
             <StaggerItem index={1} className="mt-8 max-w-2xl">
               <p className="text-body-sm text-paper-subtle">
-                A rendering of one moment, not a live demo — a branch is a feed, a poll, access
-                checks over gRPC and presence. Open a real one in section 04, where it runs.
+                This one is a still frame. The branches in section 04 are live: open a task there
+                and reply.
               </p>
             </StaggerItem>
           </div>
@@ -393,8 +425,8 @@ export default function HomePage() {
               </Parallax>
               <StaggerItem className="mt-7 max-w-2xl">
                 <p className="text-body text-ink-muted">
-                  Each of these is a decision you can see in the code, not a gap waiting to be
-                  filled. The first one is the whole product.
+                  Better you read it here than discover it in week two. The first one is the whole
+                  point of the product.
                 </p>
               </StaggerItem>
             </div>
@@ -410,35 +442,41 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── 09 · One action, one name ────────────────────────────────────── */}
+        {/* ── 09 · One action, one name ────────────────────────────────────────
+            The page opened on a private ring and closes on a circle of three, drawn as the
+            reader arrives: the heading's promise, as a picture. */}
         <section className="border-t border-line">
           <div className="container-app py-24 sm:py-32">
             <StaggerItem>
-              <h2 className="max-w-3xl text-display-sm font-bold tracking-tight text-ink sm:text-display">
-                Decide who sees what, and see the circle you decided on.
-              </h2>
-            </StaggerItem>
-            <StaggerItem index={1}>
-              <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Link
-                  href="/auth/register"
-                  className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
-                >
-                  Start for free
-                </Link>
-                <Link
-                  href="/auth/login"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    "w-full sm:w-auto"
-                  )}
-                >
-                  Sign in
-                </Link>
+              <div className="grid grid-cols-1 items-center gap-10 rounded-xl border border-line bg-paper-raised p-8 shadow-xl sm:p-12 lg:grid-cols-[auto_minmax(0,1fr)] lg:gap-16">
+                <ClosingRing />
+                <div>
+                  <h2 className="max-w-3xl text-display-sm font-bold tracking-tight text-ink sm:text-display">
+                    Decide who sees what, and see the circle you decided on.
+                  </h2>
+                  <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <Link
+                      href="/auth/register"
+                      className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto")}
+                    >
+                      Start for free
+                    </Link>
+                    <Link
+                      href="/auth/login"
+                      className={cn(
+                        buttonVariants({ variant: "outline", size: "lg" }),
+                        "w-full sm:w-auto"
+                      )}
+                    >
+                      Sign in
+                    </Link>
+                  </div>
+                  <p className="mt-7 text-body-sm text-ink-subtle">
+                    Free, and no card needed. Planora is young, and we&rsquo;d rather say so up
+                    front.
+                  </p>
+                </div>
               </div>
-              <p className="mt-7 text-body-sm text-ink-subtle">
-                No card, no trial clock. The product is young and we would rather say so.
-              </p>
             </StaggerItem>
           </div>
         </section>
@@ -449,10 +487,30 @@ export default function HomePage() {
       <AudienceSpine />
 
       <footer className="border-t border-line">
-        <div className="container-app py-10">
-          <p className="text-caption text-ink-subtle">
-            Planora — private coordination for people you trust.
-          </p>
+        {/* lg:pb-24: the audience spine is fixed to the bottom-right corner on wide screens,
+            and the footer's links would otherwise sit underneath it at the end of the page. */}
+        <div className="container-app flex flex-col gap-4 py-10 sm:flex-row sm:items-center sm:justify-between lg:pb-24">
+          <div>
+            <p className="text-body-sm font-bold tracking-tight text-ink">Planora</p>
+            {/* ink-muted, not ink-subtle: at 12px the floor is ink-muted (§ 11). */}
+            <p className="mt-1 text-caption text-ink-muted">
+              Private coordination for people you trust.
+            </p>
+          </div>
+          <nav aria-label="Footer" className="flex items-center gap-2">
+            <Link
+              href="/auth/login"
+              className="inline-flex min-h-control items-center rounded-md px-3 text-body-sm font-semibold text-ink-muted transition-colors duration-fast hover:text-ink"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/auth/register"
+              className="inline-flex min-h-control items-center rounded-md px-3 text-body-sm font-semibold text-ink-muted transition-colors duration-fast hover:text-ink"
+            >
+              Create an account
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>
