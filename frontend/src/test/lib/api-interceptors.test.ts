@@ -104,6 +104,8 @@ describe("api interceptors", () => {
     "/auth/api/v1/auth/register",
     "/auth/api/v1/auth/logout",
     "/auth/api/v1/auth/refresh",
+    "/auth/api/v1/auth/reset-password",
+    "/auth/api/v1/auth/request-password-reset",
   ])("does not refresh or redirect-loop for auth endpoint 401 responses from %s", async (url) => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
     const error = {
@@ -116,6 +118,21 @@ describe("api interceptors", () => {
     expect(refreshAccessToken).not.toHaveBeenCalled()
     expect(clearCsrfToken).not.toHaveBeenCalled()
     expect(errorSpy).not.toHaveBeenCalledWith("[API Error]", expect.anything())
+  })
+
+  it("keeps a signed-in session when an expired reset link answers 401", async () => {
+    // The P0 this list exists for: an expired reset link used to refresh, clear auth and
+    // broadcast a logout to every tab of a visitor who was signed in elsewhere.
+    useAuthStore.setState({ isAuthenticated: true, accessToken: token(), user: { userId: "user-1", email: "u@e.x", firstName: "F", lastName: "L" } })
+    const error = {
+      response: { status: 401, data: { code: "INVALID_TOKEN" } },
+      config: { url: "/auth/api/v1/auth/reset-password", method: "post" },
+    }
+
+    await expect(responseRejected()(error)).rejects.toBe(error)
+
+    expect(refreshAccessToken).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
 
   it("propagates protected 401 responses that have no retryable request config", async () => {

@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(auth): an expired password-reset link could sign you out of every tab (2026-09-28)
+
+The Auth API answers a spent or expired reset link with **401** `INVALID_TOKEN`
+(`ResetPasswordCommandHandler.cs`). `lib/api.ts` exempted only login, register, logout and refresh
+from its 401 handling, so that 401 was treated as an expired session: a refresh, then `clearAuth()`
+with a cross-tab logout broadcast. For a visitor already signed in in another tab it was worse — the
+refresh succeeded, the replayed reset 401'd again, and the second-401 branch cleared auth and
+broadcast, signing them out everywhere for opening an old email. Both password-reset endpoints now
+pass their 401 to the page, which knows what an invalid link means. A test pins that a signed-in
+session survives it.
+
+Security: a stale reset link could end a user's sessions in every tab.
+
 ### fix(frontend): the text re-wrapped when the font arrived, moving the landing hero 38px (2026-09-28)
 
 Once the route fade stopped hiding the first paint (see "every page arrived blank" below), a shift

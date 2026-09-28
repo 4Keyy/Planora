@@ -41,6 +41,17 @@ The access token carries the user id in the JWT `sub` claim, but every service's
 
 This fallback is the standing convention — `CurrentUserContext`, `CurrentUserService`, and the rate-limit `PartitionKey` all use it. A handler that reads only `"sub"` is a latent bug: it returns `401`/`403` where the id is required (it broke the realtime notification REST endpoints with `401` — `NotificationsController`/`ConnectionsController`/`PresenceHub` — and the Auth friendship lookups `GetFriendIds`/`AreFriends` with `403`, since the null id fails their self-scoped guard).
 
+### The client's 401 handling stops at the anonymous auth endpoints
+
+`frontend/src/lib/api.ts` answers a 401 by refreshing once and replaying the request, and clears
+auth — broadcasting a logout to every open tab — when that fails. That is right for an expired
+session and wrong for an endpoint whose 401 means something else. Login, register, logout, refresh
+**and the two password-reset endpoints** (`/auth/reset-password`, `/auth/request-password-reset`)
+pass their 401 straight to the caller. The reset endpoints were added after an expired reset link
+(401 `INVALID_TOKEN`) was found to start a refresh and a broadcast logout, and — for a visitor
+signed in in another tab, where the refresh succeeds and the replay 401s again — to sign them out
+of every tab.
+
 ## Login / Register Cookie Contract
 
 Auth API sets:
