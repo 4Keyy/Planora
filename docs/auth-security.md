@@ -99,7 +99,9 @@ Registration, password reset, and account-security notifications use `IEmailServ
 
 Gmail delivery uses `smtp.gmail.com:587` with TLS by default. The Gmail app password is a secret and must stay in `.env`, Docker/CI secrets, or a production secret manager. The service does not log SMTP passwords and only logs successful real sends by subject and recipient.
 
-Email verification status is exposed in user DTOs as both `isEmailVerified` and `emailVerifiedAt`. The email verification frontend route automatically confirms `?token=...` links and refreshes the current access token when an authenticated session is present.
+Email verification status is exposed in user DTOs as both `isEmailVerified` and `emailVerifiedAt`. The email verification frontend route automatically confirms `?token=...` links (once per token, guarded against StrictMode's double effect, since a second request would find the token spent) and refreshes the current access token when an authenticated session is present.
+
+The reset and verification tokens are never displayed or editable in the frontend: both pages read them from the link's query string. The password-reset request page carries the address to the "check your inbox" step in `sessionStorage` (this tab only, cleared on a successful reset), and that step shows it masked (`a•••n@gmail.com`). Its copy says "If … has an account", because `request-password-reset` answers identically whether or not the address exists — the page must not undo the endpoint's protection against account enumeration.
 
 Code:
 
@@ -181,6 +183,8 @@ Code:
 - `Services/AuthApi/Planora.Auth.Domain/Entities/PasswordHistory.cs`
 
 HIBP lookup failures are logged and do not block the password operation.
+
+Reset and change-password additionally run `PasswordValidator.IsStrongPassword` (the common-password list, four ascending characters, four repeats); registration does not. The frontend mirrors this split: `PASSWORD_SCHEMA` for create-account, `NEW_PASSWORD_SCHEMA` (the same plus `isEasyToGuess`) for the reset form, so the client never refuses a password the server would accept, and never ticks every rule for one the server will refuse.
 
 ### Password Hashing
 

@@ -76,6 +76,11 @@ const PUBLIC_ROUTES = [
   { path: '/auth/forgot-password', name: 'auth-forgot-password', full: false },
   { path: '/auth/reset-password?token=demo', name: 'auth-reset-password', full: false },
   { path: '/auth/verify-email?token=demo', name: 'auth-verify-email', full: false },
+  // The recovery path's second step, and the two token screens reached without a token:
+  // each is a state a real visitor lands in, and none of them existed as a screen before.
+  { path: '/auth/forgot-password/sent', name: 'auth-forgot-sent', full: false },
+  { path: '/auth/reset-password', name: 'auth-reset-no-token', full: false },
+  { path: '/auth/verify-email', name: 'auth-verify-no-token', full: false },
 ]
 
 const PRIVATE_ROUTES = [

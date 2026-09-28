@@ -770,7 +770,8 @@ type has stopped being a primitive.
 | Component | Owns |
 |---|---|
 | `Button` | Variants, the three control sizes, the `loading` state that blocks re-entry without resizing |
-| `Field` | Label↔control association, `aria-describedby`, `aria-invalid`, `role="alert"` on the error |
+| `Field` | Label↔control association, `aria-describedby`, `aria-invalid`, `role="alert"` on the error; `labelAside` for a text-height link on the label's line ("Forgot password?") that stays out of the accessible name |
+| `Wordmark` | The product's name and mark — the private ring from `RedactionBadge`, drawn statically — in two sizes. Every place that names the product uses it |
 | `StatusPanel` | Every empty and error state. Two tones, three sizes |
 | `Overlay` | Portal, dialog semantics, focus trap, Escape, backdrop dismissal, scroll lock |
 | `ConfirmDialog` | Destructive confirmation, with an optional "don't ask again" |
@@ -805,6 +806,25 @@ type has stopped being a primitive.
 | Module | Owns |
 |---|---|
 | `lib/shared-origin` | The card-to-dialog transition: the rect a dialog grows out of, and the geometry that gets it there |
+| `lib/route-transition` | Whether this is the first page of a visit. Both route templates read it: the first page is in the server HTML fully visible, only in-app navigation animates |
+
+### The auth room
+
+`components/auth/` is the one place outside `components/ui/` with its own primitives, because five
+routes share them and nothing else does:
+
+| Component | Owns |
+|---|---|
+| `AuthFrame` + `RecoverySteps` | The frame every `/auth/*` route renders in (from the layout, so it survives navigation), and the recovery step scale whose halo slides by `layoutId` |
+| `AuthCard`, `AuthMark`, `AuthBanner` | The card (centred header, left-aligned form, one `h1`), the 56px mark that arrives by CSS so it is visible in the server HTML, and the form-level message in an alert and an info tone |
+| `PasswordInput`, `PasswordChecklist`, `PasswordsMatch` | The reveal toggle and Caps Lock warning; the five rules ticking as they are met (`pathLength` draws a check only when a rule becomes met); the match confirmation — `positive`, because it is a confirmed state |
+| `OneTimeCodeInput` | One real `<input autocomplete="one-time-code">` drawn as six cells, so paste, SMS autofill and password managers work |
+| `EmailSuggestion` | A known domain typo, offered on blur as a one-tap fix |
+
+The column is top-aligned and nothing sits below the card: a centred column, or a footer under it,
+moves every time the card changes height, and each move is a layout shift. A state change that
+replaces a card's content (checking → failed) renders a new card (`key`) rather than re-filling the
+old one, for the same reason.
 
 ---
 

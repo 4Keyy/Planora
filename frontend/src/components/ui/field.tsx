@@ -56,6 +56,13 @@ export interface FieldProps {
    * save space, because a placeholder disappears the moment the user types.
    */
   labelHidden?: boolean
+  /**
+   * Something that belongs on the label's line, at its far end — "Forgot password?"
+   * beside "Password". It sits in the row, not in the `<label>`, so it never becomes part
+   * of the control's accessible name. Keep it text-height: a 44px-tall control here would
+   * push this field's input lower than every other field's in the form.
+   */
+  labelAside?: React.ReactNode
   className?: string
   children: (props: FieldControlProps) => React.ReactNode
 }
@@ -69,6 +76,7 @@ export function Field({
   error,
   required,
   labelHidden,
+  labelAside,
   className,
   children,
 }: FieldProps) {
@@ -79,16 +87,27 @@ export function Field({
   // and the error is the more urgent of the two.
   const describedBy = [errorId, hintId].filter(Boolean).join(" ") || undefined
 
+  const labelNode = (
+    <label htmlFor={id} className={cn(FIELD_LABEL_CLASS, labelHidden && "sr-only")}>
+      {label}
+      {required ? (
+        <span className="ml-1 text-alert" aria-hidden="true">
+          *
+        </span>
+      ) : null}
+    </label>
+  )
+
   return (
     <div className={cn("space-y-2", className)}>
-      <label htmlFor={id} className={cn(FIELD_LABEL_CLASS, labelHidden && "sr-only")}>
-        {label}
-        {required ? (
-          <span className="ml-1 text-alert" aria-hidden="true">
-            *
-          </span>
-        ) : null}
-      </label>
+      {labelAside ? (
+        <div className="flex items-baseline justify-between gap-3">
+          {labelNode}
+          {labelAside}
+        </div>
+      ) : (
+        labelNode
+      )}
 
       {children({
         id,
@@ -104,7 +123,7 @@ export function Field({
       ) : null}
 
       {hint ? (
-        <p id={hintId} className="text-caption font-medium text-ink-subtle">
+        <p id={hintId} className="text-caption font-medium text-ink-muted">
           {hint}
         </p>
       ) : null}

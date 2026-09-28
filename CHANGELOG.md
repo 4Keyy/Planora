@@ -4,6 +4,34 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(auth): sign-in, sign-up and password recovery become one room with a visible path (2026-09-28)
+
+The five `/auth/*` screens were two visual systems — a split screen with a dark panel for sign-in and
+create-account, and a glass card with a colour-literal shadow, `bg-gray-900` buttons and its own
+logo for the other three — and none of them linked home. Recovery was four dead ends: the request
+form ended on a toast, and the reset and verify pages asked people to paste a token nobody has.
+
+Now `app/auth/layout.tsx` renders one frame (`AuthFrame`) that stays mounted across auth routes: a
+top bar whose `Wordmark` links to `/`, one top-aligned column, and on the recovery routes a step
+scale — Email → Inbox → New password → Done — whose marker slides between steps. Every screen is an
+`AuthCard`. A new `/auth/forgot-password/sent` step names the address (masked), explains the link,
+and offers "Send it again" after a 60-second cooldown. The reset and verify pages read the token
+from the link and never show it; a dead link replaces the form with a card that offers a new one.
+
+Help arrives while typing: a checklist of the five server password rules (held equal to
+`PASSWORD_SCHEMA` by a test) replaces the strength score, "Passwords match" confirms the second
+field, Caps Lock is reported under password fields, and a known email-domain typo is offered as a
+one-tap fix. Sign-in's second factor is six code cells that submit on the sixth digit, with a
+recovery-code alternative. A weak or breached new password lands on the password field instead of
+"Check the token", and the reset form mirrors the server's extra checks for a changed password
+(common passwords, runs, repeats). Sign-in and create-account render in the server HTML instead of
+waiting blank for the session restore; buttons keep their label while working (`aria-busy`).
+
+Measured on the production build, five passes over 48 route × viewport cells: worst median LCP
+392 ms, CLS 0 everywhere, 0 contrast failures, 0 unnamed controls, 0 targets under 44×44.
+
+Performance: sign-in and create-account no longer paint blank until the session restore returns.
+
 ### fix(auth): an expired password-reset link could sign you out of every tab (2026-09-28)
 
 The Auth API answers a spent or expired reset link with **401** `INVALID_TOKEN`

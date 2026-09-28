@@ -1107,51 +1107,88 @@ Allowlisted product event names:
 - `SESSION_RESTORED`
 - `TOKEN_REFRESH_FAILED`
 
-## Sign-in And Create-account Screens
+## Sign-in, Create-account, Recovery And Verification Screens
 
 ### Purpose
 
-Get a returning person in, and a new one signed up, without spending their attention on
-anything else.
+Get a returning person in and a new one signed up, get someone who forgot their password back in
+by one visible path, and confirm an email address from the link in the verification email —
+spending the visitor's attention on nothing else, and never leaving them at a dead end.
 
 ### Implementation
 
-- `frontend/src/app/auth/login/page.tsx`, `frontend/src/app/auth/register/page.tsx`
-- `frontend/src/components/auth/auth-chrome.tsx` — the dark panel, the wordmark, the error banner
-- `frontend/src/components/auth/password-input.tsx` — the password field and its reveal toggle
-- `frontend/src/lib/password-policy.ts` — the password rule, declared once
+- `frontend/src/app/auth/layout.tsx` → `frontend/src/components/auth/auth-frame.tsx` — the one frame
+  every `/auth/*` route shares: a top bar whose wordmark links to `/`, a top-aligned `max-w-md`
+  column in `<main id="main">`, and — on the recovery routes — the step scale
+- `frontend/src/app/auth/template.tsx` — the card's entrance between auth routes (opacity and
+  `y: 8 → 0`; nothing on the first page of a visit, see `lib/route-transition.ts`)
+- `frontend/src/app/auth/login/page.tsx`, `register/page.tsx`, `forgot-password/page.tsx`,
+  `forgot-password/sent/page.tsx`, `reset-password/page.tsx`, `verify-email/page.tsx`
+- `frontend/src/components/auth/auth-chrome.tsx` — `AuthCard`, `AuthMark`, `AuthBanner` (alert and
+  info tones), `AUTH_LINK_CLASS`
+- `frontend/src/components/auth/password-input.tsx` (reveal toggle, Caps Lock warning),
+  `password-checklist.tsx`, `passwords-match.tsx`, `one-time-code-input.tsx`, `email-suggestion.tsx`
+- `frontend/src/components/ui/wordmark.tsx` — the product's name and ring mark
+- `frontend/src/lib/auth-flow.ts` — recovery steps, email masking, domain-typo fixes, the resend
+  cooldown; `frontend/src/lib/password-policy.ts` — `PASSWORD_SCHEMA` and `PASSWORD_RULES`;
+  `frontend/src/lib/errors.ts` — `getResetErrorKind`, `getVerifyErrorKind` and the auth messages
+
+### The screens
+
+| Route | What it does |
+|---|---|
+| `/auth/login` | Email and password, "Keep me signed in for 30 days". When the server asks for a second factor the password stage gives way to six code cells that submit on the sixth digit; "Use a recovery code instead" swaps them for a text field (the server's same field accepts both); "Back" returns to the password with focus on the email field |
+| `/auth/register` | First and last name, email, password with a live checklist of the five server rules, and a confirmation field that says "Passwords match" as soon as it does |
+| `/auth/forgot-password` | Step 1 of recovery. Stores the address in `sessionStorage` (this tab only) and moves to step 2; comes back pre-filled from "Use a different email" |
+| `/auth/forgot-password/sent` | Step 2, new. Names the address masked (`a•••n@gmail.com`), says the link works once and expires within the hour, and offers "Send it again" after a 60-second cooldown counted from the last send |
+| `/auth/reset-password?token=` | Step 3. New password with the same checklist and match line; on success step 4, "Password changed", and the scale moves to Done. Without a token, or with a dead one, the card is replaced by one that asks for a new link |
+| `/auth/verify-email?token=` | Checks the link once on arrival. Verified → continue (signed in) or sign in; failed → a signed-in visitor can send a new link, a signed-out one signs in; a network failure can be retried |
 
 ### Key Rules
 
 | Rule | Why |
 |---|---|
-| Neither screen grows | "Six times bigger" applies to the landing page. A sign-in page made six times bigger is six times worse; interactive targets stayed at 7 and 9 |
-| The dark panel is `aria-hidden`, 2/5 wide, and holds one sentence | It is decorative. At half the viewport with six claims in it, the form was the smaller half of its own page, and a screen-reader user walked all of it before reaching the email field |
-| The wordmark lives in the form column at every breakpoint | It used to be `lg:hidden`, taking its desktop appearance from the panel. With the panel hidden from assistive tech that would leave nothing saying where you are |
-| One refusal, one message, one place | The banner carries `role="alert"`; the duplicate toast on the same failure is gone. A sighted reader saw the sentence twice and a screen-reader user heard it once with nothing left beside the field |
-| A 409 lands on the email field | `Field` then marks it `aria-invalid` and announces it, instead of leaving the user to guess which of five fields the server meant |
-| 401 and 400 say different things | 401 is wrong credentials; 400 is a malformed request, and reporting it as a bad password sends people to reset one that was never the problem |
-| Two-factor is detected by error code | Substring sniffing on the message made the branch hostage to prose — reword the server's sentence and the client silently stops asking for the code |
-| One password rule, in `lib/password-policy.ts` | Sign-in accepted `min(6)` while create-account required 8 plus four classes, so sign-in advertised a password that could not have been created |
-| `confirmPassword` is never posted | It is an agreement between two fields; sending it transmitted the password twice |
-| The strength meter animates `transform: scaleX` | It animated `width` — a layout property — over `deliberate` 480ms, four times the ceiling for a response to a keystroke |
-| Create-account waits for the session restore | It had neither a hydration gate nor an authenticated redirect, so a signed-in visitor could sit on it indefinitely |
+| One frame, one card, one layout for phone and desktop | There were two visual systems: a split screen with a dark panel for sign-in and create-account, and a glass card with its own shadow, grey buttons and copy of the logo for the other three |
+| The frame lives in the layout, not in a page | The router keeps a layout mounted across its routes, so the recovery step scale survives the move between steps and its marker slides (`layoutId`) instead of two scales mounting in turn |
+| The column is top-aligned, and nothing sits below it | A vertically centred column moves whenever the card changes height — a banner appearing, the code stage replacing the password, a form becoming its success card. The frame had a footer; as the one element under the card it moved whenever the card grew, and measured as a layout shift on `/auth/verify-email` |
+| The wordmark links to `/` | No auth screen led back to the product's home page |
+| Every screen renders at once, in the server HTML | Sign-in and create-account waited for the session restore — a network round trip — behind a blank screen. A visitor who turns out to be signed in is still redirected to the dashboard |
+| Sign-in checks that a password is present, not its shape | Someone signing in is recalling a password; "Needs a special character" under a typo names a rule they cannot act on, and any wrong password gets the one server answer |
+| Create-account and reset show `PASSWORD_RULES`, not a strength score | The score ("Good") could sit over a password the server was about to refuse. A test holds the checklist and `PASSWORD_SCHEMA` to the same answer for every input |
+| The token is never a field | The old reset and verify pages asked people to paste a token; people have a link, and the link already put the token in the address |
+| A weak or breached new password lands on the password field | The old reset page answered both with "Check the token and try again" |
+| A new password on an existing account is checked the way the server checks it | Reset (and the profile's change form) also refuse common passwords, runs of four ascending characters and four repeats (`PasswordValidator.IsStrongPassword`); `NEW_PASSWORD_SCHEMA` mirrors them, so a fully ticked checklist is never followed by an unexplained refusal. Create-account's server rule does not include them, so neither does its form |
+| A dead reset link replaces the form | The server does not distinguish expired from used (`INVALID_TOKEN`), and nothing on the form fixes either; the card that replaces it offers the one thing that helps |
+| "If … has an account" on the inbox step | `request-password-reset` answers the same whether or not the address exists, so the page must not claim a link was sent |
+| The resend waits 60 seconds | The endpoint is rate-limited; a live button invites the second press that trips it. The countdown sits in a fixed-width span so the button never resizes |
+| A domain typo is offered as a one-tap fix, on blur | "alex@gmial.com" creates an account whose verification and reset emails go nowhere. Fixes come only from a list of exact known typos |
+| Caps Lock is reported under password fields | The characters are masked, so a wrong-case password otherwise surfaces only as a refusal |
+| One refusal, one message, one place | Field errors carry `role="alert"` beside the field; form-level refusals use `AuthBanner`; no auth screen fires a toast for a refusal. The only toasts are "Welcome back!" and "Account created", which land on the next route |
+| Buttons keep their label while working | `Button loading` keeps the label's box and adds `aria-busy`; the old "Sending..."/"Saving..."/"Verifying..." changed both the accessible name and the width |
+| A 409 lands on the email field | `Field` marks it `aria-invalid` and announces it |
+| The lock message says when it lifts | Five failed sign-ins lock the account for 30 minutes (`AccountLockoutMinutes`); "contact support" sent people looking for help with something a clock resolves |
+| `confirmPassword` is never posted on create-account | It is an agreement between two fields; sending it transmitted the password twice |
 
 ### Measured
 
-Signed out (`--set public --mock --anon`), 9 viewports, production build:
+Signed out (`live-scan.mjs --set public --mock --anon`), production build, five passes; sign-in and
+create-account at all 9 viewports, the other six routes at 5 (360, 390, 1024, 1440, 1920):
 
-| | `/auth/login` | `/auth/register` |
+| Route | Median LCP, worst viewport | Max CLS |
 |---|---|---|
-| Max CLS | 0.0011 | 0.0001 |
-| Contrast failures | 0 | 0 |
-| Unnamed controls | 0 | 0 |
-| Focus stops without an indicator | 0 of 8 | 0 of 10 |
-| Targets under 44×44 | 1 — `Create one`, a link inside a sentence | 1 — `Sign in`, the same exception |
-| Console errors | 0 | 0 |
+| `/auth/login` | 128 ms | 0 |
+| `/auth/register` | 132 ms | 0 |
+| `/auth/forgot-password` | 112 ms | 0 |
+| `/auth/forgot-password/sent` | 108 ms | 0 |
+| `/auth/reset-password?token=` | 392 ms | 0 |
+| `/auth/reset-password` (no token) | 108 ms | 0 |
+| `/auth/verify-email?token=` | 100 ms | 0 |
+| `/auth/verify-email` (no token) | 104 ms | 0 |
 
-The remaining sub-44 targets are the WCAG 2.5.8 exception for a link within a sentence, and are
-deliberate. The `Remember me` checkbox previously measured 16×16 and now carries `.touch-target`.
+Across all 48 cells: contrast failures 0, unnamed controls 0, targets under 44×44 0 (the footer
+links carry `.touch-target`), console errors 0, horizontal scroll 0. A first cut of the
+verification page measured CLS 0.0047 at 360 px: its card was re-filled with a longer sentence when
+the check failed, sliding the body down. Each state is now its own card, and it measures 0.
 
 ## The Landing Page
 

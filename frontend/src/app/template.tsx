@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
+import { isFirstPageOfVisit, markPageShown } from "@/lib/route-transition"
 
 /**
  * Route transition. A `template.tsx` re-mounts on every navigation (unlike
@@ -47,13 +48,6 @@ import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
  * animations, and the global `MotionConfig` still collapses it under
  * `prefers-reduced-motion`.
  */
-/**
- * Whether this tab has already shown a page. Module state, so it lives exactly as long as
- * the client-side app does: false for the first page of a visit, true for every
- * navigation after it.
- */
-let hasShownAPage = false
-
 /*
  * ## The first page of a visit is not faded in — it is simply there
  *
@@ -71,12 +65,8 @@ let hasShownAPage = false
  * the transition this was ever for.
  */
 export default function Template({ children }: { children: React.ReactNode }) {
-  const [initial] = useState(() =>
-    typeof window !== "undefined" && hasShownAPage ? { opacity: 0 } : false
-  )
-  useEffect(() => {
-    hasShownAPage = true
-  }, [])
+  const [initial] = useState(() => (isFirstPageOfVisit() ? false : { opacity: 0 }))
+  useEffect(markPageShown, [])
 
   return (
     <motion.div
