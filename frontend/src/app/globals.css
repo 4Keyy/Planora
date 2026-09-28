@@ -126,7 +126,9 @@
      which cancels exactly this much to run the month grid to the card edges. */
   --pl-editor-gutter: 16px;
 
-    --font-sans: "Plus Jakarta Sans";
+    /* next/font's Latin faces (preloaded, with a metric-matched fallback) first; the
+       @fontsource latin-ext faces under the plain family name second. See layout.tsx. */
+    --font-sans: var(--font-jakarta), "Plus Jakarta Sans";
     /* Every token, exposed as a CSS variable. The branch surface builds almost
        all of its styling through inline style objects where a Tailwind class
        cannot reach, so it consumes these instead of carrying hex literals —

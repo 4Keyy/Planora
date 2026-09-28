@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): the text re-wrapped when the font arrived, moving the landing hero 38px (2026-09-28)
+
+Once the route fade stopped hiding the first paint (see "every page arrived blank" below), a shift
+that had always been there became visible: CLS 0.016 at 390 px and 0.0098 at 360 px, against an
+invariant of 0.0014. `lcp-probe.mjs`, extended to print each layout shift's sources, named it —
+the hero paragraph moving 38 px up at 335 ms and back at 388 ms: the `h1` re-wrapping as Plus
+Jakarta Sans swapped in over the system fallback.
+
+The four Latin faces were loaded through `@fontsource` CSS, so the browser discovered them only
+after parsing the stylesheet and they arrived after first paint. A metric-matched fallback was tried
+first and measured: it cut the shift to a rare one-line re-wrap at 360 px, but word by word the two
+faces differ by −11% to +10%, so no single size adjustment can hold line breaks still. The Latin faces
+now load through `next/font/local` from the same files — preloaded in the document head, with a
+fallback built from the font's own metrics for the load where they are late. latin-ext stays on
+`@fontsource`. Re-measured: CLS 0 in all 45 landing cells, worst median LCP 476 ms.
+
 ### perf(frontend): the background shader runs only on the landing page, after load, and follows the scroll (2026-09-28)
 
 BLUEPRINT § 12.1 decided the live background belongs to `/` alone, and the owner confirmed it in the

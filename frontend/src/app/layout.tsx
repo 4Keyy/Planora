@@ -15,16 +15,13 @@ import "./globals.css"
  * English and any stray glyph falls back to the system stack, which is the correct
  * outcome rather than a reason to ship two more subsets.
  */
-import "@fontsource/plus-jakarta-sans/latin-400.css"
-import "@fontsource/plus-jakarta-sans/latin-500.css"
-import "@fontsource/plus-jakarta-sans/latin-600.css"
-import "@fontsource/plus-jakarta-sans/latin-700.css"
 import "@fontsource/plus-jakarta-sans/latin-ext-400.css"
 import "@fontsource/plus-jakarta-sans/latin-ext-500.css"
 import "@fontsource/plus-jakarta-sans/latin-ext-600.css"
 import "@fontsource/plus-jakarta-sans/latin-ext-700.css"
 import { ReactNode } from "react"
 import type { Viewport } from "next"
+import localFont from "next/font/local"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toast"
 import { SecurityInitializer } from "@/components/security-initializer"
@@ -34,6 +31,36 @@ import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
 import { MotionPreferencesProvider } from "@/components/motion-preferences-provider"
 import { CommandPalette } from "@/components/command-palette"
 import { ShortcutsHelp } from "@/components/ui/shortcuts-overlay"
+
+/**
+ * The Latin subset, through next/font — the same @fontsource files, preloaded.
+ *
+ * Loaded through `@fontsource` CSS alone, the four Latin faces were discovered only once
+ * the stylesheet had been parsed, and arrived a beat after first paint. The text painted
+ * in the system fallback and re-wrapped when Plus Jakarta Sans swapped in: the landing
+ * hero heading went from four lines to three at 390px and pushed everything under it 38px
+ * up and back — CLS 0.016 against an invariant of 0.0014. A metric-matched fallback alone
+ * could not fix it: per-word widths differ between the two faces by −11% to +10%, so line
+ * breaks move whatever the average says.
+ *
+ * next/font preloads these files in the document head, so they are there for the first
+ * paint, and `adjustFontFallback` builds a fallback from the font file's own metrics for
+ * the rare load where they are not. The weights are still exactly the four in the type
+ * scale. latin-ext keeps coming from `@fontsource` above, under the family name
+ * "Plus Jakarta Sans", which `--font-sans` lists second: accented characters in user text
+ * are drawn from it, and it is only downloaded when such a character appears.
+ */
+const jakarta = localFont({
+  src: [
+    { path: "../../node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../../node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "../../node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "../../node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-jakarta",
+  display: "swap",
+  adjustFontFallback: "Arial",
+})
 
 export const metadata = {
   // Every route sets its own title through this template, so tabs, history and
@@ -96,7 +123,7 @@ const apiOrigin = resolveApiOrigin()
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning className={cn("font-sans")}>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning className={cn("font-sans", jakarta.variable)}>
       <head>
         <meta name="google" content="notranslate" />
         {/* Resource hints — open the connection to the API gateway in parallel

@@ -160,6 +160,16 @@ These four are loaded and no others. Asking for a weight outside the scale costs
 One `font-weight: 900` in the colour picker asked for a face that has never existed in
 this product.
 
+**How they load.** The Latin faces go through `next/font/local` (`app/layout.tsx`), pointed at
+the same `@fontsource` files: that preloads them in the document head and builds a fallback
+from the font file's own metrics (`adjustFontFallback`). Loaded through the stylesheet alone,
+they arrived a beat after first paint, the text drew in the system font, and the swap
+re-wrapped the landing hero from four lines to three at 390 px — everything under it jumped
+38 px up and back, CLS 0.016. A size-adjusted fallback could not have fixed it by itself: word
+by word the two faces differ by −11% to +10%, so line breaks move whatever the average says.
+The latin-ext faces still come from `@fontsource` under the plain family name, second in
+`--font-sans`, and download only when an accented character appears.
+
 ### The eyebrow label
 
 There is one, exported as `FIELD_LABEL_CLASS` from `components/ui/field.tsx`:
