@@ -161,7 +161,7 @@ export default function HomePage() {
       <main id="main" className="flex-1">
         {/* ── 01 · The thesis, and the control that carries it ─────────────── */}
         <section className="container-app pb-20 pt-16 sm:pb-28 sm:pt-24">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
             <div>
               <p className={FIELD_LABEL_CLASS}>Private shared tasks</p>
               {/* The one `hero` on the page. It steps down at narrow widths because 64px

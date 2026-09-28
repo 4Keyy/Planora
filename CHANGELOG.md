@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): the landing hero was 2px wider than a phone and cut at the right (2026-09-28)
+
+Measured at 390px: the hero's whole column — eyebrow, heading, buttons, card — ended at x=392. The
+page itself did not scroll sideways (`overflow-x: clip` on the body), so the overflow was silently
+shaved off the right edge. The cause was intrinsic sizing: on phones the grid has no template, so
+its one column is an implicit `auto` track sized by min-content, and the hero card's task title
+(`white-space: nowrap` for truncation) contributed its full width — `min-w-0` on a flex item does
+not reduce its min-content contribution. Every single-column-on-phone grid on the page carried the
+same risk, so each is now `grid-cols-1` (`minmax(0, 1fr)`), which can never grow past its container,
+and the hero title wraps instead of truncating (it was cutting "party" off "surprise party").
+Re-measured: zero elements past either edge across the whole page at 390px.
+
 ### fix(frontend): every section label on the landing page had lost its style (2026-09-28)
 
 `FIELD_LABEL_CLASS` was exported from `components/ui/field.tsx`, a `"use client"` module. The

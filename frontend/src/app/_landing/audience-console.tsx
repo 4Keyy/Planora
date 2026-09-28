@@ -94,7 +94,7 @@ export function AudienceConsole() {
           slot is a fixed width so "Private" ↔ "Shared 3" never reflows the title. */}
       <div className="flex items-center gap-3">
         <span aria-hidden="true" className="h-6 w-6 flex-shrink-0 rounded-full border-2 border-line-strong" />
-        <p className="min-w-0 flex-1 truncate text-body font-semibold text-ink">{CIRCLE_TASK_TITLE}</p>
+        <p className="min-w-0 flex-1 text-body font-semibold text-ink">{CIRCLE_TASK_TITLE}</p>
         <span className="flex w-24 flex-shrink-0 justify-end">
           <RedactionBadge audience={audience} viewerCount={count} size="sm" />
         </span>

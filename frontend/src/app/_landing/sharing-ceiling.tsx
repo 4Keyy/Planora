@@ -79,7 +79,7 @@ export function SharingCeiling() {
   const faces = FIXTURE_FRIENDS.slice(0, count)
 
   return (
-    <div className="grid items-center gap-10 rounded-xl border border-line bg-paper-raised p-6 shadow-lg sm:p-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
+    <div className="grid grid-cols-1 items-center gap-10 rounded-xl border border-line bg-paper-raised p-6 shadow-lg sm:p-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-14">
       {/* ── The gauge. A picture of the right-hand column's facts, so aria-hidden. ── */}
       <div
         ref={stageRef}

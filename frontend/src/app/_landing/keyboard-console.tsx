@@ -177,7 +177,7 @@ export function KeyboardConsole() {
   })
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-10">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-10">
       <div>
         {loading ? (
           // Reserving the real card footprint, so the swap costs no layout shift.

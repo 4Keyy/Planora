@@ -115,7 +115,7 @@ export function TaskBuilder() {
   return (
     <div
       ref={rootRef}
-      className="grid gap-10 rounded-xl border border-line bg-paper-raised p-6 shadow-lg sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-14"
+      className="grid grid-cols-1 gap-10 rounded-xl border border-line bg-paper-raised p-6 shadow-lg sm:p-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-14"
     >
       {/* ── The stage. First in the DOM on phones would bury the controls, so the grid
           orders it second there and first on wide screens. ── */}

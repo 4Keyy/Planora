@@ -88,7 +88,7 @@ export function ViewerSide() {
         lists.
       </p>
 
-      <div className="mt-10 grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] lg:gap-0">
+      <div className="mt-10 grid grid-cols-1 items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] lg:gap-0">
         <Screen
           who="Dana's list"
           initial="D"
