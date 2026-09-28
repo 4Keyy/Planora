@@ -235,7 +235,16 @@ than the one being read. When the active id genuinely disappears the cursor fall
 to the nearest surviving position rather than to nothing; losing your place entirely is
 what makes keyboard navigation feel broken.
 
-The cursor is exposed as `aria-current="true"`, **not** `aria-selected`. Earning
+The cursor is a place plus a visibility (`cursorVisible`). A pointer press anywhere hides it
+and leaves the place, so the keyboard resumes from the clicked row; `Tab` into the list and
+every navigation key show it. Only `Tab` counts as keyboard focus — it is the one key that
+moves DOM focus onto a row — so a dialog opened by a click and closed with `Escape` does not
+bring the ring back when focus is returned by script. A hidden cursor is not a target: the row
+keys return before any `preventDefault`, and the scroll-into-view effect waits for a shown
+cursor so a click never makes the page jump away from the pointer.
+
+The cursor is exposed as `aria-current="true"`, **not** `aria-selected`, and only while it
+is shown. Earning
 `aria-selected` would mean making rows `role="option"` inside a `role="listbox"`, and an
 `option` may not contain focusable descendants — every row here carries a checkbox and a
 menu. Claiming listbox semantics anyway would leave a screen reader announcing controls

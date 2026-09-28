@@ -446,6 +446,11 @@ function TodoCardComponent({
            * offset outwards so it never sits on top of the card's content, and it is
            * deliberately NOT the focus indicator — focus may legitimately be
            * elsewhere on the page while the list still has a cursor.
+           *
+           * It only ever appears for the keyboard. The hook sets the attribute
+           * while the cursor is shown: Tab into the list or a navigation key
+           * shows it, and any pointer press hides it, so clicking a card never
+           * draws an outline around it.
            */
           "[&[data-active]]:outline [&[data-active]]:outline-2 [&[data-active]]:outline-offset-2 [&[data-active]]:outline-ink",
           "[&[data-selected]]:outline [&[data-selected]]:outline-2 [&[data-selected]]:outline-offset-2 [&[data-selected]]:outline-accent",
@@ -1083,13 +1088,16 @@ export const TodoCard = memo(
    * identity changes on every render, so comparing the object would defeat the
    * memo entirely; ignoring it would freeze the keyboard cursor on whichever card
    * happened to hold it first, which is the same defect wearing a different hat.
-   * Its `ref` and `onFocus` are cached per id by the hook, so only these three
-   * values can actually change.
+   * Its `ref` and `onFocus` are cached per id by the hook, so only these four
+   * values can actually change. `aria-current` moves with `data-active` today,
+   * but it is compared on its own anyway: leaving it to ride along is how a card
+   * ends up announcing a cursor it no longer shows the moment the two diverge.
    */
   (prev, next) =>
     prev.todo === next.todo &&
     prev.variant === next.variant &&
     prev.rowProps?.tabIndex === next.rowProps?.tabIndex &&
     prev.rowProps?.["data-active"] === next.rowProps?.["data-active"] &&
+    prev.rowProps?.["aria-current"] === next.rowProps?.["aria-current"] &&
     prev.rowProps?.["data-selected"] === next.rowProps?.["data-selected"],
 )

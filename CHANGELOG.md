@@ -4,6 +4,27 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): clicking a task no longer draws a ring that will not go away (2026-09-28)
+
+Reported on the landing page's keyboard block — "click a task and a frame appears around it; it
+must only appear when you Tab to it, and go away when you click elsewhere" — and it was the same
+on `/tasks`, because the cause is the shared list hook. A click focused the row (every row has a
+`tabIndex`), focus set the cursor, and the cursor drew its outline. Input modality was never
+consulted, and only `Escape` cleared it.
+
+`useListNavigation` now holds the cursor as a **place** and a **visibility**. A click moves the
+place — roving tabindex remembers the last row touched, so `Tab` and `J` resume from it — but
+any pointer press (captured on `window`, mouse, touch and pen alike) hides the ring; `Tab` into
+the list, a move, `gg`/`G` or `⌘A` show it. Only `Tab` counts as keyboard focus, so a dialog
+opened by a click and closed with `Escape` does not bring the ring back when focus is handed back
+by script.
+
+Three more defects shared the cause and are gone with it: completing a task with the mouse handed
+a ring to the task below it (the reconcile fallback), a click scrolled a half-visible card into
+view under the pointer, and **`Space` after a click completed the clicked task** instead of
+scrolling the page. A hidden cursor is now a place, not a target: the row keys return before any
+`preventDefault`. `aria-current` follows the ring, and `TodoCard`'s memo compares it on its own.
+
 ### fix(frontend): every rolling number lost the right edge of its digits (2026-09-27)
 
 Reported as "the numbers on the right are slightly cut off, almost everywhere on the site" — and

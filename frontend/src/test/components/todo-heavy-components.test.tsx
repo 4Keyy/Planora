@@ -365,6 +365,36 @@ describe("TodoCard", () => {
     expect(card).not.toHaveClass("border-accent")
     expect(screen.getByText("Focus")).toHaveClass("blur-[3px]")
   })
+
+  it("re-renders when only aria-current changes on its row props", () => {
+    // The memo compares rowProps field by field; a field it forgot would leave the
+    // card announcing a cursor it no longer has, or missing one it just gained.
+    const handles = { ref: vi.fn(), onFocus: vi.fn() }
+    const rowProps = (ariaCurrent: "true" | undefined) => ({
+      ...handles,
+      tabIndex: 0 as const,
+      "data-active": undefined,
+      "aria-current": ariaCurrent,
+      "data-selected": undefined,
+    })
+    const todo = baseTodo()
+    const card = (ariaCurrent: "true" | undefined) => (
+      <TodoCard
+        todo={todo}
+        onComplete={vi.fn()}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        rowProps={rowProps(ariaCurrent)}
+      />
+    )
+
+    const { container, rerender } = render(card(undefined))
+    const root = container.querySelector(".group\\/card")
+    expect(root).not.toHaveAttribute("aria-current")
+
+    rerender(card("true"))
+    expect(container.querySelector(".group\\/card")).toHaveAttribute("aria-current", "true")
+  })
 })
 
 describe("CreateTodoPanel", () => {

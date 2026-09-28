@@ -882,6 +882,12 @@ When the active id genuinely disappears the cursor falls back to the nearest sur
 position rather than to nothing: losing your place entirely is what makes keyboard
 navigation feel broken, and it is the most common way a hook like this is wrong.
 
+The ring belongs to the keyboard. A click still moves the cursor's place — roving tabindex
+remembers the last row anyone touched — but a pointer press is not a request to see a
+keyboard cursor, so it hides the ring until `Tab`, a move or a jump shows it again, and a
+hidden cursor's action keys do nothing. Before this, clicking a card drew an outline around
+it that only `Escape` removed.
+
 Three guards that are the difference between a working list and a demo:
 
 | Guard | Without it |
@@ -1126,7 +1132,7 @@ once. It is worth reading as a worked example.
 | Due date | `caption`, `alert` only when overdue | The product's one saturated colour, spent on the one thing that earns it |
 | The border | `border-alert` when overdue, `border-line` otherwise | **One fact, and only one.** It used to return `border-accent` for "in progress", for "shared", and for both — so a task somebody had taken into work and a task merely visible to a friend were drawn identically. The other two facts have their own marks a few pixels away, and `accent` belongs to selection |
 | Presence | `PresenceRow` | One `sr-only` sentence, never a label per face |
-| Keyboard cursor | `outline-2 outline-offset-2 outline-ink` | An outline, not a ring: it follows `border-radius` without being told, and it is **not** the focus indicator — focus may legitimately be elsewhere while the list still has a cursor |
+| Keyboard cursor | `outline-2 outline-offset-2 outline-ink` | An outline, not a ring: it follows `border-radius` without being told, and it is **not** the focus indicator — focus may legitimately be elsewhere while the list still has a cursor. Drawn only for the keyboard: a pointer press hides it |
 | Selection | `outline-accent` | `data-selected`, because `aria-selected` is not legal on a row that contains buttons |
 | The whole surface | — | Press records its rect for the dialog to grow from |
 

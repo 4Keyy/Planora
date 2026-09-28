@@ -680,3 +680,211 @@ describe("getRowProps", () => {
     expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: "nearest" }))
   })
 })
+
+// ─── The ring is the keyboard's ─────────────────────────────────────────────
+
+/**
+ * A pointer press moves the place but never draws the ring; only the keyboard
+ * reveals it. Every test here asserts on rendered attributes, because the
+ * defect being guarded is a visible one: an outline around the card someone
+ * just clicked.
+ */
+describe("the cursor ring appears only for the keyboard", () => {
+  const OUTSIDE = <button type="button">outside</button>
+
+  const callbacks = () => ({
+    onActivate: vi.fn(),
+    onToggleComplete: vi.fn(),
+    onEdit: vi.fn(),
+    onDelete: vi.fn(),
+    onPriority: vi.fn(),
+  })
+
+  const ringed = (rows: HTMLElement[]) => rows.filter((row) => row.hasAttribute("data-active"))
+
+  it("seats the cursor on a clicked row without drawing the ring", async () => {
+    const { nav, rows } = renderList({ ids: IDS })
+    await userEvent.click(rows()[1])
+
+    expect(nav().activeId).toBe("b")
+    expect(nav().cursorVisible).toBe(false)
+    expect(ringed(rows())).toHaveLength(0)
+    for (const row of rows()) expect(row).not.toHaveAttribute("aria-current")
+    // The place is kept for the keyboard: Tab comes back to the row that was clicked.
+    expect(rows()[1].tabIndex).toBe(0)
+  })
+
+  it("continues from the clicked row on j and shows the ring there", async () => {
+    const { nav, rows } = renderList({ ids: IDS })
+    await userEvent.click(rows()[1])
+    await userEvent.keyboard("j")
+
+    expect(nav().activeId).toBe("c")
+    expect(nav().cursorVisible).toBe(true)
+    expect(rows()[2]).toHaveAttribute("data-active", "")
+  })
+
+  it("shows the ring when Tab brings focus into the list", async () => {
+    const { rows } = renderList({ ids: IDS })
+    await userEvent.tab()
+
+    expect(rows()[0]).toHaveFocus()
+    expect(rows()[0]).toHaveAttribute("data-active", "")
+    expect(rows()[0]).toHaveAttribute("aria-current", "true")
+  })
+
+  it("hides the ring on a click outside the list but keeps the place", async () => {
+    const { nav, rows } = renderList({ ids: IDS }, OUTSIDE)
+    await userEvent.keyboard("jj")
+    expect(rows()[1]).toHaveAttribute("data-active", "")
+
+    await userEvent.click(screen.getByRole("button", { name: "outside" }))
+    expect(ringed(rows())).toHaveLength(0)
+    expect(nav().activeId).toBe("b")
+    expect(rows()[1].tabIndex).toBe(0)
+
+    await userEvent.keyboard("j")
+    expect(rows()[2]).toHaveAttribute("data-active", "")
+  })
+
+  it("hides the ring when the row that already has focus is pressed again", async () => {
+    // A row that already holds focus gets no second focus event, so this is the
+    // pointerdown path on its own.
+    const { rows } = renderList({ ids: IDS })
+    await userEvent.tab()
+    expect(rows()[0]).toHaveAttribute("data-active", "")
+
+    await userEvent.click(rows()[0])
+    expect(rows()[0]).toHaveFocus()
+    expect(ringed(rows())).toHaveLength(0)
+  })
+
+  it("shows the ring again when Tab returns to the list after a click elsewhere", async () => {
+    const { rows } = renderList({ ids: IDS }, OUTSIDE)
+    await userEvent.keyboard("jj")
+    await userEvent.click(screen.getByRole("button", { name: "outside" }))
+
+    await userEvent.tab()
+    expect(rows()[1]).toHaveFocus()
+    expect(rows()[1]).toHaveAttribute("data-active", "")
+  })
+
+  it("keeps the ring hidden when a script hands focus back to a clicked row", async () => {
+    // What a focus trap does when a dialog opened by a click closes: the row is
+    // focused again, and none of that was the keyboard's doing.
+    const { rows } = renderList({ ids: IDS })
+    await userEvent.click(rows()[1])
+    act(() => rows()[1].blur())
+    act(() => rows()[1].focus())
+
+    expect(rows()[1]).toHaveFocus()
+    expect(ringed(rows())).toHaveLength(0)
+  })
+
+  it("keeps the selection through a pointer press", async () => {
+    // Selection only ever comes from the keyboard, and on /tasks the bulk bar is
+    // clicked: rows losing their highlight while a delete is being confirmed
+    // would be the worst moment to lose it.
+    const { nav, rows } = renderList({ ids: IDS }, OUTSIDE)
+    await userEvent.keyboard("jx")
+    await userEvent.click(screen.getByRole("button", { name: "outside" }))
+
+    expect(rows()[0]).toHaveAttribute("data-selected", "")
+    expect(nav().selectedIds).toEqual(["a"])
+  })
+
+  it("does not act on a hidden cursor, and leaves every key to the page", async () => {
+    // Space after a click is a mouse user scrolling, not a request to complete
+    // the task they happened to click last.
+    const cb = callbacks()
+    const { nav, rows } = renderList({ ids: IDS, ...cb })
+    await userEvent.click(rows()[1])
+
+    const events = [" ", "Enter", "Delete", "Backspace", "e", "x", "3"].map((key) => press(key))
+    for (const event of events) expect(event.defaultPrevented).toBe(false)
+    expect(cb.onActivate).not.toHaveBeenCalled()
+    expect(cb.onToggleComplete).not.toHaveBeenCalled()
+    expect(cb.onEdit).not.toHaveBeenCalled()
+    expect(cb.onDelete).not.toHaveBeenCalled()
+    expect(cb.onPriority).not.toHaveBeenCalled()
+    expect(nav().selectedIds).toEqual([])
+  })
+
+  it("reveals the cursor on select-all, so the next key has a target", async () => {
+    // Otherwise ⌘A and then Space after a click would be a dead keystroke again.
+    const cb = callbacks()
+    const { rows } = renderList({ ids: IDS, ...cb })
+    await userEvent.click(rows()[1])
+
+    press("a", { ctrlKey: true })
+    press(" ")
+    expect(cb.onToggleComplete).toHaveBeenCalledWith("b")
+    expect(rows()[1]).toHaveAttribute("data-active", "")
+  })
+
+  it("reveals a hidden cursor on the last row even when j has nowhere to go", async () => {
+    // Clamped at the edge the move is a no-op; without this it would also be an
+    // invisible one, and the key would look dead.
+    const { nav, rows } = renderList({ ids: IDS })
+    await userEvent.click(rows()[2])
+    await userEvent.keyboard("j")
+
+    expect(nav().activeId).toBe("c")
+    expect(rows()[2]).toHaveAttribute("data-active", "")
+  })
+
+  it("moves a hidden cursor to the neighbour of a removed row without revealing it", async () => {
+    // Completing a task with the mouse must not hand its ring to the task below.
+    const { nav, rows, update } = renderList({ ids: IDS })
+    await userEvent.click(rows()[1])
+
+    update({ ids: ["a", "c"] })
+    expect(nav().activeId).toBe("c")
+    expect(ringed(rows())).toHaveLength(0)
+  })
+
+  it("scrolls for the keyboard and never for a click", async () => {
+    const scrollIntoView = vi.spyOn(HTMLElement.prototype, "scrollIntoView")
+    // The spy can come back already holding earlier tests' calls; this test is
+    // about a count of zero, so start it from zero.
+    scrollIntoView.mockClear()
+    const { rows } = renderList({ ids: IDS })
+    await userEvent.click(rows()[2])
+    expect(scrollIntoView).not.toHaveBeenCalled()
+
+    await userEvent.keyboard("k")
+    expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: "nearest" }))
+  })
+
+  it("clears the cursor and its ring on Escape, and the next j starts from the top", async () => {
+    const { nav, rows } = renderList({ ids: IDS })
+    await userEvent.keyboard("jj")
+    await userEvent.keyboard("{Escape}")
+
+    expect(nav().activeId).toBeNull()
+    expect(nav().cursorVisible).toBe(false)
+    expect(ringed(rows())).toHaveLength(0)
+
+    await userEvent.keyboard("j")
+    expect(rows()[0]).toHaveAttribute("data-active", "")
+  })
+
+  it("treats a touch like a mouse", async () => {
+    const { rows } = renderList({ ids: IDS })
+    await userEvent.keyboard("j")
+    expect(rows()[0]).toHaveAttribute("data-active", "")
+
+    await userEvent.pointer({ keys: "[TouchA]", target: rows()[1] })
+    expect(ringed(rows())).toHaveLength(0)
+  })
+
+  it("shows the ring for setActiveId and takes it away for setActiveId(null)", () => {
+    const { nav, rows } = renderList({ ids: IDS })
+    act(() => nav().setActiveId("b"))
+    expect(rows()[1]).toHaveAttribute("data-active", "")
+
+    act(() => nav().setActiveId(null))
+    expect(nav().cursorVisible).toBe(false)
+    expect(ringed(rows())).toHaveLength(0)
+  })
+})

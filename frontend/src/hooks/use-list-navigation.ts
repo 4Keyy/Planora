@@ -31,6 +31,24 @@ import { SCROLL_BEHAVIOR } from "@/lib/animations"
  * the ARIA authoring practice for a composite widget), so Tab enters the list
  * once and the arrows take over from there.
  *
+ * The cursor therefore has two parts, a place and a visibility, and only the
+ * keyboard sets the second. A click still moves the place: roving tabindex
+ * remembers the last row anyone touched, so Tab and `j` carry on from the card
+ * that was clicked. But a pointer press is not a request to see a keyboard
+ * cursor, and drawing one around the card just clicked read as a focus ring that
+ * would not go away. So any pointer press hides the ring, and Tab into the list,
+ * a move, a jump or select-all shows it. A hidden cursor must not act, either:
+ * Space after a click is a mouse user scrolling, and serving it here would
+ * complete a task nobody could see was targeted. While the ring is hidden the
+ * action keys are left to the browser, unprevented.
+ *
+ * Only Tab counts as keyboard focus. It is the one key that moves DOM focus onto
+ * a row; everything else here moves the cursor without touching focus. Counting
+ * any keydown, the way `:focus-visible` does, would redraw the ring when a
+ * dialog opened by a click is closed with Escape and hands focus back to the row
+ * by script. `:focus-visible` itself cannot carry the cursor for the same
+ * reason in reverse: after `j` the cursor is somewhere focus is not.
+ *
  * The hook is single-instance per page, and that falls out of the design rather
  * than being configured: the first listener's `preventDefault()` trips the
  * second's `defaultPrevented` guard, so a second list mounted alongside is
@@ -90,10 +108,18 @@ export interface ListNavigationOptions {
 /** Spread onto each row. Every field is derived from the id, so rows stay dumb. */
 export interface ListRowProps {
   ref: (node: HTMLElement | null) => void
-  /** Focusing a row (Tab, or a click landing on a control inside it) makes it active. */
+  /**
+   * Focusing a row (Tab, or a click landing on a control inside it) makes it
+   * active. It shows the ring only when Tab brought focus there: a click moves
+   * the place and leaves the ring hidden.
+   */
   onFocus: () => void
   tabIndex: 0 | -1
-  /** Present, valueless, on the active row: style it with `[&[data-active]]:` variants. */
+  /**
+   * Present, valueless, on the active row while the cursor is shown: style it
+   * with `[&[data-active]]:` variants. A pointer press anywhere hides it; Tab,
+   * `j`/`k`, the arrows, `gg`/`G` and select-all show it again.
+   */
   "data-active": "" | undefined
   /**
    * The cursor, for assistive technology.
@@ -107,6 +133,11 @@ export interface ListRowProps {
    *
    * `aria-current` says exactly what is true — this is the current item in a set —
    * and is valid on any element.
+   *
+   * It follows the ring, not the place. While the cursor is hidden the action
+   * keys do nothing, so there is no row the keyboard would act on and nothing is
+   * "current". A screen-reader user drives by keyboard, so for them the cursor is
+   * shown and the attribute is there.
    */
   "aria-current": "true" | undefined
   /**
@@ -120,7 +151,13 @@ export interface ListRowProps {
 }
 
 export interface ListNavigation {
+  /** The cursor's place. Kept through a click, so the keyboard resumes from it. */
   activeId: string | null
+  /**
+   * Whether the cursor is shown, and therefore whether the action keys act.
+   * False after any pointer press until Tab or a navigation key shows it again.
+   */
+  cursorVisible: boolean
   selectedIds: string[]
   setActiveId: (id: string | null) => void
   clearSelection: () => void
@@ -149,9 +186,12 @@ export function useListNavigation({
   onSelectionChange,
 }: ListNavigationOptions): ListNavigation {
   const [activeId, setActiveIdState] = useState<string | null>(null)
+  const [cursorVisible, setCursorVisible] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const reduce = useReducedMotion() ?? false
 
+  /** Tab is the only key that moves DOM focus onto a row; a pointer press revokes it. */
+  const focusByKeyboard = useRef(false)
   const rows = useRef(new Map<string, HTMLElement>())
   const rowHandles = useRef(new Map<string, Pick<ListRowProps, "ref" | "onFocus">>())
   /** Timestamp of a `g` awaiting its partner. 0 means no chord is open. */
@@ -175,6 +215,7 @@ export function useListNavigation({
   const latest = useRef({
     ids,
     activeId,
+    cursorVisible,
     selectedIds,
     onActivate,
     onToggleComplete,
@@ -187,6 +228,7 @@ export function useListNavigation({
     latest.current = {
       ids,
       activeId,
+      cursorVisible,
       selectedIds,
       onActivate,
       onToggleComplete,
@@ -198,6 +240,36 @@ export function useListNavigation({
   })
 
   /**
+   * Which input moved focus last, tracked on the window in the capture phase.
+   *
+   * Capture, because the mark has to be set before the browser moves focus
+   * (pointerdown, then mousedown, then focus) and no widget's stopPropagation may
+   * eat it. The pointerdown half also covers the case no focus handler can see:
+   * pressing the row that already holds focus fires no second focus event, and
+   * the ring still has to go. Mouse, touch and pen are all one pointer here.
+   *
+   * Independent of `enabled` on purpose. A dialog is exactly when the list stops
+   * listening for keys, and it is also when focus is about to be handed back to a
+   * row; the mark must be right at that moment. Hiding an already hidden cursor
+   * is a no-op for React, so a click anywhere on the page renders nothing.
+   */
+  useEffect(() => {
+    const onPointerDown = () => {
+      focusByKeyboard.current = false
+      setCursorVisible(false)
+    }
+    const onTab = (event: KeyboardEvent) => {
+      if (event.key === "Tab") focusByKeyboard.current = true
+    }
+    window.addEventListener("pointerdown", onPointerDown, true)
+    window.addEventListener("keydown", onTab, true)
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true)
+      window.removeEventListener("keydown", onTab, true)
+    }
+  }, [])
+
+  /**
    * Reconcile against an id list that changed under us.
    *
    * Three things happen here and they all exist because the array is not stable:
@@ -205,6 +277,9 @@ export function useListNavigation({
    * selection drops ids that no longer exist (otherwise a bulk action would be
    * sent for a task that is already deleted), and the row maps are pruned so a
    * long session does not accumulate a node per task it has ever rendered.
+   *
+   * The fallback moves the place and leaves the visibility alone: a task
+   * completed with the mouse must not hand a ring to the task below it.
    *
    * Every branch returns the previous state object when nothing changed, so this
    * is safe to run on every render — which it does, because `ids` is usually a
@@ -260,13 +335,17 @@ export function useListNavigation({
    *
    * `MotionConfig reducedMotion="user"` covers framer-motion, not the platform's
    * scroller, so this one honours the preference itself.
+   *
+   * Only for a shown cursor. A click moves the place too, and scrolling a half
+   * visible card into view under the pointer that just pressed it makes the page
+   * jump away from the hand.
    */
   useEffect(() => {
-    if (activeId === null) return
+    if (activeId === null || !cursorVisible) return
     const row = rows.current.get(activeId)
     if (!row) return
     row.scrollIntoView({ ...SCROLL_BEHAVIOR, behavior: reduce ? "auto" : SCROLL_BEHAVIOR.behavior })
-  }, [activeId, reduce])
+  }, [activeId, cursorVisible, reduce])
 
   useEffect(() => {
     /**
@@ -306,6 +385,9 @@ export function useListNavigation({
         if (state.activeId === null || !rowIds.includes(state.activeId)) {
           setActiveIdState(rowIds[0])
         }
+        // And show it: after a click the cursor is seated but hidden, and a
+        // hidden cursor does not act, which would bring the dead keystroke back.
+        setCursorVisible(true)
         return
       }
 
@@ -333,8 +415,13 @@ export function useListNavigation({
         const to = from + delta
         // Clamped, never wrapped. Wrapping from the last row to the first in a
         // list taller than the viewport teleports the reader somewhere they did
-        // not ask to be, and they have to hunt for the cursor again.
-        if (to < 0 || to >= rowIds.length) return
+        // not ask to be, and they have to hunt for the cursor again. A hidden
+        // cursor already at the edge is still shown, or `j` on the last row after
+        // a click would do nothing anyone could see.
+        if (to < 0 || to >= rowIds.length) {
+          if (index !== -1) setCursorVisible(true)
+          return
+        }
         const nextId = rowIds[to]
         const currentId = state.activeId
         if (extend && currentId !== null && currentId !== nextId) {
@@ -353,6 +440,7 @@ export function useListNavigation({
           })
         }
         setActiveIdState(nextId)
+        setCursorVisible(true)
       }
 
       // ── Moving ──────────────────────────────────────────────────────────────
@@ -377,6 +465,7 @@ export function useListNavigation({
         if (completesChord && rowIds.length > 0) {
           event.preventDefault()
           setActiveIdState(rowIds[0])
+          setCursorVisible(true)
         }
         return
       }
@@ -388,6 +477,7 @@ export function useListNavigation({
         if (rowIds.length === 0) return
         event.preventDefault()
         setActiveIdState(rowIds[rowIds.length - 1])
+        setCursorVisible(true)
         return
       }
 
@@ -399,8 +489,12 @@ export function useListNavigation({
          * reaching. Not prevented — an outer layer may have its own meaning for
          * Escape and this one is not exclusive.
          */
-        if (state.selectedIds.length > 0) setSelectedIds([])
-        else setActiveIdState(null)
+        if (state.selectedIds.length > 0) {
+          setSelectedIds([])
+        } else {
+          setActiveIdState(null)
+          setCursorVisible(false)
+        }
         return
       }
 
@@ -414,6 +508,11 @@ export function useListNavigation({
        */
       const targetId = state.activeId
       if (targetId === null) return
+      // A hidden cursor is a place, not a target. Returning before any
+      // preventDefault is the point: Space scrolls, Backspace and Enter reach
+      // whatever the page meant by them, and no task changes under a ring nobody
+      // can see.
+      if (!state.cursorVisible) return
 
       if ((key === "Enter" || key === " ") && isActivatableControl(event.target)) return
 
@@ -486,7 +585,14 @@ export function useListNavigation({
         if (node) rows.current.set(id, node)
         else rows.current.delete(id)
       },
-      onFocus: () => setActiveIdState(id),
+      // Reads only a ref and stable setters, so the cached handler stays valid
+      // for the life of the id. It only ever shows the ring: hiding it is the
+      // pointerdown listener's job, which has already run by the time a click's
+      // focus arrives here.
+      onFocus: () => {
+        setActiveIdState(id)
+        if (focusByKeyboard.current) setCursorVisible(true)
+      },
     }
     rowHandles.current.set(id, handles)
     return handles
@@ -504,20 +610,27 @@ export function useListNavigation({
        * this pattern is usually introduced to cause.
        */
       const tabbable = activeId === null ? ids[0] === id : isActive
+      // The tab stop follows the place; the ring and `aria-current` follow the
+      // place only while the keyboard is the one looking at it.
+      const shown = isActive && cursorVisible
       return {
         ...handlesFor(id),
         tabIndex: tabbable ? 0 : -1,
-        "data-active": isActive ? "" : undefined,
-        "aria-current": isActive ? "true" : undefined,
+        "data-active": shown ? "" : undefined,
+        "aria-current": shown ? "true" : undefined,
         "data-selected": selectedSet.has(id) ? "" : undefined,
       }
     },
-    [activeId, ids, selectedSet, handlesFor],
+    [activeId, cursorVisible, ids, selectedSet, handlesFor],
   )
 
-  const setActiveId = useCallback((id: string | null) => setActiveIdState(id), [])
+  /** Placing the cursor by hand is a deliberate act, so it is shown; clearing it hides it. */
+  const setActiveId = useCallback((id: string | null) => {
+    setActiveIdState(id)
+    setCursorVisible(id !== null)
+  }, [])
   const clearSelection = useCallback(() => setSelectedIds([]), [])
   const getRowNode = useCallback((id: string) => rows.current.get(id) ?? null, [])
 
-  return { activeId, selectedIds, setActiveId, clearSelection, getRowProps, getRowNode }
+  return { activeId, cursorVisible, selectedIds, setActiveId, clearSelection, getRowProps, getRowNode }
 }

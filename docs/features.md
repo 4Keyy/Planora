@@ -491,6 +491,15 @@ Two rules are not obvious from the key list:
   the nearest surviving position rather than to nothing. The same reconcile drops ids from the
   selection once they leave the list, so a bulk action can never be sent for a task that is
   already gone.
+- **The ring is the keyboard's, and only the keyboard's.** The cursor has a place and a
+  visibility. A click moves the place — so `Tab` and `J` carry on from the card that was
+  clicked — but any pointer press hides the ring, and `Tab` into the list, a move, a jump or
+  `⌘A` shows it. While it is hidden the row keys (`Enter`, `Space`, `E`, `1`–`5`, `X`,
+  `Delete`) do nothing and are not `preventDefault`-ed: `Space` after a click scrolls the
+  page instead of completing a task nobody could see was targeted. It used to be that a click
+  focused the row, focus set the cursor and the cursor drew an outline — a ring around every
+  card you clicked that no click elsewhere removed. Selection (`data-selected`) is unaffected:
+  it can only be made from the keyboard, and the selection bar is clicked with the mouse.
 - **`Delete` acts on the cursor, never on the selection.** A keystroke that silently took
   twelve tasks because an `x` earlier had scrolled out of view is not one anybody can take
   back. A gathered selection is deleted from the selection bar instead, which states the count
