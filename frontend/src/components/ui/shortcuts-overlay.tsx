@@ -4,6 +4,7 @@ import { Fragment, useEffect, useId, useState, type ReactNode } from "react"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Overlay } from "@/components/ui/overlay"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 
 /**
  * The keyboard, taught by the product instead of documented away from it.
@@ -123,7 +124,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
  * Resolved in an effect, never during render. The server has no `navigator`, so
  * a render-time read emits "Ctrl" from the server and "⌘" from the client and
  * React throws the entire server pass away as a hydration mismatch — the bug
- * `command-palette.tsx` still carries at its `isMac` line.
+ * `command-palette.tsx` carried at its `isMac` line until it switched to this hook.
  *
  * The default before the effect runs is deliberately `false`, the Ctrl
  * spelling: it is correct for most of the installed base, so most people never
@@ -261,7 +262,7 @@ export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
         <div className="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-2">
           {SHORTCUT_GROUPS.map((group) => (
             <section key={group.title}>
-              <h3 className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
+              <h3 className={FIELD_LABEL_CLASS}>
                 {group.title}
               </h3>
               <dl className="mt-2">

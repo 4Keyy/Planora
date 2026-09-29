@@ -11,7 +11,19 @@ import { isTodoOwner, type Todo } from "@/types/todo"
 import { formatDate, isPastDate, truncateText, formatPublicName, cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
-import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO, SPRING_RESPONSIVE, VARIANTS_CARD, TAP_CARD, TAP_PRESS } from "@/lib/animations"
+import {
+  DURATION_SLOW,
+  EASE_OUT_EXPO,
+  HOVER_LIFT,
+  SPRING_RESPONSIVE,
+  SPRING_STANDARD,
+  TAP_CARD,
+  TAP_PRESS,
+  TWEEN_EXIT,
+  TWEEN_FAST,
+  TWEEN_UI,
+  VARIANTS_CARD,
+} from "@/lib/animations"
 import { haptic } from "@/lib/haptics"
 import { CompletionCelebration } from "@/components/animated/celebration"
 import { NotificationBadgeCluster } from "@/components/notifications/notification-badge-cluster"
@@ -47,28 +59,16 @@ const PRIORITY_CONFIG: Record<string, { num: number }> = {
   Critical: { num: 5 },
 }
 
-const CARD_VISIBILITY_LAYOUT = {
-  type: "spring" as const,
-  stiffness: 430,
-  damping: 40,
-  mass: 0.66,
-}
-
-const CARD_VISIBILITY_CONTENT = {
-  duration: 0.16,
-  ease: EASE_OUT_EXPO,
-} as const
-
 const COMPLETION_PRE_COMMIT_MS = 360
 const REOPEN_PRE_COMMIT_MS = 260
 const JOIN_PRE_COMMIT_MS = 280
 
-const COMPLETION_BUTTON_TRANSITION = {
-  type: "spring" as const,
-  stiffness: 520,
-  damping: 28,
-  mass: 0.72,
-}
+/**
+ * The sweep across the card and the reopen turn. Both answer a press, so both finish
+ * on `slow` — the ceiling for a response — rather than running past the pre-commit
+ * window they decorate.
+ */
+const PHASE_TWEEN = { duration: DURATION_SLOW, ease: EASE_OUT_EXPO } as const
 
 type CompletionPhase = "completing" | "reopening" | "joining" | null
 
@@ -191,8 +191,8 @@ function TodoCardComponent({
   }, [])
   const isSparse = !todo.description && (todo.title?.length ?? 0) < 40 && !todo.dueDate && !todo.expectedDate && !todo.delay
   const isInfoDense = !!todo.description && (!!todo.dueDate || !!todo.expectedDate || !!todo.delay)
-  const layoutTransition = shouldReduceMotion ? { duration: 0 } : CARD_VISIBILITY_LAYOUT
-  const contentTransition = shouldReduceMotion ? { duration: 0 } : CARD_VISIBILITY_CONTENT
+  const layoutTransition = shouldReduceMotion ? { duration: 0 } : SPRING_STANDARD
+  const contentTransition = shouldReduceMotion ? { duration: 0 } : TWEEN_FAST
 
   useEffect(() => {
     return () => {
@@ -269,7 +269,9 @@ function TodoCardComponent({
     setCompletionPhase(nextPhase)
     haptic(isCompleted ? "tap" : "success")
 
-    if (!isCompleted) {
+    // The burst is nothing but travel, and MotionConfig strips travel under reduced
+    // motion — what would be left is eighteen pieces blinking on one spot.
+    if (!isCompleted && !shouldReduceMotion) {
       setShowCompletionCelebration(true)
       if (celebrationTimerRef.current) {
         clearTimeout(celebrationTimerRef.current)
@@ -353,53 +355,34 @@ function TodoCardComponent({
         ? "bg-accent/10"
         : ""
 
-  const completionButtonAnimate = (() => {
-    if (isJoining) {
-      return {
-        scale: [1, 0.88, 1.08, 1],
-        rotate: [0, 8, -4, 0],
-        backgroundColor: "var(--pl-accent)",
-        borderColor: "var(--pl-accent)",
-        color: "var(--pl-paper)",
-      }
-    }
-    if (isCompleting) {
-      return {
-        scale: [1, 0.88, 1.08, 1],
-        rotate: [0, -8, 4, 0],
-        backgroundColor: "var(--pl-positive)",
-        borderColor: "var(--pl-positive)",
-        color: "var(--pl-paper)",
-      }
-    }
-    if (isReopening) {
-      return {
-        scale: [1, 0.94, 1.04, 1],
-        rotate: [0, -16, 8, 0],
-        backgroundColor: "var(--pl-paper-sunken)",
-        borderColor: "var(--pl-ink-subtle)",
-        color: "var(--pl-ink-muted)",
-      }
-    }
-    if (isCompleted) {
-      return { scale: 1, rotate: 0, backgroundColor: "var(--pl-ink-muted)", borderColor: "var(--pl-ink)", color: "var(--pl-paper)" }
-    }
-    if (isWorkingOnThis) {
-      const activeColor = todo.categoryColor || "var(--pl-ink)"
-      return {
-        scale: 1, rotate: 0,
-        backgroundColor: isButtonHovered ? "rgba(16,185,129,0.06)" : `${activeColor}14`,
-        borderColor: isButtonHovered ? "var(--pl-positive)" : activeColor,
-        color: isButtonHovered ? "var(--pl-positive)" : activeColor,
-      }
-    }
-    return {
-      scale: 1, rotate: 0,
-      backgroundColor: "rgba(255,255,255,0)",
-      borderColor: (canJoin && isButtonHovered) ? "var(--pl-accent)" : "var(--pl-line-strong)",
-      color: "var(--pl-ink)",
-    }
-  })()
+  /**
+   * The completion control's colour, per phase. CSS owns it (`transition-colors`), not
+   * framer-motion: a colour is not composited, and it used to ride the button's spring,
+   * repainting the control on every frame of the settle. The same spring was also handed
+   * four-step `scale`/`rotate` keyframes, which a spring cannot play — it springs from the
+   * first value to the last, both of them 1 — so the wiggle they described never ran.
+   * What the control does on a press is `TAP_PRESS`; the phase is said by the colour, the
+   * sweep across the card and the icon swap below.
+   */
+  const workingTint = todo.categoryColor || null
+  const completionButtonTone = isJoining
+    ? "border-accent bg-accent text-paper"
+    : isCompleting
+      ? "border-positive bg-positive text-paper"
+      : isReopening
+        ? "border-ink-subtle bg-paper-sunken text-ink-muted"
+        : isCompleted
+          ? "border-ink bg-ink-muted text-paper"
+          : isWorkingOnThis
+            ? isButtonHovered
+              ? "border-positive bg-positive/5 text-positive"
+              // The category's own colour is the user's data, so it arrives inline below.
+              : workingTint ? null : "border-ink bg-ink/5 text-ink"
+            : cn("bg-transparent text-ink", canJoin && isButtonHovered ? "border-accent" : "border-line-strong")
+  const completionButtonTint =
+    isWorkingOnThis && !isCompletionPending && !isCompleted && !isButtonHovered && workingTint
+      ? { backgroundColor: `${workingTint}14`, borderColor: workingTint, color: workingTint }
+      : undefined
 
   return (
     <>
@@ -417,7 +400,7 @@ function TodoCardComponent({
                 : VARIANTS_CARD.visible
         }
         exit={VARIANTS_CARD.exit}
-        whileHover={isControlHover || isVisibilityPending || isCompletionPending || isCompleted ? undefined : { y: -2 }}
+        whileHover={isControlHover || isVisibilityPending || isCompletionPending || isCompleted ? undefined : HOVER_LIFT}
         whileTap={isCompletionPending ? undefined : TAP_CARD}
         transition={{
           layout: layoutTransition,
@@ -511,14 +494,14 @@ function TodoCardComponent({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: shouldReduceMotion ? 0 : 0.16, ease: EASE_OUT_EXPO }}
+              transition={shouldReduceMotion ? { duration: 0 } : TWEEN_FAST}
               className={cn("pointer-events-none absolute inset-0 z-20 overflow-hidden", completionOverlayColor)}
             >
               {!shouldReduceMotion && (
                 <motion.div
                   initial={{ x: "-45%", opacity: 0 }}
                   animate={{ x: "145%", opacity: [0, 0.42, 0] }}
-                  transition={{ duration: isCompleting ? 0.48 : isJoining ? 0.38 : 0.34, ease: EASE_OUT_EXPO }}
+                  transition={PHASE_TWEEN}
                   className={cn(
                     "absolute inset-y-0 w-1/2 -skew-x-12",
                     isJoining
@@ -560,17 +543,13 @@ function TodoCardComponent({
                   // Slides in from the card's edge — a transform, not an animated
                   // `clip-path`, which repainted the strip on every frame.
                   variants={{
-                    hidden: { x: "100%", transition: { duration: DURATION_FAST, ease: EASE_EXIT } },
-                    visible: { x: 0, transition: { duration: DURATION_UI, ease: EASE_OUT_EXPO } },
+                    hidden: { x: "100%", transition: TWEEN_EXIT },
+                    visible: { x: 0, transition: TWEEN_UI },
                   }}
                   initial="hidden"
                   animate="visible"
                   exit="hidden"
-                  style={{
-                    background:
-                      "linear-gradient(to right, color-mix(in srgb, var(--pl-alert) 0%, transparent) 0%, color-mix(in srgb, var(--pl-alert) 85%, transparent) 35%, var(--pl-alert) 100%)",
-                  }}
-                  className="h-full w-full flex items-center justify-center text-paper cursor-pointer"
+                  className="flex h-full w-full cursor-pointer items-center justify-center bg-gradient-to-r from-alert/0 via-alert/85 via-35% to-alert text-paper"
                   whileHover={{ opacity: 0.92 }}
                   onClick={(e) => { e.stopPropagation(); onDelete() }}
                 >
@@ -719,15 +698,16 @@ function TodoCardComponent({
                     }}
                     onMouseEnter={() => { setIsControlHover(true); setIsButtonHovered(true) }}
                     onMouseLeave={() => { setIsControlHover(false); setIsButtonHovered(false) }}
-                    animate={completionButtonAnimate}
-                    transition={isCompletionPending ? COMPLETION_BUTTON_TRANSITION : SPRING_RESPONSIVE}
+                    transition={SPRING_RESPONSIVE}
                     whileHover={!isCompletionPending ? { scale: 1.06 } : undefined}
                     whileTap={!isCompletionPending ? TAP_PRESS : undefined}
                     disabled={isCompletionPending}
                     aria-busy={isCompletionPending}
+                    style={completionButtonTint}
                     className={cn(
-                      "touch-target h-8 w-8 rounded-full border-2 flex items-center justify-center",
-                      "transition-[box-shadow,opacity] duration-fast",
+                      "touch-target flex h-8 w-8 items-center justify-center rounded-full border-2",
+                      "transition-[color,background-color,border-color,box-shadow,opacity] duration-fast",
+                      completionButtonTone,
                       // Phase rings
                       isJoining && "shadow-lg ring-2 ring-accent/35",
                       isCompleting && "shadow-lg ring-2 ring-positive/30",
@@ -738,7 +718,7 @@ function TodoCardComponent({
                           ? "ring-2 ring-positive/45 shadow-md"
                           : "ring-2 ring-accent-surface/45 shadow-sm"
                       ),
-                      // Idle + joinable: violet ring on hover
+                      // Idle + joinable: an accent ring on hover
                       !isCompletionPending && !isWorkingOnThis && !isCompleted && canJoin && isButtonHovered && "ring-2 ring-accent/50 shadow-md",
                       // Cursor
                       isCompletionPending ? "cursor-wait" : "cursor-pointer",
@@ -758,9 +738,9 @@ function TodoCardComponent({
                           initial={{ scale: 0.6, opacity: 0, rotate: -20 }}
                           animate={{ scale: 1, opacity: 1, rotate: 0 }}
                           exit={{ scale: 0.6, opacity: 0 }}
-                          transition={COMPLETION_BUTTON_TRANSITION}
+                          transition={SPRING_RESPONSIVE}
                         >
-                          <Zap className="h-4 w-4 stroke-[2.5]" />
+                          <Zap className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
                         </motion.div>
                       )}
 
@@ -771,7 +751,7 @@ function TodoCardComponent({
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ scale: 0.78, rotate: 16, opacity: 0 }}
-                          transition={COMPLETION_BUTTON_TRANSITION}
+                          transition={SPRING_RESPONSIVE}
                         >
                           {/* The ink fill and the drawn stroke ARE the animation here —
                               see InkCheck. The wrapper only handles the exit, because a
@@ -788,21 +768,21 @@ function TodoCardComponent({
                           initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
                           animate={{ opacity: 1, scale: 1, rotate: 360 }}
                           exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ duration: 0.48, ease: EASE_OUT_EXPO }}
+                          transition={PHASE_TWEEN}
                           className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent"
                         />
                       )}
 
-                      {/* WORKING – hover shows checkmark, idle shows pulsing dot */}
+                      {/* WORKING – hover shows the checkmark, at rest a still dot */}
                       {isWorkingOnThis && !isCompleted && !isCompletionPending && isButtonHovered && (
                         <motion.div
                           key="work-check"
                           initial={{ scale: 0, opacity: 0, rotate: -12 }}
                           animate={{ scale: 1, opacity: 1, rotate: 0 }}
                           exit={{ scale: 0, opacity: 0 }}
-                          transition={{ type: "spring", stiffness: 580, damping: 26 }}
+                          transition={SPRING_RESPONSIVE}
                         >
-                          <Check className="h-4 w-4 stroke-[3]" />
+                          <Check className="h-4 w-4 stroke-[3]" aria-hidden="true" />
                         </motion.div>
                       )}
                       {isWorkingOnThis && !isCompleted && !isCompletionPending && !isButtonHovered && (
@@ -811,7 +791,7 @@ function TodoCardComponent({
                           initial={{ scale: 0.8, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.8, opacity: 0 }}
-                          transition={{ type: "spring", stiffness: 520, damping: 28 }}
+                          transition={SPRING_RESPONSIVE}
                           // A still dot. It used to pulse forever — on every card someone
                           // was working on, for as long as the list was open — and nothing
                           // at rest may animate forever.
@@ -826,9 +806,9 @@ function TodoCardComponent({
                           initial={{ scale: 0, opacity: 0 }}
                           animate={{ scale: 1, opacity: 0.55 }}
                           exit={{ scale: 0, opacity: 0 }}
-                          transition={{ type: "spring", stiffness: 580, damping: 26 }}
+                          transition={SPRING_RESPONSIVE}
                         >
-                          <Zap className="h-3 w-3" style={{ color: "var(--pl-accent)" }} />
+                          <Zap className="h-3 w-3 text-accent" aria-hidden="true" />
                         </motion.div>
                       )}
                     </AnimatePresence>

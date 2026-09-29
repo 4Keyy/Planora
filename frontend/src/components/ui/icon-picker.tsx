@@ -4,6 +4,8 @@ import { useState } from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { TAP_PRESS, TWEEN_FAST, VARIANTS_DROPDOWN } from "@/lib/animations"
+import { POPOVER_SURFACE } from "@/components/ui/surfaces"
 import {
   CheckCircle2,
   Clock,
@@ -101,6 +103,15 @@ interface IconPickerProps {
   onIconSelect: (icon: string) => void
 }
 
+/**
+ * "CheckCircle2" → "Check circle 2". The stored value is a lucide component name; a person
+ * reads a label, and a screen reader needs one for each of the forty-odd icon-only buttons.
+ */
+function iconLabel(name: string): string {
+  const words = name.replace(/([a-z])([A-Z0-9])/g, "$1 $2").toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
 export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -112,11 +123,11 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
       <PopoverPrimitive.Trigger asChild>
         <button
           type="button"
-          className="flex items-center gap-3 w-full h-10 px-4 rounded-lg bg-paper-sunken hover:bg-gray-100 transition-[color,background-color,border-color,opacity,transform,box-shadow] active:scale-95 group"
+          className="group flex h-control w-full items-center gap-3 rounded-md bg-paper-sunken px-4 transition-[color,background-color,transform] duration-fast hover:bg-gray-100 active:scale-95"
         >
-          <SelectedIconComponent className="h-4 w-4 text-ink group-hover:text-ink transition-colors" />
-          <span className="text-caption font-bold uppercase tracking-tighter text-ink-muted group-hover:text-ink truncate">
-            {selectedIcon || "Icon"}
+          <SelectedIconComponent className="h-4 w-4 text-ink" aria-hidden="true" />
+          <span className="truncate text-body-sm font-semibold text-ink-muted transition-colors duration-fast group-hover:text-ink">
+            {selectedIcon ? iconLabel(selectedIcon) : "Icon"}
           </span>
         </button>
       </PopoverPrimitive.Trigger>
@@ -133,34 +144,38 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
               onOpenAutoFocus={(e) => e.preventDefault()}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: -6 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: -6 }}
-                transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-                className="z-popover w-[min(320px,calc(100vw-24px))] rounded-xl border border-line bg-paper p-4 shadow-xl outline-none"
+                variants={VARIANTS_DROPDOWN}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                transition={TWEEN_FAST}
+                className={cn(POPOVER_SURFACE, "z-popover w-[min(320px,calc(100vw-24px))] outline-none")}
               >
-                <div className="grid max-h-[min(328px,calc(100vh-96px))] grid-cols-5 gap-2 overflow-y-auto p-4 custom-scrollbar">
+                <div className="custom-scrollbar grid max-h-[min(328px,calc(100vh-96px))] grid-cols-5 justify-items-center gap-2 overflow-y-auto p-4">
                 {ICON_PICKER_ITEMS.map((item) => {
                   const IconComponent = item.icon
                   const isSelected = selectedIcon === item.name
                   return (
+                    /* Colour on hover is CSS; the press is the one transform, and it is
+                       framer's alone — a CSS `transition` on `transform` would re-ease
+                       every frame framer writes. It used to grow 10% on hover, in
+                       framer-motion, and paint its background through the same spring. */
                     <motion.button
                       key={item.name}
                       type="button"
-                      whileHover={{ scale: 1.1, backgroundColor: "var(--pl-gray-100)" }}
-                      whileTap={{ scale: 0.9 }}
+                      whileTap={TAP_PRESS}
+                      aria-label={iconLabel(item.name)}
+                      aria-pressed={isSelected}
                       onClick={() => {
                         onIconSelect(item.name)
                         setIsOpen(false)
                       }}
                       className={cn(
-                        "h-10 w-10 flex items-center justify-center rounded-xl transition-[color,background-color,border-color,opacity,transform,box-shadow]",
-                        isSelected
-                          ? "bg-ink text-paper shadow-xl shadow-black/20"
-                          : "text-ink hover:text-ink hover:bg-gray-100"
+                        "flex h-11 w-11 items-center justify-center rounded-md transition-colors duration-fast",
+                        isSelected ? "bg-ink text-paper shadow-sm" : "text-ink hover:bg-gray-100"
                       )}
                     >
-                      <IconComponent className="h-4 w-4" />
+                      <IconComponent className="h-4 w-4" aria-hidden="true" />
                     </motion.button>
                   )
                 })}

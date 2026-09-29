@@ -7,23 +7,34 @@ import {
   SPRING_RESPONSIVE,
   EASE_OUT_EXPO,
   TWEEN_UI,
+  VARIANTS_FADE_UP,
   VARIANTS_STAGGER_ITEM,
   DURATION_UI,
+  staggerContainer,
 } from "@/lib/animations"
+
+/**
+ * 40ms between siblings — the list rhythm the design system specifies (§ 9.9).
+ * `staggerContainer`'s own default is 80ms, which by the sixth child is already a wait.
+ */
+const LIST_STAGGER_S = 0.04
 
 interface FadeInProps extends Omit<HTMLMotionProps<"div">, "children"> {
   children: React.ReactNode
   delay?: number
   duration?: number
   className?: string
-  blur?: boolean
 }
 
+/**
+ * The general-purpose entrance: `VARIANTS_FADE_UP`, arriving from below. It used to take
+ * a `blur` flag that animated `filter` — a property that repaints every frame and that the
+ * motion laws exclude outright; nothing passed it.
+ */
 export function FadeIn({
   children,
   delay = 0,
   duration = DURATION_UI,
-  blur = false,
   className,
   ...props
 }: FadeInProps) {
@@ -35,8 +46,8 @@ export function FadeIn({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12, scale: 0.97, filter: blur ? "blur(8px)" : "blur(0px)" }}
-      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      initial={VARIANTS_FADE_UP.hidden}
+      animate={VARIANTS_FADE_UP.visible}
       transition={{ duration, delay, ease: EASE_OUT_EXPO }}
       className={className}
       {...props}
@@ -55,11 +66,9 @@ interface StaggerContainerProps {
 export function StaggerContainer({
   children,
   className,
-  staggerDelay = 0.08
+  staggerDelay = LIST_STAGGER_S,
 }: StaggerContainerProps) {
-  const containerVariants = useMemo(() => ({
-    visible: { transition: { staggerChildren: staggerDelay, delayChildren: 0.05 } },
-  }), [staggerDelay])
+  const containerVariants = useMemo(() => staggerContainer(staggerDelay), [staggerDelay])
   return (
     <motion.div
       initial="hidden"
@@ -125,7 +134,7 @@ export function ScaleIn({
   )
 }
 
-// Slide in animation with spring
+// Slide in animation, on the default UI tween
 interface SlideInProps extends Omit<HTMLMotionProps<"div">, "children"> {
   children: React.ReactNode
   direction?: "up" | "down" | "left" | "right"
@@ -157,7 +166,7 @@ export function SlideIn({
     <motion.div
       initial={{ opacity: 0, ...directionOffset[direction] }}
       animate={{ opacity: 1, x: 0, y: 0 }}
-      transition={{ duration: 0.22, ease: EASE_OUT_EXPO, delay }}
+      transition={{ ...TWEEN_UI, delay }}
       className={className}
       {...props}
     >

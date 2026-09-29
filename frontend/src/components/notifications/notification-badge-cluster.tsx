@@ -3,7 +3,8 @@
 import { memo } from "react"
 import { motion, useReducedMotion } from "framer-motion"
 import { getNotificationKind } from "@/lib/notifications/types"
-import { NotificationBadge } from "./notification-badge"
+import { NotificationBadge, PING_TRANSITION } from "./notification-badge"
+import { SPRING_RESPONSIVE } from "@/lib/animations"
 import { cn } from "@/lib/utils"
 
 /** One unread type-group feeding a disc in the cluster (newest type first). */
@@ -17,7 +18,7 @@ interface NotificationBadgeClusterProps {
   groups: BadgeClusterGroup[]
   /** Total unread across all groups — shown on the front disc. */
   total: number
-  /** Animate the soft ping ring on the front disc (suppressed on completed cards). */
+  /** Ping the front disc once on arrival (suppressed on completed cards). */
   pulse?: boolean
   className?: string
 }
@@ -27,6 +28,8 @@ interface NotificationBadgeClusterProps {
 const DISC = 22
 const OVERLAP = 9
 const MAX_DISCS = 4
+/** The discs fan out 50ms apart — inside the system's 40–50ms list rhythm, four steps at most. */
+const DISC_STAGGER_S = 0.05
 
 /**
  * The card's notification badge **cluster**. A single unread type keeps the rich labeled pill (icon +
@@ -86,14 +89,8 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
             key={g.type}
             initial={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0, x: -4 }}
             animate={reduce ? { opacity } : { scale, opacity, x: 0 }}
-            transition={{
-              type: "spring",
-              stiffness: 520,
-              damping: 26,
-              mass: 0.7,
-              delay: reduce ? 0 : i * 0.05,
-            }}
-            className="relative inline-flex items-center justify-center rounded-full"
+            transition={{ ...SPRING_RESPONSIVE, delay: reduce ? 0 : i * DISC_STAGGER_S }}
+            className="relative inline-flex items-center justify-center rounded-full shadow-sm"
             style={{
               width: DISC,
               height: DISC,
@@ -102,13 +99,12 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
               zIndex: visible.length - i,
               // The white ring separates overlapping discs (stacked-avatar effect).
               background: "var(--pl-paper)",
-              boxShadow: `0 2px 8px -2px ${tint}66`,
             }}
             aria-hidden
           >
-            {/* Front disc pings to pull the eye to the freshest event — three times, then it
-                rests. It used to repeat forever, on every card with unread activity, for as long
-                as the list stayed open; nothing at rest may animate forever. */}
+            {/* Front disc pings once to pull the eye to the freshest event, then rests. It used
+                to repeat forever, then three times over six seconds, on every card with unread
+                activity; a list at rest does not move (see PING_TRANSITION). */}
             {pulse && !reduce && i === 0 && (
               <motion.span
                 aria-hidden
@@ -116,7 +112,7 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
                 style={{ border: `1.5px solid ${tint}` }}
                 initial={{ scale: 1, opacity: 0.45 }}
                 animate={{ scale: 1.9, opacity: 0 }}
-                transition={{ duration: 1.9, repeat: 2, ease: "easeOut" }}
+                transition={PING_TRANSITION}
               />
             )}
 
@@ -139,14 +135,13 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
                 key={total}
                 initial={reduce ? false : { scale: 0.5, y: -2, opacity: 0 }}
                 animate={{ scale: 1, y: 0, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 620, damping: 24 }}
-                className="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center rounded-full px-1 font-bold tabular-nums text-paper"
+                transition={SPRING_RESPONSIVE}
+                className="absolute -top-1.5 -right-1.5 z-10 flex items-center justify-center rounded-full px-1 font-bold tabular-nums text-paper shadow-sm"
                 style={{
                   minWidth: 15,
                   height: 15,
                   fontSize: 12,
                   background: frontTint,
-                  boxShadow: `0 1px 4px -1px ${frontTint}aa`,
                   border: "1.5px solid var(--pl-paper)",
                 }}
               >
@@ -161,9 +156,8 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
         <motion.span
           initial={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0 }}
           animate={{ scale: 1, opacity: 0.85 }}
-          transition={{ type: "spring", stiffness: 520, damping: 26, delay: reduce ? 0 : visible.length * 0.05 }}
-          className="ml-1 inline-flex items-center justify-center rounded-full bg-gray-100 px-1.5 font-bold tabular-nums text-ink-muted"
-          style={{ height: 16, fontSize: 12, border: "1px solid rgba(0,0,0,0.06)" }}
+          transition={{ ...SPRING_RESPONSIVE, delay: reduce ? 0 : visible.length * DISC_STAGGER_S }}
+          className="ml-1 inline-flex h-4 items-center justify-center rounded-full border border-line bg-gray-100 px-1.5 text-caption font-bold leading-none tabular-nums text-ink-muted"
           aria-hidden
         >
           +{overflow}

@@ -4,6 +4,25 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### refactor(frontend): the rest of the motion speaks the design system's vocabulary (2026-09-29)
+
+Components outside the pages still carried their own motion dialect: numeric durations (0.16, 0.25,
+0.38, 0.42, 0.58…), hand-written ease arrays and a dozen inline springs, none of them on the scale in
+`lib/animations.ts`. Some of it did not do what it said. The task card's completion control handed a
+spring four-step `scale`/`rotate` keyframes, which a spring cannot play, so the wiggle never ran —
+while its colour rode the same spring and repainted the control every frame; the celebration's pulse
+was "centred" with Tailwind translates that the motion element's inline transform overrode, so it
+bloomed from its top-left corner; `FadeIn` accepted a `blur` flag that animated `filter`; and the
+confetti threw warn, accent and alert — the colours the system spends on meaning — over the card that
+had just stopped being overdue.
+
+Every duration, ease and spring in these components is now a token (`TWEEN_FAST/UI/EXIT`,
+`SPRING_STANDARD/RESPONSIVE`, `DURATION_*`); list staggers are the 40ms rhythm; the completion
+control's colour is a CSS `transition-colors` on class swaps; the confetti uses the confirmed state and
+the neutrals; loading indicators share one 1200ms period and the overlay sits on its named layer;
+keyboard hints in the palette are the shared `Kbd`; the capture control presses with `TAP_PRESS` and
+keeps the same bottom edge as the undo and selection bars (`pb-safe-4`).
+
 ### fix(frontend): task lists stop jumping when their controls and columns arrive (2026-09-29)
 
 A production scan of the new app shell measured layout shifts well past the 0.0014 invariant:

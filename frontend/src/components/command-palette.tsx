@@ -18,11 +18,12 @@ import type { LucideIcon } from "lucide-react"
 import { ModalPortal } from "@/components/ui/modal-portal"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
-import { useIsApplePlatform } from "@/components/ui/shortcuts-overlay"
+import { Kbd, useIsApplePlatform } from "@/components/ui/shortcuts-overlay"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { OPEN_CAPTURE_EVENT } from "@/components/todos/quick-capture"
 import { api } from "@/lib/api"
 import type { PagedTodosResponse } from "@/types/todo"
-import { EASE_OUT_EXPO, DURATION_FAST, SPRING_STANDARD } from "@/lib/animations"
+import { SPRING_STANDARD, TWEEN_FAST } from "@/lib/animations"
 import { useAuthStore } from "@/store/auth"
 import { cn } from "@/lib/utils"
 
@@ -300,7 +301,7 @@ export function CommandPalette() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
+              transition={TWEEN_FAST}
               onClick={close}
               aria-hidden="true"
               className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
@@ -336,12 +337,9 @@ export function CommandPalette() {
                   spellCheck={false}
                   className="h-control w-full rounded-md bg-transparent px-1 text-body text-ink placeholder:text-ink-subtle"
                 />
-                <kbd
-                  aria-hidden="true"
-                  className="hidden flex-shrink-0 rounded border border-line bg-paper-sunken px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted sm:block"
-                >
-                  ESC
-                </kbd>
+                <span aria-hidden="true" className="hidden flex-shrink-0 sm:inline-flex">
+                  <Kbd>Esc</Kbd>
+                </span>
               </div>
 
               {/* Results */}
@@ -365,7 +363,7 @@ export function CommandPalette() {
                     return (
                       <div key={c.id}>
                         {header ? (
-                          <p className="px-3 pb-1 pt-3 text-caption font-semibold uppercase tracking-wider text-ink-muted first:pt-1">
+                          <p className={cn(FIELD_LABEL_CLASS, "px-3 pb-1 pt-3 first:pt-1")}>
                             {header}
                           </p>
                         ) : null}
@@ -379,8 +377,10 @@ export function CommandPalette() {
                           onMouseMove={() => setActive(i)}
                           initial={reduce ? false : { opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          // 20ms apart, capped at six, so the last row never waits.
-                          transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO, delay: reduce ? 0 : Math.min(i, 6) * 0.02 }}
+                          // 20ms apart, capped at six, so the last row never waits. Tighter than
+                          // the 40ms list rhythm on purpose: these rows re-enter on every
+                          // keystroke, and at 40ms the sixth would land 400ms after the key.
+                          transition={{ ...TWEEN_FAST, delay: reduce ? 0 : Math.min(i, 6) * 0.02 }}
                           className={cn(
                             "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors duration-instant",
                             isActive ? "bg-paper-sunken" : "bg-transparent",
@@ -397,12 +397,9 @@ export function CommandPalette() {
                             ) : null}
                           </span>
                           {c.shortcut ? (
-                            <kbd
-                              aria-hidden="true"
-                              className="flex-shrink-0 rounded border border-line bg-paper-sunken px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted"
-                            >
-                              {c.shortcut}
-                            </kbd>
+                            <span aria-hidden="true" className="flex-shrink-0">
+                              <Kbd>{c.shortcut}</Kbd>
+                            </span>
                           ) : null}
                           {isActive ? (
                             <CornerDownLeft className="h-3.5 w-3.5 flex-shrink-0 text-ink-subtle" aria-hidden="true" />
@@ -417,19 +414,23 @@ export function CommandPalette() {
               {/* Footer — the palette teaches its own keys. */}
               <div className="flex items-center gap-4 border-t border-line bg-paper-sunken px-5 py-2.5 text-caption font-medium text-ink-muted">
                 <span className="flex items-center gap-1.5">
-                  <kbd aria-hidden="true" className="rounded border border-line bg-paper px-1 font-mono font-bold">↑</kbd>
-                  <kbd aria-hidden="true" className="rounded border border-line bg-paper px-1 font-mono font-bold">↓</kbd>
+                  <span aria-hidden="true" className="inline-flex gap-1">
+                    <Kbd>↑</Kbd>
+                    <Kbd>↓</Kbd>
+                  </span>
                   navigate
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <kbd aria-hidden="true" className="rounded border border-line bg-paper px-1 font-mono font-bold">↵</kbd>
+                  <span aria-hidden="true" className="inline-flex">
+                    <Kbd>↵</Kbd>
+                  </span>
                   open
                 </span>
                 <span className="ml-auto hidden items-center gap-1.5 sm:flex">
-                  <kbd aria-hidden="true" className="rounded border border-line bg-paper px-1 font-mono font-bold">
-                    {isMac ? "⌘" : "Ctrl"}
-                  </kbd>
-                  <kbd aria-hidden="true" className="rounded border border-line bg-paper px-1 font-mono font-bold">K</kbd>
+                  <span aria-hidden="true" className="inline-flex gap-1">
+                    <Kbd>{isMac ? "⌘" : "Ctrl"}</Kbd>
+                    <Kbd>K</Kbd>
+                  </span>
                   to close
                 </span>
               </div>
