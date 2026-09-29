@@ -44,7 +44,7 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
       transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
       // relative + z-30: the optional dateControl opens a floating popover whose absolute child must
       // paint above the task grid that follows this plate in the DOM (a later non-positioned sibling).
-      className="relative z-30 bg-paper/50 backdrop-blur-sm border border-line rounded-[2rem] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm w-full"
+      className="relative z-30 bg-paper/50 backdrop-blur-sm border border-line rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm w-full"
     >
       <div className="flex items-center gap-4 min-w-0">
         <div className="h-10 w-10 rounded-xl bg-ink text-paper flex items-center justify-center shadow-lg shadow-black/10 flex-shrink-0">
@@ -106,7 +106,7 @@ export function QuickFilterBar({ categories, selectedIds, onOpen, onClear, dateC
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
                   transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 flex items-center text-caption text-ink-subtle font-medium whitespace-nowrap"
+                  className="absolute inset-0 flex items-center text-caption text-ink-muted font-medium whitespace-nowrap"
                 >
                   Filter tasks by category.
                 </motion.p>

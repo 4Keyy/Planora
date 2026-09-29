@@ -8,7 +8,9 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border text-ink transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-slow ease-emphasized bg-transparent",
+      // `rounded-lg`: the scale's radius for cards. `rounded-xl` is for dialogs, sheets and
+      // large panels, and a task card drawn at 20px sat beside 16px category cards.
+      "rounded-lg border bg-paper text-ink",
       className
     )}
     {...props}

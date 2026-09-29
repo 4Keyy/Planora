@@ -207,9 +207,9 @@ export function KeyCombo({ keys }: { keys: string[] }) {
 
           return (
             <Fragment key={`${key}-${i}`}>
-              {needsPlus ? <span className="text-caption font-medium text-ink-subtle">+</span> : null}
+              {needsPlus ? <span className="text-caption font-medium text-ink-muted">+</span> : null}
               {isConnector ? (
-                <span className="text-caption font-medium text-ink-subtle">{key}</span>
+                <span className="text-caption font-medium text-ink-muted">{key}</span>
               ) : (
                 <Kbd>{formatKey(key, isApple)}</Kbd>
               )}
@@ -261,7 +261,7 @@ export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
         <div className="mt-6 grid gap-x-8 gap-y-6 md:grid-cols-2">
           {SHORTCUT_GROUPS.map((group) => (
             <section key={group.title}>
-              <h3 className="text-caption font-semibold uppercase tracking-wide text-ink-subtle">
+              <h3 className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
                 {group.title}
               </h3>
               <dl className="mt-2">

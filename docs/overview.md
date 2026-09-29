@@ -29,7 +29,7 @@ The core workflow is:
 | Realtime notification primitives | implemented | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Api/Hubs` |
 | Durable notifications (offline catch-up, unread counts) | implemented, conditional on `ConnectionStrings__RealtimeDatabase` | `Services/RealtimeApi/Planora.Realtime.Domain/Entities/Notification.cs`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs` |
 | Keyboard-driven task list, command palette, quick capture | implemented | `frontend/src/components/command-palette.tsx`, `frontend/src/components/ui/shortcuts-overlay.tsx`, `frontend/src/components/todos/quick-capture.tsx` |
-| Undo window in place of a delete confirmation | implemented | `frontend/src/components/ui/undo-bar.tsx` (`UNDO_WINDOW_MS` = 5000), `frontend/src/app/tasks/page.tsx`, `frontend/src/app/dashboard/page.tsx` |
+| Undo window in place of a delete confirmation | implemented | `frontend/src/components/ui/undo-bar.tsx` (`UNDO_WINDOW_MS` = 5000), `frontend/src/app/(app)/tasks/page.tsx`, `frontend/src/app/(app)/dashboard/page.tsx` |
 | Product analytics event intake | implemented as structured business logging, not third-party analytics | `Services/AuthApi/Planora.Auth.Api/Controllers/AnalyticsController.cs`, `BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs` |
 
 ## Audiences
@@ -150,7 +150,7 @@ the reachability bands and where the phone measurably runs out of room, is in
 
 ### Manage Personal Tasks
 
-The user creates categories, creates todos, assigns category/priority/dates, filters active tasks, and views completed tasks. The frontend pages are `frontend/src/app/tasks/page.tsx`, `frontend/src/app/tasks/completed/page.tsx`, `frontend/src/app/dashboard/page.tsx`, and `frontend/src/app/categories/page.tsx`; backend behavior is in `TodosController.cs` and `CategoriesController.cs`.
+The user creates categories, creates todos, assigns category/priority/dates, filters active tasks, and views completed tasks. The frontend pages are `frontend/src/app/(app)/tasks/page.tsx`, `frontend/src/app/(app)/tasks/completed/page.tsx`, `frontend/src/app/(app)/dashboard/page.tsx`, and `frontend/src/app/(app)/categories/page.tsx`; backend behavior is in `TodosController.cs` and `CategoriesController.cs`.
 
 Most of this is reachable without the mouse: `C` opens quick capture on every screen that has it, `⌘K` / `Ctrl K` opens the command palette — whose one creation entry is the same "Capture a task" — and the task list answers `J`/`K`, `G G`, `Shift G`, `Enter`, `Space`, `E`, `1`–`5`, `X`, and `Delete`. `?` prints the whole map. See [`features.md` § The keyboard over the task list](features.md#the-keyboard-over-the-task-list).
 
@@ -176,7 +176,7 @@ Implementation:
 - `Services/TodoApi/Planora.Todo.Application/Features/Todos/TodoViewerStateResolver.cs`
 - `Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs`
 - `Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs`
-- `frontend/src/app/tasks/page.tsx`
+- `frontend/src/app/(app)/tasks/page.tsx`
 
 ### Restore A Browser Session
 

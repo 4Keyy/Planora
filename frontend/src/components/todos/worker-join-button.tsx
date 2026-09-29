@@ -45,10 +45,7 @@ export function WorkerJoinButton({
         className="flex items-center border-t border-accent-surface bg-accent-surface/70 px-4 py-2.5"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="relative flex h-2 w-2 flex-shrink-0 mr-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-70" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
-        </span>
+        <span aria-hidden="true" className="mr-2 h-2 w-2 flex-shrink-0 rounded-full bg-accent" />
         <span className="text-caption font-bold uppercase tracking-wider text-accent">
           In work
         </span>

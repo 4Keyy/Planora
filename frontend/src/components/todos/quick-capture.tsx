@@ -316,7 +316,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
                 loading={pending}
                 disabled={!value.trim()}
                 aria-label="Add task"
-                className="h-11 w-11 flex-shrink-0 rounded-full bg-accent text-accent-ink hover:bg-accent"
+                className="h-11 w-11 flex-shrink-0 rounded-full"
               >
                 <Plus className="h-5 w-5" aria-hidden="true" />
               </Button>
@@ -356,7 +356,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
             // comfortable arc at y 560-844 of 844, and this is the only corner a
             // right-handed grip reaches without the phone moving in the hand.
             className={cn(
-              "pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-ink shadow-lg transition-transform duration-fast active:scale-[0.94]",
+              "pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-ink text-paper shadow-lg transition-transform duration-fast active:scale-95",
               placement === "responsive" && "sm:hidden",
             )}
           >

@@ -264,7 +264,7 @@ Only these paths are proxied, so the frontend's own `/auth/login` page is never 
 | `/messaging/api/:path*` | |
 | `/realtime/:path*` | covers both `/realtime/api/v1/notifications*` and the SignalR hub at `/realtime/hubs/notifications` |
 | `/avatars/:path*` | |
-| `/friendships` + `/friendships/:path*` | the only gateway route the frontend calls **without** a service prefix (`api.get("/friendships")` in `src/hooks/use-friends.ts` and `src/app/profile/page.tsx`) |
+| `/friendships` + `/friendships/:path*` | the only gateway route the frontend calls **without** a service prefix (`api.get("/friendships")` in `src/hooks/use-friends.ts` and `src/app/(app)/profile/page.tsx`) |
 
 > Any gateway route the frontend calls that is missing from this list 404s against Next instead of reaching
 > the gateway — the failure is a 404, not a timeout. When adding a new top-level gateway path to the client,

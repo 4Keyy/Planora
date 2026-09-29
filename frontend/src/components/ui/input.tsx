@@ -74,7 +74,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <span
           className={cn(
             "absolute right-3 top-1/2 -translate-y-1/2 text-caption font-semibold pointer-events-none tabular-nums select-none transition-colors duration-base",
-            pct >= 0.80 ? "text-alert" : "text-ink-subtle"
+            pct >= 0.80 ? "text-alert" : "text-ink-muted"
           )}
         >
           {charCount}/{maxLength}

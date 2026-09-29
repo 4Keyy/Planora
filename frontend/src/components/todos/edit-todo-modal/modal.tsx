@@ -9,7 +9,7 @@ import { useAutosave }      from "@/hooks/use-autosave"
 import { useFocusTrap }     from "@/hooks/use-focus-trap"
 import { useAuthStore }     from "@/store/auth"
 import { useFriends }       from "@/hooks/use-friends"
-import { SPRING_STANDARD }  from "@/lib/animations"
+import { SPRING_STANDARD, TWEEN_FAST } from "@/lib/animations"
 import { editorDialogRect, originTransform, takeOrigin } from "@/lib/shared-origin"
 import { Todo, type UpdateTodoPayload, isTodoOwner } from "@/types/todo"
 import { Category }         from "@/types/category"
@@ -493,7 +493,7 @@ export function TodoEditor({
              this value to run the month grid edge to edge, so the two must stay
              in step — hence the shared custom property rather than two numbers. */
           style={{ flex: 1, minHeight: 0, paddingInline: "var(--pl-editor-gutter)" }}
-          className="flex flex-col gap-4 pb-[22px] pt-[14px] lg:flex-row lg:gap-0 lg:px-[26px]"
+          className="flex flex-col gap-4 pb-6 pt-3.5 lg:flex-row lg:gap-0 lg:px-6"
         >
           <div className="branch-scroll w-full flex-shrink-0 lg:w-[389px] lg:overflow-y-auto lg:pr-6">
             <PageMetaPanel {...metaProps} />
@@ -514,7 +514,7 @@ export function TodoEditor({
       className="branch-scroll"
     >
       {/* ── (1) Top chrome bar ── (tighter side padding on phones for more content width) */}
-      <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-[26px]">
+      <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-6">
         <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
           Task Branch
         </span>
@@ -566,7 +566,7 @@ export function TodoEditor({
       </div>
 
       {/* ── (2) Title heading ── */}
-      <div className="px-4 pt-[22px] pb-3 sm:px-[26px]">
+      <div className="px-4 pt-6 pb-3 sm:px-6">
         {renderTitle(22, 12, 8)}
       </div>
 
@@ -578,21 +578,21 @@ export function TodoEditor({
         fact, disagreeing with each other on screen at the same time.
       */}
       {presentMembers.length > 0 && (
-        <div className="px-4 pb-3 sm:px-[26px]">
+        <div className="px-4 pb-3 sm:px-6">
           <PresenceRow members={presentMembers} required={todo.requiredWorkers} size="sm" />
         </div>
       )}
 
       {/* ── (4) Inline token meta strip ── */}
-      <div className="px-4 pb-[18px] sm:px-[22px]">
+      <div className="px-4 pb-4 sm:px-5">
         <InlineTokenStrip {...metaProps} />
       </div>
 
       {/* Divider */}
-      <div className="mx-4 sm:mx-[26px]" style={{ height: 1, background: "var(--pl-gray-100)" }} />
+      <div className="mx-4 sm:mx-6" style={{ height: 1, background: "var(--pl-gray-100)" }} />
 
       {/* ── (4) Branch panel ── (flex-fills the container; scrolls internally) */}
-      <div className="flex flex-1 flex-col px-4 pb-5 pt-[18px] sm:px-[26px]" style={{ minHeight: 0 }}>
+      <div className="flex flex-1 flex-col px-4 pb-5 pt-4 sm:px-6" style={{ minHeight: 0 }}>
         {branchNode}
       </div>
     </div>
@@ -653,7 +653,9 @@ export function EditTodoModal(props: EditTodoModalProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-ink/60 backdrop-blur-md"
+          transition={TWEEN_FAST}
+          // The same scrim as every other dialog (`Overlay`).
+          className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
         />
 
         {/* Modal card — fixed size; the branch in the middle flex-fills and scrolls internally. */}

@@ -154,9 +154,9 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {genesis.isEdited && (
-                <span className="text-caption text-ink-subtle italic">edited</span>
+                <span className="text-caption text-ink-muted italic">edited</span>
               )}
-              <span className="text-caption text-ink-subtle">{formatRelative(genesis.createdAt)}</span>
+              <span className="text-caption text-ink-muted">{formatRelative(genesis.createdAt)}</span>
               {isOwner && editingId !== genesis.id && (
                 <div className="flex items-center gap-1">
                   <button
@@ -231,13 +231,13 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
 
       {/* ── Discussion Stream ───────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <p className="text-caption font-semibold uppercase tracking-wide text-ink-subtle">
+        <p className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
           Task {streamCount > 0 && `· ${streamCount}`}
         </p>
       </div>
 
       {loading ? (
-        <p className="text-caption text-ink-subtle">Loading…</p>
+        <p className="text-caption text-ink-muted">Loading…</p>
       ) : (
         <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
           {hasMore && (
@@ -250,7 +250,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
           )}
 
           {stream.length === 0 && (
-            <p className="text-caption text-ink-subtle italic">No messages yet.</p>
+            <p className="text-caption text-ink-muted italic">No messages yet.</p>
           )}
 
           {stream.map((c) => {
@@ -259,10 +259,10 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                 <div key={c.id} className="flex flex-col items-center gap-0.5 py-1">
                   <div className="flex items-center gap-2 w-full">
                     <div className="flex-1 h-px bg-gray-100" />
-                    <span className="text-caption text-ink-subtle text-center px-2 shrink-0">{c.content}</span>
+                    <span className="text-caption text-ink-muted text-center px-2 shrink-0">{c.content}</span>
                     <div className="flex-1 h-px bg-gray-100" />
                   </div>
-                  <span className="text-caption text-ink-subtle">{formatRelative(c.createdAt)}</span>
+                  <span className="text-caption text-ink-muted">{formatRelative(c.createdAt)}</span>
                 </div>
               )
             }
@@ -283,7 +283,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-caption font-semibold text-gray-800">{c.authorName}</span>
-                  <span className="text-caption text-ink-subtle shrink-0">
+                  <span className="text-caption text-ink-muted shrink-0">
                     {formatRelative(c.createdAt)}
                     {c.isEdited && " · edited"}
                   </span>
@@ -320,14 +320,14 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                     {c.isOwn && (
                       <button
                         onClick={() => { setEditingId(c.id); setEditContent(c.content) }}
-                        className="text-caption text-ink-subtle hover:text-ink-muted flex items-center gap-0.5"
+                        className="text-caption text-ink-muted hover:text-ink flex items-center gap-0.5"
                       >
                         <Pencil className="h-2.5 w-2.5" /> Edit
                       </button>
                     )}
                     <button
                       onClick={() => handleDelete(c.id)}
-                      className="text-caption text-ink-subtle hover:text-alert flex items-center gap-0.5"
+                      className="text-caption text-ink-muted hover:text-alert flex items-center gap-0.5"
                     >
                       <Trash2 className="h-2.5 w-2.5" /> Delete
                     </button>

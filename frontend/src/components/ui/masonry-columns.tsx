@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useRef, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 
-type MasonryBreakpoint = { maxWidth: number; columns: number }
+export type MasonryBreakpoint = { maxWidth: number; columns: number }
 
 const MASONRY_ITEM_TRANSITION = { type: "spring" as const, stiffness: 300, damping: 30 }
 

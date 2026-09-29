@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
-import { Plus, CheckCircle2, AlertTriangle, CalendarClock, Users } from "lucide-react"
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { Plus, CheckCircle2, AlertTriangle, CalendarClock, Users, ArrowRight } from "lucide-react"
 import axios from "axios"
 import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
-import { cn, truncateText } from "@/lib/utils"
+import { truncateText } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
 import { Todo, isTodoOwner, sameUserId, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
@@ -30,11 +30,13 @@ const CreateTodoPanel = dynamic(
   { ssr: false },
 )
 import { MasonryColumns } from "@/components/ui/masonry-columns"
+import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
-import { TASK_CREATED_EVENT, type TaskCreatedDetail } from "@/lib/events"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
+import { Pagination } from "@/components/ui/pagination"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { WeekBars } from "@/components/ui/week-bars"
 import { StatRow } from "@/components/ui/stat-row"
@@ -42,10 +44,6 @@ import { DURATION_DELIBERATE, EASE_OUT_EXPO } from "@/lib/animations"
 import { QuickCapture } from "@/components/todos/quick-capture"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 
-const DASHBOARD_MASONRY_BREAKPOINTS = [
-  { maxWidth: 1200, columns: 2 },
-  { maxWidth: 768, columns: 1 },
-]
 const STATS_COMPLETED_PREVIEW_SIZE = 100
 const STATS_REQUEST_TIMEOUT_MS = 30000
 const FIRST_RUN_STORAGE_KEY = "planora-first-run"
@@ -56,66 +54,39 @@ const normalizeCategoryResponse = (response: CategoryResponse): Category[] => {
   return Array.isArray(data) ? data : data.items ?? []
 }
 
-/** The ring's own arc, declared once so the track and the fill cannot diverge. */
-const RING_PATH = "M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-
 function ProgressCircle({ value, total }: { value: number; total: number }) {
   const percentage = total > 0 ? Math.round((value / total) * 100) : 0
+  const reduce = useReducedMotion() ?? false
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center gap-3"
-    >
-      <div className="relative h-24 w-24 md:h-32 md:w-32">
-        <svg className="h-full w-full" viewBox="0 0 36 36">
-          {/* The track — the whole of the week, unfilled. */}
-          <path
-            className="text-line"
-            stroke="currentColor"
-            strokeWidth="3.5"
-            fill="none"
-            d={RING_PATH}
-          />
-          {/*
-           * The ring is DRAWN, not revealed: `pathLength` is framer-motion's one
-           * sanctioned non-transform animation, and it lets the arc be expressed as
-           * the fraction it is (0-1) instead of a hand-built `strokeDasharray`
-           * string. The previous version interpolated that string over 1500ms with
-           * a spring layered on top of a tween — three times the ceiling the motion
-           * scale sets for anything, and long enough that the number beside it had
-           * finished rolling while the arc was still moving. Drawing over
-           * `deliberate` (480ms) puts the two on the same beat, which is the whole
-           * point: the ring and the numeral are one statement about the week.
-           */}
-          <motion.path
-            initial={{ pathLength: 0 }}
-            animate={{ pathLength: percentage / 100 }}
-            transition={{ duration: DURATION_DELIBERATE, ease: EASE_OUT_EXPO }}
-            className="text-ink"
-            stroke="currentColor"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            fill="none"
-            d={RING_PATH}
-          />
-        </svg>
-        <motion.div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-body md:text-title font-bold text-ink tracking-tighter">
-            <NumberRoll value={percentage} />
-            <span className="text-body-sm md:text-title-sm">%</span>
-          </span>
-        </motion.div>
-      </div>
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="text-caption md:text-caption font-bold text-ink-subtle uppercase tracking-[0.15em]"
-      >
-        Weekly Progress
-      </motion.span>
-    </motion.div>
+    <div className="relative h-24 w-24 flex-shrink-0">
+      <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36" aria-hidden="true">
+        {/* The track — the whole of the week, unfilled. */}
+        <circle cx="18" cy="18" r="15.9155" className="stroke-line" strokeWidth="3" fill="none" />
+        {/*
+         * The ring is DRAWN, not revealed: `pathLength` is framer-motion's one
+         * sanctioned non-transform animation, and it lets the arc be expressed as the
+         * fraction it is (0-1). Drawing over `deliberate` (480ms) puts it on the same
+         * beat as the numeral rolling beside it: the two are one statement about the
+         * week. `MotionConfig` does not reach `pathLength`, hence the explicit branch.
+         */}
+        <motion.circle
+          cx="18"
+          cy="18"
+          r="15.9155"
+          className="stroke-ink"
+          strokeWidth="3"
+          strokeLinecap="round"
+          fill="none"
+          initial={reduce ? false : { pathLength: 0 }}
+          animate={{ pathLength: percentage / 100 }}
+          transition={{ duration: reduce ? 0 : DURATION_DELIBERATE, ease: EASE_OUT_EXPO }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-title-sm font-bold tabular-nums text-ink">
+        <NumberRoll value={percentage} />
+        <span className="text-body-sm font-semibold">%</span>
+      </span>
+    </div>
   )
 }
 
@@ -273,23 +244,6 @@ export default function DashboardPage() {
     firstRunAutoOpenedRef.current = true
     setIsCreateOpen(true)
   }, [firstRun, loading, totalCount, isCreateOpen])
-
-  // Navbar quick-create fired a task — refresh without a page reload
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const created = (e as CustomEvent<TaskCreatedDetail>).detail?.todo
-      setCurrentPage(1)
-      // Render the new task instantly on page 1, then reconcile silently.
-      if (created?.id) {
-        setTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [created, ...prev])
-        setStatsTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [created, ...prev])
-        setTotalCount((c) => c + 1)
-      }
-      void Promise.all([fetchTodos(1, { silent: true }), fetchStats()])
-    }
-    window.addEventListener(TASK_CREATED_EVENT, handler)
-    return () => window.removeEventListener(TASK_CREATED_EVENT, handler)
-  }, [fetchTodos, fetchStats])
 
   // ── Live cross-user sync ──────────────────────────────────────────────────
   // A friend changed a task we can see. The dashboard is paginated + drives weekly stats, so the
@@ -775,340 +729,180 @@ export default function DashboardPage() {
   const completedCountForStats = recentCompletedStatsTodos.length
 
   return (
-    <div className="space-y-6 md:space-y-10 pb-10">
-      {/* Header section with Progress */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.32, ease: "easeOut" }}
-        className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-br from-white via-white to-gray-50 rounded-xl p-6 md:p-8 shadow-md border border-line relative overflow-hidden group hover:shadow-lg transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-deliberate"
+    <div className="space-y-10">
+      {/*
+        The week, stated once. It used to be a gradient card with two blurred orbs behind
+        it, a "WORKSPACE OVERVIEW" pill, a hover shadow on the whole card and a second
+        glass card nested inside it for the ring; each piece arrived on its own delay.
+        Now it is one paper card, and the only things that move are the numbers.
+      */}
+      <section
+        aria-label="Overview"
+        className="rounded-xl border border-line bg-paper p-6 shadow-sm sm:p-8"
       >
-        {/* Decorative background elements.
-            PERF: this is a 320px element with blur-3xl. Animating its opacity on an
-            infinite loop forced a full-frame repaint of a large blurred surface every
-            frame for the lifetime of the page. Rendered statically instead. */}
-        <div
-          className="absolute top-0 right-0 w-80 h-80 bg-ink rounded-full -translate-y-1/2 translate-x-1/4 blur-3xl pointer-events-none opacity-[0.03]"
-        />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gray-400 rounded-full translate-y-1/3 -translate-x-1/3 blur-3xl pointer-events-none opacity-[0.01]" />
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1, duration: 0.32 }}
-          className="relative z-10 space-y-3"
-        >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="inline-flex items-center px-4 py-1.5 rounded-full bg-ink/5 border border-black/10 mb-1"
-          >
-            <p className="text-caption font-bold text-ink uppercase tracking-[0.2em]">Workspace Overview</p>
-          </motion.div>
-          <h1 className="text-title md:text-display-sm xl:text-display-sm font-bold text-ink tracking-tight leading-tight">
-            You have{" "}
-            {/* The headline number rolls. It was keyed on its own value, so every
-                change re-mounted it and it sprang in from 0.8 scale — which reads as
-                "this component rendered", not "you have one fewer task". */}
-            <span className="text-ink inline-flex items-center rounded-lg border border-black/10 bg-ink/5 px-2 py-1 font-bold">
-              <NumberRoll value={activeStatsCount} announce />
-            </span>{" "}
-            tasks.
-          </h1>
-
-          {/* Each of these is a filter, not a label: the number is half an answer
-              and pressing it should show the tasks it counted. */}
-          <StatRow
-            className="mt-5"
-            stats={[
-              { id: "overdue", label: "overdue", value: heroStats.overdue, icon: AlertTriangle, tone: "alert", onSelect: () => router.push("/tasks") },
-              { id: "today", label: "due today", value: heroStats.dueToday, icon: CalendarClock, onSelect: () => router.push("/tasks") },
-              { id: "shared", label: "shared", value: heroStats.shared, icon: Users, onSelect: () => router.push("/tasks") },
-            ]}
-          />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.15, duration: 0.32 }}
-          className="relative z-10 flex items-center justify-center md:justify-end gap-6 bg-paper/60 backdrop-blur-xl rounded-xl p-5 border border-white/80 shadow-sm self-center md:self-auto min-w-[200px] hover:shadow-md transition-[color,background-color,border-color,opacity,transform,box-shadow]"
-        >
-          <ProgressCircle value={completedCountForStats} total={totalCountForStats} />
-          <motion.div className="h-12 w-px bg-gradient-to-b from-transparent via-gray-200 to-transparent hidden sm:block" />
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="hidden w-full max-w-[180px] sm:flex flex-col justify-center"
-          >
-            <span className="text-caption font-bold text-ink-subtle uppercase tracking-[0.2em]">Weekly Stats</span>
-            <span className="mt-1.5 flex items-baseline gap-1.5">
-              <span className="text-title font-bold leading-none text-ink">
-                <NumberRoll value={completedCountForStats} />
-              </span>
-              <span className="text-caption font-bold text-ink-subtle">completed</span>
-            </span>
-            {/* The shape of the week, not just its total. Built from the completion
-                timestamps already loaded for the ring, so it costs no request and
-                cannot disagree with the number above it. */}
-            <WeekBars
-              className="mt-3"
-              completions={recentCompletedStatsTodos.map((t) => t.completedAt ?? t.updatedAt)}
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className={FIELD_LABEL_CLASS}>Overview</p>
+            <h1 className="mt-2 text-title font-bold tracking-tight text-ink sm:text-display-sm">
+              You have{" "}
+              {/* The headline number rolls rather than re-mounting: "one fewer task", not
+                  "this component rendered". */}
+              <span className="tabular-nums">
+                <NumberRoll value={activeStatsCount} announce />
+              </span>{" "}
+              {activeStatsCount === 1 ? "open task." : "open tasks."}
+            </h1>
+            {/* Each of these is a filter, not a label: the number is half an answer and
+                pressing it should show the tasks it counted. */}
+            <StatRow
+              className="mt-6"
+              stats={[
+                { id: "overdue", label: "overdue", value: heroStats.overdue, icon: AlertTriangle, tone: "alert", onSelect: () => router.push("/tasks") },
+                { id: "today", label: "due today", value: heroStats.dueToday, icon: CalendarClock, onSelect: () => router.push("/tasks") },
+                { id: "shared", label: "shared", value: heroStats.shared, icon: Users, onSelect: () => router.push("/tasks") },
+              ]}
             />
-          </motion.div>
-        </motion.div>
-      </motion.div>
-      
-      {/* Main grid */}
-      <div className="grid gap-8 lg:grid-cols-12">
-        {/* Todos */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-title-sm md:text-title font-bold text-ink tracking-tight flex items-center gap-3">
-              Active Tasks
-              <span className="text-caption bg-gray-900 text-paper px-2 py-0.5 rounded-full uppercase tracking-widest">{totalCount}</span>
-            </h2>
-            <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")} className="text-caption font-bold text-ink-subtle hover:text-ink transition-colors">
-              All tasks →
-            </Button>
           </div>
 
-          {loading && (
-            <MasonryColumns
-              items={[...Array(pageSize)].map((_, i) => ({ id: `skeleton-${i}` }))}
-              getKey={(item) => item.id}
-              renderItem={() => <TodoSkeleton />}
-              columns={3}
-              breakpoints={DASHBOARD_MASONRY_BREAKPOINTS}
-            />
-          )}
-
-          {error && !loading && (
-            <StatusPanel
-              tone="alert"
-              icon={AlertTriangle}
-              title="Couldn't load your tasks"
-              description={error}
-              action={{ label: "Try again", onClick: () => void fetchTodos() }}
-            />
-          )}
-
-          {!loading && !error && (
-            <>
-              {activeTodos.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: "spring", stiffness: 200, damping: 25 }}
-                  className="rounded-xl border-2 border-dashed border-line bg-gradient-to-br from-white via-gray-50 to-gray-50 p-12 md:p-16 text-center shadow-sm hover:shadow-md transition-[color,background-color,border-color,opacity,transform,box-shadow]"
-                >
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1 }}
-                    className="mx-auto h-20 w-20 rounded-xl bg-gradient-to-br from-positive-surface to-gray-50 flex items-center justify-center mb-6 border border-positive-surface"
-                  >
-                    <motion.div
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      <CheckCircle2 className="h-10 w-10 text-positive" />
-                    </motion.div>
-                  </motion.div>
-                  <motion.h3
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-title font-bold text-ink mb-2"
-                  >
-                    {firstRun ? "Welcome to Planora" : "Perfectly Clear!"}
-                  </motion.h3>
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                    className="text-body-sm text-ink-subtle mb-8 font-medium max-w-sm mx-auto leading-relaxed"
-                  >
-                    {firstRun
-                      ? "Start with one task, then invite the person you want to coordinate with."
-                      : "You have no active tasks at the moment. Time to relax or create something new!"}
-                  </motion.p>
-                  {firstRun && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.35 }}
-                      className="mx-auto mb-8 grid max-w-3xl gap-3 text-left sm:grid-cols-2 lg:grid-cols-4"
-                    >
-                      {[
-                        ["1", "Create first task", "Capture one concrete thing."],
-                        ["2", "Create/share category", "Use a private category if needed."],
-                        ["3", "Invite first friend", "Send a request by email."],
-                        ["4", "Share a task", "Choose that friend in the task form."],
-                      ].map(([step, title, body]) => (
-                        <div key={step} className="rounded-lg border border-line bg-paper/80 p-3">
-                          <div className="text-caption font-bold uppercase tracking-[0.2em] text-ink-subtle">Step {step}</div>
-                          <div className="mt-2 text-body-sm font-bold text-ink">{title}</div>
-                          <div className="mt-1 text-caption text-ink-subtle leading-relaxed">{body}</div>
-                        </div>
-                      ))}
-                    </motion.div>
-                  )}
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className="flex flex-col sm:flex-row items-center justify-center gap-3"
-                  >
-                    <Button size="lg" onClick={() => setIsCreateOpen(true)} className="rounded-lg font-bold shadow-lg shadow-black/20 hover:-translate-y-1">
-                      <Plus className="h-5 w-5 mr-2" />
-                      {firstRun ? "Create first task" : "New Task"}
-                    </Button>
-                    {firstRun && (
-                      <>
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          onClick={() => router.push("/categories")}
-                          className="rounded-lg font-bold"
-                        >
-                          Create category
-                        </Button>
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          onClick={() => router.push("/profile")}
-                          className="rounded-lg font-bold"
-                        >
-                          Invite friend
-                        </Button>
-                      </>
-                    )}
-                  </motion.div>
-                </motion.div>
-              ) : (
-                <MasonryColumns
-                  items={activeTodos}
-                  getKey={(todo) => todo.id}
-                  getItemWeight={getTaskWeight}
-                  columns={3}
-                  breakpoints={DASHBOARD_MASONRY_BREAKPOINTS}
-                  renderItem={(todo) => (
-                    <TodoCard
-                      todo={todo}
-                      variant="default"
-                      onComplete={() => handleComplete(todo.id)}
-                      onDelete={() => requestDelete(todo)}
-                      onEdit={() => setEditingTodo(todo)}
-                      onToggleHidden={() => handleToggleHidden(todo.id)}
-                      onJoin={async () => handleJoin(todo.id)}
-                    />
-                  )}
-                />
-              )}
-
-              {/* Pagination - Beautiful */}
-              {totalPages > 1 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-wrap items-center justify-center gap-2 pt-8 pb-4"
-                >
-                  <motion.div whileHover={{ scale: 1.05 }}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className="rounded-lg border-line-strong font-bold px-3 sm:px-5 hover:border-gray-400 hover:shadow-md"
-                      aria-label="Previous page"
-                    >
-                      <span className="sm:hidden">←</span>
-                      <span className="hidden sm:inline">← Previous</span>
-                    </Button>
-                  </motion.div>
-
-                  <div className="flex items-center gap-1.5 mx-1 sm:mx-2">
-                    {[...Array(totalPages)].map((_, i) => {
-                      const pageNum = i + 1;
-                      if (
-                        pageNum === 1 ||
-                        pageNum === totalPages ||
-                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                      ) {
-                        return (
-                          <motion.button
-                            key={pageNum}
-                            whileHover={{ scale: 1.15 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handlePageChange(pageNum)}
-                            className={cn(
-                              "touch-target w-9 h-9 rounded-md text-caption font-bold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base border",
-                              currentPage === pageNum
-                                ? "bg-gradient-to-br from-black to-gray-900 text-paper shadow-lg shadow-black/30 scale-110 border-black"
-                                : "text-ink-muted hover:bg-gray-100 hover:text-ink hover:border-line-strong border-line"
-                            )}
-                          >
-                            {pageNum}
-                          </motion.button>
-                        )
-                      }
-                      if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                        return (
-                          <motion.span
-                            key={pageNum}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="text-ink-subtle font-normal px-0.5"
-                          >
-                            ···
-                          </motion.span>
-                        )
-                      }
-                      return null;
-                    })}
-                  </div>
-
-                  <motion.div whileHover={{ scale: 1.05 }}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage >= totalPages}
-                      className="rounded-lg border-line-strong font-bold px-3 sm:px-5 hover:border-gray-400 hover:shadow-md"
-                      aria-label="Next page"
-                    >
-                      <span className="sm:hidden">→</span>
-                      <span className="hidden sm:inline">Next →</span>
-                    </Button>
-                  </motion.div>
-                </motion.div>
-              )}
-
-            </>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        <div className="lg:col-span-4 space-y-6">
-          <CreateTodoPanel
-            isOpen={isCreateOpen}
-            onToggle={() => setIsCreateOpen(!isCreateOpen)}
-            categories={categories}
-            onSubmit={handleCreate}
-            onCreateCategory={fetchCategories}
-            onDeleteCategory={handleDeleteCategory}
-          />
-
-          {process.env.NODE_ENV === 'development' && (
-            <div className="rounded-xl border border-line bg-paper-sunken/50 p-4 text-caption text-ink-subtle text-center font-bold uppercase tracking-[0.2em]">
-              Planora Beta 0.1 · Local Dev
+          <div className="flex items-center gap-6 border-t border-line pt-6 lg:w-96 lg:flex-shrink-0 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            <ProgressCircle value={completedCountForStats} total={totalCountForStats} />
+            <div className="min-w-0 flex-1">
+              <p className={FIELD_LABEL_CLASS}>This week</p>
+              <p className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-title font-bold tabular-nums text-ink">
+                  <NumberRoll value={completedCountForStats} />
+                </span>
+                <span className="text-body-sm font-medium text-ink-muted">completed</span>
+              </p>
+              {/* The shape of the week, not just its total. Built from the completion
+                  timestamps already loaded for the ring, so it costs no request and
+                  cannot disagree with the number above it. */}
+              <WeekBars
+                className="mt-3"
+                completions={recentCompletedStatsTodos.map((t) => t.completedAt ?? t.updatedAt)}
+              />
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section aria-labelledby="active-tasks-heading" className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <h2 id="active-tasks-heading" className="flex items-center gap-3 text-title-sm font-bold tracking-tight text-ink">
+            Active tasks
+            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-paper-sunken px-2 text-caption font-semibold tabular-nums text-ink-muted ring-1 ring-inset ring-line">
+              {totalCount}
+            </span>
+          </h2>
+          <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")} className="-mr-3">
+            All tasks
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </div>
+
+        {/* The create panel spans the column. It sat alone in a sidebar a third of the
+            page wide, which squeezed the task cards into three narrow columns beside a
+            mostly empty one. */}
+        <CreateTodoPanel
+          isOpen={isCreateOpen}
+          onToggle={() => setIsCreateOpen(!isCreateOpen)}
+          categories={categories}
+          onSubmit={handleCreate}
+          onCreateCategory={fetchCategories}
+          onDeleteCategory={handleDeleteCategory}
+        />
+
+        {loading && (
+          <MasonryColumns
+            items={[...Array(pageSize)].map((_, i) => ({ id: `skeleton-${i}` }))}
+            getKey={(item) => item.id}
+            renderItem={() => <TodoSkeleton />}
+            columns={TASK_GRID_COLUMNS}
+            breakpoints={TASK_GRID_BREAKPOINTS}
+          />
+        )}
+
+        {error && !loading && (
+          <StatusPanel
+            tone="alert"
+            icon={AlertTriangle}
+            title="Couldn't load your tasks"
+            description={error}
+            action={{ label: "Try again", onClick: () => void fetchTodos() }}
+          />
+        )}
+
+        {!loading && !error && (
+          <>
+            {activeTodos.length === 0 ? (
+              firstRun ? (
+                <div className="rounded-xl border border-dashed border-line bg-paper px-6 py-12 text-center sm:px-12">
+                  <h3 className="text-title font-bold tracking-tight text-ink">Welcome to Planora</h3>
+                  <p className="mx-auto mt-2 max-w-md text-body text-ink-muted">
+                    Start with one task, then invite the person you want to coordinate with.
+                  </p>
+                  <ol className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      ["1", "Create a task", "Write down one concrete thing."],
+                      ["2", "Make a category", "Group tasks the way you think about them."],
+                      ["3", "Invite a friend", "Send a request by email from your profile."],
+                      ["4", "Share a task", "Choose that friend when you edit the task."],
+                    ].map(([step, title, body]) => (
+                      <li key={step} className="rounded-lg border border-line bg-paper-sunken p-4">
+                        <p className={FIELD_LABEL_CLASS}>Step {step}</p>
+                        <p className="mt-2 text-body-sm font-bold text-ink">{title}</p>
+                        <p className="mt-1 text-caption text-ink-muted">{body}</p>
+                      </li>
+                    ))}
+                  </ol>
+                  <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                    <Button size="lg" onClick={() => setIsCreateOpen(true)}>
+                      <Plus className="h-5 w-5" aria-hidden="true" />
+                      Create your first task
+                    </Button>
+                    <Button size="lg" variant="outline" onClick={() => router.push("/profile")}>
+                      Invite a friend
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <StatusPanel
+                  icon={CheckCircle2}
+                  title="Nothing open right now"
+                  description="Everything you had is done. Add the next thing when it comes up."
+                  action={{ label: "New task", onClick: () => setIsCreateOpen(true) }}
+                />
+              )
+            ) : (
+              <MasonryColumns
+                items={activeTodos}
+                getKey={(todo) => todo.id}
+                getItemWeight={getTaskWeight}
+                columns={TASK_GRID_COLUMNS}
+                breakpoints={TASK_GRID_BREAKPOINTS}
+                renderItem={(todo) => (
+                  <TodoCard
+                    todo={todo}
+                    variant="default"
+                    onComplete={() => handleComplete(todo.id)}
+                    onDelete={() => requestDelete(todo)}
+                    onEdit={() => setEditingTodo(todo)}
+                    onToggleHidden={() => handleToggleHidden(todo.id)}
+                    onJoin={async () => handleJoin(todo.id)}
+                  />
+                )}
+              />
+            )}
+
+          </>
+        )}
+
+        {/* Outside the loading branch: the pager stays mounted while the next page loads,
+            so the button just pressed keeps keyboard focus instead of unmounting under it. */}
+        {!error ? (
+          <Pagination className="pt-4" page={currentPage} totalPages={totalPages} onChange={handlePageChange} />
+        ) : null}
+      </section>
 
       <AnimatePresence>
         {editingTodo && (

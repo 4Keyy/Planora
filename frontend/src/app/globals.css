@@ -179,6 +179,9 @@
 
 @layer components {
   /* Page container. One width for the whole product. */
+  /* The one column every screen is built on — the landing page, the auth frame and the
+     signed-in app. One width means the wordmark sits on the same spot whichever of the
+     three you are on, and moving from sign-in to the dashboard moves nothing but the page. */
   .container-app {
     @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
   }
@@ -444,6 +447,9 @@ a, button, [role="button"], label, summary {
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .pl-safe { padding-left: env(safe-area-inset-left, 0px); }
 .pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+/* A bar pinned to the bottom edge: 16px of air, or the home indicator's inset where that is
+   larger. One named utility instead of the same arbitrary `max()` written in two places. */
+.pb-safe-4 { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px)); }
 
 /* Honour prefers-reduced-motion for the CSS keyframe animations in this file.
    framer-motion is covered globally by MotionConfig reducedMotion="user", and

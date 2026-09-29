@@ -106,7 +106,7 @@ export function FriendMultiSelect({
             </span>
             <span className="min-w-0">
               <span className="block truncate text-body-sm font-bold text-ink">{label}</span>
-              <span className="block truncate text-caption font-semibold text-ink-subtle">{scopeLabel}</span>
+              <span className="block truncate text-caption font-semibold text-ink-muted">{scopeLabel}</span>
             </span>
           </span>
           <span className="flex flex-shrink-0 items-center gap-1.5">
@@ -126,7 +126,7 @@ export function FriendMultiSelect({
               </span>
             ))}
             {publicSelected && (
-              <span className="rounded-full border border-line bg-paper-sunken px-2 py-1 text-caption font-bold uppercase tracking-[0.06em] text-ink-muted">
+              <span className="rounded-full border border-line bg-paper-sunken px-2 py-1 text-caption font-bold uppercase tracking-wider text-ink-muted">
                 All
               </span>
             )}
@@ -142,7 +142,7 @@ export function FriendMultiSelect({
           )}
         >
           <div className="px-2 pb-2 pt-1">
-            <div className="flex items-center gap-2 rounded-lg border border-line bg-paper-sunken px-3 py-2 text-caption font-bold text-ink-subtle">
+            <div className="flex items-center gap-2 rounded-lg border border-line bg-paper-sunken px-3 py-2 text-caption font-bold text-ink-muted">
               <Users className="h-3.5 w-3.5" />
               Share scope
             </div>
@@ -182,7 +182,7 @@ export function FriendMultiSelect({
             </>
           )}
           {friends.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-line px-3 py-4 text-center text-caption font-bold text-ink-subtle">
+            <div className="rounded-lg border border-dashed border-line px-3 py-4 text-center text-caption font-bold text-ink-muted">
               No friends yet.
             </div>
           ) : (
@@ -214,7 +214,7 @@ export function FriendMultiSelect({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-bold">{formatFriendName(friend)}</span>
                       {friend.email && (
-                        <span className="block truncate text-caption font-semibold text-ink-subtle">{friend.email}</span>
+                        <span className="block truncate text-caption font-semibold text-ink-muted">{friend.email}</span>
                       )}
                     </span>
                     <span
@@ -230,7 +230,7 @@ export function FriendMultiSelect({
               })}
             </div>
           )}
-          <div className="mt-2 flex items-center gap-2 rounded-lg bg-paper-sunken px-3 py-2 text-caption font-semibold text-ink-subtle">
+          <div className="mt-2 flex items-center gap-2 rounded-lg bg-paper-sunken px-3 py-2 text-caption font-semibold text-ink-muted">
             <UserRound className="h-3.5 w-3.5" />
             {publicSelected
               ? "All friends"

@@ -81,18 +81,22 @@ export function WeekBars({ completions, className }: WeekBarsProps) {
           // rather than as however many had activity.
           const height = d.count === 0 ? 2 : Math.max(4, Math.round((d.count / peak) * 34))
           return (
-            <motion.span
-              key={d.date.toISOString()}
-              className={cn(
-                "min-w-0 flex-1 origin-bottom rounded-sm",
-                d.count === 0 ? "bg-line" : isToday ? "bg-ink" : "bg-ink-subtle",
-              )}
-              style={{ height }}
-              initial={reduce ? false : { scaleY: 0 }}
-              animate={{ scaleY: 1 }}
-              // Left to right, the direction the week ran.
-              transition={{ duration: DURATION_SLOW, ease: EASE_OUT_EXPO, delay: reduce ? 0 : i * 0.04 }}
-            />
+            <span key={d.date.toISOString()} className="flex min-w-0 flex-1 items-end justify-center">
+              <motion.span
+                // A 10px bar centred in its day's column, not the column's full width: seven
+                // full-width blocks read as a slab with one lump in it when a single day had
+                // activity; seven slim bars read as a week.
+                className={cn(
+                  "w-2.5 origin-bottom rounded-full",
+                  d.count === 0 ? "bg-line" : isToday ? "bg-ink" : "bg-ink-subtle",
+                )}
+                style={{ height }}
+                initial={reduce ? false : { scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                // Left to right, the direction the week ran.
+                transition={{ duration: DURATION_SLOW, ease: EASE_OUT_EXPO, delay: reduce ? 0 : i * 0.04 }}
+              />
+            </span>
           )
         })}
       </div>
@@ -103,7 +107,7 @@ export function WeekBars({ completions, className }: WeekBarsProps) {
             key={d.date.toISOString()}
             className={cn(
               "flex-1 text-center text-caption font-semibold",
-              i === days.length - 1 ? "text-ink" : "text-ink-subtle",
+              i === days.length - 1 ? "text-ink" : "text-ink-muted",
             )}
           >
             {d.date.toLocaleDateString(UI_LOCALE, { weekday: "narrow" })}

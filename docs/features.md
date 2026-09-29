@@ -71,7 +71,7 @@ Let users manage profile data, password/email changes, email verification, sessi
 - `Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs`
 - `Services/AuthApi/Planora.Auth.Application/Features/Users`
 - `Services/AuthApi/Planora.Auth.Infrastructure/Services/Authentication/PasswordValidator.cs`
-- `frontend/src/app/profile/page.tsx`
+- `frontend/src/app/(app)/profile/page.tsx`
 
 ### Key Rules
 
@@ -108,7 +108,7 @@ Establish social relationships required for task sharing and friend-scoped task 
 - `Services/AuthApi/Planora.Auth.Application/Features/Friendships`
 - `Services/AuthApi/Planora.Auth.Domain/Entities/Friendship.cs`
 - `GrpcContracts/Protos/auth.proto`
-- `frontend/src/app/profile/page.tsx`
+- `frontend/src/app/(app)/profile/page.tsx`
 - `frontend/src/hooks/use-friends.ts`
 
 ### Key Rules
@@ -131,7 +131,7 @@ Organize todos with user-owned labels that carry color, icon, and display order.
 - `Services/CategoryApi/Planora.Category.Application/Features/Categories`
 - `Services/CategoryApi/Planora.Category.Domain/Entities/Category.cs`
 - `Services/CategoryApi/Planora.Category.Domain/Enums/CategoryColors.cs`
-- `frontend/src/app/categories/page.tsx`
+- `frontend/src/app/(app)/categories/page.tsx`
 
 ### Key Rules
 
@@ -168,8 +168,8 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 - `Services/TodoApi/Planora.Todo.Application/Features/Todos`
 - `Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs`
 - `Services/TodoApi/Planora.Todo.Domain/Enums`
-- `frontend/src/app/tasks/page.tsx`
-- `frontend/src/app/tasks/completed/page.tsx`
+- `frontend/src/app/(app)/tasks/page.tsx`
+- `frontend/src/app/(app)/tasks/completed/page.tsx`
 - `frontend/src/hooks/use-list-navigation.ts` — the list cursor and multi-selection
 - `frontend/src/components/todos/quick-capture.tsx`
 - `frontend/src/components/ui/selection-bar.tsx`
@@ -383,7 +383,7 @@ and dashboard pages.
 ### Branch on its own page
 
 The task branch opens in-place as a modal on a plain card click, but it also has a **standalone
-page** at `/branch/{id}` (`app/branch/[id]`, behind the shared `AuthGuard` + `Navbar` layout, with
+page** at `/branch/{id}` (`app/(app)/branch/[id]`, behind the shared `AuthGuard` + `Navbar` layout, with
 the **same left/right gutters** as the rest of the app — `max-w-[1600px]` + `px-4/5/6`).
 
 The editor body is **shared, not duplicated**: `modal.tsx` exports `TodoEditor` (title, the meta
@@ -441,7 +441,7 @@ trigger via `getBoundingClientRect` (repositioning on capture-phase scroll + res
 the trigger when there isn't room below, and caps its `maxHeight` to the available space (scrolling
 internally). Because a fixed/portaled element never contributes to the document's scroll height,
 opening a `portal` popover can **never stretch the page** and closing it can **never snap** it — this
-is what the create-task panel (on `/tasks` and the dashboard sidebar) uses for all four selectors, so
+is what the create-task panel (on `/tasks` and the dashboard) uses for all four selectors, so
 even the tall inline "create category" form stays inside the viewport instead of growing the page.
 `PriorityPopover`, `DatePopover`, and `CategoryPopover` accept and forward an optional `portal` prop
 (default `false`, so the edit-modal usages are unchanged).
@@ -459,7 +459,7 @@ the In Progress pill) that opens it in a new tab. Both compute the URL from the 
 ### The keyboard over the task list
 
 `/tasks` answers to a cursor that walks the list without the pointer
-(`frontend/src/hooks/use-list-navigation.ts`, wired in `frontend/src/app/tasks/page.tsx`).
+(`frontend/src/hooks/use-list-navigation.ts`, wired in `frontend/src/app/(app)/tasks/page.tsx`).
 One `keydown` listener on `window` serves the whole list: one listener per row would be one
 per mounted card, and it would require each row to hold DOM focus before its keys did
 anything, which is not how a list reads to a keyboard user. The hook never moves focus — the
@@ -601,7 +601,7 @@ A remote change that reconciles on arrival moves every card below the insertion 
 a pointer that was already aimed at a row, and under the reading position the user had
 scrolled to. So arrivals are **held and offered** rather than applied
 (`useDeferredUpdates` + `UpdatePill` in `frontend/src/components/ui/update-pill.tsx`, the
-`useFeedSync` callback in `frontend/src/app/tasks/page.tsx`).
+`useFeedSync` callback in `frontend/src/app/(app)/tasks/page.tsx`).
 
 | Signal | What happens |
 |---|---|
@@ -685,7 +685,7 @@ The viewer count is the length of that shared list.
   no layout jump.
 - Active todo page loads active tasks in pages of 200.
 - Completed preview uses page size 20.
-- **Completed archive — search by completion date** (`frontend/src/app/tasks/completed/page.tsx`,
+- **Completed archive — search by completion date** (`frontend/src/app/(app)/tasks/completed/page.tsx`,
   `components/todos/date-filter-popover.tsx`): the completion-date filter is embedded **inside the
   QuickFilter plate** via its `dateControl` slot (`DateFilterPopover`) rather than sitting as a
   separate block. A compact trigger (same height as the plate's other controls, so the plate never
@@ -723,6 +723,7 @@ The viewer count is the length of that shared list.
 - Category filter state is stored in local storage by `frontend/src/utils/category-filter.ts`, scoped per user under the key `todos-cat-filter:<userId>`. Each account's filter survives a hard refresh (including Ctrl+F5), and switching accounts never leaks one user's filter onto another. The `/tasks` and `/tasks/completed` pages re-read the filter whenever the active user changes; an unknown/logged-out user resolves to an empty filter.
 - Keyboard shortcuts confirmed in `frontend/src/app/todos/page.tsx`: `F` opens category filter and `C` opens create panel when focus is not inside form controls.
 - Dashboard also keeps the `C` create-panel shortcut. The collapsed panel header shows "New task" as its title and a `press C to open` `<kbd>` hint in the subtitle so the shortcut is self-documenting without a separate dismissible banner.
+- **The dashboard** (`frontend/src/app/(app)/dashboard/page.tsx`) opens on one overview card: "You have N open tasks." (the number rolls), the overdue / due-today / shared filters, and — beside them on wide screens, below on phones — this week as a drawn progress ring, the completed count and seven day bars. The card used to be a gradient with two blurred orbs, a pill eyebrow, a hover shadow on the whole card and a second glass card nested inside for the ring, each piece arriving on its own delay. Below it, "Active tasks" with its count, the create panel at full column width (it used to sit alone in a third-wide sidebar beside three squeezed columns of cards), the cards in three columns, and the shared `Pagination`. The empty state is a `StatusPanel` ("Nothing open right now"); the first-run state keeps its four steps.
 - Pressing `Escape` inside the create task panel returns it to the collapsed create action with a calm layout fade instead of leaving an empty white panel or adding bounce.
 - `frontend/src/components/todos/todo-card.tsx` runs a short local completion/reopen animation before calling the page-level status update, so list refreshes happen after the card has visually acknowledged the action.
 - Hidden/collapsed task cards blur the category pill until hover/focus, keeping category filtering visible without exposing it at rest.
@@ -732,8 +733,8 @@ The viewer count is the length of that shared list.
   "Add details — optional."), followed by a row of four compact **selector plates** — Priority,
   Due date, Category, Share — each opening an anchored popover (the shared `PriorityPopover`,
   `DatePopover` with its Today/Tomorrow/+3/Next-week quick-picks, `CategoryPopover`, and a
-  panel-local `SharePopover`). The plate row auto-fits: 4-up on the wide `/tasks` page, stacking in
-  the dashboard sidebar. Due date and Category plates expose inline ✕ clear controls; the footer
+  panel-local `SharePopover`). The plate row auto-fits: 4-up at full column width on both `/tasks` and
+  the dashboard, stacking on phones. Due date and Category plates expose inline ✕ clear controls; the footer
   shows a `⌘/Ctrl` + `↵` "to create" hint and a black `→ Create task` action that stays disabled
   until a title exists. Character-limited fields keep `current/max` counters (red from 80% of the
   limit). Share semantics are unchanged: all-friends visibility (public) and direct friend selection
@@ -754,9 +755,10 @@ The viewer count is the length of that shared list.
   and expands in place, so there is no separate New Task button and the `F` shortcut works regardless
   of the panel state.
 - On the dashboard, the create panel opens with a softened layout transition and staged field reveal. Its primary plus icon becomes a rotated close action while the panel is open, so the same control pattern can open and close the draft surface.
-- Toast notifications render on the toast z-index layer and start below the fixed navbar, so completion/update feedback is not hidden behind the header.
-- The floating navbar quick-creates tasks (title only, private, no category) and dispatches a `planora:task-created` custom DOM event on success, carrying the freshly created task on `event.detail.todo` (see `frontend/src/lib/events.ts`). Both the dashboard and todos pages listen for this event: they insert the new task into the list immediately (optimistically) and then reconcile with a silent background refetch, so a new task appears instantly instead of after the list reloads. The dashboard also resets pagination to page 1.
-- The navbar is responsive (`frontend/src/components/layout/navbar.tsx`). On pointer devices (`sm` and up) it is the hover-expanding floating pill. Below `sm`, where hover never fires, phones get a dedicated touch bar with a tap-to-open sheet menu — quick-add task input, navigation tabs with an active indicator, and account actions (Profile / Sign out) — reusing the same state and handlers as the pill. Both variants clear the iPhone status bar / Dynamic Island via `env(safe-area-inset-top)` (enabled by `viewport-fit=cover` in `app/layout.tsx`).
+- Toast notifications render on the toast z-index layer and start below the app bar, so completion/update feedback is not hidden behind the header.
+- **The app bar** (`frontend/src/components/layout/navbar.tsx`, rendered once by `AppShell` from `frontend/src/app/(app)/layout.tsx`) is a sticky bar shared by all five signed-in routes. The router keeps that layout mounted across them, so moving between Dashboard, Tasks and Categories leaves the bar still and slides its underline (`layoutId="nav-underline"`) to the new tab; only the page below fades (`app/(app)/template.tsx`, opacity only). From `sm` up the three destinations are always visible — they used to appear only while the pointer hovered over a floating pill, so a keyboard user never saw them — with search (opens the ⌘K palette through `OPEN_PALETTE_EVENT`), notifications and an account menu (Profile, Sign out; Escape closes it and returns focus to the avatar) on the right. Below `sm` the destinations and the account actions move into a sheet under the bar; the sheet and its backdrop are siblings of the `<header>`, because the header's `backdrop-filter` would otherwise become the containing block of the backdrop's `position: fixed`. The bar clears the iPhone status bar with `pt-safe` on the outer element and keeps its own spacing on the inner one.
+- The bar no longer creates tasks. It carried a second capture field whose placeholder promised natural-language dates ("tomorrow at 5pm #work") that nothing parsed; creating a task lives on the pages that list tasks (the capture control and the "New task" panel) and in the palette's "Capture a task", which goes to `/tasks` and opens capture from any screen.
+- The bar renders before the session restore finishes (only the avatar's initials arrive later), and `AuthGuard` wraps the page content beneath it, so the first paint of a signed-in route is the product's frame rather than a blank screen. `<main id="main">` on every signed-in route is the target of the root layout's "Skip to content" link, which had no target on any of them.
 - Task list updates feel instant because mutation-triggered refetches run in "silent" mode (`fetchActiveTodos`/`fetchTodos` accept `{ silent }`): creating a task inserts it from the POST response right away, and create/reopen refreshes no longer flash the skeleton grid over existing cards. The first full page load still shows skeletons; only background reconciliation is silent.
 - In the Task Branch edit modal, the title heading and its inline edit field share the exact same box model (padding, negative margin, border radius and font metrics), so clicking the title to rename it never shifts the heading sideways or changes its size — it simply fades from the hover background into an editable field.
 - The Task Branch edit modal (`frontend/src/components/todos/edit-todo-modal`) is **quick-save** with no Save/Cancel buttons: editing the title, priority, due date, category, or visibility/sharing autosaves via the debounced `useAutosave` hook. Owners persist the full task payload; a shared viewer who can manage their own category autosaves only their private category preference. The description ("Author's Note" in the branch) keeps its own explicit editor and is intentionally excluded from the autosave equality check so it is never written twice. There is **no footer panel** — no autosave-status indicator and no `Done` button; the modal closes via the header **✕**, the backdrop, or `Escape`, and a pending edit is flushed on close/unmount. Save failures are toasted once; the autosave retries on the next edit.
@@ -953,7 +955,7 @@ Redacted shared/public DTOs contain:
 - preserved non-content visual state: `Priority`, `IsPublic`, `HasSharedAudience`, and `IsVisuallyUrgent`, so collapsed cards keep urgent/shared frames after a page refresh without exposing the hidden task body;
 - viewer category id/name/color/icon if available.
 
-The frontend performs optimistic collapse/redaction when hiding a shared task, but server-side redaction is the source of truth. Reveal is not optimistically expanded: `frontend/src/app/todos/page.tsx`, `frontend/src/app/dashboard/page.tsx`, and `frontend/src/app/todos/completed/page.tsx` keep the hidden card collapsed until `fetchTaskById` returns full task details.
+The frontend performs optimistic collapse/redaction when hiding a shared task, but server-side redaction is the source of truth. Reveal is not optimistically expanded: `frontend/src/app/todos/page.tsx`, `frontend/src/app/(app)/dashboard/page.tsx`, and `frontend/src/app/todos/completed/page.tsx` keep the hidden card collapsed until `fetchTaskById` returns full task details.
 
 Automated verification: `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts` covers registration, email verification, accepted friendship, shared todo creation, hidden redaction, owner visibility, and reveal behavior through the API Gateway and Docker services.
 
@@ -1049,7 +1051,7 @@ typing presence.
 - TodoApi command handlers (`CreateTodo`/`UpdateTodo`/`DeleteTodo`/`JoinTodo`/`LeaveTodo`/`CreateSubtask`/`DuplicateTodo`) emit it; feed audience resolved by `Services/TodoApi/Planora.Todo.Application/Common/RealtimeAudience.cs`.
 - CollaborationApi `AddComment`/`UpdateComment`/`DeleteComment` emit the branch-scope event.
 - `Services/RealtimeApi/.../RealtimeSyncEventHandler.cs` + `RealtimeBroadcaster.cs` fan it out; `NotificationHub.cs` hosts the authorized branch rooms + typing relay.
-- Frontend: `frontend/src/lib/realtime/client.ts` (single connection), `hooks.ts` (`useFeedSync` / `useBranchRoom` / `useTyping`), `components/realtime-manager.tsx` (lifecycle), wired into `app/tasks/page.tsx`, `app/dashboard/page.tsx`, and `components/todos/edit-todo-modal/branch-feed.tsx`.
+- Frontend: `frontend/src/lib/realtime/client.ts` (single connection), `hooks.ts` (`useFeedSync` / `useBranchRoom` / `useTyping`), `components/realtime-manager.tsx` (lifecycle), wired into `app/(app)/tasks/page.tsx`, `app/(app)/dashboard/page.tsx`, and `components/todos/edit-todo-modal/branch-feed.tsx`.
 
 ### Key Rules
 

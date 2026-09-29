@@ -90,7 +90,7 @@ export function AudienceSpine() {
           viewerCount={viewers}
           size="sm"
         />
-        <span className="text-caption text-ink-subtle">
+        <span className="text-caption text-ink-muted">
           {reduce ? "who can see it" : "follows the page"}
         </span>
       </div>

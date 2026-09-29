@@ -67,7 +67,7 @@ describe("TodoCard notification mark", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
   })
 
-  it("renders an estimated-completion interval as a start → deadline range", () => {
+  it("renders an estimated-completion interval as a start – deadline range", () => {
     const rangeTodo = {
       ...todo,
       id: "todo-range",
@@ -75,18 +75,19 @@ describe("TodoCard notification mark", () => {
       dueDate: "2026-12-25T00:00:00.000Z",
     } as unknown as Todo
     render(<TodoCard todo={rangeTodo} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
-    // The arrow separator is unique to the range branch — a single date renders without it.
-    expect(screen.getByText("→")).toBeInTheDocument()
+    // The en dash is unique to the range branch — a single date renders without it. It is
+    // one line of text, so the range can never wrap between its two dates.
+    expect(screen.getByText(/^\S+ \d+ – \S+ \d+$/)).toBeInTheDocument()
   })
 
-  it("renders a single due date without a range arrow", () => {
+  it("renders a single due date without a range", () => {
     const singleTodo = {
       ...todo,
       id: "todo-single",
       dueDate: "2026-12-25T00:00:00.000Z",
     } as unknown as Todo
     render(<TodoCard todo={singleTodo} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
-    expect(screen.queryByText("→")).not.toBeInTheDocument()
+    expect(screen.queryByText(/ – /)).not.toBeInTheDocument()
   })
 })
 
@@ -106,7 +107,7 @@ describe("TodoCard — the border says one thing", () => {
         onEdit={vi.fn()}
       />,
     )
-    const card = container.querySelector(".border-2") as HTMLElement
+    const card = container.querySelector("[data-task-card]") as HTMLElement
     return card.className
   }
 

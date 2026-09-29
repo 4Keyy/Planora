@@ -168,7 +168,7 @@ The frontend calls the gateway through `NEXT_PUBLIC_API_URL`, defaulting to `htt
 
 Relevant implementation:
 
-- frontend routes: `frontend/src/app/auth/register/page.tsx`, `frontend/src/app/tasks/page.tsx`, `frontend/src/app/categories/page.tsx`, `frontend/src/app/profile/page.tsx`
+- frontend routes: `frontend/src/app/auth/register/page.tsx`, `frontend/src/app/(app)/tasks/page.tsx`, `frontend/src/app/(app)/categories/page.tsx`, `frontend/src/app/(app)/profile/page.tsx`
 - API client: `frontend/src/lib/api.ts`
 - auth store: `frontend/src/store/auth.ts`
 - backend controllers: `AuthenticationController.cs`, `TodosController.cs`, `CategoriesController.cs`, `UsersController.cs`

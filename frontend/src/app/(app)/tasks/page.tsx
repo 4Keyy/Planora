@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Todo, PagedTodosResponse, type CreateTodoPayload, type UpdateTodoPayload, isCompletedTodoStatus, isTodoOwner, sameUserId, toApiTodoStatus } from "@/types/todo"
 import { TodoCard } from "@/components/todos/todo-card"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
+import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
 import dynamic from "next/dynamic"
@@ -41,14 +42,15 @@ const CreateTodoPanel = dynamic(
 )
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
-import { TASK_CREATED_EVENT, type TaskCreatedDetail } from "@/lib/events"
 import { useFeedSync } from "@/lib/realtime/hooks"
-import { EASE_OUT_EXPO, SPRING_GENTLE } from "@/lib/animations"
+import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO, SPRING_STANDARD } from "@/lib/animations"
 import { readFilter, writeFilter } from "@/utils/category-filter"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
+import { PageHeader } from "@/components/layout/page-header"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
@@ -68,11 +70,6 @@ const COMPLETED_PREVIEW_SIZE = 20
 // filtering stays instant.
 const INITIAL_VISIBLE_TASKS = 24
 const VISIBLE_TASKS_CHUNK = 24
-const TODO_MASONRY_BREAKPOINTS = [
-  { maxWidth: 1400, columns: 3 },
-  { maxWidth: 900, columns: 2 },
-  { maxWidth: 480, columns: 1 },
-]
 const EMPTY_USER_ID = "00000000-0000-0000-0000-000000000000"
 
 /**
@@ -81,16 +78,8 @@ const EMPTY_USER_ID = "00000000-0000-0000-0000-000000000000"
  */
 function StatusPill({ count, label, emphasis }: { count: number; label: string; emphasis?: boolean }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.32, ease: EASE_OUT_EXPO }}
-      className={cn(
-        "flex items-center gap-2 rounded-full border bg-paper px-4 py-2 shadow-sm",
-        emphasis ? "border-line" : "border-line",
-      )}
-    >
-      <span className={cn("h-2 w-2 rounded-full", emphasis ? "bg-ink" : "bg-gray-300")} />
+    <div className="flex h-9 items-center gap-2 rounded-full border border-line bg-paper px-3.5">
+      <span aria-hidden="true" className={cn("h-2 w-2 rounded-full", emphasis ? "bg-ink" : "bg-line-strong")} />
       {/* Was a single column that swapped the whole number; now every digit rolls on
           its own, so 9 → 10 grows a column instead of replacing a glyph.
 
@@ -103,10 +92,10 @@ function StatusPill({ count, label, emphasis }: { count: number; label: string; 
       <NumberRoll
         value={count}
         minDigits={2}
-        className={cn("text-body-sm font-bold", emphasis ? "text-ink" : "text-ink-subtle")}
+        className={cn("text-body-sm font-bold", emphasis ? "text-ink" : "text-ink-muted")}
       />
-      <span className={cn("text-body-sm font-bold", emphasis ? "text-ink" : "text-ink-subtle")}>{label}</span>
-    </motion.div>
+      <span className={cn("text-body-sm font-semibold", emphasis ? "text-ink" : "text-ink-muted")}>{label}</span>
+    </div>
   )
 }
 
@@ -354,19 +343,6 @@ export default function TasksPage() {
     ])
     return () => controller.abort()
   }, [isAuthenticated, hasHydrated, router, fetchActiveTodos, fetchCompletedPreview, fetchCategories, clearAuth])
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const created = (e as CustomEvent<TaskCreatedDetail>).detail?.todo
-      // Render the new task instantly, then reconcile silently in the background.
-      if (created?.id) {
-        setTodos((prev) => prev.some((t) => t.id === created.id) ? prev : [created, ...prev])
-      }
-      void fetchActiveTodos({ silent: true })
-    }
-    window.addEventListener(TASK_CREATED_EVENT, handler)
-    return () => window.removeEventListener(TASK_CREATED_EVENT, handler)
-  }, [fetchActiveTodos])
 
   // ── Live cross-user sync ──────────────────────────────────────────────────
   // A friend created/updated/deleted/completed a task we can see. Reconcile the single affected
@@ -899,30 +875,16 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-        <div>
-          <motion.p
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.32, ease: EASE_OUT_EXPO }}
-            className="mb-1.5 text-caption font-bold uppercase tracking-[0.3em] text-ink-subtle"
-          >
-            Workspace
-          </motion.p>
-          <motion.h1
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.32, delay: 0.04, ease: EASE_OUT_EXPO }}
-            className="text-display-sm font-bold leading-none tracking-tight text-ink sm:text-display"
-          >
-            Tasks
-          </motion.h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <StatusPill count={activeCount} label="active" emphasis />
-          <StatusPill count={doneCount} label="done" />
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Workspace"
+        title="Tasks"
+        actions={
+          <>
+            <StatusPill count={activeCount} label="active" emphasis />
+            <StatusPill count={doneCount} label="done" />
+          </>
+        }
+      />
 
       {/* The redesigned control deck: the create panel and the quick-filter plate are BOTH always
           on screen — the panel's own collapsed header is the "new task" affordance and expands in
@@ -952,22 +914,16 @@ export default function TasksPage() {
           items={[...Array(6)].map((_, i) => ({ id: `skeleton-${i}` }))}
           getKey={(item) => item.id}
           renderItem={() => <TodoSkeleton />}
-          columns={4}
-          breakpoints={TODO_MASONRY_BREAKPOINTS}
+          columns={TASK_GRID_COLUMNS}
+          breakpoints={TASK_GRID_BREAKPOINTS}
         />
       ) : totalCount === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ ...SPRING_GENTLE, delay: 0.1 }}
-        >
-          <StatusPanel
-            icon={CheckCircle2}
-            title="No tasks yet"
-            description="Create your first task to get started."
-            action={{ label: "Create task", onClick: () => setIsCreateOpen(true) }}
-          />
-        </motion.div>
+        <StatusPanel
+          icon={CheckCircle2}
+          title="No tasks yet"
+          description="Write down the first thing on your mind. You can share it later."
+          action={{ label: "Create a task", onClick: () => setIsCreateOpen(true) }}
+        />
       ) : (
         <div className="space-y-10">
           <div>
@@ -993,8 +949,8 @@ export default function TasksPage() {
                 items={renderedTodos}
                 getKey={(todo) => todo.id}
                 getItemWeight={getTaskWeight}
-                columns={4}
-                breakpoints={TODO_MASONRY_BREAKPOINTS}
+                columns={TASK_GRID_COLUMNS}
+                breakpoints={TASK_GRID_BREAKPOINTS}
                 renderItem={(todo) => (
                   <TodoCard
                     todo={todo}
@@ -1049,28 +1005,41 @@ export default function TasksPage() {
           {completedTotalCount > 0 && (
             <div className="space-y-4">
               <button
+                type="button"
                 onClick={() => setShowCompleted((prev) => !prev)}
-                className="touch-target flex min-h-control items-center gap-3 text-body-sm font-bold text-ink-subtle hover:text-ink transition-colors group px-1 w-full"
+                aria-expanded={showCompleted}
+                className="group flex min-h-control w-full items-center gap-3 text-left"
               >
-                <div className={`h-8 w-8 rounded-md flex items-center justify-center transition-[background-color,color] ${showCompleted ? "bg-ink text-paper" : "bg-gray-100 text-ink-subtle group-hover:bg-gray-200 group-hover:text-ink"}`}>
-                  <motion.div
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-fast",
+                    showCompleted ? "bg-ink text-paper" : "bg-paper-sunken text-ink-muted group-hover:text-ink",
+                  )}
+                >
+                  <motion.span
+                    className="flex"
                     animate={{ rotate: showCompleted ? 90 : 0 }}
-                    transition={{ type: "spring", stiffness: 280, damping: 22, mass: 0.8 }}
+                    transition={SPRING_STANDARD}
                   >
                     <ChevronRight className="h-4 w-4" />
-                  </motion.div>
-                </div>
-                <span className="uppercase tracking-widest">Completed Tasks</span>
-                <div className="h-px flex-1 bg-gradient-to-r from-gray-100 to-transparent" />
+                  </motion.span>
+                </span>
+                <span className="text-title-sm font-bold tracking-tight text-ink">Completed</span>
+                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-paper-sunken px-2 text-caption font-semibold tabular-nums text-ink-muted ring-1 ring-inset ring-line">
+                  {completedTotalCount}
+                </span>
+                <span aria-hidden="true" className="h-px flex-1 bg-line" />
               </button>
+              {/* Opacity and a short rise, not `height: auto`: animating height re-laid out
+                  every card below the toggle on every frame of the opening. */}
               <AnimatePresence initial={false}>
                 {showCompleted && (
                   <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.32, ease: EASE_OUT_EXPO }}
-                    className="overflow-hidden"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, transition: { duration: DURATION_FAST, ease: EASE_EXIT } }}
+                    transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
                   >
                     <div className="space-y-4">
                       {completedLoading && completedPreview.length === 0 ? (
@@ -1078,8 +1047,8 @@ export default function TasksPage() {
                           items={[...Array(Math.min(3, COMPLETED_PREVIEW_SIZE))].map((_, i) => ({ id: `completed-skeleton-${i}` }))}
                           getKey={(item) => item.id}
                           renderItem={() => <TodoSkeleton />}
-                          columns={4}
-                          breakpoints={TODO_MASONRY_BREAKPOINTS}
+                          columns={TASK_GRID_COLUMNS}
+                          breakpoints={TASK_GRID_BREAKPOINTS}
                         />
                       ) : (
                         <>
@@ -1087,8 +1056,8 @@ export default function TasksPage() {
                             items={sortedCompletedPreview}
                             getKey={(todo) => todo.id}
                             getItemWeight={getTaskWeight}
-                            columns={4}
-                            breakpoints={TODO_MASONRY_BREAKPOINTS}
+                            columns={TASK_GRID_COLUMNS}
+                            breakpoints={TASK_GRID_BREAKPOINTS}
                             renderItem={(todo) => (
                               <TodoCard
                                 todo={todo}
@@ -1100,23 +1069,23 @@ export default function TasksPage() {
                               />
                             )}
                           />
-                          <div className="rounded-[1.75rem] border border-line bg-paper/90 p-4 sm:p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="space-y-1">
-                              <p className="text-caption font-bold uppercase tracking-[0.2em] text-ink-subtle">
+                          <div className="flex flex-col gap-4 rounded-lg border border-line bg-paper p-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className={FIELD_LABEL_CLASS}>
                                 {completedTotalCount > COMPLETED_PREVIEW_SIZE
-                                  ? `Showing latest ${COMPLETED_PREVIEW_SIZE}`
-                                  : "Completed archive preview"}
+                                  ? `Showing the latest ${COMPLETED_PREVIEW_SIZE}`
+                                  : "Everything you have finished"}
                               </p>
-                              <p className="text-body-sm text-ink-subtle font-medium">
+                              <p className="mt-1 text-body-sm text-ink-muted">
                                 {completedTotalCount > COMPLETED_PREVIEW_SIZE
-                                  ? `Open the archive to browse all ${completedTotalCount} completed tasks.`
-                                  : "All completed tasks currently fit in this section."}
+                                  ? `The archive has all ${completedTotalCount} completed tasks.`
+                                  : "All of your completed tasks fit here. The archive can restore or copy any of them."}
                               </p>
                             </div>
-                            <Button asChild size="sm" className="rounded-lg font-bold shadow-lg shadow-black/10">
+                            <Button asChild variant="outline" className="flex-shrink-0">
                               <Link href="/tasks/completed">
-                                <History className="h-4 w-4" />
-                                View all completed tasks
+                                <History className="h-4 w-4" aria-hidden="true" />
+                                Open the archive
                               </Link>
                             </Button>
                           </div>

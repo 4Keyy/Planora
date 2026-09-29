@@ -115,12 +115,12 @@ const personName = (person: {
  * ------------------------------------------------------------------ */
 
 const CARD =
-  "rounded-xl border border-line bg-paper shadow-[0_1px_2px_rgba(15,23,42,0.03),0_14px_38px_-26px_rgba(15,23,42,0.20)]"
+  "rounded-xl border border-line bg-paper shadow-sm"
 
 /**
  * Eyebrow label for the page's metadata rows (a `<dt>`, a section caption). It is
  * the SAME style a form field's label uses — there is one eyebrow in this product,
- * not three. It used to be `font-bold tracking-[0.14em] text-ink-subtle` here,
+ * not three. It used to be bold, 0.14em-tracked `text-ink-subtle` here,
  * `font-semibold tracking-wider text-ink-muted` on the auth screens and
  * `font-bold tracking-widest text-ink-subtle` on the categories page; nobody could
  * see the difference while reading any one of those files.
@@ -157,7 +157,7 @@ function StatusPill({
           "h-[7px] w-[7px] flex-shrink-0 rounded-full",
           active
             ? "bg-ink"
-            : "border-[1.5px] border-line-strong"
+            : "border border-line-strong"
         )}
       />
       {children}
@@ -187,7 +187,7 @@ function SectionCard({
       <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           {Icon && (
-            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border border-line bg-paper-sunken text-ink-subtle">
+            <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-line bg-paper-sunken text-ink-subtle">
               <Icon className="h-4 w-4" strokeWidth={2.4} aria-hidden />
             </span>
           )}
@@ -196,7 +196,7 @@ function SectionCard({
               {title}
             </h3>
             {description && (
-              <p className="mt-0.5 truncate text-caption font-semibold text-ink-subtle">
+              <p className="mt-0.5 truncate text-caption font-semibold text-ink-muted">
                 {description}
               </p>
             )}
@@ -238,13 +238,13 @@ function MetricTile({
             aria-hidden
             className={cn(
               "h-[7px] w-[7px] flex-shrink-0 translate-y-[-2px] rounded-full",
-              active ? "bg-ink" : "border-[1.5px] border-line-strong"
+              active ? "bg-ink" : "border border-line-strong"
             )}
           />
         )}
       </dd>
       {detail && (
-        <p className="mt-1 truncate text-caption font-semibold text-ink-subtle">{detail}</p>
+        <p className="mt-1 truncate text-caption font-semibold text-ink-muted">{detail}</p>
       )}
     </div>
   )
@@ -296,7 +296,7 @@ function Pager({
 }) {
   return (
     <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-caption font-semibold text-ink-subtle">{label ?? "Page controls"}</span>
+      <span className="text-caption font-semibold text-ink-muted">{label ?? "Page controls"}</span>
       <div className="flex gap-2">
         <Button size="sm" variant="secondary" disabled={previousDisabled} onClick={onPrevious}>
           <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -331,7 +331,7 @@ function SectionHeading({ index, title, description }: { index: string; title: s
       <h2 className="mt-1.5 text-title-sm font-bold tracking-tight text-ink md:text-title">
         {title}
       </h2>
-      <p className="mt-1 text-caption font-semibold text-ink-subtle">{description}</p>
+      <p className="mt-1 text-caption font-semibold text-ink-muted">{description}</p>
     </div>
   )
 }
@@ -968,7 +968,7 @@ export default function ProfilePage() {
             >
               <label
                 className={cn(
-                  "group relative block h-[88px] w-[88px] cursor-pointer overflow-hidden rounded-[18px] border border-line",
+                  "group relative block h-24 w-24 cursor-pointer overflow-hidden rounded-xl border border-line",
                   avatarDragOver && "ring-2 ring-ink ring-offset-2"
                 )}
               >
@@ -977,8 +977,8 @@ export default function ProfilePage() {
                   firstName={user?.firstName}
                   lastName={user?.lastName}
                   email={user?.email}
-                  size={88}
-                  className="h-full w-full rounded-[18px]"
+                  size={96}
+                  className="h-full w-full rounded-xl"
                 />
                 <span
                   className={cn(
@@ -1076,7 +1076,7 @@ export default function ProfilePage() {
                       )}
                       <span
                         className={cn(
-                          "relative z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border transition-colors",
+                          "relative z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border transition-colors",
                           isActive
                             ? "border-line bg-paper text-ink"
                             : "border-transparent text-ink-subtle"
@@ -1152,7 +1152,7 @@ export default function ProfilePage() {
           {/* ---------- PROFILE ---------- */}
           <section aria-labelledby="section-profile" className="scroll-mt-24">
             <SectionHeading index="01" title="Profile" description="Your name, avatar and account details." />
-            <div className="flex flex-col gap-[18px]">
+            <div className="flex flex-col gap-4">
               <SectionCard
                 icon={IdCard}
                 title="Profile details"
@@ -1232,7 +1232,7 @@ export default function ProfilePage() {
 
                       <label
                         className={cn(
-                          "group flex min-w-0 flex-1 basis-56 cursor-pointer select-none items-center gap-3 rounded-lg border-[1.5px] border-dashed px-4 py-3.5 transition-colors duration-base",
+                          "group flex min-w-0 flex-1 basis-56 cursor-pointer select-none items-center gap-3 rounded-lg border border-dashed px-4 py-3.5 transition-colors duration-base",
                           avatarDragOver
                             ? "border-ink bg-ink/[0.04]"
                             : "border-line hover:border-gray-400 hover:bg-paper-sunken",
@@ -1241,7 +1241,7 @@ export default function ProfilePage() {
                       >
                         <span
                           className={cn(
-                            "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] border transition-colors",
+                            "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border transition-colors",
                             avatarDragOver
                               ? "border-ink bg-ink text-paper"
                               : "border-line bg-paper text-ink-subtle"
@@ -1253,7 +1253,7 @@ export default function ProfilePage() {
                           <span className="block text-caption font-bold text-ink">
                             {avatarDragOver ? "Drop to upload" : "Click or drag a photo to upload"}
                           </span>
-                          <span className="mt-0.5 block text-caption font-semibold text-ink-subtle">
+                          <span className="mt-0.5 block text-caption font-semibold text-ink-muted">
                             JPG, PNG, WEBP · max 5 MB
                           </span>
                         </span>
@@ -1310,7 +1310,7 @@ export default function ProfilePage() {
           {/* ---------- SECURITY ---------- */}
           <section ref={setSectionRef("security")} aria-labelledby="section-security" className="scroll-mt-24">
             <SectionHeading index="02" title="Security" description="Password, two-factor, sessions and account removal." />
-            <div className="flex flex-col gap-[18px]">
+            <div className="flex flex-col gap-4">
               <SectionCard
                 icon={ShieldCheck}
                 title="Overview"
@@ -1344,7 +1344,7 @@ export default function ProfilePage() {
                 )}
               </SectionCard>
 
-              <div className="grid gap-[18px] md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <SectionCard icon={KeyRound} title="Password" description="Update your credentials.">
                   <div className="flex flex-1 flex-col">
                     <div className="space-y-3">
@@ -1398,7 +1398,7 @@ export default function ProfilePage() {
                           <span className="block truncate text-caption font-bold text-ink">
                             {user?.email || "—"}
                           </span>
-                          <span className="block text-caption font-semibold text-ink-subtle">
+                          <span className="block text-caption font-semibold text-ink-muted">
                             {isEmailVerified ? "Verified" : "Not verified"}
                           </span>
                         </span>
@@ -1434,12 +1434,12 @@ export default function ProfilePage() {
                 {security?.twoFactorEnabled ? (
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-[11px] border border-line bg-paper-sunken text-ink-muted">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-md border border-line bg-paper-sunken text-ink-muted">
                         <Check className="h-4 w-4" aria-hidden />
                       </span>
                       <div>
                         <p className="text-body-sm font-bold text-ink">Two-factor is enabled</p>
-                        <p className="text-caption font-semibold text-ink-subtle">
+                        <p className="text-caption font-semibold text-ink-muted">
                           A code is required at every new sign-in.
                         </p>
                       </div>
@@ -1460,7 +1460,7 @@ export default function ProfilePage() {
                 ) : twoFactorSetup ? (
                   <div className="mx-auto grid max-w-3xl items-center gap-6 sm:grid-cols-[auto_minmax(220px,1fr)]">
                     <div className="flex items-center gap-4">
-                      <div className="h-[132px] w-[132px] flex-shrink-0 overflow-hidden rounded-[13px] border border-line bg-paper p-2">
+                      <div className="h-32 w-32 flex-shrink-0 overflow-hidden rounded-md border border-line bg-paper p-2">
                         {twoFactorQrSrc && (
                           <Image
                             src={twoFactorQrSrc}
@@ -1480,7 +1480,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div className="space-y-3">
-                      <p className="text-caption font-semibold leading-relaxed text-ink-subtle">
+                      <p className="text-caption font-semibold leading-relaxed text-ink-muted">
                         Scan the code with an authenticator app, then enter the 6-digit code it shows.
                       </p>
                       <Input
@@ -1489,7 +1489,7 @@ export default function ProfilePage() {
                         aria-label="Six-digit verification code"
                         value={twoFactorCode}
                         onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="text-center font-bold tracking-[0.32em]"
+                        className="text-center font-bold tracking-widest"
                       />
                       <div className="flex gap-2">
                         <Button onClick={handleConfirm2FA} className="flex-1">
@@ -1514,10 +1514,10 @@ export default function ProfilePage() {
                 )}
               </SectionCard>
 
-              <div className="grid gap-[18px] md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <SectionCard icon={LogOut} title="Session control" description="End all other signed-in sessions.">
                   <div className="flex flex-1 flex-col">
-                    <p className="text-caption font-semibold leading-relaxed text-ink-subtle">
+                    <p className="text-caption font-semibold leading-relaxed text-ink-muted">
                       Keeps this device signed in and revokes every other active session.
                     </p>
                     <div className="mt-auto flex gap-2 pt-4">
@@ -1537,7 +1537,7 @@ export default function ProfilePage() {
 
                 <SectionCard icon={Trash2} title="Delete account" description="Permanent and irreversible.">
                   <div className="flex flex-1 flex-col">
-                    <p className="text-caption font-semibold leading-relaxed text-ink-subtle">
+                    <p className="text-caption font-semibold leading-relaxed text-ink-muted">
                       Erases your profile, tasks and shares. This cannot be undone.
                     </p>
                     <div className="mt-auto flex gap-2 pt-4">
@@ -1591,7 +1591,7 @@ export default function ProfilePage() {
                       >
                         <span
                           className={cn(
-                            "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[11px]",
+                            "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md",
                             session.isCurrent
                               ? "bg-ink text-paper"
                               : "bg-gray-100 text-ink-subtle"
@@ -1605,17 +1605,17 @@ export default function ProfilePage() {
                               {session.deviceName || "Device"} · {session.browser || "Browser"}
                             </span>
                             {session.isCurrent && (
-                              <span className="text-caption font-bold uppercase tracking-[0.1em] text-ink-subtle">
+                              <span className="text-caption font-bold uppercase tracking-wider text-ink-muted">
                                 This device
                               </span>
                             )}
                           </div>
-                          <p className="mt-1 truncate font-mono text-caption font-semibold text-ink-subtle">
+                          <p className="mt-1 truncate font-mono text-caption font-semibold text-ink-muted">
                             {session.ipAddress || "—"} · {session.location || "Unknown"} · {formatDate(session.lastActivityAt || session.createdAt)}
                           </p>
                         </div>
                         {session.isCurrent ? (
-                          <span className="flex-shrink-0 text-caption font-bold text-ink-subtle">Active</span>
+                          <span className="flex-shrink-0 text-caption font-bold text-ink-muted">Active</span>
                         ) : (
                           <Button size="sm" variant="secondary" loading={revokingSessionId === session.id} onClick={() => handleRevokeSession(session.id)}>
                             Revoke
@@ -1659,11 +1659,11 @@ export default function ProfilePage() {
                           <div className="text-caption font-bold text-ink">
                             {formatDate(entry.loginAt)}
                           </div>
-                          <p className="mt-0.5 truncate text-caption font-semibold text-ink-subtle">
+                          <p className="mt-0.5 truncate text-caption font-semibold text-ink-muted">
                             {[entry.browser, entry.device].filter(Boolean).join(" · ") || entry.userAgent} · {entry.location || "Unknown"} · {entry.ipAddress}
                           </p>
                           {!entry.isSuccessful && entry.failureReason && (
-                            <p className="mt-1 text-caption font-bold text-ink-subtle">
+                            <p className="mt-1 text-caption font-bold text-ink-muted">
                               Reason: {entry.failureReason}
                             </p>
                           )}
@@ -1713,7 +1713,7 @@ export default function ProfilePage() {
           {/* ---------- FRIENDS ---------- */}
           <section ref={setSectionRef("friends")} aria-labelledby="section-friends" className="scroll-mt-24">
             <SectionHeading index="05" title="Friends" description="People you can share tasks with." />
-            <div className="flex flex-col gap-[18px]">
+            <div className="flex flex-col gap-4">
               <SectionCard icon={UserPlus} title="Add a friend" description="By account email, or by their User ID.">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FieldGroup label="By email">
@@ -1760,13 +1760,13 @@ export default function ProfilePage() {
                 </div>
               </SectionCard>
 
-              <div className="grid items-start gap-[18px] md:grid-cols-2">
+              <div className="grid items-start gap-4 md:grid-cols-2">
                 <SectionCard
                   icon={ArrowLeft}
                   title="Incoming"
                   description="Awaiting your decision."
                   action={
-                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-subtle">
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-muted">
                       {incomingRequests.length}
                     </span>
                   }
@@ -1790,7 +1790,7 @@ export default function ProfilePage() {
                             <p className="truncate text-caption font-bold text-ink">
                               {personName(request)}
                             </p>
-                            <p className="truncate text-caption font-semibold text-ink-subtle">{request.email}</p>
+                            <p className="truncate text-caption font-semibold text-ink-muted">{request.email}</p>
                           </div>
                           <Button size="sm" loading={respondingRequestId === request.friendshipId} onClick={() => handleAcceptFriendRequest(request.friendshipId)}>
                             <Check className="h-4 w-4" aria-hidden />
@@ -1816,7 +1816,7 @@ export default function ProfilePage() {
                   title="Outgoing"
                   description="Waiting for a response."
                   action={
-                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-subtle">
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-muted">
                       {outgoingRequests.length}
                     </span>
                   }
@@ -1840,9 +1840,9 @@ export default function ProfilePage() {
                             <p className="truncate text-caption font-bold text-ink">
                               {personName(request)}
                             </p>
-                            <p className="truncate text-caption font-semibold text-ink-subtle">{request.email}</p>
+                            <p className="truncate text-caption font-semibold text-ink-muted">{request.email}</p>
                           </div>
-                          <span className="text-caption font-bold uppercase tracking-[0.1em] text-ink-subtle">
+                          <span className="text-caption font-bold uppercase tracking-wider text-ink-muted">
                             Pending
                           </span>
                         </li>
@@ -1859,7 +1859,7 @@ export default function ProfilePage() {
                 title="Friends"
                 description="Accepted connections."
                 action={
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-subtle">
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-muted">
                     {friends?.totalCount ?? 0}
                   </span>
                 }
@@ -1886,7 +1886,7 @@ export default function ProfilePage() {
                             <p className="truncate text-caption font-bold text-ink">
                               {personName(friend)}
                             </p>
-                            <p className="truncate text-caption font-semibold text-ink-subtle">
+                            <p className="truncate text-caption font-semibold text-ink-muted">
                               Friends since {formatDateShort(friend.friendsSince)}
                             </p>
                           </div>
@@ -1930,7 +1930,7 @@ export default function ProfilePage() {
           {isAdmin && (
             <section ref={setSectionRef("admin")} aria-labelledby="section-admin" className="scroll-mt-24">
               <SectionHeading index="06" title="Admin" description="Platform statistics and user operations." />
-              <div className="flex flex-col gap-[18px]">
+              <div className="flex flex-col gap-4">
                 <SectionCard
                   icon={Activity}
                   title="Statistics"
@@ -1958,7 +1958,7 @@ export default function ProfilePage() {
                   )}
                 </SectionCard>
 
-                <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,1fr)]">
+                <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,1fr)]">
                   <SectionCard icon={Search} title="User management" description="Search and filter accounts.">
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       <Input
@@ -2021,7 +2021,7 @@ export default function ProfilePage() {
                                   <p className="truncate text-caption font-bold text-ink">
                                     {personName(adminUser)}
                                   </p>
-                                  <p className="truncate text-caption font-semibold text-ink-subtle">
+                                  <p className="truncate text-caption font-semibold text-ink-muted">
                                     {adminUser.email} · {adminUser.status}
                                   </p>
                                 </div>

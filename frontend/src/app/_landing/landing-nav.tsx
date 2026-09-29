@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { ArrowRight } from "lucide-react"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
+import { Wordmark } from "@/components/ui/wordmark"
 import { isDemoSession } from "@/lib/demo/flag"
 
 /**
@@ -51,10 +52,13 @@ export function LandingNav() {
   return (
     <nav
       aria-label="Main"
-      className="sticky top-0 z-sticky border-b border-line bg-paper/90 backdrop-blur-sm"
+      // The safe-area inset on the outer element, the spacing on the inner one: `.pt-safe`
+      // is plain CSS, so beside `py-3` it REPLACED the top padding — zero on every screen
+      // without a notch, which left the bar's contents 6px off its vertical centre.
+      className="sticky top-0 z-sticky border-b border-line bg-paper/85 pt-safe backdrop-blur-md"
     >
-      <div className="container-app flex items-center justify-between gap-4 py-3 pt-safe">
-        <span className="text-body font-bold tracking-tight text-ink">Planora</span>
+      <div className="container-app flex h-14 items-center justify-between gap-4 sm:h-16">
+        <Wordmark />
 
         <div className="flex items-center gap-2">
           <Link

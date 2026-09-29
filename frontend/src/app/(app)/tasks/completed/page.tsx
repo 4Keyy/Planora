@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch, AlertTriangle } from "lucide-react"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
@@ -14,6 +13,7 @@ import { Todo, PagedTodosResponse, type UpdateTodoPayload, isTodoOwner, sameUser
 import { TodoCard } from "@/components/todos/todo-card"
 import { TaskDeletionBadge } from "@/components/todos/task-deletion-badge"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
+import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
 import dynamic from "next/dynamic"
@@ -25,7 +25,6 @@ const EditTodoModal = dynamic(
   { ssr: false },
 )
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { cn } from "@/lib/utils"
 import { getTaskWeight } from "@/utils/sort-tasks"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { readFilter, writeFilter, readHintSeen, writeHintSeen } from "@/utils/category-filter"
@@ -35,13 +34,10 @@ import { DateFilterPopover } from "@/components/todos/date-filter-popover"
 import { formatDueRange } from "@/components/todos/edit-todo-modal/utils"
 import { buildCompletionWindow } from "@/utils/completion-window"
 import { StatusPanel } from "@/components/ui/status-panel"
+import { Pagination } from "@/components/ui/pagination"
+import { PageHeader } from "@/components/layout/page-header"
 
 const PAGE_SIZE = 20
-const COMPLETED_MASONRY_BREAKPOINTS = [
-  { maxWidth: 1400, columns: 3 },
-  { maxWidth: 900, columns: 2 },
-  { maxWidth: 480, columns: 1 },
-]
 
 export default function CompletedTasksPage() {
   const router = useRouter()
@@ -395,41 +391,25 @@ export default function CompletedTasksPage() {
 
   return (
     <div className="space-y-8">
-      <div className="rounded-[2rem] border border-line bg-gradient-to-br from-white via-gray-50 to-gray-100 p-6 md:p-8 shadow-xl">
-        <Button
-          asChild
-          variant="ghost"
-          size="sm"
-          className="mb-6 w-fit text-caption font-bold text-ink-subtle hover:text-ink"
-        >
+      <div>
+        <Button asChild variant="ghost" size="sm" className="-ml-3 mb-4">
           <Link href="/tasks">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to tasks
           </Link>
         </Button>
-
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-2">
-            <p className="text-body-sm font-medium text-ink-subtle uppercase tracking-wider">
-              Completed Archive
-            </p>
-            <h1 className="text-display-sm font-bold text-ink">Completed Tasks</h1>
-            <p className="text-ink-subtle">
-              Browse every finished task in one place, newest completions first.
-            </p>
-          </div>
-
-          <div className="inline-flex items-center gap-3 rounded-[1.5rem] border border-white/70 bg-paper/80 px-4 py-3 shadow-sm">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-ink text-paper shadow-lg shadow-black/10">
-              <History className="h-5 w-5" />
+        <PageHeader
+          eyebrow="Archive"
+          title="Completed tasks"
+          description="Everything you have finished, newest first. Restore a task or copy it to start again."
+          actions={
+            <div className="flex h-9 items-center gap-2 rounded-full border border-line bg-paper px-3.5">
+              <History className="h-4 w-4 text-ink-muted" aria-hidden="true" />
+              <span className="text-body-sm font-bold tabular-nums text-ink">{totalCount}</span>
+              <span className="text-body-sm font-semibold text-ink-muted">completed</span>
             </div>
-            <div>
-              <p className="text-caption font-bold uppercase tracking-[0.2em] text-ink-subtle">Archive</p>
-              <p className="text-title-sm font-bold text-ink leading-none">{totalCount}</p>
-              <p className="text-caption font-medium text-ink-subtle mt-1">Completed tasks</p>
-            </div>
-          </div>
-        </div>
+          }
+        />
       </div>
 
       {/* Quick Filter plate — the applied-filter summary lives inside it (shared with /tasks). The
@@ -466,8 +446,8 @@ export default function CompletedTasksPage() {
           items={[...Array(PAGE_SIZE)].map((_, i) => ({ id: `completed-skeleton-${i}` }))}
           getKey={(item) => item.id}
           renderItem={() => <TodoSkeleton />}
-          columns={4}
-          breakpoints={COMPLETED_MASONRY_BREAKPOINTS}
+          columns={TASK_GRID_COLUMNS}
+          breakpoints={TASK_GRID_BREAKPOINTS}
         />
       ) : error ? (
         <StatusPanel
@@ -478,7 +458,7 @@ export default function CompletedTasksPage() {
           action={{ label: "Try again", onClick: () => void fetchCompletedTodos() }}
         />
       ) : totalCount === 0 ? (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        <div>
           {hasDateFilter ? (
             <StatusPanel
               icon={CalendarSearch}
@@ -494,15 +474,15 @@ export default function CompletedTasksPage() {
               action={{ label: "Go to active tasks", href: "/tasks" }}
             />
           )}
-        </motion.div>
+        </div>
       ) : (
         <>
           <MasonryColumns
             items={visibleTodos}
             getKey={(todo) => todo.id}
             getItemWeight={getTaskWeight}
-            columns={4}
-            breakpoints={COMPLETED_MASONRY_BREAKPOINTS}
+            columns={TASK_GRID_COLUMNS}
+            breakpoints={TASK_GRID_BREAKPOINTS}
             renderItem={(todo) => (
               <div>
                 <TodoCard
@@ -521,72 +501,22 @@ export default function CompletedTasksPage() {
             )}
           />
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setCurrentPage((p) => Math.max(1, p - 1))
-                  window.scrollTo({ top: 0, behavior: "smooth" })
-                }}
-                disabled={currentPage === 1}
-                className="rounded-lg border-line font-bold px-4"
-              >
-                ← Previous
-              </Button>
-
-              <div className="flex items-center gap-1">
-                {[...Array(totalPages)].map((_, i) => {
-                  const pageNum = i + 1
-                  if (
-                    pageNum === 1 ||
-                    pageNum === totalPages ||
-                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
-                  ) {
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => {
-                          setCurrentPage(pageNum)
-                          window.scrollTo({ top: 0, behavior: "smooth" })
-                        }}
-                        className={cn(
-                          "w-8 h-8 rounded-md text-caption font-bold transition-[color,background-color,border-color,opacity,transform,box-shadow]",
-                          currentPage === pageNum
-                            ? "bg-ink text-paper shadow-lg shadow-black/10 scale-110"
-                            : "text-ink-subtle hover:bg-gray-100 hover:text-ink"
-                        )}
-                      >
-                        {pageNum}
-                      </button>
-                    )
-                  }
-
-                  if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
-                    return <span key={pageNum} className="text-ink-subtle">...</span>
-                  }
-
-                  return null
-                })}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  window.scrollTo({ top: 0, behavior: "smooth" })
-                }}
-                disabled={currentPage >= totalPages}
-                className="rounded-lg border-line font-bold px-4"
-              >
-                Next →
-              </Button>
-            </div>
-          )}
         </>
       )}
+
+      {/* Outside the loading branch: the pager stays mounted while the next page loads,
+          so the button just pressed keeps keyboard focus instead of unmounting under it. */}
+      {!error ? (
+        <Pagination
+          className="pt-4"
+          page={currentPage}
+          totalPages={totalPages}
+          onChange={(page) => {
+            setCurrentPage(Math.min(totalPages, Math.max(1, page)))
+            window.scrollTo({ top: 0, behavior: "smooth" })
+          }}
+        />
+      ) : null}
 
       {editingTodo && (
         <EditTodoModal

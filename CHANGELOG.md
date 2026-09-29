@@ -4,6 +4,29 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): one app bar, one page header, one card — the signed-in app in one system (2026-09-28)
+
+The signed-in app had drifted into several products. The bar was a floating pill that showed
+its three destinations only while the pointer hovered over it (never for a keyboard user) and
+carried a task field whose placeholder promised date parsing nothing did. Five layouts each
+re-derived a column and none gave `<main>` the `id` the skip link targets, so "Skip to content"
+went nowhere on every signed-in screen. Page titles came in five styles, pagers in two (one
+scaled its active page to 110% under a black gradient), and the task card was transparent, 2px
+bordered, cut its title at 40 characters in JavaScript, pulsed forever when someone was working
+on it, and turned on a `backdrop-blur` under the pointer.
+
+The five routes now live in an `(app)` route group whose layout renders `AppShell` once: a
+sticky bar with the `Wordmark`, always-visible tabs with a sliding underline, search, notifications
+and an account menu (a sheet on phones), `<main id="main">` and one `container-wide` column. The
+router keeps it mounted, so moving between tabs leaves the bar still and fades only the page.
+`PageHeader`, `Pagination` (with a tested `pageWindow`) and `surfaces.ts` replace the hand-built
+copies. The dashboard is one overview card over full-width task columns; the task card is opaque
+with a 1px border, shows full titles up to three lines, aligns its controls to the first line and
+draws every chip in one shape. A sweep moved off-scale radii, tracking, shadows and 12px
+`ink-subtle` text onto the scale, and every animation that ran forever at rest now stops.
+
+Performance: no hover re-rasterises a card; the bar renders before the session restore instead of a blank screen
+
 ### feat(auth): sign-in, sign-up and password recovery become one room with a visible path (2026-09-28)
 
 The five `/auth/*` screens were two visual systems — a split screen with a dark panel for sign-in and

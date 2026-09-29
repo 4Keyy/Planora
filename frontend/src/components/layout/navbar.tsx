@@ -1,486 +1,249 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation"
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
-import { Plus, Sparkles, X, User, LogOut, ChevronDown } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { LogOut, Menu, Search, User, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Avatar } from "@/components/ui/avatar"
+import { Wordmark } from "@/components/ui/wordmark"
+import { ICON_BUTTON, MENU_ITEM, POPOVER_SURFACE } from "@/components/ui/surfaces"
+import { useIsApplePlatform } from "@/components/ui/shortcuts-overlay"
 import { NotificationBell } from "@/components/notifications/notification-bell"
+import { OPEN_PALETTE_EVENT } from "@/components/command-palette"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
-import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
+import { api } from "@/lib/api"
 import { clearCsrfToken } from "@/lib/csrf"
-import { EASE_OUT_EXPO } from "@/lib/animations"
-import { haptic } from "@/lib/haptics"
-import { dispatchTaskCreated } from "@/lib/events"
-import type { Todo } from "@/types/todo"
+import { DURATION_FAST, EASE_EXIT, EASE_OUT_EXPO, SPRING_STANDARD, TWEEN_FAST } from "@/lib/animations"
 
-// ─── Navigation items ─────────────────────────────────────────────────────────
+/**
+ * The app's one bar.
+ *
+ * It used to be a floating pill that showed the wordmark, the bell and the avatar, and
+ * revealed the navigation only while the pointer hovered over it — so on a desktop the
+ * three places you can go were invisible until you went looking, a keyboard user who
+ * tabbed onto the wordmark never saw them at all, and every hover re-laid-out the pill
+ * with a spring. It also carried a second task-creation field whose placeholder
+ * promised "try 'tomorrow at 5pm #work'", which it never parsed.
+ *
+ * Now it is a plain sticky bar, the same one the landing page and the auth screens
+ * use: the `Wordmark` on the left, the three destinations always visible with an
+ * underline that slides between them, and on the right search (the ⌘K palette, which
+ * also creates tasks), notifications and the account menu. Creating a task lives where
+ * the tasks are — the capture control and the "New task" panel.
+ *
+ * On phones the destinations move into a sheet under the bar. The sheet and its
+ * backdrop are siblings of the `<header>`, not children: the header blurs what is
+ * behind it, and `backdrop-filter` makes an element the containing block of its
+ * `position: fixed` descendants — a backdrop inside it would cover the bar and nothing
+ * else.
+ */
 
 const NAV_TABS = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Tasks",     href: "/tasks"     },
+  { label: "Tasks", href: "/tasks" },
   { label: "Categories", href: "/categories" },
 ] as const
 
-// ─── Spring configs ────────────────────────────────────────────────────────────
-
-const PILL_SPRING    = { type: "spring" as const, stiffness: 550, damping: 42, mass: 0.55 }
-const CONTENT_SPRING = { type: "spring" as const, stiffness: 550, damping: 42, mass: 0.55 }
-const ICON_SPRING    = { type: "spring" as const, stiffness: 420, damping: 24 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function Navbar() {
-  const router    = useRouter()
-  const pathname  = usePathname()
-  const user      = useAuthStore(s => s.user)
-  const clearAuth = useAuthStore(s => s.clearAuth)
-  const addToast  = useToastStore(s => s.addToast)
+  const router = useRouter()
+  const pathname = usePathname() ?? ""
+  const user = useAuthStore((s) => s.user)
+  const clearAuth = useAuthStore((s) => s.clearAuth)
+  const addToast = useToastStore((s) => s.addToast)
+  const isApple = useIsApplePlatform()
+  const reduce = useReducedMotion() ?? false
 
-  const [expanded,   setExpanded]   = useState(false)
-  const [createMode, setCreateMode] = useState(false)
-  const [taskTitle,  setTaskTitle]  = useState("")
-  const [creating,   setCreating]   = useState(false)
-  const [dropOpen,   setDropOpen]   = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [hideMobileBar, setHideMobileBar] = useState(false)
-  const [mounted,    setMounted]    = useState(false)
-
-  const inputRef = useRef<HTMLInputElement>(null)
-  const dropRef  = useRef<HTMLDivElement>(null)
-  const pillRef  = useRef<HTMLDivElement>(null)
-
-  useEffect(() => { setMounted(true) }, [])
-
-  // Mobile bar auto-hide: slide the floating bar away when scrolling down and
-  // bring it back on scroll-up (or near the top), reclaiming screen space on
-  // phones. rAF-throttled passive listener; only the mobile bar transforms.
-  useEffect(() => {
-    let lastY = window.scrollY
-    let ticking = false
-    const onScroll = () => {
-      if (ticking) return
-      ticking = true
-      requestAnimationFrame(() => {
-        const y = window.scrollY
-        if (y < 64) setHideMobileBar(false)
-        else if (y > lastY + 4) setHideMobileBar(true)
-        else if (y < lastY - 4) setHideMobileBar(false)
-        lastY = y
-        ticking = false
-      })
-    }
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
-
-  // Focus task input when create mode opens
-  useEffect(() => {
-    if (createMode) {
-      const t = setTimeout(() => inputRef.current?.focus(), 50)
-      return () => clearTimeout(t)
-    }
-  }, [createMode])
-
-  // Close dropdown on outside click; also collapse pill when clicking outside
-  useEffect(() => {
-    const handle = (e: MouseEvent) => {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
-        setDropOpen(false)
-        if (pillRef.current && !pillRef.current.contains(e.target as Node)) {
-          setExpanded(false)
-        }
-      }
-    }
-    if (dropOpen) document.addEventListener("mousedown", handle)
-    return () => document.removeEventListener("mousedown", handle)
-  }, [dropOpen])
-
-  /**
-   * Escape closes the user menu, and puts focus back on the trigger.
-   *
-   * Clicking outside already closed it, which is the pointer affordance; a
-   * keyboard user had no way out at all and had to tab through the entire menu to
-   * escape it. Returning focus to the trigger is the other half — without it the
-   * next Tab restarts from the top of the document.
+  /*
+   * One popover at a time. The account menu, the notifications and the phone sheet each
+   * used to own their state, so on a phone the bell could open under a sheet that was
+   * already covering the same strip of screen — the panel reported itself open while the
+   * sheet hid its first three rows. Opening any of them now closes the others.
    */
+  const [open, setOpen] = useState<"menu" | "sheet" | "bell" | null>(null)
+  const menuOpen = open === "menu"
+  const sheetOpen = open === "sheet"
+  const [mounted, setMounted] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const menuTriggerRef = useRef<HTMLButtonElement>(null)
+  const sheetToggleRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => setMounted(true), [])
+
+  // A route change closes whatever was open: the sheet's links navigate, and the
+  // sheet must not still be covering the page they lead to.
   useEffect(() => {
-    if (!dropOpen) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return
-      setDropOpen(false)
-      dropRef.current?.querySelector("button")?.focus()
+    setOpen(null)
+  }, [pathname])
+
+  // Outside click and Escape close the account menu; Escape returns focus to its
+  // trigger, or the next Tab would restart from the top of the document.
+  useEffect(() => {
+    if (!menuOpen) return
+    const onPointer = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(null)
     }
-    document.addEventListener("keydown", onKeyDown)
-    return () => document.removeEventListener("keydown", onKeyDown)
-  }, [dropOpen])
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      setOpen(null)
+      menuTriggerRef.current?.focus()
+    }
+    document.addEventListener("mousedown", onPointer)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onPointer)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [menuOpen])
 
-  // Keep pill expanded while create mode or dropdown is active
-  const handleMouseLeave = useCallback(() => {
-    if (!createMode && !dropOpen) setExpanded(false)
-  }, [createMode, dropOpen])
+  // Escape closes the phone sheet and puts focus back on its toggle — the focused link
+  // inside the sheet unmounts with it, and focus would otherwise fall to <body>.
+  useEffect(() => {
+    if (!sheetOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      setOpen(null)
+      sheetToggleRef.current?.focus()
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [sheetOpen])
 
-  // Derived user info
-  const displayName = mounted && user?.firstName
-    ? `${user.firstName}${user.lastName ? " " + user.lastName : ""}`
-    : mounted && user?.email ? user.email.split("@")[0] : "User"
+  const displayName =
+    mounted && user?.firstName
+      ? `${user.firstName}${user.lastName ? " " + user.lastName : ""}`
+      : mounted && user?.email
+        ? user.email.split("@")[0]
+        : "User"
+
+  const isActive = useCallback(
+    (href: string) => pathname === href || pathname.startsWith(`${href}/`),
+    [pathname],
+  )
+
+  const goToProfile = () => {
+    setOpen(null)
+    router.push("/profile")
+  }
 
   const handleLogout = async () => {
-    setDropOpen(false)
-    setMobileOpen(false)
-    try { await api.post("/auth/api/v1/auth/logout") } catch { /* ignore */ }
-    finally {
+    setOpen(null)
+    try {
+      await api.post("/auth/api/v1/auth/logout")
+    } catch {
+      // The local session ends either way.
+    } finally {
       clearAuth()
       clearCsrfToken()
-      addToast({ type: "success", title: "Logged out" })
+      addToast({ type: "success", title: "Signed out" })
       router.push("/auth/login")
     }
   }
 
-  const handleCreate = async () => {
-    const title = taskTitle.trim()
-    if (!title || creating) return
-    setCreating(true)
-    try {
-      const res = await api.post<ApiResponse<Todo>>("/todos/api/v1/todos", {
-        title,
-        isPublic:    false,
-        description: null,
-        categoryId:  null,
-        dueDate:     null,
-      })
-      addToast({ type: "success", title: "Task created!" })
-      haptic("success")
-      setTaskTitle("")
-      setCreateMode(false)
-      // Signal dashboard (and any other page) to refresh the task list. Ship the
-      // created task on the event so listeners can render it instantly before
-      // their background refetch reconciles.
-      const created = parseApiResponse<Todo>(res.data)
-      dispatchTaskCreated(created?.id ? created : undefined)
-    } catch {
-      addToast({ type: "error", title: "Failed to create task" })
-    } finally {
-      setCreating(false)
-    }
-  }
+  const openPalette = () => window.dispatchEvent(new CustomEvent(OPEN_PALETTE_EVENT))
 
-  const exitCreate = useCallback(() => {
-    setCreateMode(false)
-    setTaskTitle("")
-  }, [])
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter")  handleCreate()
-    if (e.key === "Escape") exitCreate()
-  }
-
-  const isActive = (href: string) =>
-    href === "/dashboard"
-      ? pathname === "/dashboard" || pathname.startsWith("/dashboard/")
-      : pathname.startsWith(href)
-
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  const popIn = reduce
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
+    : {
+        initial: { opacity: 0, y: -4, scale: 0.98 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: -4, scale: 0.98, transition: { duration: DURATION_FAST, ease: EASE_EXIT } },
+      }
 
   return (
-    <div
-      // `position: fixed` elements clip against the viewport, not against the
-      // <body> overflow guard — so a real mobile browser could still pan the page
-      // sideways if anything inside this bar exceeded the device width. `overflow-x:
-      // clip` + `max-w-[100vw]` make the navbar physically incapable of widening the
-      // page; the dropdown sheet/menu open DOWNWARD (top-full), so the X-only clip
-      // never touches them. min-w-0 lets the flex children shrink instead of forcing
-      // an intrinsic min-content width wider than the screen.
-      className="fixed inset-x-0 z-sticky flex max-w-[100vw] justify-center overflow-x-clip px-3 pointer-events-none [&>*]:min-w-0"
-      style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
-    >
-      {/* Desktop pill (pointer devices, sm and up). Hidden on phones, which can't
-          fire the hover that expands it — they get the dedicated mobile bar below. */}
-      <motion.div
-        data-testid="navbar-desktop"
-        initial={{ opacity: 0, y: -14, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.48, ease: EASE_OUT_EXPO }}
-        className="pointer-events-none hidden sm:block"
-      >
-        {/*
-          Pill uses Framer Motion `layout` so it smoothly springs to fit
-          whatever content is currently rendered inside.
-          `style={{ borderRadius: 9999 }}` lets Framer Motion interpolate
-          border-radius correctly during the FLIP animation.
-        */}
-        <LayoutGroup id="navbar-pill">
+    <div className="sticky top-0 z-sticky">
+      <AnimatePresence>
+        {sheetOpen ? (
           <motion.div
-            ref={pillRef}
-            layout
-            transition={PILL_SPRING}
-            style={{ borderRadius: 9999 }}
-            className={cn(
-              "pointer-events-auto relative flex items-center h-12",
-              "bg-paper/95 backdrop-blur-xl",
-              "border border-line/90",
-              "shadow-[0_4px_28px_rgba(0,0,0,0.07),0_1px_6px_rgba(0,0,0,0.04)]",
-            )}
-            onMouseEnter={() => setExpanded(true)}
-            onMouseLeave={handleMouseLeave}
-          >
-            {/* ── Logo (always visible) ──────────────────────────────── */}
-            <motion.div layout transition={CONTENT_SPRING}>
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-1.5 pl-4 pr-3 h-12 hover:bg-paper-sunken/70 transition-colors duration-fast"
-                style={{ borderRadius: "9999px 0 0 9999px" }}
-              >
-                <span className="h-[6px] w-[6px] rounded-full bg-gray-900 flex-shrink-0" />
-                <span className="text-body-sm font-bold tracking-tight text-ink select-none whitespace-nowrap">
-                  Planora
-                </span>
-              </Link>
-            </motion.div>
+            key="backdrop"
+            aria-hidden="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={TWEEN_FAST}
+            onClick={() => setOpen(null)}
+            className="fixed inset-0 bg-ink/20 sm:hidden"
+          />
+        ) : null}
+      </AnimatePresence>
 
-            {/*
-              Expanding section — mounted when expanded is true.
-              Because the parent uses `layout`, adding/removing this element
-              causes the pill to spring to its new size automatically.
-              The content itself only animates opacity (not position) so the
-              FLIP parent handles all the width animation.
-            */}
-            <AnimatePresence initial={false}>
-              {expanded && (
-                <motion.div
-                  key="nav-expand"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1, transition: { delay: 0.07, duration: 0.16 } }}
-                  exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                  className="flex items-center pr-1"
-                  style={{ minWidth: 0 }}
-                >
-                  {/* Divider */}
-                  <div className="h-4 w-px bg-gray-200 mx-2 flex-shrink-0" />
-
-                  {/* Tabs ↔ Create input */}
-                  <AnimatePresence mode="wait" initial={false}>
-                    {!createMode ? (
-                      <motion.div
-                        key="tabs"
-                        initial={{ opacity: 0, x: -4 }}
-                        animate={{ opacity: 1, x: 0, transition: { duration: 0.16, ease: EASE_OUT_EXPO } }}
-                        exit={{ opacity: 0, x: -4, transition: { duration: 0.1 } }}
-                        className="flex items-center gap-0.5"
-                      >
-                        {NAV_TABS.map(tab => (
-                          <Link
-                            key={tab.href}
-                            href={tab.href}
-                            className={cn(
-                              "relative px-3.5 py-1.5 text-body-sm font-semibold rounded-full whitespace-nowrap transition-colors duration-fast",
-                              isActive(tab.href) ? "text-ink" : "text-ink-subtle hover:text-ink-muted",
-                            )}
-                          >
-                            {isActive(tab.href) && (
-                              <motion.span
-                                layoutId="nav-active-bg"
-                                className="absolute inset-0 rounded-full bg-gray-100"
-                                transition={PILL_SPRING}
-                              />
-                            )}
-                            <span className="relative z-10">{tab.label}</span>
-                          </Link>
-                        ))}
-
-                        {/* + create button */}
-                        <div className="ml-2 mr-0.5">
-                          <motion.button
-                            whileHover={{ scale: 1.08 }}
-                            whileTap={{ scale: 0.90 }}
-                            transition={ICON_SPRING}
-                            type="button"
-                            onClick={() => setCreateMode(true)}
-                            aria-label="Create task"
-                            className="h-8 w-8 rounded-full bg-gray-900 text-paper flex items-center justify-center"
-                          >
-                            <motion.span
-                              animate={{ rotate: 0 }}
-                              transition={ICON_SPRING}
-                              className="flex"
-                            >
-                              <Plus className="h-4 w-4" strokeWidth={2.5} />
-                            </motion.span>
-                          </motion.button>
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="create"
-                        initial={{ opacity: 0, x: 6 }}
-                        animate={{ opacity: 1, x: 0, transition: { duration: 0.16, ease: EASE_OUT_EXPO } }}
-                        exit={{ opacity: 0, x: 6, transition: { duration: 0.1 } }}
-                        className="flex items-center gap-2.5"
-                      >
-                        <Sparkles
-                          className="h-3.5 w-3.5 flex-shrink-0"
-                          style={{ color: "rgba(99,102,241,0.7)" }}
-                        />
-                        <input
-                          ref={inputRef}
-                          value={taskTitle}
-                          onChange={e => setTaskTitle(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          placeholder="Add task…  try 'tomorrow at 5pm #work'"
-                          disabled={creating}
-                          className={cn(
-                            "w-56 sm:w-80 text-body-sm text-ink placeholder:text-ink-subtle",
-                            "bg-transparent",
-                            creating && "opacity-50",
-                          )}
-                        />
-                        <button
-                          type="button"
-                          onClick={exitCreate}
-                          aria-label="Cancel create task"
-                          className="h-6 w-6 flex-shrink-0 rounded-full flex items-center justify-center text-ink-subtle hover:text-ink-muted hover:bg-gray-100 transition-colors duration-fast"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* ── Notifications bell (always visible) ───────────────── */}
-            <motion.div layout transition={CONTENT_SPRING} className="flex flex-shrink-0 items-center">
-              <NotificationBell />
-            </motion.div>
-
-            {/* ── Avatar + dropdown (always visible) ────────────────── */}
-            <motion.div layout transition={CONTENT_SPRING} className="relative flex flex-shrink-0 items-center px-1.5" ref={dropRef}>
-              <motion.button
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.94 }}
-                transition={ICON_SPRING}
-                type="button"
-                onClick={() => setDropOpen(v => !v)}
-                aria-label={`User menu for ${displayName}`}
-                aria-haspopup="menu"
-                aria-expanded={dropOpen}
-                /* The avatar stays 32px visually; `touch-target` paints a 44x44
-                   hit area around it. No `overflow-hidden` here — Avatar clips
-                   itself, and clipping on this button would cut the expanded
-                   hit area straight back down to 32x32. */
-                className="touch-target h-8 w-8 rounded-full"
-              >
-                <Avatar
-                  src={user?.profilePictureUrl}
-                  firstName={user?.firstName}
-                  lastName={user?.lastName}
-                  email={user?.email}
-                  size={32}
-                  priority
-                />
-              </motion.button>
-
-              <AnimatePresence>
-                {dropOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                    transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
-                    className="absolute right-0 top-full mt-3 w-52 rounded-xl border border-line/90 bg-paper shadow-[0_8px_32px_rgba(0,0,0,0.10)] overflow-hidden"
-                    role="menu"
-                  >
-                    <div className="px-4 py-3 border-b border-gray-50">
-                      <p className="text-body-sm font-semibold text-ink truncate">{displayName}</p>
-                      <p className="text-caption text-ink-subtle truncate mt-0.5">{user?.email}</p>
-                    </div>
-                    <div className="p-1.5 space-y-0.5">
-                      <button
-                        type="button"
-                        onClick={() => { setDropOpen(false); router.push("/profile") }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-body-sm text-ink-muted rounded-lg hover:bg-paper-sunken transition-colors duration-fast"
-                        role="menuitem"
-                      >
-                        <User className="h-4 w-4 text-ink-subtle" />
-                        Profile
-                      </button>
-                      <div className="h-px bg-gray-100 mx-2" />
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-body-sm text-alert rounded-lg hover:bg-alert-surface transition-colors duration-fast"
-                        role="menuitem"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Sign out
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          </motion.div>
-        </LayoutGroup>
-      </motion.div>
-
-      {/* ── Mobile bar (touch devices, below sm) ──────────────────────────────
-          The desktop pill expands on hover, which never reliably fires on a
-          touchscreen — so phones get a dedicated bar with a tap-to-open sheet:
-          quick-add, navigation with an active indicator, and account actions.
-          Reuses the same state + handlers as the desktop pill (no duplication). */}
-      <div data-testid="navbar-mobile" className="sm:hidden relative w-full max-w-md pointer-events-none">
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div
-              key="m-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
-              onClick={() => setMobileOpen(false)}
-              className="fixed inset-0 bg-ink/20 pointer-events-auto"
-              aria-hidden="true"
-            />
-          )}
-        </AnimatePresence>
-
-        <motion.div
-          initial={{ opacity: 0, y: -12, scale: 0.97 }}
-          animate={{
-            opacity: 1,
-            // Slide the bar up out of view on scroll-down (unless the sheet is open),
-            // and bring it back on scroll-up — clears 56px bar + top inset.
-            y: hideMobileBar && !mobileOpen ? -96 : 0,
-            scale: 1,
-          }}
-          transition={{ duration: 0.32, ease: EASE_OUT_EXPO }}
-          className="pointer-events-auto relative z-10 flex h-14 items-center justify-between rounded-full border border-line/90 bg-paper/95 pl-4 pr-2 backdrop-blur-xl shadow-[0_4px_28px_rgba(0,0,0,0.07),0_1px_6px_rgba(0,0,0,0.04)]"
-        >
+      <header className="relative border-b border-line bg-paper/85 pt-safe backdrop-blur-md">
+        <div className="container-app flex h-14 items-center gap-2 sm:h-16 sm:gap-6">
           <Link
             href="/dashboard"
-            onClick={() => setMobileOpen(false)}
-            className="touch-target flex items-center gap-1.5"
-            aria-label="Planora — go to dashboard"
+            aria-label="Planora, go to dashboard"
+            className="-ml-2 inline-flex min-h-control flex-shrink-0 items-center rounded-md px-2"
           >
-            <span className="h-[6px] w-[6px] rounded-full bg-gray-900 flex-shrink-0" aria-hidden="true" />
-            <span className="text-body-sm font-bold tracking-tight text-ink select-none">Planora</span>
+            <Wordmark />
           </Link>
 
-          <div className="flex items-center gap-0.5">
-            <NotificationBell />
+          <nav aria-label="Main" data-testid="navbar-desktop" className="hidden h-full items-stretch sm:flex">
+            {NAV_TABS.map((tab) => {
+              const active = isActive(tab.href)
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex items-center px-3 text-body-sm font-semibold transition-colors duration-fast",
+                    active ? "text-ink" : "text-ink-muted hover:text-ink",
+                  )}
+                >
+                  {tab.label}
+                  {active ? (
+                    <motion.span
+                      layoutId="nav-underline"
+                      aria-hidden="true"
+                      className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-ink"
+                      transition={reduce ? { duration: 0 } : SPRING_STANDARD}
+                    />
+                  ) : null}
+                </Link>
+              )
+            })}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setMobileOpen(v => !v)}
-              aria-label={mobileOpen ? "Close menu" : "Open menu"}
-              aria-expanded={mobileOpen}
-              aria-haspopup="menu"
-              className="flex h-11 items-center gap-1.5 rounded-full pl-2 pr-1.5 transition-colors duration-fast active:bg-gray-100"
+              onClick={openPalette}
+              className={cn(
+                "touch-target hidden h-10 items-center gap-2 rounded-md border border-line bg-paper pl-3 pr-2 text-body-sm font-medium text-ink-muted md:inline-flex",
+                "transition-colors duration-fast hover:border-line-strong hover:text-ink",
+              )}
             >
-              <span className="h-8 w-8 overflow-hidden rounded-full">
+              <Search className="h-4 w-4" aria-hidden="true" />
+              <span className="pr-6">Search</span>
+              <kbd
+                suppressHydrationWarning
+                className="rounded-sm border border-line bg-paper-sunken px-1.5 font-sans text-caption font-semibold text-ink-muted"
+              >
+                {isApple ? "⌘K" : "Ctrl K"}
+              </kbd>
+            </button>
+            <button type="button" onClick={openPalette} aria-label="Search" className={cn(ICON_BUTTON, "md:hidden")}>
+              <Search className="h-5 w-5" aria-hidden="true" />
+            </button>
+
+            <NotificationBell open={open === "bell"} onOpenChange={(next) => setOpen(next ? "bell" : null)} />
+
+            {/* Account menu — sm and up. On phones the sheet carries the same actions.
+                A disclosure, not an ARIA `menu`: two plain buttons behind a toggle. `menu`
+                promises arrow-key navigation and focus moving into the list, which screen
+                readers switch modes to expect, and which a two-item popover does not need. */}
+            <div ref={menuRef} className="relative hidden sm:block">
+              <button
+                ref={menuTriggerRef}
+                type="button"
+                onClick={() => setOpen(menuOpen ? null : "menu")}
+                aria-label={`User menu for ${displayName}`}
+                aria-expanded={menuOpen}
+                aria-controls="navbar-account"
+                className="touch-target flex h-10 w-10 items-center justify-center rounded-full transition-opacity duration-fast hover:opacity-80"
+              >
                 <Avatar
                   src={user?.profilePictureUrl}
                   firstName={user?.firstName}
@@ -489,107 +252,115 @@ export function Navbar() {
                   size={32}
                   priority
                 />
-              </span>
-              <motion.span animate={{ rotate: mobileOpen ? 180 : 0 }} transition={ICON_SPRING} className="flex">
-                <ChevronDown className="h-4 w-4 text-ink-subtle" />
-              </motion.span>
+              </button>
+
+              <AnimatePresence>
+                {menuOpen ? (
+                  <motion.div
+                    {...popIn}
+                    transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
+                    id="navbar-account"
+                    aria-label="Account"
+                    className={cn(POPOVER_SURFACE, "absolute right-0 top-full z-dropdown mt-2 w-60 origin-top-right p-1.5")}
+                  >
+                    <div className="px-3 pb-2 pt-1.5">
+                      <p className="truncate text-body-sm font-semibold text-ink">{displayName}</p>
+                      <p className="mt-0.5 truncate text-caption text-ink-muted">{user?.email}</p>
+                    </div>
+                    <div className="my-1 h-px bg-line" aria-hidden="true" />
+                    <button type="button" onClick={goToProfile} className={MENU_ITEM}>
+                      <User className="h-4 w-4" aria-hidden="true" />
+                      Profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className={MENU_ITEM}
+                    >
+                      <LogOut className="h-4 w-4" aria-hidden="true" />
+                      Sign out
+                    </button>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+
+            <button
+              ref={sheetToggleRef}
+              type="button"
+              onClick={() => setOpen(sheetOpen ? null : "sheet")}
+              aria-label={sheetOpen ? "Close menu" : "Open menu"}
+              aria-expanded={sheetOpen}
+              aria-controls="navbar-sheet"
+              className={cn(ICON_BUTTON, "-mr-2 sm:hidden")}
+            >
+              {sheetOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
             </button>
           </div>
-        </motion.div>
+        </div>
+      </header>
 
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div
-              key="m-sheet"
-              initial={{ opacity: 0, y: -8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
-              role="menu"
-              aria-label="Main menu"
-              className="pointer-events-auto absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-xl border border-line/90 bg-paper shadow-[0_16px_48px_rgba(0,0,0,0.14)]"
-            >
-              {/* Quick add — same NLP-friendly create path as the desktop pill */}
-              <div className="border-b border-line p-2.5">
-                <div className="flex h-12 items-center gap-2 rounded-xl border border-line/70 bg-paper-sunken px-3 transition-colors focus-within:border-line-strong focus-within:bg-paper">
-                  <Sparkles className="h-4 w-4 flex-shrink-0" style={{ color: "rgba(99,102,241,0.7)" }} />
-                  <input
-                    value={taskTitle}
-                    onChange={e => setTaskTitle(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { handleCreate(); setMobileOpen(false) } }}
-                    placeholder="Add a task…"
-                    disabled={creating}
+      <AnimatePresence>
+        {sheetOpen ? (
+          <motion.div
+            key="sheet"
+            id="navbar-sheet"
+            data-testid="navbar-mobile"
+            {...popIn}
+            transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
+            className={cn(POPOVER_SURFACE, "absolute inset-x-3 top-full mt-2 origin-top p-2 sm:hidden")}
+          >
+            <nav aria-label="Main" className="space-y-1">
+              {NAV_TABS.map((tab) => {
+                const active = isActive(tab.href)
+                return (
+                  <Link
+                    key={tab.href}
+                    href={tab.href}
+                    onClick={() => setOpen(null)}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
-                      "min-w-0 flex-1 bg-transparent text-body text-ink placeholder:text-ink-subtle",
-                      creating && "opacity-50",
+                      "flex h-12 items-center justify-between rounded-md px-4 text-body font-semibold transition-colors duration-fast",
+                      active ? "bg-ink text-paper" : "text-ink-muted hover:bg-paper-sunken hover:text-ink",
                     )}
-                  />
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.9 }}
-                    transition={ICON_SPRING}
-                    onClick={() => { handleCreate(); setMobileOpen(false) }}
-                    disabled={!taskTitle.trim() || creating}
-                    aria-label="Create task"
-                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-900 text-paper transition-opacity disabled:opacity-40"
                   >
-                    <Plus className="h-4 w-4" strokeWidth={2.5} />
-                  </motion.button>
-                </div>
-              </div>
+                    {tab.label}
+                    {active ? <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-paper" /> : null}
+                  </Link>
+                )
+              })}
+            </nav>
 
-              {/* Navigation */}
-              <nav className="space-y-1 p-2">
-                {NAV_TABS.map(tab => {
-                  const active = isActive(tab.href)
-                  return (
-                    <Link
-                      key={tab.href}
-                      href={tab.href}
-                      onClick={() => setMobileOpen(false)}
-                      role="menuitem"
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "flex h-12 items-center justify-between rounded-xl px-4 text-body-sm font-semibold transition-colors duration-fast",
-                        active ? "bg-gray-900 text-paper" : "text-ink-muted active:bg-gray-100",
-                      )}
-                    >
-                      {tab.label}
-                      {active && <span className="h-1.5 w-1.5 rounded-full bg-paper" />}
-                    </Link>
-                  )
-                })}
-              </nav>
-
-              {/* Account */}
-              <div className="border-t border-line p-2">
-                <div className="px-4 py-2">
+            <div className="mt-2 border-t border-line pt-2">
+              <div className="flex items-center gap-3 px-4 py-2">
+                <Avatar
+                  src={user?.profilePictureUrl}
+                  firstName={user?.firstName}
+                  lastName={user?.lastName}
+                  email={user?.email}
+                  size={32}
+                />
+                <div className="min-w-0">
                   <p className="truncate text-body-sm font-semibold text-ink">{displayName}</p>
-                  {user?.email && <p className="mt-0.5 truncate text-caption text-ink-subtle">{user.email}</p>}
+                  {user?.email ? <p className="truncate text-caption text-ink-muted">{user.email}</p> : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => { setMobileOpen(false); router.push("/profile") }}
-                  role="menuitem"
-                  className="flex h-12 w-full items-center gap-3 rounded-xl px-4 text-body-sm font-medium text-ink-muted transition-colors duration-fast active:bg-gray-100"
-                >
-                  <User className="h-4 w-4 text-ink-subtle" />
-                  Profile
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  role="menuitem"
-                  className="flex h-12 w-full items-center gap-3 rounded-xl px-4 text-body-sm font-medium text-alert transition-colors duration-fast active:bg-alert-surface"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+              <button type="button" onClick={goToProfile} className={cn(MENU_ITEM, "h-12 px-4")}>
+                <User className="h-4 w-4" aria-hidden="true" />
+                Profile
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className={cn(MENU_ITEM, "h-12 px-4")}
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                Sign out
+              </button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

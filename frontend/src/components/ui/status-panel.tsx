@@ -134,7 +134,7 @@ export function StatusPanel({
 
       {description ? (
         <p className={cn(
-          "mx-auto mt-2 max-w-prose font-medium text-ink-subtle",
+          "mx-auto mt-2 max-w-prose font-medium text-ink-muted",
           isCompact ? "text-caption" : "text-body-sm",
         )}>
           {description}
@@ -142,7 +142,7 @@ export function StatusPanel({
       ) : null}
 
       {referenceId ? (
-        <p className="mt-3 text-caption text-ink-subtle">
+        <p className="mt-3 text-caption text-ink-muted">
           Reference id: <code className="font-mono">{referenceId}</code>
         </p>
       ) : null}

@@ -87,7 +87,7 @@ describe("Card components", () => {
       </Card>,
     )
 
-    expect(screen.getByTestId("card")).toHaveClass("rounded-xl")
+    expect(screen.getByTestId("card")).toHaveClass("rounded-lg")
     expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument()
     expect(screen.getByText("Summary")).toHaveClass("text-body-sm")
     expect(screen.getByText("Content")).toHaveClass("pt-0")

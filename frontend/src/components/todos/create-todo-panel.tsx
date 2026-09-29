@@ -135,7 +135,7 @@ function SelectorCard({
           {icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-caption font-bold uppercase tracking-[0.14em] text-ink-subtle">
+          <span className="block text-caption font-bold uppercase tracking-wider text-ink-muted">
             {label}
           </span>
           {/* Fixed-height value row so the crossfade never resizes the card. */}
@@ -244,7 +244,7 @@ function SharePopover({
     <Popover open={open} onClose={onClose} width={320} align="right" containerRef={containerRef} portal>
       <PopoverHeader
         label="Share"
-        sub={<span className="text-caption font-semibold text-ink-subtle">{sub}</span>}
+        sub={<span className="text-caption font-semibold text-ink-muted">{sub}</span>}
       />
       <div className="p-1.5">
         <button
@@ -286,7 +286,7 @@ function SharePopover({
         <div className="mx-1.5 my-1.5 h-px bg-gray-100" />
 
         {friends.length === 0 ? (
-          <div className="px-3 py-5 text-center text-caption font-bold text-ink-subtle">
+          <div className="px-3 py-5 text-center text-caption font-bold text-ink-muted">
             No friends yet.
           </div>
         ) : (
@@ -321,7 +321,7 @@ function SharePopover({
                   </span>
                   <span
                     className={cn(
-                      "flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full transition-colors",
+                      "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full transition-colors",
                       selected ? "bg-ink text-paper" : "shadow-[inset_0_0_0_1.5px_var(--pl-line)] text-transparent"
                     )}
                   >
@@ -486,7 +486,7 @@ export function CreateTodoPanel({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-line/80 bg-paper shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)]">
+    <div className="overflow-hidden rounded-xl border border-line/80 bg-paper shadow-sm">
       {/*
         Always-visible header — clicking opens/closes the panel.
         The + button is ONE persistent element that rotates 0° ↔ 45°,
@@ -543,7 +543,7 @@ export function CreateTodoPanel({
                     the user learns the wrong binding and finds out later, from a
                     surface that disagrees with this one.
                   */}
-                  <p className="truncate text-caption font-semibold text-ink-subtle">
+                  <p className="truncate text-caption font-semibold text-ink-muted">
                     Date, category, audience
                   </p>
                 </motion.div>
@@ -556,7 +556,7 @@ export function CreateTodoPanel({
                   transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
                 >
                   <p className="text-body-sm font-bold leading-none tracking-tight text-ink">New task</p>
-                  <p className="mt-0.5 text-caption font-semibold text-ink-subtle">Title is all you need</p>
+                  <p className="mt-0.5 text-caption font-semibold text-ink-muted">Title is all you need</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -644,7 +644,7 @@ export function CreateTodoPanel({
                     label="Priority"
                     value={getPriorityLabel(priority)}
                     valueKey={priority}
-                    icon={<Sparkles className="h-[18px] w-[18px]" strokeWidth={2.2} />}
+                    icon={<Sparkles className="h-4 w-4" strokeWidth={2.2} />}
                     iconClass="bg-ink text-paper shadow-md shadow-black/15"
                     open={openPopover === "priority"}
                     onToggle={() => togglePopover("priority")}
@@ -667,7 +667,7 @@ export function CreateTodoPanel({
                     value={dueDate ? formatDueRange(dueDateStart, dueDate) : "No date"}
                     valueKey={`${dueDateStart}|${dueDate}`}
                     muted={!dueDate}
-                    icon={<Calendar className="h-[18px] w-[18px]" strokeWidth={2.2} />}
+                    icon={<Calendar className="h-4 w-4" strokeWidth={2.2} />}
                     iconClass={dueDate ? "bg-ink text-paper shadow-md shadow-black/15" : "bg-gray-100 text-ink-subtle"}
                     open={openPopover === "date"}
                     onToggle={() => togglePopover("date")}
@@ -698,8 +698,8 @@ export function CreateTodoPanel({
                     muted={!selectedCategory}
                     icon={
                       selectedCategory
-                        ? <SelectedCatIcon className="h-[18px] w-[18px]" style={{ color: selectedCategory.color ?? "var(--pl-ink-muted)" }} />
-                        : <Folder className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                        ? <SelectedCatIcon className="h-4 w-4" style={{ color: selectedCategory.color ?? "var(--pl-ink-muted)" }} />
+                        : <Folder className="h-4 w-4" strokeWidth={2.2} />
                     }
                     iconClass={selectedCategory ? "" : "bg-gray-100 text-ink-subtle"}
                     iconStyle={selectedCategory ? { background: `${selectedCategory.color ?? "var(--pl-ink-muted)"}1A` } : undefined}
@@ -733,10 +733,10 @@ export function CreateTodoPanel({
                     muted={!isPublic && selectedFriendIds.length === 0}
                     icon={
                       isPublic
-                        ? <Globe2 className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                        ? <Globe2 className="h-4 w-4" strokeWidth={2.2} />
                         : selectedFriendIds.length > 0
-                          ? <Users className="h-[18px] w-[18px]" strokeWidth={2.2} />
-                          : <Lock className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                          ? <Users className="h-4 w-4" strokeWidth={2.2} />
+                          : <Lock className="h-4 w-4" strokeWidth={2.2} />
                     }
                     iconClass={
                       isPublic || selectedFriendIds.length > 0
@@ -780,13 +780,13 @@ export function CreateTodoPanel({
               className="flex flex-col gap-3 rounded-b-md border-t border-line bg-paper-sunken/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
             >
               <div className="hidden items-center gap-1.5 sm:flex">
-                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-subtle shadow-sm">
+                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted shadow-sm">
                   {isMac ? "⌘" : "Ctrl"}
                 </kbd>
-                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-subtle shadow-sm">
+                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted shadow-sm">
                   ↵
                 </kbd>
-                <span className="ml-1 text-caption font-bold text-ink-subtle">to create</span>
+                <span className="ml-1 text-caption font-bold text-ink-muted">to create</span>
               </div>
               <div className="flex gap-2">
                 <Button

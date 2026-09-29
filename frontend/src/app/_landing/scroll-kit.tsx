@@ -120,8 +120,13 @@ export function HorizontalBand({
   return (
     <div ref={ref} className={className}>
       {/* `clip` rather than `hidden`: `hidden` creates a scroll container, and this page
-          has a sticky nav that references the same scroll root. */}
-      <div className="[overflow-x:clip]">
+          has a sticky nav that references the same scroll root.
+
+          The track's edges fade over 48px instead of cutting a card mid-word at the
+          viewport's edge ("your profi"): the band is in motion, so a card is always
+          half-way out on one side, and a hard cut read as a rendering fault. The mask is
+          static — nothing about it animates. */}
+      <div className="[overflow-x:clip] [mask-image:linear-gradient(to_right,transparent,black_3rem,black_calc(100%-3rem),transparent)]">
         <motion.div style={{ x }} className="flex w-max gap-6">
           {children}
         </motion.div>

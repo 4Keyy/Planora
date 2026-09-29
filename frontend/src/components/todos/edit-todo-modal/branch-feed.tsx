@@ -1108,8 +1108,9 @@ export function BranchFeed({
                 </div>
               </div>
               <motion.div
+                // A bounded nudge, three bobs and then still: nothing at rest may animate forever.
                 animate={{ y: [0, -2, 0] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: 1.6, repeat: 2, ease: "easeInOut" }}
                 style={{
                   flexShrink: 0, width: 22, height: 22, borderRadius: 7,
                   display: "flex", alignItems: "center", justifyContent: "center",
@@ -2351,9 +2352,9 @@ function SubtaskCard({
                 <Check size={14} color="var(--pl-positive)" strokeWidth={3} />
               </motion.span>
             ) : someoneWorking ? (
-              // In work (you and/or others) → calm amber pulse.
+              // In work (you and/or others) → a still amber dot.
               <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--pl-warn)" }} className="animate-pulse" />
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--pl-warn)" }} />
               </motion.span>
             ) : hovered ? (
               // Idle + hovering → hint that a click takes it into work (a small amber dot, no bolt).

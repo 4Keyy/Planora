@@ -215,7 +215,7 @@ export function AdvancedSearchBar({
             )}
 
             {/* Search Stats */}
-            <div className="flex items-center justify-between pt-2 text-caption text-ink-subtle">
+            <div className="flex items-center justify-between pt-2 text-caption text-ink-muted">
               <span>{matchedTodos.length} tasks found</span>
               {value && (
                 <Button

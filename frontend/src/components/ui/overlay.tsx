@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion"
 import { ModalPortal } from "@/components/ui/modal-portal"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
-import { SPRING_STANDARD, TWEEN_FAST } from "@/lib/animations"
+import { SPRING_STANDARD, TWEEN_EXIT, TWEEN_FAST } from "@/lib/animations"
 import { cn } from "@/lib/utils"
 
 /**
@@ -108,7 +108,10 @@ export function Overlay({
               // viewport-sized "button" in the accessibility tree is noise. Escape
               // is the keyboard equivalent and is handled above.
               aria-hidden="true"
-              className="absolute inset-0 bg-ink/60 backdrop-blur-md"
+              // A light scrim and a small blur: enough to set the page back, not so much
+              // that the browser re-blurs a whole viewport of content under a heavy radius
+              // for every frame of the fade.
+              className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
             />
 
             <motion.div
@@ -117,9 +120,10 @@ export function Overlay({
               aria-modal="true"
               aria-labelledby={titleId}
               tabIndex={-1}
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              // Arrives from below on the system's 8px, and leaves faster than it came.
+              initial={{ opacity: 0, scale: 0.98, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              exit={{ opacity: 0, scale: 0.98, y: 8, transition: TWEEN_EXIT }}
               transition={SPRING_STANDARD}
               className={cn(
                 "relative z-modal max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-paper shadow-xl outline-none",
@@ -133,7 +137,7 @@ export function Overlay({
                       {title}
                     </h2>
                     {description ? (
-                      <p className="mt-1 text-body-sm font-medium text-ink-subtle">{description}</p>
+                      <p className="mt-1 text-body-sm text-ink-muted">{description}</p>
                     ) : null}
                   </div>
                 </div>

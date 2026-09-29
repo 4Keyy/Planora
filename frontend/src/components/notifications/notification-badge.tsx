@@ -105,7 +105,7 @@ export const NotificationBadge = memo(function NotificationBadge({
           style={{ border: `1.5px solid ${tint}` }}
           initial={{ scale: 1, opacity: 0.45 }}
           animate={{ scale: 1.9, opacity: 0 }}
-          transition={{ duration: 1.9, repeat: Infinity, ease: "easeOut" }}
+          transition={{ duration: 1.9, repeat: 2, ease: "easeOut" }}
         />
       )}
 
@@ -200,7 +200,7 @@ function PillBadge({
             style={{ border: `1.5px solid ${tint}` }}
             initial={{ scale: 1, opacity: 0.5 }}
             animate={{ scale: 1.85, opacity: 0 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+            transition={{ duration: 2, repeat: 2, ease: "easeOut" }}
           />
         )}
         {composite === "people-check" ? (

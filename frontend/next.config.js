@@ -226,7 +226,7 @@ const nextConfig = {
     // directly with an absolute URL and never hit these frontend paths).
     //
     // `/friendships` is the one gateway route the frontend calls WITHOUT a service
-    // prefix (src/hooks/use-friends.ts, src/app/profile/page.tsx call api.get('/friendships')),
+    // prefix (src/hooks/use-friends.ts, src/app/(app)/profile/page.tsx call api.get('/friendships')),
     // so it needs its own entries — the bare path and its sub-paths — or every friends
     // request 404s against Next instead of reaching the gateway. There is no frontend
     // page at /friendships, so nothing is shadowed.

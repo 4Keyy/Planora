@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Wordmark } from "@/components/ui/wordmark"
 import dynamic from "next/dynamic"
 import { LandingNav } from "./_landing/landing-nav"
 import { AudienceConsole } from "./_landing/audience-console"
@@ -490,7 +491,7 @@ export default function HomePage() {
             and the footer's links would otherwise sit underneath it at the end of the page. */}
         <div className="container-app flex flex-col gap-4 py-10 sm:flex-row sm:items-center sm:justify-between lg:pb-24">
           <div>
-            <p className="text-body-sm font-bold tracking-tight text-ink">Planora</p>
+            <Wordmark size="sm" />
             {/* ink-muted, not ink-subtle: at 12px the floor is ink-muted (§ 11). */}
             <p className="mt-1 text-caption text-ink-muted">
               Private coordination for people you trust.

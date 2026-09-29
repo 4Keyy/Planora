@@ -143,7 +143,7 @@ describe("TodoCard", () => {
     expect((card as HTMLElement).style.borderLeftColor).toBe("")
     expect(card!.className).not.toMatch(/bg-alert/)
     expect(screen.getByText(/Overdue/i)).toBeInTheDocument()
-    expect(screen.getByText(/EXP:/)).toBeInTheDocument()
+    expect(screen.getByText(/^Expected /)).toBeInTheDocument()
     expect(screen.getByText("2d delay")).toBeInTheDocument()
 
     const completeButton = screen.getByRole("button", { name: "Mark as complete" })
@@ -160,6 +160,8 @@ describe("TodoCard", () => {
     expect(onToggleHidden).toHaveBeenCalledOnce()
     expect(screen.getByRole("button", { name: "Expand task card" })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole("button", { name: "Expand task card" })).not.toBeDisabled())
+    // The pressed toggle unmounted; focus moved to its counterpart instead of <body>.
+    expect(screen.getByRole("button", { name: "Expand task card" })).toHaveFocus()
 
     rerender(
       <TodoCard
@@ -269,7 +271,7 @@ describe("TodoCard", () => {
     fireEvent.mouseEnter(cardRoot)
     fireEvent.mouseLeave(cardRoot)
 
-    const desktopDeleteZone = container.querySelector('div[class*="w-[68px]"]') as HTMLElement
+    const desktopDeleteZone = screen.getAllByRole("button", { name: /Delete task/ })[0]
     fireEvent.mouseEnter(desktopDeleteZone)
     await waitFor(() =>
       expect(container.querySelector('div[class*="text-paper"][class*="cursor-pointer"]')).not.toBeNull(),
@@ -324,8 +326,11 @@ describe("TodoCard", () => {
       />,
     )
 
-    expect(screen.getByText("No category")).toBeInTheDocument()
-    expect(screen.getByText("No category")).toHaveClass("blur-[3px]")
+    // Two copies crossfade: the blurred one is decorative, the clear one carries the name.
+    const [blurred, clear] = screen.getAllByText("No category")
+    expect(blurred).toHaveClass("blur-[3px]")
+    expect(blurred).toHaveAttribute("aria-hidden", "true")
+    expect(clear).not.toHaveAttribute("aria-hidden")
     expect(container.querySelector(".border-alert")).not.toBeNull()
     expect(screen.queryByText("Write coverage tests")).not.toBeInTheDocument()
 
@@ -363,7 +368,7 @@ describe("TodoCard", () => {
     const card = container.querySelector(".border-alert")
     expect(card).not.toBeNull()
     expect(card).not.toHaveClass("border-accent")
-    expect(screen.getByText("Focus")).toHaveClass("blur-[3px]")
+    expect(screen.getAllByText("Focus")[0]).toHaveClass("blur-[3px]")
   })
 
   it("re-renders when only aria-current changes on its row props", () => {

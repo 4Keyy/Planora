@@ -65,7 +65,7 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative z-10 w-full max-w-sm bg-paper rounded-[2rem] shadow-xl shadow-black/30 border border-line overflow-hidden outline-none"
+            className="relative z-10 w-full max-w-sm bg-paper rounded-xl shadow-xl shadow-black/30 border border-line overflow-hidden outline-none"
             role="dialog"
             aria-modal="true"
             aria-label="Filter views by category"
@@ -97,7 +97,7 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
                   <div className="h-10 w-10 bg-paper-sunken rounded-xl flex items-center justify-center mx-auto">
                     <Tag className="h-5 w-5 text-ink-subtle" />
                   </div>
-                  <p className="text-caption font-bold text-ink-subtle uppercase tracking-wider">No categories found</p>
+                  <p className="text-caption font-bold text-ink-muted uppercase tracking-wider">No categories found</p>
                 </div>
               ) : (
                 <div className="grid gap-1">
@@ -158,7 +158,7 @@ export function CategoryFilterModal({ isOpen, onClose, categories, selected, onC
             {/* Footer */}
             {selected.length > 0 && (
               <div className="px-6 py-4 bg-paper-sunken border-t border-line flex items-center justify-between">
-                <span className="text-caption font-bold text-ink-subtle uppercase tracking-widest">
+                <span className="text-caption font-bold text-ink-muted uppercase tracking-widest">
                   {selected.length} Selected
                 </span>
                 <button

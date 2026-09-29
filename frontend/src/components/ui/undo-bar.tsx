@@ -125,7 +125,7 @@ export function UndoBar({ pending, onUndo }: { pending: PendingAction | null; on
           <motion.div
             // `toast`, above the modal layer: an undo the user cannot see is not an
             // undo, and a dialog must never cover it.
-            className="pointer-events-none fixed inset-x-0 bottom-0 z-toast flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-toast flex justify-center px-4 pb-safe-4"
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}

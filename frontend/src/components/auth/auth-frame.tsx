@@ -59,7 +59,9 @@ export function AuthFrame({ children }: { children: ReactNode }) {
             `.pt-safe` is plain CSS, so on the same element it would REPLACE the padding
             rather than add to it — zero on every screen without a notch. */}
         <header className="pt-safe">
-          <div className="container-app flex items-center py-3 sm:py-6">
+          {/* The same 56/64px row as the landing page's bar and the app bar, so the wordmark
+              does not move when you arrive here from either. */}
+          <div className="container-app flex h-14 items-center sm:h-16">
             <Link
               href="/"
               aria-label="Planora home"
@@ -70,7 +72,7 @@ export function AuthFrame({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main id="main" className="flex flex-1 justify-center px-4 pb-16 pt-2 sm:pt-6 lg:pt-10">
+        <main id="main" className="flex flex-1 justify-center px-4 pb-16 pt-4 sm:pt-12 lg:pt-16">
           <div className="w-full max-w-md">
             {step !== null ? <RecoverySteps step={step} className="mb-6" /> : null}
             {children}

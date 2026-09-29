@@ -773,6 +773,8 @@ type has stopped being a primitive.
 | `Field` | Label↔control association, `aria-describedby`, `aria-invalid`, `role="alert"` on the error; `labelAside` for a text-height link on the label's line ("Forgot password?") that stays out of the accessible name |
 | `Wordmark` | The product's name and mark — the private ring from `RedactionBadge`, drawn statically — in two sizes. Every place that names the product uses it |
 | `StatusPanel` | Every empty and error state. Two tones, three sizes |
+| `Pagination` + `lib/pagination` | The pager: ghost Previous/Next, 36px page buttons with `.touch-target`, the current page in ink. `pageWindow` decides which numbers show (the ends, the current page and its neighbours, a gap marker only where it hides two or more). Nothing in it scales on hover |
+| `surfaces.ts` | `POPOVER_SURFACE` (`rounded-lg border-line bg-paper shadow-lg`), `MENU_ITEM` (a 40px row), `ICON_BUTTON` (a 40px icon button with `.touch-target`). A plain module, so a server component can import the strings |
 | `Overlay` | Portal, dialog semantics, focus trap, Escape, backdrop dismissal, scroll lock |
 | `ConfirmDialog` | Destructive confirmation, with an optional "don't ask again" |
 | `Avatar` | Image, initials fallback, the optimizer's `sizes` |
@@ -807,6 +809,26 @@ type has stopped being a primitive.
 |---|---|
 | `lib/shared-origin` | The card-to-dialog transition: the rect a dialog grows out of, and the geometry that gets it there |
 | `lib/route-transition` | Whether this is the first page of a visit. Both route templates read it: the first page is in the server HTML fully visible, only in-app navigation animates |
+
+### The app shell
+
+Every signed-in route renders inside `app/(app)/layout.tsx` → `AppShell`
+(`components/layout/app-shell.tsx`): the sticky app bar, `<main id="main">`, and one
+column, `.container-app` — the same `max-w-6xl` column as the landing page and the auth
+frame, so the wordmark sits on the same spot on every screen. The route group
+exists so the router keeps the bar mounted across the five routes — it stays still, its
+underline slides to the new tab, and only the page fades (`app/(app)/template.tsx`,
+opacity only because these pages have fixed controls).
+
+Every page starts with `PageHeader` (`components/layout/page-header.tsx`): the eyebrow in
+`FIELD_LABEL_CLASS`, one `h1` at `title` on phones and `display-sm` from `sm`, an optional
+sentence, and the page's own actions at the far end. The dashboard's overview card is the
+one exception, because its title is a live number; it uses the same eyebrow, the same `h1`
+scale and the same card rules.
+
+The bar itself (`components/layout/navbar.tsx`) is 56px on phones and 64px from `sm`,
+`bg-paper/85` with `backdrop-blur-md`, and matches the landing page's bar and the auth
+frame's: the `Wordmark` on the left in all three. Its menus use `POPOVER_SURFACE`.
 
 ### The auth room
 
@@ -1199,11 +1221,14 @@ once. It is worth reading as a worked example.
 
 | Element | Token | Rule it obeys |
 |---|---|---|
-| Title | `title-sm` / `font-bold` / `ink` | Truncated at 40 characters; the full title is on the dialog it opens |
+| Surface | `bg-paper`, `border` (1px), `rounded-lg` via `Card`, `shadow-sm` → `shadow-lg` on hover, lift `y: -2` | Opaque: the page's background never shows through a task. The hover used to add a `backdrop-blur` and a glow tinted by the category colour — a re-rasterised card under the pointer and a second colour system |
+| Title | `body` on phones, `title-sm` from `sm`, `font-semibold`, `ink`, `line-clamp-3` | Shown in full up to three lines. It used to be cut at 40 characters in JavaScript whatever the card's width, so a wide card still read "battery for the smok…" |
+| Controls | the completion mark and the hide toggle in a 32px column, `items-start` | Aligned with the title's first line, not centred against the card — centred, they drifted lower the more a card had to say |
+| Chips | one shape: `h-6 rounded-sm border-line bg-paper-sunken px-2 text-caption font-semibold text-ink-muted` | Category, audience, workers, expected date and delay. There were five chip styles on one card; "in work" is the only tinted one (`accent-surface`), and delay the only warn one |
 | Completion control | `InkCheck`, 44 × 44 | The one multi-step entrance in the product |
 | Priority | `PriorityMeter` | Magnitude as filled length — never hue (rule 5) |
 | Category | `caption`, the user's own colour | `@colour-data`: their choice, stored against their data |
-| Due date | `caption`, `alert` only when overdue | The product's one saturated colour, spent on the one thing that earns it |
+| Due date | `caption`, `tabular-nums`, one unbreakable line; the word "Overdue" in `alert` beside it | The product's one saturated colour, spent on the one thing that earns it. A range reads "Sep 24 – Sep 26" as one string, so it can no longer wrap between its dates |
 | The border | `border-alert` when overdue, `border-line` otherwise | **One fact, and only one.** It used to return `border-accent` for "in progress", for "shared", and for both — so a task somebody had taken into work and a task merely visible to a friend were drawn identically. The other two facts have their own marks a few pixels away, and `accent` belongs to selection |
 | Presence | `PresenceRow` | One `sr-only` sentence, never a label per face |
 | Keyboard cursor | `outline-2 outline-offset-2 outline-ink` | An outline, not a ring: it follows `border-radius` without being told, and it is **not** the focus indicator — focus may legitimately be elsewhere while the list still has a cursor. Drawn only for the keyboard: a pointer press hides it |

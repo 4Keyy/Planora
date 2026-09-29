@@ -106,7 +106,9 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
             }}
             aria-hidden
           >
-            {/* Front disc draws a soft recurring ping to pull the eye to the freshest event. */}
+            {/* Front disc pings to pull the eye to the freshest event — three times, then it
+                rests. It used to repeat forever, on every card with unread activity, for as long
+                as the list stayed open; nothing at rest may animate forever. */}
             {pulse && !reduce && i === 0 && (
               <motion.span
                 aria-hidden
@@ -114,7 +116,7 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
                 style={{ border: `1.5px solid ${tint}` }}
                 initial={{ scale: 1, opacity: 0.45 }}
                 animate={{ scale: 1.9, opacity: 0 }}
-                transition={{ duration: 1.9, repeat: Infinity, ease: "easeOut" }}
+                transition={{ duration: 1.9, repeat: 2, ease: "easeOut" }}
               />
             )}
 
@@ -160,7 +162,7 @@ export const NotificationBadgeCluster = memo(function NotificationBadgeCluster({
           initial={reduce ? { opacity: 0 } : { scale: 0.4, opacity: 0 }}
           animate={{ scale: 1, opacity: 0.85 }}
           transition={{ type: "spring", stiffness: 520, damping: 26, delay: reduce ? 0 : visible.length * 0.05 }}
-          className="ml-1 inline-flex items-center justify-center rounded-full bg-gray-100 px-1.5 font-bold tabular-nums text-ink-subtle"
+          className="ml-1 inline-flex items-center justify-center rounded-full bg-gray-100 px-1.5 font-bold tabular-nums text-ink-muted"
           style={{ height: 16, fontSize: 12, border: "1px solid rgba(0,0,0,0.06)" }}
           aria-hidden
         >

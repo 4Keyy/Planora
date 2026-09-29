@@ -53,6 +53,9 @@ type Command = {
   run: () => void
 }
 
+/** Opens the palette from a control — the search button in the app bar. */
+export const OPEN_PALETTE_EVENT = "planora:open-palette"
+
 /** Fires the same quick capture the "c" key opens. */
 function requestCapture() {
   window.dispatchEvent(new CustomEvent(OPEN_CAPTURE_EVENT))
@@ -123,8 +126,13 @@ export function CommandPalette() {
       }
       if (e.key === "Escape") setOpen(false)
     }
+    const onRequest = () => setOpen(true)
     document.addEventListener("keydown", onKey)
-    return () => document.removeEventListener("keydown", onKey)
+    window.addEventListener(OPEN_PALETTE_EVENT, onRequest)
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      window.removeEventListener(OPEN_PALETTE_EVENT, onRequest)
+    }
   }, [isAuthenticated])
 
   // Reset every time it opens: a palette that remembers the last query makes the
@@ -330,7 +338,7 @@ export function CommandPalette() {
                 />
                 <kbd
                   aria-hidden="true"
-                  className="hidden flex-shrink-0 rounded border border-line bg-paper-sunken px-1.5 py-0.5 font-mono text-caption font-bold text-ink-subtle sm:block"
+                  className="hidden flex-shrink-0 rounded border border-line bg-paper-sunken px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted sm:block"
                 >
                   ESC
                 </kbd>
@@ -357,7 +365,7 @@ export function CommandPalette() {
                     return (
                       <div key={c.id}>
                         {header ? (
-                          <p className="px-3 pb-1 pt-3 text-caption font-semibold uppercase tracking-wider text-ink-subtle first:pt-1">
+                          <p className="px-3 pb-1 pt-3 text-caption font-semibold uppercase tracking-wider text-ink-muted first:pt-1">
                             {header}
                           </p>
                         ) : null}
@@ -385,13 +393,13 @@ export function CommandPalette() {
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-body-sm font-semibold text-ink">{c.label}</span>
                             {c.hint ? (
-                              <span className="block truncate text-caption font-medium text-ink-subtle">{c.hint}</span>
+                              <span className="block truncate text-caption font-medium text-ink-muted">{c.hint}</span>
                             ) : null}
                           </span>
                           {c.shortcut ? (
                             <kbd
                               aria-hidden="true"
-                              className="flex-shrink-0 rounded border border-line bg-paper-sunken px-1.5 py-0.5 font-mono text-caption font-bold text-ink-subtle"
+                              className="flex-shrink-0 rounded border border-line bg-paper-sunken px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted"
                             >
                               {c.shortcut}
                             </kbd>
@@ -407,7 +415,7 @@ export function CommandPalette() {
               </div>
 
               {/* Footer — the palette teaches its own keys. */}
-              <div className="flex items-center gap-4 border-t border-line bg-paper-sunken px-5 py-2.5 text-caption font-medium text-ink-subtle">
+              <div className="flex items-center gap-4 border-t border-line bg-paper-sunken px-5 py-2.5 text-caption font-medium text-ink-muted">
                 <span className="flex items-center gap-1.5">
                   <kbd aria-hidden="true" className="rounded border border-line bg-paper px-1 font-mono font-bold">↑</kbd>
                   <kbd aria-hidden="true" className="rounded border border-line bg-paper px-1 font-mono font-bold">↓</kbd>

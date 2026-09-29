@@ -213,7 +213,7 @@ sequenceDiagram
 
 Code:
 
-- `frontend/src/app/tasks/page.tsx`
+- `frontend/src/app/(app)/tasks/page.tsx`
 - `frontend/src/lib/api.ts`
 - `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`
 - `Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetUserTodos/GetUserTodosQueryHandler.cs`

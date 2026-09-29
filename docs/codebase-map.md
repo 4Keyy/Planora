@@ -260,12 +260,15 @@ Critical files:
 | `app/template.tsx` | per-navigation transition wrapper |
 | `app/globals.css` | the focus indicator, `.touch-target`, reduced-motion collapse, `--pl-*` variables |
 | `app/page.tsx` | landing |
-| `app/dashboard/page.tsx` | overview: `StatRow`, `WeekBars`, the `pathLength` progress ring, quick capture, undo-window delete |
-| `app/tasks/page.tsx` | the working list: masonry cards, `useListNavigation`, `SelectionBar`, `UpdatePill`, quick capture, undo-window delete |
-| `app/tasks/completed/page.tsx` | the archive, with the completion-date filter inside the QuickFilter plate |
-| `app/branch/[id]/page.tsx` | the same full task editor the modal shows, on its own URL so a card can be opened in a new tab |
-| `app/categories/page.tsx` | category management |
-| `app/profile/page.tsx` | identity, security, sessions, history, circle |
+| `app/(app)/layout.tsx` | the signed-in route group: renders `AppShell` (the sticky app bar, `<main id="main">`, the `container-app` column, the `AuthGuard`) once for all five signed-in routes, so the bar persists across them |
+| `app/(app)/template.tsx` | the page fade between signed-in routes (opacity only; nothing on the first page of a visit) |
+| `app/auth/layout.tsx` + `app/auth/template.tsx` | the auth frame and the card's entrance between auth routes |
+| `app/(app)/dashboard/page.tsx` | overview: `StatRow`, `WeekBars`, the `pathLength` progress ring, quick capture, undo-window delete |
+| `app/(app)/tasks/page.tsx` | the working list: masonry cards, `useListNavigation`, `SelectionBar`, `UpdatePill`, quick capture, undo-window delete |
+| `app/(app)/tasks/completed/page.tsx` | the archive, with the completion-date filter inside the QuickFilter plate |
+| `app/(app)/branch/[id]/page.tsx` | the same full task editor the modal shows, on its own URL so a card can be opened in a new tab |
+| `app/(app)/categories/page.tsx` | category management |
+| `app/(app)/profile/page.tsx` | identity, security, sessions, history, circle |
 | `app/auth/*/page.tsx` | login, register, verify-email, forgot-password, reset-password |
 
 `dashboard`, `tasks`, `categories` and `profile` each ship an `error.tsx` (rendering `SegmentError`)
@@ -353,7 +356,6 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `datetime.ts` | all date formatting, with the locale pinned so SSR and hydration agree |
 | `design-tokens.ts` | the single source of truth for every visual value; `tailwind.config.ts` derives from it |
 | `errors.ts` | failure classification and the copy for refusals a user cannot act their way out of |
-| `events.ts` | the custom window events (`planora:task-created`, the create-panel open event) |
 | `friend-names.ts` | id → display name, resolved from the shared friend cache |
 | `haptics.ts` | tiny vibration patterns for completion and creation only |
 | `icon-map.ts` | `@colour-data` — default icon and colour for a new category |

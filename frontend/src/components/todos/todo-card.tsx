@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useEffect, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import {
   Trash, Check, Calendar, AlertTriangle, Share2, Eye, Clock, Zap, Users,
@@ -11,7 +11,7 @@ import { isTodoOwner, type Todo } from "@/types/todo"
 import { formatDate, isPastDate, truncateText, formatPublicName, cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
-import { EASE_OUT_EXPO, SPRING_RESPONSIVE, VARIANTS_CARD, TAP_CARD } from "@/lib/animations"
+import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO, SPRING_RESPONSIVE, VARIANTS_CARD, TAP_CARD, TAP_PRESS } from "@/lib/animations"
 import { haptic } from "@/lib/haptics"
 import { CompletionCelebration } from "@/components/animated/celebration"
 import { NotificationBadgeCluster } from "@/components/notifications/notification-badge-cluster"
@@ -25,6 +25,14 @@ import { RedactionBadge } from "@/components/ui/redaction-badge"
 import type { ListRowProps } from "@/hooks/use-list-navigation"
 
 /** Priority is a magnitude, not a category — see components/ui/priority-meter.tsx. */
+/**
+ * Every chip on the card — category, audience, workers, expected date, delay — in one
+ * shape. There were five: uppercase with a gradient, uppercase with a shadow, sentence
+ * case on grey-50, accent with a ring, warn with a shadow.
+ */
+const CHIP_CLASS =
+  "inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-sm border border-line bg-paper-sunken px-2 text-caption font-semibold text-ink-muted"
+
 const PRIORITY_CONFIG: Record<string, { num: number }> = {
   "1": { num: 1 },
   "2": { num: 2 },
@@ -109,7 +117,6 @@ function TodoCardComponent({
   const [completionPhase, setCompletionPhase] = useState<CompletionPhase>(null)
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false)
   const [isControlHover, setIsControlHover] = useState(false)
-  const [isCardHovered, setIsCardHovered] = useState(false)
   const [isDeleteZoneHovered, setIsDeleteZoneHovered] = useState(false)
   const [isButtonHovered, setIsButtonHovered] = useState(false)
   // Whether the "finish a task that still has unfinished subtasks?" confirmation is open.
@@ -156,7 +163,6 @@ function TodoCardComponent({
   const isWorkingOnThis = isEffectivelyWorking
   const showShareBadge = isShared && !isCompleted
   const publicBadgeLabel = isOwner ? "Public" : (todo.authorName ? formatPublicName(todo.authorName) : "Public")
-  const isPublicName = !isOwner && !!todo.authorName
   const canDelete = isOwner
 
   const friendCount = todo.sharedWithUserIds?.length ?? 0
@@ -168,6 +174,21 @@ function TodoCardComponent({
 
   const allowCollapse = !isCompleted
   const isCollapsed = allowCollapse && (optimisticCollapsed ?? (todo.hidden ?? false))
+  // Callback refs rather than an effect: the counterpart toggle mounts only after the
+  // outgoing branch has finished its exit, so it is focused the moment it exists.
+  const focusAfterToggle = useRef<"expand" | "collapse" | null>(null)
+  const expandButtonRef = useCallback((node: HTMLButtonElement | null) => {
+    if (node && focusAfterToggle.current === "expand") {
+      focusAfterToggle.current = null
+      node.focus()
+    }
+  }, [])
+  const collapseButtonRef = useCallback((node: HTMLButtonElement | null) => {
+    if (node && focusAfterToggle.current === "collapse") {
+      focusAfterToggle.current = null
+      node.focus()
+    }
+  }, [])
   const isSparse = !todo.description && (todo.title?.length ?? 0) < 40 && !todo.dueDate && !todo.expectedDate && !todo.delay
   const isInfoDense = !!todo.description && (!!todo.dueDate || !!todo.expectedDate || !!todo.delay)
   const layoutTransition = shouldReduceMotion ? { duration: 0 } : CARD_VISIBILITY_LAYOUT
@@ -191,8 +212,11 @@ function TodoCardComponent({
     setShowCompletionCelebration(false)
   }, [todo.id, isCompleted, todo.status, isWorkingOnThis])
 
-  const handleVisibilityToggle = async (nextCollapsed: boolean) => {
+  const handleVisibilityToggle = async (nextCollapsed: boolean, fromToggle = false) => {
     if (!onToggleHidden || isVisibilityPending || isCompletionPending) return
+    // The pressed toggle unmounts when the card changes shape; hand focus to its
+    // counterpart once it exists, or it falls to <body> and the next Tab starts over.
+    if (fromToggle) focusAfterToggle.current = nextCollapsed ? "expand" : "collapse"
 
     if (nextCollapsed) {
       setOptimisticCollapsed(true)
@@ -321,16 +345,6 @@ function TodoCardComponent({
    */
   const borderColor = isUrgentOrOverdue ? "border-alert" : "border-line"
 
-  const categoryShadowColor = todo.categoryColor?.trim()
-  const hoverShadowColor = isWorkingOnThis
-    ? "var(--pl-accent)"
-    : categoryShadowColor || (isUrgentOrOverdue ? "var(--pl-alert)" : null)
-  const hoverShadow = hoverShadowColor ? `${hoverShadowColor}33` : "rgba(0,0,0,0.08)"
-
-  const cardHoverShadow = isCardHovered && !isCompleted
-    ? `0 8px 32px -4px ${hoverShadow}, 0 4px 16px -2px ${hoverShadow}`
-    : undefined
-
   const completionOverlayColor = isJoining
     ? "bg-accent/10"
     : isCompleting
@@ -403,14 +417,12 @@ function TodoCardComponent({
                 : VARIANTS_CARD.visible
         }
         exit={VARIANTS_CARD.exit}
-        whileHover={isControlHover || isVisibilityPending || isCompletionPending ? undefined : { y: isCompleted ? 0 : -4, scale: 1.008 }}
+        whileHover={isControlHover || isVisibilityPending || isCompletionPending || isCompleted ? undefined : { y: -2 }}
         whileTap={isCompletionPending ? undefined : TAP_CARD}
         transition={{
           layout: layoutTransition,
           default: shouldReduceMotion ? { duration: 0 } : SPRING_RESPONSIVE,
         }}
-        onHoverStart={() => setIsCardHovered(true)}
-        onHoverEnd={() => setIsCardHovered(false)}
         onClick={(e) => {
           if (isVisibilityPending || isCompletionPending) return
           if (isCollapsed) {
@@ -435,7 +447,7 @@ function TodoCardComponent({
         className={cn(
           "relative group/card",
           isVisibilityPending || isCompletionPending ? "cursor-wait" : "cursor-pointer",
-          isCompleted ? "opacity-60 hover:opacity-70" : "z-10",
+          !isCompleted && "z-10",
           /*
            * The keyboard cursor. `[&[data-active]]` rather than Tailwind's
            * `data-[active]:` shorthand because the attribute is valueless — the
@@ -467,23 +479,25 @@ function TodoCardComponent({
             groups={unread.groups}
             total={unread.count}
             pulse={!isCompleted}
-            className="absolute -top-2 right-2 z-40 pointer-events-none"
+            // Left of the phone's delete button (right-2 top-2) below `md`, where the two sat on top of each other.
+            className="pointer-events-none absolute -top-2 right-14 z-40 md:right-2"
           />
         )}
       </AnimatePresence>
+      {/*
+        An opaque paper surface with a one-pixel border, and a shadow that deepens on
+        hover. The card used to be transparent — the page's gradient showed through every
+        task — with a 2px border, a coloured glow computed per category on hover, and a
+        `backdrop-blur` switched on under the pointer, which re-rasterised the card on
+        every hover. The border keeps its one job: alert means "needs answering today".
+      */}
       <Card
-        style={{
-          boxShadow: cardHoverShadow,
-          transitionProperty: "box-shadow, background-color, border-color, opacity",
-          transitionDuration: "220ms",
-          transitionTimingFunction: "var(--pl-ease-emphasized)",
-        }}
+        data-task-card=""
         className={cn(
-          "group relative overflow-hidden border-2",
-          "hover:bg-paper/40 hover:backdrop-blur-sm",
-          isCompleted
-            ? "border-line-strong opacity-60 hover:opacity-80 hover:bg-paper/10"
-            : borderColor,
+          "group relative overflow-hidden bg-paper transition-[box-shadow,border-color,opacity] duration-base ease-emphasized",
+          // A finished task steps back by surface, not by opacity: dimming the whole card to
+          // 60% took its struck title down to about 2.3:1, below the floor for text.
+          isCompleted ? "border-line bg-paper-sunken" : cn(borderColor, "shadow-sm group-hover/card:shadow-lg"),
           isSparse && "task-card--sparse",
           isInfoDense && "task-card--dense"
         )}
@@ -525,7 +539,8 @@ function TodoCardComponent({
             role="button"
             tabIndex={0}
             aria-label={`Delete task: ${todo.title}`}
-            className="absolute top-[-2px] right-[-2px] bottom-[-2px] w-[68px] z-30 hidden md:flex overflow-hidden rounded-r-lg"
+            // Ring inside the edge: the card clips its overflow, which would cut an outward one away.
+            className="absolute inset-y-0 right-0 z-30 hidden w-16 overflow-hidden focus-visible:-outline-offset-2 md:flex"
             onMouseEnter={() => { setIsDeleteZoneHovered(true); setIsControlHover(true) }}
             onMouseLeave={() => { setIsDeleteZoneHovered(false); setIsControlHover(false) }}
             onFocus={() => setIsDeleteZoneHovered(true)}
@@ -542,9 +557,11 @@ function TodoCardComponent({
               {isDeleteZoneHovered && (
                 <motion.div
                   key="delete-panel"
+                  // Slides in from the card's edge — a transform, not an animated
+                  // `clip-path`, which repainted the strip on every frame.
                   variants={{
-                    hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } },
-                    visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
+                    hidden: { x: "100%", transition: { duration: DURATION_FAST, ease: EASE_EXIT } },
+                    visible: { x: 0, transition: { duration: DURATION_UI, ease: EASE_OUT_EXPO } },
                   }}
                   initial="hidden"
                   animate="visible"
@@ -560,10 +577,10 @@ function TodoCardComponent({
                   <motion.div
                     variants={{
                       hidden: { scale: 0.5, opacity: 0, y: 6 },
-                      visible: { scale: 1, opacity: 1, y: 0, transition: { delay: 0.07, type: "spring", stiffness: 420, damping: 22 } },
+                      visible: { scale: 1, opacity: 1, y: 0, transition: { ...SPRING_RESPONSIVE, delay: 0.06 } },
                     }}
                   >
-                    <Trash className="h-[18px] w-[18px]" aria-hidden="true" />
+                    <Trash className="h-5 w-5" aria-hidden="true" />
                   </motion.div>
                 </motion.div>
               )}
@@ -573,14 +590,9 @@ function TodoCardComponent({
 
         {/* Mobile Delete Button */}
         {!isCollapsed && canDelete && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="absolute top-3 right-3 md:hidden z-30"
-          >
+          <div className="absolute right-2 top-2 z-30 md:hidden">
             <motion.button
-              whileHover={{ scale: 1.15, rotate: 10 }}
-              whileTap={{ scale: 0.9 }}
+              whileTap={TAP_PRESS}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
@@ -590,23 +602,23 @@ function TodoCardComponent({
                  loudest thing on a list screen, which gave the one action a user
                  least wants to hit the most visual weight. The product's one
                  saturated colour is reserved for the confirmation that follows. */
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-line bg-paper/90 text-ink-subtle shadow-sm backdrop-blur-sm transition-colors hover:border-alert hover:bg-alert hover:text-paper active:bg-alert"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-ink-muted transition-colors duration-fast active:bg-alert-surface active:text-alert"
             >
-              <Trash className="h-5 w-5" aria-hidden="true" />
+              <Trash className="h-4 w-4" aria-hidden="true" />
             </motion.button>
-          </motion.div>
+          </div>
         )}
 
         {/* Subtle category watermark */}
         {!isCompleted && CategoryIcon && !isCollapsed && (
-          <div className="absolute -right-7 -bottom-7 pointer-events-none opacity-[0.07] group-hover/card:opacity-[0.12] transition-opacity duration-slow">
-            <CategoryIcon className="h-32 w-32 text-ink" strokeWidth={1} />
+          <div aria-hidden="true" className="pointer-events-none absolute -bottom-6 -right-6 opacity-5 transition-opacity duration-slow group-hover/card:opacity-10">
+            <CategoryIcon className="h-28 w-28 text-ink" strokeWidth={1} />
           </div>
         )}
 
         <CardContent
           className={cn(
-            isCollapsed ? "py-2 px-6" : isCompleted ? "pt-3 pb-6 px-6" : isSparse ? "py-3 px-4" : "p-6",
+            isCollapsed ? "px-5 py-2" : isSparse ? "px-5 py-4" : "p-5",
             "relative z-10"
           )}
         >
@@ -621,27 +633,34 @@ function TodoCardComponent({
               className="flex items-center justify-between gap-3 group/collapsed"
             >
               <div className="flex items-center gap-4 min-w-0">
-                <motion.div whileHover={{ scale: 1.15 }} className="w-8 flex items-center justify-center">
+                <div className="flex w-8 items-center justify-center">
                   <motion.button
+                    ref={expandButtonRef}
                     type="button"
-                    disabled={isVisibilityPending || isCompletionPending}
+                    // aria-disabled, not disabled: a disabled button cannot take focus, and this
+                    // one is born mid-request when focus is handed to it. The handler already
+                    // refuses re-entry while a toggle is in flight.
+                    aria-disabled={isVisibilityPending || isCompletionPending}
                     aria-busy={isVisibilityPending || isCompletionPending}
-                    whileHover={isVisibilityPending || isCompletionPending ? undefined : { scale: 1.2, rotate: 10 }}
-                    whileTap={isVisibilityPending || isCompletionPending ? undefined : { scale: 0.9 }}
+                    whileTap={isVisibilityPending || isCompletionPending ? undefined : TAP_PRESS}
                     onClick={(e) => {
                       e.stopPropagation()
-                      void handleVisibilityToggle(false)
+                      void handleVisibilityToggle(false, true)
                     }}
                     className={cn(
-                      "h-6 w-6 flex items-center justify-center rounded-full border-[1.5px] border-gray-400 text-ink-muted hover:text-ink hover:border-gray-600 hover:bg-gray-100 transition-[background-color,border-color,color,opacity,transform] shadow-sm",
+                      "touch-target flex h-7 w-7 items-center justify-center rounded-full border border-line-strong text-ink-muted transition-colors duration-fast hover:border-ink hover:text-ink",
                       (isVisibilityPending || isCompletionPending) && "opacity-60 cursor-wait"
                     )}
                     aria-label="Expand task card"
                     aria-expanded={!isCollapsed}
                   >
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-4 w-4" aria-hidden="true" />
                   </motion.button>
-                </motion.div>
+                </div>
+                {/* Redacted: the task is hidden, so even its category is blurred until the
+                    pointer (or focus) is on it. Two copies crossfade — the blurred one fades out
+                    as the clear one fades in — because animating `filter` itself repaints the
+                    chip on every frame; only opacity moves here. */}
                 <motion.span
                   initial={{ x: -10, opacity: 0 }}
                   animate={{
@@ -649,41 +668,49 @@ function TodoCardComponent({
                     opacity: isVisibilityPending ? 0.62 : 1,
                   }}
                   transition={contentTransition}
-                  className="text-caption font-bold px-3 py-1 rounded-md uppercase tracking-wider bg-gradient-to-r from-gray-100 to-gray-50 text-ink-muted whitespace-nowrap shadow-sm border border-line blur-[3px] group-hover/collapsed:blur-0 group-hover/card:blur-0 group-focus-within/collapsed:blur-0 group-hover/collapsed:border-line-strong transition-[filter,border-color,opacity] duration-deliberate ease-emphasized will-change-[filter]"
+                  className="inline-grid"
                 >
-                  {cardCategoryLabel}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      CHIP_CLASS,
+                      "blur-[3px] transition-opacity duration-base [grid-area:1/1]",
+                      "group-hover/card:opacity-0 group-focus-within/collapsed:opacity-0",
+                    )}
+                  >
+                    {cardCategoryLabel}
+                  </span>
+                  <span
+                    className={cn(
+                      CHIP_CLASS,
+                      "border-line-strong text-ink opacity-0 transition-opacity duration-base [grid-area:1/1]",
+                      "group-hover/card:opacity-100 group-focus-within/collapsed:opacity-100",
+                    )}
+                  >
+                    {cardCategoryLabel}
+                  </span>
                 </motion.span>
               </div>
               {CategoryIcon && (
-                <motion.div
-                  // PERF: only run the rotation loop while hovered. Idle collapsed
-                  // cards previously animated forever (repeat: Infinity), keeping the
-                  // compositor busy every frame for every card on screen.
-                  animate={
-                    shouldReduceMotion
-                      ? { rotate: 0, scale: 1 }
-                      : isCardHovered
-                        ? { rotate: [0, 8, -8, 0], scale: 1.15 }
-                        : { rotate: 0, scale: 1 }
-                  }
-                  transition={{
-                    rotate: isCardHovered ? { duration: 0.48, repeat: Infinity } : { duration: 0.32 },
-                    scale: { duration: 0.32 },
-                  }}
-                >
-                  <CategoryIcon
-                    className="h-5 w-5 transition-colors duration-slow"
-                    style={{ color: isCardHovered ? "var(--pl-ink-muted)" : "var(--pl-ink-subtle)" }}
-                    strokeWidth={1.5}
-                  />
-                </motion.div>
+                <CategoryIcon
+                  aria-hidden="true"
+                  className="h-5 w-5 flex-shrink-0 text-ink-subtle transition-colors duration-fast group-hover/collapsed:text-ink-muted"
+                  strokeWidth={1.5}
+                />
               )}
             </motion.div>
           ) : (
             <>
-              <div className="flex items-stretch gap-3">
-                {/* Actions: complete button + eye, vertically centered as a group */}
-                <div className="w-8 flex-shrink-0 flex flex-col items-center justify-center gap-3">
+              <div className="flex items-start gap-4">
+                {/* The controls sit against the title's first line — the check is what the
+                    eye reads with the title, not something centred against the whole card,
+                    where it drifted lower the more the card had to say. */}
+                {/* The offset centres the 32px check on the title's first line: 22px on phones
+                    (text-body, leading-snug), 28px from sm (title-sm).
+                    gap-4: each control's `.touch-target` reaches 6-8px past its circle, and at
+                    gap-2 the hide toggle's hit area covered the bottom of the check's — a thumb
+                    just under the check hid the card instead of completing it. */}
+                <div className="-mt-1 flex w-8 flex-shrink-0 flex-col items-center gap-4 sm:-mt-0.5">
                   {/* 3-state completion / join button */}
                   <motion.button
                     onClick={(e: React.MouseEvent) => {
@@ -694,13 +721,13 @@ function TodoCardComponent({
                     onMouseLeave={() => { setIsControlHover(false); setIsButtonHovered(false) }}
                     animate={completionButtonAnimate}
                     transition={isCompletionPending ? COMPLETION_BUTTON_TRANSITION : SPRING_RESPONSIVE}
-                    whileHover={!isCompletionPending ? { scale: 1.12 } : undefined}
-                    whileTap={!isCompletionPending ? { scale: 0.9 } : undefined}
+                    whileHover={!isCompletionPending ? { scale: 1.06 } : undefined}
+                    whileTap={!isCompletionPending ? TAP_PRESS : undefined}
                     disabled={isCompletionPending}
                     aria-busy={isCompletionPending}
                     className={cn(
                       "touch-target h-8 w-8 rounded-full border-2 flex items-center justify-center",
-                      "transition-[box-shadow,ring,opacity] duration-fast",
+                      "transition-[box-shadow,opacity] duration-fast",
                       // Phase rings
                       isJoining && "shadow-lg ring-2 ring-accent/35",
                       isCompleting && "shadow-lg ring-2 ring-positive/30",
@@ -785,22 +812,11 @@ function TodoCardComponent({
                           animate={{ scale: 1, opacity: 1 }}
                           exit={{ scale: 0.8, opacity: 0 }}
                           transition={{ type: "spring", stiffness: 520, damping: 28 }}
-                          className="relative flex h-2.5 w-2.5 items-center justify-center"
-                        >
-                          <motion.span
-                            animate={{
-                              scale: [1, 1.8, 1],
-                              opacity: [0.35, 0.1, 0.35],
-                            }}
-                            transition={{
-                              duration: 2,
-                              repeat: Infinity,
-                              ease: "easeInOut",
-                            }}
-                            className="absolute inset-0 rounded-full bg-current"
-                          />
-                          <span className="relative h-2.5 w-2.5 rounded-full bg-current" />
-                        </motion.div>
+                          // A still dot. It used to pulse forever — on every card someone
+                          // was working on, for as long as the list was open — and nothing
+                          // at rest may animate forever.
+                          className="h-2.5 w-2.5 rounded-full bg-current"
+                        />
                       )}
 
                       {/* IDLE + joinable + hovered: faint bolt hint */}
@@ -820,51 +836,49 @@ function TodoCardComponent({
 
                   {allowCollapse && (
                     <motion.button
+                      ref={collapseButtonRef}
                       type="button"
                       onMouseDown={(e) => e.stopPropagation()}
                       onMouseEnter={() => setIsControlHover(true)}
                       onMouseLeave={() => setIsControlHover(false)}
                       onClick={(e) => {
                         e.stopPropagation()
-                        void handleVisibilityToggle(true)
+                        void handleVisibilityToggle(true, true)
                       }}
-                      disabled={isVisibilityPending || isCompletionPending}
+                      aria-disabled={isVisibilityPending || isCompletionPending}
                       aria-busy={isVisibilityPending || isCompletionPending}
-                      whileHover={isVisibilityPending || isCompletionPending ? undefined : { scale: 1.2, rotate: 10 }}
-                      whileTap={isVisibilityPending || isCompletionPending ? undefined : { scale: 0.9 }}
+                      whileTap={isVisibilityPending || isCompletionPending ? undefined : TAP_PRESS}
                       className={cn(
-                        "touch-target h-6 w-6 flex items-center justify-center rounded-full border-[1.5px] border-line-strong text-ink-muted hover:text-ink hover:border-gray-500 hover:bg-gray-100 transition-[background-color,border-color,color,opacity,transform] shadow-sm",
+                        "touch-target flex h-7 w-7 items-center justify-center rounded-full text-ink-subtle transition-colors duration-fast hover:bg-paper-sunken hover:text-ink",
                         (isVisibilityPending || isCompletionPending) && "opacity-60 cursor-wait"
                       )}
                       aria-label="Collapse task card"
                       aria-expanded={!isCollapsed}
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-4 w-4" aria-hidden="true" />
                     </motion.button>
                   )}
                 </div>
 
                 {/* Body: all task content, grows with data */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex flex-col gap-2 mb-3">
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="flex items-center gap-2"
-                    >
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
                       <h3
                         className={cn(
-                          // pr-12 on phones reserves the lane the delete button occupies;
-                          // without it the first line was clipped mid-word.
-                          "font-bold tracking-tight leading-snug break-words transition-colors duration-slow ease-emphasized",
-                          canDelete && !isCollapsed && "pr-12 md:pr-0",
+                          // pr-10 on phones reserves the lane the delete button occupies;
+                          // without it the first line ran underneath it. Titles are shown in
+                          // full up to three lines — they used to be cut at 40 characters in
+                          // JavaScript ("battery for the smok…") whatever the card's width.
+                          "line-clamp-3 break-words text-body font-semibold leading-snug tracking-tight transition-colors duration-fast sm:text-title-sm",
+                          canDelete && !isCollapsed && "pr-10 md:pr-0",
                           isCompleting
-                            ? "text-title-sm md:text-title-sm text-ink-subtle line-through decoration-positive/70 decoration-2"
+                            ? "text-ink-subtle line-through decoration-positive/70 decoration-2"
                             : isCompleted
                               ? isReopening
-                                ? "text-body md:text-title-sm text-ink-muted"
-                                : "text-body md:text-title-sm text-ink-subtle group-hover/card:text-ink-muted"
-                              : "text-title-sm md:text-title-sm text-ink group-hover/card:text-ink"
+                                ? "text-ink-muted"
+                                : "text-ink-muted group-hover/card:text-ink"
+                              : "text-ink"
                         )}
                       >
                         {isCompleted && !isCompleting && !isReopening ? (
@@ -883,22 +897,17 @@ function TodoCardComponent({
                               "group-hover/card:[background-size:0%_2px] motion-reduce:transition-none",
                             )}
                           >
-                            {truncateText(todo.title, 40)}
+                            {todo.title}
                           </span>
                         ) : (
-                          truncateText(todo.title, 40)
+                          todo.title
                         )}
                       </h3>
-                    </motion.div>
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.05 }}
-                      className="flex items-center gap-2 flex-wrap"
-                    >
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
                       {!isCompleted && todo.categoryName && (
-                        <span className="text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-gray-100 text-ink-muted whitespace-nowrap shadow-sm border border-line/80 hover:border-line-strong transition-[color,background-color,border-color,opacity,transform,box-shadow]">
-                          {truncateText(todo.categoryName, 12)}
+                        <span className={cn(CHIP_CLASS, "max-w-40")}>
+                          <span className="truncate">{todo.categoryName}</span>
                         </span>
                       )}
                       {!isCompleted && <PriorityMeter value={priorityConfig.num} size="sm" />}
@@ -924,17 +933,10 @@ function TodoCardComponent({
                         />
                       )}
                       {showShareBadge && !isOwner && (
-                        <motion.span
-                          initial={{ scale: 0.9, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          className={cn(
-                            "text-caption font-bold px-2.5 py-1 rounded-md uppercase tracking-wider bg-paper-sunken text-ink-muted whitespace-nowrap shadow-sm border border-line flex items-center gap-1 hover:shadow-md transition-[color,background-color,border-color,opacity,transform,box-shadow]",
-                            isPublicName && "normal-case tracking-normal"
-                          )}
-                        >
-                          <Share2 className="h-3 w-3" aria-hidden="true" />
-                          {publicBadgeLabel}
-                        </motion.span>
+                        <span className={cn(CHIP_CLASS, "max-w-48")}>
+                          <Share2 className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                          <span className="truncate">{publicBadgeLabel}</span>
+                        </span>
                       )}
                       {(todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) && !isCompleted && (() => {
                         const fc = todo.sharedWithUserIds?.length ?? 0
@@ -946,96 +948,58 @@ function TodoCardComponent({
                           : fc > 0 ? fc + 1 : null
                         const label = slots != null ? `${joined}/${slots}` : `${joined}`
                         return (
-                          <motion.span
+                          <span
                             key="workers-badge"
-                            initial={{ scale: 0.82, opacity: 0, y: 3 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            transition={{ type: "spring", stiffness: 480, damping: 26, delay: 0.06 }}
                             className={cn(
-                              "text-caption px-2.5 py-1 rounded-md whitespace-nowrap shadow-sm border flex items-center gap-1 transition-[background-color,border-color,color,box-shadow] duration-slow",
-                              isEffectivelyWorking
-                                ? "font-bold bg-accent-surface text-accent border-accent-surface/70 ring-1 ring-accent-surface/50"
-                                : "font-semibold bg-gray-50 text-ink-subtle border-line"
+                              CHIP_CLASS,
+                              "transition-colors duration-base",
+                              isEffectivelyWorking && "border-accent/30 bg-accent-surface text-accent"
                             )}
                           >
-                            <Users className="h-3 w-3 flex-shrink-0" />
-                            <span className="font-bold tabular-nums tracking-tight">{label}</span>
-                            <AnimatePresence>
-                              {isEffectivelyWorking && (
-                                <motion.span
-                                  key="you"
-                                  initial={{ opacity: 0, maxWidth: 0 }}
-                                  animate={{ opacity: 1, maxWidth: "2.5rem" }}
-                                  exit={{ opacity: 0, maxWidth: 0 }}
-                                  transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
-                                  className="overflow-hidden text-accent font-bold"
-                                >
-                                  &nbsp;· you
-                                </motion.span>
-                              )}
-                            </AnimatePresence>
-                          </motion.span>
+                            <Users className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                            <span className="tabular-nums">{label}</span>
+                            {/* No width animation: it animated `max-width`, a layout property,
+                                and pushed every chip after it sideways frame by frame. */}
+                            {isEffectivelyWorking ? <span className="animate-fade-in">· you</span> : null}
+                          </span>
                         )
                       })()}
-                    </motion.div>
+                    </div>
                   </div>
                   {!isCompleted && todo.description && (
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.1 }}
-                      className="text-body-sm md:text-body text-ink-muted line-clamp-2 leading-relaxed font-medium break-words mt-2 group-hover/card:text-ink transition-colors duration-slow ease-emphasized"
-                    >
-                      {truncateText(todo.description, 80)}
-                    </motion.p>
+                    <p className="mt-3 line-clamp-2 break-words text-body-sm text-ink-muted">{todo.description}</p>
                   )}
                   {(isDueOverdue || (todo.dueDate && !isCompleted)) && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.15 }}
-                      className="flex items-center gap-1.5 text-caption font-medium mt-2.5"
-                    >
-                      <Calendar className="h-3 w-3 flex-shrink-0 text-ink-subtle" />
-                      {hasDueRange ? (
-                        // hasDueRange guarantees both bounds are set, so the assertions are safe.
-                        <span className="flex items-center gap-1 text-ink">
-                          <span>{formatDate(todo.dueDateStart!)}</span>
-                          <span className="text-ink-subtle">→</span>
-                          <span>{formatDate(todo.dueDate!)}</span>
-                        </span>
-                      ) : (
-                        <span className="text-ink">{formatDate(todo.dueDate || "")}</span>
-                      )}
-                      {isDueOverdue && (
-                        <span className="font-bold uppercase text-caption tracking-wider ml-1 text-alert self-center leading-none">
-                          · Overdue
-                        </span>
-                      )}
-                    </motion.div>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption font-medium">
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-ink-muted">
+                        <Calendar className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                        {hasDueRange ? (
+                          // hasDueRange guarantees both bounds are set, so the assertions are safe.
+                          <span className="tabular-nums text-ink">
+                            {formatDate(todo.dueDateStart!)} – {formatDate(todo.dueDate!)}
+                          </span>
+                        ) : (
+                          <span className="tabular-nums text-ink">{formatDate(todo.dueDate || "")}</span>
+                        )}
+                      </span>
+                      {isDueOverdue && <span className="whitespace-nowrap font-semibold text-alert">Overdue</span>}
+                    </div>
                   )}
                   {!isCompleted && (todo.expectedDate || todo.delay) && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                      className="flex items-center gap-3 mt-4 pt-4 border-t border-line/50"
-                    >
+                    <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
                       {todo.expectedDate && (
-                        <div className="flex items-center gap-1.5 text-caption font-bold text-ink-subtle bg-paper-sunken px-2 py-1 rounded-md border border-line/60">
-                          <Clock className="h-3 w-3" />
-                          <span>EXP: {formatDate(todo.expectedDate)}</span>
-                        </div>
+                        <span className={CHIP_CLASS}>
+                          <Clock className="h-3 w-3" aria-hidden="true" />
+                          <span className="tabular-nums">Expected {formatDate(todo.expectedDate)}</span>
+                        </span>
                       )}
                       {todo.delay && (
-                        <div
-                          className="flex items-center gap-1.5 text-caption font-bold text-warn bg-warn-surface px-2 py-1 rounded-md border border-warn/30 shadow-sm"
-                        >
-                          <AlertTriangle className="h-3 w-3" />
+                        <span className={cn(CHIP_CLASS, "border-warn/30 bg-warn-surface text-warn")}>
+                          <AlertTriangle className="h-3 w-3" aria-hidden="true" />
                           <span>{todo.delay} delay</span>
-                        </div>
+                        </span>
                       )}
-                    </motion.div>
+                    </div>
                   )}
                 </div>
               </div>
