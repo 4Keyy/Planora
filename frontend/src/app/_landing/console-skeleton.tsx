@@ -11,7 +11,7 @@ import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
  */
 export function ConsoleSkeleton() {
   return (
-    <div aria-hidden="true" className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-10">
+    <div aria-hidden="true" className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-10">
       <div className="flex flex-col gap-3">
         <TodoSkeleton />
         <TodoSkeleton />

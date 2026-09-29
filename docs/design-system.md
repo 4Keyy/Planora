@@ -364,6 +364,13 @@ Units matter: `useSpring` given a string such as `"8%"` parses the number and dr
 the band travelled 8px instead of a third of its width. Spring the number, then template the
 unit on with `useMotionTemplate`.
 
+**Centring and moving are two nodes, never one.** framer-motion writes the whole `transform`
+of anything it animates, so a `-translate-x-1/2 -translate-y-1/2` on the same node is gone on
+the first frame of an `x`, a `y` or a `scale`. The landing page had it three times: the viewer
+block's signal dot ran half its own height below its line, and the hero's seats and the branch
+story's step circle would have jumped off centre on their first hover. A static wrapper does the
+centring; the node inside it does the moving.
+
 The app routes do not use this class. A list you work in should not move because you scrolled
 it (§ 9.12).
 

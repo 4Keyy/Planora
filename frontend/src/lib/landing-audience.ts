@@ -5,11 +5,10 @@ import type { Audience } from "@/components/ui/redaction-badge"
  * part that can be wrong in an interesting way is testable. `src/app/**` is excluded
  * from the coverage gate (`vitest.config.ts`); `src/lib/**` is not.
  *
- * The product can never reach `public`: the editor writes `isPublic: false` on every
- * save (`components/todos/edit-todo-modal/utils.ts`), and no route serves a task to an
- * anonymous reader. So this function's range is deliberately `private | shared` — and
- * over that range the redaction arc is monotone, which is the whole point of showing it.
- * Returning `public` here would be the landing page's one outright lie.
+ * The range is deliberately `private | shared`: a count of named people never reaches
+ * `public`. Public is the share picker's "All friends" — a setting of its own, not a
+ * number — so the landing page reaches it through a switch, never through this function.
+ * Over this range the redaction arc is monotone, which is the whole point of showing it.
  */
 export function deriveAudience(viewerCount: number): Audience {
   return normalizeViewerCount(viewerCount) === 0 ? "private" : "shared"
@@ -63,12 +62,19 @@ export function ceilingCaption(viewerCount: number): string {
 }
 
 /**
+ * The sentence for the all-friends setting. It has to say the second half out loud,
+ * because "public" is the word people use for the open internet: every friend you have
+ * accepted can open the task, and nobody else can — there is no link to pass around.
+ */
+export const ALL_FRIENDS_CAPTION =
+  "All your friends can open it, and the ring closes. Nobody outside your friends can."
+
+/**
  * Which way of reading the ring applies at this count — the legend row that is lit.
  *
- * The range is three states, not four. `public` is in the legend because a visitor who
- * has learned the other three will ask what a closed ring means, but no count reaches it:
- * the product has no public link and no publish button, and the type says so here, where
- * a slip would otherwise light a row the product can never show.
+ * The range is three states, not four. `public` has a legend row too, but no count
+ * reaches it: it is "All friends", a setting beside the count rather than a stop on it,
+ * and the type says so here, where a slip would otherwise light it from the slider.
  */
 export type RingReading = "private" | "shared" | "ceiling"
 

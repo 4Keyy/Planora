@@ -452,13 +452,13 @@ function AutosaveProof() {
           <span className="flex items-baseline gap-1.5">
             Keys
             <span className="text-body font-bold normal-case tracking-normal text-ink">
-              <NumberRoll value={keys} minDigits={2} />
+              <NumberRoll value={keys} minDigits={2} align="start" />
             </span>
           </span>
           <span className="flex items-baseline gap-1.5">
             Saves
             <span className="text-body font-bold normal-case tracking-normal text-ink">
-              <NumberRoll value={saves} minDigits={2} />
+              <NumberRoll value={saves} minDigits={2} align="start" />
             </span>
           </span>
         </span>
@@ -527,7 +527,7 @@ function DeliveryProof() {
             animate={phase === "delivered" && !reduce ? { scale: [1, 1.12, 1] } : { scale: 1 }}
             transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
           >
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-ink text-caption font-bold text-paper ring-2 ring-paper">D</span>
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-ink text-caption font-bold text-paper ring-2 ring-paper">V</span>
             <span className="-ml-2 grid h-8 w-8 place-items-center rounded-full bg-ink text-caption font-bold text-paper ring-2 ring-paper">T</span>
           </motion.span>
         </Node>
@@ -768,7 +768,7 @@ function PasswordProof() {
           <div>
             <p className="flex items-baseline gap-1.5 text-ink">
               <span className="text-display-sm font-bold tracking-tight">
-                <NumberRoll value={Number(formatMs(ms))} minDigits={3} />
+                <NumberRoll value={Number(formatMs(ms))} minDigits={3} align="start" />
               </span>
               <span className="text-body-sm font-semibold text-ink-muted">ms for one guess</span>
             </p>

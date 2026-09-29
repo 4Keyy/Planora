@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useMotionValueEvent, useReducedMotion, useScroll } from "framer-motion"
+import { useMotionValueEvent, useScroll } from "framer-motion"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
+import { NumberRoll } from "@/components/ui/number-roll"
 import { deriveAudience, SHARING_CEILING } from "@/lib/landing-audience"
 
 /**
@@ -56,7 +57,6 @@ function viewersAt(progress: number): number {
 }
 
 export function AudienceSpine() {
-  const reduce = useReducedMotion() ?? false
   const { scrollYProgress } = useScroll()
   const [viewers, setViewers] = useState(0)
   const current = useRef(0)
@@ -70,7 +70,7 @@ export function AudienceSpine() {
   })
 
   // Under reduced motion the mark is still correct and still informative — it just does
-  // not animate between steps, which `RedactionBadge` handles via the global MotionConfig.
+  // not animate between steps, which `RedactionBadge` and `NumberRoll` handle themselves.
   // `MotionConfig` cannot reach a MotionValue we compute ourselves, so the subscription
   // above stays; it is cheap and it keeps the mark honest rather than frozen at zero.
   const [mounted, setMounted] = useState(false)
@@ -79,20 +79,21 @@ export function AudienceSpine() {
 
   return (
     <div
-      // Desktop only: at 390px the page needs its gutters for the content, and a floating
-      // mark in the thumb arc would sit on top of the controls it is describing.
-      className="pointer-events-none fixed bottom-6 right-6 z-sticky hidden lg:block"
+      // Only where it fits in the page's right-hand margin: from 1280px the margin beside
+      // `container-app` is 96px, and the mark with its count is at most 72px wide at
+      // right-6. It used to be a 218px pill ("Shared 2 · follows the page") shown from
+      // 1024px, which sat on top of the content column's right edge at every width up to
+      // about 1700px — on cards, on the trust lab's buttons, on the footer's links.
+      className="pointer-events-none fixed bottom-6 right-6 z-sticky hidden xl:block"
       aria-hidden="true"
     >
-      <div className="flex items-center gap-3 rounded-full border border-line bg-paper/90 px-4 py-2.5 shadow-sm backdrop-blur-sm">
-        <RedactionBadge
-          audience={deriveAudience(viewers)}
-          viewerCount={viewers}
-          size="sm"
-        />
-        <span className="text-caption text-ink-muted">
-          {reduce ? "who can see it" : "follows the page"}
-        </span>
+      <div className="flex h-10 min-w-10 items-center justify-center gap-2 rounded-full border border-line bg-paper/90 px-3 shadow-sm backdrop-blur-sm">
+        <RedactionBadge audience={deriveAudience(viewers)} viewerCount={viewers} showLabel={false} />
+        {viewers > 0 && (
+          <span className="text-caption font-semibold tabular-nums text-ink">
+            <NumberRoll value={viewers} />
+          </span>
+        )}
       </div>
     </div>
   )

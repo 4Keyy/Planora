@@ -25,9 +25,9 @@ const VIEWER_ID = "fx-viewer"
 /**
  * Block 3 — two lists, one task.
  *
- * Dana shares a task with you. Both copies are the shipped `TodoCard`, and every control on
+ * Victoria shares a task with you. Both copies are the shipped `TodoCard`, and every control on
  * them is wired: your card's own check circle ticks it off for you, its eye button hides it,
- * and Dana's card's circle finishes it for everyone. The buttons under each list do the same
+ * and Victoria's card's circle finishes it for everyone. The buttons under each list do the same
  * things for anyone who would rather not hunt for a circle.
  *
  * It used to set `isCompletedByViewer` on the todo — a field `TodoCard` never reads, since it
@@ -83,15 +83,12 @@ export function ViewerSide() {
 
   return (
     <div>
-      <p className="max-w-2xl text-body text-ink-muted">
-        Dana shared a task with you. Tick it off, hide it, then let Dana finish it, and watch both
-        lists.
-      </p>
-
-      <div className="mt-10 grid grid-cols-1 items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] lg:gap-0">
+      {/* The instruction lives in the section, under its heading, in the same place as every
+          other block's; the board starts where every other block's content starts. */}
+      <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)] lg:gap-0">
         <Screen
-          who="Dana's list"
-          initial="D"
+          who="Victoria's list"
+          initial="V"
           status={ownerStatus(state)}
           card={
             <TodoCard
@@ -110,7 +107,7 @@ export function ViewerSide() {
               onClick={() => dispatch({ type: "owner-toggle-done" })}
               aria-pressed={state.ownerDone}
             >
-              {state.ownerDone ? "Let Dana reopen it" : "Let Dana finish it"}
+              {state.ownerDone ? "Let Victoria reopen it" : "Let Victoria finish it"}
             </Button>
           }
         />
@@ -232,47 +229,69 @@ function StatusPill({ status }: { status: StatusLabel }) {
 /**
  * The line between the two lists, and a dot that shows where the last change went.
  *
- * Your tick leaves your list and stops against a bar halfway: it stays with you. Dana
+ * Your tick leaves your list and stops against a bar halfway: it stays with you. Victoria
  * finishing the task crosses all the way over. Transform only; under reduced motion the dot
  * is not drawn and the sentence carries the fact alone.
+ *
+ * Each dot is centred on the track by a static wrapper and moved by the node inside it.
+ * The dot used to carry both jobs, and framer-motion writes the whole `transform`: the
+ * first frame of `x` replaced the `-translate-y-1/2` that centred it, so every dot ran half
+ * its own height below the line. The stop is the wall's near edge, not its centre, so a
+ * refused change meets the bar instead of sinking into it.
  */
+const DOT = 10
+/** The side-by-side track is the 96px middle column; the stacked one is h-14. */
+const TRACK_X = 96
+const TRACK_Y = 56
+/** The wall is 4px thick, centred on the track. */
+const WALL_HALF = 2
+
 function SignalLine({ signal, seq }: { signal: Signal; seq: number }) {
   const reduce = useReducedMotion() ?? false
+  const crossing = signal === "owner-to-viewer"
+  const travel = { duration: DURATION_DELIBERATE, ease: EASE_STANDARD, times: [0, 0.7, 1] }
 
   return (
     <div aria-hidden="true" className="relative flex h-14 items-center justify-center lg:h-auto">
       {/* The track: vertical between stacked screens, horizontal between side-by-side ones. */}
       <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-line-strong lg:hidden" />
       <span className="absolute inset-x-0 top-1/2 hidden h-px -translate-y-1/2 bg-line-strong lg:block" />
-      {/* The wall, halfway: what stops a viewer's change. */}
-      <span className="absolute left-1/2 top-1/2 h-1 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink-faint lg:h-6 lg:w-1" />
+      {/* The wall, halfway: what stops a viewer's change. It gives a little when one lands. */}
+      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <motion.span
+          key={`wall-${signal === "stays-with-viewer" ? seq : "rest"}`}
+          className="block h-1 w-6 rounded-full bg-ink-subtle lg:h-6 lg:w-1"
+          animate={signal === "stays-with-viewer" && !reduce ? { scale: [1, 1, 1.35, 1] } : { scale: 1 }}
+          transition={{ duration: DURATION_DELIBERATE, times: [0, 0.62, 0.72, 1], ease: EASE_STANDARD }}
+        />
+      </span>
 
       {!reduce && (
         <AnimatePresence>
           {signal && (
             <>
-              <motion.span
-                key={`x-${seq}`}
-                className="absolute left-0 top-1/2 hidden h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-ink lg:block"
-                initial={signal === "owner-to-viewer" ? { x: 0, opacity: 1 } : { x: 86, opacity: 1 }}
-                animate={
-                  signal === "owner-to-viewer"
-                    ? { x: 86, opacity: [1, 1, 0] }
-                    : { x: 50, opacity: [1, 1, 0] }
-                }
-                transition={{ duration: DURATION_DELIBERATE, ease: EASE_STANDARD, times: [0, 0.7, 1] }}
-              />
-              <motion.span
-                key={`y-${seq}`}
-                className="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-ink lg:hidden"
-                initial={signal === "owner-to-viewer" ? { y: 0, opacity: 1 } : { y: 46, opacity: 1 }}
-                animate={
-                  signal === "owner-to-viewer"
-                    ? { y: 46, opacity: [1, 1, 0] }
-                    : { y: 26, opacity: [1, 1, 0] }
-                }
-                transition={{ duration: DURATION_DELIBERATE, ease: EASE_STANDARD, times: [0, 0.7, 1] }}
-              />
+              <span key={`x-${seq}`} className="absolute inset-x-0 top-1/2 hidden h-2.5 -translate-y-1/2 lg:block">
+                <motion.span
+                  className="absolute left-0 top-0 h-2.5 w-2.5 rounded-full bg-ink"
+                  initial={{ x: crossing ? 0 : TRACK_X - DOT, opacity: 1 }}
+                  animate={{
+                    x: crossing ? TRACK_X - DOT : TRACK_X / 2 + WALL_HALF,
+                    opacity: [1, 1, 0],
+                  }}
+                  transition={travel}
+                />
+              </span>
+              <span key={`y-${seq}`} className="absolute inset-y-0 left-1/2 w-2.5 -translate-x-1/2 lg:hidden">
+                <motion.span
+                  className="absolute left-0 top-0 h-2.5 w-2.5 rounded-full bg-ink"
+                  initial={{ y: crossing ? 0 : TRACK_Y - DOT, opacity: 1 }}
+                  animate={{
+                    y: crossing ? TRACK_Y - DOT : TRACK_Y / 2 + WALL_HALF,
+                    opacity: [1, 1, 0],
+                  }}
+                  transition={travel}
+                />
+              </span>
             </>
           )}
         </AnimatePresence>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { Check, Plus } from "lucide-react"
+import { Check, Minus, Plus } from "lucide-react"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
 import { Avatar } from "@/components/ui/avatar"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
@@ -29,7 +29,7 @@ import { AudienceRing } from "./audience-ring"
  * Block 1 — who's in on this task.
  *
  * One concrete task where who sees it obviously matters: a surprise party for Mira. You
- * share it with Dana and Tom. Adding Mira is allowed, and the card says what that does to
+ * share it with Victoria and Tom. Adding Mira is allowed, and the card says what that does to
  * the surprise — which is the product's whole idea (a task carries its audience) learned in
  * one tap, with a smile rather than a paragraph.
  *
@@ -46,15 +46,22 @@ import { AudienceRing } from "./audience-ring"
  *   text below the contrast floor, whatever `aria-hidden` says.
  * - **The sentence is the block's one live region**, reserved at two lines, so the card's
  *   height is decided by the viewport and never by who is selected.
+ * - **The seats are pressable, and the chips stay the control.** A plus on an empty seat is
+ *   an invitation, and a visitor who presses it expects that person to join; the seat used
+ *   to be a picture of a button that did nothing. The seats are pointer targets only
+ *   (`tabIndex={-1}` inside the `aria-hidden` stage): the chips below carry the same
+ *   toggle with its name and pressed state, so the keyboard and a screen reader get it
+ *   once, where it is labelled.
  * - **The stage is `aria-hidden`.** It restates the sentence as a picture; a screen reader
  *   gets the sentence once and the toggles with their pressed state.
- * - **The hint is bounded.** If nobody has pressed anything after a moment, the first chip
- *   nudges twice and stops for good. Nothing on this card moves at rest after that.
+ * - **The hint is bounded.** If nobody has pressed anything after a moment, the first
+ *   seat's plus sends out two rings and stops for good. Nothing on this card moves at rest
+ *   after that.
  */
 
 /** Seat centres on the stage, in percent of its width and height. */
 const SEAT_POS: Record<SeatId, { x: number; y: number }> = {
-  dana: { x: 16, y: 30 },
+  victoria: { x: 16, y: 30 },
   tom: { x: 84, y: 30 },
   mira: { x: 50, y: 80 },
 }
@@ -82,10 +89,11 @@ export function AudienceConsole() {
   const toggle = (id: SeatId) => {
     setTouched(true)
     setHint(false)
-    const on = selected.includes(id)
     // Outside the updater: updaters must be pure, and StrictMode runs them twice.
-    if (!on && id === SURPRISE_FOR) setWobble((w) => w + 1)
-    setSelected(on ? selected.filter((x) => x !== id) : [...selected, id])
+    if (!selected.includes(id) && id === SURPRISE_FOR) setWobble((w) => w + 1)
+    // From the latest selection, not this render's: a seat and a chip pressed inside one
+    // frame both land, where the second used to overwrite the first.
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
   return (
@@ -100,7 +108,14 @@ export function AudienceConsole() {
         </span>
       </div>
 
-      <Stage selected={selected} wobble={wobble} reduce={reduce} />
+      <Stage
+        selected={selected}
+        wobble={wobble}
+        reduce={reduce}
+        hint={hint}
+        onToggle={toggle}
+        onHintDone={() => setHint(false)}
+      />
 
       <p
         aria-live="polite"
@@ -127,20 +142,19 @@ export function AudienceConsole() {
         Share with
       </p>
       <div role="group" aria-labelledby="hero-share-with" className="mt-3 flex flex-wrap gap-2">
-        {CIRCLE_SEATS.map((seat, i) => {
+        {CIRCLE_SEATS.map((seat) => {
           const on = selected.includes(seat.id)
           return (
             <motion.button
               key={seat.id}
               type="button"
               onClick={() => toggle(seat.id)}
+              // Named outright: an sr-only "Share with " prefix lost its trailing space in
+              // the accessible name ("Share withVictoria"), and the avatar's initials are
+              // not part of the name at all.
+              aria-label={`Share with ${seat.firstName}`}
               aria-pressed={on}
               whileTap={reduce ? undefined : TAP_PRESS}
-              animate={hint && i === 0 ? { y: [0, -3, 0, -3, 0] } : { y: 0 }}
-              transition={hint && i === 0 ? { duration: 1.1, ease: "easeInOut" } : { duration: DURATION_FAST }}
-              onAnimationComplete={() => {
-                if (hint && i === 0) setHint(false)
-              }}
               className={cn(
                 "relative inline-flex min-h-control items-center gap-2 rounded-full border py-1 pl-1.5 pr-4",
                 "text-body-sm font-semibold transition-colors duration-fast",
@@ -149,21 +163,9 @@ export function AudienceConsole() {
                   : "border-line-strong bg-paper text-ink hover:bg-paper-sunken"
               )}
             >
-              {hint && i === 0 && (
-                <motion.span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 rounded-full border-2 border-ink"
-                  initial={{ scale: 1, opacity: 0.35 }}
-                  animate={{ scale: 1.25, opacity: 0 }}
-                  transition={{ duration: 0.55, ease: EASE_OUT_EXPO, repeat: 1 }}
-                />
-              )}
-              {/* aria-hidden: the initials would otherwise open the accessible name — "DW Share
-                  with Dana". */}
               <span aria-hidden="true" className="inline-flex">
                 <Avatar firstName={seat.firstName} lastName={seat.lastName} size={32} />
               </span>
-              <span className="sr-only">Share with </span>
               {seat.firstName}
               <span aria-hidden="true" className="grid h-4 w-4 place-items-center">
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -198,8 +200,26 @@ export function AudienceConsole() {
  * Lines are laid out in pixels from the stage's measured width, so they meet the ring's
  * edge and the seat's edge exactly at every viewport. Before the first measurement there
  * are no lines, which is also the correct picture of a private task.
+ *
+ * A seat's CIRCLE is what sits on its coordinates. The name used to share a centred
+ * column with it, which put the circle 10px above the point every line was aimed at; the
+ * name now hangs below the circle, outside the box that is centred.
  */
-function Stage({ selected, wobble, reduce }: { selected: SeatId[]; wobble: number; reduce: boolean }) {
+function Stage({
+  selected,
+  wobble,
+  reduce,
+  hint,
+  onToggle,
+  onHintDone,
+}: {
+  selected: SeatId[]
+  wobble: number
+  reduce: boolean
+  hint: boolean
+  onToggle: (id: SeatId) => void
+  onHintDone: () => void
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
 
@@ -279,18 +299,56 @@ function Stage({ selected, wobble, reduce }: { selected: SeatId[]; wobble: numbe
         </AudienceRing>
       </div>
 
-      {CIRCLE_SEATS.map((seat) => {
+      {CIRCLE_SEATS.map((seat, i) => {
         const on = selected.includes(seat.id)
         const isSurprise = seat.id === SURPRISE_FOR
+        const hinting = hint && i === 0 && !on
         return (
+          // Positioned by this wrapper, pressed on the button inside it: framer-motion
+          // writes the whole `transform`, so a scale on the positioned node would wipe
+          // out its -50% centring on the first frame of a hover.
           <div
             key={seat.id}
-            className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+            className="absolute -translate-x-1/2 -translate-y-1/2"
             style={{ left: `${SEAT_POS[seat.id].x}%`, top: `${SEAT_POS[seat.id].y}%` }}
           >
-            <div className="relative grid h-12 w-12 place-items-center">
-              <span className="absolute inset-0 grid place-items-center rounded-full border-2 border-dashed border-line-strong">
-                <Plus className="h-4 w-4 text-ink-subtle" />
+            <motion.button
+              type="button"
+              tabIndex={-1}
+              // Named although the picture is aria-hidden: a pointer target with no name is
+              // still a control nobody can describe, and the scan counts it as one.
+              aria-label={on ? `Remove ${seat.firstName}` : `Add ${seat.firstName}`}
+              onClick={() => onToggle(seat.id)}
+              whileHover={reduce ? undefined : { scale: 1.06 }}
+              whileTap={reduce ? undefined : TAP_PRESS}
+              className={cn(
+                "group relative grid h-12 w-12 cursor-pointer place-items-center rounded-full",
+                // The name below the circle is part of the target: people aim at the word.
+                "after:absolute after:-inset-x-4 after:-bottom-7 after:-top-2 after:content-['']"
+              )}
+            >
+              {hinting && (
+                <motion.span
+                  className="pointer-events-none absolute inset-0 rounded-full border-2 border-ink"
+                  initial={{ scale: 1, opacity: 0.5 }}
+                  animate={{ scale: 1.6, opacity: 0 }}
+                  transition={{ duration: 0.9, ease: EASE_OUT_EXPO, repeat: 1, repeatDelay: 0.2 }}
+                  onAnimationComplete={onHintDone}
+                />
+              )}
+              <span
+                className={cn(
+                  "absolute inset-0 grid place-items-center rounded-full border-2 border-dashed bg-paper-sunken",
+                  "transition-colors duration-fast group-hover:border-solid group-hover:border-ink group-hover:bg-paper",
+                  hinting ? "border-ink" : "border-line-strong"
+                )}
+              >
+                <Plus
+                  className={cn(
+                    "h-4 w-4 transition-colors duration-fast group-hover:text-ink",
+                    hinting ? "text-ink" : "text-ink-subtle"
+                  )}
+                />
               </span>
               <AnimatePresence initial={false}>
                 {on && (
@@ -311,11 +369,17 @@ function Stage({ selected, wobble, reduce }: { selected: SeatId[]; wobble: numbe
                     }
                   >
                     <Avatar firstName={seat.firstName} lastName={seat.lastName} size={48} />
+                    {/* Pressing a person again lets them out: the minus says so before the press. */}
+                    <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-paper-sunken bg-ink text-paper opacity-0 transition-opacity duration-fast group-hover:opacity-100">
+                      <Minus className="h-3 w-3" strokeWidth={3} />
+                    </span>
                   </motion.span>
                 )}
               </AnimatePresence>
-            </div>
-            <span className="mt-1 text-caption font-semibold text-ink-muted">{seat.firstName}</span>
+            </motion.button>
+            <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-caption font-semibold text-ink-muted">
+              {seat.firstName}
+            </span>
           </div>
         )
       })}

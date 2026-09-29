@@ -20,7 +20,7 @@ export interface ViewerState {
   viewerDone: boolean
   viewerHidden: boolean
   ownerDone: boolean
-  /** Dana folding the card away on her own screen — hers alone, like yours. */
+  /** Victoria folding the card away on her own screen — hers alone, like yours. */
   ownerHidden: boolean
   /** What the last action did — drives the sentence and the signal. */
   last: ViewerEvent | null
@@ -119,21 +119,21 @@ export function ownerStatus(state: ViewerState): StatusLabel {
 }
 
 const SENTENCES: Record<ViewerEvent, string> = {
-  "viewer-done": "You ticked it off. Dana's list is unchanged.",
-  "viewer-reopened": "You reopened it for yourself. That's allowed while Dana hasn't finished it.",
-  "viewer-refused": "Dana finished it for everyone, so only Dana can reopen it now.",
+  "viewer-done": "You ticked it off. Victoria's list is unchanged.",
+  "viewer-reopened": "You reopened it for yourself. That's allowed while Victoria hasn't finished it.",
+  "viewer-refused": "Victoria finished it for everyone, so only Victoria can reopen it now.",
   "viewer-hidden": "You hid it. The server stops sending you its title.",
   "viewer-shown": "It's back in your list, title and all.",
-  "owner-done": "Dana finished it, so it's done for everyone, you included.",
-  "owner-reopened": "Dana reopened it. Your list goes back to your own tick.",
-  "owner-hidden": "Dana folded it away on her screen. Yours doesn't change.",
-  "owner-shown": "Dana unfolded it again. Still nothing changes on your side.",
-  "owner-delete-note": "Only Dana can delete it. If she did, it would leave your list too.",
+  "owner-done": "Victoria finished it, so it's done for everyone, you included.",
+  "owner-reopened": "Victoria reopened it. Your list goes back to your own tick.",
+  "owner-hidden": "Victoria folded it away on her screen. Yours doesn't change.",
+  "owner-shown": "Victoria unfolded it again. Still nothing changes on your side.",
+  "owner-delete-note": "Only Victoria can delete it. If she did, it would leave your list too.",
   "open-note": "In the app, pressing a card opens its branch: the task's own timeline.",
   reset: "Back to the start.",
 }
 
-export const IDLE_SENTENCE = "Try it on your side first. Dana's list won't budge."
+export const IDLE_SENTENCE = "Try it on your side first. Victoria's list won't budge."
 
 export function sentenceFor(event: ViewerEvent | null): string {
   return event ? SENTENCES[event] : IDLE_SENTENCE

@@ -74,7 +74,7 @@ describe("buildTodo", () => {
 
   it("dresses the card with a date, a category, an audience and a note", () => {
     const todo = buildTodo(
-      { ...INITIAL_BUILDER, when: "next-week", category: "home", share: ["dana", "tom"], note: true },
+      { ...INITIAL_BUILDER, when: "next-week", category: "home", share: ["victoria", "tom"], note: true },
       friday,
     )
     expect(todo.dueDateStart).not.toBeNull()

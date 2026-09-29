@@ -177,7 +177,7 @@ export function KeyboardConsole() {
   })
 
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-10">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-10">
       <div>
         {loading ? (
           // Reserving the real card footprint, so the swap costs no layout shift.
@@ -303,7 +303,10 @@ function useLitKey({ enabled, rowKeysLive }: { enabled: boolean; rowKeysLive: bo
 function LegendRow({ keys, does, lit }: { keys: LegendKey; does: string; lit: boolean }) {
   const reduce = useReducedMotion() ?? false
   return (
-    <div className="flex h-7 items-center justify-between gap-4">
+    // Keys in one column, what they do in the next, both left-aligned: a table the eye can
+    // run down. The descriptions used to be pushed to the far right, a ragged edge with a
+    // gap as wide as the column between each key and its meaning.
+    <div className="grid h-7 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3">
       <dt>
         <motion.kbd
           aria-hidden="true"

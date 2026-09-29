@@ -99,7 +99,7 @@ describe("explanations", () => {
       expect(after).toMatchObject({ viewerDone: true, viewerHidden: false, ownerDone: false })
       expect(after.seq).toBe(before.seq + 1)
     }
-    expect(sentenceFor("owner-delete-note")).toContain("Only Dana can delete it")
+    expect(sentenceFor("owner-delete-note")).toContain("Only Victoria can delete it")
     expect(sentenceFor("open-note")).toContain("opens its branch")
   })
 })
@@ -107,8 +107,8 @@ describe("explanations", () => {
 describe("words and signals", () => {
   it("says something true for every event, and invites a first move at rest", () => {
     expect(sentenceFor(null)).toBe(IDLE_SENTENCE)
-    expect(sentenceFor("viewer-done")).toContain("Dana's list is unchanged")
-    expect(sentenceFor("viewer-refused")).toContain("only Dana can reopen")
+    expect(sentenceFor("viewer-done")).toContain("Victoria's list is unchanged")
+    expect(sentenceFor("viewer-refused")).toContain("only Victoria can reopen")
     expect(sentenceFor("viewer-hidden")).toContain("stops sending you its title")
   })
 

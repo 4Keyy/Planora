@@ -11,6 +11,7 @@ import { ClosingRing } from "./_landing/closing-ring"
 import { Parallax } from "./_landing/parallax"
 import { HorizontalBand, StaggerItem } from "./_landing/scroll-kit"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
+import { Kbd } from "@/components/ui/shortcuts-overlay"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
 import { InkCheck } from "@/components/ui/ink-check"
 import { buttonVariants } from "@/components/ui/button"
@@ -151,7 +152,7 @@ function SectionHead({
         <p className={cn(FIELD_LABEL_CLASS, tone === "dark" && "text-paper-subtle")}>{eyebrow}</p>
         <h2
           className={cn(
-            "mt-3 font-bold tracking-tight",
+            "mt-3 text-balance font-bold tracking-tight",
             size === "display" ? "text-display-sm sm:text-display" : "text-display-sm",
             tone === "dark" ? "text-paper" : "text-ink"
           )}
@@ -184,10 +185,10 @@ export default function HomePage() {
               {/* The one `hero` on the page. It steps down at narrow widths because 64px
                   at 390 is about six characters a line — a heading that has become a
                   column of hyphens. */}
-              <h1 className="mt-5 text-display-sm font-bold tracking-tight text-ink sm:text-display lg:text-hero">
+              <h1 className="mt-5 text-balance text-display-sm font-bold tracking-tight text-ink sm:text-display lg:text-hero">
                 Every task carries the list of people who can see it.
               </h1>
-              <p className="mt-7 max-w-xl text-body text-ink-muted">
+              <p className="mt-7 max-w-xl text-pretty text-body text-ink-muted">
                 Share a task with the people it&rsquo;s for, and only them. Every person you add
                 opens the ring a little wider, so one glance tells you how far a task has gone.
                 There is no public link to leak.
@@ -236,7 +237,7 @@ export default function HomePage() {
               />
             </Parallax>
             <StaggerItem className="mt-7 max-w-2xl">
-              <p className="text-body text-ink-muted">
+              <p className="text-pretty text-body text-ink-muted">
                 The ring sits on every task you share. Drag the slider and it opens person by
                 person, until it stops. Here is how to read it.
               </p>
@@ -257,7 +258,13 @@ export default function HomePage() {
                 title="A shared task is in your list, not in charge of it."
               />
             </Parallax>
-            <StaggerItem className="mt-12">
+            <StaggerItem className="mt-7 max-w-2xl">
+              <p className="text-pretty text-body text-ink-muted">
+                Victoria shared a task with you. Tick it off, hide it, then let Victoria finish it,
+                and watch both lists.
+              </p>
+            </StaggerItem>
+            <StaggerItem index={1} className="mt-12">
               <ViewerSide />
             </StaggerItem>
           </div>
@@ -275,11 +282,9 @@ export default function HomePage() {
               />
             </Parallax>
             <StaggerItem className="mt-7 max-w-2xl">
-              <p className="text-body text-ink-muted">
-                Then press <kbd className="text-body-sm font-semibold">⌘K</kbd> and search. Move with{" "}
-                <kbd className="text-body-sm font-semibold">J</kbd> and{" "}
-                <kbd className="text-body-sm font-semibold">K</kbd>, open a task with{" "}
-                <kbd className="text-body-sm font-semibold">⏎</kbd>. These are the app&rsquo;s real
+              <p className="text-pretty text-body text-ink-muted">
+                Then press <Kbd>Ctrl K</Kbd> or <Kbd>⌘K</Kbd> and search. Move with <Kbd>J</Kbd>{" "}
+                and <Kbd>K</Kbd>, open a task with <Kbd>⏎</Kbd>. These are the app&rsquo;s real
                 cards, command palette and task editor, running in your browser on made-up tasks.
               </p>
             </StaggerItem>
@@ -306,7 +311,7 @@ export default function HomePage() {
               />
             </Parallax>
             <StaggerItem className="mt-7 max-w-2xl">
-              <p className="text-body text-ink-muted">
+              <p className="text-pretty text-body text-ink-muted">
                 Name it, say how much it matters, give it a day or a rough week, and pick who sees
                 it. The card beside the controls is the one you&rsquo;d get in the app.
               </p>
@@ -347,7 +352,7 @@ export default function HomePage() {
                 <ol className="mt-7 flex flex-col gap-6 border-l border-line pl-6">
                   <li>
                     <StaggerItem index={1}>
-                      <p className="text-body-sm font-semibold text-ink">Dana</p>
+                      <p className="text-body-sm font-semibold text-ink">Victoria</p>
                       <p className="mt-1 text-body-sm text-ink-muted">
                         Outbound is cheapest on the Tuesday. Shall I hold two seats?
                       </p>
@@ -367,7 +372,7 @@ export default function HomePage() {
                         <InkCheck size={16} />
                       </span>
                       <p className="text-body-sm text-ink-muted">
-                        <span className="font-semibold text-ink">Dana</span> completed a step ·
+                        <span className="font-semibold text-ink">Victoria</span> completed a step ·
                         09:41
                       </p>
                     </StaggerItem>
@@ -397,7 +402,7 @@ export default function HomePage() {
               />
             </Parallax>
             <StaggerItem className="mt-7 max-w-2xl">
-              <p className="text-body text-ink-muted">
+              <p className="text-pretty text-body text-ink-muted">
                 Six things you can check rather than take on trust. Five of them run right here, in
                 your browser.
               </p>
@@ -424,7 +429,7 @@ export default function HomePage() {
                 />
               </Parallax>
               <StaggerItem className="mt-7 max-w-2xl">
-                <p className="text-body text-ink-muted">
+                <p className="text-pretty text-body text-ink-muted">
                   Better you read it here than discover it in week two. The first one is the whole
                   point of the product.
                 </p>
@@ -451,7 +456,7 @@ export default function HomePage() {
               <div className="grid grid-cols-1 items-center gap-10 rounded-xl border border-line bg-paper-raised p-8 shadow-xl sm:p-12 lg:grid-cols-[auto_minmax(0,1fr)] lg:gap-16">
                 <ClosingRing />
                 <div>
-                  <h2 className="max-w-3xl text-display-sm font-bold tracking-tight text-ink sm:text-display">
+                  <h2 className="max-w-3xl text-balance text-display-sm font-bold tracking-tight text-ink sm:text-display">
                     Decide who sees what, and see the circle you decided on.
                   </h2>
                   <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -487,9 +492,7 @@ export default function HomePage() {
       <AudienceSpine />
 
       <footer className="border-t border-line">
-        {/* lg:pb-24: the audience spine is fixed to the bottom-right corner on wide screens,
-            and the footer's links would otherwise sit underneath it at the end of the page. */}
-        <div className="container-app flex flex-col gap-4 py-10 sm:flex-row sm:items-center sm:justify-between lg:pb-24">
+        <div className="container-app flex flex-col gap-4 py-10 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Wordmark size="sm" />
             {/* ink-muted, not ink-subtle: at 12px the floor is ink-muted (§ 11). */}

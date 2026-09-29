@@ -4,6 +4,23 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(landing): the first blocks are pressable, centred and say what the product does (2026-09-29)
+
+The hero's empty seats showed a plus that did nothing; pressing a seat now lets that person in, and
+pressing their face lets them out (the chips stay the named, keyboard-reachable control). Each seat's
+circle sits on the point its line aims at — it used to share a centred column with the name, 10px
+higher. Dana is now Victoria everywhere on the page.
+
+Block 2's count is centred in the ring instead of sitting right of an empty column, the slider's
+ticks sit where the thumb stops, and public is reachable: a "Share with all friends" switch closes the
+ring, shows every face, lights the Public row and says that nobody outside your friends can see it.
+The row used to call the closed ring "not possible" while the product drew it on every all-friends
+task. Block 3's signal dot rides its line — framer-motion's `x` had replaced the translate that
+centred it, so it ran half its height low — and a refused tick stops at the wall's edge. The keyboard
+legend is a two-column table, the trust lab's counters sit after their labels, the page spine is a
+compact mark that appears only where the margin can hold it (it covered the content column's right
+edge up to ~1700px), and every section's intro sits at the same distance under its heading.
+
 ### fix(ui): a public task says who can see it, and counters sit where they read (2026-09-29)
 
 "Public" in Planora is the share picker's "All friends": the server grants access on

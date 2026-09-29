@@ -3,11 +3,11 @@
  *
  * The task is a surprise party for Mira, which is the whole trick: the visitor learns that
  * a task carries its audience by discovering that adding one particular person changes
- * what the task is. Names are always read in seat order — Dana, Tom, Mira — so the
+ * what the task is. Names are always read in seat order — Victoria, Tom, Mira — so the
  * sentence never reshuffles itself depending on which chip was pressed first.
  */
 
-export type SeatId = "dana" | "tom" | "mira"
+export type SeatId = "victoria" | "tom" | "mira"
 
 export interface Seat {
   id: SeatId
@@ -16,7 +16,7 @@ export interface Seat {
 }
 
 export const CIRCLE_SEATS: readonly Seat[] = [
-  { id: "dana", firstName: "Dana", lastName: "Whitfield" },
+  { id: "victoria", firstName: "Victoria", lastName: "Whitfield" },
   { id: "tom", firstName: "Tom", lastName: "Achebe" },
   { id: "mira", firstName: "Mira", lastName: "Sandoval" },
 ]
@@ -31,7 +31,7 @@ export function inSeatOrder(selected: readonly SeatId[]): Seat[] {
   return CIRCLE_SEATS.filter((seat) => selected.includes(seat.id))
 }
 
-/** "You", "You and Dana", "You, Dana and Tom" — no Oxford comma, "and" before the last. */
+/** "You", "You and Victoria", "You, Victoria and Tom" — no Oxford comma, "and" before the last. */
 function withYou(names: string[]): string {
   const all = ["You", ...names]
   if (all.length === 1) return "Only you"

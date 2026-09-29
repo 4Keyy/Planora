@@ -94,10 +94,10 @@ export const CATEGORIES: readonly CategoryOption[] = [
   { id: "travel", name: "Travel", icon: "Plane", color: CATEGORY_COLOR_SWATCHES[0] },
 ]
 
-export type ShareId = "dana" | "tom"
+export type ShareId = "victoria" | "tom"
 
 export const SHARE_PEOPLE: readonly { id: ShareId; userId: string; firstName: string; lastName: string }[] = [
-  { id: "dana", userId: "fx-1", firstName: "Dana", lastName: "Whitfield" },
+  { id: "victoria", userId: "fx-1", firstName: "Victoria", lastName: "Whitfield" },
   { id: "tom", userId: "fx-3", firstName: "Tom", lastName: "Achebe" },
 ]
 

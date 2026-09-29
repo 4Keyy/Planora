@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  ALL_FRIENDS_CAPTION,
   ceilingCaption,
   deriveAudience,
   isAtSharingCeiling,
@@ -30,9 +31,9 @@ describe("deriveAudience", () => {
     expect(deriveAudience(50)).toBe("shared")
   })
 
-  it("never returns public, because the product cannot produce it", () => {
-    // The editor writes isPublic:false on every save and no route serves a task to an
-    // anonymous reader, so a `public` arc on the landing page would be a plain lie.
+  it("never returns public from a count, because public is a setting, not a number", () => {
+    // Public is the share picker's "All friends". The landing page reaches it through its
+    // own switch; no number of named people ever turns into it.
     for (let n = 0; n <= 40; n++) {
       expect(deriveAudience(n)).not.toBe("public")
     }
@@ -87,6 +88,13 @@ describe("reading the ring", () => {
     for (const n of [0, 1, 8, 1e9, -1, Number.NaN]) {
       expect(ringReading(n)).not.toBe("public")
     }
+  })
+
+  it("says who public reaches, and who it does not", () => {
+    // "Public" reads as "the open internet" to most people. In Planora it is every
+    // accepted friend, and the sentence has to say the second half out loud.
+    expect(ALL_FRIENDS_CAPTION).toContain("All your friends")
+    expect(ALL_FRIENDS_CAPTION).toContain("Nobody outside your friends")
   })
 
   it("tells a screen reader people, not a bare number", () => {

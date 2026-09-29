@@ -36,7 +36,7 @@ export const DEMO_USER = {
 } as const
 
 export const DEMO_FRIENDS = [
-  { id: "d0000000-0000-4000-8000-000000000002", firstName: "Dana", lastName: "Whitfield" },
+  { id: "d0000000-0000-4000-8000-000000000002", firstName: "Victoria", lastName: "Whitfield" },
   { id: "d0000000-0000-4000-8000-000000000003", firstName: "Mira", lastName: "Sandoval" },
   { id: "d0000000-0000-4000-8000-000000000004", firstName: "Tom", lastName: "Achebe" },
 ] as const
@@ -117,7 +117,7 @@ function seed(): DemoState {
           id: "dcm-1",
           todoItemId: "dt-1",
           authorId: DEMO_FRIENDS[0].id,
-          authorName: "Dana Whitfield",
+          authorName: "Victoria Whitfield",
           content: "Outbound is cheapest on the Tuesday. Shall I hold two seats?",
           createdAt: iso(-2),
           isOwn: false,
