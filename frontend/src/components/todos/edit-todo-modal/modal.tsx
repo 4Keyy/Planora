@@ -684,7 +684,7 @@ export function EditTodoModal(props: EditTodoModalProps) {
             overflow: "hidden",
             borderRadius: 28,
             background: "var(--pl-paper)",
-            boxShadow: "0 30px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.05)",
+            boxShadow: "var(--pl-shadow-xl)",
             /* Local stacking, not a global tier: the card and its backdrop are
                siblings inside one z-modal container, so 1 is the whole claim being
                made. The previous value was a hand-computed 1301, which only stayed

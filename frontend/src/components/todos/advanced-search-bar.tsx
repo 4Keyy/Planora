@@ -157,7 +157,7 @@ export function AdvancedSearchBar({
           >
             {/* Priority Filter */}
             <div>
-              <label className="text-caption font-bold text-ink-muted uppercase tracking-widest">Priority</label>
+              <label className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Priority</label>
               <div className="flex flex-wrap gap-2 mt-2">
                 {PRIORITY_OPTIONS.map((priority) => (
                   <motion.button
@@ -180,7 +180,7 @@ export function AdvancedSearchBar({
             {/* Category Filter */}
             {categories.length > 0 && (
               <div>
-                <label className="text-caption font-bold text-ink-muted uppercase tracking-widest">Category</label>
+                <label className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Category</label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <motion.button
                     whileHover={{ scale: 1.05 }}

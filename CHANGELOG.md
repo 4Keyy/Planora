@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### refactor(frontend): the editor's popovers and the list's small controls use the scale (2026-09-29)
+
+The last colour-literal shadows, off-scale radii and hand-written springs lived in the task editor's
+inline styles and in the list's small controls: popovers with their own `0 16px 40px rgba(…)` stack,
+the dialog with `0 30px 80px…`, a delete strip that animated `clip-path`, calendar ranges tinted with
+raw `rgba(82,82,82,…)`, and uppercase labels in bold at `tracking-widest`. `globals.css` now exposes the
+elevation scale and the radii as `--pl-shadow-*` / `--pl-radius-*` so inline styles can use them; the
+editor's popovers, dialog, calendar and branch rows do, the delete strip slides by transform, springs and
+tweens are tokens, uppercase labels are semibold at the eyebrow's tracking, the comment composer's
+24px buttons are full `sm` buttons, and the Author's Note card is a paper surface instead of an accent
+gradient.
+
 ### fix(editor): the task editor joins the system — readable labels, a reachable "Leave", a solid pinned note (2026-09-29)
 
 The editor and the branch page are written in inline styles, and they had kept their own dialect: every

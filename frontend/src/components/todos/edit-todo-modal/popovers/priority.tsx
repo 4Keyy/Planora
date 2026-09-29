@@ -67,7 +67,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
                         height: 14,
                         borderRadius: 2,
                         background: isActive
-                          ? (filled ? "var(--pl-paper)" : "rgba(255,255,255,0.22)")
+                          ? (filled ? "var(--pl-paper)" : "color-mix(in srgb, var(--pl-paper) 22%, transparent)")
                           : (filled ? "var(--pl-ink-subtle)" : "var(--pl-line)"),
                         transition: "background 120ms",
                       }}
@@ -90,7 +90,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
                 <div style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: isActive ? "rgba(255,255,255,0.55)" : "var(--pl-ink-subtle)",
+                  color: isActive ? "color-mix(in srgb, var(--pl-paper) 55%, transparent)" : "var(--pl-ink-subtle)",
                   marginTop: 2,
                 }}>
                   {p.desc}

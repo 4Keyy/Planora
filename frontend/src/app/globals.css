@@ -162,6 +162,24 @@
     --pl-ease-exit: cubic-bezier(0.4, 0, 1, 1);
     --pl-radius-full: theme("borderRadius.full");
     --pl-radius-sm: theme("borderRadius.sm");
+    --pl-radius-md: theme("borderRadius.md");
+    --pl-radius-lg: theme("borderRadius.lg");
+    --pl-radius-xl: theme("borderRadius.xl");
+    /* The elevation scale, for the same inline styles: a popover or a dialog built there
+       uses the product's shadows instead of re-typing its own rgba stack. */
+    --pl-shadow-sm: theme("boxShadow.sm");
+    --pl-shadow-md: theme("boxShadow.md");
+    --pl-shadow-lg: theme("boxShadow.lg");
+    --pl-shadow-xl: theme("boxShadow.xl");
+    --pl-radius-md: theme("borderRadius.md");
+    --pl-radius-lg: theme("borderRadius.lg");
+    --pl-radius-xl: theme("borderRadius.xl");
+    /* The elevation scale, for the same inline styles: a popover or a dialog built there
+       uses the product's shadows instead of re-typing its own rgba stack. */
+    --pl-shadow-sm: theme("boxShadow.sm");
+    --pl-shadow-md: theme("boxShadow.md");
+    --pl-shadow-lg: theme("boxShadow.lg");
+    --pl-shadow-xl: theme("boxShadow.xl");
   }
 
   /* Dark theme is FROZEN, not supported. The product pins `color-scheme: light`

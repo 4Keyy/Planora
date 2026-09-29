@@ -3,6 +3,7 @@
 import { RefObject, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { SPRING_STANDARD, TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
 import { Popover, PopoverHeader } from "../popover"
 import { EN_MONTHS_LONG, EN_DAYS_SHORT, computeNextDueRange, type DueRange } from "../utils"
 
@@ -232,7 +233,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                   initial={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * 14 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * -14 }}
-                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  transition={TWEEN_UI}
                   style={{
                     position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 12, fontWeight: 700, color: "var(--pl-ink)",
@@ -275,7 +276,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
               initial={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * 18 }}
               animate={{ opacity: 1, x: 0 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * -18 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              transition={TWEEN_UI}
               onMouseLeave={() => setHoverDay(null)}
               style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: CELL_GAP }}
             >
@@ -323,7 +324,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                         aria-hidden
                         initial={reduce ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.16, ease: "easeOut" }}
+                        transition={TWEEN_FAST}
                         style={{
                           position: "absolute", top: 3, bottom: 3,
                           left:  roundLeft  ? CELL_GAP : -CELL_GAP,
@@ -332,8 +333,8 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                           borderBottomLeftRadius: roundLeft  ? 8 : 0,
                           borderTopRightRadius:    roundRight ? 8 : 0,
                           borderBottomRightRadius: roundRight ? 8 : 0,
-                          background: inSolid ? "var(--pl-gray-100)" : "rgba(82,82,82,0.10)",
-                          border: inPreview && !inSolid ? "1px dashed rgba(82,82,82,0.40)" : "none",
+                          background: inSolid ? "var(--pl-gray-100)" : "color-mix(in srgb, var(--pl-ink-muted) 10%, transparent)",
+                          border: inPreview && !inSolid ? "1px dashed color-mix(in srgb, var(--pl-ink-muted) 40%, transparent)" : "none",
                           borderLeft:  inPreview && !inSolid && !roundLeft  ? "none" : undefined,
                           borderRight: inPreview && !inSolid && !roundRight ? "none" : undefined,
                         }}
@@ -355,10 +356,10 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                         layout
                         initial={reduce ? false : { scale: 0.7, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: "spring", stiffness: 520, damping: 30 }}
+                        transition={SPRING_STANDARD}
                         style={{
                           position: "absolute", inset: 2, borderRadius: 8, background: "var(--pl-ink)",
-                          boxShadow: "0 2px 6px rgba(10,10,10,0.22)",
+                          boxShadow: "var(--pl-shadow-md)",
                         }}
                       />
                     )}
@@ -367,8 +368,8 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                     {isPreviewCap && !isCap && (
                       <span aria-hidden style={{
                         position: "absolute", inset: 2, borderRadius: 8,
-                        border: "1.5px solid rgba(82,82,82,0.55)",
-                        background: "rgba(82,82,82,0.06)",
+                        border: "1px solid var(--pl-line-strong)",
+                        background: "var(--pl-paper-sunken)",
                       }} />
                     )}
 

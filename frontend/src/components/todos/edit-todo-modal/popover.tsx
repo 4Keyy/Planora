@@ -3,6 +3,7 @@
 import { ReactNode, RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion } from "framer-motion"
+import { SPRING_STANDARD } from "@/lib/animations"
 import { tokens } from "@/lib/design-tokens"
 
 interface PopoverProps {
@@ -125,7 +126,7 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
             initial={{ opacity: 0, y: -6, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
-            transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.7 }}
+            transition={SPRING_STANDARD}
             style={{
               position: "fixed",
               left: pos.left,
@@ -137,9 +138,9 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
               zIndex: tokens.layer.popover,
               transformOrigin: pos.transformOrigin,
               background: "var(--pl-paper)",
-              borderRadius: 16,
+              borderRadius: "var(--pl-radius-lg)",
               border: "1px solid var(--pl-line)",
-              boxShadow: "0 16px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.05)",
+              boxShadow: "var(--pl-shadow-lg)",
             }}
           >
             {children}
@@ -167,14 +168,14 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
             initial={{ opacity: 0, y: -6, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.96 }}
-            transition={{ type: "spring", stiffness: 520, damping: 34, mass: 0.7 }}
+            transition={SPRING_STANDARD}
             style={{
               width,
               transformOrigin: align === "right" ? "top right" : align === "center" ? "top center" : "top left",
               background: "var(--pl-paper)",
-              borderRadius: 16,
+              borderRadius: "var(--pl-radius-lg)",
               border: "1px solid var(--pl-line)",
-              boxShadow: "0 16px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.05)",
+              boxShadow: "var(--pl-shadow-lg)",
               overflow: "hidden",
             }}
           >

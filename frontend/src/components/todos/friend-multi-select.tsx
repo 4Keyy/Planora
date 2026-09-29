@@ -126,7 +126,7 @@ export function FriendMultiSelect({
               </span>
             ))}
             {publicSelected && (
-              <span className="rounded-full border border-line bg-paper-sunken px-2 py-1 text-caption font-bold uppercase tracking-wider text-ink-muted">
+              <span className="rounded-full border border-line bg-paper-sunken px-2 py-1 text-caption font-semibold uppercase tracking-wider text-ink-muted">
                 All
               </span>
             )}

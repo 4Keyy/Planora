@@ -130,7 +130,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
 
       {/* ── Genesis Card (pinned description) ──────────────────────────── */}
       {loading ? null : genesis ? (
-        <div className="rounded-xl border border-accent-surface bg-gradient-to-br from-accent-surface/60 to-accent-surface/40 p-4">
+        <div className="rounded-lg border border-line bg-paper-sunken p-4">
           {/* Header */}
           <div className="flex items-start justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
@@ -142,7 +142,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                 className="rounded-md flex-shrink-0"
               />
               <div>
-                <p className="text-caption font-bold uppercase tracking-widest text-accent leading-none">
+                <p className="text-caption font-semibold uppercase leading-none tracking-wider text-ink-muted">
                   Description
                 </p>
                 {genesis.authorName && (
@@ -204,7 +204,6 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                 <div className="flex gap-1.5">
                   <Button
                     size="sm"
-                    className="h-6 text-caption bg-accent hover:bg-accent rounded-md"
                     onClick={() => handleEditSave(genesis.id)}
                     disabled={submitting}
                   >
@@ -213,7 +212,6 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 text-caption rounded-md"
                     onClick={() => setEditingId(null)}
                   >
                     Cancel
@@ -231,7 +229,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
 
       {/* ── Discussion Stream ───────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
-        <p className="text-caption font-semibold uppercase tracking-wide text-ink-muted">
+        <p className="text-caption font-semibold uppercase tracking-wider text-ink-muted">
           Task {streamCount > 0 && `· ${streamCount}`}
         </p>
       </div>
@@ -303,10 +301,10 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                       }}
                     />
                     <div className="flex gap-1.5">
-                      <Button size="sm" className="h-6 text-caption" onClick={() => handleEditSave(c.id)} disabled={submitting}>
+                      <Button size="sm" onClick={() => handleEditSave(c.id)} disabled={submitting}>
                         Save
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-6 text-caption" onClick={() => setEditingId(null)}>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
                         Cancel
                       </Button>
                     </div>

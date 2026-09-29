@@ -11,7 +11,7 @@ import {
   getApiErrorMessage,
 } from "@/lib/api"
 import { sameUserId, type TodoComment, type Todo, type TodoWorker, type ReplyTargetType } from "@/types/todo"
-import { SPRING_STANDARD, TWEEN_EXIT } from "@/lib/animations"
+import { SPRING_RESPONSIVE, SPRING_STANDARD, TWEEN_EXIT, TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import { useBranchRoom, useTyping } from "@/lib/realtime/hooks"
@@ -39,7 +39,7 @@ function formatTyping(names: string[]): string {
 }
 
 // Snappy spring for subtask micro-interactions (toggle pop, card enter/exit).
-const SPRING_SNAP = { type: "spring" as const, stiffness: 460, damping: 32 }
+const SPRING_SNAP = SPRING_STANDARD
 
 // Activity-rail geometry. The rail line is centred at RAIL_CENTER within a wrapper that pads its
 // content by RAIL_GUTTER, and every marker is centred on that same x so avatars and system-event
@@ -1556,7 +1556,7 @@ export function BranchFeed({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 4 }}
-                transition={{ duration: 0.16 }}
+                transition={TWEEN_FAST}
                 style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 12, fontWeight: 600, color: "var(--pl-accent)" }}
               >
                 <span style={{ display: "inline-flex", gap: 2 }}>
@@ -1615,7 +1615,7 @@ export function BranchFeed({
                 background: "var(--pl-paper)",
                 border: "1px solid var(--pl-gray-150)",
                 borderRadius: 14,
-                boxShadow: "0 8px 30px -4px rgba(0,0,0,0.12), 0 2px 8px -2px rgba(0,0,0,0.06)",
+                boxShadow: "var(--pl-shadow-lg)",
                 padding: 6,
                 minWidth: 200,
                 zIndex: tokens.layer.popover,
@@ -2093,7 +2093,7 @@ function SubtaskWorkPresence({
       initial={{ opacity: 0, scale: 0.7 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.7 }}
-      transition={{ type: "spring", stiffness: 480, damping: 26 }}
+      transition={SPRING_RESPONSIVE}
       onMouseEnter={() => { if (canLeave) onHoverChange(true) }}
       onMouseLeave={() => onHoverChange(false)}
       onClick={(e) => { if (canLeave) { e.stopPropagation(); onLeave() } }}
@@ -2103,7 +2103,7 @@ function SubtaskWorkPresence({
         background: leaving ? "linear-gradient(180deg,var(--pl-alert-surface),var(--pl-alert-surface))" : "linear-gradient(180deg,var(--pl-warn-surface),var(--pl-warn-surface))",
         border: `1px solid ${leaving ? "var(--pl-alert-surface)" : "var(--pl-warn-surface)"}`,
         padding: "2px 9px 2px 4px", borderRadius: 999,
-        boxShadow: "0 1px 3px -1px rgba(245,158,11,0.3)",
+        boxShadow: "var(--pl-shadow-sm)",
         cursor: canLeave ? "pointer" : "default",
         transition: "background 200ms ease, border-color 200ms ease",
       }}
@@ -2307,7 +2307,7 @@ function SubtaskCard({
             border: done ? "none" : `2px solid ${markerBorderColor}`,
             background: done ? "var(--pl-positive)" : "var(--pl-paper)",
             boxShadow: done
-              ? "0 0 0 3px var(--pl-paper), 0 2px 6px -1px rgba(16,185,129,0.5)"
+              ? "0 0 0 3px var(--pl-paper), var(--pl-shadow-md)"
               : "0 0 0 3px var(--pl-paper)",
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: pending ? "default" : "pointer", padding: 0, zIndex: 3,
@@ -2317,7 +2317,7 @@ function SubtaskCard({
         >
           <AnimatePresence mode="wait" initial={false}>
             {done ? (
-              <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
+              <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={SPRING_RESPONSIVE}>
                 <Check size={15} color="var(--pl-paper)" strokeWidth={3} />
               </motion.span>
             ) : viewerWorking && hovered ? (
@@ -2459,7 +2459,7 @@ function SubtaskCard({
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)"
-                  ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(0,0,0,0.045)"
+                  ;(e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)"
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-subtle)"
@@ -2499,7 +2499,7 @@ function SubtaskCard({
                     initial={{ opacity: 0, scale: 0.85 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ type: "spring", stiffness: 480, damping: 26 }}
+                    transition={SPRING_RESPONSIVE}
                     onClick={(e) => { e.stopPropagation(); if (!pending) onToggleWork() }}
                     disabled={pending}
                     aria-label="Take subtask into work"
@@ -2513,7 +2513,7 @@ function SubtaskCard({
                       fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                       textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1,
                       whiteSpace: "nowrap",
-                      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                      boxShadow: "var(--pl-shadow-sm)",
                       transition: "background 160ms, color 160ms, border-color 160ms",
                       fontFamily: "inherit",
                     }}
@@ -2558,8 +2558,8 @@ function SubtaskCard({
                     disabled={pending}
                     aria-label="Delete subtask"
                     variants={{
-                      hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } },
-                      visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
+                      hidden: { x: "100%", transition: TWEEN_EXIT },
+                      visible: { x: 0, transition: TWEEN_UI },
                     }}
                     initial="hidden"
                     animate="visible"
@@ -2569,14 +2569,14 @@ function SubtaskCard({
                       position: "absolute", inset: 0, border: "none", padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       color: "var(--pl-paper)", cursor: pending ? "default" : "pointer",
-                      background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 38%, var(--pl-alert) 100%)",
-                      boxShadow: "-6px 0 18px rgba(239,68,68,0.18)",
+                      background: "linear-gradient(to right, color-mix(in srgb, var(--pl-alert) 0%, transparent) 0%, color-mix(in srgb, var(--pl-alert) 85%, transparent) 38%, var(--pl-alert) 100%)",
+                      
                     }}
                   >
                     <motion.div
                       variants={{
                         hidden: { scale: 0.5, opacity: 0, y: 6 },
-                        visible: { scale: 1, opacity: 1, y: 0, transition: { delay: 0.06, type: "spring", stiffness: 420, damping: 22 } },
+                        visible: { scale: 1, opacity: 1, y: 0, transition: { ...SPRING_RESPONSIVE, delay: 0.06 } },
                       }}
                       style={{ display: "flex" }}
                     >
@@ -2818,7 +2818,7 @@ function ReplyThread({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.16 }}
+      transition={TWEEN_FAST}
       style={{ position: "relative", paddingLeft: contentPad, marginTop: -6, marginBottom: 8 }}
     >
       {/* Parent connector — joins the thread to whatever sits directly above it, ending exactly at

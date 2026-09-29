@@ -218,7 +218,7 @@ export function CategoryPopover({
                 background: name.trim() && !saving ? "var(--pl-ink)" : "var(--pl-line)",
                 color: name.trim() && !saving ? "var(--pl-paper)" : "var(--pl-ink-subtle)",
                 fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
-                boxShadow: name.trim() && !saving ? "0 4px 14px rgba(0,0,0,0.18)" : "none",
+                boxShadow: name.trim() && !saving ? "var(--pl-shadow-md)" : "none",
                 transition: "background 120ms, box-shadow 120ms",
                 fontFamily: "inherit",
               }}

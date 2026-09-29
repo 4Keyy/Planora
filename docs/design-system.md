@@ -224,6 +224,12 @@ Tailwind's own `shadow-sm/md/lg/xl/2xl` are **removed** in the config rather tha
 extended. They used to win 98 uses to 19 against this scale, simply by being the name
 people reach for first.
 
+The task editor builds its surfaces in inline style objects, where a class cannot reach, so
+`globals.css` also exposes the scale as `--pl-shadow-sm/md/lg/xl` and the radii as
+`--pl-radius-sm/md/lg/xl/full`. Its popovers, dialog and pinned note use those variables; they
+used to re-type their own rgba stacks (`0 16px 40px rgba(0,0,0,0.12)…`, `0 30px 80px…`) and a
+16px radius by number.
+
 ---
 
 ## 7. Layers
