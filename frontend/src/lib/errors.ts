@@ -218,3 +218,39 @@ export function getLinkRequestMessage(err: unknown): string {
   if (isServerUnavailableError(err)) return NETWORK_MESSAGE
   return getResponseStatus(err) === 429 ? getAuthRequestMessage("rate-limited") : SERVER_MESSAGE
 }
+
+export type AccountChangeErrorKind =
+  | "wrong-password"
+  | "weak-password"
+  | "compromised-password"
+  | "reused-password"
+  | "invalid-email"
+  | "email-taken"
+  | "rate-limited"
+  | "network"
+  | "unknown"
+
+/**
+ * Why a password or email change on the profile was refused, so the message can sit on
+ * the field it is about. Both endpoints answer every refusal with a 400 carrying a code
+ * (`ChangePasswordCommandHandler`, `ChangeEmailCommandHandler`); the old page reduced all
+ * of them to "Failed to change password" in a toast that disappeared.
+ */
+export function getAccountChangeErrorKind(err: unknown): AccountChangeErrorKind {
+  if (isServerUnavailableError(err)) return "network"
+  switch (getErrorCode(err)) {
+    case "INVALID_PASSWORD":
+      return "wrong-password"
+    case "WEAK_PASSWORD":
+      return "weak-password"
+    case "COMPROMISED_PASSWORD":
+      return "compromised-password"
+    case "PASSWORD_REUSED":
+      return "reused-password"
+    case "INVALID_EMAIL":
+      return "invalid-email"
+    case "EMAIL_EXISTS":
+      return "email-taken"
+  }
+  return getResponseStatus(err) === 429 ? "rate-limited" : "unknown"
+}

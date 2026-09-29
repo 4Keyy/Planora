@@ -93,8 +93,21 @@ Let users manage profile data, password/email changes, email verification, sessi
 
 - The profile route presents account work as a single continuously scrolling profile center rendered in a monochrome "spec-grid" style with full light/dark theming: an identity header (avatar with click-or-drag upload, status pills, and a metric grid) followed by stacked sections for identity, security, sessions, login history, friends, and admin tools.
 - Navigation is a sticky side rail (horizontal scroller on mobile) driven by a scroll-spy: the rail highlights whichever section is in view via `aria-current`, and clicking a rail item smooth-scrolls to that section. All sections render at once; each section's data is fetched lazily the first time it scrolls into view, and per-section `Refresh` buttons re-fetch on demand.
-- Motion is deliberately restrained and never moves layout on scroll (which read as jank): the route-level `template.tsx` handles the page-enter fade (opacity only), the active rail item is tracked by a spring-animated sliding pill via a shared `layoutId`, and friend cards lift subtly on hover. The page root uses no entrance transform and `overflow-x: clip` (not `hidden`) so the sticky section rail anchors to the viewport correctly — a transform or `overflow: hidden` on the root would create a containing block / scroll context and break `position: sticky`. The rail sticks at `top-24` to clear the fixed navbar. Every animation collapses under `useReducedMotion()` (including switching smooth scroll to instant and the rail pill to zero duration). All existing Auth API calls are preserved unchanged for profile update, password/email changes, email verification, 2FA setup, session revocation, friend requests, and admin user lookup.
+- Motion is deliberately restrained and never moves layout on scroll (which read as jank): the route-level `template.tsx` handles the page-enter fade (opacity only), the active rail item is tracked by a spring-animated sliding pill via a shared `layoutId`, and friend cards lift subtly on hover. The page root uses no entrance transform and `overflow-x: clip` (not `hidden`) so the sticky section rail anchors to the viewport correctly — a transform or `overflow: hidden` on the root would create a containing block / scroll context and break `position: sticky`. The rail sticks at `top-24`, clear of the 64px sticky app bar. Every animation collapses under `useReducedMotion()` (including switching smooth scroll to instant and the rail pill to zero duration). All existing Auth API calls are preserved unchanged for profile update, password/email changes, email verification, 2FA setup, session revocation, friend requests, and admin user lookup.
 - Character-limited profile fields use the shared input counter and warning styling used elsewhere in the frontend.
+- **Changing the password** (`frontend/src/components/profile/change-password-form.tsx`): three labelled
+  password fields with Caps Lock warnings; the new one shows the live `PasswordChecklist` and is checked
+  with `NEW_PASSWORD_SCHEMA` (the server runs the same extra checks on a change as on a reset), the
+  confirmation says "Passwords match" as it is typed, and the button blocks re-entry while the request
+  runs. Each refusal lands on its field — `INVALID_PASSWORD` on the current password, `WEAK_PASSWORD`,
+  `COMPROMISED_PASSWORD` and `PASSWORD_REUSED` on the new one (`getAccountChangeErrorKind` in
+  `lib/errors.ts`) — and only rate limits and network failures use the form's banner. It used to be three
+  placeholder-only inputs with one "Failed to change password" toast for every refusal.
+- **Changing the email** (`change-email-form.tsx`): the current address with its verified state (and a
+  "Send link again" button while it is unverified), a labelled new address with the domain-typo fix, and
+  the password to confirm; `EMAIL_EXISTS` and `INVALID_EMAIL` land on the address, `INVALID_PASSWORD` on
+  the password. The compact password fields that confirm turning off two-factor, signing out other
+  sessions and deleting the account carry an accessible name each.
 
 ## Friendships
 

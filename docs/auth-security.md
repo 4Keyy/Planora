@@ -184,7 +184,7 @@ Code:
 
 HIBP lookup failures are logged and do not block the password operation.
 
-Reset and change-password additionally run `PasswordValidator.IsStrongPassword` (the common-password list, four ascending characters, four repeats); registration does not. The frontend mirrors this split: `PASSWORD_SCHEMA` for create-account, `NEW_PASSWORD_SCHEMA` (the same plus `isEasyToGuess`) for the reset form, so the client never refuses a password the server would accept, and never ticks every rule for one the server will refuse.
+Reset and change-password additionally run `PasswordValidator.IsStrongPassword` (the common-password list, four ascending characters, four repeats); registration does not. The frontend mirrors this split: `PASSWORD_SCHEMA` for create-account, `NEW_PASSWORD_SCHEMA` (the same plus `isEasyToGuess`) for the reset form and the profile's change-password form, so the client never refuses a password the server would accept, and never ticks every rule for one the server will refuse.
 
 ### Password Hashing
 

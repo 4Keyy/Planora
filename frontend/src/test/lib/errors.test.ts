@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   extractErrorMessage,
+  getAccountChangeErrorKind,
   getAuthRequestMessage,
   getLinkRequestMessage,
   getLoginErrorMessage,
@@ -134,5 +135,24 @@ describe('password reset and verification refusals', () => {
   it('maps the remaining sign-in and registration refusals', () => {
     expect(getLoginErrorMessage({ response: { status: 429 } })).toBe('Too many attempts. Wait a minute and try again.')
     expect(getRegisterErrorMessage({ response: { status: 429 } })).toBe('Too many attempts. Wait a minute and try again.')
+  })
+})
+
+describe('account change refusals', () => {
+  const withCode = (code: string) => ({ response: { status: 400, data: { code, message: 'x' } } })
+
+  it('names each refusal the change endpoints send', () => {
+    expect(getAccountChangeErrorKind(withCode('INVALID_PASSWORD'))).toBe('wrong-password')
+    expect(getAccountChangeErrorKind(withCode('WEAK_PASSWORD'))).toBe('weak-password')
+    expect(getAccountChangeErrorKind(withCode('COMPROMISED_PASSWORD'))).toBe('compromised-password')
+    expect(getAccountChangeErrorKind(withCode('PASSWORD_REUSED'))).toBe('reused-password')
+    expect(getAccountChangeErrorKind(withCode('INVALID_EMAIL'))).toBe('invalid-email')
+    expect(getAccountChangeErrorKind({ response: { status: 400, data: { error: { code: 'EMAIL_EXISTS' } } } })).toBe('email-taken')
+  })
+
+  it('falls back to the rate limit, the network and the unknown', () => {
+    expect(getAccountChangeErrorKind({ response: { status: 429 } })).toBe('rate-limited')
+    expect(getAccountChangeErrorKind({ request: {}, code: 'ERR_NETWORK' })).toBe('network')
+    expect(getAccountChangeErrorKind({ response: { status: 500 } })).toBe('unknown')
   })
 })

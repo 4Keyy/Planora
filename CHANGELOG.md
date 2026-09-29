@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(profile): changing the password or email says what went wrong, where it went wrong (2026-09-29)
+
+The profile's password card was three placeholder-only inputs: the labels vanished on the first
+keystroke, nothing checked the new password before the round trip, the button could be pressed twice,
+and every refusal — wrong current password, too weak, found in a breach, used before — became one
+"Failed to change password" toast that disappeared before it could be read. The email card was the same.
+
+Both are now forms built from the auth components: labelled fields, Caps Lock warnings, the live password
+checklist, "Passwords match", `NEW_PASSWORD_SCHEMA` (the server runs the reset's extra checks on a change
+too), a blocked button while the request runs, the domain-typo fix on the new address, and each server
+refusal mapped by `getAccountChangeErrorKind` onto the field it concerns.
+
 ### refactor(frontend): the rest of the motion speaks the design system's vocabulary (2026-09-29)
 
 Components outside the pages still carried their own motion dialect: numeric durations (0.16, 0.25,

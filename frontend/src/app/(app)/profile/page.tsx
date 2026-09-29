@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation"
 import { motion, useReducedMotion } from "framer-motion"
 import {
   Activity,
-  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
@@ -47,6 +46,8 @@ import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { invalidateFriends } from "@/hooks/use-friends"
 import { Button } from "@/components/ui/button"
+import { ChangePasswordForm } from "@/components/profile/change-password-form"
+import { ChangeEmailForm } from "@/components/profile/change-email-form"
 import { Input } from "@/components/ui/input"
 import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -154,7 +155,7 @@ function StatusPill({
       <span
         aria-hidden
         className={cn(
-          "h-[7px] w-[7px] flex-shrink-0 rounded-full",
+          "h-2 w-2 flex-shrink-0 rounded-full",
           active
             ? "bg-ink"
             : "border border-line-strong"
@@ -237,7 +238,7 @@ function MetricTile({
           <span
             aria-hidden
             className={cn(
-              "h-[7px] w-[7px] flex-shrink-0 translate-y-[-2px] rounded-full",
+              "h-2 w-2 flex-shrink-0 translate-y-[-2px] rounded-full",
               active ? "bg-ink" : "border border-line-strong"
             )}
           />
@@ -377,12 +378,6 @@ export default function ProfilePage() {
   const [loadingAdmin, setLoadingAdmin] = useState(false)
 
   const [profileForm, setProfileForm] = useState({ firstName: "", lastName: "" })
-  const [changePasswordForm, setChangePasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmNewPassword: "",
-  })
-  const [changeEmailForm, setChangeEmailForm] = useState({ newEmail: "", password: "" })
 
   const [verifyingEmail, setVerifyingEmail] = useState(false)
   const [twoFactorSetup, setTwoFactorSetup] = useState<{ secret: string; qrCodeUrl: string } | null>(null)
@@ -717,31 +712,15 @@ export default function ProfilePage() {
     }
   }
 
-  const handleChangePassword = async (): Promise<void> => {
-    if (changePasswordForm.newPassword !== changePasswordForm.confirmNewPassword) {
-      addToast({ type: "error", title: "Passwords do not match" })
-      return
-    }
-    try {
-      await api.post("/auth/api/v1/users/me/change-password", changePasswordForm)
-      setChangePasswordForm({ currentPassword: "", newPassword: "", confirmNewPassword: "" })
-      addToast({ type: "success", title: "Password updated" })
-      loadSecurity()
-    } catch {
-      addToast({ type: "error", title: "Failed to change password" })
-    }
+  const handlePasswordChanged = (): void => {
+    addToast({ type: "success", title: "Password changed" })
+    loadSecurity()
   }
 
-  const handleChangeEmail = async (): Promise<void> => {
-    try {
-      await api.post("/auth/api/v1/users/me/change-email", changeEmailForm)
-      updateUser({ email: changeEmailForm.newEmail })
-      setChangeEmailForm({ newEmail: "", password: "" })
-      addToast({ type: "success", title: "Email updated", description: "Verify your new email." })
-      loadProfile()
-    } catch {
-      addToast({ type: "error", title: "Failed to change email" })
-    }
+  const handleEmailChanged = (email: string): void => {
+    updateUser({ email })
+    addToast({ type: "success", title: "Email changed", description: "Open the link we sent to the new address to verify it." })
+    loadProfile()
   }
 
   const handleVerifyEmail = async (): Promise<void> => {
@@ -1345,88 +1324,18 @@ export default function ProfilePage() {
               </SectionCard>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <SectionCard icon={KeyRound} title="Password" description="Update your credentials.">
-                  <div className="flex flex-1 flex-col">
-                    <div className="space-y-3">
-                      <Input
-                        type="password"
-                        placeholder="Current password"
-                        autoComplete="current-password"
-                        value={changePasswordForm.currentPassword}
-                        onChange={(e) => setChangePasswordForm((s) => ({ ...s, currentPassword: e.target.value }))}
-                      />
-                      <Input
-                        type="password"
-                        placeholder="New password"
-                        autoComplete="new-password"
-                        value={changePasswordForm.newPassword}
-                        onChange={(e) => setChangePasswordForm((s) => ({ ...s, newPassword: e.target.value }))}
-                      />
-                      <Input
-                        type="password"
-                        placeholder="Confirm new password"
-                        autoComplete="new-password"
-                        value={changePasswordForm.confirmNewPassword}
-                        onChange={(e) => setChangePasswordForm((s) => ({ ...s, confirmNewPassword: e.target.value }))}
-                      />
-                    </div>
-                    <div className="mt-auto pt-4">
-                      <Button onClick={handleChangePassword} className="w-full">
-                        Update password
-                      </Button>
-                    </div>
-                  </div>
+                <SectionCard icon={KeyRound} title="Password" description="Change the password you sign in with.">
+                  <ChangePasswordForm onChanged={handlePasswordChanged} />
                 </SectionCard>
 
-                <SectionCard icon={Mail} title="Email" description="Change or re-verify your email.">
-                  <div className="flex flex-1 flex-col">
-                    <div className="space-y-3">
-                      <div
-                        className={cn(
-                          "flex items-center gap-2.5 rounded-lg border px-3.5 py-3",
-                          isEmailVerified
-                            ? "border-line bg-paper-sunken/80"
-                            : "border-line-strong bg-paper"
-                        )}
-                      >
-                        {isEmailVerified ? (
-                          <Check className="h-4 w-4 flex-shrink-0 text-ink" aria-hidden />
-                        ) : (
-                          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-ink-subtle" aria-hidden />
-                        )}
-                        <span className="min-w-0">
-                          <span className="block truncate text-caption font-bold text-ink">
-                            {user?.email || "—"}
-                          </span>
-                          <span className="block text-caption font-semibold text-ink-muted">
-                            {isEmailVerified ? "Verified" : "Not verified"}
-                          </span>
-                        </span>
-                      </div>
-                      <Input
-                        type="email"
-                        placeholder="New email address"
-                        value={changeEmailForm.newEmail}
-                        onChange={(e) => setChangeEmailForm((s) => ({ ...s, newEmail: e.target.value }))}
-                      />
-                      <Input
-                        type="password"
-                        placeholder="Confirm with password"
-                        autoComplete="current-password"
-                        value={changeEmailForm.password}
-                        onChange={(e) => setChangeEmailForm((s) => ({ ...s, password: e.target.value }))}
-                      />
-                    </div>
-                    <div className="mt-auto flex gap-2 pt-4">
-                      <Button onClick={handleChangeEmail} className="flex-1">
-                        Change email
-                      </Button>
-                      <Button variant="secondary" onClick={handleVerifyEmail} disabled={verifyingEmail}>
-                        {verifyingEmail ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}
-                        Re-send
-                      </Button>
-                    </div>
-                  </div>
+                <SectionCard icon={Mail} title="Email" description="Change the address, or verify the one you have.">
+                  <ChangeEmailForm
+                    currentEmail={user?.email}
+                    verified={isEmailVerified}
+                    onChanged={handleEmailChanged}
+                    onResend={handleVerifyEmail}
+                    resending={verifyingEmail}
+                  />
                 </SectionCard>
               </div>
 
@@ -1448,6 +1357,7 @@ export default function ProfilePage() {
                       <Input
                         type="password"
                         placeholder="Password to disable"
+                        aria-label="Your password, to turn off two-factor"
                         autoComplete="current-password"
                         value={disable2faPassword}
                         onChange={(e) => setDisable2faPassword(e.target.value)}
@@ -1524,6 +1434,7 @@ export default function ProfilePage() {
                       <Input
                         type="password"
                         placeholder="Your password"
+                        aria-label="Your password, to sign out other sessions"
                         autoComplete="current-password"
                         value={revokeAllPassword}
                         onChange={(e) => setRevokeAllPassword(e.target.value)}
@@ -1544,6 +1455,7 @@ export default function ProfilePage() {
                       <Input
                         type="password"
                         placeholder="Confirm with password"
+                        aria-label="Your password, to delete your account"
                         autoComplete="current-password"
                         value={deletePassword}
                         onChange={(e) => setDeletePassword(e.target.value)}
@@ -1671,7 +1583,7 @@ export default function ProfilePage() {
                         <span
                           aria-hidden
                           className={cn(
-                            "h-[7px] w-[7px] flex-shrink-0 rounded-full",
+                            "h-2 w-2 flex-shrink-0 rounded-full",
                             entry.isSuccessful ? "bg-gray-300" : "bg-ink"
                           )}
                         />
@@ -1963,6 +1875,7 @@ export default function ProfilePage() {
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       <Input
                         placeholder="Search name or email"
+                        aria-label="Search users by name or email"
                         value={adminSearch}
                         onChange={(e) => setAdminSearch(e.target.value)}
                         onKeyDown={(e) => {
@@ -1972,7 +1885,7 @@ export default function ProfilePage() {
                           }
                         }}
                       />
-                      <Input placeholder="Status" value={adminStatus} onChange={(e) => setAdminStatus(e.target.value)} />
+                      <Input placeholder="Status" aria-label="Filter by status" value={adminStatus} onChange={(e) => setAdminStatus(e.target.value)} />
                       <Input
                         type="date"
                         aria-label="Created from"
