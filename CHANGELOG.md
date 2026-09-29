@@ -4,6 +4,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(landing): block 5 shows every signal a task card can give, and names it (2026-09-29)
+
+Nothing in the task builder could turn the card red, close its ring or put it in progress, so the
+product's most visible signals were exactly the ones the landing page never showed. The builder now has
+"Today", "All friends" and a "Where it stands" choice (not started, in progress, done), and under the
+card a five-row legend — red frame, priority bar, the ring, in progress, done — lights exactly the
+rows this card is showing, by the same rules `TodoCard` draws by (`litSignals`). The card's eye folds
+it, the share picker mirrors the product's, and on a phone the legend follows the controls instead of
+standing between the card and them.
+
 ### fix(landing): the first blocks are pressable, centred and say what the product does (2026-09-29)
 
 The hero's empty seats showed a plus that did nothing; pressing a seat now lets that person in, and

@@ -312,8 +312,9 @@ export default function HomePage() {
             </Parallax>
             <StaggerItem className="mt-7 max-w-2xl">
               <p className="text-pretty text-body text-ink-muted">
-                Name it, say how much it matters, give it a day or a rough week, and pick who sees
-                it. The card beside the controls is the one you&rsquo;d get in the app.
+                Name it, say how much it matters, give it a day, pick who sees it and where it
+                stands. The card is the one you&rsquo;d get in the app, and the legend under it
+                names every signal it&rsquo;s showing.
               </p>
             </StaggerItem>
             <StaggerItem index={1} className="mt-12">

@@ -1,15 +1,16 @@
-import { act, render, screen } from "@testing-library/react"
+import { act, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AudienceConsole } from "@/app/_landing/audience-console"
 import { SharingCeiling } from "@/app/_landing/sharing-ceiling"
+import { TaskBuilder } from "@/app/_landing/task-builder"
 
 /**
  * The landing page's interactive blocks, driven the way a visitor drives them.
  *
  * Their data lives in `src/lib/landing-*` and is tested there; these tests hold the wiring
- * the visitor sees: the hero's seats are pressable, and public is reachable in the ring
- * legend.
+ * the visitor sees: the hero's seats are pressable, public is reachable in the ring legend,
+ * and the builder's legend lights the card's signals.
  */
 
 class ResizeObserverStub {
@@ -84,6 +85,30 @@ describe("reading the ring", () => {
     // Naming people leaves the all-friends setting.
     await user.click(screen.getByRole("button", { name: "Add a person" }))
     expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false")
+  })
+})
+
+describe("the task builder's legend", () => {
+  it("lights the red frame for an urgent task and the ring for all friends", async () => {
+    const user = userEvent.setup()
+    render(<TaskBuilder />)
+    const legend = screen.getByText("What the card is telling you").parentElement as HTMLElement
+    expect(within(legend).queryByText(/Red frame.*on the card now/)).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Priority 5 of 5, Urgent" }))
+    expect(within(legend).getByText("Red frame", { exact: false })).toHaveTextContent("(on the card now)")
+
+    await user.click(screen.getByRole("button", { name: /All friends/ }))
+    expect(within(legend).getByText("The ring", { exact: false })).toHaveTextContent("(on the card now)")
+    expect(screen.getByRole("img", { name: "Public. All your friends can see this." })).toBeInTheDocument()
+  })
+
+  it("puts the task in progress and back", async () => {
+    const user = userEvent.setup()
+    render(<TaskBuilder />)
+    await user.click(screen.getByRole("button", { name: "In progress" }))
+    expect(screen.getByRole("button", { name: "In progress" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByText("In progress: the check wears the category's colour.")).toBeInTheDocument()
   })
 })
 
