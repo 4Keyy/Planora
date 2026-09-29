@@ -130,7 +130,10 @@ const AUDIENCE_WORD: Record<Audience, string> = {
  */
 function describeAudience(audience: Audience, viewerCount?: number): string {
   if (audience === "private") return "Private. Only you can see this."
-  if (audience === "public") return "Public. Anyone with the link can see this."
+  // "Public" in Planora is the share picker's "All friends", and the server enforces it
+  // (`IsPublic && isFriend`). It used to say "anyone with the link" — a link the product
+  // has never had, on the one sentence whose job is to say exactly who can see a task.
+  if (audience === "public") return "Public. All your friends can see this."
   const viewers = normaliseCount(viewerCount)
   if (viewers === undefined) return "Shared. Some people can see this."
   return `Shared with ${viewers} ${viewers === 1 ? "person" : "people"}.`

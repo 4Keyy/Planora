@@ -49,6 +49,22 @@ export interface NumberRollProps {
    * moment the user is reading.
    */
   minDigits?: number
+  /**
+   * Where the value sits inside the reserved width, which decides where the spare room
+   * goes when the value is shorter than `minDigits`.
+   *
+   * - `end` (the default) for a number at the right edge of a row, or in a column of
+   *   numbers: the units stay aligned and the spare room is on the left, against space.
+   * - `start` for a number read right after its label ("Keys 3"): the spare room goes
+   *   after it, where the next group's own gap absorbs it.
+   * - `center` for a number between two things, or at the centre of something — a
+   *   count inside a ring, a count between a dot and its word — so the spare room is
+   *   split and neither side reads as a hole.
+   *
+   * A single digit right-aligned in a two-digit box looked like a mis-typed "_3", with
+   * nothing on its left, wherever the number was not already at a right edge.
+   */
+  align?: "start" | "center" | "end"
 }
 
 /** One digit column. Keyed on the digit so a change mounts a new one and the old exits. */
@@ -99,7 +115,13 @@ function Digit({ digit, up, delay, reduce }: { digit: string; up: boolean; delay
   )
 }
 
-export function NumberRoll({ value, direction, className, announce, minDigits }: NumberRollProps) {
+const ALIGN: Record<NonNullable<NumberRollProps["align"]>, string> = {
+  start: "justify-self-start",
+  center: "justify-self-center",
+  end: "justify-self-end",
+}
+
+export function NumberRoll({ value, direction, className, announce, minDigits, align = "end" }: NumberRollProps) {
   const reduce = useReducedMotion() ?? false
   const previous = useRef(value)
   // Rendered only after mount, so the first paint is the final value and the
@@ -126,8 +148,8 @@ export function NumberRoll({ value, direction, className, announce, minDigits }:
    * tabular figures, shares one grid cell with the digits, and the cell takes the wider
    * of the two. It is a pseudo-element on purpose: CSS-generated text is not in the
    * DOM, so it is never read aloud and never matches a `getByText`. No zero-padding —
-   * only the space. The value stays right-aligned inside it, which is where a number
-   * belongs when its neighbours are numbers.
+   * only the space. The value is right-aligned inside it by default, which is where a
+   * number belongs when its neighbours are numbers; `align` moves it (see the prop).
    */
   const reserve = minDigits && minDigits > digits.length ? "0".repeat(minDigits) : undefined
 
@@ -146,7 +168,7 @@ export function NumberRoll({ value, direction, className, announce, minDigits }:
           reserve && "before:invisible before:content-[attr(data-reserve)] before:[grid-area:1/1]"
         )}
       >
-        <span className="inline-flex justify-self-end [grid-area:1/1]">
+        <span className={cn("inline-flex [grid-area:1/1]", ALIGN[align])}>
           {digits.map((d, i) => (
             <Digit
               key={`${digits.length}-${i}`}

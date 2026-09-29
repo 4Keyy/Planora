@@ -146,6 +146,17 @@ describe("NumberRoll — reserved width", () => {
     expect(wrapper(container).className).not.toContain("before:content")
   })
 
+  it.each([
+    ["start", "justify-self-start"],
+    ["center", "justify-self-center"],
+    ["end", "justify-self-end"],
+  ] as const)("puts the spare room where align=%s says", (align, cls) => {
+    // A lone digit right-aligned in a two-digit box read as "_3" wherever the number
+    // was not already at a right edge; the caller now chooses where the room goes.
+    const { container } = render(<NumberRoll value={7} minDigits={2} align={align} />)
+    expect(wrapper(container).firstElementChild).toHaveClass(cls)
+  })
+
   it("does not zero-pad — it only reserves the space", () => {
     // Padding would change the value the user reads; this changes only the box.
     const { container } = render(<NumberRoll value={7} minDigits={3} />)

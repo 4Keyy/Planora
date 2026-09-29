@@ -130,7 +130,7 @@ describe("TodoCard", () => {
     // the useful fact is who can see it, which they already know they shared.
     // This fixture is `isPublic: true`, which outranks the shared list: public is
     // the broader reach, and the arc closes completely to say so.
-    expect(screen.getByRole("img", { name: /Public\. Anyone with the link/ })).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: /Public\. All your friends can see this/ })).toBeInTheDocument()
     expect(container.querySelector(".lucide-share2")).toBeNull()
 
     // The border says ONE thing, and overdue outranks everything else. It used to

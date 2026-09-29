@@ -416,6 +416,12 @@ Two details that are not optional:
   query) in the same grid cell as the digits; the cell takes the wider of the two. A
   `minWidth` in `ch` repeated the bug above and reserved 24px for two digits that
   draw 28px wide.
+- **The caller decides where the spare room goes.** `align` is `end` by default (a number
+  at a right edge or in a column of numbers), `start` for a number read right after its
+  label ("Keys 3"), and `center` for a number between two things or at the centre of
+  something — the count inside the landing ring, the count between a status pill's dot and
+  its word. A lone digit right-aligned in a two-digit box read as "_3", with a hole on its
+  left, everywhere the number was not already at a right edge.
 - **The value appears once for assistive technology.** The columns are `aria-hidden`
   and an `sr-only` node carries the number, or a screen reader reads every intermediate
   digit of every roll. This is why `getByText` on a rolled digit throws in tests and
@@ -790,6 +796,7 @@ type has stopped being a primitive.
 | `Overlay` | Portal, dialog semantics, focus trap, Escape, backdrop dismissal, scroll lock |
 | `ConfirmDialog` | Destructive confirmation, with an optional "don't ask again" |
 | `Avatar` | Image, initials fallback, the optimizer's `sizes` |
+| `Switch` | An on/off setting: `role="switch"`, `aria-checked`, its label as its own text so the accessible name is the words beside the track. The knob is placed by flex and moved by `x` alone, so it sits on the track's centre line at any size |
 
 ### Expression
 

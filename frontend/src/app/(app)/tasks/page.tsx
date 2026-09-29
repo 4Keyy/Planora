@@ -87,10 +87,13 @@ function StatusPill({ count, label, emphasis }: { count: number; label: string; 
           that one extra digit was enough to push this header past its wrap point:
           the title row went to two lines and everything below it jumped 54px —
           0.119 CLS, the worst cell in the matrix. Layout is decided by the
-          viewport; it is never allowed to be decided by the data. */}
+          viewport; it is never allowed to be decided by the data. Centred in that
+          room, so a single digit sits evenly between the dot and its word instead of
+          leaving a hole on one side. */}
       <NumberRoll
         value={count}
         minDigits={2}
+        align="center"
         className={cn("text-body-sm font-bold", emphasis ? "text-ink" : "text-ink-muted")}
       />
       <span className={cn("text-body-sm font-semibold", emphasis ? "text-ink" : "text-ink-muted")}>{label}</span>

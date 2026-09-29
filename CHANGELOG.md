@@ -4,6 +4,22 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ui): a public task says who can see it, and counters sit where they read (2026-09-29)
+
+"Public" in Planora is the share picker's "All friends": the server grants access on
+`IsPublic && isFriend`, and there has never been a public link. `RedactionBadge` nevertheless told
+every screen reader "Public. Anyone with the link can see this." on every all-friends task — the one
+sentence whose job is to say exactly who can see a task. It now says "Public. All your friends can see
+this.", and the glossary's definition, which said "every authenticated user", is corrected with it.
+
+`NumberRoll` gains `align` (`start`, `center`, `end`). A counter with reserved width used to keep its
+value right-aligned in every context, so a single digit read as "_3" wherever the number was not
+already at a right edge: next to the dot in the task list's status pills (now centred), after a label,
+at the centre of a ring. `Switch` is a new primitive for an on/off setting — `role="switch"`,
+`aria-checked`, its words as its name, a knob placed by flex and moved by `x` alone.
+
+Security: the public audience is no longer described as reachable through a link
+
 ### fix(frontend): the archive's filter no longer drops in above its tasks (2026-09-29)
 
 A five-pass production scan of the whole signed-in app found one intermittent shift left: on
