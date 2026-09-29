@@ -1244,6 +1244,7 @@ can see it — and let a signed-out visitor verify it with their hands before ma
 - `frontend/src/app/_landing/` — the client islands, colocated with the route
 - `frontend/src/lib/landing-audience.ts` — the audience derivation and the sharing ceiling
 - `frontend/src/lib/landing-task-builder.ts` — block 5's card, its dates and the signals it lights
+- `frontend/src/lib/landing-branch.ts` — block 6's chapters and the step's cycle
 
 ### Key Rules
 
@@ -1270,6 +1271,7 @@ can see it — and let a signed-out visitor verify it with their hands before ma
 | The hero draws the audience with the product's own geometry | `AudienceRing` renders `redactionArc` — the function the 14px `RedactionBadge` uses — at 112px, so the landing picture and the mark on every task cannot disagree. The sentence is built in `lib/landing-circle.ts`, always in seat order, and gives the surprise away whenever Mira is in |
 | Every control in the viewer block does what the product does | The block used to set `isCompletedByViewer`, which `TodoCard` never reads (it renders "done" from `variant`), and passed no-op handlers — so "Tick it off for me" did nothing. Now each card's own circle, eye and body are wired, the hidden copy is the server's masked projection, and the rules (a viewer's tick is theirs; reopenable until the owner finishes it for everyone) live in `lib/landing-viewer.ts` |
 | The viewer block's dot rides its line | A static wrapper centres each dot on the track and the node inside moves it: framer-motion's `x` replaced the `-translate-y-1/2` that centred it, so the dot ran half its height below the line. A tick you make stops against the wall's near edge (which gives a little as it lands) instead of sinking into it |
+| Block 6 tells the branch in six chapters | Note → talk on one rail → a reply hanging under what it answers → a step forking off → the first press takes it into work (amber, "Working", an anonymous count for everyone else) → the second finishes it for everyone (green, with "You completed the step" on the step's own rail). Chapters only ever add at the bottom or change the step already there, so nothing moves above the reader's eye; every row's space is reserved and hidden rows are `visibility: hidden`. The story plays once on first sight and stops; the step's circle is a real button with the product's cycle (take, finish, reopen). On a phone the six chapters become one at a time with Previous and Next, reserved at the tallest. Under reduced motion it opens on the finished branch. Rails are 2px and centred on their markers (main rail x = 16, a step's and a reply's x = 60) |
 | The page spine appears only where it fits | A compact mark and count, from 1280px, in the right-hand margin beside `container-app`. It used to be a 218px "Shared 2 · follows the page" pill from 1024px that sat on the content column's right edge at every width up to about 1700px |
 | Faces in the audience row are `Avatar`, **not** `PresenceRow` | `PresenceRow` is the worker primitive; its spoken sentence reads "… are working on this", which is false about an audience |
 | One `useListNavigation` instance on the route | It is single-instance by construction: the first listener's `preventDefault()` makes a second list deaf |
@@ -1288,7 +1290,8 @@ Signed out, production build, 9 viewports (`--set public --mock --anon`):
 | Focus stops without a visible indicator | — | 0 of 37 |
 | Headings | 1 `h1`, no `h2` | 1 `h1` + 8 `h2` + 6 `h3`, no level skips |
 | CLS | 0.0007 | **0** at every viewport, in all three modes |
-| LCP, median of 5 runs, worst viewport | — | 668 ms |
+| LCP, median of 5 runs, worst viewport | — | 668 ms; **316 ms** after blocks 1–6 were reworked (2026-09-29, 2560 px) |
+| Unnamed controls, contrast failures, targets under 44px, horizontal scroll (2026-09-29) | — | 0, 0, 0, 0 at all 9 viewports |
 
 The LCP figure is a **median of five runs** on purpose: the same code measured 372, 2656, 372,
 2708 and 380 ms at 1440 px, so a single run cannot separate a regression from noise.

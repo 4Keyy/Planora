@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(landing): block 6 builds a task's branch, step by step (2026-09-29)
+
+The branch block was a still frame — three lines of text and a sentence admitting it. It now tells the
+branch in six chapters, building the picture as it goes: the author's note, talk on one rail, a reply
+hanging under what it answers, a step forking off, the first press taking it into work (amber,
+anonymous to everyone else) and the second finishing it for everyone (green, with who and when on the
+step's own rail). Every chapter adds at the bottom or changes the step already there, and every row's
+space is reserved, so nothing moves above the reader. The story plays once and stops; the step's
+circle is a real control with the product's cycle; phones step one chapter at a time; reduced motion
+opens on the finished branch.
+
 ### feat(landing): block 5 shows every signal a task card can give, and names it (2026-09-29)
 
 Nothing in the task builder could turn the card red, close its ring or put it in progress, so the

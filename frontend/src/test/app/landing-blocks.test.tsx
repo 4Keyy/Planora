@@ -4,13 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AudienceConsole } from "@/app/_landing/audience-console"
 import { SharingCeiling } from "@/app/_landing/sharing-ceiling"
 import { TaskBuilder } from "@/app/_landing/task-builder"
+import { BranchStory } from "@/app/_landing/branch-story"
 
 /**
  * The landing page's interactive blocks, driven the way a visitor drives them.
  *
  * Their data lives in `src/lib/landing-*` and is tested there; these tests hold the wiring
  * the visitor sees: the hero's seats are pressable, public is reachable in the ring legend,
- * and the builder's legend lights the card's signals.
+ * the builder's legend lights the card's signals, and the branch's circle runs the
+ * product's own cycle.
  */
 
 class ResizeObserverStub {
@@ -112,3 +114,38 @@ describe("the task builder's legend", () => {
   })
 })
 
+describe("the branch story", () => {
+  it("plays through its chapters once, then stops on the finished step", () => {
+    vi.useFakeTimers()
+    render(<BranchStory />)
+    expect(screen.getByRole("figure")).toHaveAccessibleName(/at step 1/)
+    // One chapter per timer: each step schedules the next once it has rendered.
+    for (let i = 0; i < 6; i++) {
+      act(() => {
+        vi.advanceTimersByTime(3_000)
+      })
+    }
+    expect(screen.getByRole("figure")).toHaveAccessibleName(/at step 6/)
+    // Queried by attribute: the row's fade-in is framer-motion's frame loop, which fake
+    // timers hold still, and a hidden node has no accessible name. The next test presses
+    // the same circle for real.
+    expect(document.querySelector('button[aria-label="Reopen the step"]')).not.toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+    expect(screen.getByRole("figure")).toHaveAccessibleName(/at step 6/)
+  })
+
+  it("runs the step's circle through the product's cycle", async () => {
+    const user = userEvent.setup()
+    render(<BranchStory />)
+    // Pressing a chapter hands the story over to the reader.
+    await user.click(screen.getByRole("button", { name: /A step forks off/ }))
+    await user.click(screen.getByRole("button", { name: "Take the step into work" }))
+    expect(screen.getByText("Working")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Finish the step" }))
+    expect(screen.getByText("completed the step", { exact: false })).toBeVisible()
+    await user.click(screen.getByRole("button", { name: "Reopen the step" }))
+    expect(screen.getByRole("button", { name: "Take the step into work" })).toBeInTheDocument()
+  })
+})

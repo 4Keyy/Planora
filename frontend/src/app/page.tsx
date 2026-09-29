@@ -12,8 +12,6 @@ import { Parallax } from "./_landing/parallax"
 import { HorizontalBand, StaggerItem } from "./_landing/scroll-kit"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { Kbd } from "@/components/ui/shortcuts-overlay"
-import { RedactionBadge } from "@/components/ui/redaction-badge"
-import { InkCheck } from "@/components/ui/ink-check"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -68,6 +66,7 @@ const KeyboardConsole = dynamic(() =>
   import("./_landing/keyboard-console").then((m) => m.KeyboardConsole)
 )
 const TaskBuilder = dynamic(() => import("./_landing/task-builder").then((m) => m.TaskBuilder))
+const BranchStory = dynamic(() => import("./_landing/branch-story").then((m) => m.BranchStory))
 const TrustLab = dynamic(() => import("./_landing/trust-lab").then((m) => m.TrustLab))
 
 /**
@@ -337,55 +336,19 @@ export default function HomePage() {
                 tone="dark"
               />
             </Parallax>
-
-            <StaggerItem className="mt-12 max-w-2xl">
-              <div className="rounded-lg bg-paper p-6 shadow-xl sm:p-8">
-                <div className="flex items-baseline gap-3">
-                  <h3 className="text-title font-bold tracking-tight text-ink">
-                    Book the flights
-                  </h3>
-                  <RedactionBadge audience="shared" viewerCount={2} size="sm" />
-                </div>
-
-                {/* One message at a time, in the order they were sent: a timeline read top to
-                    bottom should also arrive top to bottom. Each item is its own StaggerItem so
-                    the list is laid down rather than rendered. */}
-                <ol className="mt-7 flex flex-col gap-6 border-l border-line pl-6">
-                  <li>
-                    <StaggerItem index={1}>
-                      <p className="text-body-sm font-semibold text-ink">Victoria</p>
-                      <p className="mt-1 text-body-sm text-ink-muted">
-                        Outbound is cheapest on the Tuesday. Shall I hold two seats?
-                      </p>
-                    </StaggerItem>
-                  </li>
-                  <li>
-                    <StaggerItem index={3}>
-                      <p className="text-body-sm font-semibold text-ink">Mira</p>
-                      <p className="mt-1 text-body-sm text-ink-muted">
-                        Tuesday works. I can&rsquo;t do the early flight though.
-                      </p>
-                    </StaggerItem>
-                  </li>
-                  <li>
-                    <StaggerItem index={5} className="flex items-start gap-3">
-                      <span className="mt-0.5">
-                        <InkCheck size={16} />
-                      </span>
-                      <p className="text-body-sm text-ink-muted">
-                        <span className="font-semibold text-ink">Victoria</span> completed a step ·
-                        09:41
-                      </p>
-                    </StaggerItem>
-                  </li>
-                </ol>
-              </div>
+            <StaggerItem className="mt-7 max-w-2xl">
+              <p className="text-pretty text-body text-paper-muted">
+                Open a task and it becomes a branch: the talk on one rail, the steps forking off
+                it, the replies hanging under what they answer. Here is one, built step by step.
+              </p>
             </StaggerItem>
-
-            <StaggerItem index={1} className="mt-8 max-w-2xl">
-              <p className="text-body-sm text-paper-subtle">
-                This one is a still frame. The branches in section 04 are live: open a task there
-                and reply.
+            <StaggerItem index={1} className="mt-12">
+              <BranchStory />
+            </StaggerItem>
+            <StaggerItem index={2} className="mt-10 max-w-2xl">
+              <p className="text-pretty text-body-sm text-paper-subtle">
+                Steps go one level deep, and finishing a task with steps still open asks you
+                first. The branches in section 04 are live: open a task there and reply.
               </p>
             </StaggerItem>
           </div>
