@@ -4,6 +4,24 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): task lists stop jumping when their controls and columns arrive (2026-09-29)
+
+A production scan of the new app shell measured layout shifts well past the 0.0014 invariant:
+`/dashboard` 0.038 at 1280px and 0.015 at 768px, `/tasks` 0.023 at 768px. A frame-by-frame probe
+named two causes. The dashboard loaded its create panel with `next/dynamic` and no placeholder, so the
+task grid was painted and then pushed down 105px when the panel arrived; `/tasks` had a placeholder,
+84px under a panel that was 86px on a desktop and 78px on a phone. And `MasonryColumns` settled its
+column count in an effect, one frame after painting the base count, so at 768px three columns became
+two under the reader.
+
+The two plates above a task list now share `plate.ts` — one surface, one 80px row, one ink disc — and
+their placeholders are built from the same strings. The quick filter reads "Quick filter" in sentence
+case with a "Choose categories" button instead of "Open menu", and on phones keeps its actions on a
+row of their own so its height never depends on data. `MasonryColumns` resolves its count in a layout
+effect, and all task lists share `lib/task-grid.ts`. Every task route now measures at most 0.0012.
+
+Performance: CLS on /dashboard 0.038 → 0.0012 and on /tasks 0.023 → 0.0012 at their worst viewports
+
 ### feat(frontend): one app bar, one page header, one card — the signed-in app in one system (2026-09-28)
 
 The signed-in app had drifted into several products. The bar was a floating pill that showed

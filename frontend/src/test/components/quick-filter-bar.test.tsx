@@ -23,7 +23,7 @@ const cats: Category[] = [
 ]
 
 describe("QuickFilterBar", () => {
-  it("idle: shows the hint + F shortcut, no clear button, and opens the menu", () => {
+  it("idle: shows the hint + F shortcut, no clear button, and opens the category picker", () => {
     const onOpen = vi.fn()
     const onClear = vi.fn()
     render(<QuickFilterBar categories={cats} selectedIds={[]} onOpen={onOpen} onClear={onClear} />)
@@ -32,7 +32,7 @@ describe("QuickFilterBar", () => {
     expect(screen.getByText("F")).toBeInTheDocument()
     expect(screen.queryByLabelText("Clear category filter")).toBeNull()
 
-    fireEvent.click(screen.getByRole("button", { name: /Open Menu/i }))
+    fireEvent.click(screen.getByRole("button", { name: "Choose categories" }))
     expect(onOpen).toHaveBeenCalledTimes(1)
     expect(onClear).not.toHaveBeenCalled()
   })

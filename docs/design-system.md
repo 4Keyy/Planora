@@ -774,6 +774,7 @@ type has stopped being a primitive.
 | `Wordmark` | The product's name and mark — the private ring from `RedactionBadge`, drawn statically — in two sizes. Every place that names the product uses it |
 | `StatusPanel` | Every empty and error state. Two tones, three sizes |
 | `Pagination` + `lib/pagination` | The pager: ghost Previous/Next, 36px page buttons with `.touch-target`, the current page in ink. `pageWindow` decides which numbers show (the ends, the current page and its neighbours, a gap marker only where it hides two or more). Nothing in it scales on hover |
+| `components/todos/plate.ts` + `plate-placeholder.tsx` | The control plates above a task list: `PLATE_SURFACE` (a large panel), `PLATE_ROW` (80px from `sm`), `PLATE_ICON` (a 44px ink disc). The placeholders are built from the same strings, so a plate always lands on the space held for it |
 | `surfaces.ts` | `POPOVER_SURFACE` (`rounded-lg border-line bg-paper shadow-lg`), `MENU_ITEM` (a 40px row), `ICON_BUTTON` (a 40px icon button with `.touch-target`). A plain module, so a server component can import the strings |
 | `Overlay` | Portal, dialog semantics, focus trap, Escape, backdrop dismissal, scroll lock |
 | `ConfirmDialog` | Destructive confirmation, with an optional "don't ask again" |

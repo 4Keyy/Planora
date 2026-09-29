@@ -1,4 +1,5 @@
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
+import { CreatePlatePlaceholder } from "@/components/todos/plate-placeholder"
 
 /**
  * The dashboard's frame while it streams, built from the same layout classes as the page
@@ -48,7 +49,7 @@ export default function DashboardLoading() {
             <span className={`${bar} w-40`}>&nbsp;</span>
           </p>
         </div>
-        <div className="h-[84px] rounded-xl border border-line bg-paper shadow-sm" />
+        <CreatePlatePlaceholder />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <TodoSkeleton key={i} />

@@ -17,6 +17,7 @@ import { Todo, PagedTodosResponse, type CreateTodoPayload, type UpdateTodoPayloa
 import { TodoCard } from "@/components/todos/todo-card"
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
+import { CreatePlatePlaceholder } from "@/components/todos/plate-placeholder"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
 import dynamic from "next/dynamic"
@@ -35,9 +36,7 @@ const CreateTodoPanel = dynamic(
     // The panel's collapsed header is now always on screen (it IS the "new task"
     // affordance), so reserve its footprint while the chunk streams in to avoid
     // a layout pop.
-    loading: () => (
-      <div className="h-[84px] rounded-xl border border-line/80 bg-paper shadow-sm" aria-hidden="true" />
-    ),
+    loading: () => <CreatePlatePlaceholder />,
   },
 )
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"

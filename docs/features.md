@@ -747,13 +747,24 @@ The viewer count is the length of that shared list.
   `overflow-hidden` through the whole collapse animation without trapping them and **without ever
   growing the page** — even the tall inline "create category" form flips/caps inside the viewport
   instead of stretching the document and snapping back on close.
-- **/tasks control deck (redesigned)**: the page header is a `Workspace` eyebrow over an oversized
-  `Tasks` title with `N active` / `N done` count pills on the right (numbers roll vertically on
-  change). The create panel and the Quick Filter plate ("Filter tasks by category." / `F` hint /
-  "Open menu") are **both always on screen**, with the **create panel above the filter** (task
-  creation is the page's primary action) — the panel's collapsed header is the "new task" affordance
-  and expands in place, so there is no separate New Task button and the `F` shortcut works regardless
-  of the panel state.
+- **/tasks control deck**: the page header (`PageHeader`: a `Workspace` eyebrow over `Tasks`, with
+  `N active` / `N done` count pills whose numbers roll on change). Under it, two control plates that
+  share one surface, one 80px row and one ink disc (`components/todos/plate.ts`): the create panel's
+  collapsed header ("New task" / "Date, category, audience") and the quick filter ("Quick filter" /
+  "Filter tasks by category." / an `F` hint / "Choose categories"). Both are always on screen, the
+  create panel above the filter; the panel's header is the "new task" affordance and expands in place.
+  On phones the filter's actions sit on their own row under its title, always, because whether the
+  archive's date control is present is known only after the data arrives. While either plate's code or
+  data loads, a placeholder built from the same class strings (`plate-placeholder.tsx`) holds its exact
+  place, so the grid below never drops when it arrives — the dashboard used to render nothing there and
+  move its cards down 105px.
+- **Task grids resolve their column count before the first paint** (`MasonryColumns` uses a layout
+  effect, and every task list shares `TASK_GRID_COLUMNS`/`TASK_GRID_BREAKPOINTS` from `lib/task-grid.ts`:
+  three columns from `lg`, two from `sm`, one on a phone). The count used to settle a frame after the
+  grid painted, so at 768px three columns became two under the reader. Measured on the production
+  build, `/dashboard`, `/tasks`, `/tasks/completed` and `/categories` at every viewport now shift by at
+  most 0.0012 (the invariant is 0.0014); before, `/dashboard` reached 0.038 at 1280px and `/tasks`
+  0.023 at 768px.
 - On the dashboard, the create panel opens with a softened layout transition and staged field reveal. Its primary plus icon becomes a rotated close action while the panel is open, so the same control pattern can open and close the draft surface.
 - Toast notifications render on the toast z-index layer and start below the app bar, so completion/update feedback is not hidden behind the header.
 - **The app bar** (`frontend/src/components/layout/navbar.tsx`, rendered once by `AppShell` from `frontend/src/app/(app)/layout.tsx`) is a sticky bar shared by all five signed-in routes. The router keeps that layout mounted across them, so moving between Dashboard, Tasks and Categories leaves the bar still and slides its underline (`layoutId="nav-underline"`) to the new tab; only the page below fades (`app/(app)/template.tsx`, opacity only). From `sm` up the three destinations are always visible — they used to appear only while the pointer hovered over a floating pill, so a keyboard user never saw them — with search (opens the ⌘K palette through `OPEN_PALETTE_EVENT`), notifications and an account menu (Profile, Sign out; Escape closes it and returns focus to the avatar) on the right. Below `sm` the destinations and the account actions move into a sheet under the bar; the sheet and its backdrop are siblings of the `<header>`, because the header's `backdrop-filter` would otherwise become the containing block of the backdrop's `position: fixed`. The bar clears the iPhone status bar with `pt-safe` on the outer element and keeps its own spacing on the inner one.

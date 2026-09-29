@@ -1,5 +1,6 @@
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { PageHeaderSkeleton } from "@/components/layout/page-header"
+import { CreatePlatePlaceholder, FilterPlatePlaceholder } from "@/components/todos/plate-placeholder"
 
 /**
  * Streaming fallback for /tasks: the header with its two count pills, the two control
@@ -10,8 +11,8 @@ export default function TasksLoading() {
   return (
     <div aria-busy="true" className="space-y-6">
       <PageHeaderSkeleton withSentence={false} actions="pills" />
-      <div className="h-[84px] animate-pulse rounded-xl border border-line bg-paper shadow-sm" />
-      <div className="h-[84px] animate-pulse rounded-xl border border-line bg-paper shadow-sm" />
+      <CreatePlatePlaceholder />
+      <FilterPlatePlaceholder />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <TodoSkeleton key={i} />

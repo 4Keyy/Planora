@@ -1,12 +1,16 @@
 "use client"
 
-import { useEffect, useMemo, useState, useRef, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useMemo, useState, useRef, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { SPRING_STANDARD } from "@/lib/animations"
 
 export type MasonryBreakpoint = { maxWidth: number; columns: number }
 
-const MASONRY_ITEM_TRANSITION = { type: "spring" as const, stiffness: 300, damping: 30 }
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect
+
+/** 40ms between cards in reading order — the list rhythm of design-system § 9.9. */
+const ENTRANCE_STAGGER_S = 0.04
 
 const resolveColumnCount = (width: number, base: number, breakpoints?: MasonryBreakpoint[]) => {
   if (!breakpoints?.length) return base
@@ -42,7 +46,13 @@ export function MasonryColumns<T>({
   const [columnCount, setColumnCount] = useState(baseColumns)
   const prevColumnCountRef = useRef(columnCount)
 
-  useEffect(() => {
+  /*
+   * A layout effect, not an effect: the count has to be right before the first paint.
+   * With `useEffect` the grid painted with the base count and re-flowed a frame later — at
+   * 768px three columns became two and every card moved, a layout shift on every visit.
+   * On the server this is a plain effect (React warns about layout effects there).
+   */
+  useIsomorphicLayoutEffect(() => {
     const update = () => {
       const newCount = resolveColumnCount(window.innerWidth, baseColumns, breakpoints)
       if (newCount !== prevColumnCountRef.current) {
@@ -100,6 +110,7 @@ export function MasonryColumns<T>({
           <motion.div
             layout
             key={`masonry-col-${idx}`}
+            transition={SPRING_STANDARD}
             className="flex flex-col flex-1 min-w-0"
             style={{ gap: `${gap}px` }}
           >
@@ -115,11 +126,15 @@ export function MasonryColumns<T>({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96 }}
                 transition={{
-                  ...MASONRY_ITEM_TRANSITION,
+                  ...SPRING_STANDARD,
                   /* Stagger across the grid in reading order, capped at eight steps.
                      Uncapped, the ninth card waits 360ms and the twentieth waits most
                      of a second — the stagger stops being rhythm and becomes lag. */
-                  delay: Math.min(row * columnCount + idx, 8) * 0.04,
+                  delay: Math.min(row * columnCount + idx, 8) * ENTRANCE_STAGGER_S,
+                  /* The stagger is for arriving. A card moving to close a gap answers
+                     something that just happened, so every neighbour moves at once —
+                     inheriting the delay made the ninth card start 320ms late. */
+                  layout: SPRING_STANDARD,
                 }}
               >
                 {renderItem(item)}

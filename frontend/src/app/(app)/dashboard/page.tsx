@@ -27,10 +27,13 @@ const EditTodoModal = dynamic(
 )
 const CreateTodoPanel = dynamic(
   () => import("@/components/todos/create-todo-panel").then((m) => ({ default: m.CreateTodoPanel })),
-  { ssr: false },
+  // The collapsed panel is always on screen, so its place is held while the chunk loads —
+  // without this the task grid below it dropped 105px when the panel arrived.
+  { ssr: false, loading: () => <CreatePlatePlaceholder /> },
 )
 import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
+import { CreatePlatePlaceholder } from "@/components/todos/plate-placeholder"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
