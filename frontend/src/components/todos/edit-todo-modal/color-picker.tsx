@@ -241,7 +241,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
           background: "var(--pl-gray-100)", borderRadius: 8, padding: "0 10px",
           border: "1px solid var(--pl-line)",
         }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink-subtle)", marginRight: 2 }}>#</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink-muted)", marginRight: 2 }}>#</span>
           <input
             value={hexInput.replace("#", "")}
             onChange={(e) => handleHexInput(e.target.value)}
@@ -259,8 +259,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       {/* ── Preset swatches ── */}
       <div>
         <div style={{
-          fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
-          textTransform: "uppercase", color: "var(--pl-ink-subtle)", marginBottom: 7,
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+          textTransform: "uppercase", color: "var(--pl-ink-muted)", marginBottom: 7,
         }}>
           Presets
         </div>

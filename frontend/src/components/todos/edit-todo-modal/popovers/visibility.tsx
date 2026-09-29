@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { RefObject } from "react"
-import { Globe2, Lock } from "lucide-react"
+import { Globe2, Lock, Users } from "lucide-react"
 import { Popover, PopoverHeader } from "../popover"
 import { FriendAvatar } from "../friend-avatar"
 import type { FriendDto } from "@/types/auth"
@@ -80,8 +81,8 @@ export function VisibilityPanel({
   const changeMode = (m: "private" | "friends") => { if (readOnly) return; onModeChange(m) }
 
   const sub: React.ReactNode = mode === "private"
-    ? <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-subtle)" }}>only you</span>
-    : <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-subtle)" }}>{sharedIds.length} of {friends.length}</span>
+    ? <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>only you</span>
+    : <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>{sharedIds.length} of {friends.length}</span>
 
   return (
     <>
@@ -110,7 +111,7 @@ export function VisibilityPanel({
               }}
             >
               <Icon size={15} />
-              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 {label}
               </span>
             </button>
@@ -136,17 +137,25 @@ export function VisibilityPanel({
           <p style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", margin: 0, letterSpacing: "-0.01em" }}>
             Only you can see this task
           </p>
-          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-subtle)", margin: 0 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)", margin: 0 }}>
             None of your friends have access
           </p>
         </div>
       ) : friends.length === 0 ? (
-        <div style={{
-          height: "100%",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "12px 14px", fontSize: 12, color: "var(--pl-ink-subtle)", textAlign: "center",
-        }}>
-          You have no friends yet
+        // The same shape as the private state above — a disc, a line, a way forward — instead
+        // of one small grey sentence floating in the middle of an empty box.
+        <div className="flex h-full flex-col items-center justify-center gap-2 px-5 text-center">
+          <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-paper-sunken text-ink-muted">
+            <Users size={18} />
+          </span>
+          <p className="text-body-sm font-bold text-ink">No friends to share with yet</p>
+          <p className="text-caption font-semibold text-ink-muted">
+            Add them on your{" "}
+            <Link href="/profile#friends" className="touch-target rounded-sm text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink">
+              profile
+            </Link>
+            , then share this task.
+          </p>
         </div>
       ) : (
         /* Friends list — header pinned, rows scroll within the fixed body height */
@@ -156,14 +165,14 @@ export function VisibilityPanel({
             padding: "6px 14px 4px", flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
-            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
               Shared with
             </span>
             <button
               onClick={toggleAll}
               style={{
                 background: "none", border: "none", cursor: "pointer",
-                fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+                fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                 textTransform: "uppercase", color: "var(--pl-ink)", padding: 0,
               }}
             >

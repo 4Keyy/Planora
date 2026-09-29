@@ -47,7 +47,7 @@ interface PageMetaPanelProps {
 function SectionLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7, paddingLeft: 2 }}>
-      <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+      <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
         {children}
       </span>
       {action}
@@ -218,7 +218,7 @@ export function PageMetaPanel({
       <div>
         <SectionLabel
           action={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
               {visMode === "private" ? <Lock size={10} strokeWidth={2.2} /> : <Globe2 size={10} strokeWidth={2.2} />}
               {visMode === "private" ? "Private" : `Shared · ${sharedIds.length}`}
             </span>
@@ -246,7 +246,7 @@ export function PageMetaPanel({
             <button
               onClick={() => onDueRangeChange(null, null)}
               className="touch-target"
-              style={{ background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", minHeight: 36, padding: "0 8px", borderRadius: 8, fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}
+              style={{ background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", minHeight: 36, padding: "0 8px", borderRadius: 8, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)" }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-subtle)" }}
             >

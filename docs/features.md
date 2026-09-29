@@ -404,15 +404,23 @@ controls — priority / due date / category / visibility — and the branch), an
 now just the dialog chrome wrapping `<TodoEditor variant="modal">`. The page renders
 `<TodoEditor variant="page">` full-width inside a page card. So the page is the **full editor** —
 every control the modal has (inline title edit, priority, due date, category picker,
-visibility/sharing, owner autosave, the In Progress pill with hover → Leave, the "+" menu) plus the
+visibility/sharing, owner autosave, the "In progress" chip with its "Leave" button, the "+" menu) plus the
 complete branch — not a read-only view.
 
-The two variants share the title editor, In Progress pill and branch but lay them out differently:
+The two variants share the title editor, the "In progress" chip and the branch but lay them out
+differently. The chip is the same one the task card shows (`accent-surface`, sentence case, a still
+dot) and "Leave" is a plain button beside it; it used to be a pill that swapped its label for "Leave"
+only under the pointer — out of reach for a keyboard — and pulsed forever at rest. Once the Author's
+Note scrolls away its condensed pill sits on an opaque paper shelf across the feed's width whose last
+12px fade out, so the rows scrolling underneath no longer show through it or above it. When the owner
+has no friends yet, the visibility panel says so with a way forward ("Add them on your profile") instead
+of one grey sentence in an empty box; the profile's sections carry ids, so `/profile#friends` lands on
+the list.
 
 - **Modal** — single column: chrome bar (Task Branch label · Open page · pill · close), title,
   the horizontal `InlineTokenStrip`, the branch.
 - **Page** — wide two-column: a header row carrying the `Task Branch` back-link, the editable title
-  and the In Progress pill on the right; below it a **compact left meta sidebar** (`PageMetaPanel`,
+  and the "In progress" chip on the right; below it a **compact left meta sidebar** (`PageMetaPanel`,
   ~389px) and the branch filling the rest. The sidebar stacks priority and category as full-width
   rows that open their popovers, and renders **two controls always-open inline** so the wide space
   is useful at a glance: the **visibility panel** (`VisibilityPanel`, extracted from
@@ -466,7 +474,7 @@ and duplicate (which navigates to the new copy's page). A missing/forbidden task
 
 Two ways to reach it: **Ctrl/⌘-click a task card** opens the page in a **new tab** (a plain click
 still opens the modal), and the modal's top chrome has a grey **"Open page"** button (same row as
-the In Progress pill) that opens it in a new tab. Both compute the URL from the task id;
+the "In progress" chip) that opens it in a new tab. Both compute the URL from the task id;
 `TodoCard` handles the modifier-click, `TodoEditor` (modal variant) renders the button.
 
 ### The keyboard over the task list

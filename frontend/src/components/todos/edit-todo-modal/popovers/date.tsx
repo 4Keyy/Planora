@@ -155,7 +155,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
         background: "none", border: "none", cursor: "pointer",
         display: "inline-flex", alignItems: "center", minHeight: 36, padding: "0 8px",
         borderRadius: 8,
-        fontSize: 12, fontWeight: 700, letterSpacing: "0.1em",
+        fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
         textTransform: "uppercase", color: "var(--pl-ink-muted)",
       }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink)" }}
@@ -259,8 +259,8 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: CELL_GAP, marginBottom: 4 }}>
             {EN_DAYS_SHORT.map((d) => (
               <div key={d} style={{
-                textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
-                textTransform: "uppercase", color: "var(--pl-ink-subtle)", padding: "2px 0",
+                textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+                textTransform: "uppercase", color: "var(--pl-ink-muted)", padding: "2px 0",
               }}>
                 {d}
               </div>
@@ -391,7 +391,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
           {!readOnly && (
             <div style={{
               marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--pl-gray-100)",
-              fontSize: 12, fontWeight: 600, letterSpacing: "0.01em", color: "var(--pl-ink-subtle)", textAlign: "center",
+              fontSize: 12, fontWeight: 600, letterSpacing: "0.01em", color: "var(--pl-ink-muted)", textAlign: "center",
             }}>
               {hasRange
                 ? "Click any day to start a new date"

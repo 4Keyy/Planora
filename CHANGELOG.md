@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(editor): the task editor joins the system — readable labels, a reachable "Leave", a solid pinned note (2026-09-29)
+
+The editor and the branch page are written in inline styles, and they had kept their own dialect: every
+uppercase label tracked at 0.1–0.14em in bold, 12px text in `ink-subtle`, an "In progress" pill that
+turned into "Leave" only under the pointer (a keyboard user could not leave) and pulsed forever, a
+condensed Author's Note floating 6px below the top on a translucent, blurred fill so the rows behind it
+showed through and above it, and a tall empty box that said only "You have no friends yet".
+
+Labels now track at the eyebrow's 0.05em in semibold, 12px text is `ink-muted`, the state is the task
+card's own "In progress" chip with a plain "Leave" button beside it, the pinned note sits on an opaque
+shelf that fades at its lower edge, and the empty sharing panel offers the way to add friends (the
+profile's sections gained ids so the link lands on them).
+
 ### fix(profile): changing the password or email says what went wrong, where it went wrong (2026-09-29)
 
 The profile's password card was three placeholder-only inputs: the labels vanished on the first

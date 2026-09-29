@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, RotateCcw, Copy, type LucideIcon } from "lucide-react"
 import {
   fetchComments, addComment, updateComment, deleteComment,
@@ -10,7 +11,7 @@ import {
   getApiErrorMessage,
 } from "@/lib/api"
 import { sameUserId, type TodoComment, type Todo, type TodoWorker, type ReplyTargetType } from "@/types/todo"
-import { SPRING_STANDARD } from "@/lib/animations"
+import { SPRING_STANDARD, TWEEN_EXIT } from "@/lib/animations"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import { useBranchRoom, useTyping } from "@/lib/realtime/hooks"
@@ -1051,75 +1052,48 @@ export function BranchFeed({
       {/* ── Feed area (relative anchor for the condensed sticky note) ── */}
       <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
 
-        {/* Condensed Author's Note — slides in once the full card scrolls away */}
+        {/*
+          Condensed Author's Note — slides in once the full card scrolls away.
+
+          It sits on an opaque paper shelf that spans the feed's width, with the shelf's last
+          12px fading out. The pill used to float 6px below the top edge on a translucent,
+          blurred fill, so the rows scrolling underneath showed through it and in the strip
+          above it — a reply's name and "REPLY" peeking out over the note.
+        */}
         <AnimatePresence>
           {genesis && genesisOutOfView && !editingGenesis && (
-            <motion.button
-              type="button"
-              onClick={scrollToGenesis}
-              initial={{ opacity: 0, y: -14 }}
+            <motion.div
+              key="pinned-note"
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -14 }}
+              exit={{ opacity: 0, y: -8, transition: TWEEN_EXIT }}
               transition={SPRING_STANDARD}
-              aria-label="Scroll up to the author's note"
-              style={{
-                // Floating rounded pill (all corners), inset slightly from the edges so it reads
-                // as a tidy chip rather than a flush header with sharp bottom corners.
-                position: "absolute",
-                top: 6,
-                left: 6,
-                right: 6,
-                zIndex: 6,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                textAlign: "left",
-                cursor: "pointer",
-                padding: "10px 14px",
-                border: "1px solid var(--pl-gray-150)",
-                borderRadius: 14,
-                background: "rgba(250,250,250,0.85)",
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
-                boxShadow: "0 10px 24px -12px rgba(0,0,0,0.30)",
-                fontFamily: "inherit",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(245,243,255,0.9)" }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(250,250,250,0.82)" }}
+              className="absolute inset-x-0 top-0 z-10 bg-paper px-1.5 pb-3 pt-1.5 [mask-image:linear-gradient(to_bottom,black_calc(100%-0.75rem),transparent)]"
             >
-              <FriendAvatar
-                friend={{
-                  id: genesis.authorId,
-                  firstName: genesis.authorName?.split(" ")[0],
-                  lastName: genesis.authorName?.split(" ")[1],
-                  profilePictureUrl: genesis.authorAvatarUrl,
-                }}
-                size={22}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1.2 }}>
-                  Author&apos;s Note
-                </div>
-                <div style={{
-                  fontSize: 12, fontWeight: 600, color: "var(--pl-ink)", lineHeight: 1.3,
-                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1,
-                }}>
-                  {genesis.content}
-                </div>
-              </div>
-              <motion.div
-                // A bounded nudge, three bobs and then still: nothing at rest may animate forever.
-                animate={{ y: [0, -2, 0] }}
-                transition={{ duration: 1.6, repeat: 2, ease: "easeInOut" }}
-                style={{
-                  flexShrink: 0, width: 22, height: 22, borderRadius: 7,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "var(--pl-gray-100)", color: "var(--pl-accent)",
-                }}
+              <button
+                type="button"
+                onClick={scrollToGenesis}
+                aria-label="Scroll up to the author's note"
+                className="flex w-full items-center gap-3 rounded-lg border border-line bg-paper px-4 py-2.5 text-left shadow-md transition-colors duration-fast hover:bg-paper-sunken"
               >
-                <ChevronUp size={13} strokeWidth={2.4} />
-              </motion.div>
-            </motion.button>
+                <FriendAvatar
+                  friend={{
+                    id: genesis.authorId,
+                    firstName: genesis.authorName?.split(" ")[0],
+                    lastName: genesis.authorName?.split(" ")[1],
+                    profilePictureUrl: genesis.authorAvatarUrl,
+                  }}
+                  size={24}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className={FIELD_LABEL_CLASS}>Author&apos;s note</span>
+                  <span className="mt-0.5 block truncate text-caption font-semibold text-ink">{genesis.content}</span>
+                </span>
+                <span aria-hidden="true" className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-paper-sunken text-ink-muted">
+                  <ChevronUp size={14} strokeWidth={2.4} />
+                </span>
+              </button>
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -1169,14 +1143,14 @@ export function BranchFeed({
                 size={32}
               />
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1.2 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1.2 }}>
                   Author&apos;s Note
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 2 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.015em", color: "var(--pl-ink)" }}>
                     {genesis.authorName}
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
                     {formatTimeHHMM(genesis.createdAt)}
                   </span>
                 </div>
@@ -1191,7 +1165,7 @@ export function BranchFeed({
                   display: "flex", alignItems: "center", gap: 4,
                   background: "var(--pl-paper)", border: "1px solid var(--pl-line)",
                   borderRadius: 8, padding: "5px 10px", cursor: "pointer",
-                  fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+                  fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                   textTransform: "uppercase", color: "var(--pl-ink-muted)",
                 }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
@@ -1243,7 +1217,7 @@ export function BranchFeed({
                   style={{
                     background: "var(--pl-ink)", border: "none", borderRadius: 9,
                     padding: "6px 12px", cursor: "pointer",
-                    fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+                    fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                     textTransform: "uppercase", color: "var(--pl-paper)",
                   }}
                 >
@@ -1279,7 +1253,7 @@ export function BranchFeed({
             style={{
               display: "block", marginBottom: 10,
               background: "none", border: "none", cursor: "pointer",
-              fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
               textTransform: "uppercase", color: "var(--pl-ink)",
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecoration = "underline" }}
@@ -1290,11 +1264,11 @@ export function BranchFeed({
         )}
 
         {loading && (
-          <p style={{ fontSize: 12, color: "var(--pl-ink-subtle)" }}>Loading…</p>
+          <p style={{ fontSize: 12, color: "var(--pl-ink-muted)" }}>Loading…</p>
         )}
 
         {!loading && feed.length === 0 && (
-          <p style={{ fontSize: 12, color: "var(--pl-ink-subtle)", fontStyle: "italic" }}>
+          <p style={{ fontSize: 12, color: "var(--pl-ink-muted)", fontStyle: "italic" }}>
             No messages yet
           </p>
         )}
@@ -1463,8 +1437,8 @@ export function BranchFeed({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span style={{
-                      fontSize: 12, fontWeight: 700, letterSpacing: "0.12em",
-                      textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1.2,
+                      fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+                      textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1.2,
                     }}>
                       Replying to
                     </span>
@@ -1478,7 +1452,7 @@ export function BranchFeed({
                     {replyDraft.type === "subtask" && (
                       <span style={{
                         display: "inline-flex", alignItems: "center", gap: 3,
-                        fontSize: 12, fontWeight: 700, letterSpacing: "0.1em",
+                        fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                         textTransform: "uppercase", color: "var(--pl-warn)",
                         background: "var(--pl-warn-surface)", border: "1px solid var(--pl-warn-surface)",
                         padding: "1px 6px", borderRadius: 5, flexShrink: 0,
@@ -1489,7 +1463,7 @@ export function BranchFeed({
                     )}
                   </div>
                   <div style={{
-                    fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", lineHeight: 1.35,
+                    fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", lineHeight: 1.35,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     marginTop: 1,
                   }}>
@@ -1539,7 +1513,7 @@ export function BranchFeed({
                 ? <FileText size={11} color="var(--pl-accent)" strokeWidth={2.2} />
                 : <ListTree size={11} color="var(--pl-accent)" strokeWidth={2.2} />}
               <span style={{
-                fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
+                fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                 textTransform: "uppercase", color: "var(--pl-accent)",
               }}>
                 {composeMode === "description" ? "Description" : "Subtask"}
@@ -1561,7 +1535,7 @@ export function BranchFeed({
                 <X size={10} strokeWidth={2.5} />
               </button>
             </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-subtle)" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>
               {composeMode === "description" ? "task description · ↵ to save · ⇧↵ new line" : "a step in this task · ↵ to add"}
             </span>
           </div>
@@ -1608,7 +1582,7 @@ export function BranchFeed({
                 transition={SPRING_SNAP}
                 style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: "auto" }}
               >
-                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
                   {branchUnread.count} new
                 </span>
                 <NotificationBadge type={branchUnread.latestType} count={branchUnread.count} showCount size={22} />
@@ -1681,14 +1655,14 @@ export function BranchFeed({
                       <div style={{ fontSize: 14, fontWeight: 700, color: genesis ? "var(--pl-ink-subtle)" : "var(--pl-ink)", letterSpacing: "-0.01em" }}>
                         Description
                       </div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", marginTop: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", marginTop: 1 }}>
                         {genesis ? "Already added" : "Task description"}
                       </div>
                     </div>
                     {genesis && (
                       <div style={{
                         marginLeft: "auto", fontSize: 12, fontWeight: 700,
-                        letterSpacing: "0.1em", textTransform: "uppercase",
+                        letterSpacing: "0.05em", textTransform: "uppercase",
                         color: "var(--pl-accent)", background: "var(--pl-accent-surface)",
                         padding: "2px 7px", borderRadius: 6,
                       }}>
@@ -1723,7 +1697,7 @@ export function BranchFeed({
                       <div style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", letterSpacing: "-0.01em" }}>
                         Subtask
                       </div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", marginTop: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", marginTop: 1 }}>
                         Add a step to this task
                       </div>
                     </div>
@@ -1931,8 +1905,8 @@ export function BranchFeed({
 function MenuSectionLabel({ children }: { children: ReactNode }) {
   return (
     <div style={{
-      fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
-      textTransform: "uppercase", color: "var(--pl-ink-subtle)",
+      fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+      textTransform: "uppercase", color: "var(--pl-ink-muted)",
       padding: "4px 10px 8px",
     }}>
       {children}
@@ -1978,7 +1952,7 @@ function MenuActionItem({ icon, iconBg, title, subtitle, pending, disabled, onCl
         <div style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", letterSpacing: "-0.01em" }}>
           {title}
         </div>
-        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", marginTop: 1 }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", marginTop: 1 }}>
           {subtitle}
         </div>
       </div>
@@ -2000,7 +1974,7 @@ function DaySeparator({ label }: { label: string }) {
         padding: "2px 10px",
         fontSize: 12,
         fontWeight: 700,
-        letterSpacing: "0.14em",
+        letterSpacing: "0.05em",
         textTransform: "uppercase",
         color: "var(--pl-ink-muted)",
         whiteSpace: "nowrap",
@@ -2054,7 +2028,7 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
           )}
           {body}
         </p>
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", flexShrink: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)", flexShrink: 0 }}>
           {formatTimeHHMM(comment.createdAt)}
         </span>
       </div>
@@ -2168,7 +2142,7 @@ function SubtaskWorkPresence({
       <span style={{ position: "relative", display: "inline-block", minWidth: 0 }}>
         <span style={{
           display: "block",
-          fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
+          fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 116,
           color: "var(--pl-warn)", opacity: leaving ? 0 : 1, transition: "opacity 160ms ease", userSelect: "none",
         }}>
@@ -2459,7 +2433,7 @@ function SubtaskCard({
                     size={16}
                   />
                   <span style={{
-                    fontSize: 12, fontWeight: 700, color: "var(--pl-ink-subtle)", lineHeight: 1.3,
+                    fontSize: 12, fontWeight: 700, color: "var(--pl-ink-muted)", lineHeight: 1.3,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     transition: "color 200ms",
                   }}>
@@ -2480,7 +2454,7 @@ function SubtaskCard({
                   minHeight: 36, padding: "0 10px", borderRadius: 10, border: "none",
                   background: "transparent", cursor: "pointer",
                   fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
-                  textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1,
+                  textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1,
                   transition: "color 140ms, background 140ms",
                 }}
                 onMouseEnter={(e) => {
@@ -2536,7 +2510,7 @@ function SubtaskCard({
                       minHeight: 36, padding: "0 12px", borderRadius: 999,
                       border: "1px solid var(--pl-gray-150)", background: "var(--pl-paper)",
                       cursor: pending ? "default" : "pointer",
-                      fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
+                      fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                       textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1,
                       whiteSpace: "nowrap",
                       boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
@@ -2655,13 +2629,13 @@ function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
 
       {/* Note (icon-less) */}
       <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: REPLY_ROW }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", lineHeight: 1.3 }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", lineHeight: 1.3 }}>
           {name
             ? <><strong style={{ color: "var(--pl-ink)", fontWeight: 700 }}>{name}</strong> completed sub task</>
             : <strong style={{ color: "var(--pl-positive)", fontWeight: 700 }}>Sub task completed</strong>}
         </span>
         {at && (
-          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "var(--pl-ink-subtle)" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "var(--pl-ink-muted)" }}>
             {formatTimeHHMM(at)}
           </span>
         )}
@@ -2781,8 +2755,8 @@ function ReplyQuote({
       </span>
       {deleted && (
         <span style={{
-          fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
-          color: "var(--pl-ink-subtle)", background: "var(--pl-gray-100)", padding: "1px 6px", borderRadius: 5,
+          fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
+          color: "var(--pl-ink-muted)", background: "var(--pl-gray-100)", padding: "1px 6px", borderRadius: 5,
           flexShrink: 0,
         }}>
           Deleted
@@ -3009,16 +2983,16 @@ function MessageItem({
           <span style={{
             background: "var(--pl-gray-150)", color: "var(--pl-ink-muted)",
             padding: "1px 6px", borderRadius: 5,
-            fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+            fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
           }}>
             YOU
           </span>
         )}
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
           {formatTimeHHMM(c.createdAt)}
         </span>
         {c.isEdited && (
-          <span style={{ fontSize: 12, color: "var(--pl-ink-subtle)", fontStyle: "italic" }}>edited</span>
+          <span style={{ fontSize: 12, color: "var(--pl-ink-muted)", fontStyle: "italic" }}>edited</span>
         )}
 
         {/* Hover actions — reply is available to everyone with branch access; edit/delete

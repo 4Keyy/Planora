@@ -206,7 +206,7 @@ export function PopoverHeader({ label, sub, action }: PopoverHeaderProps) {
       <span style={{
         fontSize: 12,
         fontWeight: 700,
-        letterSpacing: "0.14em",
+        letterSpacing: "0.05em",
         textTransform: "uppercase",
         color: "var(--pl-ink-subtle)",
       }}>

@@ -95,8 +95,8 @@ export function CategoryPopover({
             justifyContent: "space-between", marginBottom: 14,
           }}>
             <span style={{
-              fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
-              textTransform: "uppercase", color: "var(--pl-ink-subtle)",
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+              textTransform: "uppercase", color: "var(--pl-ink-muted)",
             }}>
               New category
             </span>
@@ -138,8 +138,8 @@ export function CategoryPopover({
           {/* Color picker */}
           <div style={{ marginBottom: 14 }}>
             <div style={{
-              fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
-              textTransform: "uppercase", color: "var(--pl-ink-subtle)", marginBottom: 10,
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+              textTransform: "uppercase", color: "var(--pl-ink-muted)", marginBottom: 10,
             }}>
               Color
             </div>
@@ -149,8 +149,8 @@ export function CategoryPopover({
           {/* Icon grid */}
           <div style={{ marginBottom: 16 }}>
             <div style={{
-              fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
-              textTransform: "uppercase", color: "var(--pl-ink-subtle)", marginBottom: 8,
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+              textTransform: "uppercase", color: "var(--pl-ink-muted)", marginBottom: 8,
             }}>
               Icon
             </div>
@@ -202,7 +202,7 @@ export function CategoryPopover({
               onClick={cancelCreate}
               style={{
                 flex: 1, padding: "10px 0", borderRadius: 12, border: "none", cursor: "pointer",
-                background: "transparent", fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+                background: "transparent", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                 textTransform: "uppercase", color: "var(--pl-ink-muted)", fontFamily: "inherit",
               }}
             >
@@ -217,7 +217,7 @@ export function CategoryPopover({
                 cursor: name.trim() && !saving ? "pointer" : "not-allowed",
                 background: name.trim() && !saving ? "var(--pl-ink)" : "var(--pl-line)",
                 color: name.trim() && !saving ? "var(--pl-paper)" : "var(--pl-ink-subtle)",
-                fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
+                fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
                 boxShadow: name.trim() && !saving ? "0 4px 14px rgba(0,0,0,0.18)" : "none",
                 transition: "background 120ms, box-shadow 120ms",
                 fontFamily: "inherit",
@@ -233,7 +233,7 @@ export function CategoryPopover({
           <PopoverHeader
             label="Category"
             sub={
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-subtle)" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>
                 {localCats.length} available
               </span>
             }
@@ -257,7 +257,7 @@ export function CategoryPopover({
                 width: 22, height: 22, borderRadius: 5,
                 border: "1.5px dashed var(--pl-line-strong)", flexShrink: 0,
               }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink-subtle)", flex: 1 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink-muted)", flex: 1 }}>
                 No category
               </span>
               {value === null && (

@@ -18,6 +18,7 @@ import { InlineTokenStrip } from "./inline-token-strip"
 import { PageMetaPanel }    from "./page-meta-panel"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
 import { PresenceRow } from "@/components/ui/presence-row"
+import { Button } from "@/components/ui/button"
 import {
   getPriorityNumber,
   getPriorityString,
@@ -159,7 +160,6 @@ export function TodoEditor({
   useEffect(() => { setWorkOverride(null) }, [todo.id])
   const effectiveInProgress = workOverride ?? inProgress
 
-  const [pillHovered, setPillHovered] = useState(false)
 
   /**
    * Who is actually in this task, with faces.
@@ -371,43 +371,32 @@ export function TodoEditor({
     )
   }
 
-  // The In Progress pill (with hover → Leave). Shown when the viewer has the task in progress.
+  /*
+   * "In progress", and the way out of it. The pill used to swap its own label for a
+   * "Leave" button on hover — invisible and unreachable from a keyboard (the button sat at
+   * opacity 0 on top of the label), turning red under the pointer, and pulsing forever at
+   * rest. Now the state is the same chip the task card shows ("· you" in accent-surface),
+   * and leaving is a plain button beside it.
+   */
   const pillNode = effectiveInProgress && onLeave ? (
-    <div
-      onMouseEnter={() => setPillHovered(true)}
-      onMouseLeave={() => setPillHovered(false)}
-      style={{
-        display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
-        background: pillHovered ? "var(--pl-alert-surface)" : "var(--pl-accent-surface)",
-        border: `1px solid ${pillHovered ? "var(--pl-alert-surface)" : "var(--pl-accent-surface)"}`,
-        borderRadius: 100, padding: "5px 10px 5px 8px", cursor: "default",
-        transition: "background 240ms ease, border-color 240ms ease",
-      }}
-    >
-      <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
-        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", transition: "background 240ms ease" }} />
-        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", animation: "pl_pulse 1.6s var(--pl-ease-standard) infinite", transition: "background 240ms ease" }} />
-      </div>
-      <div style={{ position: "relative", display: "inline-block" }}>
-        <span style={{ display: "block", fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", color: "var(--pl-accent)", opacity: pillHovered ? 0 : 1, transition: "opacity 180ms ease", userSelect: "none" }}>
-          In Progress
-        </span>
-        <button
-          onClick={async (e) => { e.stopPropagation(); setWorkOverride(false); await onLeave() }}
-          style={{
-            position: "absolute", inset: "-3px -6px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: "transparent", border: "1px solid var(--pl-alert-surface)", borderRadius: 6, cursor: "pointer",
-            fontSize: 12, fontWeight: 700, color: "var(--pl-alert)", whiteSpace: "nowrap", fontFamily: "inherit",
-            opacity: pillHovered ? 1 : 0, pointerEvents: pillHovered ? "auto" : "none",
-            transition: "opacity 180ms ease, background 120ms ease",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-alert-surface)" }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
-        >
-          Leave
-        </button>
-      </div>
+    <div className="flex flex-shrink-0 items-center gap-1">
+      <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-accent/30 bg-accent-surface px-3 text-caption font-semibold text-accent">
+        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent" />
+        In progress
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="px-3"
+        onClick={async (e) => {
+          e.stopPropagation()
+          setWorkOverride(false)
+          await onLeave()
+        }}
+      >
+        Leave
+      </Button>
     </div>
   ) : null
 
@@ -468,8 +457,8 @@ export function TodoEditor({
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6,
                 minHeight: 36, paddingRight: 8, borderRadius: 8,
-                fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase",
-                color: "var(--pl-ink-subtle)", textDecoration: "none",
+                fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
+                color: "var(--pl-ink-muted)", textDecoration: "none",
               }}
             >
               <ArrowLeft size={13} strokeWidth={2.4} /> Task Branch
@@ -515,7 +504,7 @@ export function TodoEditor({
     >
       {/* ── (1) Top chrome bar ── (tighter side padding on phones for more content width) */}
       <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-6">
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
           Task Branch
         </span>
 
@@ -529,7 +518,7 @@ export function TodoEditor({
               background: "transparent", border: "none", cursor: "pointer",
               padding: "5px 6px", borderRadius: 8,
               fontSize: 12, fontWeight: 700, letterSpacing: "0.02em",
-              color: "var(--pl-ink-subtle)", fontFamily: "inherit",
+              color: "var(--pl-ink-muted)", fontFamily: "inherit",
               transition: "color 120ms, background 120ms",
             }}
             onMouseEnter={(e) => {
