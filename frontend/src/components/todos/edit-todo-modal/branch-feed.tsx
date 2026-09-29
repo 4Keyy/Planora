@@ -1159,19 +1159,14 @@ export function BranchFeed({
 
             {/* Edit button — owner only */}
             {isOwner && !editingGenesis && (
+              // `.touch-target` lifts the 32px chip to a 44px hit area; the hover is a class, not
+              // two handlers writing inline background colours.
               <button
+                type="button"
                 onClick={() => { setEditingGenesis(true); setGenesisEditContent(genesis.content) }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  background: "var(--pl-paper)", border: "1px solid var(--pl-line)",
-                  borderRadius: 8, padding: "5px 10px", cursor: "pointer",
-                  fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
-                  textTransform: "uppercase", color: "var(--pl-ink-muted)",
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper)" }}
+                className="touch-target inline-flex h-8 items-center gap-1.5 rounded-sm border border-line bg-paper px-3 text-caption font-semibold uppercase tracking-wider text-ink-muted transition-colors duration-fast hover:bg-paper-sunken hover:text-ink"
               >
-                <Pencil size={10} />
+                <Pencil size={12} aria-hidden="true" />
                 Edit
               </button>
             )}

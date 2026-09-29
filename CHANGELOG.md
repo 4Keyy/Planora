@@ -4,6 +4,21 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): the archive's filter no longer drops in above its tasks (2026-09-29)
+
+A five-pass production scan of the whole signed-in app found one intermittent shift left: on
+`/tasks/completed` the filter plate rendered only once the categories arrived, and when the tasks came
+back first it appeared above an already-painted grid and pushed it down 114px (CLS 0.034 at 1024px in
+one run of three). The plate's place is now held by `FilterPlatePlaceholder` until the categories answer.
+The same scan flagged the Author's Note "Edit" chip at 31px tall; it is a 32px chip with a 44px
+`.touch-target`, its hover a class instead of two handlers writing inline colours.
+
+Every signed-in route now measures CLS ≤ 0.0012 across 46 cells and five passes, with no contrast
+failures, unnamed controls or horizontal scroll; the public set (landing and all auth screens) measures
+CLS 0 with a worst median LCP of 400 ms.
+
+Performance: /tasks/completed worst CLS 0.034 -> 0
+
 ### refactor(frontend): the editor's popovers and the list's small controls use the scale (2026-09-29)
 
 The last colour-literal shadows, off-scale radii and hand-written springs lived in the task editor's

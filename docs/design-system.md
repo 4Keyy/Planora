@@ -675,6 +675,11 @@ Icon sizes: `14 · 16 · 20 · 24 · 32`. Avatar diameters: `20 · 24 · 32 · 4
 The default control is 44px, not 40, because 44 is the WCAG 2.5.8 enhanced target and
 two thirds of this product's interactive elements once measured under 44×44 at 390px.
 
+**The one exception is a month grid on the narrowest phone.** At 360px the branch page's
+calendar has about 290px for seven day cells, so each is 40px wide (and 44px tall) with 2px
+between them. `.touch-target` cannot help — the enlarged areas would overlap the next day's —
+and the cells stay well above WCAG 2.5.8's 24px minimum. From 390px every day is 44px or wider.
+
 ### The `.touch-target` utility
 
 For a control that must stay visually small — a 32px avatar, a 16px close cross — this

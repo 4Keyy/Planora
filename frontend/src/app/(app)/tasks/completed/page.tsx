@@ -35,6 +35,7 @@ import { formatDueRange } from "@/components/todos/edit-todo-modal/utils"
 import { buildCompletionWindow } from "@/utils/completion-window"
 import { StatusPanel } from "@/components/ui/status-panel"
 import { Pagination } from "@/components/ui/pagination"
+import { FilterPlatePlaceholder } from "@/components/todos/plate-placeholder"
 import { PageHeader } from "@/components/layout/page-header"
 
 const PAGE_SIZE = 20
@@ -49,6 +50,10 @@ export default function CompletedTasksPage() {
 
   const [todos, setTodos] = useState<Todo[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  // Until the first answer, the plate's place is held: it used to appear only once the
+  // categories arrived, and when the tasks came back first it dropped in above them and
+  // pushed the whole grid down 114px.
+  const [categoriesSettled, setCategoriesSettled] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -141,6 +146,8 @@ export default function CompletedTasksPage() {
       setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
     } catch (error) {
       console.error("Failed to fetch categories:", error)
+    } finally {
+      setCategoriesSettled(true)
     }
   }, [])
 
@@ -422,6 +429,7 @@ export default function CompletedTasksPage() {
           date popover's open state, so the calendar snapped shut after the first pick instead of
           waiting for the second. Keeping it mounted lets the popover stay open across the refetch (the
           skeleton below still swaps for the results). */}
+      {!categoriesSettled ? <FilterPlatePlaceholder /> : null}
       {categories.length > 0 && (
         <QuickFilterBar
           categories={categories}

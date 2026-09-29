@@ -779,6 +779,13 @@ The viewer count is the length of that shared list.
   data loads, a placeholder built from the same class strings (`plate-placeholder.tsx`) holds its exact
   place, so the grid below never drops when it arrives — the dashboard used to render nothing there and
   move its cards down 105px.
+- **Measured, the signed-in app** (`live-scan.mjs --set private --mock`, production build, five passes,
+  46 route × viewport cells over `/dashboard`, `/tasks`, `/tasks/completed`, `/categories`, `/profile` and
+  `/branch/{id}`): worst CLS 0.0012 (`/dashboard`), worst median LCP 940 ms (`/dashboard`, which renders
+  the most data), contrast failures 0, unnamed controls 0, horizontal scroll 0, and targets under 44×44
+  only in the branch calendar at 360px (the exception documented in design-system § 10). The archive's
+  filter plate holds its place until the categories answer; it used to drop in above an already-painted
+  grid when the tasks came back first (0.034 at 1024px in one run of three).
 - **Task grids resolve their column count before the first paint** (`MasonryColumns` uses a layout
   effect, and every task list shares `TASK_GRID_COLUMNS`/`TASK_GRID_BREAKPOINTS` from `lib/task-grid.ts`:
   three columns from `lg`, two from `sm`, one on a phone). The count used to settle a frame after the
