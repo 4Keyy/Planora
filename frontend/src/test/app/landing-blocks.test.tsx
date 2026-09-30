@@ -94,11 +94,13 @@ describe("reading the ring", () => {
     expect(rail).toHaveAttribute("aria-valuenow", "2")
   })
 
-  it("never offers public, and says it is not possible", () => {
-    render(<SharingCeiling />)
+  it("never says public, not even to deny it, and promises protection", () => {
+    const { container } = render(<SharingCeiling />)
     expect(screen.queryByRole("switch")).toBeNull()
-    const row = screen.getByText("Public", { selector: "span" }).closest("li") as HTMLElement
-    expect(row).toHaveTextContent("Not possible")
+    expect(container).not.toHaveTextContent(/public/i)
+    const row = screen.getByText("Protected", { selector: "span" }).closest("li") as HTMLElement
+    expect(row).toHaveTextContent("Always")
+    expect(row).toHaveTextContent("Nothing in Planora is ever published")
     expect(row).not.toHaveTextContent(/close/i)
   })
 })

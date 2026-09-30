@@ -29,7 +29,8 @@ const SWEEP_STEP_MS = 220
  * The ring sits on every task you share, so the useful thing this block can teach is how to
  * read it at a glance. The left half is the gauge: the ring and the count in its centre. The
  * right half is the control — a row of seats you slide a ring along (`SeatRail`) — and a
- * legend you can keep: private, shared, past the ceiling, and public, which is not possible.
+ * legend you can keep: private, shared, past the ceiling, and the promise under all three —
+ * protected, always.
  *
  * The geometry is the product's: `AudienceRing` draws from `redactionArc`, so the cut widens
  * 4.5% a person from 16% and saturates at half the circumference at eight — the same numbers
@@ -37,10 +38,11 @@ const SWEEP_STEP_MS = 220
  * legend and the sentence say that the stillness is the design, not a stuck control.
  *
  * **The ring never closes.** Private is a ring with one narrow cut and you at its centre;
- * every person you add opens it wider; and nothing in Planora is public — no link, no publish
- * button, and sharing with every friend is still a circle you chose. The last legend row says
- * so, drawn with a shield rather than a closed ring, because a closed ring is a state the
- * product never shows.
+ * every person you add opens it wider; and nothing in Planora is ever published — no link to
+ * hand out, no publish button, and sharing with every friend is still a circle you chose. The
+ * last legend row says so, drawn with a shield rather than a closed ring, because a closed
+ * ring is a state the product never shows. It is named "Protected", not "Public · not
+ * possible": the owner's rule is that the word is never shown, not even to deny it.
  *
  * The count is centred in its reserved two-digit box (`NumberRoll align="center"`), so a
  * single digit sits in the middle of the ring rather than right of an empty column.
@@ -146,14 +148,15 @@ export function SharingCeiling() {
             <ShieldCheck className="mt-px h-[18px] w-[18px] flex-shrink-0 text-ink" aria-hidden="true" />
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
-                <span className="text-body-sm font-bold text-ink">Public</span>
+                <span className="text-body-sm font-bold text-ink">Protected</span>
                 <span className="rounded-full bg-paper-sunken px-2 py-0.5 text-caption font-semibold text-ink-muted">
-                  Not possible
+                  Always
                 </span>
               </span>
               <span className="mt-0.5 block text-pretty text-body-sm text-ink-muted">
-                Planora has no way to publish a task: no public link, no publish button. Even
-                shared with every friend, a task stays with the people you chose.
+                Nothing in Planora is ever published: no link to hand out, no publish button.
+                Even shared with every friend, a task stays with the people you chose, and the
+                ring only counts them.
               </span>
             </span>
           </li>

@@ -4,6 +4,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(landing): block 2 says "Protected", never "Public · Not possible" (2026-09-30)
+
+Block 2's last legend row still named the state the owner removed: "Public", with a "Not possible"
+chip under it. The owner's rule is that the word is never shown, not even to deny it — sharing with
+every friend is still a circle the owner chose, and the ring only counts who is in it. The row now
+reads "Protected · Always" with the same shield, and says that nothing in Planora is ever published:
+no link to hand out, no publish button, and a task shared with every friend stays with the people
+chosen. The block's test now fails if any of its text contains the word.
+
 ### fix(ui-audit): the live scan reads web vitals before its full-page screenshot (2026-09-30)
 
 Playwright takes a full-page screenshot by resizing the viewport to the page's full height, so
