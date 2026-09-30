@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, type RefObject, type ReactNode } from "react"
-import { Calendar, Globe2, Lock, ChevronDown } from "lucide-react"
+import { Calendar, Lock, ChevronDown, UsersRound } from "lucide-react"
 import { PriorityPopover }   from "./popovers/priority"
 import { DateCalendar }      from "./popovers/date"
 import { CategoryPopover }   from "./popovers/category"
@@ -38,6 +38,8 @@ interface PageMetaPanelProps {
   onVisModeChange: (v: "private" | "friends") => void
   sharedIds: string[]
   onSharedIdsChange: (ids: string[]) => void
+  /** Shared with every accepted friend (the server's `IsPublic`), rather than with named people. */
+  allFriends: boolean
   friends: FriendDto[]
   openPopover: OpenPopover
   setOpenPopover: (v: OpenPopover) => void
@@ -108,7 +110,7 @@ export function PageMetaPanel({
   categoryId, onCategoryChange, categories, onCreateCategory, canEditCategory,
   authorCategoryName, authorCategoryColor, authorCategoryIcon,
   isOwner,
-  visMode, onVisModeChange, sharedIds, onSharedIdsChange, friends,
+  visMode, onVisModeChange, sharedIds, onSharedIdsChange, allFriends, friends,
   openPopover, setOpenPopover,
 }: PageMetaPanelProps) {
   const priorityRef   = useRef<HTMLDivElement>(null)
@@ -219,8 +221,14 @@ export function PageMetaPanel({
         <SectionLabel
           action={
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
-              {visMode === "private" ? <Lock size={10} strokeWidth={2.2} /> : <Globe2 size={10} strokeWidth={2.2} />}
-              {visMode === "private" ? "Private" : `Shared · ${sharedIds.length}`}
+              {visMode === "private" ? <Lock size={10} strokeWidth={2.2} /> : <UsersRound size={10} strokeWidth={2.2} />}
+              {visMode === "private"
+                ? "Private"
+                : allFriends
+                  ? "All friends"
+                  : sharedIds.length > 0
+                    ? `Shared · ${sharedIds.length}`
+                    : "Nobody yet"}
             </span>
           }
         >
@@ -234,6 +242,7 @@ export function PageMetaPanel({
             onSharedIdsChange={onSharedIdsChange}
             friends={friends}
             readOnly={ownerLocked}
+            allFriends={allFriends}
             headless
           />
         </div>

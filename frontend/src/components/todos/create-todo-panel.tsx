@@ -9,7 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
-  Globe2,
+  UsersRound,
   Lock,
   Plus,
   Sparkles,
@@ -267,7 +267,7 @@ function SharePopover({
               isPublic ? "bg-paper/10 text-paper" : "bg-gray-100 text-ink-subtle"
             )}
           >
-            <Globe2 className="h-4 w-4" />
+            <UsersRound className="h-4 w-4" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-caption font-bold tracking-tight">All friends</span>
@@ -476,8 +476,10 @@ export function CreateTodoPanel({
   const selectedCategory = categoryId ? categories.find(c => c.id === categoryId) : undefined
   const SelectedCatIcon = selectedCategory?.icon ? (ICON_MAP[selectedCategory.icon] ?? Folder) : Folder
 
+  // "All friends", never "Public": every accepted friend is still a circle the owner
+  // chose, and there is no public link.
   const shareValue = isPublic
-    ? "Public"
+    ? "All friends"
     : selectedFriendIds.length > 0
       ? `${selectedFriendIds.length} ${selectedFriendIds.length === 1 ? "friend" : "friends"}`
       : "Private"
@@ -735,7 +737,7 @@ export function CreateTodoPanel({
                     muted={!isPublic && selectedFriendIds.length === 0}
                     icon={
                       isPublic
-                        ? <Globe2 className="h-4 w-4" strokeWidth={2.2} />
+                        ? <UsersRound className="h-4 w-4" strokeWidth={2.2} />
                         : selectedFriendIds.length > 0
                           ? <Users className="h-4 w-4" strokeWidth={2.2} />
                           : <Lock className="h-4 w-4" strokeWidth={2.2} />

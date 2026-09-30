@@ -675,13 +675,13 @@ viewer's friend list resolves to no name and no avatar, and reads as "Someone" i
 sentence.
 
 **Redaction** (`frontend/src/components/ui/redaction-badge.tsx`) states the audience as a ring
-whose gap opens and closes, beside the word:
+whose cut opens wider per person — and never closes — beside the words:
 
 | Audience | Ring |
 |---|---|
-| `private` | one narrow cut (12% of the circumference) plus a filled centre dot — you, the only viewer. The dot is what separates it from `public` at the 14px size, where the gap is about two pixels |
+| `private` | one narrow cut (12% of the circumference) plus a filled centre dot — you, the only viewer |
 | `shared` | cut open from 16%, widening 4.5% per viewer, saturating at 50% (eight viewers) — past half the circumference the mark stops reading as a ring and starts reading as a bracket. The viewer count rolls beside it |
-| `public` | a closed ring |
+| `public` ("All friends") | the widest cut (50%), named "All friends" and announced "Shared with all your friends." Every accepted friend is still a circle the owner chose — the server grants access on `IsPublic && isFriend` and there is no public link — so the product never draws a closed ring and never says "Public". The create panel says "All friends", the editor's mode picker says "Friends", the branch page's visibility label says "All friends" for friends mode with nobody named (it used to read "Shared · 0"), and the icon is a group of people, not a globe |
 
 The mark is geometry, not hue: the drawn arc is `ink` and the cut arc is `line`, so it survives
 greyscale and every kind of colour blindness, and it does not compete with the one saturated
@@ -748,7 +748,7 @@ The viewer count is the length of that shared list.
 - Pressing `Escape` inside the create task panel returns it to the collapsed create action with a calm layout fade instead of leaving an empty white panel or adding bounce.
 - `frontend/src/components/todos/todo-card.tsx` runs a short local completion/reopen animation before calling the page-level status update, so list refreshes happen after the card has visually acknowledged the action.
 - Hidden/collapsed task cards blur the category pill until hover/focus, keeping category filtering visible without exposing it at rest.
-- Urgent, overdue, and due-today private cards use a red border only; shared/public urgent cards keep the blue shared frame and use a red left border wall. The previous filled left urgency stripe is intentionally absent.
+- The card's frame says who a task concerns: `alert` red when it is urgent, due today or overdue (it outranks everything); the `accent` blue when it is shared with named friends or with all of them; the plain line for a private task. Work in progress is never the frame — it is the check (in the category's colour) and the workers chip. The hover shadow glows in the category's colour (the accent while you work on it, alert when it is urgent, plain grey otherwise). Implementation: `borderColor` and `--card-glow` in `components/todos/todo-card.tsx`.
 - **Create task panel (redesigned)** (`frontend/src/components/todos/create-todo-panel.tsx`): the title
   and details are naked oversized inputs behind a single left rule ("What needs to be done?" /
   "Add details — optional."), followed by a row of four compact **selector plates** — Priority,
@@ -1262,7 +1262,7 @@ can see it — and let a signed-out visitor verify it with their hands before ma
 | The sandbox never starts realtime | A WebSocket handshake needs a server. Left on, it retried forever — 486 console errors on one page view. With no socket the product falls back to the 9s poll it already documents, and the sandbox answers that, so the demo behaves exactly as the product does when realtime is down |
 | `enableDemo` restores the previous adapter on teardown | `api` is a module singleton shared with every authenticated route; an adapter left installed would mean a real session talking to a fake server |
 | A count never reaches `public`; a switch does | Public is the share picker's "All friends" — every accepted friend, enforced server-side as `IsPublic && isFriend` — a setting, not a number of people. `deriveAudience` and `ringReading` range over private, shared and the ceiling; block 2's "Share with all friends" switch and block 5's "All friends" chip are the only ways to the closed ring |
-| Public says who it reaches, and who it does not | `RedactionBadge` used to announce "Public. Anyone with the link can see this." — a link the product has never had, on the one sentence whose job is to say exactly who can see a task. It now says "Public. All your friends can see this.", and block 2's caption adds the other half: nobody outside your friends |
+| The badge never says public | `RedactionBadge` once announced "Public. Anyone with the link can see this." on every all-friends task — a link the product has never had, on the one sentence whose job is to say exactly who can see a task. It now says "Shared with all your friends.", prints "All friends", and draws the widest open cut: nothing in Planora is public, and the ring never closes |
 | Block 7 proves rather than claims | Five of six proofs run live — the product's undo and autosave hooks, a SHA-256 fingerprint, the browser's own list of contacted origins, a PBKDF2 guess timed at 210,000 rounds — and the sixth (delivery across a restart) is captioned as an illustration. Every claim comes from a code-verified list; `crypto`, `performance` and `document` are read only in handlers, never during render |
 | Block 5 shows every signal a card can give, and names it | The builder produces each state the card can draw — urgent (priority 5) and due **Today** frame it in `alert`; a named person opens the ring and **All friends** closes it; **In progress** turns the check the category's colour and, on a shared task, adds the blue workers chip; **Done** steps it back — and a five-row legend under the card ("Red frame", "Priority bar", "The ring", "In progress", "Done") lights exactly the rows this card is showing, by `litSignals`, the same rules `TodoCard` draws by. Before, no control could make the card turn red, close its ring or go into progress, so the product's most visible signals were the ones the page never showed. Dates are computed at click time and never fall before today; the share picker mirrors the product's (All friends clears named people, naming a person leaves All friends); the card's eye folds it and a press opens it again |
 | Block 5's legend sits under the card on wide screens and after the controls on a phone | Three grid items in phone reading order — card, controls, legend — placed into two columns from `lg`. On a phone the legend used to sit between the card and the controls: five rows of reading before the first thing you could press |

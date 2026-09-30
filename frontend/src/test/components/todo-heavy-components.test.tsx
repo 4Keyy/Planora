@@ -128,14 +128,13 @@ describe("TodoCard", () => {
 
     // The owner of a shared task gets the redaction arc, not a generic share icon:
     // the useful fact is who can see it, which they already know they shared.
-    // This fixture is `isPublic: true`, which outranks the shared list: public is
-    // the broader reach, and the arc closes completely to say so.
-    expect(screen.getByRole("img", { name: /Public\. All your friends can see this/ })).toBeInTheDocument()
+    // This fixture is `isPublic: true` — every friend — which outranks the shared list:
+    // the widest reach, drawn as the most open ring and never called "public".
+    expect(screen.getByRole("img", { name: "Shared with all your friends." })).toBeInTheDocument()
     expect(container.querySelector(".lucide-share2")).toBeNull()
 
-    // The border says ONE thing, and overdue outranks everything else. It used to
-    // return `border-accent` for "shared" too, so a shared task and a task somebody
-    // had taken into work were drawn identically and the border said nothing.
+    // Overdue outranks everything else: this task is shared (which would be the accent
+    // blue frame) and overdue, and the frame is alert. Work in progress is never the frame.
     const card = container.querySelector(".border-alert")
     expect(card).not.toBeNull()
     expect(card).not.toHaveClass("border-accent")
@@ -915,16 +914,47 @@ describe("EditTodoModal", () => {
       dueDateStart: null,
       clearDueDate: false,
       categoryId: "cat-1",
-      isPublic: false,
+      // The fixture is shared with all friends (`isPublic: true`), and renaming it must not
+      // change who can see it. This assertion used to pin `isPublic: false` with a capacity
+      // of one — the editor quietly taking a task away from every friend on any edit.
+      isPublic: true,
       sharedWithUserIds: [],
-      requiredWorkers: 1,
-      clearRequiredWorkers: false,
+      requiredWorkers: null,
+      clearRequiredWorkers: true,
     })
 
     // Autosave keeps the modal open; closing is a separate, explicit action
     expect(onClose).not.toHaveBeenCalled()
     await user.keyboard("{Escape}")
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it("turns an all-friends task into a share with just the friend the owner picks", async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(
+      <EditTodoModal
+        todo={baseTodo({ isPublic: true, sharedWithUserIds: [] })}
+        categories={categories}
+        onClose={vi.fn()}
+        onSave={onSave}
+        onSaveViewerPreference={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+    // The token says what the save will write: all friends, never "public".
+    await user.click(screen.getByRole("button", { name: /all friends/i }))
+    await user.click(await screen.findByRole("checkbox", { name: "Ada Lovelace" }))
+    await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2000 })
+    expect(onSave).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        isPublic: false,
+        sharedWithUserIds: ["friend-1"],
+        requiredWorkers: 2,
+        clearRequiredWorkers: false,
+      }),
+    )
   })
 
   it("autosaves only a shared viewer's private category preference", async () => {

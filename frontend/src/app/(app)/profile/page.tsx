@@ -1135,7 +1135,7 @@ export default function ProfilePage() {
               <SectionCard
                 icon={IdCard}
                 title="Profile details"
-                description="Keep your public account name current."
+                description="Keep the name your friends see current."
                 action={
                   <Button variant="secondary" size="sm" onClick={loadProfile} disabled={loadingProfile}>
                     <RefreshCw className={cn("h-4 w-4", loadingProfile && "animate-spin")} aria-hidden />

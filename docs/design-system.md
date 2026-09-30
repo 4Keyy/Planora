@@ -99,7 +99,7 @@ Reusing `ink-muted` on `#171717` measured 2.29:1, which is why `paper-muted` and
 
 | Token | Value | Contrast | Means exactly |
 |---|---|---|---|
-| `accent` | `#0369a1` | 5.93:1 | Links, active tab, selection. The previous `#0ea5e9` measured 2.77:1 and could not carry text |
+| `accent` | `#0369a1` | 5.93:1 | Links, active tab, selection, and the frame of a shared task. The previous `#0ea5e9` measured 2.77:1 and could not carry text |
 | `accent-surface` | `#e0f2fe` | — | A **background fill**. Eight places used it as a text colour at ~1.2:1 |
 | `alert` | `#b91c1c` | 6.47:1 | Overdue, or a destructive action being confirmed. Nothing else |
 | `alert-surface` | `#fef2f2` | — | Background behind alert content |
@@ -511,13 +511,16 @@ user takes in at a glance, and a decorative ring would announce on every join.
 does not is that a task can be shown to some people and not others. Rendered as a word
 it is a promise the eye skips on its way to the title.
 
-The audience is an arc. `private` is a nearly closed ring with a filled centre —
-you, the only viewer. `shared` is cut open by a wedge that widens with the count, from
-a 16% base by 4.5% per viewer, saturating at 50% (eight viewers) because past half the
-circumference the mark stops reading as a ring and starts reading as a bracket.
-`public` is complete. Changing audience animates `pathLength`/`pathOffset` over `base`
-220ms on `emphasized`, so the user watches the circle open or close — legible in
-peripheral vision before any of the three words has been read.
+The audience is an arc, and **the ring never closes**. `private` is a ring with one
+narrow cut and a filled centre — you, the only viewer. `shared` is cut open by a wedge that
+widens with the count, from a 16% base by 4.5% per viewer, saturating at 50% (eight viewers)
+because past half the circumference the mark stops reading as a ring and starts reading as a
+bracket. `public` — the share picker's "All friends" — is drawn at that widest cut and named
+"All friends": every accepted friend is still a circle the owner chose, and there is no public
+link. It used to be the one closed ring, labelled "Public", which told the user the opposite of
+what the server does. Changing audience animates `pathLength`/`pathOffset` over `base` 220ms on
+`emphasized`, so the user watches the circle open wider or narrow — legible in peripheral vision
+before any of the words has been read.
 
 Geometry, not hue. A privacy scale painted green/amber/red would compete with `alert`
 for the product's one saturated colour and collapse under dichromacy the way the old
@@ -815,7 +818,7 @@ type has stopped being a primitive.
 | `WeekBars` | Seven days of completions, as one accessible sentence and seven bars |
 | `StatRow` | Live facts about the workspace, each one a filter you can press |
 | `PresenceRow` | Who is in a task, as faces — and an arrival as an event |
-| `RedactionBadge` | Who can see it, as an arc you watch open or close |
+| `RedactionBadge` | Who can see it, as an arc that opens wider per person and never closes |
 
 ### Flow
 
@@ -1247,7 +1250,7 @@ once. It is worth reading as a worked example.
 
 | Element | Token | Rule it obeys |
 |---|---|---|
-| Surface | `bg-paper`, `border` (1px), `rounded-lg` via `Card`, `shadow-sm` → `shadow-lg` on hover, lift `y: -2` | Opaque: the page's background never shows through a task. The hover used to add a `backdrop-blur` and a glow tinted by the category colour — a re-rasterised card under the pointer and a second colour system |
+| Surface | `bg-paper`, `border` (1px), `rounded-lg` via `Card`, `shadow-sm`, lift `y: -2` on hover. The hover shadow glows in the task's own colour — the category's, the accent while you work on it, alert when it is urgent — and is plain `shadow-lg` without one | Opaque: the page's background never shows through a task. The glow is the category colour at 20% in the two-layer card shadow, carried by a `--card-glow` custom property so the hover stays a class and CSS runs the transition; it used to be computed in JavaScript from a hover state, beside a `backdrop-blur` that re-rasterised the card under the pointer |
 | Title | `body` on phones, `title-sm` from `sm`, `font-semibold`, `ink`, `line-clamp-3` | Shown in full up to three lines. It used to be cut at 40 characters in JavaScript whatever the card's width, so a wide card still read "battery for the smok…" |
 | Controls | the completion mark and the hide toggle in a 32px column, `items-start` | Aligned with the title's first line, not centred against the card — centred, they drifted lower the more a card had to say |
 | Chips | one shape: `h-6 rounded-sm border-line bg-paper-sunken px-2 text-caption font-semibold text-ink-muted` | Category, audience, workers, expected date and delay. There were five chip styles on one card; "in work" is the only tinted one (`accent-surface`), and delay the only warn one |
@@ -1255,7 +1258,7 @@ once. It is worth reading as a worked example.
 | Priority | `PriorityMeter` | Magnitude as filled length — never hue (rule 5) |
 | Category | `caption`, the user's own colour | `@colour-data`: their choice, stored against their data |
 | Due date | `caption`, `tabular-nums`, one unbreakable line; the word "Overdue" in `alert` beside it | The product's one saturated colour, spent on the one thing that earns it. A range reads "Sep 24 – Sep 26" as one string, so it can no longer wrap between its dates |
-| The border | `border-alert` when overdue, `border-line` otherwise | **One fact, and only one.** It used to return `border-accent` for "in progress", for "shared", and for both — so a task somebody had taken into work and a task merely visible to a friend were drawn identically. The other two facts have their own marks a few pixels away, and `accent` belongs to selection |
+| The frame | `border-alert` when urgent, due today or overdue; `border-accent` when shared (named friends or all friends); `border-line` for a private task | **One meaning per colour.** Alert asks for action today and outranks everything; accent says other people can see it, so a list reads at a glance as "mine" and "ours". Work in progress is never the frame — it is the check and the workers chip. A multi-selection is an accent *outline* offset outside the card, so it never sits on the frame |
 | Presence | `PresenceRow` | One `sr-only` sentence, never a label per face |
 | Keyboard cursor | `outline-2 outline-offset-2 outline-ink` | An outline, not a ring: it follows `border-radius` without being told, and it is **not** the focus indicator — focus may legitimately be elsewhere while the list still has a cursor. Drawn only for the keyboard: a pointer press hides it |
 | Selection | `outline-accent` | `data-selected`, because `aria-selected` is not legal on a row that contains buttons |

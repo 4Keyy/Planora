@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useCallback } from "react"
-import { Check, Globe2, Lock, UserRound, Users } from "lucide-react"
+import { Check, Lock, UserRound, Users, UsersRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FriendDto } from "@/types/auth"
 import { Avatar } from "@/components/ui/avatar"
@@ -97,7 +97,7 @@ export function FriendMultiSelect({
           <span className="flex min-w-0 items-center gap-3">
             <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-line bg-paper-sunken text-ink-muted transition-colors group-hover:bg-paper">
               {publicSelected ? (
-                <Globe2 className="h-4 w-4" />
+                <UsersRound className="h-4 w-4" />
               ) : selectedIds.length > 0 ? (
                 <Users className="h-4 w-4" />
               ) : (
@@ -176,7 +176,7 @@ export function FriendMultiSelect({
                     All accepted friends
                   </span>
                 </span>
-                <Globe2 className={cn("h-4 w-4 flex-shrink-0", publicSelected ? "text-paper/70" : "text-ink-subtle")} />
+                <UsersRound className={cn("h-4 w-4 flex-shrink-0", publicSelected ? "text-paper/70" : "text-ink-subtle")} />
               </DropdownMenuItem>
               <div className="my-2 h-px bg-gray-100" />
             </>

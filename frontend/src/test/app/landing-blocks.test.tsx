@@ -102,7 +102,7 @@ describe("the task builder's legend", () => {
 
     await user.click(screen.getByRole("button", { name: /All friends/ }))
     expect(within(legend).getByText("The ring", { exact: false })).toHaveTextContent("(on the card now)")
-    expect(screen.getByRole("img", { name: "Public. All your friends can see this." })).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: "Shared with all your friends." })).toBeInTheDocument()
   })
 
   it("puts the task in progress and back", async () => {

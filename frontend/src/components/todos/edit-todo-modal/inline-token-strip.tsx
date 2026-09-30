@@ -38,6 +38,8 @@ interface InlineTokenStripProps {
   onVisModeChange: (v: "private" | "friends") => void
   sharedIds: string[]
   onSharedIdsChange: (ids: string[]) => void
+  /** Shared with every accepted friend (the server's `IsPublic`), rather than with named people. */
+  allFriends: boolean
   friends: FriendDto[]
   openPopover: OpenPopover
   setOpenPopover: (v: OpenPopover) => void
@@ -101,7 +103,7 @@ export function InlineTokenStrip({
   categoryId, onCategoryChange, categories, onCreateCategory, canEditCategory,
   authorCategoryName, authorCategoryColor, authorCategoryIcon,
   isOwner,
-  visMode, onVisModeChange, sharedIds, onSharedIdsChange, friends,
+  visMode, onVisModeChange, sharedIds, onSharedIdsChange, allFriends, friends,
   openPopover, setOpenPopover,
 }: InlineTokenStripProps) {
   const priorityRef   = useRef<HTMLDivElement>(null)
@@ -127,25 +129,19 @@ export function InlineTokenStrip({
   const AuthorCatIcon  = authorCategoryIcon ? (ICON_MAP[authorCategoryIcon] ?? null) : null
   const showAuthorHint = !activeCat && !isOwner && !!authorCategoryName
   /*
-   * "shared", not "public". The editor writes `isPublic: false` on every save and
-   * expresses reach through the shared list, so a token reading "public" described a
-   * state this screen cannot produce — and contradicted every other surface in the
-   * product, which calls the same thing shared.
-   */
-
-  /*
-   * Three states, not two, because "friends mode with nobody named" is not the
-   * same thing as "shared with zero people" — it is the whole circle, which is
-   * what the audience picker itself calls "all friends". The token used to print
-   * `shared · 0`, which reads as shared with nobody while the task was in fact
-   * visible to everyone the user knows: the most consequential thing this screen
-   * can say, said backwards.
+   * Four states, each saying exactly what the save will write. "All friends" is its own
+   * state (the server's `IsPublic`), never "public" — every accepted friend is still a
+   * circle the owner chose. Friends mode with nobody picked and not all friends is
+   * nobody yet: it saves as private, so it must not claim anyone can see it. The token
+   * used to print "all friends" there, which described a reach the save never gave.
    */
   const visLabel = visMode === "private"
     ? "private"
-    : sharedIds.length > 0
-      ? `shared · ${sharedIds.length}`
-      : "all friends"
+    : allFriends
+      ? "all friends"
+      : sharedIds.length > 0
+        ? `shared · ${sharedIds.length}`
+        : "nobody yet"
 
   return (
     // From `sm` up this is a single non-wrapping row: the right-anchored visibility
@@ -294,11 +290,16 @@ export function InlineTokenStrip({
                * same fact somewhere else on the screen.
                */}
               <RedactionBadge
-                audience={visMode === "private" ? "private" : "shared"}
-                // No count when nobody is named: the arc then shows the base cut for
-                // "some people", which is what "all friends" is. Passing 0 would draw
-                // the narrowest shared arc there is — the opposite of the truth.
-                viewerCount={visMode === "private" || sharedIds.length === 0 ? undefined : sharedIds.length}
+                // Nobody picked yet is private in fact, so it is drawn private; all friends
+                // is the widest open cut; a named share opens by its count.
+                audience={
+                  visMode === "private" || (!allFriends && sharedIds.length === 0)
+                    ? "private"
+                    : allFriends
+                      ? "public"
+                      : "shared"
+                }
+                viewerCount={allFriends || sharedIds.length === 0 ? undefined : sharedIds.length}
                 size="sm"
                 showLabel={false}
               />
@@ -318,6 +319,7 @@ export function InlineTokenStrip({
               friends={friends}
               containerRef={visibilityRef as RefObject<HTMLElement | null>}
               readOnly={ownerLocked}
+              allFriends={allFriends}
             />
           }
         />

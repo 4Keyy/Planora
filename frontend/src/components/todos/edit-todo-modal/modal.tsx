@@ -144,6 +144,22 @@ export function TodoEditor({
   const [sharedIds, setSharedIds] = useState<string[]>(
     todo.isPublic ? [] : (todo.sharedWithUserIds ?? [])
   )
+  /*
+   * "All friends" — the server's `IsPublic` — is its own state, not "friends mode with nobody
+   * picked". The editor used to have no such state and wrote `isPublic: false` on every save,
+   * so opening an all-friends task and fixing a typo in its title quietly took it away from
+   * every friend who could see it. It stays all-friends until the owner names people (a
+   * direct share, as in the create panel) or makes it private.
+   */
+  const [allFriends, setAllFriends] = useState(!!todo.isPublic)
+  const changeVisMode = useCallback((mode: "private" | "friends") => {
+    setVisMode(mode)
+    if (mode === "private") setAllFriends(false)
+  }, [])
+  const changeSharedIds = useCallback((ids: string[]) => {
+    setSharedIds(ids)
+    setAllFriends(false)
+  }, [])
 
   const inProgress = isOwner
     ? String(todo.status ?? "").toLowerCase().replace(/\s/g, "") === "inprogress"
@@ -209,6 +225,7 @@ export function TodoEditor({
     setCategoryId(todo.categoryId ?? null)
     setVisMode((todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) ? "friends" : "private")
     setSharedIds(todo.isPublic ? [] : (todo.sharedWithUserIds ?? []))
+    setAllFriends(!!todo.isPublic)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todo.id])
 
@@ -270,11 +287,13 @@ export function TodoEditor({
     // "unchanged" server-side). When an end is present this is false and the interval is set.
     clearDueDate: !dueDate,
     categoryId: categoryId || null,
-    isPublic: false,
-    sharedWithUserIds: visMode === "private" ? [] : sharedIds,
-    requiredWorkers: visMode === "private" ? null : 1 + sharedIds.length,
-    clearRequiredWorkers: visMode === "private",
-  }), [title, description, priority, dueDate, dueDateStart, categoryId, visMode, sharedIds])
+    // All friends keeps its reach and its unlimited capacity, exactly as the create panel
+    // writes it; a named share counts its people; private clears both.
+    isPublic: visMode === "friends" && allFriends,
+    sharedWithUserIds: visMode === "private" || allFriends ? [] : sharedIds,
+    requiredWorkers: visMode === "private" || allFriends ? null : 1 + sharedIds.length,
+    clearRequiredWorkers: visMode === "private" || allFriends,
+  }), [title, description, priority, dueDate, dueDateStart, categoryId, visMode, sharedIds, allFriends])
 
   const ownerPayload = useMemo(() => buildOwnerPayload(), [buildOwnerPayload])
 
@@ -432,8 +451,9 @@ export function TodoEditor({
     authorCategoryColor: todo.authorCategoryColor,
     authorCategoryIcon: todo.authorCategoryIcon,
     isOwner,
-    visMode, onVisModeChange: setVisMode,
-    sharedIds, onSharedIdsChange: setSharedIds,
+    visMode, onVisModeChange: changeVisMode,
+    sharedIds, onSharedIdsChange: changeSharedIds,
+    allFriends,
     friends, openPopover, setOpenPopover,
   }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useCallback, useEffect, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import {
   Trash, Check, Calendar, AlertTriangle, Share2, Eye, Clock, Zap, Users,
@@ -162,7 +162,8 @@ function TodoCardComponent({
     : (todo.isWorking ?? false)
   const isWorkingOnThis = isEffectivelyWorking
   const showShareBadge = isShared && !isCompleted
-  const publicBadgeLabel = isOwner ? "Public" : (todo.authorName ? formatPublicName(todo.authorName) : "Public")
+  // A viewer sees whose task it is; without a name it is simply shared with them — never "Public".
+  const publicBadgeLabel = todo.authorName ? formatPublicName(todo.authorName) : "Shared"
   const canDelete = isOwner
 
   const friendCount = todo.sharedWithUserIds?.length ?? 0
@@ -321,31 +322,38 @@ function TodoCardComponent({
   const isUrgentOrOverdue = todo.isVisuallyUrgent ?? fallbackIsVisuallyUrgent
 
   /**
-   * The border says exactly one thing: **this needs answering today.**
+   * The frame says who a task concerns, in one of two colours.
    *
-   * It used to say three. `border-accent` was returned for "in progress", for
-   * "shared", and for "shared AND overdue" — so a task somebody had taken into
-   * work and a task merely visible to a friend were drawn identically, and the
-   * border stopped carrying information at all. The combined case painted three
-   * sides `rgb(99 102 241)`, an indigo that exists in no token, no palette and no
-   * other file in the product, which the design system's first rule forbids.
+   * - **`alert`: this needs answering today.** Urgent, due today or overdue. It outranks
+   *   everything else, because it is the one fact that asks for action now.
+   * - **`accent`: other people can see this.** Any task shared with a friend, or with all
+   *   of them, is framed in the product's blue, so a list reads at a glance as "mine" and
+   *   "ours". The ring beside the title says how many; the frame says that it is shared at
+   *   all, from across the room.
+   * - **`line`** for a private task.
    *
-   * Both of the other two facts already have their own mark, which is why the
-   * border does not need to repeat either:
-   *
-   * - **Shared** is the redaction arc in the meta row. It is a property of the
-   *   task, not a state it is in, and the arc says how wide the audience is —
-   *   which a border colour cannot.
-   * - **In progress** is the accent chip ("2/3 · you") and the accent ring on the
-   *   completion control, both a few pixels away.
-   *
-   * And `accent` has an owner. The design system spends it on links, the active
-   * tab and **selection** — so while a multi-selection is up, an accent border on
-   * an unselected card is the one thing on screen most likely to be misread as
-   * selected. A border that competes with the selection outline is worse than a
-   * border that says less.
+   * The frame used to be alert-or-nothing: shared tasks and private ones were drawn
+   * identically, and the difference that is the whole point of the product lived only in a
+   * 14px mark. Before that it had gone too far the other way — accent for "in progress" and
+   * for "shared" alike, and an indigo no token defined for both — so this keeps exactly one
+   * meaning per colour: work in progress is the check and the workers chip, never the frame.
+   * The keyboard cursor and a selection are outlines offset outside the card, so they never
+   * sit on the frame itself.
    */
-  const borderColor = isUrgentOrOverdue ? "border-alert" : "border-line"
+  const borderColor = isUrgentOrOverdue ? "border-alert" : isShared ? "border-accent" : "border-line"
+
+  /**
+   * The hover shadow takes the task's colour: the category's when it has one, the accent
+   * while you are working on it, alert when it is urgent — and a plain grey otherwise. It
+   * is the category colour at 20%, in the two-layer shadow the card always used, carried by
+   * a custom property so the hover itself stays a class and CSS owns the transition.
+   */
+  const glowColor = isWorkingOnThis
+    ? "var(--pl-accent)"
+    : todo.categoryColor?.trim() || (isUrgentOrOverdue ? "var(--pl-alert)" : null)
+  const glowStyle = glowColor
+    ? ({ "--card-glow": `color-mix(in srgb, ${glowColor} 20%, transparent)` } as CSSProperties)
+    : undefined
 
   const completionOverlayColor = isJoining
     ? "bg-accent/10"
@@ -468,19 +476,28 @@ function TodoCardComponent({
         )}
       </AnimatePresence>
       {/*
-        An opaque paper surface with a one-pixel border, and a shadow that deepens on
-        hover. The card used to be transparent — the page's gradient showed through every
-        task — with a 2px border, a coloured glow computed per category on hover, and a
-        `backdrop-blur` switched on under the pointer, which re-rasterised the card on
-        every hover. The border keeps its one job: alert means "needs answering today".
+        An opaque paper surface with a one-pixel frame, and a shadow that deepens on hover
+        in the task's own colour. The card used to be transparent — the page's gradient
+        showed through every task — with a `backdrop-blur` switched on under the pointer,
+        which re-rasterised the card on every hover; the glow was computed in JavaScript from
+        a hover state. Now it is a class and a custom property, and CSS runs the transition.
       */}
       <Card
         data-task-card=""
+        style={isCompleted ? undefined : glowStyle}
         className={cn(
           "group relative overflow-hidden bg-paper transition-[box-shadow,border-color,opacity] duration-base ease-emphasized",
           // A finished task steps back by surface, not by opacity: dimming the whole card to
           // 60% took its struck title down to about 2.3:1, below the floor for text.
-          isCompleted ? "border-line bg-paper-sunken" : cn(borderColor, "shadow-sm group-hover/card:shadow-lg"),
+          isCompleted
+            ? "border-line bg-paper-sunken"
+            : cn(
+                borderColor,
+                "shadow-sm",
+                glowStyle
+                  ? "group-hover/card:shadow-[0_8px_32px_-4px_var(--card-glow),0_4px_16px_-2px_var(--card-glow)]"
+                  : "group-hover/card:shadow-lg"
+              ),
           isSparse && "task-card--sparse",
           isInfoDense && "task-card--dense"
         )}

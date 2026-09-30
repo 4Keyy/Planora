@@ -4,6 +4,27 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(todos): shared tasks are framed in blue, glow in their colour, and nothing is "Public" (2026-09-30)
+
+A task shared with friends looked exactly like a private one: the frame was alert-or-nothing, and the
+difference that is the whole point of Planora lived in a 14px mark. Shared tasks — named friends or all
+of them — are framed in the accent blue again, urgent, overdue and due-today tasks keep the red frame
+and outrank it, and work in progress stays on the check and the workers chip. The hover shadow glows in
+the category's colour again (the accent while you work on it, alert when it is urgent), now as a class
+and a `--card-glow` custom property instead of a hover state in JavaScript.
+
+"All friends" is still a circle the owner chose — the server grants access on `IsPublic && isFriend`
+and there has never been a public link — so the product no longer says "Public" anywhere and the
+audience ring never closes: all friends is the widest open cut, named "All friends", in the badge, the
+create panel, the editor's mode picker ("Friends") and the branch page, which used to read "Shared · 0".
+
+The editor had no "all friends" state at all and wrote `isPublic: false` on every save, so opening an
+all-friends task and fixing a typo in its title quietly took it away from every friend who could see it.
+It now keeps all friends until the owner names people or makes the task private, and its labels say what
+the save will write ("nobody yet" rather than "all friends" for a friends mode with no one picked).
+
+Security: the audience of an all-friends task is no longer presented as public
+
 ### feat(landing): block 6 builds a task's branch, step by step (2026-09-29)
 
 The branch block was a still frame — three lines of text and a sentence admitting it. It now tells the

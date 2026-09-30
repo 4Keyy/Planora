@@ -2,12 +2,12 @@
 
 import Link from "next/link"
 import { RefObject } from "react"
-import { Globe2, Lock, Users } from "lucide-react"
+import { Lock, Users, UsersRound } from "lucide-react"
 import { Popover, PopoverHeader } from "../popover"
 import { FriendAvatar } from "../friend-avatar"
 import type { FriendDto } from "@/types/auth"
 
-// Both visibility modes (Private / Public) render their body at this CONSTANT height, so switching
+// Both visibility modes (Private / Friends) render their body at this CONSTANT height, so switching
 // modes never resizes the panel. That stops the meta sidebar from gaining/losing a scrollbar — which
 // would otherwise reflow the calendar below it — and makes the two states equally tall, as required.
 const VIS_BODY_HEIGHT = 200
@@ -23,6 +23,8 @@ interface VisibilityPopoverProps {
   containerRef: RefObject<HTMLElement | null>
   /** When true the access controls are shown muted and non-interactive (non-owner viewer). */
   readOnly?: boolean
+  /** Shared with every accepted friend rather than with the people ticked below. */
+  allFriends?: boolean
 }
 
 function friendName(f: FriendDto): string {
@@ -31,7 +33,7 @@ function friendName(f: FriendDto): string {
 }
 
 export function VisibilityPopover({
-  open, onClose, mode, onModeChange, sharedIds, onSharedIdsChange, friends, containerRef, readOnly,
+  open, onClose, mode, onModeChange, sharedIds, onSharedIdsChange, friends, containerRef, readOnly, allFriends,
 }: VisibilityPopoverProps) {
   return (
     <Popover open={open} onClose={onClose} width={340} align="right" containerRef={containerRef}>
@@ -42,6 +44,7 @@ export function VisibilityPopover({
         onSharedIdsChange={onSharedIdsChange}
         friends={friends}
         readOnly={readOnly}
+        allFriends={allFriends}
       />
     </Popover>
   )
@@ -56,14 +59,16 @@ interface VisibilityPanelProps {
   readOnly?: boolean
   /** Drops the internal "Task access" header — the always-open sidebar renders its own label. */
   headless?: boolean
+  /** Shared with every accepted friend; ticking a person turns it into a share with just them. */
+  allFriends?: boolean
 }
 
 /**
- * The visibility body (private/public mode picker + friend access list), extracted from
+ * The visibility body (private/friends mode picker + friend access list), extracted from
  * {@link VisibilityPopover} so it can render always-open inline in the branch page's meta sidebar.
  */
 export function VisibilityPanel({
-  mode, onModeChange, sharedIds, onSharedIdsChange, friends, readOnly, headless,
+  mode, onModeChange, sharedIds, onSharedIdsChange, friends, readOnly, headless, allFriends = false,
 }: VisibilityPanelProps) {
   const toggleFriend = (id: string) => {
     if (readOnly) return
@@ -82,7 +87,9 @@ export function VisibilityPanel({
 
   const sub: React.ReactNode = mode === "private"
     ? <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>only you</span>
-    : <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>{sharedIds.length} of {friends.length}</span>
+    : <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>
+        {allFriends ? "all friends" : `${sharedIds.length} of ${friends.length}`}
+      </span>
 
   return (
     <>
@@ -94,7 +101,7 @@ export function VisibilityPanel({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: "10px 10px 6px" }}>
         {([
           { key: "private" as const, Icon: Lock,   label: "Private" },
-          { key: "friends" as const, Icon: Globe2,  label: "Public"  },
+          { key: "friends" as const, Icon: UsersRound, label: "Friends" },
         ] as const).map(({ key, Icon, label }) => {
           const isActive = mode === key
           return (
@@ -119,7 +126,7 @@ export function VisibilityPanel({
         })}
       </div>
 
-      {/* Body — a CONSTANT height across modes (see VIS_BODY_HEIGHT) so toggling Private/Public
+      {/* Body — a CONSTANT height across modes (see VIS_BODY_HEIGHT) so toggling Private/Friends
           never changes the panel's size; the friend list scrolls *inside* this fixed area. */}
       <div style={{ height: VIS_BODY_HEIGHT }}>
       {mode === "private" ? (
