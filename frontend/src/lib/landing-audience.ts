@@ -5,10 +5,10 @@ import type { Audience } from "@/components/ui/redaction-badge"
  * part that can be wrong in an interesting way is testable. `src/app/**` is excluded
  * from the coverage gate (`vitest.config.ts`); `src/lib/**` is not.
  *
- * The range is deliberately `private | shared`: a count of named people never reaches
- * `public`. Public is the share picker's "All friends" — a setting of its own, not a
- * number — so the landing page reaches it through a switch, never through this function.
- * Over this range the redaction arc is monotone, which is the whole point of showing it.
+ * The range is deliberately `private | shared`. Nothing in Planora is public — there is no
+ * public link and no publish button, and even a task shared with every friend is a circle
+ * the owner chose — so the ring the landing page draws never closes. Over this range the
+ * redaction arc is monotone, which is the whole point of showing it.
  */
 export function deriveAudience(viewerCount: number): Audience {
   return normalizeViewerCount(viewerCount) === 0 ? "private" : "shared"
@@ -62,19 +62,10 @@ export function ceilingCaption(viewerCount: number): string {
 }
 
 /**
- * The sentence for the all-friends setting. It has to say the second half out loud,
- * because "public" is the word people use for the open internet: every friend you have
- * accepted can open the task, and nobody else can — there is no link to pass around.
- */
-export const ALL_FRIENDS_CAPTION =
-  "All your friends can open it, and the ring closes. Nobody outside your friends can."
-
-/**
  * Which way of reading the ring applies at this count — the legend row that is lit.
  *
- * The range is three states, not four. `public` has a legend row too, but no count
- * reaches it: it is "All friends", a setting beside the count rather than a stop on it,
- * and the type says so here, where a slip would otherwise light it from the slider.
+ * The range is three states, not four. The legend's last row, public, says it is not
+ * possible, and the type says so here, where a slip would otherwise light it.
  */
 export type RingReading = "private" | "shared" | "ceiling"
 

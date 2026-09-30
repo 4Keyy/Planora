@@ -4,6 +4,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(landing): block 2 is driven by a row of seats, and the ring never closes (2026-09-30)
+
+The browser range input and its minus and plus buttons are replaced by one control drawn in the
+product's own vocabulary: a row of eleven seats — you, then ten people — with a ring you slide along
+them. Everyone up to the ring is a face, the rail is inked up to it and dashed past the eighth seat,
+where the mark stops widening. It is a real `role="slider"` (arrows, Page Up/Down, Home/End), takes
+drags and presses, and previews the seat under the pointer. The "Share with all friends" switch and the
+"closes the ring" copy are gone; the last legend row says public is not possible, with a shield rather
+than a closed ring.
+
 ### feat(frontend): the app bar is a droplet again, and the landing page's nav with it (2026-09-30)
 
 The signed-in bar is a floating capsule once more, rebuilt so nothing depends on hover: the three tabs

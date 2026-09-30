@@ -237,8 +237,8 @@ export default function HomePage() {
             </Parallax>
             <StaggerItem className="mt-7 max-w-2xl">
               <p className="text-pretty text-body text-ink-muted">
-                The ring sits on every task you share. Drag the slider and it opens person by
-                person, until it stops. Here is how to read it.
+                The ring sits on every task you share. Slide along the seats and it opens person
+                by person, until it stops widening. It never closes. Here is how to read it.
               </p>
             </StaggerItem>
             <StaggerItem index={1} className="mt-12">

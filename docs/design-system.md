@@ -806,7 +806,6 @@ type has stopped being a primitive.
 | `Overlay` | Portal, dialog semantics, focus trap, Escape, backdrop dismissal, scroll lock |
 | `ConfirmDialog` | Destructive confirmation, with an optional "don't ask again" |
 | `Avatar` | Image, initials fallback, the optimizer's `sizes` |
-| `Switch` | An on/off setting: `role="switch"`, `aria-checked`, its label as its own text so the accessible name is the words beside the track. The knob is placed by flex and moved by `x` alone, so it sits on the track's centre line at any size |
 
 ### Expression
 

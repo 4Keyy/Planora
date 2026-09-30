@@ -10,9 +10,9 @@ import { BranchStory } from "@/app/_landing/branch-story"
  * The landing page's interactive blocks, driven the way a visitor drives them.
  *
  * Their data lives in `src/lib/landing-*` and is tested there; these tests hold the wiring
- * the visitor sees: the hero's seats are pressable, public is reachable in the ring legend,
- * the builder's legend lights the card's signals, and the branch's circle runs the
- * product's own cycle.
+ * the visitor sees: the hero's seats are pressable, the ring is driven by a row of seats and
+ * never closes, the builder's legend lights the card's signals, and the branch's circle runs
+ * the product's own cycle.
  */
 
 class ResizeObserverStub {
@@ -75,18 +75,31 @@ describe("the hero's circle", () => {
 })
 
 describe("reading the ring", () => {
-  it("reaches public through its own switch and says who that is", async () => {
+  it("is driven by a row of seats: a real slider, stepped from the keyboard", async () => {
     const user = userEvent.setup()
     render(<SharingCeiling />)
-    await user.click(screen.getByRole("switch", { name: "Share with all friends" }))
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true")
-    const publicRow = screen.getByText("Public", { selector: "span" }).closest("li") as HTMLElement
-    expect(publicRow).toHaveTextContent("(the current reading)")
-    expect(screen.getByText(/Nobody outside your friends can\./)).toBeInTheDocument()
+    const rail = screen.getByRole("slider", { name: "People who can see it" })
+    expect(rail).toHaveAttribute("aria-valuemin", "0")
+    expect(rail).toHaveAttribute("aria-valuemax", "10")
 
-    // Naming people leaves the all-friends setting.
-    await user.click(screen.getByRole("button", { name: "Add a person" }))
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false")
+    rail.focus()
+    await user.keyboard("{End}")
+    expect(rail).toHaveAttribute("aria-valuenow", "10")
+    expect(rail).toHaveAttribute("aria-valuetext", "10 people")
+    expect(screen.getByText("10 people can open it. The ring stopped widening at eight.")).toBeInTheDocument()
+
+    await user.keyboard("{Home}")
+    expect(rail).toHaveAttribute("aria-valuetext", "Only you")
+    await user.keyboard("{ArrowRight}{ArrowRight}")
+    expect(rail).toHaveAttribute("aria-valuenow", "2")
+  })
+
+  it("never offers public, and says it is not possible", () => {
+    render(<SharingCeiling />)
+    expect(screen.queryByRole("switch")).toBeNull()
+    const row = screen.getByText("Public", { selector: "span" }).closest("li") as HTMLElement
+    expect(row).toHaveTextContent("Not possible")
+    expect(row).not.toHaveTextContent(/close/i)
   })
 })
 
