@@ -4,6 +4,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(landing): block 5 is one card and five moves (2026-09-30)
+
+The task builder — a title field and some twenty buttons — asked visitors to make a task when the point
+was to see what a card says. Block 5 is now the product's own card on a stage and five moves under it:
+Category (the card takes the category's chip, watermark and coloured hover glow, and the stage picks the
+colour up), Share (the blue frame, the ring for two, the workers chip), Urgency (the red frame, then a
+date two days gone and "Overdue"), Take it (the check in the category's colour, the blue chip counting
+you in) and Finish, which presses the card's own circle so the product's completion — burst, sweep and
+drawn check — is what plays. The card stays live: its eye folds it and its right edge deletes it.
+
 ### feat(landing): block 2 is driven by a row of seats, and the ring never closes (2026-09-30)
 
 The browser range input and its minus and plus buttons are replaced by one control drawn in the

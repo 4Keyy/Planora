@@ -1,9 +1,9 @@
-import { act, render, screen, within } from "@testing-library/react"
+import { act, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AudienceConsole } from "@/app/_landing/audience-console"
 import { SharingCeiling } from "@/app/_landing/sharing-ceiling"
-import { TaskBuilder } from "@/app/_landing/task-builder"
+import { CardMoves } from "@/app/_landing/card-moves"
 import { BranchStory } from "@/app/_landing/branch-story"
 
 /**
@@ -11,8 +11,8 @@ import { BranchStory } from "@/app/_landing/branch-story"
  *
  * Their data lives in `src/lib/landing-*` and is tested there; these tests hold the wiring
  * the visitor sees: the hero's seats are pressable, the ring is driven by a row of seats and
- * never closes, the builder's legend lights the card's signals, and the branch's circle runs
- * the product's own cycle.
+ * never closes, the five moves turn the card's real signals on, and the branch's circle
+ * runs the product's own cycle.
  */
 
 class ResizeObserverStub {
@@ -103,27 +103,62 @@ describe("reading the ring", () => {
   })
 })
 
-describe("the task builder's legend", () => {
-  it("lights the red frame for an urgent task and the ring for all friends", async () => {
+describe("one card, five moves", () => {
+  const card = () => document.querySelector("[data-task-card]") as HTMLElement
+
+  it("frames a shared card in blue, and red outranks it", async () => {
     const user = userEvent.setup()
-    render(<TaskBuilder />)
-    const legend = screen.getByText("What the card is telling you").parentElement as HTMLElement
-    expect(within(legend).queryByText(/Red frame.*on the card now/)).toBeNull()
+    render(<CardMoves />)
+    const share = screen.getByRole("button", { name: /^Share/ })
+    await user.click(share)
+    expect(share).toHaveAttribute("aria-pressed", "true")
+    expect(card().className).toContain("border-accent")
+    expect(screen.getByText(/a blue frame, the ring opens for two/)).toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: "Priority 5 of 5, Urgent" }))
-    expect(within(legend).getByText("Red frame", { exact: false })).toHaveTextContent("(on the card now)")
-
-    await user.click(screen.getByRole("button", { name: /All friends/ }))
-    expect(within(legend).getByText("The ring", { exact: false })).toHaveTextContent("(on the card now)")
-    expect(screen.getByRole("img", { name: "Shared with all your friends." })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Urgency: Calm. Press for the next one." }))
+    expect(screen.getByRole("button", { name: "Urgency: Urgent. Press for the next one." })).toBeInTheDocument()
+    expect(card().className).toContain("border-alert")
   })
 
-  it("puts the task in progress and back", async () => {
+  it("gives the card its category's colour to glow in", async () => {
     const user = userEvent.setup()
-    render(<TaskBuilder />)
-    await user.click(screen.getByRole("button", { name: "In progress" }))
-    expect(screen.getByRole("button", { name: "In progress" })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByText("In progress: the check wears the category's colour.")).toBeInTheDocument()
+    render(<CardMoves />)
+    await user.click(screen.getByRole("button", { name: "Category: None. Press for the next one." }))
+    expect(screen.getByRole("button", { name: "Category: Home. Press for the next one." })).toBeInTheDocument()
+    expect(card().style.getPropertyValue("--card-glow")).not.toBe("")
+  })
+
+  it("finishes the card through its own circle", async () => {
+    const user = userEvent.setup()
+    render(<CardMoves />)
+    await user.click(screen.getByRole("button", { name: "Finish" }))
+    // The product's completion runs its short animation before committing. Finish is an
+    // action, not a toggle: it has no pressed state, and its name says what it will do next.
+    const reopen = await screen.findByRole("button", { name: "Reopen" }, { timeout: 3000 })
+    expect(reopen).not.toHaveAttribute("aria-pressed")
+    expect(reopen).toHaveAccessibleDescription("Done")
+  })
+
+  it("keeps a toggle's name fixed and puts what it is set to in its description", async () => {
+    const user = userEvent.setup()
+    render(<CardMoves />)
+    const share = screen.getByRole("button", { name: "Share" })
+    expect(share).toHaveAccessibleDescription("Only you")
+    await user.click(share)
+    expect(screen.getByRole("button", { name: "Share" })).toHaveAccessibleDescription("Victoria & Tom")
+  })
+
+  it("moves focus to what replaced the card when it is deleted, and back to the moves after", async () => {
+    const user = userEvent.setup()
+    render(<CardMoves />)
+    const del = document.querySelector<HTMLElement>('[aria-label^="Delete task"]')
+    expect(del).not.toBeNull()
+    del?.focus()
+    await user.keyboard("{Enter}")
+    const another = await screen.findByRole("button", { name: "Make another" })
+    expect(another).toHaveFocus()
+    await user.click(another)
+    expect(screen.getByRole("button", { name: /^Category/ })).toHaveFocus()
   })
 })
 

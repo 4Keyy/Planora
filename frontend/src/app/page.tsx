@@ -65,7 +65,7 @@ const ViewerSide = dynamic(() => import("./_landing/viewer-side").then((m) => m.
 const KeyboardConsole = dynamic(() =>
   import("./_landing/keyboard-console").then((m) => m.KeyboardConsole)
 )
-const TaskBuilder = dynamic(() => import("./_landing/task-builder").then((m) => m.TaskBuilder))
+const CardMoves = dynamic(() => import("./_landing/card-moves").then((m) => m.CardMoves))
 const BranchStory = dynamic(() => import("./_landing/branch-story").then((m) => m.BranchStory))
 const TrustLab = dynamic(() => import("./_landing/trust-lab").then((m) => m.TrustLab))
 
@@ -299,25 +299,25 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── 05 · What a task holds ───────────────────────────────────────── */}
+        {/* ── 05 · What a card tells you ──────────────────────────────────── */}
         <section className="border-t border-line">
           <div className="container-app py-20 sm:py-28">
             <Parallax>
               <SectionHead
                 n="05"
-                eyebrow="What a task holds"
-                title="Make one. It takes ten seconds."
+                eyebrow="Read a card"
+                title="A card says a lot before you open it."
+                size="display"
               />
             </Parallax>
             <StaggerItem className="mt-7 max-w-2xl">
               <p className="text-pretty text-body text-ink-muted">
-                Name it, say how much it matters, give it a day, pick who sees it and where it
-                stands. The card is the one you&rsquo;d get in the app, and the legend under it
-                names every signal it&rsquo;s showing.
+                This is the app&rsquo;s own card. Make five moves on it and watch the colour, the
+                frame, the ring and the check change the way they do on your real tasks.
               </p>
             </StaggerItem>
             <StaggerItem index={1} className="mt-12">
-              <TaskBuilder />
+              <CardMoves />
             </StaggerItem>
           </div>
         </section>
