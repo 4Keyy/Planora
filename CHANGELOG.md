@@ -4,6 +4,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ui-audit): the live scan reads web vitals before its full-page screenshot (2026-09-30)
+
+Playwright takes a full-page screenshot by resizing the viewport to the page's full height, so
+everything below the fold paints inside the viewport for a moment, and the scan read LCP only after
+that — a text block larger than the real LCP element became a late candidate stamped with the
+screenshot's time. `/profile` at 360px reported 1.6s with a detached element this way, against a
+heading painted at about 280ms. Vitals are now read first. Rescanned: the signed-in app's worst CLS
+is 0.0002 and worst median LCP 916 ms; the landing page's worst median LCP is 244 ms, CLS 0.
+
 ### feat(landing): block 5 is one card and five moves (2026-09-30)
 
 The task builder — a title field and some twenty buttons — asked visitors to make a task when the point

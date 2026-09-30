@@ -299,7 +299,7 @@ name, because several screen readers do not announce it and it never appears on 
 | Dead-CSS scan | `node docs/ui-audit/tools/class-audit.mjs` | Classes that emit no rule. **Needs a build first** |
 | Static a11y | `node docs/ui-audit/tools/a11y-static.mjs` | Names, keyboard paths, tab order |
 | Focus indicators | `node docs/ui-audit/tools/focus-scan.mjs` | Every focus stop, measured against 2.4.11's 3:1. **Needs a running server** |
-| Live matrix | `node docs/ui-audit/tools/live-scan.mjs` | 12 routes × 9 viewports × 3 modes |
+| Live matrix | `node docs/ui-audit/tools/live-scan.mjs` | 12 routes × 9 viewports × 3 modes. Web vitals are read before the full-page screenshot: Playwright takes it by resizing the viewport, which paints everything below the fold and used to register a late, detached LCP candidate (`/profile` at 360px read 1.6s against a real ~280ms) |
 | E2E | `npx playwright test` | Real flows against a live stack |
 
 ### Testing associations, not appearance

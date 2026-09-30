@@ -783,7 +783,10 @@ The viewer count is the length of that shared list.
   46 route × viewport cells over `/dashboard`, `/tasks`, `/tasks/completed`, `/categories`, `/profile` and
   `/branch/{id}`): worst CLS 0.0012 (`/dashboard`), worst median LCP 940 ms (`/dashboard`, which renders
   the most data), contrast failures 0, unnamed controls 0, horizontal scroll 0, and targets under 44×44
-  only in the branch calendar at 360px (the exception documented in design-system § 10). The archive's
+  only in the branch calendar at 360px (the exception documented in design-system § 10). Rescanned on
+  2026-09-30 with the droplet bar and the scanner reading vitals before its full-page screenshot (three
+  passes): worst CLS 0.0002, worst median LCP 916 ms (`/dashboard` at 1440px), `/profile` at 360px 284 ms,
+  the same zeros, and the same single calendar exception. The archive's
   filter plate holds its place until the categories answer; it used to drop in above an already-painted
   grid when the tasks came back first (0.034 at 1024px in one run of three).
 - **Task grids resolve their column count before the first paint** (`MasonryColumns` uses a layout
@@ -1290,8 +1293,8 @@ Signed out, production build, 9 viewports (`--set public --mock --anon`):
 | Focus stops without a visible indicator | — | 0 of 37 |
 | Headings | 1 `h1`, no `h2` | 1 `h1` + 8 `h2` + 6 `h3`, no level skips |
 | CLS | 0.0007 | **0** at every viewport, in all three modes |
-| LCP, median of 5 runs, worst viewport | — | 668 ms; **316 ms** after blocks 1–6 were reworked (2026-09-29, 2560 px) |
-| Unnamed controls, contrast failures, targets under 44px, horizontal scroll (2026-09-29) | — | 0, 0, 0, 0 at all 9 viewports |
+| LCP, median of 5 runs, worst viewport | — | 668 ms; 316 ms after blocks 1–6 were reworked (2026-09-29); **244 ms** with the droplet nav, the seat rail and the five moves (2026-09-30, 2560 px) |
+| Unnamed controls, contrast failures, targets under 44px, horizontal scroll (2026-09-30) | — | 0, 0, 0, 0 at all 9 viewports |
 
 The LCP figure is a **median of five runs** on purpose: the same code measured 372, 2656, 372,
 2708 and 380 ms at 1440 px, so a single run cannot separate a regression from noise.
