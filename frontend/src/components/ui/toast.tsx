@@ -74,7 +74,7 @@ export function Toaster() {
       aria-label="Notifications"
       aria-live="polite"
       aria-relevant="additions"
-      className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+72px)] z-toast flex max-h-[calc(100vh-72px)] flex-col-reverse gap-2.5 px-4 pb-4 sm:inset-x-auto sm:right-6 sm:top-[72px] sm:w-full sm:max-w-[360px] sm:flex-col"
+      className="pointer-events-none fixed inset-x-0 top-[var(--bar-clearance)] z-toast flex max-h-[calc(100vh-var(--bar-clearance))] flex-col-reverse gap-2.5 px-4 pb-4 sm:inset-x-auto sm:right-6 sm:w-full sm:max-w-[360px] sm:flex-col"
     >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (

@@ -139,9 +139,11 @@ describe("Navbar", () => {
     const listener = (e: Event) => received.push(e)
     window.addEventListener(OPEN_PALETTE_EVENT, listener)
     render(<Navbar />)
-    // Two buttons, one per breakpoint (the labelled one from md, the icon below it).
-    for (const button of screen.getAllByRole("button", { name: /Search/ })) await user.click(button)
-    expect(received).toHaveLength(2)
+    // One button at every width: the droplet shows its ⌘K hint beside the icon from lg.
+    const search = screen.getByRole("button", { name: "Search" })
+    expect(search).toHaveAttribute("aria-keyshortcuts")
+    await user.click(search)
+    expect(received).toHaveLength(1)
     window.removeEventListener(OPEN_PALETTE_EVENT, listener)
   })
 
@@ -162,6 +164,24 @@ describe("Navbar", () => {
     await waitFor(() => expect(screen.queryByTestId("navbar-mobile")).toBeNull())
     // Focus returns to the toggle rather than falling to <body> with the unmounted sheet.
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveFocus()
+  })
+
+  it("floats as a droplet: a fixed capsule, its glass on a layer of its own", () => {
+    const { container } = render(<Navbar />)
+    const header = container.querySelector("header") as HTMLElement
+    expect(header.parentElement).toHaveClass("fixed")
+    // The blur is on a child layer, never on the header: backdrop-filter would make the
+    // header the containing block of the menus' fixed descendants.
+    expect(header.className).not.toContain("backdrop-blur")
+    expect(header.querySelector('[aria-hidden="true"].backdrop-blur-xl')).not.toBeNull()
+  })
+
+  it("marks the current page with the ink drop", () => {
+    routerMocks.pathname = "/categories"
+    render(<Navbar />)
+    const current = tabs().getByRole("link", { name: "Categories" })
+    expect(current).toHaveClass("text-paper")
+    expect(tabs().getByRole("link", { name: "Tasks" })).toHaveClass("text-ink-muted")
   })
 
   it("keeps one popover open at a time: the bell closes the phone sheet", async () => {

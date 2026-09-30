@@ -35,10 +35,13 @@ function formatRelative(iso: string): string {
  */
 export function NotificationBell({
   className,
+  triggerClassName,
   open: openProp,
   onOpenChange,
 }: {
   className?: string
+  /** Extra classes for the bell button itself — the app's droplet bar rounds it fully. */
+  triggerClassName?: string
   /**
    * Controlled by the app bar, which keeps one popover open at a time. Without these the
    * bell owns its own state, as it does in isolation (tests, any other host).
@@ -112,7 +115,7 @@ export function NotificationBell({
         aria-label={totalUnread > 0 ? `Notifications, ${totalUnread} unread` : "Notifications"}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={ICON_BUTTON}
+        className={cn(ICON_BUTTON, triggerClassName)}
       >
         <Bell className="h-5 w-5" aria-hidden="true" />
         <AnimatePresence>
@@ -141,7 +144,9 @@ export function NotificationBell({
             transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
             className={cn(
               POPOVER_SURFACE,
-              "absolute inset-x-3 top-full z-dropdown mt-2 origin-top overflow-hidden sm:inset-x-auto sm:right-0 sm:w-96 sm:origin-top-right",
+              // 8px under the droplet's edge at every width: the phone panel hangs from the droplet
+              // itself, the desktop one from this 44px button, 6px inside the 56px capsule.
+              "absolute inset-x-0 top-full z-dropdown mt-2 origin-top overflow-hidden sm:inset-x-auto sm:right-0 sm:mt-3.5 sm:w-96 sm:origin-top-right",
             )}
             // A dialog, not an ARIA menu: it holds a heading, an action and a list of rows —
             // a menu may contain only menu items, and an empty one is an empty menu.

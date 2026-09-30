@@ -1018,7 +1018,7 @@ export default function ProfilePage() {
 
       <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[268px_minmax(0,1fr)] lg:gap-8">
         {/* ============ RAIL ============ */}
-        <div className="lg:sticky lg:top-24 lg:self-start">
+        <div className="lg:sticky lg:top-[var(--bar-clearance)] lg:self-start">
           <nav
             aria-label="Profile sections"
             className={cn(CARD, "p-1.5")}
@@ -1129,7 +1129,7 @@ export default function ProfilePage() {
         {/* ============ CONTENT ============ */}
         <div className="flex min-w-0 flex-col gap-11">
           {/* ---------- PROFILE ---------- */}
-          <section id="profile" aria-labelledby="section-profile" className="scroll-mt-24">
+          <section id="profile" aria-labelledby="section-profile" className="scroll-mt-[var(--bar-clearance)]">
             <SectionHeading index="01" title="Profile" description="Your name, avatar and account details." />
             <div className="flex flex-col gap-4">
               <SectionCard
@@ -1287,7 +1287,7 @@ export default function ProfilePage() {
           </section>
 
           {/* ---------- SECURITY ---------- */}
-          <section id="security" ref={setSectionRef("security")} aria-labelledby="section-security" className="scroll-mt-24">
+          <section id="security" ref={setSectionRef("security")} aria-labelledby="section-security" className="scroll-mt-[var(--bar-clearance)]">
             <SectionHeading index="02" title="Security" description="Password, two-factor, sessions and account removal." />
             <div className="flex flex-col gap-4">
               <SectionCard
@@ -1471,7 +1471,7 @@ export default function ProfilePage() {
           </section>
 
           {/* ---------- SESSIONS ---------- */}
-          <section id="sessions" ref={setSectionRef("sessions")} aria-labelledby="section-sessions" className="scroll-mt-24">
+          <section id="sessions" ref={setSectionRef("sessions")} aria-labelledby="section-sessions" className="scroll-mt-[var(--bar-clearance)]">
             <SectionHeading index="03" title="Sessions" description="Devices currently signed in to your account." />
             <SectionCard
               icon={Monitor}
@@ -1544,7 +1544,7 @@ export default function ProfilePage() {
           </section>
 
           {/* ---------- HISTORY ---------- */}
-          <section id="history" ref={setSectionRef("history")} aria-labelledby="section-history" className="scroll-mt-24">
+          <section id="history" ref={setSectionRef("history")} aria-labelledby="section-history" className="scroll-mt-[var(--bar-clearance)]">
             <SectionHeading index="04" title="History" description="Recent authentication activity." />
             <SectionCard
               icon={HistoryIcon}
@@ -1623,7 +1623,7 @@ export default function ProfilePage() {
           </section>
 
           {/* ---------- FRIENDS ---------- */}
-          <section id="friends" ref={setSectionRef("friends")} aria-labelledby="section-friends" className="scroll-mt-24">
+          <section id="friends" ref={setSectionRef("friends")} aria-labelledby="section-friends" className="scroll-mt-[var(--bar-clearance)]">
             <SectionHeading index="05" title="Friends" description="People you can share tasks with." />
             <div className="flex flex-col gap-4">
               <SectionCard icon={UserPlus} title="Add a friend" description="By account email, or by their User ID.">
@@ -1840,7 +1840,7 @@ export default function ProfilePage() {
 
           {/* ---------- ADMIN (role-gated) ---------- */}
           {isAdmin && (
-            <section id="admin" ref={setSectionRef("admin")} aria-labelledby="section-admin" className="scroll-mt-24">
+            <section id="admin" ref={setSectionRef("admin")} aria-labelledby="section-admin" className="scroll-mt-[var(--bar-clearance)]">
               <SectionHeading index="06" title="Admin" description="Platform statistics and user operations." />
               <div className="flex flex-col gap-4">
                 <SectionCard

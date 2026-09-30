@@ -20,7 +20,16 @@ import { cn } from "@/lib/utils"
  */
 export const WORDMARK_ARC = { dash: 0.88, gap: 0.12 } as const
 
-export function Wordmark({ size = "md", className }: { size?: "sm" | "md"; className?: string }) {
+export function Wordmark({
+  size = "md",
+  showName = true,
+  className,
+}: {
+  size?: "sm" | "md"
+  /** The mark alone, for a caller that animates the name in and out itself. */
+  showName?: boolean
+  className?: string
+}) {
   const px = size === "sm" ? 16 : 20
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
@@ -39,9 +48,11 @@ export function Wordmark({ size = "md", className }: { size?: "sm" | "md"; class
         />
         <circle cx="12" cy="12" r="3" className="fill-ink" />
       </svg>
-      <span className={cn("font-bold tracking-tight text-ink", size === "sm" ? "text-body-sm" : "text-body")}>
-        Planora
-      </span>
+      {showName && (
+        <span className={cn("font-bold tracking-tight text-ink", size === "sm" ? "text-body-sm" : "text-body")}>
+          Planora
+        </span>
+      )}
     </span>
   )
 }

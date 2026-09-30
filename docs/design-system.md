@@ -648,7 +648,7 @@ transform is cleared. The transform could be bought back by portalling every fix
 control out of the page tree — three components, and a new set of stacking and
 focus-order questions. It is not worth eight pixels.
 
-The navbar's active-tab indicator carries the continuity between routes instead,
+The droplet bar's ink drop carries the continuity between routes instead,
 moving by `layoutId`. That half of moment 9 is built.
 
 The blueprint's other half — the outgoing content leaving at `y: -8` — cannot be
@@ -842,11 +842,10 @@ type has stopped being a primitive.
 ### The app shell
 
 Every signed-in route renders inside `app/(app)/layout.tsx` → `AppShell`
-(`components/layout/app-shell.tsx`): the sticky app bar, `<main id="main">`, and one
-column, `.container-app` — the same `max-w-6xl` column as the landing page and the auth
-frame, so the wordmark sits on the same spot on every screen. The route group
-exists so the router keeps the bar mounted across the five routes — it stays still, its
-underline slides to the new tab, and only the page fades (`app/(app)/template.tsx`,
+(`components/layout/app-shell.tsx`): the droplet bar, `<main id="main">`, and one column,
+`.container-app` — the same `max-w-6xl` column as the landing page and the auth frame. The
+route group exists so the router keeps the bar mounted across the five routes — it stays
+still, its ink drop flows to the new tab, and only the page fades (`app/(app)/template.tsx`,
 opacity only because these pages have fixed controls).
 
 Every page starts with `PageHeader` (`components/layout/page-header.tsx`): the eyebrow in
@@ -855,9 +854,28 @@ sentence, and the page's own actions at the far end. The dashboard's overview ca
 one exception, because its title is a live number; it uses the same eyebrow, the same `h1`
 scale and the same card rules.
 
-The bar itself (`components/layout/navbar.tsx`) is 56px on phones and 64px from `sm`,
-`bg-paper/85` with `backdrop-blur-md`, and matches the landing page's bar and the auth
-frame's: the `Wordmark` on the left in all three. Its menus use `POPOVER_SURFACE`.
+**The bar is a droplet** (`components/layout/droplet.tsx`, `components/layout/navbar.tsx`,
+`lib/droplet.ts`): a 56px capsule floating 12px (16px from `sm`) under the top edge, centred,
+its glass — `bg-paper/85`, a hairline, `shadow-lg`, `backdrop-blur-xl` — on a layer of its
+own at `z -1` inside an `isolate` capsule, so the blur never becomes the menus' containing
+block and the glass is always behind the contents. The landing page's nav is the same
+`DropletFrame`.
+
+| Part | Rule |
+|---|---|
+| The current page | An ink drop (`bg-ink`, paper text) that flows between tabs by `layoutId` |
+| Hover | A lighter drop (`bg-ink/5`) follows the pointer across the tabs |
+| Every control | A real 44px box (`h-11`), so no two expanded hit areas overlap inside the capsule |
+| Whole | The resting state at the top of every page; tabs always present, search shows its ⌘K hint from `lg` |
+| Condensed (desktop) | While scrolling down past 96px: the mark, the current tab and the buttons. The capsule's width springs (`layout`). Pointing at it, focus inside it, scrolling up or an open menu make it whole |
+| Hidden (phone) | While scrolling down it slides up past its height (`y: -150%`); scrolling up or focus brings it back |
+| Phone menu | Drips out of the droplet (`scaleX`/`scaleY` from the top), the page dimmed and blurred behind it by a backdrop that is a sibling of the capsule |
+| Popovers | Account menu and notifications hang 8px under the capsule's edge; one open at a time |
+| Room | The capsule is `fixed` and takes none. `--bar-clearance` (globals.css: safe-area inset + 5.5rem) is the room `<main>` starts after, and what the update pill, toasts, the profile rail and anchor scroll-margins offset by |
+| Reduced motion | Never condenses or hides; every change instant |
+
+The droplet it replaced showed its tabs only while the pointer hovered over it, which hid the
+three destinations from keyboard users and from touch. Here nothing is reachable only by hover.
 
 ### The auth room
 

@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### feat(frontend): the app bar is a droplet again, and the landing page's nav with it (2026-09-30)
+
+The signed-in bar is a floating capsule once more, rebuilt so nothing depends on hover: the three tabs
+are always there when it is whole, the current page is an ink drop that flows between tabs, a lighter
+drop follows the pointer, and every control is a real 44px box. It breathes with the scroll — on a
+desktop it condenses to the mark, the current tab and the buttons while you scroll down; on a phone it
+slides away — and comes back whole on scroll-up, hover, focus or an open menu. The phone menu drips out
+of it over a dimmed, blurred page. The landing page's nav is the same `DropletFrame`.
+
+The capsule floats, so the page keeps its room with `--bar-clearance`; the update pill, toasts, the
+profile rail, anchor scroll-margins and the branch page's height offset by the same variable, and every
+page's first line starts where it did before.
+
 ### fix(todos): shared tasks are framed in blue, glow in their colour, and nothing is "Public" (2026-09-30)
 
 A task shared with friends looked exactly like a private one: the frame was alert-or-nothing, and the

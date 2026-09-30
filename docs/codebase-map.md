@@ -233,7 +233,7 @@ Critical files:
 | `frontend/src/middleware.ts` | mints the per-request CSP nonce and forwards it as `x-nonce` |
 | `frontend/src/components/ui` | the primitives. Nothing here knows what a task is |
 | `frontend/src/components/todos` | the task domain: cards, the create panel, the editor, the branch feed |
-| `frontend/src/components/layout` | `navbar.tsx` — the shell and the phone bottom bar |
+| `frontend/src/components/layout` | `app-shell.tsx` — the signed-in frame (the bar, `<main id="main">`, the column); `droplet.tsx` — `DropletFrame`, the floating capsule every bar is drawn as, with `useDropletScroll` and `useIsPhone`; `navbar.tsx` — the app's droplet bar (tabs, search, notifications, account, the phone menu); `page-header.tsx` — every page's title row |
 | `frontend/src/components/notifications` | the bell, its badge, and the badge cluster |
 | `frontend/src/components/backgrounds` | the raw-WebGL ribbon gradient and its static fallback |
 | `frontend/src/components/animated` | `celebration.tsx` (confetti), `fade-in.tsx`, `loading.tsx` |

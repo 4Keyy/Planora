@@ -126,6 +126,12 @@
      which cancels exactly this much to run the month grid to the card edges. */
   --pl-editor-gutter: 16px;
 
+  /* The room the app's floating droplet bar takes at the top: the safe-area inset, the
+     droplet's 12–16px of air, its 56px, and a gap before anything that sticks under it.
+     Sticky things below the bar (the update pill, the profile rail) offset by this, and
+     anchors scroll to it, so nothing ever parks underneath the droplet. */
+  --bar-clearance: calc(env(safe-area-inset-top, 0px) + 5.5rem);
+
     /* next/font's Latin faces (preloaded, with a metric-matched fallback) first; the
        @fontsource latin-ext faces under the plain family name second. See layout.tsx. */
     --font-sans: var(--font-jakarta), "Plus Jakarta Sans";

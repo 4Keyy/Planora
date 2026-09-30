@@ -176,7 +176,8 @@ export default function BranchPage() {
         // Full-width card matching the page's left/right gutters; the branch flex-fills and
         // scrolls internally so the title/meta stay put.
         display: "flex", flexDirection: "column",
-        height: "calc(100vh - 152px)", minHeight: 560,
+        // The viewport less the droplet bar's room and the column's own air.
+        height: "calc(100vh - var(--bar-clearance) - 4rem)", minHeight: 560,
         background: "var(--pl-paper)",
         border: "1px solid var(--pl-line)",
         borderRadius: 24,
