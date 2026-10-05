@@ -760,10 +760,32 @@ Neither is visible while reading the component, and both shipped. Never write
 exception is a dialog *panel* that holds `tabIndex={-1}` to receive focus as a
 container: it is not a control and should not be outlined.
 
+**Text fields draw focus on their own shape.** An `<input>` or `<textarea>` matches
+`:focus-visible` on every focus — a click, a tap, a script — in every engine, so the
+global ring boxed the create panel's naked title in a hard dark rectangle the moment
+anything focused it. Fields therefore carry one of three classes from the "Field focus"
+block in `globals.css`, each of which turns the outline *transparent* (never `none`:
+forced-colors mode repaints outline-color and drops shadows, so that transparent
+outline is what still draws a ring in High Contrast) and draws the indicator on the
+field's own geometry:
+
+| Class | Where | Indicator |
+|---|---|---|
+| `field-rule` (container) + `field-naked` (fields) | the create panel's title and details | the 2px left rule: an ink rule draws itself over the `line` track top-down on focus (`duration-slow`, `ease-emphasized`, a `scaleY` transform) and retracts on `ease-exit` |
+| `field-box` | `<Input>`, `<Textarea>` | a 1px ink edge and a 3px `ink/8%` halo on the field's radius, through the component's own colour/shadow transition; `data-over-limit` keeps the edge red |
+| `field-shell` (container) + `field-naked` (field) | quick capture's pill | the pill's edge turns ink with the same halo, its `shadow-xl` kept |
+
+Ink on paper is 17.93:1 and ink against the resting `line` 14.23:1; the halos are
+decoration. No library is involved: react-aria's `useFocusRing` only reports the same
+`:focus-visible` answer the browser gives, and the focus-visible polyfill is obsolete
+on every browser Next 16 targets.
+
 `docs/ui-audit/tools/focus-scan.mjs` tabs through every focus stop on the
 authenticated routes and measures the indicator's contrast — the colour composited
 over paper, against paper — rather than asking whether one is present. 174 stops,
-all clearing 3:1.
+all clearing 3:1. For a text field it reads the shape that carries the indicator (the
+`field-rule`'s ink rule, the `field-shell`'s edge, the `field-box`'s border) while the
+field holds focus.
 
 ### Why the scanners all exist
 

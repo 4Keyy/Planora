@@ -264,7 +264,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
             // The pill carries the circle's 56px content box (p-1.5 + a 44px
             // control), so the morph reads as the circle stretching sideways
             // rather than growing.
-            className="pointer-events-auto flex w-full max-w-md items-center gap-1.5 rounded-full border border-line bg-paper-raised p-1.5 shadow-xl"
+            className="field-shell pointer-events-auto flex w-full max-w-md items-center gap-1.5 rounded-full border border-line bg-paper-raised p-1.5 shadow-xl"
           >
             <motion.div
               className="flex w-full items-center gap-1.5"
@@ -303,13 +303,13 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}
                 /*
-                 * `rounded-md px-2` exists for the focus ring, not for decoration.
-                 * The global indicator is an outline, and an outline traces the
-                 * element's own `border-radius` — on a square-cornered input inside
-                 * a fully rounded pill that drew a hard rectangle across the middle
-                 * of the bar. The padding keeps the ring off the glyphs.
+                 * `field-naked`: the input draws no ring of its own. The pill IS the
+                 * field — the bubble morphs into it — so its edge turns ink while
+                 * anything inside it has focus (globals.css, `.field-shell`), and no
+                 * rectangle can appear round the text inside a fully rounded bar.
+                 * `px-2` keeps the caret off the cancel button.
                  */
-                className="min-w-0 flex-1 rounded-md bg-transparent px-2 text-body font-medium text-ink placeholder:font-normal placeholder:text-ink-subtle"
+                className="field-naked min-w-0 flex-1 bg-transparent px-2 text-body font-medium text-ink placeholder:font-normal placeholder:text-ink-subtle"
               />
 
               <Button

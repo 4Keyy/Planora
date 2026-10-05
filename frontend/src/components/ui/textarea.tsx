@@ -5,6 +5,10 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
   showCount?: boolean
 }
 
+/**
+ * The boxed multi-line field. Like <Input>, its focus state lives in globals.css ("Field focus",
+ * `field-box`): an ink edge and a soft halo, and a red edge while over the limit.
+ */
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, showCount, maxLength, onChange, value, defaultValue, ...props }, ref) => {
     const [charCount, setCharCount] = React.useState<number>(() => {
@@ -18,23 +22,16 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     }, [value])
 
     const pct = maxLength && showCount ? charCount / maxLength : 0
-
-    const limitBorder =
-      showCount && maxLength
-        ? pct >= 0.80
-          ? "border-alert bg-alert-surface/40 hover:border-alert focus:border-alert"
-          : ""
-        : ""
+    const overLimit = Boolean(showCount && maxLength) && pct >= 0.8
 
     const baseClasses = cn(
-      "flex min-h-[120px] w-full rounded-lg border bg-paper px-4 py-3 text-body-sm leading-relaxed font-medium transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized resize-none",
+      "field-box flex min-h-[120px] w-full rounded-lg border bg-paper px-4 py-3 text-body-sm leading-relaxed font-medium transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized resize-none",
       "border-line bg-paper/95",
       "hover:border-line-strong hover:bg-paper",
-      "focus:border-ink focus:bg-paper",
       "placeholder:text-ink-subtle placeholder:font-normal",
       "shadow-none hover:shadow-sm",
       "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-paper-sunken disabled:border-line disabled:hover:border-line disabled:hover:shadow-none",
-      limitBorder,
+      overLimit && "border-alert bg-alert-surface/40 hover:border-alert",
       showCount && maxLength ? "pb-7" : "",
       className
     )
@@ -47,6 +44,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           onChange={onChange}
           value={value}
           defaultValue={defaultValue}
+          data-over-limit={overLimit || undefined}
           ref={ref}
           {...props}
         />
@@ -66,13 +64,14 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           onChange={handleChange}
           value={value}
           defaultValue={defaultValue}
+          data-over-limit={overLimit || undefined}
           ref={ref}
           {...props}
         />
         <span
           className={cn(
             "absolute right-3 bottom-2.5 text-caption font-semibold pointer-events-none tabular-nums select-none transition-colors duration-base",
-            pct >= 0.80 ? "text-alert" : "text-ink-muted"
+            overLimit ? "text-alert" : "text-ink-muted"
           )}
         >
           {charCount}/{maxLength}

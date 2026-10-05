@@ -77,6 +77,21 @@ const probe = () => {
   const shadowColours = (s.boxShadow || '').split('rgb').slice(1).map((c) => 'rgb' + c)
   const shadowVisible = s.boxShadow !== 'none' && shadowColours.some((c) => ratioToPaper(c) >= 3)
 
+  // Text fields draw focus on their own shape (globals.css, "Field focus"): the create
+  // panel's left rule, the quick-capture pill's edge, a boxed field's border. Read the
+  // colour that shape has NOW, while the field holds focus, so a resting grey edge
+  // (1.26:1) still fails.
+  const rule = el.closest('.field-rule')
+  const shell = el.closest('.field-shell')
+  const shapeColour = rule
+    ? getComputedStyle(rule, '::after').backgroundColor
+    : shell
+      ? getComputedStyle(shell).borderTopColor
+      : el.classList.contains('field-box')
+        ? s.borderTopColor
+        : null
+  const shapeVisible = shapeColour !== null && ratioToPaper(shapeColour) >= 3
+
   const label =
     el.getAttribute('aria-label') ||
     (el.labels && el.labels[0] && el.labels[0].textContent) ||
@@ -87,7 +102,7 @@ const probe = () => {
   return {
     name: String(label).trim().slice(0, 34),
     tag: el.tagName.toLowerCase(),
-    ok: outlineVisible || shadowVisible,
+    ok: outlineVisible || shadowVisible || shapeVisible,
   }
 }
 

@@ -12,6 +12,35 @@ import * as config from "@/lib/config"
 import { useToastStore } from "@/store/toast"
 
 describe("input and textarea wrappers", () => {
+  it("renders a bare input without a counter, so a flex row can stretch it", () => {
+    // A wrapping div became the flex item and shrank the profile page's fields to their
+    // intrinsic width; the <input> itself must be the item.
+    const { container } = render(<Input aria-label="plain" />)
+    const input = screen.getByLabelText("plain")
+    expect(container.firstElementChild).toBe(input)
+    expect(input).toHaveClass("field-box")
+  })
+
+  it("keeps a caller's onBlur and draws no overlay of its own", async () => {
+    // react-hook-form's register() passes onBlur; it used to replace the component's own
+    // handler, and the focus glow then stayed on after the field was left.
+    const user = userEvent.setup()
+    const onBlur = vi.fn()
+    const { container } = render(<Input aria-label="email" onBlur={onBlur} />)
+    await user.click(screen.getByLabelText("email"))
+    await user.tab()
+    expect(onBlur).toHaveBeenCalledTimes(1)
+    expect(container.querySelector("[aria-hidden]")).toBeNull()
+  })
+
+  it("marks an over-limit field so its focus edge stays red", () => {
+    render(<Input aria-label="limited" maxLength={10} showCount value="123456789" readOnly />)
+    expect(screen.getByLabelText("limited")).toHaveAttribute("data-over-limit", "true")
+    render(<Textarea aria-label="notes" maxLength={10} showCount value="123456789" readOnly />)
+    expect(screen.getByLabelText("notes")).toHaveAttribute("data-over-limit", "true")
+    expect(screen.getByLabelText("notes")).toHaveClass("field-box")
+  })
+
   it("tracks input character counts and forwards changes", async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

@@ -175,6 +175,18 @@ describe("rule 4 — one focus indicator, clearing 2.4.11", () => {
     expect(blocks.length).toBeGreaterThan(0)
     expect(css).toContain("outline-offset")
   })
+
+  it("lets text fields draw focus on their own shape without deleting the forced-colors outline", () => {
+    const css = fs.readFileSync(path.join(SRC, "app", "globals.css"), "utf8")
+    for (const selector of [".field-naked:focus-visible", ".field-box:focus-visible:not(:disabled)"]) {
+      const start = css.indexOf(selector)
+      expect(start).toBeGreaterThan(-1)
+      const block = css.slice(start, css.indexOf("}", start))
+      // Transparent, never removed: High Contrast repaints outline-color and drops the rest.
+      expect(block).toContain("outline-color: transparent")
+      expect(block).not.toMatch(/outline:\s*none/)
+    }
+  })
 })
 
 describe("rule 5 — priority is never encoded by hue alone", () => {

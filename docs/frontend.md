@@ -321,6 +321,12 @@ anything, and an inline `outline: "none"` beats the stylesheet outright. Both sh
 here, leaving six auth routes and every Button variant with no visible focus at all.
 See [`design-system.md`](design-system.md) for the measured figures.
 
+Text fields are the one place the ring is replaced rather than kept, because an input
+matches `:focus-visible` on every click: give a boxed field `field-box` (the `<Input>`
+and `<Textarea>` primitives already do), and a naked field `field-naked` inside a
+`field-rule` or `field-shell` container that draws the indicator. Those classes make the
+outline transparent in `globals.css`; a component still never writes `outline-none`.
+
 ### The lesson from the focus trap
 
 `useFocusTrap` had a full test suite and every test passed. It also did nothing in

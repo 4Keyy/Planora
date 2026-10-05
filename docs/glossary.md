@@ -43,7 +43,7 @@ use. A glossary that never says what not to call something leaves the synonym in
 | Fly.io | Chosen production hosting target | `deploy/fly/`, `.github/workflows/cd.yml` |
 | `fly.toml` | Per-app Fly.io manifest declaring build context, env, health probes, concurrency, VM size | `deploy/fly/*.fly.toml` |
 | FLY_API_TOKEN | GitHub repository secret authenticating `flyctl` in the CD workflow | `.github/workflows/cd.yml` |
-| Focus indicator | The single focus ring, declared once through a zero-specificity `:where()` selector so a component can add to it and nothing can take it away. `outline-none` compiles to a transparent outline, which is why it is forbidden | `frontend/src/app/globals.css` |
+| Focus indicator | The single focus ring, declared once through a zero-specificity `:where()` selector so a component can add to it and nothing can take it away. `outline-none` compiles to a transparent outline, which is why it is forbidden. Text fields are the exception: `field-box`, `field-rule` and `field-shell` draw the indicator on the field's own shape and keep a transparent outline for forced-colors mode | `frontend/src/app/globals.css` |
 | `force-dynamic` | The route-segment config declared once in `app/layout.tsx` and cascading to every route. A statically rendered page would serve a cached CSP nonce, which is the same as having no nonce | `frontend/src/app/layout.tsx`, ADR-0006 |
 | Friend request | Pending friendship relation between requester and addressee | `FriendshipsController.cs` |
 | Friendship | Accepted social relation. It gates task sharing and, through INV-AZ-4, the comment timeline | `Friendship.cs`, `auth.proto` |

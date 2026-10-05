@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ui): text fields draw focus on their own shape, and `<Input>` is a bare input again (2026-10-05)
+
+A text field matches `:focus-visible` on every focus, a click included, so the global ring drew a
+hard dark rectangle round fields that were only clicked. Fields now carry a class from the new
+"Field focus" block in `globals.css`: `field-box` (a 1px ink edge and a 3px `ink/8%` halo on the
+field's radius) for `<Input>` and `<Textarea>`, `field-shell` for quick capture's pill (its edge turns
+ink), and `field-rule` for naked fields behind a left rule. Each keeps a transparent outline for
+forced-colors mode instead of removing it. The previous attempt (6457907) had wrapped every
+`<Input>` in a `div.relative` with a framer-motion gradient overlay: the wrapper became the flex item
+and shrank the profile page's password and email rows to their intrinsic width, and a caller's
+`onBlur` (react-hook-form's `register`) replaced the component's own, so the glow stayed on after the
+field was left. Both are fixed by returning a bare `<input>` with no focus state in React.
+`focus-scan.mjs` now reads the indicator on the field's shape.
+
 ### fix(frontend): the droplet condenses in one motion (2026-10-05)
 
 Scrolling down on a desktop, the bar's capsule sprang narrower and then snapped about 70px more in
