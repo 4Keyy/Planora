@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FocusEventHandler, type PointerEventHandler, type ReactNode } from "react"
 import { motion, useMotionValueEvent, useReducedMotion, useScroll } from "framer-motion"
 import { DROPLET_OPEN, DROPLET_START, trackDropletScroll, type DropletScroll, type DropletTrack } from "@/lib/droplet"
-import { SPRING_GENTLE, SPRING_STANDARD } from "@/lib/animations"
+import { SPRING_STANDARD, TWEEN_HIDE } from "@/lib/animations"
 import { cn } from "@/lib/utils"
 
 /**
@@ -100,8 +100,17 @@ export function DropletFrame({
       <Capsule
         aria-label={label}
         layout
-        transition={{ layout: morph, default: reduce ? { duration: 0 } : SPRING_GENTLE }}
-        animate={{ y: hidden && !reduce ? "-150%" : 0 }}
+        transition={{ 
+          layout: morph, 
+          y: reduce ? { duration: 0 } : TWEEN_HIDE,
+          scale: reduce ? { duration: 0 } : TWEEN_HIDE,
+          opacity: reduce ? { duration: 0 } : TWEEN_HIDE,
+        }}
+        animate={{ 
+          y: hidden && !reduce ? "-150%" : 0,
+          scale: hidden && !reduce ? 0.94 : 1,
+          opacity: hidden && !reduce ? 0 : 1,
+        }}
         style={{ borderRadius: 9999 }}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
@@ -117,7 +126,13 @@ export function DropletFrame({
         {/* The glass: its own layer, so the blur never becomes the menus' containing block. */}
         <motion.span
           layout
-          transition={{ layout: morph }}
+          transition={{ 
+            layout: morph,
+            opacity: reduce ? { duration: 0 } : TWEEN_HIDE,
+          }}
+          animate={{
+            opacity: hidden && !reduce ? 0 : 1,
+          }}
           aria-hidden="true"
           style={{ borderRadius: 9999 }}
           className="absolute inset-0 -z-10 border border-line/80 bg-paper/85 shadow-lg backdrop-blur-xl"

@@ -82,6 +82,9 @@ export const TWEEN_BACKDROP = { duration: DURATION_UI, ease: EASE_OUT_EXPO } as 
 /** Things leaving accelerate away rather than easing out. */
 export const TWEEN_EXIT = { duration: DURATION_FAST, ease: EASE_EXIT } as const
 
+/** Navbar hide: smooth, no jarring acceleration. Uses emphasized curve for buttery fade. */
+export const TWEEN_HIDE = { duration: DURATION_SLOW, ease: EASE_OUT_EXPO } as const
+
 // ─── Variants ───────────────────────────────────────────────────────────────
 
 /** Enters from 12px below, leaves 8px above. The general-purpose entrance. */
