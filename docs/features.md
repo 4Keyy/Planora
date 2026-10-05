@@ -742,7 +742,7 @@ The viewer count is the length of that shared list.
   `prefers-reduced-motion` (the transition is dropped).
 - Sorting groups active tasks by date urgency and priority in `frontend/src/utils/sort-tasks.ts`.
 - Category filter state is stored in local storage by `frontend/src/utils/category-filter.ts`, scoped per user under the key `todos-cat-filter:<userId>`. Each account's filter survives a hard refresh (including Ctrl+F5), and switching accounts never leaks one user's filter onto another. The `/tasks` and `/tasks/completed` pages re-read the filter whenever the active user changes; an unknown/logged-out user resolves to an empty filter.
-- Keyboard shortcuts confirmed in `frontend/src/app/todos/page.tsx`: `F` opens category filter and `C` opens create panel when focus is not inside form controls.
+- Keyboard shortcuts confirmed in `frontend/src/app/(app)/tasks/page.tsx`: `F` toggles the category filter when focus is not inside a form control and the create panel is closed (while it is open, printable keys go to its title), and `C` opens quick capture (`components/todos/quick-capture.tsx`).
 - Dashboard also keeps the `C` create-panel shortcut. The collapsed panel header shows "New task" as its title and a `press C to open` `<kbd>` hint in the subtitle so the shortcut is self-documenting without a separate dismissible banner.
 - **The dashboard** (`frontend/src/app/(app)/dashboard/page.tsx`) opens on one overview card: "You have N open tasks." (the number rolls), the overdue / due-today / shared filters, and — beside them on wide screens, below on phones — this week as a drawn progress ring, the completed count and seven day bars. The card used to be a gradient with two blurred orbs, a pill eyebrow, a hover shadow on the whole card and a second glass card nested inside for the ring, each piece arriving on its own delay. Below it, "Active tasks" with its count, the create panel at full column width (it used to sit alone in a third-wide sidebar beside three squeezed columns of cards), the cards in three columns, and the shared `Pagination`. The empty state is a `StatusPanel` ("Nothing open right now"); the first-run state keeps its four steps.
 - Pressing `Escape` inside the create task panel returns it to the collapsed create action with a calm layout fade instead of leaving an empty white panel or adding bounce.
@@ -751,7 +751,15 @@ The viewer count is the length of that shared list.
 - The card's frame says who a task concerns: `alert` red when it is urgent, due today or overdue (it outranks everything); the `accent` blue when it is shared with named friends or with all of them; the plain line for a private task. Work in progress is never the frame — it is the check (in the category's colour) and the workers chip. The hover shadow glows in the category's colour (the accent while you work on it, alert when it is urgent, plain grey otherwise). Implementation: `borderColor` and `--card-glow` in `components/todos/todo-card.tsx`.
 - **Create task panel (redesigned)** (`frontend/src/components/todos/create-todo-panel.tsx`): the title
   and details are naked oversized inputs behind a single left rule ("What needs to be done?" /
-  "Add details — optional."), followed by a row of four compact **selector plates** — Priority,
+  "Add details — optional."). Opening the panel focuses nothing (owner's ruling, 2026-10-05): focus
+  stays on the header that opened it, and the field lights up only when the user clicks it or starts
+  typing — the first printable key pressed from "nowhere" (the page, the header, a non-text control in
+  the panel, the button that opened it; never with Ctrl/Cmd/Alt, never Space, never while a selector
+  popover is open) moves focus into the title and lands there. The left rule is the focus indicator:
+  an ink rule draws itself over its grey track top-down while either field has focus (`field-rule`
+  in `globals.css`), and no outline boxes the fields. On `/tasks` the `F` filter shortcut stands down
+  while the panel is open, so a title can start with F. Then comes a row of four compact
+  **selector plates** — Priority,
   Due date, Category, Share — each opening an anchored popover (the shared `PriorityPopover`,
   `DatePopover` with its Today/Tomorrow/+3/Next-week quick-picks, `CategoryPopover`, and a
   panel-local `SharePopover`). The plate row auto-fits: 4-up at full column width on both `/tasks` and

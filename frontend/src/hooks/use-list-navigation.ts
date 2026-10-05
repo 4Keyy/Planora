@@ -71,7 +71,7 @@ const MAX_PRIORITY = 5
  * jsdom does not implement it, and a caret inside a nested node of an editable
  * region reports the attribute on an ancestor rather than on the node itself.
  */
-function isTextEntry(target: EventTarget | null): boolean {
+export function isTextEntry(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   const tag = target.tagName
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true

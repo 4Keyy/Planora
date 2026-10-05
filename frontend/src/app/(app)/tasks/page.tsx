@@ -178,8 +178,12 @@ export default function TasksPage() {
   }, [user?.userId])
 
   // Press "F" — toggle category filter modal (skip when typing in inputs). The filter plate is
-  // always on screen now, so the shortcut works whether or not the create panel is expanded.
+  // always on screen, so the shortcut works whether or not the create panel is expanded —
+  // except while the panel is OPEN: then a printable key belongs to its title (type-to-focus in
+  // create-todo-panel.tsx), and "Fix the sink" must not open the filter on its first letter.
+  // This capture listener is registered before the panel's, so it has to step aside itself.
   useEffect(() => {
+    if (isCreateOpen) return
     const handler = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== "f") return
       if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
@@ -190,7 +194,7 @@ export default function TasksPage() {
     }
     window.addEventListener("keydown", handler, true)
     return () => window.removeEventListener("keydown", handler, true)
-  }, [])
+  }, [isCreateOpen])
 
 
   /*

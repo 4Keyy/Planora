@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(todos): "New task" opens without lighting the title up (2026-10-05)
+
+The create panel focused its title 220ms after every open — including the dashboard's first-run
+auto-open, with no press at all — and that programmatic focus painted the focus indicator before
+the user had done anything (and raised the keyboard on Android). Opening now focuses nothing: focus
+stays on the header, and the title takes focus when it is clicked or when the user starts typing,
+because the first printable key pressed from "nowhere" while the panel is open moves focus into
+the title, where the browser inserts that character. Modifiers, Space, other fields and open
+selector popovers keep their keys. The left rule is the indicator (`field-rule`), so the fields are
+never boxed. On `/tasks` the `F` filter shortcut stands down while the panel is open.
+
 ### fix(ui): text fields draw focus on their own shape, and `<Input>` is a bare input again (2026-10-05)
 
 A text field matches `:focus-visible` on every focus, a click included, so the global ring drew a

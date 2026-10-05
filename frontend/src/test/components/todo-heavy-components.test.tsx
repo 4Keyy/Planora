@@ -411,6 +411,43 @@ describe("CreateTodoPanel", () => {
     HTMLElement.prototype.scrollIntoView ??= vi.fn()
   })
 
+  it("types into the title from nowhere, but leaves modifiers, Space, other fields and open popovers alone", async () => {
+    const user = userEvent.setup()
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+    const title = screen.getByPlaceholderText("What needs to be done?")
+    const details = screen.getByPlaceholderText("Add details — optional.")
+    // Opening focuses nothing: the field must not light up by itself.
+    expect(title).not.toHaveFocus()
+
+    await user.keyboard("{Control>}k{/Control}")
+    await user.keyboard(" ")
+    expect(title).not.toHaveFocus()
+
+    await user.keyboard("Fix")
+    expect(title).toHaveFocus()
+    expect(title).toHaveValue("Fix")
+
+    // A key typed into another field belongs to that field.
+    await user.click(details)
+    await user.keyboard("x")
+    expect(details).toHaveValue("x")
+    expect(title).toHaveValue("Fix")
+
+    // An open selector popover owns its keys.
+    await user.click(screen.getByRole("button", { name: "Priority" }))
+    await user.keyboard("z")
+    expect(title).toHaveValue("Fix")
+  })
+
   it("renders collapsed state and opens through the primary action", async () => {
     const user = userEvent.setup()
     const onToggle = vi.fn()

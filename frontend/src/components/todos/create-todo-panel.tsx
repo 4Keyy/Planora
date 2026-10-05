@@ -28,6 +28,7 @@ import { CategoryPopover } from "@/components/todos/edit-todo-modal/popovers/cat
 import { DatePopover } from "@/components/todos/edit-todo-modal/popovers/date"
 import { formatDueRange, getPriorityLabel, getPriorityNumber } from "@/components/todos/edit-todo-modal/utils"
 import { useFriends } from "@/hooks/use-friends"
+import { isTextEntry } from "@/hooks/use-list-navigation"
 import { cn } from "@/lib/utils"
 import { DURATION_FAST, DURATION_INSTANT, DURATION_SLOW, DURATION_UI, TWEEN_FAST, TWEEN_UI, SPRING_RESPONSIVE, EASE_OUT_EXPO } from "@/lib/animations"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
@@ -68,6 +69,12 @@ function friendName(f: FriendDto): string {
   if (full) return full
   return f.email ? f.email.split("@")[0] : f.id
 }
+
+/**
+ * One visible character in any layout ("a", "Ж", "7", "?"). Space is deliberately not one:
+ * with focus on the header or a selector plate, Space presses that button.
+ */
+const PRINTABLE_KEY = /^\S$/u
 
 /**
  * One of the four selector plates under the title area (Priority / Due date /
@@ -362,6 +369,9 @@ export function CreateTodoPanel({
   const prefersReducedMotion = useReducedMotion()
   const friends = useFriends(isOpen)
   const titleRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  /** What held focus when the panel opened: its header, an empty state's button, or nothing. */
+  const openerRef = useRef<Element | null>(null)
 
   const priorityCardRef = useRef<HTMLDivElement>(null)
   const dateCardRef = useRef<HTMLDivElement>(null)
@@ -386,13 +396,66 @@ export function CreateTodoPanel({
     setOpenPopover(null)
   }
 
+  /*
+   * Opening the panel focuses NOTHING (owner's ruling, 2026-10-05).
+   *
+   * It used to focus the title 220ms after opening. A text field matches :focus-visible on
+   * every focus, script included, so the field lit up by itself the moment "New task" was
+   * pressed — and on the dashboard's first-run auto-open with no press at all — and on Android
+   * the programmatic focus raised the keyboard over the selector plates. Focus now stays
+   * where the press left it (the header keeps it, as a disclosure button should), and the
+   * field lights up only when the user clicks it or starts typing; the effect below catches
+   * the typing.
+   */
   useEffect(() => {
     if (isOpen) {
-      const t = setTimeout(() => titleRef.current?.focus(), 220)
-      return () => clearTimeout(t)
+      const active = document.activeElement
+      openerRef.current = active && !isTextEntry(active) ? active : null
+      return
     }
+    openerRef.current = null
     setOpenPopover(null)
   }, [isOpen])
+
+  /*
+   * Type-to-focus. While the panel is open and nothing editable has focus, the first printable
+   * key moves focus into the title, and the browser then inserts that very character there:
+   * text input goes to whatever is focused once keydown returns.
+   *
+   * - Window, capture phase, then stopPropagation: no later shortcut may also act on a key
+   *   that is now the first letter of a title. The tasks page's `F` is an earlier capture
+   *   listener, so it stands down by itself while the panel is open.
+   * - Only from "nowhere": <body>, the panel's own non-text controls, or the button that
+   *   opened it. Focus in any other field, dialog or menu keeps its keys.
+   * - Never with a modifier (Ctrl/Cmd+K is the palette), except AltGr, which types.
+   * - Not while a selector popover is open: its keys are its own.
+   * - Not while the panel is scrolled out of view: nobody types into a title they cannot see.
+   * - `preventScroll`: the content may still be growing out of a 0px grid row, and a
+   *   scrolling focus would scroll that clipped container and leave the form shifted up.
+   */
+  useEffect(() => {
+    if (!isOpen || openPopover) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.isComposing || !PRINTABLE_KEY.test(e.key)) return
+      if ((e.ctrlKey || e.metaKey || e.altKey) && !e.getModifierState("AltGraph")) return
+      const title = titleRef.current
+      const panel = panelRef.current
+      if (!title || !panel) return
+      const active = document.activeElement
+      const idle =
+        active === null ||
+        active === document.body ||
+        active === openerRef.current ||
+        (panel.contains(active) && !isTextEntry(active))
+      if (!idle) return
+      const box = panel.getBoundingClientRect()
+      if (box.height > 0 && (box.bottom <= 0 || box.top >= window.innerHeight)) return
+      title.focus({ preventScroll: true })
+      e.stopPropagation()
+    }
+    window.addEventListener("keydown", onKeyDown, true)
+    return () => window.removeEventListener("keydown", onKeyDown, true)
+  }, [isOpen, openPopover])
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -495,7 +558,7 @@ export function CreateTodoPanel({
   }
 
   return (
-    <div className={PLATE_SURFACE}>
+    <div ref={panelRef} className={PLATE_SURFACE}>
       {/*
         Always-visible header — clicking opens/closes the panel.
         The + button is ONE persistent element that rotates 0° ↔ 45°,
@@ -601,11 +664,13 @@ export function CreateTodoPanel({
 
             <div className="space-y-6 p-5 sm:p-6">
               {/* Title + details behind a single left rule, exactly like the
-                  mock: naked oversized inputs, no boxed fields. The rule warms
-                  up while either field has focus. */}
+                  mock: naked oversized inputs, no boxed fields. The rule IS the
+                  focus indicator: while either field has focus an ink rule draws
+                  itself over it top-down (globals.css `.field-rule`), and
+                  `field-naked` keeps the global ring from boxing the fields. */}
               <motion.div
                 {...fieldMotion(0.04)}
-                className="border-l-2 border-line pl-4 transition-colors duration-slow focus-within:border-ink sm:pl-6"
+                className="field-rule pl-4 sm:pl-6"
               >
                 <div className="flex items-start gap-3">
                   <input
@@ -615,7 +680,7 @@ export function CreateTodoPanel({
                     placeholder="What needs to be done?"
                     maxLength={TITLE_MAX_LENGTH}
                     className={cn(
-                      "min-h-control w-full border-none bg-transparent p-0 text-title font-bold tracking-tight sm:text-display-sm sm:leading-tight",
+                      "field-naked min-h-control w-full border-none bg-transparent p-0 text-title font-bold tracking-tight sm:text-display-sm sm:leading-tight",
                       "placeholder:text-ink-subtle",
                       titleNearLimit ? "text-alert" : "text-ink"
                     )}
@@ -631,7 +696,7 @@ export function CreateTodoPanel({
                     placeholder="Add details — optional."
                     rows={2}
                     maxLength={DESCRIPTION_MAX_LENGTH}
-                    className="min-h-control max-h-40 w-full resize-none border-none bg-transparent p-0 text-body-sm font-medium text-ink-muted placeholder:text-ink-subtle"
+                    className="field-naked min-h-control max-h-40 w-full resize-none border-none bg-transparent p-0 text-body-sm font-medium text-ink-muted placeholder:text-ink-subtle"
                   />
                   <span className="flex-shrink-0">
                     <LimitCounter value={description.length} max={DESCRIPTION_MAX_LENGTH} />
