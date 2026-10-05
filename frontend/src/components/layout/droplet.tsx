@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FocusEventHandler, type PointerEventHandler, type ReactNode } from "react"
 import { motion, useMotionValueEvent, useReducedMotion, useScroll } from "framer-motion"
 import { DROPLET_OPEN, DROPLET_START, trackDropletScroll, type DropletScroll, type DropletTrack } from "@/lib/droplet"
-import { SPRING_STANDARD, TWEEN_HIDE } from "@/lib/animations"
+import { SPRING_STANDARD } from "@/lib/animations"
 import { cn } from "@/lib/utils"
 
 /**
@@ -20,8 +20,19 @@ import { cn } from "@/lib/utils"
  *   descendants, and a menu opening out of the droplet must not be trapped in it.
  * - **Its width is liquid.** Content changes spring the capsule to its new size with
  *   framer-motion's `layout` — a scale corrected for the radius, so transform only — and the
- *   glass follows. Callers mark their children `layout="position"` so text never stretches.
- * - **It gets out of the way on a phone.** `hidden` slides it up past its own height.
+ *   glass follows. Callers mark their children `layout="position"` so text never stretches,
+ *   and change the content in ONE commit: framer measures a layout change only when a
+ *   `layout` component re-renders, and a child that `AnimatePresence` removes after its exit
+ *   re-renders none of them — the capsule kept springing towards a box that no longer
+ *   existed and snapped ~70px narrower at the end. A leaving child goes `sr-only` at once or
+ *   leaves through `mode="popLayout"`.
+ * - **It gets out of the way on a phone.** `hidden` slides this whole frame up by its own
+ *   height (safe area, margin, capsule) plus the 2rem its shadow reaches below it. A CSS
+ *   transition on the plain wrapper, never motion on the capsule: the capsule's transform
+ *   belongs to the layout projection, and opacity on any ancestor of the glass makes that
+ *   ancestor the glass's Backdrop Root and switches the blur off for the whole slide.
+ *   Leaving is `ease-standard` — no jump at the start, no acceleration at the end — and
+ *   arriving `ease-emphasized`, 320ms each way (`duration-slow`).
  * - Under reduced motion every change is instant.
  */
 
@@ -96,21 +107,20 @@ export function DropletFrame({
   const Capsule = as === "nav" ? motion.nav : motion.header
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-sticky flex justify-center px-3 pt-safe">
+    <div
+      className={cn(
+        "pointer-events-none fixed inset-x-0 top-0 z-sticky flex justify-center px-3 pt-safe",
+        // The phone slide. framer never writes to this div, so nothing re-eases the transition.
+        // Without the translate class its transform is `none`: a resting bar is never the
+        // containing block of its menus.
+        "transition-transform duration-slow motion-reduce:transition-none",
+        hidden ? "-translate-y-[calc(100%+2rem)] ease-standard" : "ease-emphasized",
+      )}
+    >
       <Capsule
         aria-label={label}
         layout
-        transition={{ 
-          layout: morph, 
-          y: reduce ? { duration: 0 } : TWEEN_HIDE,
-          scale: reduce ? { duration: 0 } : TWEEN_HIDE,
-          opacity: reduce ? { duration: 0 } : TWEEN_HIDE,
-        }}
-        animate={{ 
-          y: hidden && !reduce ? "-150%" : 0,
-          scale: hidden && !reduce ? 0.94 : 1,
-          opacity: hidden && !reduce ? 0 : 1,
-        }}
+        transition={{ layout: morph }}
         style={{ borderRadius: 9999 }}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
@@ -126,13 +136,7 @@ export function DropletFrame({
         {/* The glass: its own layer, so the blur never becomes the menus' containing block. */}
         <motion.span
           layout
-          transition={{ 
-            layout: morph,
-            opacity: reduce ? { duration: 0 } : TWEEN_HIDE,
-          }}
-          animate={{
-            opacity: hidden && !reduce ? 0 : 1,
-          }}
+          transition={{ layout: morph }}
           aria-hidden="true"
           style={{ borderRadius: 9999 }}
           className="absolute inset-0 -z-10 border border-line/80 bg-paper/85 shadow-lg backdrop-blur-xl"

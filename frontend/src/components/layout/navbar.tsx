@@ -60,7 +60,9 @@ import {
  *   and `--bar-clearance` (globals.css) is what sticky things below it offset by.
  * - Everything moves by transform and opacity: the capsule's width change is framer-motion's
  *   `layout` (a scale, corrected for the radius and the children), the drops are shared
- *   layouts, the phone slide is `y`. Under reduced motion it never condenses or hides, and
+ *   layouts, the phone slide is a CSS translate of the droplet's frame (`droplet.tsx`). The
+ *   capsule's content changes in one commit — tabs go `sr-only`, the name pops out of the
+ *   flow — so the width morphs once. Under reduced motion it never condenses or hides, and
  *   every change is instant.
  */
 
@@ -254,6 +256,7 @@ export function Navbar() {
         <motion.div
           layout="position"
           transition={{ layout: morph }}
+          // `relative` is load-bearing: it is the offset parent the leaving name is pinned to.
           className="relative flex items-center gap-1"
           onPointerEnter={(e) => {
             if (e.pointerType === "mouse") startDwell()
@@ -266,13 +269,21 @@ export function Navbar() {
             className="flex h-11 items-center gap-2 rounded-full px-3 transition-colors duration-fast hover:bg-ink/5"
           >
             <Wordmark showName={false} />
-            <AnimatePresence initial={false}>
+            {/* The name leaves in the same commit the tabs tuck away: `popLayout` pins the
+                leaving word `position: absolute` where it stood (the `relative` group above is
+                its offset parent), so the capsule changes width once and framer measures it.
+                Without it the word held its room for the whole exit and AnimatePresence then
+                removed it alone — no `layout` component re-rendered, nothing was measured, and
+                the capsule snapped ~70px narrower at the end of its spring. Opacity only, on
+                the front-loaded curve, so the word is gone before the current tab's ink slides
+                over the place it held. */}
+            <AnimatePresence initial={false} mode="popLayout">
               {!condensed && (
                 <motion.span
                   key="name"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, transition: { duration: DURATION_FAST } }}
+                  exit={{ opacity: 0, transition: TWEEN_FAST }}
                   transition={TWEEN_FAST}
                   className="text-body font-bold tracking-tight text-ink"
                 >

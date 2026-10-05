@@ -866,8 +866,8 @@ block and the glass is always behind the contents. The landing page's nav is the
 | Hover | A lighter drop (`bg-ink/5`) follows the pointer across the tabs |
 | Every control | A real 44px box (`h-11`), so no two expanded hit areas overlap inside the capsule |
 | Whole | The resting state at the top of every page; tabs always present, search shows its ⌘K hint from `lg` |
-| Condensed (desktop) | While scrolling down past 96px: the mark, the current tab and the buttons. The capsule's width springs (`layout`). Pointing at it, focus inside it, scrolling up or an open menu make it whole |
-| Hidden (phone) | While scrolling down it slides up past its height (`y: -150%`); scrolling up or focus brings it back |
+| Condensed (desktop) | While scrolling down past 96px: the mark, the current tab and the buttons. The capsule's width springs (`layout`) in ONE measured change: the tucked tabs go `sr-only` and the name leaves through `AnimatePresence mode="popLayout"` in the same commit, so nothing reflows after the spring starts (a child removed after its exit is a layout change framer never measures — the capsule used to snap ~70px narrower at the end). Pointing at it, focus inside it, scrolling up or an open menu make it whole |
+| Hidden (phone) | While scrolling down the whole frame slides up by its own height plus 2rem — a CSS translate on the plain wrapper, `duration-slow`, leaving on `ease-standard` and arriving on `ease-emphasized`. No fade and nothing on the capsule: its transform belongs to the layout projection, and opacity on an ancestor of the glass would switch its blur off. Scrolling up or focus brings it back |
 | Phone menu | Drips out of the droplet (`scaleX`/`scaleY` from the top), the page dimmed and blurred behind it by a backdrop that is a sibling of the capsule |
 | Popovers | Account menu and notifications hang 8px under the capsule's edge; one open at a time |
 | Room | The capsule is `fixed` and takes none. `--bar-clearance` (globals.css: safe-area inset + 5.5rem) is the room `<main>` starts after, and what the update pill, toasts, the profile rail and anchor scroll-margins offset by |

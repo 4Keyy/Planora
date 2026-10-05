@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(frontend): the droplet condenses in one motion (2026-10-05)
+
+Scrolling down on a desktop, the bar's capsule sprang narrower and then snapped about 70px more in
+a single frame at the end of the spring: the "Planora" name kept its room for its 160ms exit and
+was then removed by `AnimatePresence` alone — a layout change framer-motion never measures, since
+no `layout` component re-rendered. The name now leaves through `mode="popLayout"` in the same
+commit as the tucked tabs, so the width morphs once (measured frame by frame in Chromium: the
+largest one-frame step fell from 70.6px to the spring's own 46px peak in its first 70ms, with no
+late jump). On a phone the bar slides away as a whole — a CSS translate on its frame, leaving on
+`ease-standard` and arriving on `ease-emphasized`, 320ms each way — instead of shrinking and fading
+the capsule on expo-out, which had moved two thirds of the way in the first 50ms and switched the
+glass's blur off for the whole slide. The unused `TWEEN_HIDE` preset is gone.
+
 ### fix(landing): block 2 says "Protected", never "Public · Not possible" (2026-09-30)
 
 Block 2's last legend row still named the state the owner removed: "Public", with a "Not possible"
