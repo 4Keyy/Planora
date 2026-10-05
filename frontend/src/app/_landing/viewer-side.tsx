@@ -202,9 +202,9 @@ function Screen({
         </span>
         <StatusPill status={status} />
       </header>
-      {/* Reserved: the open card is the tallest state, and the collapsed or completed card
-          must not shorten the block. */}
-      <div className="mt-4 min-h-[8.5rem]">{card}</div>
+      {/* Reserved: the open card is the tallest state (166px, the card's control-rail
+          floor), and the collapsed or completed card must not shorten the block. */}
+      <div className="mt-4 min-h-[10.375rem]">{card}</div>
       <div className="mt-4 flex flex-wrap gap-2">{actions}</div>
     </section>
   )

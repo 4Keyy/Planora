@@ -190,7 +190,6 @@ function TodoCardComponent({
       node.focus()
     }
   }, [])
-  const isSparse = !todo.description && (todo.title?.length ?? 0) < 40 && !todo.dueDate && !todo.expectedDate && !todo.delay
   const isInfoDense = !!todo.description && (!!todo.dueDate || !!todo.expectedDate || !!todo.delay)
   const layoutTransition = shouldReduceMotion ? { duration: 0 } : SPRING_STANDARD
   const contentTransition = shouldReduceMotion ? { duration: 0 } : TWEEN_FAST
@@ -498,7 +497,6 @@ function TodoCardComponent({
                   ? "group-hover/card:shadow-[0_8px_32px_-4px_var(--card-glow),0_4px_16px_-2px_var(--card-glow)]"
                   : "group-hover/card:shadow-lg"
               ),
-          isSparse && "task-card--sparse",
           isInfoDense && "task-card--dense"
         )}
       >
@@ -614,7 +612,12 @@ function TodoCardComponent({
 
         <CardContent
           className={cn(
-            isCollapsed ? "px-5 py-2" : isSparse ? "px-5 py-4" : "p-5",
+            // Collapsed: unchanged. Open: one padding for every card. The hide toggle's bottom
+            // inset is this 20px + its own 2px margin, equal to its 22px inset from the left
+            // (20px + 2px centring a 28px button in the 32px rail). Sparse cards used to take
+            // py-4, but the rail's floor now sets their height, so a thinner pad would only
+            // have pulled the eye off its inset.
+            isCollapsed ? "px-5 py-2" : "p-5",
             "relative z-10"
           )}
         >
@@ -697,16 +700,31 @@ function TodoCardComponent({
             </motion.div>
           ) : (
             <>
-              <div className="flex items-start gap-4">
-                {/* The controls sit against the title's first line — the check is what the
-                    eye reads with the title, not something centred against the whole card,
-                    where it drifted lower the more the card had to say. */}
-                {/* The offset centres the 32px check on the title's first line: 22px on phones
-                    (text-body, leading-snug), 28px from sm (title-sm).
-                    gap-4: each control's `.touch-target` reaches 6-8px past its circle, and at
-                    gap-2 the hide toggle's hit area covered the bottom of the check's — a thumb
-                    just under the check hid the card instead of completing it. */}
-                <div className="-mt-1 flex w-8 flex-shrink-0 flex-col items-center gap-4 sm:-mt-0.5">
+              <div className="flex items-center gap-4">
+                {/*
+                  The control rail. Owner's ruling (2026-10-05), replacing "aligned with the
+                  title's first line": the complete / take-it circle sits exactly on the card's
+                  vertical centre at every height, and the hide toggle sits in the bottom-left
+                  corner, 22px from the bottom (20px padding + mb-0.5) — the same 22px it sits
+                  from the left edge (20px padding + 2px centring 28px in the 32px rail).
+
+                  How: the rail stretches to the row and is a `1fr auto 1fr` grid with the check
+                  in the auto row. The two 1fr rows always resolve to the same size, so the
+                  check's centre is the rail's centre, which is the card's (the padding is
+                  symmetric) — no breakpoint offsets. A 1fr row is never shorter than its
+                  content, so the eye's row is at least 46px (16 gap + 28 + 2) and the empty top
+                  row mirrors it: a short card grows to 46 + 32 + 46 = 124px of content (a 166px
+                  card) instead of the eye pushing the check off centre.
+
+                  mt-4 on the eye: each control's `.touch-target` reaches 6-8px past its circle,
+                  so the hit areas touch at 14px. At gap-2 the hide toggle's area covered the
+                  bottom of the check's, and a thumb just under the check hid the card.
+
+                  A completed card has no eye: both 1fr rows are empty and the check centres on
+                  the title. `items-center` on the row centres a body shorter than the rail's
+                  floor on the check's line; a taller body sets the row height itself.
+                */}
+                <div className="grid w-8 flex-shrink-0 grid-rows-[1fr_auto_1fr] justify-items-center self-stretch">
                   {/* 3-state completion / join button */}
                   <motion.button
                     onClick={(e: React.MouseEvent) => {
@@ -722,7 +740,7 @@ function TodoCardComponent({
                     aria-busy={isCompletionPending}
                     style={completionButtonTint}
                     className={cn(
-                      "touch-target flex h-8 w-8 items-center justify-center rounded-full border-2",
+                      "touch-target row-start-2 flex h-8 w-8 items-center justify-center rounded-full border-2",
                       "transition-[color,background-color,border-color,box-shadow,opacity] duration-fast",
                       completionButtonTone,
                       // Phase rings
@@ -846,7 +864,7 @@ function TodoCardComponent({
                       aria-busy={isVisibilityPending || isCompletionPending}
                       whileTap={isVisibilityPending || isCompletionPending ? undefined : TAP_PRESS}
                       className={cn(
-                        "touch-target flex h-7 w-7 items-center justify-center rounded-full text-ink-subtle transition-colors duration-fast hover:bg-paper-sunken hover:text-ink",
+                        "touch-target row-start-3 mb-0.5 mt-4 flex h-7 w-7 items-center justify-center self-end rounded-full text-ink-subtle transition-colors duration-fast hover:bg-paper-sunken hover:text-ink",
                         (isVisibilityPending || isCompletionPending) && "opacity-60 cursor-wait"
                       )}
                       aria-label="Collapse task card"
@@ -901,67 +919,72 @@ function TodoCardComponent({
                         )}
                       </h3>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {!isCompleted && todo.categoryName && (
-                        <span className={cn(CHIP_CLASS, "max-w-40")}>
-                          <span className="truncate">{todo.categoryName}</span>
-                        </span>
-                      )}
-                      {!isCompleted && <PriorityMeter value={priorityConfig.num} size="sm" />}
-                      {/*
-                       * Two different facts, and they were previously one chip.
-                       *
-                       * For the OWNER the interesting thing about a shared task is *who
-                       * can see it*, which is a shape rather than a word — the arc
-                       * narrows as the audience does, and the count rolls beside it.
-                       * A generic share icon said only "not private", which the owner
-                       * already knew when they shared it.
-                       *
-                       * For a VIEWER the interesting thing is *whose task this is*.
-                       * That is attribution, not audience: the viewer cannot change who
-                       * else can see it, and the arc would be answering a question they
-                       * did not ask. So they keep the name.
-                       */}
-                      {showShareBadge && isOwner && (
-                        <RedactionBadge
-                          audience={todo.isPublic ? "public" : "shared"}
-                          viewerCount={todo.isPublic ? undefined : friendCount}
-                          size="sm"
-                        />
-                      )}
-                      {showShareBadge && !isOwner && (
-                        <span className={cn(CHIP_CLASS, "max-w-48")}>
-                          <Share2 className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                          <span className="truncate">{publicBadgeLabel}</span>
-                        </span>
-                      )}
-                      {(todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) && !isCompleted && (() => {
-                        const fc = todo.sharedWithUserIds?.length ?? 0
-                        const statusNorm = todo.status?.toLowerCase().replace(/\s/g, '') ?? ''
-                        const ownerSlotTaken = statusNorm === 'inprogress' ? 1 : 0
-                        const joined = (todo.workerCount ?? 0) + ownerSlotTaken
-                        const slots = todo.requiredWorkers != null
-                          ? todo.requiredWorkers
-                          : fc > 0 ? fc + 1 : null
-                        const label = slots != null ? `${joined}/${slots}` : `${joined}`
-                        return (
-                          <span
-                            key="workers-badge"
-                            className={cn(
-                              CHIP_CLASS,
-                              "transition-colors duration-base",
-                              isEffectivelyWorking && "border-accent/30 bg-accent-surface text-accent"
-                            )}
-                          >
-                            <Users className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                            <span className="tabular-nums">{label}</span>
-                            {/* No width animation: it animated `max-width`, a layout property,
-                                and pushed every chip after it sideways frame by frame. */}
-                            {isEffectivelyWorking ? <span className="animate-fade-in">· you</span> : null}
+                    {/* Every chip below is for an open task. On a completed card the row used to
+                        render empty and still take the column's 12px gap, which put the title
+                        6px above the centred check. */}
+                    {!isCompleted && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {todo.categoryName && (
+                          <span className={cn(CHIP_CLASS, "max-w-40")}>
+                            <span className="truncate">{todo.categoryName}</span>
                           </span>
-                        )
-                      })()}
-                    </div>
+                        )}
+                        <PriorityMeter value={priorityConfig.num} size="sm" />
+                        {/*
+                         * Two different facts, and they were previously one chip.
+                         *
+                         * For the OWNER the interesting thing about a shared task is *who
+                         * can see it*, which is a shape rather than a word — the arc
+                         * narrows as the audience does, and the count rolls beside it.
+                         * A generic share icon said only "not private", which the owner
+                         * already knew when they shared it.
+                         *
+                         * For a VIEWER the interesting thing is *whose task this is*.
+                         * That is attribution, not audience: the viewer cannot change who
+                         * else can see it, and the arc would be answering a question they
+                         * did not ask. So they keep the name.
+                         */}
+                        {showShareBadge && isOwner && (
+                          <RedactionBadge
+                            audience={todo.isPublic ? "public" : "shared"}
+                            viewerCount={todo.isPublic ? undefined : friendCount}
+                            size="sm"
+                          />
+                        )}
+                        {showShareBadge && !isOwner && (
+                          <span className={cn(CHIP_CLASS, "max-w-48")}>
+                            <Share2 className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                            <span className="truncate">{publicBadgeLabel}</span>
+                          </span>
+                        )}
+                        {(todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) && !isCompleted && (() => {
+                          const fc = todo.sharedWithUserIds?.length ?? 0
+                          const statusNorm = todo.status?.toLowerCase().replace(/\s/g, '') ?? ''
+                          const ownerSlotTaken = statusNorm === 'inprogress' ? 1 : 0
+                          const joined = (todo.workerCount ?? 0) + ownerSlotTaken
+                          const slots = todo.requiredWorkers != null
+                            ? todo.requiredWorkers
+                            : fc > 0 ? fc + 1 : null
+                          const label = slots != null ? `${joined}/${slots}` : `${joined}`
+                          return (
+                            <span
+                              key="workers-badge"
+                              className={cn(
+                                CHIP_CLASS,
+                                "transition-colors duration-base",
+                                isEffectivelyWorking && "border-accent/30 bg-accent-surface text-accent"
+                              )}
+                            >
+                              <Users className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                              <span className="tabular-nums">{label}</span>
+                              {/* No width animation: it animated `max-width`, a layout property,
+                                  and pushed every chip after it sideways frame by frame. */}
+                              {isEffectivelyWorking ? <span className="animate-fade-in">· you</span> : null}
+                            </span>
+                          )
+                        })()}
+                      </div>
+                    )}
                   </div>
                   {!isCompleted && todo.description && (
                     <p className="mt-3 line-clamp-2 break-words text-body-sm text-ink-muted">{todo.description}</p>

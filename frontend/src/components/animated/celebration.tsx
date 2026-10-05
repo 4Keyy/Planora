@@ -46,7 +46,7 @@ function ConfettiPiece({ index, variant }: ConfettiPieceProps) {
       data-testid="confetti-piece"
       className={cn(
         "pointer-events-none absolute",
-        variant === "screen" ? "left-1/2 top-1/2 h-2 w-2" : "left-10 top-1/2 h-1.5 w-1.5",
+        variant === "screen" ? "left-1/2 top-1/2 h-2 w-2" : "left-9 top-1/2 h-1.5 w-1.5",
         index % 3 === 0 ? "rounded-full" : "rounded-none",
         CONFETTI_FILLS[index % CONFETTI_FILLS.length],
       )}
@@ -88,7 +88,7 @@ export function CompletionCelebration({
         style={{ x: "-50%", y: "-50%" }}
         className={cn(
           "pointer-events-none",
-          variant === "screen" ? "fixed left-1/2 top-1/2" : "absolute left-10 top-1/2"
+          variant === "screen" ? "fixed left-1/2 top-1/2" : "absolute left-9 top-1/2"
         )}
       >
         <div className={cn("relative flex items-center justify-center", variant === "card" ? "h-16 w-16" : "h-24 w-24")}>

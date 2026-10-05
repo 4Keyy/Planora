@@ -4,6 +4,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(todos): the task card's circle sits on its centre, the eye in its corner (2026-10-05)
+
+The completion / take-it circle was pinned to the title's first line, so it sat 23-86px above the
+card's centre, and the hide toggle floated 17-147px off the bottom depending on how much the card
+held. The rail is now a `1fr auto 1fr` grid stretched to the card: the two `1fr` rows are always
+equal, so the circle is exactly centred at every height, and the eye is pinned 22px from the bottom,
+the same 22px it sits from the left (measured in Chromium on 40 cards at 390px and 1280px: 0px off
+centre, 23px from both outer edges). Mirroring the eye's slot above the circle gives an open card a
+166px floor (a sparse card was 106-108px). Completed cards no longer render an empty chip row,
+which had put their title 6px above the circle. The skeleton, the landing page's reserved card box
+and the card's completion burst follow the new geometry, and the unreachable `task-card--sparse`
+modifier is gone.
+
 ### fix(todos): "New task" opens without lighting the title up (2026-10-05)
 
 The create panel focused its title 220ms after every open — including the dashboard's first-run

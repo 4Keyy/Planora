@@ -107,6 +107,34 @@ describe("TodoCard", () => {
     vi.useRealTimers()
   })
 
+  it("centres the check in a 1fr auto 1fr rail and pins the eye to the bottom-left corner", () => {
+    // Owner's ruling: the circle sits on the card's vertical centre at every height and the
+    // eye 22px from the bottom, as far as it sits from the left. jsdom cannot measure layout,
+    // so this guards the structure that produces it (measured in Chromium at 375 and 1280px).
+    render(<TodoCard todo={baseTodo()} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
+    const check = screen.getByRole("button", { name: "Mark as complete" })
+    const eye = screen.getByRole("button", { name: "Collapse task card" })
+    const rail = check.parentElement!
+    expect(rail).toHaveClass("grid", "grid-rows-[1fr_auto_1fr]", "self-stretch")
+    expect(rail.parentElement).toHaveClass("items-center")
+    expect(eye.parentElement).toBe(rail)
+    expect(check).toHaveClass("row-start-2")
+    expect(eye).toHaveClass("row-start-3", "self-end", "mt-4", "mb-0.5")
+    // One padding for every open card, so the eye's bottom inset never changes.
+    expect(rail.closest(".p-5")).not.toBeNull()
+  })
+
+  it("renders a completed card without an empty chip row or an eye", () => {
+    render(
+      <TodoCard todo={baseTodo()} variant="completed" onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />,
+    )
+    expect(screen.queryByRole("button", { name: "Collapse task card" })).toBeNull()
+    // The title's column holds the title alone: an empty chip row used to take a 12px gap
+    // and put the title 6px above the centred check.
+    const column = screen.getByRole("heading", { level: 3 }).closest(".flex-col")!
+    expect(column.children).toHaveLength(1)
+  })
+
   it("renders owner metadata, completes, collapses, expands, edits, and deletes", async () => {
     const onComplete = vi.fn()
     const onDelete = vi.fn()
