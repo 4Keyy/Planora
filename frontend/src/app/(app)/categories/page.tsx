@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useCallback, useId } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, useId } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO } from "@/lib/animations"
@@ -81,7 +81,7 @@ function CategoryModal({
    * prior close, since the modal is a full-screen overlay).
    */
   const wasOpen = useRef(false)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isOpen && !wasOpen.current) {
       const next = {
         name: initialData?.name ?? "",
@@ -147,6 +147,7 @@ function CategoryModal({
       hideHeader
       labelledBy={headingId}
       className="max-w-3xl"
+      animateFromOrigin={autosave}
     >
       <div className="p-6 sm:p-8">
         <div className="flex items-start justify-between gap-4">

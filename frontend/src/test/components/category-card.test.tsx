@@ -1,8 +1,9 @@
 import { createRef } from "react"
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { CategoryCard } from "@/components/categories/category-card"
+import { forgetOrigin, takeOrigin } from "@/lib/shared-origin"
 import type { Category } from "@/types/category"
 
 const category: Category = {
@@ -22,6 +23,26 @@ function renderCard(overrides: Partial<Category> = {}) {
 }
 
 describe("CategoryCard", () => {
+  beforeEach(() => forgetOrigin())
+
+  it.each(["pointer", "keyboard"])("records the whole card before opening its editor by %s", async (activation) => {
+    const onEdit = vi.fn(() => takeOrigin())
+    const { container } = render(<CategoryCard category={category} onEdit={onEdit} onDelete={vi.fn()} />)
+    const surface = container.querySelector<HTMLElement>("[data-category-card]")!
+    vi.spyOn(surface, "getBoundingClientRect").mockReturnValue(new DOMRect(24, 160, 320, 90))
+    const editButton = screen.getByRole("button", { name: "Edit category Work" })
+
+    if (activation === "keyboard") {
+      editButton.focus()
+      await userEvent.keyboard("{Enter}")
+    } else {
+      await userEvent.click(editButton)
+    }
+
+    expect(onEdit).toHaveReturnedWith({ top: 160, left: 24, width: 320, height: 90 })
+    expect(takeOrigin()).toBeNull()
+  })
+
   it("renders the category name, description and chosen icon", () => {
     const { container } = renderCard()
     expect(screen.getByText("Work")).toBeInTheDocument()

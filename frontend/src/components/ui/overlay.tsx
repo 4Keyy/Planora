@@ -1,10 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useId, type ReactNode } from "react"
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefCallback } from "react"
+import { motion, useAnimationControls, useReducedMotion, type HTMLMotionProps } from "framer-motion"
 import { ModalPortal } from "@/components/ui/modal-portal"
 import { useExitPresence } from "@/hooks/use-exit-presence"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
+import { SPRING_LAYOUT, TWEEN_FAST } from "@/lib/animations"
+import { originTransform, takeOrigin } from "@/lib/shared-origin"
 import { cn } from "@/lib/utils"
 
 /**
@@ -33,11 +36,10 @@ import { cn } from "@/lib/utils"
  * - **Backdrop click closes it** — the pointer equivalent of Escape. The backdrop
  *   is deliberately NOT focusable and carries no role: a viewport-sized button
  *   would be announced as one.
- * - **No blink on the way in or out.** The scrim fades and the dialog rises with CSS
- *   (`.backdrop-surface`, `.dialog-surface` in globals.css), kept mounted through the
- *   exit by {@link useExitPresence}. With framer-motion the dialog reappeared for a
- *   frame after it had faded out — see the hook. While it folds away it lets clicks
- *   through, so the page under a closing dialog is already live.
+ * - **CSS exits** keep the dialog mounted through its fold-away by
+ *   {@link useExitPresence}, without framer-motion's exit hand-off blink. The normal
+ *   entrance is also CSS; card editors can opt into the task editor's shared-origin
+ *   entrance. While it folds away it lets clicks through to the page beneath.
  *
  * `labelledBy` exists for the case where the dialog renders its own heading with
  * markup this component should not own; pass the heading's id and omit `title`.
@@ -56,7 +58,85 @@ export interface OverlayProps {
   className?: string
   /** Hides the built-in header entirely; requires `labelledBy`. */
   hideHeader?: boolean
+  /** Use the task editor's card-to-dialog entrance; ordinary dialogs keep their CSS entrance. */
+  animateFromOrigin?: boolean
   children: ReactNode
+}
+
+const RESTING_TRANSFORM = { opacity: 1, scale: 1, x: 0, y: 0 }
+
+function OriginBackdrop({ open, ...props }: Omit<HTMLMotionProps<"div">, "animate" | "initial"> & { open: boolean }) {
+  const controls = useAnimationControls()
+  useLayoutEffect(() => {
+    if (open) {
+      controls.set({ opacity: 0 })
+      void controls.start({ opacity: 1 }, TWEEN_FAST)
+    } else {
+      controls.stop()
+    }
+  }, [open, controls])
+
+  return <motion.div {...props} initial={{ opacity: 0 }} animate={controls} style={{ animation: open ? "none" : undefined }} />
+}
+
+function OriginDialog({
+  open,
+  dialogRef,
+  children,
+  ...props
+}: Omit<HTMLMotionProps<"div">, "animate" | "initial" | "ref"> & {
+  open: boolean
+  dialogRef: RefCallback<HTMLDivElement>
+}) {
+  const controls = useAnimationControls()
+  const reduce = useReducedMotion() ?? false
+  const [node, setNode] = useState<HTMLDivElement | null>(null)
+  const wasOpen = useRef(false)
+  const attachRef = useCallback((element: HTMLDivElement | null) => {
+    dialogRef(element)
+    setNode(element)
+  }, [dialogRef])
+
+  useLayoutEffect(() => {
+    if (!node) return
+    if (!open) {
+      wasOpen.current = false
+      controls.stop()
+      // Let CSS leave from the current pose, including an interrupted entrance.
+      return
+    }
+    if (wasOpen.current) return
+    wasOpen.current = true
+
+    // The portal attaches later, and this dialog has natural height. Measure its
+    // untransformed panel before the first visible frame, once per opening edge.
+    const origin = takeOrigin()
+    // Motion's DOM write can lag its values by a frame on a rapid reopen.
+    const previousTransform = node.style.transform
+    node.style.transform = "none"
+    const target = node.getBoundingClientRect()
+    node.style.transform = previousTransform
+    const entrance = !reduce && origin && target.width > 0 && target.height > 0
+      ? originTransform(origin, target)
+      : null
+    controls.set(entrance
+      ? { opacity: 0, ...entrance }
+      : { opacity: 0, scale: reduce ? 1 : 0.95, x: 0, y: reduce ? 0 : 20 })
+    void controls.start(RESTING_TRANSFORM, SPRING_LAYOUT)
+  }, [node, open, reduce, controls])
+
+  return (
+    <motion.div
+      {...props}
+      ref={attachRef}
+      initial={{ opacity: 0 }}
+      animate={controls}
+      // Only the entrance belongs to motion; retain Overlay's existing CSS exit.
+      style={{ animation: open ? "none" : undefined }}
+    >
+      {children}
+    </motion.div>
+  )
 }
 
 export function Overlay({
@@ -67,6 +147,7 @@ export function Overlay({
   labelledBy,
   className,
   hideHeader,
+  animateFromOrigin = false,
   children,
 }: OverlayProps) {
   const generatedId = useId()
@@ -98,50 +179,57 @@ export function Overlay({
     return () => document.removeEventListener("keydown", handleEscape)
   }, [open, handleEscape])
 
+  const backdropProps = {
+    "data-state": presenceProps["data-state"],
+    onClick: onClose,
+    // A viewport-sized button would add noise to the accessibility tree.
+    "aria-hidden": true as const,
+    className: "backdrop-surface absolute inset-0 bg-ink/40 backdrop-blur-sm",
+  }
+  const panelProps = {
+    role: "dialog",
+    "aria-modal": true as const,
+    "aria-labelledby": titleId,
+    tabIndex: -1,
+    ...presenceProps,
+    className: cn(
+      "dialog-surface relative z-modal max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-paper shadow-xl outline-none",
+      className,
+    ),
+  }
+  const content = (
+    <>
+      {!hideHeader && title ? (
+        <div className="flex items-start justify-between gap-4 p-6 pb-0">
+          <div>
+            <h2 id={titleId} className="text-title-sm font-bold tracking-tight text-ink">
+              {title}
+            </h2>
+            {description ? (
+              <p className="mt-1 text-body-sm text-ink-muted">{description}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      {children}
+    </>
+  )
+
   return (
     <ModalPortal>
       {mounted && (
         <div className={cn("fixed inset-0 z-modal flex items-center justify-center p-4", !open && "pointer-events-none")}>
-          <div
-            data-state={presenceProps["data-state"]}
-            onClick={onClose}
-            // Not focusable and no role: the pointer affordance is real, but a
-            // viewport-sized "button" in the accessibility tree is noise. Escape
-            // is the keyboard equivalent and is handled above.
-            aria-hidden="true"
-            // A light scrim and a small blur: enough to set the page back, not so much
-            // that the browser re-blurs a whole viewport of content under a heavy radius
-            // for every frame of the fade.
-            className="backdrop-surface absolute inset-0 bg-ink/40 backdrop-blur-sm"
-          />
+          {animateFromOrigin ? (
+            <OriginBackdrop open={open} {...backdropProps} />
+          ) : (
+            <div {...backdropProps} />
+          )}
 
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-            tabIndex={-1}
-            // Arrives from below on the system's 8px, and leaves faster than it came.
-            {...presenceProps}
-            className={cn(
-              "dialog-surface relative z-modal max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-paper shadow-xl outline-none",
-              className,
-            )}
-          >
-            {!hideHeader && title ? (
-              <div className="flex items-start justify-between gap-4 p-6 pb-0">
-                <div>
-                  <h2 id={titleId} className="text-title-sm font-bold tracking-tight text-ink">
-                    {title}
-                  </h2>
-                  {description ? (
-                    <p className="mt-1 text-body-sm text-ink-muted">{description}</p>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-            {children}
-          </div>
+          {animateFromOrigin ? (
+            <OriginDialog open={open} dialogRef={dialogRef} {...panelProps}>{content}</OriginDialog>
+          ) : (
+            <div ref={dialogRef} {...panelProps}>{content}</div>
+          )}
         </div>
       )}
     </ModalPortal>

@@ -9,6 +9,7 @@ import {
   TWEEN_EXIT, TWEEN_UI, VARIANTS_CARD,
 } from "@/lib/animations"
 import { ICON_MAP } from "@/lib/icon-map"
+import { rememberOrigin } from "@/lib/shared-origin"
 import type { Category } from "@/types/category"
 
 // popLayout needs the leaving card's DOM ref to pin its position in the grid.
@@ -105,7 +106,10 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
 
         <button
           type="button"
-          onClick={onEdit}
+          onClick={(e) => {
+            rememberOrigin(e.currentTarget.closest<HTMLElement>("[data-category-card]") ?? e.currentTarget)
+            onEdit()
+          }}
           aria-label={`Edit category ${category.name}`}
           // Keep the focus outline inside the surface's clipped edge.
           className="relative z-10 flex w-full items-center gap-4 rounded-lg p-5 pr-14 text-left focus-visible:-outline-offset-2 md:pr-5"
