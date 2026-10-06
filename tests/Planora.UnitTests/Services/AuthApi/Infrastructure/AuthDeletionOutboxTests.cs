@@ -31,7 +31,7 @@ public sealed class AuthDeletionOutboxTests
     public void AuthInfrastructure_RegistersCanonicalOutboxWithScopedContextAndImmediateDispatch()
     {
         var services = new ServiceCollection();
-        services.AddAuthInfrastructure(Configuration("Host=localhost;Database=unused;Username=postgres;Password=postgres"));
+        services.AddAuthInfrastructure(Configuration("Host=localhost;Database=unused;Username=postgres"));
 
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IOutboxRepository)
             && descriptor.ImplementationType == typeof(Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<AuthDbContext>)
