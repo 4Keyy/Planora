@@ -329,6 +329,32 @@ or that every current animation is a transform/opacity-only tween.
    `VARIANTS_MODAL` and `VARIANTS_MODAL_BOUNCE`, both `TAP_PRESS` and
    `TAP_PRESS_ENHANCED`, and 30 of its 47 exports were used nowhere.
 
+### Presence: what leaves must be measured
+
+Every "smooth, then it snaps" in this product has had the same cause: a layout change
+framer-motion never measured. Framer measures a layout change only when a component with
+`layout` re-renders, and a child that `AnimatePresence` removes after its exit re-renders
+none of them. Five rules follow.
+
+1. **The presence wraps the leaving items, never their container.** Wrapped round the
+   categories grid it had one child that never left, so a deleted category vanished in a
+   frame while its neighbours glided.
+2. **Leave in the same commit as everything else moves.** Either `mode="popLayout"` (the
+   leaving child is pinned out of the flow at once and fades in place) or no exit at all
+   (`sr-only`, unmount). A child that holds its room for an exit and is then removed alone
+   snapped the droplet ~70px narrower at the end of its spring.
+3. **`popLayout` needs a positioned parent and a ref.** The parent is the leaving child's
+   offset parent (`relative`). `motion.*` elements take the ref; a function component must
+   `forwardRef` to its root, or the pop is silently skipped.
+4. **Siblings that close a gap carry `layout="position"`.** Size `layout` only goes on an
+   element whose children are layout nodes too — on a card it played a 166px → 56px hide as
+   a scaleY that stretched everything inside three times over. Long glides use
+   `SPRING_LAYOUT`.
+5. **A keyed child cannot move between parents.** React unmounts it from one and mounts a
+   new one in the other. A list split into columns keeps each item in its column
+   (`components/ui/masonry-columns.tsx`) instead of re-dealing — re-dealing remounted every
+   card after the one that changed and replayed its entrance.
+
 ### Direction carries meaning
 
 | Motion | Means |

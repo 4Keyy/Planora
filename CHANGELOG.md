@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(motion): toasts and categories glide instead of jumping (2026-10-06)
+
+The toast stack ran in `popLayout`, which pins a leaving toast out of the flow at once, but the
+toasts had no `layout`, so every other toast jumped a toast's height plus the gap in a single frame
+whenever one arrived or left. They now carry `layout="position"`: on a bench the toast below a
+dismissed one travels 72px over 13 frames on the 220ms ease-out instead of in one. On the
+categories page the presence wrapped the grid — one child that never left — so a deleted category
+vanished in a frame while its neighbours glided; it now wraps the cards, the grid is the leaving
+card's offset parent, and `CategoryCard` forwards its ref so `popLayout` can pin it (position-only
+layout, so its bordered surface is never stretched). `design-system.md` gains the five presence
+rules every one of these fixes followed.
+
 ### fix(motion): the task grid stops reshuffling, and a hidden card no longer stretches (2026-10-06)
 
 The masonry re-dealt every card from scratch on each change, and React cannot move a keyed child

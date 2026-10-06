@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, useCallback, useId } from "react"
+import { forwardRef, useEffect, useMemo, useRef, useState, useCallback, useId } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO, TWEEN_UI } from "@/lib/animations"
@@ -49,22 +49,24 @@ type CategoryFormData = {
  * edited nor (on a desktop) deleted. The card's body is now a button, and the desktop
  * strip is a button that slides in on hover and on keyboard focus alike.
  */
-function CategoryCard({
-  category,
-  onEdit,
-  onDelete,
-}: {
+/*
+ * A forwardRef because the grid's presence runs in `popLayout` mode: it pins a leaving card
+ * where it stood through this ref, and a component that drops the ref is silently not popped.
+ */
+const CategoryCard = forwardRef<HTMLDivElement, {
   category: Category
   onEdit: () => void
   onDelete: () => void
-}) {
+}>(function CategoryCard({ category, onEdit, onDelete }, ref) {
   const CategoryIcon = category.icon ? (ICON_MAP[category.icon] ?? Folder) : Folder
   const accentColor = category.color || "var(--pl-accent)"
   const [isControlHover, setIsControlHover] = useState(false)
 
   return (
     <motion.div
-      layout
+      ref={ref}
+      // Position only: a size `layout` would stretch the bordered, rounded surface.
+      layout="position"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: DURATION_FAST, ease: EASE_EXIT } }}
@@ -131,7 +133,7 @@ function CategoryCard({
       </button>
     </motion.div>
   )
-}
+})
 
 /**
  * Category creation/editing modal
@@ -576,8 +578,11 @@ export default function CategoriesPage() {
           action={{ label: "Create a category", onClick: () => setIsCreateOpen(true) }}
         />
       ) : (
-        <AnimatePresence mode="popLayout">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        // The presence wraps the cards, not the grid: wrapped round the grid it had one child
+        // that never left, so a deleted category vanished in a frame while its neighbours
+        // glided. `relative` is the offset parent a leaving card is pinned to.
+        <div className="relative grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <AnimatePresence mode="popLayout" initial={false}>
             {categories.map((category) => (
               <CategoryCard
                 key={category.id}
@@ -586,8 +591,8 @@ export default function CategoriesPage() {
                 onDelete={() => setDeletingCategory(category)}
               />
             ))}
-          </div>
-        </AnimatePresence>
+          </AnimatePresence>
+        </div>
       )}
 
       {/* Modals */}

@@ -29,6 +29,9 @@ const Toast = React.forwardRef<
   return (
     <motion.div
       ref={ref}
+      // The stack runs in `popLayout`: a leaving toast is pinned out of the flow at once, and
+      // without `layout` the others jumped a toast's height in one frame. They glide instead.
+      layout="position"
       // Errors interrupt (assertive); everything else is announced politely. role implies the
       // matching aria-live, so a screen reader speaks the toast even though it is purely visual.
       role={type === "error" ? "alert" : "status"}
