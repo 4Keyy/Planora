@@ -4,6 +4,21 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(motion): the task grid stops reshuffling, and a hidden card no longer stretches (2026-10-06)
+
+The masonry re-dealt every card from scratch on each change, and React cannot move a keyed child
+between two column parents, so creating, completing, hiding or taking one task pushed every later
+card into another column, where it unmounted and replayed its entrance: measured on a 12-card bench,
+removing the first card remounted 11 of 11 others and blinked each to opacity 0, and the removed
+card — whose exit sat under no presence — vanished in a single frame. A card now keeps its column
+for as long as the column count holds; only unplaced cards are dealt, row by row to the shortest
+column. Each column runs its own `popLayout` presence, so a removed card fades while the cards
+below glide up on `SPRING_LAYOUT` (the same bench: 0 remounts, 0 blinks, the neighbour travels
+136px without passing its place). The entrance stagger plays on the first paint only, and the
+wrapper's 8px rise no longer stacks on the card's own. The card root animates position only: a size
+`layout` had played hiding a card (166px → 56px) as a scaleY on content nothing corrected, so the
+collapsed row arrived stretched three times its height.
+
 ### fix(motion): long travel lands without bouncing past its target (2026-10-06)
 
 `SPRING_STANDARD` was documented as settling "without overshoot", but its damping ratio is 0.70 —

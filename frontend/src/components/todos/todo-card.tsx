@@ -16,7 +16,7 @@ import {
   EASE_OUT_EXPO,
   HOVER_LIFT,
   SPRING_RESPONSIVE,
-  SPRING_STANDARD,
+  SPRING_LAYOUT,
   TAP_CARD,
   TAP_PRESS,
   TWEEN_EXIT,
@@ -191,7 +191,8 @@ function TodoCardComponent({
     }
   }, [])
   const isInfoDense = !!todo.description && (!!todo.dueDate || !!todo.expectedDate || !!todo.delay)
-  const layoutTransition = shouldReduceMotion ? { duration: 0 } : SPRING_STANDARD
+  // Critically damped: a card closing a gap or moving up its column lands without overshoot.
+  const layoutTransition = shouldReduceMotion ? { duration: 0 } : SPRING_LAYOUT
   const contentTransition = shouldReduceMotion ? { duration: 0 } : TWEEN_FAST
 
   useEffect(() => {
@@ -395,7 +396,11 @@ function TodoCardComponent({
     <>
       <motion.div
         {...rowProps}
-        layout
+        // Position only. A size `layout` animated hiding a card (166px -> 56px) as a scaleY
+        // on this root, and nothing inside the Card is a layout node to correct it: the
+        // collapsed row arrived stretched three times its height and settled. The height
+        // now changes in one step under the crossfade, and the neighbours glide.
+        layout="position"
         initial={VARIANTS_CARD.hidden}
         animate={
           isJoining

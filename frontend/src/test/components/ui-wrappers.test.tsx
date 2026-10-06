@@ -195,6 +195,33 @@ describe("MasonryColumns", () => {
     expect(container.querySelectorAll('[class*="flex-col"]')).toHaveLength(2)
   })
 
+  it("keeps every card in its column when an earlier one leaves or a new one arrives", () => {
+    // Re-dealing from scratch moved every later card into another column, where it
+    // remounted and replayed its entrance — half the grid blinked on every change.
+    Object.defineProperty(window, "innerWidth", { value: 1200, configurable: true })
+    const ids = ["a", "b", "c", "d", "e", "f"]
+    const props = {
+      getKey: (item: { id: string }) => item.id,
+      renderItem: (item: { id: string }) => <span data-card={item.id}>{item.id}</span>,
+      columns: 3,
+    }
+    const { container, rerender } = render(<MasonryColumns items={ids.map((id) => ({ id }))} {...props} />)
+    const columnOf = (id: string) => {
+      const node = container.querySelector(`[data-card="${id}"]`)!
+      return [...container.querySelectorAll('[class*="flex-col"]')].findIndex((col) => col.contains(node))
+    }
+    const before = Object.fromEntries(["d", "e", "f"].map((id) => [id, columnOf(id)]))
+    const nodeF = container.querySelector('[data-card="f"]')
+
+    rerender(<MasonryColumns items={["b", "c", "d", "e", "f", "g"].map((id) => ({ id }))} {...props} />)
+
+    // The same element, in the same column: nothing remounted.
+    expect(container.querySelector('[data-card="f"]')).toBe(nodeF)
+    for (const id of ["d", "e", "f"]) expect(columnOf(id)).toBe(before[id])
+    // The newcomer lands in a column with room: the one "a" left.
+    expect(columnOf("g")).toBe(0)
+  })
+
   it("responds to resize breakpoints", async () => {
     Object.defineProperty(window, "innerWidth", { value: 500, configurable: true })
 

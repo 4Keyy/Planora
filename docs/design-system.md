@@ -544,7 +544,7 @@ against the few that were not, and it trains people to click through dialogs unr
 | Step | What | Spec |
 |---|---|---|
 | 1 | The card leaves | `opacity → 0`, `exit` |
-| 2 | Its neighbours close the gap | `layout`, `SPRING_STANDARD` |
+| 2 | Its neighbours close the gap | `layout="position"`, `SPRING_LAYOUT` — the card stays in its masonry column, so only the cards below it move |
 | 3 | The bar arrives from below | `y 100% → 0`, `base` 220, `emphasized` |
 | 4 | The countdown bar drains over 5s | `scaleX 1 → 0`, linear |
 
