@@ -795,7 +795,10 @@ The viewer count is the length of that shared list.
   `transform-origin` at the plate's centre, clamped 8px inside the viewport) on `/tasks`, on the
   dashboard and on a phone; they used to hang off the plate's left edge — Share off its right —
   and sit visibly to one side of the control that opened them. The plate row auto-fits: 4-up at full column width on both `/tasks` and
-  the dashboard, stacking on phones. Due date and Category plates expose inline ✕ clear controls; the footer
+  the dashboard, stacking on phones. When a date or category is selected, its plate shows an
+  inline ✕ clear button in place of the dropdown arrow; the arrow is absent, and clearing restores
+  it without resizing the plate or opening the picker. The clear button is separate from the
+  trigger, keyboard-accessible, and uses `.touch-target` for a 44×44 hit area. The footer
   shows a `⌘/Ctrl` + `↵` "to create" hint and a black `→ Create task` action that stays disabled
   until a title exists. Character-limited fields keep `current/max` counters (red from 80% of the
   limit). Share semantics are unchanged: all-friends visibility (public) and direct friend selection

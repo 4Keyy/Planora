@@ -167,15 +167,13 @@ function SelectorCard({
           </span>
         </span>
         <motion.span
+          aria-hidden="true"
           animate={{ rotate: open ? 180 : 0 }}
           transition={TWEEN_UI}
-          className={cn(
-            "flex-shrink-0 text-ink-muted transition-colors duration-fast group-hover:text-ink",
-            // Room for the clear control, which now sits OUTSIDE this button.
-            onClear && "mr-8",
-          )}
+          // Reserve the same icon slot whether it holds the arrow or the sibling clear button.
+          className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-ink-muted transition-colors duration-fast group-hover:text-ink"
         >
-          <ChevronDown className="h-4 w-4" strokeWidth={2.2} />
+          {!onClear && <ChevronDown data-selector-chevron="" className="h-4 w-4" strokeWidth={2.2} />}
         </motion.span>
       </motion.button>
 
@@ -189,19 +187,21 @@ function SelectorCard({
        * pointer. The `stopPropagation` it carried was the tell: a control that has to
        * stop its own parent from also firing is a control in the wrong place.
        *
-       * Absolutely positioned over the trigger's right edge so the card's layout is
-       * unchanged, and given a real `<button>` with the touch target the design system
-       * requires.
+       * Its wrapper aligns with the arrow inside the trigger's hairline border. Keep the
+       * positioning on the wrapper: `.touch-target` makes the button relative and
+       * extends its hit area to 44px without enlarging the visible icon slot.
        */}
       {onClear && (
-        <button
-          type="button"
-          aria-label={clearLabel}
-          onClick={onClear}
-          className="absolute right-9 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-ink-subtle transition-colors duration-fast hover:bg-gray-100 hover:text-ink-muted"
-        >
-          <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </button>
+        <span className="absolute right-3 top-1/2 mr-px -translate-y-1/2">
+          <button
+            type="button"
+            aria-label={clearLabel}
+            onClick={onClear}
+            className="touch-target flex h-4 w-4 items-center justify-center rounded-md text-ink-subtle transition-colors duration-fast hover:bg-gray-100 hover:text-ink-muted"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+        </span>
       )}
       {children}
     </div>
