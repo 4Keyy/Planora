@@ -93,9 +93,11 @@ runs both API and UI Playwright projects.
 
 `.github/workflows/security.yml` runs Gitleaks (with Planora-specific rules in `.gitleaks.toml`), CodeQL SAST, Trivy IaC scanning, NuGet vulnerability checks, npm audit, and a CycloneDX SBOM artifact job.
 
-`.github/workflows/migrations.yml` attaches idempotent SQL artifacts for five
-DB-owning services. `.github/workflows/openapi.yml` generates five configured
-service contracts and currently omits Collaboration's HTTP API.
+`.github/workflows/migrations.yml` attaches idempotent SQL artifacts for all six
+DB-owning services after restore/Release build with EF CLI 10.0.8.
+`.github/workflows/openapi.yml` generates six configured
+service contracts, including Collaboration's HTTP API. Metadata extraction is
+separate from validating startup or applying the generated migration scripts.
 
 `.github/workflows/perf-smoke.yml` runs the k6 scenarios on demand against the full Docker stack.
 
