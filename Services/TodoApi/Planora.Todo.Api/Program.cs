@@ -239,6 +239,23 @@ END $$;", app.Lifetime.ApplicationStopping);
                         logger.LogWarning(ex, "Could not ensure completion-date index (non-fatal)");
                     }
 
+                    // Retention purge index — the daily soft-delete purge sweeps "rows soft-deleted before
+                    // the grace cutoff" (IsDeleted equality + DeletedAt range). Additive, idempotent
+                    // (IF NOT EXISTS) and matches the EF model (TodoItemConfiguration). Same startup-DDL
+                    // convention as the columns/indexes above, so it lands on existing databases too.
+                    try
+                    {
+                        await db.Database.ExecuteSqlRawAsync(
+                            @"CREATE INDEX IF NOT EXISTS ix_todo_items_isdeleted_deletedat
+                              ON todo.""TodoItems"" (""IsDeleted"", ""DeletedAt"");",
+                            app.Lifetime.ApplicationStopping);
+                        logger.LogInformation("✅ Ensured retention purge index (ix_todo_items_isdeleted_deletedat) exists");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Could not ensure retention purge index (non-fatal)");
+                    }
+
                     // Subscribe to Integration Events
                     logger.LogInformation("🔄 Subscribing to integration events...");
                     var eventBus = provider.GetRequiredService<IEventBus>();

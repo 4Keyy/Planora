@@ -1,29 +1,38 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { TWEEN_UI } from "@/lib/animations"
+import { cn } from "@/lib/utils"
+import { DURATION_DELIBERATE, EASE_LINEAR, EASE_OUT_EXPO, TWEEN_UI } from "@/lib/animations"
 
-// Module-level constants — defined once, never recreated on render
-const SPINNER_TRANSITION = { duration: 0.8, repeat: Infinity, ease: "linear" as const }
-const OVERLAY_INNER_TRANSITION = { duration: 0.3, delay: 0.1 }
+// Module-level constants — defined once, never recreated on render.
 
+/** One turn per `deliberate` beat: a spinner reports that work is happening, not a press. */
+const SPINNER_TRANSITION = { duration: DURATION_DELIBERATE, repeat: Infinity, ease: EASE_LINEAR }
+
+/**
+ * The dots share the skeleton shimmer's 1200ms period (`tailwind.config.ts`), so two
+ * loading indicators on one screen never beat against each other. A loop period is not a
+ * UI response, which is why it has no duration token of its own; each dot starts a sixth
+ * of the period after the one before it.
+ */
+const DOTS_PERIOD_S = 1.2
 const dotsTransition = (i: number) => ({
-  duration: 1.2,
+  duration: DOTS_PERIOD_S,
   repeat: Infinity,
-  delay: i * 0.2,
-  ease: [0.16, 1, 0.3, 1] as const,
+  delay: (i * DOTS_PERIOD_S) / 6,
+  ease: EASE_OUT_EXPO,
 })
 
 export function LoadingSpinner({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const sizeMap = {
-    sm: "h-4 w-4 border-2",
-    md: "h-6 w-6 border-[2.5px]",
-    lg: "h-8 w-8 border-3",
+    sm: "h-4 w-4",
+    md: "h-6 w-6",
+    lg: "h-8 w-8",
   }
 
   return (
     <motion.div
-      className={`${sizeMap[size]} border-gray-200 border-t-black rounded-full`}
+      className={cn(sizeMap[size], "rounded-full border-2 border-line border-t-ink")}
       animate={{ rotate: 360 }}
       transition={SPINNER_TRANSITION}
       style={{ willChange: "transform" }}
@@ -37,7 +46,7 @@ export function LoadingDots() {
       {[0, 1, 2].map((i) => (
         <motion.div
           key={i}
-          className="h-2 w-2 rounded-full bg-black"
+          className="h-2 w-2 rounded-full bg-ink"
           animate={{
             scale: [1, 1.25, 1],
             opacity: [0.4, 1, 0.4]
@@ -56,36 +65,30 @@ export function LoadingOverlay() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={TWEEN_UI}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm"
+      className="fixed inset-0 z-overlay flex items-center justify-center bg-paper/70 backdrop-blur-sm"
     >
+      {/* The card arrives on the backdrop's beat rather than a step behind it. */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        transition={OVERLAY_INNER_TRANSITION}
-        className="flex flex-col items-center gap-4 rounded-2xl bg-white/90 p-8 shadow-soft-xl backdrop-blur-xl border border-gray-100/60"
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={TWEEN_UI}
+        className="flex flex-col items-center gap-4 rounded-xl border border-line bg-paper p-8 shadow-xl"
       >
         <LoadingSpinner size="lg" />
-        <p className="text-sm text-gray-600 font-medium">Loading...</p>
+        <p className="text-body-sm font-medium text-ink-muted">Loading...</p>
       </motion.div>
     </motion.div>
   )
 }
 
-// Premium Skeleton Loader - Enhanced with better shimmer
+/**
+ * A skeleton block. The `.skeleton` class already sweeps a composited shimmer across it
+ * (`globals.css`); a second, framer-driven opacity pulse on the same box ran two loops at
+ * once, at two different periods.
+ */
 export function SkeletonLoader({ className }: { className?: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0.6 }}
-      animate={{ opacity: [0.6, 1, 0.6] }}
-      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-      className={`skeleton rounded-xl bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 ${className}`}
-      style={{
-        backgroundSize: "200% 100%",
-        animation: "skeleton-shimmer 2s infinite",
-      }}
-    />
-  )
+  return <div aria-hidden="true" className={cn("skeleton rounded-sm", className)} />
 }
 
 export function SkeletonCard() {
@@ -93,7 +96,8 @@ export function SkeletonCard() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="rounded-2xl border border-gray-100/60 bg-white p-7 shadow-sm"
+      transition={TWEEN_UI}
+      className="rounded-lg border border-line bg-paper p-6 shadow-sm"
     >
       <div className="space-y-4">
         <SkeletonLoader className="h-6 w-3/4" />

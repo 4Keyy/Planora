@@ -1,12 +1,27 @@
 import "./globals.css"
-import "@fontsource/plus-jakarta-sans/300.css"
-import "@fontsource/plus-jakarta-sans/400.css"
-import "@fontsource/plus-jakarta-sans/500.css"
-import "@fontsource/plus-jakarta-sans/600.css"
-import "@fontsource/plus-jakarta-sans/700.css"
-import "@fontsource/plus-jakarta-sans/800.css"
+/**
+ * Four weights, two subsets — and nothing else.
+ *
+ * The bare `<weight>.css` entry points each declare FOUR @font-face rules (latin,
+ * latin-ext, vietnamese, cyrillic-ext), so six of them shipped 24 font files to
+ * build an English-language product. Weights 300 and 800 were not in the type
+ * scale at all, and `font-weight: 900` appeared once in the colour picker — a
+ * weight no file provides, which the browser answers by synthetically emboldening
+ * the 800 face. The type scale defines exactly four weights (400/500/600/700) and
+ * those are the four loaded here.
+ *
+ * latin-ext stays: names, categories and comments are user text and routinely
+ * carry accented Latin characters. vietnamese and cyrillic-ext do not — the UI is
+ * English and any stray glyph falls back to the system stack, which is the correct
+ * outcome rather than a reason to ship two more subsets.
+ */
+import "@fontsource/plus-jakarta-sans/latin-ext-400.css"
+import "@fontsource/plus-jakarta-sans/latin-ext-500.css"
+import "@fontsource/plus-jakarta-sans/latin-ext-600.css"
+import "@fontsource/plus-jakarta-sans/latin-ext-700.css"
 import { ReactNode } from "react"
 import type { Viewport } from "next"
+import localFont from "next/font/local"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toast"
 import { SecurityInitializer } from "@/components/security-initializer"
@@ -14,9 +29,46 @@ import { RealtimeManager } from "@/components/realtime-manager"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
 import { MotionPreferencesProvider } from "@/components/motion-preferences-provider"
+import { CommandPalette } from "@/components/command-palette"
+import { ShortcutsHelp } from "@/components/ui/shortcuts-overlay"
+
+/**
+ * The Latin subset, through next/font — the same @fontsource files, preloaded.
+ *
+ * Loaded through `@fontsource` CSS alone, the four Latin faces were discovered only once
+ * the stylesheet had been parsed, and arrived a beat after first paint. The text painted
+ * in the system fallback and re-wrapped when Plus Jakarta Sans swapped in: the landing
+ * hero heading went from four lines to three at 390px and pushed everything under it 38px
+ * up and back — CLS 0.016 against an invariant of 0.0014. A metric-matched fallback alone
+ * could not fix it: per-word widths differ between the two faces by −11% to +10%, so line
+ * breaks move whatever the average says.
+ *
+ * next/font preloads these files in the document head, so they are there for the first
+ * paint, and `adjustFontFallback` builds a fallback from the font file's own metrics for
+ * the rare load where they are not. The weights are still exactly the four in the type
+ * scale. latin-ext keeps coming from `@fontsource` above, under the family name
+ * "Plus Jakarta Sans", which `--font-sans` lists second: accented characters in user text
+ * are drawn from it, and it is only downloaded when such a character appears.
+ */
+const jakarta = localFont({
+  src: [
+    { path: "../../node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-400-normal.woff2", weight: "400", style: "normal" },
+    { path: "../../node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-500-normal.woff2", weight: "500", style: "normal" },
+    { path: "../../node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-600-normal.woff2", weight: "600", style: "normal" },
+    { path: "../../node_modules/@fontsource/plus-jakarta-sans/files/plus-jakarta-sans-latin-700-normal.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-jakarta",
+  display: "swap",
+  adjustFontFallback: "Arial",
+})
 
 export const metadata = {
-  title: "Planora | Private Shared Tasks",
+  // Every route sets its own title through this template, so tabs, history and
+  // the screen-reader announcement name the screen rather than the product.
+  title: {
+    default: "Planora | Private Shared Tasks",
+    template: "%s · Planora",
+  },
   description: "Private shared tasks for friends and family with secure sessions, messaging, and accountability.",
   icons: {
     icon: "/favicon.svg",
@@ -33,7 +85,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  themeColor: "var(--pl-paper)",
 }
 
 // Render every route per-request so the CSP middleware's per-request nonce
@@ -71,7 +123,7 @@ const apiOrigin = resolveApiOrigin()
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning className={cn("font-sans")}>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning className={cn("font-sans", jakarta.variable)}>
       <head>
         <meta name="google" content="notranslate" />
         {/* Resource hints — open the connection to the API gateway in parallel
@@ -87,7 +139,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </>
         ) : null}
       </head>
-      <body className={cn("text-gray-900 antialiased min-h-screen bg-transparent")}>
+      <body className={cn("text-ink antialiased min-h-screen bg-transparent")}>
+        {/* 2.4.1 Bypass Blocks. Visually hidden until focused, then a real control in the
+            top-left. Every route carries a <main> (auth/layout.tsx exists for that reason
+            alone), so the target is always there to jump to. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-tooltip focus:inline-flex focus:min-h-control focus:items-center focus:rounded-md focus:border focus:border-line-strong focus:bg-paper focus:px-4 focus:text-body-sm focus:font-semibold focus:text-ink"
+        >
+          Skip to content
+        </a>
         <ColorBendsLayer />
         <SecurityInitializer />
         <RealtimeManager />
@@ -103,6 +164,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ErrorBoundary>
             {children}
           </ErrorBoundary>
+          {/* Mounted at the root so Cmd/Ctrl+K reaches it from any screen, and so
+              it survives a route change without remounting mid-keystroke. It
+              renders nothing at all until a signed-in user opens it. */}
+          <CommandPalette />
+          {/* The `?` map. Mounted beside the palette for the same reason: the two
+              are one story — the palette does anything by name, the map teaches
+              the keys that do the common things without it. Renders nothing until
+              the key is pressed. */}
+          <ShortcutsHelp />
           <Toaster />
         </MotionPreferencesProvider>
       </body>

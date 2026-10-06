@@ -12,6 +12,35 @@ import * as config from "@/lib/config"
 import { useToastStore } from "@/store/toast"
 
 describe("input and textarea wrappers", () => {
+  it("renders a bare input without a counter, so a flex row can stretch it", () => {
+    // A wrapping div became the flex item and shrank the profile page's fields to their
+    // intrinsic width; the <input> itself must be the item.
+    const { container } = render(<Input aria-label="plain" />)
+    const input = screen.getByLabelText("plain")
+    expect(container.firstElementChild).toBe(input)
+    expect(input).toHaveClass("field-box")
+  })
+
+  it("keeps a caller's onBlur and draws no overlay of its own", async () => {
+    // react-hook-form's register() passes onBlur; it used to replace the component's own
+    // handler, and the focus glow then stayed on after the field was left.
+    const user = userEvent.setup()
+    const onBlur = vi.fn()
+    const { container } = render(<Input aria-label="email" onBlur={onBlur} />)
+    await user.click(screen.getByLabelText("email"))
+    await user.tab()
+    expect(onBlur).toHaveBeenCalledTimes(1)
+    expect(container.querySelector("[aria-hidden]")).toBeNull()
+  })
+
+  it("marks an over-limit field so its focus edge stays red", () => {
+    render(<Input aria-label="limited" maxLength={10} showCount value="123456789" readOnly />)
+    expect(screen.getByLabelText("limited")).toHaveAttribute("data-over-limit", "true")
+    render(<Textarea aria-label="notes" maxLength={10} showCount value="123456789" readOnly />)
+    expect(screen.getByLabelText("notes")).toHaveAttribute("data-over-limit", "true")
+    expect(screen.getByLabelText("notes")).toHaveClass("field-box")
+  })
+
   it("tracks input character counts and forwards changes", async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
@@ -29,11 +58,11 @@ describe("input and textarea wrappers", () => {
       <Textarea aria-label="description" maxLength={10} showCount value="12345678" readOnly />,
     )
 
-    expect(screen.getByText("8/10")).toHaveClass("text-red-500")
+    expect(screen.getByText("8/10")).toHaveClass("text-alert")
 
     rerender(<Textarea aria-label="description" maxLength={10} showCount value="1234567895" readOnly />)
 
-    expect(screen.getByText("10/10")).toHaveClass("text-red-500")
+    expect(screen.getByText("10/10")).toHaveClass("text-alert")
   })
 
   it("initializes textarea counts from default and empty values", () => {
@@ -164,6 +193,33 @@ describe("MasonryColumns", () => {
     expect(screen.getByText("a")).toBeInTheDocument()
     expect(screen.getByText("d")).toBeInTheDocument()
     expect(container.querySelectorAll('[class*="flex-col"]')).toHaveLength(2)
+  })
+
+  it("keeps every card in its column when an earlier one leaves or a new one arrives", () => {
+    // Re-dealing from scratch moved every later card into another column, where it
+    // remounted and replayed its entrance — half the grid blinked on every change.
+    Object.defineProperty(window, "innerWidth", { value: 1200, configurable: true })
+    const ids = ["a", "b", "c", "d", "e", "f"]
+    const props = {
+      getKey: (item: { id: string }) => item.id,
+      renderItem: (item: { id: string }) => <span data-card={item.id}>{item.id}</span>,
+      columns: 3,
+    }
+    const { container, rerender } = render(<MasonryColumns items={ids.map((id) => ({ id }))} {...props} />)
+    const columnOf = (id: string) => {
+      const node = container.querySelector(`[data-card="${id}"]`)!
+      return [...container.querySelectorAll('[class*="flex-col"]')].findIndex((col) => col.contains(node))
+    }
+    const before = Object.fromEntries(["d", "e", "f"].map((id) => [id, columnOf(id)]))
+    const nodeF = container.querySelector('[data-card="f"]')
+
+    rerender(<MasonryColumns items={["b", "c", "d", "e", "f", "g"].map((id) => ({ id }))} {...props} />)
+
+    // The same element, in the same column: nothing remounted.
+    expect(container.querySelector('[data-card="f"]')).toBe(nodeF)
+    for (const id of ["d", "e", "f"]) expect(columnOf(id)).toBe(before[id])
+    // The newcomer lands in a column with room: the one "a" left.
+    expect(columnOf("g")).toBe(0)
   })
 
   it("responds to resize breakpoints", async () => {

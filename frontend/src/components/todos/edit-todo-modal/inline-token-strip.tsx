@@ -1,11 +1,12 @@
 "use client"
 
 import { useRef, type RefObject, type ReactNode } from "react"
-import { Calendar, Globe2, Lock } from "lucide-react"
+import { Calendar } from "lucide-react"
 import { PriorityPopover }   from "./popovers/priority"
 import { DatePopover }       from "./popovers/date"
 import { CategoryPopover }   from "./popovers/category"
 import { VisibilityPopover } from "./popovers/visibility"
+import { RedactionBadge } from "@/components/ui/redaction-badge"
 import { ICON_MAP }          from "@/lib/icon-map"
 import { Category }          from "@/types/category"
 import { FriendDto }         from "@/types/auth"
@@ -13,7 +14,7 @@ import {
   getPriorityColor,
   getPriorityLabel,
   formatDueRange,
-  formatRelativeRu,
+  formatRelativeDay,
 } from "./utils"
 
 type OpenPopover = "priority" | "date" | "category" | "visibility" | null
@@ -37,6 +38,8 @@ interface InlineTokenStripProps {
   onVisModeChange: (v: "private" | "friends") => void
   sharedIds: string[]
   onSharedIdsChange: (ids: string[]) => void
+  /** Shared with every accepted friend (the server's `IsPublic`), rather than with named people. */
+  allFriends: boolean
   friends: FriendDto[]
   openPopover: OpenPopover
   setOpenPopover: (v: OpenPopover) => void
@@ -45,7 +48,7 @@ interface InlineTokenStripProps {
 function Dot() {
   return (
     <div style={{
-      width: 3, height: 3, borderRadius: "50%", background: "#d4d4d4",
+      width: 3, height: 3, borderRadius: "50%", background: "var(--pl-gray-300)",
       flexShrink: 0, marginLeft: 2, marginRight: 2,
     }} />
   )
@@ -76,14 +79,14 @@ function InlineToken({ onClick, isOpen, label, popover, containerRef, muted }: I
           display: "flex", alignItems: "center", gap: 5,
           padding: "5px 10px", borderRadius: 9, border: "none",
           cursor: muted ? "default" : "pointer",
-          background: isOpen ? "#fafafa" : "transparent",
-          color: isOpen ? "#0a0a0a" : "#525252",
+          background: isOpen ? "var(--pl-paper-sunken)" : "transparent",
+          color: isOpen ? "var(--pl-ink)" : "var(--pl-ink-muted)",
           opacity: muted ? 0.45 : 1,
-          fontSize: 11.5, fontWeight: 800, letterSpacing: "-0.005em",
+          fontSize: 12, fontWeight: 700, letterSpacing: "-0.005em",
           whiteSpace: "nowrap",
           transition: "background 120ms, color 120ms, opacity 120ms",
         }}
-        onMouseEnter={(e) => { if (!isOpen && !muted) (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+        onMouseEnter={(e) => { if (!isOpen && !muted) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
         onMouseLeave={(e) => { if (!isOpen) (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
       >
         {label}
@@ -100,7 +103,7 @@ export function InlineTokenStrip({
   categoryId, onCategoryChange, categories, onCreateCategory, canEditCategory,
   authorCategoryName, authorCategoryColor, authorCategoryIcon,
   isOwner,
-  visMode, onVisModeChange, sharedIds, onSharedIdsChange, friends,
+  visMode, onVisModeChange, sharedIds, onSharedIdsChange, allFriends, friends,
   openPopover, setOpenPopover,
 }: InlineTokenStripProps) {
   const priorityRef   = useRef<HTMLDivElement>(null)
@@ -118,21 +121,31 @@ export function InlineTokenStrip({
   const ownerLocked    = !isOwner
   const categoryLocked = !canEditCategory
 
-  const priorityColor = getPriorityColor(priority)
+  const priorityColor = getPriorityColor()
   const priorityLabel = getPriorityLabel(priority)
 
   const activeCat      = categories.find((c) => c.id === categoryId)
   const CatIcon        = activeCat?.icon ? (ICON_MAP[activeCat.icon] ?? null) : null
   const AuthorCatIcon  = authorCategoryIcon ? (ICON_MAP[authorCategoryIcon] ?? null) : null
   const showAuthorHint = !activeCat && !isOwner && !!authorCategoryName
-
+  /*
+   * Four states, each saying exactly what the save will write. "All friends" is its own
+   * state (the server's `IsPublic`), never "public" — every accepted friend is still a
+   * circle the owner chose. Friends mode with nobody picked and not all friends is
+   * nobody yet: it saves as private, so it must not claim anyone can see it. The token
+   * used to print "all friends" there, which described a reach the save never gave.
+   */
   const visLabel = visMode === "private"
     ? "private"
-    : `public · ${sharedIds.length}`
+    : allFriends
+      ? "all friends"
+      : sharedIds.length > 0
+        ? `shared · ${sharedIds.length}`
+        : "nobody yet"
 
   return (
     // From `sm` up this is a single non-wrapping row: the right-anchored visibility
-    // token is fixed-width (private ⇄ public · N) so nothing reflows. On phones the
+    // token is fixed-width (private ⇄ shared · N) so nothing reflows. On phones the
     // four tokens cannot fit one ~280px line, so the row WRAPS instead of overflowing
     // the modal and clipping the visibility token off the right edge.
     <div
@@ -178,8 +191,8 @@ export function InlineTokenStrip({
             {dueDate ? (
               <>
                 {formatDueRange(dueDateStart, dueDate)}
-                <span style={{ color: "#a3a3a3", fontWeight: 600, marginLeft: 2 }}>
-                  · {formatRelativeRu(dueDate)}
+                <span style={{ color: "var(--pl-ink-subtle)", fontWeight: 600, marginLeft: 2 }}>
+                  · {formatRelativeDay(dueDate)}
                 </span>
               </>
             ) : (
@@ -214,10 +227,10 @@ export function InlineTokenStrip({
             <>
               <div style={{
                 width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-                background: activeCat.color ? `${activeCat.color}22` : "#f0f0f0",
+                background: activeCat.color ? `${activeCat.color}22` : "var(--pl-line)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                {CatIcon && <CatIcon size={9} color={activeCat.color ?? "#525252"} />}
+                {CatIcon && <CatIcon size={9} color={activeCat.color ?? "var(--pl-ink-muted)"} />}
               </div>
               {activeCat.name}
             </>
@@ -226,11 +239,11 @@ export function InlineTokenStrip({
             <>
               <div style={{
                 width: 14, height: 14, borderRadius: 3, flexShrink: 0, opacity: 0.5,
-                background: authorCategoryColor ? `${authorCategoryColor}22` : "#f0f0f0",
+                background: authorCategoryColor ? `${authorCategoryColor}22` : "var(--pl-line)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
                 {AuthorCatIcon && (
-                  <AuthorCatIcon size={9} color={authorCategoryColor ?? "#525252"} />
+                  <AuthorCatIcon size={9} color={authorCategoryColor ?? "var(--pl-ink-muted)"} />
                 )}
               </div>
               <span style={{ opacity: 0.55, fontStyle: "italic" }}>
@@ -239,7 +252,7 @@ export function InlineTokenStrip({
             </>
           ) : (
             /* No category at all */
-            <span style={{ color: "#a3a3a3" }}>No category</span>
+            <span style={{ color: "var(--pl-ink-subtle)" }}>No category</span>
           )
         }
         popover={
@@ -265,12 +278,34 @@ export function InlineTokenStrip({
           containerRef={visibilityRef}
           label={
             <>
-              {visMode === "private"
-                ? <Lock size={12} strokeWidth={2} />
-                : <Globe2 size={12} strokeWidth={2} />
-              }
-              {/* Fixed-width label so toggling private⇄public never changes the token width. */}
-              <span style={{ display: "inline-block", minWidth: 54, textAlign: "left" }}>{visLabel}</span>
+              {/*
+               * The arc, on the control that changes it.
+               *
+               * A padlock and a globe are two pictures of two states; the ring is one
+               * picture of a scale, and it MOVES when the audience does — the cut
+               * opens and closes over 220ms, which is legible in peripheral vision
+               * before either word has been read. That is BLUEPRINT moment 7, and it
+               * belongs here rather than beside the title: the mark should sit on the
+               * thing you press to change it, not on a second, static copy of the
+               * same fact somewhere else on the screen.
+               */}
+              <RedactionBadge
+                // Nobody picked yet is private in fact, so it is drawn private; all friends
+                // is the widest open cut; a named share opens by its count.
+                audience={
+                  visMode === "private" || (!allFriends && sharedIds.length === 0)
+                    ? "private"
+                    : allFriends
+                      ? "public"
+                      : "shared"
+                }
+                viewerCount={allFriends || sharedIds.length === 0 ? undefined : sharedIds.length}
+                size="sm"
+                showLabel={false}
+              />
+              {/* Fixed width so changing the audience never reflows the row. Sized for
+                  the longest of the three labels, "all friends". */}
+              <span style={{ display: "inline-block", minWidth: 72, textAlign: "left" }}>{visLabel}</span>
             </>
           }
           popover={
@@ -284,6 +319,7 @@ export function InlineTokenStrip({
               friends={friends}
               containerRef={visibilityRef as RefObject<HTMLElement | null>}
               readOnly={ownerLocked}
+              allFriends={allFriends}
             />
           }
         />

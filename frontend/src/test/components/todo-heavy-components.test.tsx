@@ -107,6 +107,34 @@ describe("TodoCard", () => {
     vi.useRealTimers()
   })
 
+  it("centres the check in a 1fr auto 1fr rail and pins the eye to the bottom-left corner", () => {
+    // Owner's ruling: the circle sits on the card's vertical centre at every height and the
+    // eye 22px from the bottom, as far as it sits from the left. jsdom cannot measure layout,
+    // so this guards the structure that produces it (measured in Chromium at 375 and 1280px).
+    render(<TodoCard todo={baseTodo()} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
+    const check = screen.getByRole("button", { name: "Mark as complete" })
+    const eye = screen.getByRole("button", { name: "Collapse task card" })
+    const rail = check.parentElement!
+    expect(rail).toHaveClass("grid", "grid-rows-[1fr_auto_1fr]", "self-stretch")
+    expect(rail.parentElement).toHaveClass("items-center")
+    expect(eye.parentElement).toBe(rail)
+    expect(check).toHaveClass("row-start-2")
+    expect(eye).toHaveClass("row-start-3", "self-end", "mt-4", "mb-0.5")
+    // One padding for every open card, so the eye's bottom inset never changes.
+    expect(rail.closest(".p-5")).not.toBeNull()
+  })
+
+  it("renders a completed card without an empty chip row or an eye", () => {
+    render(
+      <TodoCard todo={baseTodo()} variant="completed" onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />,
+    )
+    expect(screen.queryByRole("button", { name: "Collapse task card" })).toBeNull()
+    // The title's column holds the title alone: an empty chip row used to take a 12px gap
+    // and put the title 6px above the centred check.
+    const column = screen.getByRole("heading", { level: 3 }).closest(".flex-col")!
+    expect(column.children).toHaveLength(1)
+  })
+
   it("renders owner metadata, completes, collapses, expands, edits, and deletes", async () => {
     const onComplete = vi.fn()
     const onDelete = vi.fn()
@@ -125,15 +153,24 @@ describe("TodoCard", () => {
 
     expect(screen.getByText("Write coverage tests")).toBeInTheDocument()
     expect(container).toHaveTextContent("5/5")
-    expect(container.querySelector(".lucide-share2")).toBeInTheDocument()
-    const sharedUrgentCard = container.querySelector(".task-card--shared-urgent")
-    expect(sharedUrgentCard).not.toBeNull()
-    expect(sharedUrgentCard).toHaveClass("border-blue-400")
-    // Red left border is applied via inline style, not a Tailwind class
-    expect((sharedUrgentCard as HTMLElement).style.borderLeftColor).toBe("rgb(248, 113, 113)")
-    expect(container.querySelector(".bg-red-400")).toBeNull()
+
+    // The owner of a shared task gets the redaction arc, not a generic share icon:
+    // the useful fact is who can see it, which they already know they shared.
+    // This fixture is `isPublic: true` — every friend — which outranks the shared list:
+    // the widest reach, drawn as the most open ring and never called "public".
+    expect(screen.getByRole("img", { name: "Shared with all your friends." })).toBeInTheDocument()
+    expect(container.querySelector(".lucide-share2")).toBeNull()
+
+    // Overdue outranks everything else: this task is shared (which would be the accent
+    // blue frame) and overdue, and the frame is alert. Work in progress is never the frame.
+    const card = container.querySelector(".border-alert")
+    expect(card).not.toBeNull()
+    expect(card).not.toHaveClass("border-accent")
+    // Not in progress, so no second edge and no inline override.
+    expect((card as HTMLElement).style.borderLeftColor).toBe("")
+    expect(card!.className).not.toMatch(/bg-alert/)
     expect(screen.getByText(/Overdue/i)).toBeInTheDocument()
-    expect(screen.getByText(/EXP:/)).toBeInTheDocument()
+    expect(screen.getByText(/^Expected /)).toBeInTheDocument()
     expect(screen.getByText("2d delay")).toBeInTheDocument()
 
     const completeButton = screen.getByRole("button", { name: "Mark as complete" })
@@ -150,6 +187,8 @@ describe("TodoCard", () => {
     expect(onToggleHidden).toHaveBeenCalledOnce()
     expect(screen.getByRole("button", { name: "Expand task card" })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole("button", { name: "Expand task card" })).not.toBeDisabled())
+    // The pressed toggle unmounted; focus moved to its counterpart instead of <body>.
+    expect(screen.getByRole("button", { name: "Expand task card" })).toHaveFocus()
 
     rerender(
       <TodoCard
@@ -180,7 +219,7 @@ describe("TodoCard", () => {
     fireEvent.click(screen.getByText("Write coverage tests"))
     expect(onEdit).toHaveBeenCalledOnce()
 
-    const deleteButton = container.querySelector('button[class*="bg-red-500"]')
+    const deleteButton = container.querySelector('button[class*="bg-alert"]')
     expect(deleteButton).not.toBeNull()
     fireEvent.click(deleteButton as HTMLButtonElement)
     expect(onDelete).toHaveBeenCalledOnce()
@@ -201,12 +240,12 @@ describe("TodoCard", () => {
 
     // Clicking complete surfaces the warning instead of finishing immediately.
     fireEvent.click(screen.getByRole("button", { name: "Mark as complete" }))
-    expect(await screen.findByText("Остались невыполненные под-задачи")).toBeInTheDocument()
+    expect(await screen.findByText("Some subtasks are still open")).toBeInTheDocument()
     expect(onComplete).not.toHaveBeenCalled()
 
     // Tick "don't show again" then confirm → completes AND records the opt-out preference.
     fireEvent.click(screen.getByRole("checkbox"))
-    fireEvent.click(screen.getByRole("button", { name: "Выполнить" }))
+    fireEvent.click(screen.getByRole("button", { name: "Complete anyway" }))
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
     expect(getBoolPreference(SUPPRESS_INCOMPLETE_SUBTASK_WARNING)).toBe(true)
@@ -229,7 +268,7 @@ describe("TodoCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mark as complete" }))
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
-    expect(screen.queryByText("Остались невыполненные под-задачи")).not.toBeInTheDocument()
+    expect(screen.queryByText("Some subtasks are still open")).not.toBeInTheDocument()
   })
 
   it("exercises desktop hover controls and neutral priority styling", async () => {
@@ -259,12 +298,12 @@ describe("TodoCard", () => {
     fireEvent.mouseEnter(cardRoot)
     fireEvent.mouseLeave(cardRoot)
 
-    const desktopDeleteZone = container.querySelector('div[class*="w-[68px]"]') as HTMLElement
+    const desktopDeleteZone = screen.getAllByRole("button", { name: /Delete task/ })[0]
     fireEvent.mouseEnter(desktopDeleteZone)
     await waitFor(() =>
-      expect(container.querySelector('div[class*="text-white"][class*="cursor-pointer"]')).not.toBeNull(),
+      expect(container.querySelector('div[class*="text-paper"][class*="cursor-pointer"]')).not.toBeNull(),
     )
-    const desktopDeletePanel = container.querySelector('div[class*="text-white"][class*="cursor-pointer"]') as HTMLElement
+    const desktopDeletePanel = container.querySelector('div[class*="text-paper"][class*="cursor-pointer"]') as HTMLElement
     fireEvent.click(desktopDeletePanel)
     expect(onDelete).toHaveBeenCalledOnce()
     fireEvent.mouseLeave(desktopDeleteZone)
@@ -314,9 +353,12 @@ describe("TodoCard", () => {
       />,
     )
 
-    expect(screen.getByText("No category")).toBeInTheDocument()
-    expect(screen.getByText("No category")).toHaveClass("blur-[3px]")
-    expect(container.querySelector(".task-card--shared-urgent")).not.toBeNull()
+    // Two copies crossfade: the blurred one is decorative, the clear one carries the name.
+    const [blurred, clear] = screen.getAllByText("No category")
+    expect(blurred).toHaveClass("blur-[3px]")
+    expect(blurred).toHaveAttribute("aria-hidden", "true")
+    expect(clear).not.toHaveAttribute("aria-hidden")
+    expect(container.querySelector(".border-alert")).not.toBeNull()
     expect(screen.queryByText("Write coverage tests")).not.toBeInTheDocument()
 
     const collapsed = container.querySelector(".group\\/collapsed") as HTMLElement
@@ -348,12 +390,42 @@ describe("TodoCard", () => {
       />,
     )
 
-    const card = container.querySelector(".task-card--shared-urgent")
+    // `isVisuallyUrgent` arrives on the redacted DTO with no dueDate or priority to
+    // derive it from, so the server's verdict has to survive on its own.
+    const card = container.querySelector(".border-alert")
     expect(card).not.toBeNull()
-    expect(card).toHaveClass("border-blue-400")
-    // Red left border is applied via inline style, not a Tailwind class
-    expect((card as HTMLElement).style.borderLeftColor).toBe("rgb(248, 113, 113)")
-    expect(screen.getByText("Focus")).toHaveClass("blur-[3px]")
+    expect(card).not.toHaveClass("border-accent")
+    expect(screen.getAllByText("Focus")[0]).toHaveClass("blur-[3px]")
+  })
+
+  it("re-renders when only aria-current changes on its row props", () => {
+    // The memo compares rowProps field by field; a field it forgot would leave the
+    // card announcing a cursor it no longer has, or missing one it just gained.
+    const handles = { ref: vi.fn(), onFocus: vi.fn() }
+    const rowProps = (ariaCurrent: "true" | undefined) => ({
+      ...handles,
+      tabIndex: 0 as const,
+      "data-active": undefined,
+      "aria-current": ariaCurrent,
+      "data-selected": undefined,
+    })
+    const todo = baseTodo()
+    const card = (ariaCurrent: "true" | undefined) => (
+      <TodoCard
+        todo={todo}
+        onComplete={vi.fn()}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        rowProps={rowProps(ariaCurrent)}
+      />
+    )
+
+    const { container, rerender } = render(card(undefined))
+    const root = container.querySelector(".group\\/card")
+    expect(root).not.toHaveAttribute("aria-current")
+
+    rerender(card("true"))
+    expect(container.querySelector(".group\\/card")).toHaveAttribute("aria-current", "true")
   })
 })
 
@@ -365,6 +437,58 @@ describe("CreateTodoPanel", () => {
     Element.prototype.setPointerCapture ??= vi.fn()
     Element.prototype.releasePointerCapture ??= vi.fn()
     HTMLElement.prototype.scrollIntoView ??= vi.fn()
+  })
+
+  it("types into the title from nowhere, but leaves modifiers, Space, other fields and open popovers alone", async () => {
+    const user = userEvent.setup()
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+    const title = screen.getByPlaceholderText("What needs to be done?")
+    const details = screen.getByPlaceholderText("Add details — optional.")
+    // Opening focuses nothing: the field must not light up by itself.
+    expect(title).not.toHaveFocus()
+
+    await user.keyboard("{Control>}k{/Control}")
+    await user.keyboard(" ")
+    expect(title).not.toHaveFocus()
+
+    await user.keyboard("Fix")
+    expect(title).toHaveFocus()
+    expect(title).toHaveValue("Fix")
+
+    // A key typed into another field belongs to that field.
+    await user.click(details)
+    await user.keyboard("x")
+    expect(details).toHaveValue("x")
+    expect(title).toHaveValue("Fix")
+
+    // An open selector popover owns its keys.
+    await user.click(screen.getByRole("button", { name: "Priority" }))
+    await user.keyboard("z")
+    expect(title).toHaveValue("Fix")
+  })
+
+  it("hands focus back to the header when the panel closes with focus inside the form", async () => {
+    const user = userEvent.setup()
+    const onToggle = vi.fn()
+    const props = { onToggle, categories, onSubmit: vi.fn(), onCreateCategory: vi.fn(), onDeleteCategory: vi.fn() }
+    const { rerender } = render(<CreateTodoPanel isOpen {...props} />)
+    await user.keyboard("Fix")
+    expect(screen.getByPlaceholderText("What needs to be done?")).toHaveFocus()
+
+    await user.keyboard("{Escape}")
+    expect(onToggle).toHaveBeenCalledOnce()
+    rerender(<CreateTodoPanel isOpen={false} {...props} />)
+    // The collapsed body is inert; focus must not fall to <body>.
+    expect(screen.getByRole("button", { name: "Open create task panel" })).toHaveFocus()
   })
 
   it("renders collapsed state and opens through the primary action", async () => {
@@ -379,12 +503,13 @@ describe("CreateTodoPanel", () => {
         onSubmit={vi.fn()}
         onCreateCategory={vi.fn()}
         onDeleteCategory={vi.fn()}
-        shortcutHint="C"
       />,
     )
 
     expect(screen.getByText("New task")).toBeInTheDocument()
-    expect(screen.getByText(/press/i)).toBeInTheDocument()
+    // No key advertised here: `C` belongs to quick capture, which is a different
+    // surface with a different contract.
+    expect(screen.getByText(/Date, category, audience/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Open create task panel" }))
     expect(onToggle).toHaveBeenCalledOnce()
@@ -412,20 +537,22 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "  Ship test suite  " },
     })
-    fireEvent.change(screen.getByPlaceholderText("Add details, context, or acceptance criteria..."), {
+    fireEvent.change(screen.getByPlaceholderText("Add details — optional."), {
       target: { value: "  Regression coverage  " },
     })
-    // Due date uses the project's own calendar, collapsed by default — open it, then pick "Today"
-    // via its quick-pick and assert against the same ISO the component derives.
+    // Due date lives behind the selector plate — open its popover, then pick "Today"
+    // via the calendar quick-pick and assert against the same ISO the component derives.
     const todayDueIso = new Date(new Date().toISOString().split("T")[0]).toISOString()
-    fireEvent.click(screen.getByRole("button", { name: /Select a date/ }))
-    fireEvent.click(screen.getByRole("button", { name: "Today" }))
-    fireEvent.click(screen.getByRole("button", { name: /High/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Due date" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Today" }))
+    // Priority plate → popover option
+    fireEvent.click(screen.getByRole("button", { name: "Priority" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Priority High" }))
     expect(screen.queryByText("Visible to all friends")).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Private task" }))
     await user.click(await screen.findByText("All friends"))
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
     expect(onSubmit).toHaveBeenCalledWith({
@@ -464,12 +591,12 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "x".repeat(160) },
     })
-    fireEvent.change(screen.getByPlaceholderText("Add details, context, or acceptance criteria..."), {
+    fireEvent.change(screen.getByPlaceholderText("Add details — optional."), {
       target: { value: "x".repeat(4000) },
     })
 
-    expect(screen.getByText("160/200")).toHaveClass("text-red-500")
-    expect(screen.getByText("4000/5000")).toHaveClass("text-red-500")
+    expect(screen.getByText("160/200")).toHaveClass("text-alert")
+    expect(screen.getByText("4000/5000")).toHaveClass("text-alert")
   })
 
   it("closes on Escape while expanded and not creating", async () => {
@@ -555,16 +682,21 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    await user.click(screen.getByRole("combobox"))
-    await user.click(await screen.findByText("+ Create Category"))
-    fireEvent.change(screen.getByPlaceholderText("Category name *"), { target: { value: "Inbox" } })
+    // Category creation now happens inside the selector popover: a failure surfaces
+    // there and never blocks creating the task itself (which proceeds category-less).
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    await user.click(await screen.findByText("Create new category"))
+    fireEvent.change(screen.getByPlaceholderText("Category name"), { target: { value: "Inbox" } })
+    await user.click(screen.getByRole("button", { name: "Create" }))
+    expect(await screen.findByText("category service unavailable")).toBeInTheDocument()
+    expect(onCreateCategory).not.toHaveBeenCalled()
+
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Fallback category task" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
-    expect(onCreateCategory).not.toHaveBeenCalled()
     expect(onSubmit.mock.calls[0][0].categoryId).toBeNull()
   })
 
@@ -576,11 +708,11 @@ describe("CreateTodoPanel", () => {
     vi.mocked(api.post).mockResolvedValueOnce({
       data: {
         success: true,
-        data: { id: "cat-new", name: "Inbox", color: "#123456", icon: null },
+        data: { id: "cat-new", name: "Inbox", color: "#0ea5e9", icon: "Briefcase" },
       },
     })
 
-    const { container } = render(
+    render(
       <CreateTodoPanel
         isOpen
         onToggle={vi.fn()}
@@ -591,30 +723,30 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    await user.click(screen.getByRole("combobox"))
-    const workOption = await screen.findByText("Work")
-    const deleteButton = workOption.closest('[role="option"]')?.querySelector("button") as HTMLButtonElement
-    fireEvent.click(deleteButton)
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    // Delete an existing option straight from the popover list
+    await user.click(await screen.findByRole("button", { name: "Delete Work" }))
     expect(onDeleteCategory).toHaveBeenCalledWith("cat-1")
 
-    await user.click(await screen.findByText("+ Create Category"))
-    fireEvent.change(screen.getByPlaceholderText("Category name *"), { target: { value: "Inbox" } })
-    fireEvent.change(container.querySelector('input[type="color"]') as HTMLInputElement, {
-      target: { value: "#123456" },
+    await user.click(screen.getByText("Create new category"))
+    fireEvent.change(screen.getByPlaceholderText("Category name"), { target: { value: "Inbox" } })
+    await user.click(screen.getByRole("button", { name: "Create" }))
+
+    // The popover creates the category immediately with the default swatch + icon
+    await waitFor(() => expect(onCreateCategory).toHaveBeenCalledOnce())
+    expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
+      name: "Inbox",
+      color: "#0ea5e9",
+      icon: "Briefcase",
+      displayOrder: 0,
     })
+
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Task with new category" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
-    expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
-      name: "Inbox",
-      color: "#123456",
-      icon: null,
-      displayOrder: 0,
-    })
-    expect(onCreateCategory).toHaveBeenCalledOnce()
     expect(onSubmit.mock.calls[0][0]).toMatchObject({
       title: "Task with new category",
       categoryId: "cat-new",
@@ -638,9 +770,180 @@ describe("CreateTodoPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Failing task" },
     })
-    fireEvent.click(screen.getByRole("button", { name: "Create Task" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
 
     expect(await screen.findByText("Failed to create task. Please try again.")).toBeInTheDocument()
+  })
+
+  it("shares directly with a friend, then switches to all-friends and back", async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={onSubmit}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+
+    // Direct share: pick the friend from the share popover
+    await user.click(screen.getByRole("button", { name: "Private task" }))
+    await user.click(await screen.findByRole("checkbox", { name: "Ada Lovelace" }))
+    expect(screen.getByRole("button", { name: "Shared with 1 friend" })).toBeInTheDocument()
+
+    // Switching to all-friends clears the direct selection
+    await user.click(screen.getByText("All friends"))
+    expect(screen.getByRole("button", { name: "Shared with all friends" })).toBeInTheDocument()
+
+    // Picking a friend while public flips back to a direct share with just them
+    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    expect(screen.getByRole("button", { name: "Shared with 1 friend" })).toBeInTheDocument()
+
+    // Toggling the same friend off returns to private
+    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    expect(screen.getByRole("button", { name: "Private task" })).toBeInTheDocument()
+
+    // Re-select and submit: capacity = author + 1 friend
+    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
+      target: { value: "Pair task" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Create task" }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({
+      isPublic: false,
+      sharedWithUserIds: ["friend-1"],
+      requiredWorkers: 2,
+    })
+  })
+
+  it("selects an existing category, clears it, and clears a picked due date", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+
+    // Category: pick "Work" from the popover, plate shows it, then clear
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    await user.click(await screen.findByText("Work"))
+    // The plate crossfades: the outgoing value stays mounted for the exit
+    // animation, so assert on the settled state rather than the next tick.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("Work"),
+    )
+    await user.click(screen.getByRole("button", { name: "Clear category" }))
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("None"),
+    )
+
+    // Due date: pick "Today", plate leaves the "No date" placeholder, then clear via keyboard
+    fireEvent.click(screen.getByRole("button", { name: "Due date" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Today" }))
+    // The old value crossfades out — wait for the exiting "No date" span to unmount
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Due date" })).not.toHaveTextContent("No date"),
+    )
+    /*
+     * Focus it and press Enter, rather than dispatching a bare `keydown`.
+     *
+     * The clear control used to be a `role="button"` span nested inside the plate's
+     * own `<button>`, carrying a hand-written key handler because a span has none —
+     * and nesting one control inside another means the inner one is not in the
+     * accessibility tree at all. It is a real sibling `<button>` now, so Enter
+     * reaches it the way the platform delivers it. A raw `fireEvent.keyDown` would
+     * pass against the old span and against nothing a browser actually does.
+     */
+    const clear = screen.getByRole("button", { name: "Clear due date" })
+    clear.focus()
+    await userEvent.keyboard("{Enter}")
+    expect(screen.getByRole("button", { name: "Due date" })).toHaveTextContent("No date")
+  })
+
+  it("clears the selected category when it is deleted from the popover list", async () => {
+    const user = userEvent.setup()
+    const onDeleteCategory = vi.fn().mockResolvedValue(undefined)
+
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={onDeleteCategory}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    await user.click(await screen.findByText("Work"))
+    expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("Work")
+
+    fireEvent.click(screen.getByRole("button", { name: "Category" }))
+    await user.click(await screen.findByRole("button", { name: "Delete Work" }))
+
+    expect(onDeleteCategory).toHaveBeenCalledWith("cat-1")
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("None"),
+    )
+  })
+
+  it("Escape closes an open selector popover first and the panel only on the next press", async () => {
+    const user = userEvent.setup()
+    const onToggle = vi.fn()
+
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={onToggle}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Priority" }))
+    expect(await screen.findByRole("button", { name: "Priority High" })).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+    expect(onToggle).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Priority High" })).not.toBeInTheDocument(),
+    )
+
+    await user.keyboard("{Escape}")
+    expect(onToggle).toHaveBeenCalledOnce()
+  })
+
+  it("updates the priority plate value from the popover", async () => {
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole("button", { name: "Priority" })).toHaveTextContent("Medium")
+    fireEvent.click(screen.getByRole("button", { name: "Priority" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Priority Urgent" }))
+    expect(screen.getByRole("button", { name: "Priority" })).toHaveTextContent("Urgent")
   })
 })
 
@@ -691,16 +994,47 @@ describe("EditTodoModal", () => {
       dueDateStart: null,
       clearDueDate: false,
       categoryId: "cat-1",
-      isPublic: false,
+      // The fixture is shared with all friends (`isPublic: true`), and renaming it must not
+      // change who can see it. This assertion used to pin `isPublic: false` with a capacity
+      // of one — the editor quietly taking a task away from every friend on any edit.
+      isPublic: true,
       sharedWithUserIds: [],
-      requiredWorkers: 1,
-      clearRequiredWorkers: false,
+      requiredWorkers: null,
+      clearRequiredWorkers: true,
     })
 
     // Autosave keeps the modal open; closing is a separate, explicit action
     expect(onClose).not.toHaveBeenCalled()
     await user.keyboard("{Escape}")
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it("turns an all-friends task into a share with just the friend the owner picks", async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(
+      <EditTodoModal
+        todo={baseTodo({ isPublic: true, sharedWithUserIds: [] })}
+        categories={categories}
+        onClose={vi.fn()}
+        onSave={onSave}
+        onSaveViewerPreference={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+    // The token says what the save will write: all friends, never "public".
+    await user.click(screen.getByRole("button", { name: /all friends/i }))
+    await user.click(await screen.findByRole("checkbox", { name: "Ada Lovelace" }))
+    await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2000 })
+    expect(onSave).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        isPublic: false,
+        sharedWithUserIds: ["friend-1"],
+        requiredWorkers: 2,
+        clearRequiredWorkers: false,
+      }),
+    )
   })
 
   it("autosaves only a shared viewer's private category preference", async () => {
@@ -825,3 +1159,44 @@ describe("EditTodoModal", () => {
   })
 })
 
+
+describe("EditTodoModal — opened into title editing", () => {
+  /**
+   * The keyboard map prints "Edit it in place" beside `E`. For a while `E` opened
+   * exactly what `Enter` opened, which is the same defect that was fixed for `C`:
+   * a printed key doing something other than what it says teaches the wrong
+   * binding, and the user only finds out from a surface that disagrees.
+   */
+  const open = (props: Partial<Parameters<typeof EditTodoModal>[0]> = {}) =>
+    render(
+      <EditTodoModal
+        todo={baseTodo()}
+        categories={categories}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        onSaveViewerPreference={vi.fn()}
+        onCreateCategory={vi.fn()}
+        {...props}
+      />,
+    )
+
+  it("puts the caret in the title when asked", async () => {
+    open({ openInTitleEdit: true })
+    const field = await screen.findByDisplayValue("Write coverage tests")
+    expect(field.tagName).toBe("TEXTAREA")
+  })
+
+  it("opens read-only by default, the way a click does", () => {
+    open()
+    expect(screen.queryByDisplayValue("Write coverage tests")).toBeNull()
+    expect(screen.getByRole("heading", { name: "Write coverage tests" })).toBeInTheDocument()
+  })
+
+  it("ignores the request for a viewer who cannot rename it", () => {
+    // Opening a field somebody is not allowed to save is a worse lie than the one
+    // this feature fixes.
+    resetAuthState("someone-else")
+    open({ openInTitleEdit: true })
+    expect(screen.queryByDisplayValue("Write coverage tests")).toBeNull()
+  })
+})

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -20,11 +20,27 @@ const FOCUSABLE_SELECTOR = [
  * keyboard / screen-reader user lands inside the dialog and returns to their trigger on close.
  */
 export function useFocusTrap<T extends HTMLElement = HTMLElement>(active: boolean) {
-  const ref = useRef<T>(null)
+  /**
+   * A CALLBACK ref backed by state, not a `useRef`. Every modal in this product
+   * mounts through `ModalPortal`, which renders null on its first pass and only
+   * creates the portal from its own effect. With a `useRef` the trap's effect ran
+   * one tick too early, found `ref.current === null`, and returned — and because
+   * `active` never changed afterwards, it never ran again. The result was that
+   * every dialog in the product had a focus trap that did nothing: focus stayed
+   * on the page behind, Tab walked straight out, and focus was never returned to
+   * the trigger on close.
+   *
+   * The hook's own tests passed throughout, because they mounted it without a
+   * portal — a configuration no caller actually uses.
+   *
+   * Storing the node in state re-runs the effect at the moment the element
+   * attaches, whenever that happens to be.
+   */
+  const [container, setContainer] = useState<T | null>(null)
+  const ref = useCallback((node: T | null) => setContainer(node), [])
 
   useEffect(() => {
     if (!active) return
-    const container = ref.current
     if (!container) return
 
     const previouslyFocused = document.activeElement as HTMLElement | null
@@ -72,7 +88,7 @@ export function useFocusTrap<T extends HTMLElement = HTMLElement>(active: boolea
         previouslyFocused.focus()
       }
     }
-  }, [active])
+  }, [active, container])
 
   return ref
 }

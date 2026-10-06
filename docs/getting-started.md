@@ -1,13 +1,13 @@
 # Getting Started
 
-This guide takes a clean local checkout to a running Planora app.
+This guide explains the supported local launch commands and first-user flow. The audited checkout has an incomplete Todo migration baseline: a fresh database needs that corrected before this can be a successful clean-install walkthrough. See [the audit](audits/2026-10-06.md) and [database initialization](database.md#startup-and-schema-initialization).
 
 ## Prerequisites
 
 | Requirement | Recommended version | Used by |
 |---|---:|---|
 | .NET SDK | 10.x | backend services and xUnit tests |
-| Node.js | current LTS compatible with Next.js 16 | frontend |
+| Node.js | 20.9+ compatible with Next.js 16; CI requests 20 | frontend |
 | npm | bundled with Node | frontend dependencies/scripts |
 | Docker Desktop | recent stable | PostgreSQL, Redis, RabbitMQ, optional backend containers |
 | PowerShell | 7.x recommended; Windows PowerShell can run the scripts when launcher/helper files remain ASCII-compatible | launch scripts |
@@ -15,7 +15,7 @@ This guide takes a clean local checkout to a running Planora app.
 Evidence:
 
 - `Directory.Build.props` sets `TargetFramework` to `net10.0`.
-- `frontend/package.json` uses `next` `^15.5.15`, React `18.3.1`, TypeScript `^5.7.2`.
+- `frontend/package.json` uses `next` `^16.2.9`, React `^18.3.1`, TypeScript `^5.7.2`. There is no `engines` field; CI installs Node 20.
 - `docker-compose.yml` defines PostgreSQL 16, Redis 7, RabbitMQ 3.13, and backend containers.
 - `Start-Planora-*.ps1` imports helper modules from `scripts/*.psm1`; those files avoid non-ASCII punctuation so Windows PowerShell can parse them reliably.
 
@@ -33,6 +33,7 @@ REDIS_PASSWORD=<strong-password>
 RABBITMQ_USER=<user>
 RABBITMQ_PASSWORD=<strong-password>
 JWT_SECRET=<at-least-32-characters>
+GRPC_SERVICE_KEY=<at-least-16-characters>
 ```
 
 `JWT_SECRET` must be shared by every backend service. If it differs between services, login can succeed but downstream calls return `401`.
@@ -95,6 +96,11 @@ Both launchers also accept `-Stop` and `-Help`:
 - `-Help` on either prints the full option list and exits. Both also support
   `-SkipFrontend`, `-NoBrowser`, and `-ExitAfterHealthCheck`.
 
+`-SkipBuild`, `-Lan`, and `-Prod` exist on `Start-Planora-Local.ps1` only.
+`-Lan` opens the Windows Firewall for ports `3000` and `5132` (inbound, LocalSubnet
+only — it asks for elevation once), self-tests that the LAN IP actually answers, and
+prints a share URL another device on the same Wi-Fi can open.
+
 ### Production-config run (`-Prod`)
 
 `Start-Planora-Local.ps1 -Prod` shares on the LAN exactly like `-Lan`, but runs the whole stack in a
@@ -105,7 +111,24 @@ terminates no TLS it serves plain HTTP on the LAN and sets `Security__RequireHtt
 browser still accepts the auth cookies; real deployments keep `Secure` cookies behind their HTTPS
 front door. The first production frontend build adds about a minute to startup.
 
-On a first clean database start, Auth, Todo, Category, Messaging, and Collaboration initialize their schemas automatically. If local EF migrations exist, they are applied. If no migrations exist, startup creates the schema from the current EF model. This is intentional because generated `Migrations/` folders are not committed.
+### Schema Bootstrap On First Start
+
+Auth, Category, Todo, Collaboration and Messaging call the startup schema helper. Realtime does not; its optional persistent schema needs an explicit migration step. `DatabaseStartup.EnsureReadyAsync` looks at what the assembly ships: if it
+carries EF migrations it applies the pending ones with `MigrateAsync`, and if it carries none it
+creates the schema from the current EF model with `EnsureCreatedAsync` and logs a warning saying so.
+
+Which path each service takes today:
+
+| Service | Migrations in the repository | Startup path |
+|---|---|---|
+| Todo | tracked alteration migrations, missing initial baseline | `MigrateAsync`; fails to bootstrap a fresh database until the baseline is reconciled |
+| Realtime | yes — `20260615211750_InitialRealtimeNotifications` | No startup helper; apply explicitly with `Planora.Migrator --service realtime` |
+| Auth, Category, Messaging, Collaboration | no | `EnsureCreatedAsync` |
+
+`.gitignore` carries `**/Migrations/**`, so a migration you generate locally stays yours by default;
+the Todo and Realtime files predate that rule, are tracked, and must not be deleted in a cleanup.
+Do not mix the two paths on one persistent database — see
+[`database.md`](database.md#startup-and-schema-initialization).
 
 ## 3. Verify The System
 
@@ -122,28 +145,28 @@ Expected local URLs:
 | Todo aggregate health via gateway | `http://localhost:5132/todos/health` |
 | Category aggregate health via gateway | `http://localhost:5132/categories/health` |
 | Messaging aggregate health via gateway | `http://localhost:5132/messaging/health` |
+| Collaboration aggregate health via gateway | `http://localhost:5132/collaboration/health` |
 | Realtime aggregate health via gateway | `http://localhost:5132/realtime/health` |
 | RabbitMQ UI | `http://localhost:15672` |
 
-A `503` on `/health/ready` is an intentional traffic hold while a
-dependency (Postgres / Redis / RabbitMQ) is warming up — `/health/live`
-will still return `200` because the process itself is alive. See
+A `503` on `/health/ready` means a registered ready-tagged check failed. The gateway and Realtime have empty probe registrations, so their `200` cannot prove dependency/schema readiness. Probe the relevant service and exercise a real API flow. See
 [`docs/architecture.md`](architecture.md) "Health Probe Architecture".
 
 The frontend calls the gateway through `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:5132` in `frontend/next.config.js`.
 
 ## 4. First Successful User Flow
 
-1. Open `http://localhost:3000`.
+1. Confirm the Todo schema/migration baseline is ready, then open `http://localhost:3000`.
 2. Register a new user.
 3. Create a category.
-4. Create a todo assigned to that category.
+4. Create a todo assigned to that category — press `C` for quick capture, or use the create panel.
 5. Mark the todo as done or move it through status changes.
-6. Open the profile/security page and confirm the user profile loads.
+6. Press `?` to confirm the shortcut map renders; the task list should answer `J`/`K`.
+7. Open the profile/security page and confirm the user profile loads.
 
 Relevant implementation:
 
-- frontend routes: `frontend/src/app/auth/register/page.tsx`, `frontend/src/app/todos/page.tsx`, `frontend/src/app/categories/page.tsx`, `frontend/src/app/profile/page.tsx`
+- frontend routes: `frontend/src/app/auth/register/page.tsx`, `frontend/src/app/(app)/tasks/page.tsx`, `frontend/src/app/(app)/categories/page.tsx`, `frontend/src/app/(app)/profile/page.tsx`
 - API client: `frontend/src/lib/api.ts`
 - auth store: `frontend/src/store/auth.ts`
 - backend controllers: `AuthenticationController.cs`, `TodosController.cs`, `CategoriesController.cs`, `UsersController.cs`
@@ -160,7 +183,7 @@ dotnet test Planora.sln --settings coverage.runsettings
 
 ```powershell
 Push-Location frontend
-npm install
+npm ci
 Pop-Location
 npm --prefix frontend run dev
 npm --prefix frontend run lint

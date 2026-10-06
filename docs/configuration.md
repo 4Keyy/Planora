@@ -25,11 +25,11 @@ These are enforced with `${VAR:?message}` in `docker-compose.yml`.
 | Variable | Required | Used by | Notes |
 |---|---:|---|---|
 | `POSTGRES_PASSWORD` | yes | `postgres`, backend DB connection strings | PostgreSQL is bound to `127.0.0.1:5433` on the host. |
-| `REDIS_PASSWORD` | yes | `redis`, gateway/realtime Redis strings, backend Redis connection strings | Redis starts with `--requirepass`; service connection strings must include the same password. |
+| `REDIS_PASSWORD` | yes | `redis`, backend Redis connections and Realtime backplane; gateway has no Redis runtime dependency | Redis starts with `--requirepass`; service connection strings must include the same password. |
 | `RABBITMQ_USER` | yes | RabbitMQ container and backend containers | Sets `RABBITMQ_DEFAULT_USER` and service credentials. |
 | `RABBITMQ_PASSWORD` | yes | RabbitMQ container and backend containers | Sets `RABBITMQ_DEFAULT_PASS` and service credentials. |
 | `JWT_SECRET` | yes | all backend services and gateway through `JwtSettings__Secret` | Must be at least 32 characters and identical for every service. |
-| `GRPC_SERVICE_KEY` | yes | All inter-service gRPC channels (Auth, Todo, Category, Messaging, Realtime) | Authenticates internal gRPC channels via `x-service-key` metadata. Must be identical for every service; at least 16 characters is enforced, 32+ recommended. |
+| `GRPC_SERVICE_KEY` | yes | Inter-service gRPC clients/servers, including Collaboration | Authenticates internal gRPC channels via `x-service-key` metadata. Must be identical for every service; at least 16 characters is enforced, 32+ recommended. |
 
 ## OpenTelemetry (Observability)
 
@@ -43,13 +43,13 @@ and metrics that any future exporter can pick up.
 | Variable / config key | Where read | Default | Meaning |
 |---|---|---|---|
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | environment variable, standard OTel | unset | OTLP gRPC endpoint (e.g. `http://otel-collector:4317` or Grafana Cloud OTLP URL). When unset, no exporter is registered. |
-| `OpenTelemetry:OtlpEndpoint` | `appsettings.json` | unset | Same as `OTEL_EXPORTER_OTLP_ENDPOINT`; the env var wins if both are set. |
-| `OpenTelemetry:ServiceName` | `appsettings.json` | per-service default (`AuthService`, `TodoService`, `CategoryService`, `MessagingService`, `RealtimeService`, `ApiGateway`) | Overrides the resource `service.name` attribute. |
+| `OpenTelemetry:OtlpEndpoint` | `appsettings.json` | unset | Same as `OTEL_EXPORTER_OTLP_ENDPOINT`; the configuration key wins when non-null; the standard env var is the fallback. |
+| `OpenTelemetry:ServiceName` | `appsettings.json` | per-service default (`AuthService`, `TodoService`, `CategoryService`, `MessagingService`, `RealtimeService`, `CollaborationService`, `ApiGateway`) | Overrides the resource `service.name` attribute. |
 | `OpenTelemetry:ServiceVersion` | `appsettings.json` | entry assembly version | Resource `service.version` attribute. |
 | `OpenTelemetry:ConsoleExporter:Enabled` | `appsettings.json` | `false` | When `true`, writes spans and metrics to stdout — useful for local debugging only. |
 | `OpenTelemetry:Tracing:Enabled` | `appsettings.json` | `true` | Kill switch for the entire tracing pipeline. |
 | `OpenTelemetry:Metrics:Enabled` | `appsettings.json` | `true` | Kill switch for the entire metrics pipeline. |
-| `OpenTelemetry:Tracing:CaptureDbStatementText` | `appsettings.json` | `true` | When `true`, EF Core SQL text is captured in span attributes. SQL may contain PII via parameter values; restrict trace-backend access accordingly, or set to `false` if the trace backend is not trusted with this data. |
+| `OpenTelemetry:Tracing:CaptureDbStatementText` | `appsettings.json` | `false` | When `true`, EF Core SQL text is captured in span attributes. SQL may contain PII via parameter values; restrict trace-backend access accordingly, or set to `false` if the trace backend is not trusted with this data. |
 
 The resource adds two static attributes: `deployment.environment` (from
 `ASPNETCORE_ENVIRONMENT`) and `service.namespace=planora`. The
@@ -72,7 +72,7 @@ and no log noise when it is absent.
 
 | Variable / config key | Where read | Default | Meaning |
 |---|---|---|---|
-| `LOKI_URL` | environment variable (preferred) | unset | Loki push endpoint, e.g. `https://logs-prod-eu-west-0.grafana.net/loki/api/v1/push`. |
+| `LOKI_URL` | environment variable fallback | unset | Loki push endpoint, e.g. `https://logs-prod-eu-west-0.grafana.net/loki/api/v1/push`. |
 | `Serilog:Loki:Url` | `appsettings.json` | unset | Same as `LOKI_URL`. |
 | `LOKI_USER` | environment variable | unset | Basic-auth user. For Grafana Cloud, the tenant / user id from the OTLP page. |
 | `Serilog:Loki:Credentials:Login` | `appsettings.json` | unset | Same. |
@@ -102,19 +102,21 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 |---|---|---|
 | `POSTGRES_USER` | documented, not used by Compose as a variable | Compose hardcodes `POSTGRES_USER: postgres`. |
 | `POSTGRES_PASSWORD` | required | PostgreSQL superuser password and all service DB passwords in Compose. |
-| `POSTGRES_DB` | optional/documented | Default database for PostgreSQL init; individual services use their own databases. |
+| `POSTGRES_DB` | informational in current Compose | Compose does not interpolate this variable; PostgreSQL uses its image default and each service uses its own database name. |
 | `JWT_SECRET` | required | Maps to `JwtSettings__Secret` in Compose. |
 | `JWT_ISSUER` | informational in `.env.example` | Compose injects fixed `JwtSettings__Issuer: Planora.Auth`; services also default to this in appsettings. |
 | `JWT_AUDIENCE` | informational in `.env.example` | Compose injects fixed `JwtSettings__Audience: Planora.Clients`; services also default to this in appsettings. |
-| `JWT_ACCESS_TOKEN_EXPIRATION_MINUTES` | informational | Not directly injected by current Compose. Auth local appsettings uses 15 minutes; Docker auth appsettings/Compose context uses 60 minutes where configured. |
+| `JWT_ACCESS_TOKEN_EXPIRATION_MINUTES` | informational | Not directly injected by current Compose. Use `JwtSettings__AccessTokenExpirationMinutes` for a direct ASP.NET override; `JWT_ACCESS_TOKEN_EXPIRATION_MINUTES` itself is not wired into Compose. |
 | `JWT_REFRESH_TOKEN_EXPIRATION_DAYS` | informational | Appsettings default is 7 days. |
 | `RABBITMQ_USER` | required | RabbitMQ default user; Compose feeds it into every service's `RabbitMq__UserName`. |
 | `RABBITMQ_PASSWORD` | required | RabbitMQ default password; Compose feeds it into every service's `RabbitMq__Password`. |
 | `REDIS_PASSWORD` | required | Redis `requirepass`; Compose builds each service's `ConnectionStrings__Redis` from it. |
 | `NEXT_PUBLIC_API_URL` | optional | Frontend API Gateway base URL; default is `http://localhost:5132`. |
 | `NEXT_PUBLIC_API_GATEWAY_URL` | optional alias | Read by `frontend/next.config.js` if `NEXT_PUBLIC_API_URL` is absent. |
+| `NEXT_PUBLIC_API_SAME_ORIGIN` | optional | `1` routes browser-side API + realtime calls through the frontend's own origin via the `next.config.js` rewrites instead of the gateway's port. Default `0`. |
 | `NEXT_PUBLIC_ENVIRONMENT` | optional | Environment label; no direct behavior found in core API client. |
-| `HOST` | optional | Host binding for Next.js dev server when used by npm/launcher context. |
+| `HOST` | informational template key | No direct Next.js launcher parser was found; launchers use explicit `-H 0.0.0.0`. |
+| `NEXT_DEV_ALLOWED_ORIGINS` | optional, development only | Comma-separated additional allowed Next development origins; merged with detected local IPv4 addresses in `next.config.js`. |
 | `Frontend__BaseUrl` | optional | Frontend origin used in email verification/password-reset links. Use the laptop LAN IP instead of `localhost` when links are opened from another Wi-Fi device. |
 | `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, ... | optional | Explicit frontend origins for credentialed CORS. Add the LAN frontend origin when using another device. |
 | `Email__Provider` | optional | Auth email delivery provider. `Log` writes links to logs; `GmailSmtp` sends real mail through Gmail SMTP; `Smtp` uses generic SMTP settings. |
@@ -124,7 +126,7 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 | `Email__TimeoutSeconds` | optional | SMTP send timeout. Default is 30 seconds. |
 | `ASPNETCORE_ENVIRONMENT` | optional | ASP.NET environment; Compose sets `Docker` per backend container. |
 | `ASPNETCORE_URLS` | optional | Kestrel URL override when explicitly provided. |
-| `RateLimiting__Backend` | optional | Set to `Redis` to use the Redis-backed distributed rate limiter (required in multi-replica production so per-IP counters are shared); unset (default) uses the in-memory limiter. `docker-compose.yml` sets it for every service. |
+| `RateLimiting__Backend` | optional | Backend services select Redis when set to `Redis`; otherwise use the in-memory limiter. Compose sets it for all six services. The gateway uses its own in-memory per-IP limiter regardless of this key. |
 | `Security__RequireHttps` | optional | Overrides the auth cookie `Secure` flag (config key `Security:RequireHttps`, read by `AuthenticationController`). Unset (default) keeps the secure default — `Secure` cookies in every non-Development environment. The `-Prod` local launcher sets it to `false` so a plain-HTTP LAN run still accepts the refresh/XSRF cookies; real deployments leave it unset and terminate TLS at the front door. |
 | `CORS_ALLOWED_ORIGINS` | documented but no direct parser found | Services read `Cors:AllowedOrigins` from appsettings/configuration. For env override use ASP.NET nested configuration keys such as `Cors__AllowedOrigins__0`. |
 
@@ -138,6 +140,7 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 | Todo API | `5100` | `5100 -> 80` | Todo gRPC is local `5101` in appsettings, but Compose routes service-to-service through container URLs. |
 | Category REST | `5281` | `5281 -> 80` | REST endpoint used by gateway. |
 | Category gRPC | `5282` | `5282 -> 81` | Todo uses `GrpcServices__CategoryApi=http://category-api:81` in Compose. |
+| Collaboration API | `5060` | `5060 -> 80` | Comment/timeline API; gRPC client of Auth and Todo. |
 | Messaging API | `5058` | `5058 -> 80` | Includes `/api/v1/messages/health`. |
 | Realtime API | `5032` | `5032 -> 80` | SignalR hub path is `/hubs/notifications` inside the service; gateway exposes realtime through `/realtime/{everything}`. |
 | PostgreSQL | container `5432` | `127.0.0.1:5433` | Local scripts convert Docker DB host/ports to localhost/5433. |
@@ -166,7 +169,7 @@ Important details:
 - `JwtSettings:Secret` is intentionally empty in committed appsettings and must be supplied by environment or development-only config.
 - `ConfigurationValidator.ValidateJwtSettings` requires secret/issuer/audience and a secret length of at least 32.
 - Docker Compose injects `JwtSettings__Secret`, `JwtSettings__Issuer`, and `JwtSettings__Audience`.
-- Gateway, Todo, Category, Messaging, and Realtime validate bearer tokens independently.
+- Gateway and all six APIs (Auth, Todo, Category, Collaboration, Messaging and Realtime) validate bearer tokens independently.
 
 Code:
 
@@ -179,7 +182,7 @@ Code:
 
 CORS origins are configured in appsettings under `Cors:AllowedOrigins`. Development defaults include local frontend hosts such as `http://localhost:3000` and `http://127.0.0.1:3000`.
 
-For browser state-changing requests, CSRF is required:
+The frontend sends CSRF headers on state-changing requests. Middleware is currently registered in Auth, Todo, Category, Messaging and Collaboration, with Auth-path exclusions implemented inside it. Gateway and Realtime do not register it. [ADR-0005](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md) records an Auth-only decision that current registration diverges from. The double-submit flow is:
 
 - frontend obtains token from `GET /auth/api/v1/auth/csrf-token`;
 - token is stored in readable cookie `XSRF-TOKEN`;
@@ -223,6 +226,15 @@ Code:
 - `docker-compose.yml`
 - `.env.example`
 
+## Frontend build directory (`NEXT_DIST_DIR`)
+
+`frontend/next.config.js` sets Next's `distDir` from `NEXT_DIST_DIR`, defaulting to `.next`, and
+`docs/ui-audit/tools/class-audit.mjs` reads the same variable. It exists for one job: building and
+verifying in a side directory (e.g. `.next-verify`) while another `next start` is serving `.next`,
+which a rebuild in place would tear. It is deliberately **not** in `.env.example` — set it in a single
+shell for a single build, never in an `.env` file. See [`development.md`](development.md) §
+"Building beside a running server".
+
 ## Frontend API URL
 
 `frontend/next.config.js` reads:
@@ -232,6 +244,44 @@ Code:
 3. fallback `http://localhost:5132`
 
 The value must be an `http` or `https` origin with no path/query/hash. Invalid values fall back to `http://localhost:5132`.
+
+### Same-origin API routing (`NEXT_PUBLIC_API_SAME_ORIGIN`)
+
+| Variable | Default | Effect |
+|---|---|---|
+| `NEXT_PUBLIC_API_SAME_ORIGIN` | `0` | `1` makes `getApiBaseUrl()` return the frontend's own origin for every browser-side call. |
+
+With the flag on, the browser never addresses the gateway's port: it calls `http://localhost:3000/auth/api/...`
+and the `rewrites()` in `frontend/next.config.js` forward the request to `safeApiUrl` server-side. Server-side
+rendering is unaffected — there is no `window`, so SSR keeps calling the gateway directly.
+
+Only these paths are proxied, so the frontend's own `/auth/login` page is never shadowed:
+
+| Proxied source | Notes |
+|---|---|
+| `/auth/api/:path*` | |
+| `/todos/api/:path*` | |
+| `/categories/api/:path*` | |
+| `/collaboration/api/:path*` | |
+| `/messaging/api/:path*` | |
+| `/realtime/:path*` | covers both `/realtime/api/v1/notifications*` and the SignalR hub at `/realtime/hubs/notifications` |
+| `/avatars/:path*` | |
+| `/friendships` + `/friendships/:path*` | the only gateway route the frontend calls **without** a service prefix (`api.get("/friendships")` in `src/hooks/use-friends.ts` and `src/app/(app)/profile/page.tsx`) |
+
+> Any gateway route the frontend calls that is missing from this list 404s against Next instead of reaching
+> the gateway — the failure is a 404, not a timeout. When adding a new top-level gateway path to the client,
+> add a matching rewrite here.
+
+Turn it on when the page on `:3000` loads but API calls hang until the axios timeout (10 s) while the gateway
+answers fine from a terminal. That asymmetry means something treats the two ports differently — a browser
+extension, a polluted `localhost` cookie jar (cookies ignore ports), a VPN/proxy, or a stale LAN IP baked into
+`NEXT_PUBLIC_API_URL`. Same-origin removes the preflight and the second host entirely. Changing the flag
+requires a dev-server restart; a `.env.local` edit triggers one automatically.
+
+> Process environment beats `.env` files. The launcher exports `NEXT_PUBLIC_API_URL` into each child process,
+> so a value pinned in the root `.env` overrides `frontend/.env.local`. If that pinned IP is stale, the
+> same-origin rewrite fails with `ECONNREFUSED` and returns `500`; the fix is to correct the root `.env`
+> (or run `-Lan`, which re-detects the LAN IP on every run).
 
 ### Same-Wi-Fi / LAN sharing
 
@@ -260,8 +310,7 @@ what used to be manual is now automatic:
   `Frontend__BaseUrl=http://192.168.x.y:3000` in `.env` is no longer needed for LAN sharing; if one is
   present, `-Lan` supersedes it for that run.
 
-If a teammate still cannot open the LAN URL, the cause is **local network interference, not the
-server** (the launcher health-checks prove the server is up). In rough order of likelihood:
+Host health/TCP checks narrow the diagnosis but cannot prove another device reaches the app or that every API flow works. Check these possible causes:
 
 - **Firewall rule not created (most common).** Opening the firewall needs administrator rights, so
   `-Lan` raises one UAC prompt — **approve it**. If it is declined or missed, no inbound rule exists
@@ -272,10 +321,10 @@ server** (the launcher health-checks prove the server is up). In rough order of 
 - **TUN-mode VPN on the host (the one thing the launcher cannot override).** A "route-everything" VPN
   (sing-box / xray / Clash / Happ in TUN / strict-route mode) can blackhole the LAN subnet even with the
   firewall open — so the LAN IP stops answering, both from other devices and from this host itself. `-Lan`
-  now *proves* this: after startup it opens a real TCP connection to the LAN IP, and if that fails while
+  reports a possible VPN/TUN cause: after startup it opens a real TCP connection to the LAN IP, and if that fails while
   the firewall is open and the ports are bound, the verdict names the VPN/TUN adapter as the culprit. Fix:
   turn on the VPN client's **Allow LAN / Bypass LAN** (split-tunnel) setting, or stop the VPN while you
-  share — either makes it work immediately. No host-side script can lift a VPN's own kernel-level filter.
+  share and retest from both devices. No host-side script can lift a VPN's own kernel-level filter.
 - **Wrong IP.** Open the exact URL `-Lan` prints (the current IP), not an old bookmarked address — the
   DHCP-assigned IP changes between sessions.
 - **Wi-Fi isolation.** Both devices must be on the same non-guest / non-AP-isolated network.
@@ -304,12 +353,13 @@ Both route files expose canonical friendship routes under `/auth/api/v1/friendsh
 | Auth | `ConnectionStrings:AuthDatabase` | `planora_auth_db` |
 | Todo | `ConnectionStrings:TodoDatabase` | `planora_todo` |
 | Category | `ConnectionStrings:CategoryDatabase` | `planora_category` |
+| Collaboration | `ConnectionStrings:CollaborationDatabase` | `planora_collaboration` |
 | Messaging | `ConnectionStrings:MessagingDatabase` | `planora_messaging` |
 | Realtime | `ConnectionStrings:RealtimeDatabase` | `planora_realtime` |
 
-Startup code waits for PostgreSQL and initializes schemas for Auth, Todo, Category, and Messaging. If user-owned EF migrations exist, startup applies pending migrations. If no migrations exist in the assembly, startup creates the schema from the current EF model through `DatabaseStartup.EnsureReadyAsync`.
+Startup code waits for PostgreSQL and initializes schemas for Auth, Todo, Category, Collaboration and Messaging. The tracked Todo migration chain is incomplete; a clean database requires a corrected baseline. If user-owned EF migrations exist, startup applies pending migrations. If no migrations exist in the assembly, startup creates the schema from the current EF model through `DatabaseStartup.EnsureReadyAsync`.
 
-The Realtime service is wired conditionally: when `ConnectionStrings:RealtimeDatabase` is set it persists notifications (durable `Notifications` / `NotificationDeliveries` / `OutboxMessages` tables) and serves the read API; when it is absent the service falls back to ephemeral SignalR pushes only. Realtime's schema is **not** created at startup — apply its EF migration explicitly with `Planora.Migrator --service realtime` (the runner creates `planora_realtime` if it does not yet exist) before first boot.
+The Realtime service is wired conditionally: when `ConnectionStrings:RealtimeDatabase` is set it persists notifications (mapped `Notifications` / `NotificationDeliveries` / `OutboxMessages` tables; delivery rows are currently scaffolding, not an active delivery audit) and serves the read API; when it is absent the service falls back to ephemeral SignalR pushes only. Realtime's schema is **not** created at startup — apply its EF migration explicitly with `Planora.Migrator --service realtime` (the runner creates `planora_realtime` if it does not yet exist) before first boot.
 
 ## Known Configuration Inconsistencies To Keep Visible
 
@@ -319,3 +369,63 @@ The Realtime service is wired conditionally: when `ConnectionStrings:RealtimeDat
 | PostgreSQL local port | Docker exposes host `5433`; some launch profile examples mention `5432`. | Use `5433` for host-to-container PostgreSQL. |
 | `CORS_ALLOWED_ORIGINS` | Present in `.env.example`, but services read `Cors:AllowedOrigins` from configuration. | Override with `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, etc. when using environment variables. |
 | Todo description length | validators allow 5000 characters, EF Core column config sets max length 2000. | Treat 2000 as the safe persisted limit until code is reconciled. |
+
+## Data Retention (automatic cleanup)
+
+A daily background job (`RetentionBackgroundService`, in `BuildingBlocks.Infrastructure.Retention`)
+physically removes stale data. It runs in every service that owns purgeable data and is governed by the
+`Retention` configuration section (env `Retention__*`). It ships **disabled** and, once enabled, **dry-run
+by default**; every pass is guarded by a Postgres advisory lock (single-instance), a per-pass tripwire, and
+batched deletes.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `Retention__Enabled` | `false` | Master switch. When false the scheduler never runs. |
+| `Retention__DryRun` | `true` | Count and log only — delete nothing. On-prod rehearsal. |
+| `Retention__RunAtHourUtc` | `3` | UTC hour (0–23) the daily pass fires. |
+| `Retention__RunOnStartup` | `true` | Also run a catch-up pass shortly after every startup, so data already past its window is cleaned on each launch — not only at `RunAtHourUtc`. |
+| `Retention__StartupDelaySeconds` | `60` | Delay before the startup catch-up pass, letting the database/broker come up first. |
+| `Retention__BatchSize` | `1000` | Rows deleted per batch statement. |
+| `Retention__MaxDeletionsPerRun` | `50000` | Tripwire: a pass finding more eligible rows aborts and alerts. |
+| `Retention__SoftDeleteGraceDays` | `7` | Grace before a soft-deleted row is physically purged. |
+| `Retention__CompletedTaskDays` | `30` | Days a task may sit completed before auto-deletion. |
+| `Retention__ReadNotificationDays` | `3` | Days a read notification survives after being read. |
+| `Retention__UnreadNotificationDays` | `90` | Days an unread notification survives. |
+| `Retention__NotificationDeliveryDays` | `30` | Days a delivery-audit row survives after delivery. |
+| `Retention__OutboxProcessedDays` | `7` | Days a processed outbox message survives. |
+| `Retention__InboxProcessedDays` | `7` | Days a processed inbox message survives. |
+| `Retention__ExpiredRefreshTokenDays` | `30` | Grace past a refresh token's expiry before purge. |
+| `Retention__PurgeLoginHistory` | `false` | Opt-in: enable login-history purge (forensics). |
+| `Retention__LoginHistoryDays` | `180` | Login-history retention when enabled. |
+| `Retention__PurgeAuditLogs` | `false` | Opt-in: enable audit-log purge (forensics). |
+| `Retention__AuditLogDays` | `365` | Audit-log retention when enabled. |
+| `Retention__PurgeUsedRecoveryCodes` | `true` | Reap spent 2FA recovery codes (safe housekeeping). |
+| `Retention__RecoveryCodeUsedDays` | `30` | Age (by `UsedAt`) at which spent recovery codes are purged. |
+| `Retention__PurgeDeletedUsers` | `true` | Physically purge soft-deleted accounts (and all Auth-owned dependent rows) after `SoftDeleteGraceDays`. Set false for legal/GDPR retention of deleted accounts. |
+| `Retention__PurgeFriendships` | `false` | Opt-in: purge terminal (rejected/cancelled/removed) friendship rows. |
+| `Retention__FriendshipTerminalDays` | `90` | Age at which terminal friendship rows are purged. |
+| `Retention__PurgeMessages` | `false` | Opt-in: purge old messages (user content — a product decision). |
+| `Retention__MessageDays` | `365` | Age (by `CreatedAt`) at which messages are purged when enabled. |
+
+Each content vector also has its own `Retention__Purge*` toggle (e.g. `PurgeSoftDeleted`,
+`PurgeCompletedTasks`, `PurgeReadNotifications`, `PurgeOutboxInbox`, `PurgeExpiredRefreshTokens`), all
+defaulting to true so the master switch enables them together.
+
+**Rollout:** set `Retention__Enabled=true` with `Retention__DryRun=true`, watch the `Retention[...]`
+"would delete N" logs and the `planora.retention.*` metrics for a day, then set `Retention__DryRun=false`.
+Login-history/audit-log purge stays off by default. These are runtime defaults, not a compliance certification.
+
+## Deployment configuration that templates do not supply
+
+| Key / concern | Actual behavior |
+|---|---|
+| `ForwardedHeaders__KnownProxies__0` (numbered array) | Gateway enables forwarded headers when its configured proxy list is non-empty and accepts literal IP addresses only; CIDR is not parsed. |
+| `Kestrel__Endpoints__<name>__Url`, `Protocols` | Explicit endpoint configuration can override `ASPNETCORE_URLS`; verify each REST/HTTP2 listener against the manifest port. |
+| Ocelot production targets | Gateway selects Docker route file only for environment `Docker`; Production selects the local loopback-target file unless configuration is corrected. |
+| `ConnectionStrings__RealtimeDatabase` on Fly | Needed on Realtime and migrator for persistence; omitted by current `set-secrets.ps1`. |
+| `GrpcServices__TodoApi` | Collaboration requires Todo gRPC; Fly staging script has no fallback for this key. |
+| `Grpc__EnableDetailedErrors` | Auth gRPC defaults to false; only enable intentionally in a non-public diagnostic environment. |
+| `IsDevelopment` | Read by selected shared/Auth helpers; this configuration flag is separate from the host environment name. |
+| `Serilog__Seq__Url`, `Serilog__Seq__ApiKey` | Optional Seq destination in the shared Serilog setup. |
+
+See [Deployment](deployment.md#confirmed-rollout-blockers), [Caching](caching.md) for cache options, and [Database](database.md) for design-time factory differences. Committed templates are examples rather than an exhaustive declaration of every framework configuration key.

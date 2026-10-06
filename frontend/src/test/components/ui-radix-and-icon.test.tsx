@@ -1,14 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { IconPicker } from "@/components/ui/icon-picker"
 import {
   DropdownMenu,
@@ -17,60 +9,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-
-describe("dialog primitives", () => {
-  it("renders an open dialog with title, description, content, and close affordance", () => {
-    render(
-      <Dialog open>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Settings</DialogTitle>
-            <DialogDescription>Configure your workspace</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>Actions</DialogFooter>
-        </DialogContent>
-      </Dialog>,
-    )
-
-    expect(screen.getByRole("dialog")).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument()
-    expect(screen.getByText("Configure your workspace")).toBeInTheDocument()
-    expect(screen.getByText("Actions")).toBeInTheDocument()
-    expect(screen.getByText("Close")).toHaveClass("sr-only")
-  })
-})
-
-describe("select primitives", () => {
-  it("renders the trigger and selected value through Radix context", () => {
-    render(
-      <Select value="High">
-        <SelectTrigger aria-label="priority">
-          <SelectValue placeholder="Priority" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            <SelectLabel>Priority</SelectLabel>
-            <SelectItem value="Low">Low</SelectItem>
-            <SelectSeparator />
-            <SelectItem value="High">High</SelectItem>
-          </SelectGroup>
-        </SelectContent>
-      </Select>,
-    )
-
-    expect(screen.getByRole("combobox", { name: "priority" })).toHaveTextContent("High")
-  })
-})
 
 describe("dropdown menu primitives", () => {
   it("renders content, inset items, and separators through Radix", async () => {

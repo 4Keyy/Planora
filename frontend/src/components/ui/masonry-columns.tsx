@@ -1,12 +1,16 @@
 "use client"
 
-import { useEffect, useMemo, useState, useRef, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useMemo, useState, useRef, type ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { SPRING_LAYOUT, SPRING_STANDARD, TWEEN_EXIT } from "@/lib/animations"
 
-type MasonryBreakpoint = { maxWidth: number; columns: number }
+export type MasonryBreakpoint = { maxWidth: number; columns: number }
 
-const MASONRY_ITEM_TRANSITION = { type: "spring" as const, stiffness: 300, damping: 30 }
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect
+
+/** 40ms between cards in reading order — the list rhythm of design-system § 9.9. */
+const ENTRANCE_STAGGER_S = 0.04
 
 const resolveColumnCount = (width: number, base: number, breakpoints?: MasonryBreakpoint[]) => {
   if (!breakpoints?.length) return base
@@ -29,6 +33,29 @@ interface MasonryColumnsProps<T> {
   getItemWeight?: (item: T) => number
 }
 
+/** Which column each key sits in, for the column count it was dealt at. */
+interface Placement {
+  count: number
+  column: Map<string, number>
+}
+
+/**
+ * Columns of cards that stay where they are.
+ *
+ * Each column is its own parent, and React cannot move a keyed child from one parent to
+ * another — a card that changes column unmounts and mounts again. The deal used to be
+ * redone from scratch on every change, so creating, completing, hiding or taking one task
+ * pushed every later card into a different column: half the grid faded out and rose back
+ * in on its entrance stagger, and the removed card, whose exit sat under no presence,
+ * vanished in a single frame.
+ *
+ * Now a card keeps its column for as long as the column count holds. Only cards the grid
+ * has not placed yet are dealt — row by row in reading order, each to the shortest column
+ * — so a new task lands where there is room and nothing else moves. Inside a column the
+ * cards stay in list order, a removed card plays its exit while the ones below glide up
+ * (`popLayout` takes it out of the flow at once), and a card that moves up its column
+ * glides there. A change of column count re-deals everything from scratch.
+ */
 export function MasonryColumns<T>({
   items,
   renderItem,
@@ -41,8 +68,20 @@ export function MasonryColumns<T>({
 }: MasonryColumnsProps<T>) {
   const [columnCount, setColumnCount] = useState(baseColumns)
   const prevColumnCountRef = useRef(columnCount)
-
+  const placementRef = useRef<Placement>({ count: 0, column: new Map() })
+  // The entrance stagger is for the grid's first paint; a card added later arrives at once.
+  const mountedRef = useRef(false)
   useEffect(() => {
+    mountedRef.current = true
+  }, [])
+
+  /*
+   * A layout effect, not an effect: the count has to be right before the first paint.
+   * With `useEffect` the grid painted with the base count and re-flowed a frame later — at
+   * 768px three columns became two and every card moved, a layout shift on every visit.
+   * On the server this is a plain effect (React warns about layout effects there).
+   */
+  useIsomorphicLayoutEffect(() => {
     const update = () => {
       const newCount = resolveColumnCount(window.innerWidth, baseColumns, breakpoints)
       if (newCount !== prevColumnCountRef.current) {
@@ -60,65 +99,84 @@ export function MasonryColumns<T>({
   const columnItems = useMemo(() => {
     const cols: T[][] = Array.from({ length: columnCount }, () => [])
     const heights = new Array(columnCount).fill(0)
-    
-    // We process items in chunks (rows). This is the "Smart Row" approach.
-    // It guarantees that items in Row 1 are always above items in Row 2,
-    // and within a row, they are distributed to balance heights.
-    for (let i = 0; i < items.length; i += columnCount) {
-      const rowItems = items.slice(i, i + columnCount)
-      
-      // For each item in the current "row", pick the shortest column
-      rowItems.forEach((item) => {
-        let minHeight = heights[0]
-        let colIndex = 0
-        for (let j = 1; j < columnCount; j++) {
-          if (heights[j] < minHeight) {
-            minHeight = heights[j]
-            colIndex = j
-          }
-        }
+    const weigh = (item: T) => (getItemWeight ? getItemWeight(item) : 1)
+    const previous = placementRef.current.count === columnCount ? placementRef.current.column : null
+    const next = new Map<string, number>()
+    const fresh: T[] = []
 
-        cols[colIndex].push(item)
-        const weight = getItemWeight ? getItemWeight(item) : 1
-        heights[colIndex] += weight
-      })
+    // Cards already on screen keep their column.
+    for (const item of items) {
+      const key = getKey(item)
+      const col = previous?.get(key)
+      if (col === undefined || col >= columnCount) {
+        fresh.push(item)
+        continue
+      }
+      cols[col].push(item)
+      heights[col] += weigh(item)
+      next.set(key, col)
     }
 
-    // Step 3: Crucial for left-to-right reading flow.
-    // Within each column, items MUST be in their original sorted order.
+    // The rest are dealt in rows of `columnCount`, each to the shortest column, which keeps
+    // a row above the next on a fresh deal and puts a new card where there is room.
+    for (let i = 0; i < fresh.length; i += columnCount) {
+      for (const item of fresh.slice(i, i + columnCount)) {
+        let col = 0
+        for (let j = 1; j < columnCount; j++) if (heights[j] < heights[col]) col = j
+        cols[col].push(item)
+        heights[col] += weigh(item)
+        next.set(getKey(item), col)
+      }
+    }
+
+    // Idempotent under a double render: a second pass finds every key already placed.
+    placementRef.current = { count: columnCount, column: next }
+
+    // Inside a column, cards stay in list order — left to right, top to bottom reading.
     const idToIndex = new Map(items.map((item, idx) => [getKey(item), idx]))
-    
-    return cols.map(col => 
-      [...col].sort((a, b) => (idToIndex.get(getKey(a)) ?? 0) - (idToIndex.get(getKey(b)) ?? 0))
+    return cols.map((col) =>
+      col.sort((a, b) => (idToIndex.get(getKey(a)) ?? 0) - (idToIndex.get(getKey(b)) ?? 0)),
     )
   }, [items, columnCount, getKey, getItemWeight])
 
   return (
     <div className={cn("flex items-start w-full", className)} style={{ gap: `${gap}px` }}>
-      <AnimatePresence mode="popLayout">
-        {columnItems.map((colItems, idx) => (
-          <motion.div
-            layout
-            key={`masonry-col-${idx}`}
-            className="flex flex-col flex-1 min-w-0"
-            style={{ gap: `${gap}px` }}
-          >
-            {colItems.map((item) => (
-              <motion.div 
-                layout 
-                key={getKey(item)} 
+      {columnItems.map((colItems, idx) => (
+        // `relative`: the offset parent a leaving card is pinned to while it fades.
+        <div
+          key={`masonry-col-${idx}`}
+          className="relative flex flex-col flex-1 min-w-0"
+          style={{ gap: `${gap}px` }}
+        >
+          <AnimatePresence mode="popLayout">
+            {colItems.map((item, row) => (
+              <motion.div
+                layout="position"
+                key={getKey(item)}
                 className="w-full"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={MASONRY_ITEM_TRANSITION}
+                /* Opacity only: the card inside rises on its own entrance, and two rises
+                   stacked (8px here, 15px there) read as a jump rather than a settle. */
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, scale: 0.96, transition: TWEEN_EXIT }}
+                transition={{
+                  ...SPRING_STANDARD,
+                  /* Stagger across the grid in reading order, capped at eight steps, on
+                     the first paint only. Uncapped, the ninth card waited 360ms; after the
+                     first paint a new card answers an action and must not wait at all. */
+                  delay: mountedRef.current ? 0 : Math.min(row * columnCount + idx, 8) * ENTRANCE_STAGGER_S,
+                  /* A card moving to close a gap answers something that just happened:
+                     every neighbour moves at once, critically damped so a 300px glide
+                     lands without passing its place. */
+                  layout: SPRING_LAYOUT,
+                }}
               >
                 {renderItem(item)}
               </motion.div>
             ))}
-          </motion.div>
-        ))}
-      </AnimatePresence>
+          </AnimatePresence>
+        </div>
+      ))}
     </div>
   )
 }

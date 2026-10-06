@@ -1,7 +1,7 @@
 "use client"
 
 import { RefObject, useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus, X } from "lucide-react"
 import { Popover, PopoverHeader } from "../popover"
 import { CATEGORY_COLOR_SWATCHES } from "../utils"
 import { ColorPicker } from "../color-picker"
@@ -18,14 +18,18 @@ interface CategoryPopoverProps {
   onChange: (id: string | null) => void
   categories: Category[]
   onCreateCategory: () => Promise<void>
+  /** When provided, each category row exposes a delete control (create panel only). */
+  onDeleteCategory?: (id: string) => void | Promise<void>
   containerRef: RefObject<HTMLElement | null>
   canEdit: boolean
   /** Popover alignment under the trigger. Default "left"; the page sidebar uses "center". */
   align?: "left" | "right" | "center"
+  /** Render in a viewport-fixed body portal (create panel / dashboard) so it can't stretch the page. */
+  portal?: boolean
 }
 
 export function CategoryPopover({
-  open, onClose, value, onChange, categories, onCreateCategory, containerRef, canEdit, align = "left",
+  open, onClose, value, onChange, categories, onCreateCategory, onDeleteCategory, containerRef, canEdit, align = "left", portal,
 }: CategoryPopoverProps) {
   const [creating,  setCreating]  = useState(false)
   const [name,      setName]      = useState("")
@@ -80,7 +84,7 @@ export function CategoryPopover({
   const width = creating ? 360 : 320
 
   return (
-    <Popover open={open} onClose={onClose} width={width} align={align} containerRef={containerRef}>
+    <Popover open={open} onClose={onClose} width={width} align={align} containerRef={containerRef} portal={portal}>
       {creating ? (
         /* ── CREATE PANEL ── */
         <div style={{ padding: "16px 16px 14px" }}>
@@ -91,15 +95,15 @@ export function CategoryPopover({
             justifyContent: "space-between", marginBottom: 14,
           }}>
             <span style={{
-              fontSize: 10, fontWeight: 900, letterSpacing: "0.14em",
-              textTransform: "uppercase", color: "#a3a3a3",
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+              textTransform: "uppercase", color: "var(--pl-ink-muted)",
             }}>
               New category
             </span>
             <div style={{
               display: "flex", alignItems: "center", gap: 6,
-              background: "#fafafa", borderRadius: 100, padding: "5px 11px 5px 6px",
-              border: "1px solid #f0f0f0",
+              background: "var(--pl-paper-sunken)", borderRadius: 100, padding: "5px 11px 5px 6px",
+              border: "1px solid var(--pl-line)",
             }}>
               <div style={{
                 width: 20, height: 20, borderRadius: 5, flexShrink: 0,
@@ -109,7 +113,7 @@ export function CategoryPopover({
                 <NamePreviewIcon size={10} color={color} />
               </div>
               <span style={{
-                fontSize: 11, fontWeight: 800, color: "#262626",
+                fontSize: 12, fontWeight: 700, color: "var(--pl-ink)",
                 maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 {name.trim() || "name"}
@@ -122,21 +126,23 @@ export function CategoryPopover({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Category name"
+            aria-label="Category name"
             maxLength={30}
+            // Focused on purpose: the press on "New category" is the press on this field.
             autoFocus
+            // A boxed field: sunken at rest, paper with an ink edge and a halo while focused.
+            className="field-box border border-line bg-paper-sunken hover:border-line-strong transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
             style={{
-              width: "100%", marginBottom: 14,
-              background: "#fafafa", border: "1px solid #f0f0f0", borderRadius: 12,
-              padding: "11px 14px", fontSize: 13, fontWeight: 700, color: "#262626",
-              outline: "none", boxSizing: "border-box", fontFamily: "inherit",
+              width: "100%", marginBottom: 14, borderRadius: 12,
+              minHeight: 44, padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", boxSizing: "border-box", fontFamily: "inherit",
             }}
           />
 
           {/* Color picker */}
           <div style={{ marginBottom: 14 }}>
             <div style={{
-              fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
-              textTransform: "uppercase", color: "#a3a3a3", marginBottom: 10,
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+              textTransform: "uppercase", color: "var(--pl-ink-muted)", marginBottom: 10,
             }}>
               Color
             </div>
@@ -146,8 +152,8 @@ export function CategoryPopover({
           {/* Icon grid */}
           <div style={{ marginBottom: 16 }}>
             <div style={{
-              fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
-              textTransform: "uppercase", color: "#a3a3a3", marginBottom: 8,
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+              textTransform: "uppercase", color: "var(--pl-ink-muted)", marginBottom: 8,
             }}>
               Icon
             </div>
@@ -163,20 +169,22 @@ export function CategoryPopover({
                     key={iconKey}
                     type="button"
                     onClick={() => setIcon(iconKey)}
+                    aria-label={iconKey}
+                    aria-pressed={isActive}
                     title={iconKey}
                     style={{
                       aspectRatio: "1/1", borderRadius: 10, border: "none", cursor: "pointer",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      background: isActive ? "#0a0a0a" : "#fafafa",
-                      color: isActive ? "white" : "#525252",
+                      background: isActive ? "var(--pl-ink)" : "var(--pl-paper-sunken)",
+                      color: isActive ? "var(--pl-paper)" : "var(--pl-ink-muted)",
                       transition: "background 100ms, color 100ms",
                       padding: 6,
                     }}
                     onMouseEnter={(e) => {
-                      if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "#f0f0f0"
+                      if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-line)"
                     }}
                     onMouseLeave={(e) => {
-                      if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "#fafafa"
+                      if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)"
                     }}
                   >
                     <IconComp size={12} />
@@ -187,7 +195,7 @@ export function CategoryPopover({
           </div>
 
           {error && (
-            <p style={{ fontSize: 11, color: "#ef4444", marginBottom: 8 }}>{error}</p>
+            <p style={{ fontSize: 12, color: "var(--pl-alert)", marginBottom: 8 }}>{error}</p>
           )}
 
           {/* Actions */}
@@ -197,8 +205,8 @@ export function CategoryPopover({
               onClick={cancelCreate}
               style={{
                 flex: 1, padding: "10px 0", borderRadius: 12, border: "none", cursor: "pointer",
-                background: "transparent", fontSize: 12, fontWeight: 900, letterSpacing: "0.04em",
-                textTransform: "uppercase", color: "#525252", fontFamily: "inherit",
+                background: "transparent", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+                textTransform: "uppercase", color: "var(--pl-ink-muted)", fontFamily: "inherit",
               }}
             >
               Cancel
@@ -210,10 +218,10 @@ export function CategoryPopover({
               style={{
                 flex: 2, padding: "10px 0", borderRadius: 12, border: "none",
                 cursor: name.trim() && !saving ? "pointer" : "not-allowed",
-                background: name.trim() && !saving ? "#0a0a0a" : "#e5e5e5",
-                color: name.trim() && !saving ? "white" : "#a3a3a3",
-                fontSize: 11, fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase",
-                boxShadow: name.trim() && !saving ? "0 4px 14px rgba(0,0,0,0.18)" : "none",
+                background: name.trim() && !saving ? "var(--pl-ink)" : "var(--pl-line)",
+                color: name.trim() && !saving ? "var(--pl-paper)" : "var(--pl-ink-subtle)",
+                fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
+                boxShadow: name.trim() && !saving ? "var(--pl-shadow-md)" : "none",
                 transition: "background 120ms, box-shadow 120ms",
                 fontFamily: "inherit",
               }}
@@ -228,7 +236,7 @@ export function CategoryPopover({
           <PopoverHeader
             label="Category"
             sub={
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>
                 {localCats.length} available
               </span>
             }
@@ -242,21 +250,21 @@ export function CategoryPopover({
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 8,
                 padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
-                background: value === null ? "#fafafa" : "transparent", textAlign: "left",
+                background: value === null ? "var(--pl-paper-sunken)" : "transparent", textAlign: "left",
                 transition: "background 100ms",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = value === null ? "#fafafa" : "transparent" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)" }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = value === null ? "var(--pl-paper-sunken)" : "transparent" }}
             >
               <div style={{
                 width: 22, height: 22, borderRadius: 5,
-                border: "1.5px dashed #d4d4d4", flexShrink: 0,
+                border: "1.5px dashed var(--pl-line-strong)", flexShrink: 0,
               }} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: "#a3a3a3", flex: 1 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink-muted)", flex: 1 }}>
                 No category
               </span>
               {value === null && (
-                <span style={{ fontSize: 11, fontWeight: 800, color: "#0a0a0a" }}>✓</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink)" }}>✓</span>
               )}
             </button>
 
@@ -264,42 +272,69 @@ export function CategoryPopover({
               const CatIcon  = cat.icon ? (ICON_MAP[cat.icon] ?? null) : null
               const isActive = value === cat.id
               return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => selectCategory(cat.id)}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: 8,
-                    padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
-                    background: isActive ? "#fafafa" : "transparent", textAlign: "left",
-                    transition: "background 100ms",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isActive ? "#fafafa" : "transparent" }}
-                >
-                  <div style={{
-                    width: 22, height: 22, borderRadius: 5, flexShrink: 0,
-                    background: cat.color ? `${cat.color}20` : "#f0f0f0",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    {CatIcon && <CatIcon size={11} color={cat.color ?? "#525252"} />}
-                  </div>
-                  <span style={{
-                    fontSize: 12, fontWeight: 800, letterSpacing: "-0.01em",
-                    color: "#0a0a0a", flex: 1,
-                  }}>
-                    {cat.name}
-                  </span>
-                  {isActive && (
-                    <span style={{ fontSize: 11, fontWeight: 800, color: "#0a0a0a" }}>✓</span>
+                <div key={cat.id} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={() => selectCategory(cat.id)}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 8,
+                      padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
+                      paddingRight: onDeleteCategory ? 34 : 10,
+                      background: isActive ? "var(--pl-paper-sunken)" : "transparent", textAlign: "left",
+                      transition: "background 100ms",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)" }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isActive ? "var(--pl-paper-sunken)" : "transparent" }}
+                  >
+                    <div style={{
+                      width: 22, height: 22, borderRadius: 5, flexShrink: 0,
+                      background: cat.color ? `${cat.color}20` : "var(--pl-line)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {CatIcon && <CatIcon size={11} color={cat.color ?? "var(--pl-ink-muted)"} />}
+                    </div>
+                    <span style={{
+                      fontSize: 12, fontWeight: 700, letterSpacing: "-0.01em",
+                      color: "var(--pl-ink)", flex: 1,
+                    }}>
+                      {cat.name}
+                    </span>
+                    {isActive && (
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink)" }}>✓</span>
+                    )}
+                  </button>
+                  {/* Sibling (not nested) delete control — a button inside a button is invalid HTML. */}
+                  {onDeleteCategory && (
+                    <button
+                      type="button"
+                      aria-label={`Delete ${cat.name}`}
+                      onClick={(e) => { e.stopPropagation(); void onDeleteCategory(cat.id) }}
+                      style={{
+                        position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                        width: 22, height: 22, borderRadius: 7, border: "none", cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "transparent", color: "var(--pl-ink-subtle)",
+                        transition: "background 100ms, color 100ms",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-alert-surface)"
+                        ;(e.currentTarget as HTMLButtonElement).style.color = "var(--pl-alert)"
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.background = "transparent"
+                        ;(e.currentTarget as HTMLButtonElement).style.color = "var(--pl-line-strong)"
+                      }}
+                    >
+                      <X size={11} strokeWidth={2.5} />
+                    </button>
                   )}
-                </button>
+                </div>
               )
             })}
           </div>
 
           {canEdit && (
-            <div style={{ borderTop: "1px solid #f0f0f0", padding: 6 }}>
+            <div style={{ borderTop: "1px solid var(--pl-line)", padding: 6 }}>
               <button
                 type="button"
                 onClick={() => setCreating(true)}
@@ -308,16 +343,16 @@ export function CategoryPopover({
                   padding: "8px 10px", borderRadius: 10, border: "none", cursor: "pointer",
                   background: "transparent", textAlign: "left", transition: "background 100ms",
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
               >
                 <div style={{
-                  width: 22, height: 22, borderRadius: 5, background: "#eef2ff", flexShrink: 0,
+                  width: 22, height: 22, borderRadius: 5, background: "var(--pl-accent-surface)", flexShrink: 0,
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  <Plus size={12} color="#4f46e5" />
+                  <Plus size={12} color="var(--pl-accent)" />
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "#4f46e5" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-accent)" }}>
                   Create new category
                 </span>
               </button>

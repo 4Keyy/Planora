@@ -59,6 +59,37 @@ public sealed class NotificationStore : INotificationStore
             throw;
         }
     }
+
+    public async Task<int> DeleteByTaskIdAsync(Guid taskId, CancellationToken cancellationToken = default)
+    {
+        if (taskId == Guid.Empty)
+            return 0; // Guid.Empty means "not task-scoped" — never mass-delete non-scoped notifications.
+
+        // Delivery rows have no FK/cascade to the notification, so remove them first by joining on the
+        // set of notification ids for this task, then remove the notifications themselves.
+        var noteIds = _db.Notifications.IgnoreQueryFilters().Where(n => n.TaskId == taskId).Select(n => n.Id);
+        await _db.NotificationDeliveries
+            .Where(d => noteIds.Contains(d.NotificationId))
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return await _db.Notifications.IgnoreQueryFilters()
+            .Where(n => n.TaskId == taskId)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
+    public async Task<int> DeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+            return 0;
+
+        await _db.NotificationDeliveries
+            .Where(d => d.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return await _db.Notifications.IgnoreQueryFilters()
+            .Where(n => n.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
 }
 
 /// <summary>
@@ -71,4 +102,10 @@ public sealed class NullNotificationStore : INotificationStore
 {
     public Task<bool> TryAddAsync(Notification notification, CancellationToken cancellationToken = default)
         => Task.FromResult(true);
+
+    public Task<int> DeleteByTaskIdAsync(Guid taskId, CancellationToken cancellationToken = default)
+        => Task.FromResult(0);
+
+    public Task<int> DeleteByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+        => Task.FromResult(0);
 }

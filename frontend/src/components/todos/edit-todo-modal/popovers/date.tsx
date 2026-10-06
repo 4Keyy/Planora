@@ -3,8 +3,9 @@
 import { RefObject, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { SPRING_STANDARD, TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
 import { Popover, PopoverHeader } from "../popover"
-import { RU_MONTHS_LONG, RU_DAYS_SHORT, computeNextDueRange, type DueRange } from "../utils"
+import { EN_MONTHS_LONG, EN_DAYS_SHORT, computeNextDueRange, type DueRange } from "../utils"
 
 interface DatePopoverProps {
   open: boolean
@@ -17,7 +18,17 @@ interface DatePopoverProps {
   containerRef: RefObject<HTMLElement | null>
   /** When true the date options are shown muted and non-interactive (non-owner viewer). */
   readOnly?: boolean
+  /** Render in a viewport-fixed body portal (create panel / dashboard) so it can't stretch the page. */
+  portal?: boolean
 }
+
+/**
+ * Gap between day cells, in px. The interval band bridges this gap with a negative
+ * inset so a multi-day range reads as one continuous bar — the two numbers MUST move
+ * together. Keeping them as separate literals is how a 1px change leaves hairline
+ * notches in the band that nobody notices until a screenshot is compared.
+ */
+const CELL_GAP = 2
 
 function pad(n: number): string { return String(n).padStart(2, "0") }
 function toISO(d: Date): string { return d.toISOString().split("T")[0] }
@@ -30,9 +41,9 @@ function addDays(base: string | null, n: number): string {
 
 function todayISO(): string { return toISO(new Date()) }
 
-export function DatePopover({ open, onClose, start, end, onChange, containerRef, readOnly }: DatePopoverProps) {
+export function DatePopover({ open, onClose, start, end, onChange, containerRef, readOnly, portal }: DatePopoverProps) {
   return (
-    <Popover open={open} onClose={onClose} width={332} containerRef={containerRef}>
+    <Popover open={open} onClose={onClose} width={364} containerRef={containerRef} portal={portal}>
       <DateCalendar start={start} end={end} onChange={onChange} readOnly={readOnly} autoClose={onClose} />
     </Popover>
   )
@@ -130,7 +141,10 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
     ...Array(startOffset).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
-  while (cells.length % 7 !== 0) cells.push(null)
+  // Always six weeks. A 5-week month after a 6-week one changed the grid by a row (44px) in
+  // one frame, so the hint and buttons below, and the popover's own edge, jumped while the
+  // days were still sliding. Six rows of 44px never change height.
+  while (cells.length < 42) cells.push(null)
 
   // The live preview interval: only while a single date is set and another day is hovered.
   const previewing = !!endN && !startN && !!hoverDay && hoverDay !== endN && !readOnly
@@ -140,13 +154,16 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
   const clearAction = (startN || endN) && !readOnly ? (
     <button
       onClick={() => commit({ start: null, end: null })}
+      className="touch-target"
       style={{
         background: "none", border: "none", cursor: "pointer",
-        fontSize: 10, fontWeight: 800, letterSpacing: "0.1em",
-        textTransform: "uppercase", color: "#525252", padding: 0,
+        display: "inline-flex", alignItems: "center", minHeight: 36, padding: "0 8px",
+        borderRadius: 8,
+        fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+        textTransform: "uppercase", color: "var(--pl-ink-muted)",
       }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#0a0a0a" }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#525252" }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink)" }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)" }}
     >
       CLEAR
     </button>
@@ -160,7 +177,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
       {/* Quick picks — owner only, suppressed entirely in the always-open sidebar. */}
       {!readOnly && !hideQuickPicks && (
         <div style={{
-          padding: "10px 12px", borderBottom: "1px solid #f5f5f5",
+          padding: "10px 12px", borderBottom: "1px solid var(--pl-gray-100)",
           display: "flex", gap: 4, flexWrap: "wrap",
         }}>
           {quickPicks.map((q) => {
@@ -171,9 +188,9 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                 onClick={() => pickQuick(q.iso)}
                 style={{
                   padding: "6px 10px", borderRadius: 100, border: "none", cursor: "pointer",
-                  fontSize: 11, fontWeight: 800, letterSpacing: "-0.01em",
-                  background: isActive ? "#0a0a0a" : "#fafafa",
-                  color: isActive ? "white" : "#0a0a0a",
+                  fontSize: 12, fontWeight: 700, letterSpacing: "-0.01em",
+                  background: isActive ? "var(--pl-ink)" : "var(--pl-paper-sunken)",
+                  color: isActive ? "var(--pl-paper)" : "var(--pl-ink)",
                   transition: "background 120ms, color 120ms",
                 }}
               >
@@ -184,20 +201,32 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
         </div>
       )}
 
-      {/* Calendar */}
-      <div style={{ padding: 10, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
-        <div style={{ background: "white", border: "1px solid #f0f0f0", borderRadius: 12, padding: 12 }}>
+      {/* Calendar.
+          The headless variant is hosted by the branch sidebar, which already draws the
+          border and the radius. Repeating them here produced a frame inside a frame and,
+          worse, consumed 22px of the 7-column grid — enough to push every day cell under
+          the 44px target. Headless therefore contributes padding only. */}
+      <div style={{ padding: headless ? 0 : 10, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
+        <div
+          style={{
+            background: "var(--pl-paper)",
+            border: headless ? "none" : "1px solid var(--pl-line)",
+            borderRadius: headless ? 0 : 12,
+            padding: 12,
+          }}
+        >
           {/* Nav row */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <button
               onClick={() => goMonth(-1)}
               aria-label="Previous month"
+              className="touch-target"
               style={{
-                width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
-                background: "#fafafa", border: "none", borderRadius: 8, cursor: "pointer",
+                width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+                background: "var(--pl-paper-sunken)", border: "none", borderRadius: 8, cursor: "pointer",
               }}
             >
-              <ChevronLeft size={13} color="#525252" />
+              <ChevronLeft size={13} color="var(--pl-ink-muted)" />
             </button>
             <div style={{ position: "relative", overflow: "hidden", height: 18, flex: 1, textAlign: "center" }}>
               <AnimatePresence initial={false} mode="popLayout" custom={navDir}>
@@ -207,41 +236,44 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                   initial={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * 14 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * -14 }}
-                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  transition={TWEEN_UI}
                   style={{
                     position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 12, fontWeight: 800, color: "#0a0a0a",
+                    fontSize: 12, fontWeight: 700, color: "var(--pl-ink)",
                   }}
                 >
-                  {RU_MONTHS_LONG[viewMonth]} {viewYear}
+                  {EN_MONTHS_LONG[viewMonth]} {viewYear}
                 </motion.span>
               </AnimatePresence>
             </div>
             <button
               onClick={() => goMonth(1)}
               aria-label="Next month"
+              className="touch-target"
               style={{
-                width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
-                background: "#fafafa", border: "none", borderRadius: 8, cursor: "pointer",
+                width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+                background: "var(--pl-paper-sunken)", border: "none", borderRadius: 8, cursor: "pointer",
               }}
             >
-              <ChevronRight size={13} color="#525252" />
+              <ChevronRight size={13} color="var(--pl-ink-muted)" />
             </button>
           </div>
 
           {/* Week header */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
-            {RU_DAYS_SHORT.map((d) => (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: CELL_GAP, marginBottom: 4 }}>
+            {EN_DAYS_SHORT.map((d) => (
               <div key={d} style={{
-                textAlign: "center", fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
-                textTransform: "uppercase", color: "#d4d4d4", padding: "2px 0",
+                textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+                textTransform: "uppercase", color: "var(--pl-ink-muted)", padding: "2px 0",
               }}>
                 {d}
               </div>
             ))}
           </div>
 
-          {/* Day grid — keyed on the month so it cross-fades/slides on navigation. */}
+          {/* Day grid — keyed on the month so it cross-fades/slides on navigation. The
+              relative wrapper is the leaving grid's offset parent while it slides out. */}
+          <div style={{ position: "relative" }}>
           <AnimatePresence initial={false} mode="popLayout" custom={navDir}>
             <motion.div
               key={`${viewYear}-${viewMonth}`}
@@ -249,9 +281,9 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
               initial={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * 18 }}
               animate={{ opacity: 1, x: 0 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * -18 }}
-              transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+              transition={TWEEN_UI}
               onMouseLeave={() => setHoverDay(null)}
-              style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}
+              style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: 44, gap: CELL_GAP }}
             >
               {cells.map((day, idx) => {
                 if (!day) return <div key={`e-${idx}`} />
@@ -286,28 +318,28 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                     aria-label={iso}
                     aria-pressed={isCap || undefined}
                     style={{
-                      position: "relative", height: 32, border: "none", background: "transparent",
+                      position: "relative", height: 44, border: "none", background: "transparent",
                       cursor: "pointer", padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}
                   >
-                    {/* Interval band layer — bridges the 2px grid gap so it reads as continuous. */}
+                    {/* Interval band layer — bridges CELL_GAP so a range reads as one bar. */}
                     {inBand && (
                       <motion.span
                         aria-hidden
                         initial={reduce ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.18, ease: "easeOut" }}
+                        transition={TWEEN_FAST}
                         style={{
                           position: "absolute", top: 3, bottom: 3,
-                          left:  roundLeft  ? 2 : -2,
-                          right: roundRight ? 2 : -2,
+                          left:  roundLeft  ? CELL_GAP : -CELL_GAP,
+                          right: roundRight ? CELL_GAP : -CELL_GAP,
                           borderTopLeftRadius:    roundLeft  ? 8 : 0,
                           borderBottomLeftRadius: roundLeft  ? 8 : 0,
                           borderTopRightRadius:    roundRight ? 8 : 0,
                           borderBottomRightRadius: roundRight ? 8 : 0,
-                          background: inSolid ? "#f1f1f4" : "rgba(82,82,82,0.10)",
-                          border: inPreview && !inSolid ? "1px dashed rgba(82,82,82,0.40)" : "none",
+                          background: inSolid ? "var(--pl-gray-100)" : "color-mix(in srgb, var(--pl-ink-muted) 10%, transparent)",
+                          border: inPreview && !inSolid ? "1px dashed color-mix(in srgb, var(--pl-ink-muted) 40%, transparent)" : "none",
                           borderLeft:  inPreview && !inSolid && !roundLeft  ? "none" : undefined,
                           borderRight: inPreview && !inSolid && !roundRight ? "none" : undefined,
                         }}
@@ -318,7 +350,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                     {isToday && !isCap && (
                       <span aria-hidden style={{
                         position: "absolute", inset: 3, borderRadius: 8,
-                        background: inBand ? "transparent" : "#f5f5f5",
+                        background: inBand ? "transparent" : "var(--pl-gray-100)",
                       }} />
                     )}
 
@@ -329,10 +361,10 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                         layout
                         initial={reduce ? false : { scale: 0.7, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: "spring", stiffness: 520, damping: 30 }}
+                        transition={SPRING_STANDARD}
                         style={{
-                          position: "absolute", inset: 2, borderRadius: 8, background: "#0a0a0a",
-                          boxShadow: "0 2px 6px rgba(10,10,10,0.22)",
+                          position: "absolute", inset: 2, borderRadius: 8, background: "var(--pl-ink)",
+                          boxShadow: "var(--pl-shadow-md)",
                         }}
                       />
                     )}
@@ -341,16 +373,16 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                     {isPreviewCap && !isCap && (
                       <span aria-hidden style={{
                         position: "absolute", inset: 2, borderRadius: 8,
-                        border: "1.5px solid rgba(82,82,82,0.55)",
-                        background: "rgba(82,82,82,0.06)",
+                        border: "1px solid var(--pl-line-strong)",
+                        background: "var(--pl-paper-sunken)",
                       }} />
                     )}
 
                     <span style={{
                       position: "relative", zIndex: 1,
                       fontSize: 12,
-                      fontWeight: isCap || isToday ? 800 : 500,
-                      color: isCap ? "white" : (inSolid || isPreviewCap) ? "#404040" : "#262626",
+                      fontWeight: isCap || isToday ? 700 : 500,
+                      color: isCap ? "var(--pl-paper)" : (inSolid || isPreviewCap) ? "var(--pl-ink-muted)" : "var(--pl-ink)",
                       transition: "color 120ms",
                     }}>
                       {day}
@@ -360,12 +392,13 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
               })}
             </motion.div>
           </AnimatePresence>
+          </div>
 
           {/* Hint line — explains the second click turns the date into an interval. */}
           {!readOnly && (
             <div style={{
-              marginTop: 8, paddingTop: 8, borderTop: "1px solid #f5f5f5",
-              fontSize: 10, fontWeight: 600, letterSpacing: "0.01em", color: "#a3a3a3", textAlign: "center",
+              marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--pl-gray-100)",
+              fontSize: 12, fontWeight: 600, letterSpacing: "0.01em", color: "var(--pl-ink-muted)", textAlign: "center",
             }}>
               {hasRange
                 ? "Click any day to start a new date"
