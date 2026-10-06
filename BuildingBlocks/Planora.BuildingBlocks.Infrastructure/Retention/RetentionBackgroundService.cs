@@ -125,7 +125,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
 
         /// <summary>
         /// Delay from <paramref name="utcNow"/> until the next pass: the first slot strictly after now on the
-        /// grid that starts at today's <paramref name="runAtHourUtc"/> and steps every
+        /// continuous UTC grid anchored at the Unix epoch's <paramref name="runAtHourUtc"/> and stepping every
         /// <paramref name="everyHours"/> (clamped to 1–24). With 24 that is "the next <paramref name="runAtHourUtc"/>".
         /// Pure and static so the scheduling maths is unit-testable without a clock abstraction.
         /// </summary>
@@ -133,10 +133,14 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         {
             var hour = Math.Clamp(runAtHourUtc, 0, 23);
             var step = TimeSpan.FromHours(Math.Clamp(everyHours, 1, 24));
-            var anchor = new DateTime(utcNow.Year, utcNow.Month, utcNow.Day, hour, 0, 0, DateTimeKind.Utc);
-            var slotsElapsed = Math.Floor((utcNow - anchor) / step);
-            var nextRun = anchor + step * (slotsElapsed + 1);
-            return nextRun - utcNow;
+            // A daily anchor shortens intervals that do not divide 24 at midnight (e.g. 7h becomes 3h).
+            // An epoch anchor keeps the same grid across dates and across service replicas/restarts.
+            var anchor = DateTime.UnixEpoch.AddHours(hour);
+            var ticksSinceSlot = (utcNow - anchor).Ticks % step.Ticks;
+            if (ticksSinceSlot < 0)
+                ticksSinceSlot += step.Ticks;
+
+            return TimeSpan.FromTicks(step.Ticks - ticksSinceSlot);
         }
     }
 }

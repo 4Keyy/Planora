@@ -37,8 +37,8 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
 
         /// <summary>
         /// UTC hour of day (0–23) the schedule is anchored on: with <see cref="RunEveryHours"/> = 24 the
-        /// single daily pass fires at this hour (an off-peak window); with a shorter interval the passes
-        /// fall on this hour and every interval from it.
+        /// single daily pass fires at this hour (an off-peak window). The continuous grid starts at this
+        /// hour on 1970-01-01 UTC; intervals that do not divide 24 keep their spacing across midnight.
         /// </summary>
         public int RunAtHourUtc { get; set; } = 3;
 
@@ -60,7 +60,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         public int MaxDeletionsPerRun { get; set; } = 50_000;
 
         /// <summary>
-        /// Run a catch-up pass shortly after startup (in addition to the daily schedule), so data that is
+        /// Run a catch-up pass shortly after startup (in addition to the interval schedule), so data that is
         /// already past its window is cleaned on <b>every launch</b> rather than waiting for the next
         /// <see cref="RunAtHourUtc"/>.
         /// </summary>
@@ -85,7 +85,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         /// <summary>V7: days a delivery record survives after <c>DeliveredAtUtc</c>.</summary>
         public int NotificationDeliveryDays { get; set; } = 30;
 
-        /// <summary>V4: days a processed/dead-lettered outbox message survives after <c>ProcessedOnUtc</c>.</summary>
+        /// <summary>V4: days a processed outbox message survives after <c>ProcessedOnUtc</c>; failed/dead-lettered rows are kept.</summary>
         public int OutboxProcessedDays { get; set; } = 7;
 
         /// <summary>V5: days a processed inbox (idempotency) message survives after <c>ProcessedOnUtc</c>.</summary>

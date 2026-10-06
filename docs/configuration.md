@@ -381,7 +381,15 @@ batched deletes.
 
 It used to ship disabled and in dry-run. An older `.env` copied from that `.env.example` still says
 `Retention__Enabled=false` and `Retention__DryRun=true`, and with those two lines nothing is ever deleted:
-change them or remove them.
+keep those overrides when intentional; change or remove them to enable live cleanup. Docker Compose
+forwards every retention setting below through a shared environment mapping to Auth, Category, Todo,
+Collaboration, Realtime and Messaging. Values from the selected `.env` / `--env-file` are respected;
+unset or empty values use the same defaults as `RetentionOptions`.
+
+Scheduled passes use a continuous UTC grid starting at `1970-01-01` at `RunAtHourUtc`, with
+`RunEveryHours` between slots. The grid does not reset at midnight: for example, a 7-hour interval stays
+7 hours across date changes, while 6 hours gives 03:00 / 09:00 / 15:00 / 21:00 UTC with the default anchor.
+The startup catch-up pass is additional and does not move this grid.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -401,6 +409,13 @@ change them or remove them.
 | `Retention__OutboxProcessedDays` | `7` | Days a processed outbox message survives. |
 | `Retention__InboxProcessedDays` | `7` | Days a processed inbox message survives. |
 | `Retention__ExpiredRefreshTokenDays` | `30` | Grace past a refresh token's expiry before purge. |
+| `Retention__PurgeSoftDeleted` | `true` | Purge soft-deleted Todo, Category and Collaboration rows after the grace window. |
+| `Retention__PurgeCompletedTasks` | `true` | Auto-delete expired completed tasks and hide expired viewer-only completions. |
+| `Retention__PurgeReadNotifications` | `true` | Purge read notifications after their retention window. |
+| `Retention__PurgeUnreadNotifications` | `true` | Purge old unread notifications after their retention window. |
+| `Retention__PurgeNotificationDeliveries` | `true` | Purge old notification-delivery audit rows. |
+| `Retention__PurgeOutboxInbox` | `true` | Purge processed outbox and inbox messages; keep failed/dead-lettered rows for investigation and replay. |
+| `Retention__PurgeExpiredRefreshTokens` | `true` | Purge expired refresh tokens after their grace window. |
 | `Retention__PurgeLoginHistory` | `false` | Opt-in: enable login-history purge (forensics). |
 | `Retention__LoginHistoryDays` | `180` | Login-history retention when enabled. |
 | `Retention__PurgeAuditLogs` | `false` | Opt-in: enable audit-log purge (forensics). |
@@ -413,9 +428,8 @@ change them or remove them.
 | `Retention__PurgeMessages` | `false` | Opt-in: purge old messages (user content — a product decision). |
 | `Retention__MessageDays` | `365` | Age (by `CreatedAt`) at which messages are purged when enabled. |
 
-Each content vector also has its own `Retention__Purge*` toggle (e.g. `PurgeSoftDeleted`,
-`PurgeCompletedTasks`, `PurgeReadNotifications`, `PurgeOutboxInbox`, `PurgeExpiredRefreshTokens`), all
-defaulting to true so the master switch enables them together.
+Each cleanup vector has its own `Retention__Purge*` toggle, listed above. The master switch must be on
+before any enabled vector can run.
 
 **Rehearsing a change:** to retune a window or switch on an opt-in vector, set `Retention__DryRun=true`,
 read the `Retention[...]` "would delete N" logs and the `planora.retention.*` metrics, then set it back to

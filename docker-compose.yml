@@ -1,3 +1,40 @@
+# Keep operator overrides identical across every service that owns retention policies.
+x-retention-environment: &retention-environment
+  Retention__Enabled: "${Retention__Enabled:-true}"
+  Retention__DryRun: "${Retention__DryRun:-false}"
+  Retention__RunAtHourUtc: "${Retention__RunAtHourUtc:-3}"
+  Retention__RunEveryHours: "${Retention__RunEveryHours:-1}"
+  Retention__RunOnStartup: "${Retention__RunOnStartup:-true}"
+  Retention__StartupDelaySeconds: "${Retention__StartupDelaySeconds:-60}"
+  Retention__BatchSize: "${Retention__BatchSize:-1000}"
+  Retention__MaxDeletionsPerRun: "${Retention__MaxDeletionsPerRun:-50000}"
+  Retention__SoftDeleteGraceDays: "${Retention__SoftDeleteGraceDays:-7}"
+  Retention__CompletedTaskDays: "${Retention__CompletedTaskDays:-30}"
+  Retention__ReadNotificationDays: "${Retention__ReadNotificationDays:-3}"
+  Retention__UnreadNotificationDays: "${Retention__UnreadNotificationDays:-90}"
+  Retention__NotificationDeliveryDays: "${Retention__NotificationDeliveryDays:-30}"
+  Retention__OutboxProcessedDays: "${Retention__OutboxProcessedDays:-7}"
+  Retention__InboxProcessedDays: "${Retention__InboxProcessedDays:-7}"
+  Retention__ExpiredRefreshTokenDays: "${Retention__ExpiredRefreshTokenDays:-30}"
+  Retention__LoginHistoryDays: "${Retention__LoginHistoryDays:-180}"
+  Retention__AuditLogDays: "${Retention__AuditLogDays:-365}"
+  Retention__FriendshipTerminalDays: "${Retention__FriendshipTerminalDays:-90}"
+  Retention__RecoveryCodeUsedDays: "${Retention__RecoveryCodeUsedDays:-30}"
+  Retention__MessageDays: "${Retention__MessageDays:-365}"
+  Retention__PurgeSoftDeleted: "${Retention__PurgeSoftDeleted:-true}"
+  Retention__PurgeCompletedTasks: "${Retention__PurgeCompletedTasks:-true}"
+  Retention__PurgeReadNotifications: "${Retention__PurgeReadNotifications:-true}"
+  Retention__PurgeUnreadNotifications: "${Retention__PurgeUnreadNotifications:-true}"
+  Retention__PurgeNotificationDeliveries: "${Retention__PurgeNotificationDeliveries:-true}"
+  Retention__PurgeOutboxInbox: "${Retention__PurgeOutboxInbox:-true}"
+  Retention__PurgeExpiredRefreshTokens: "${Retention__PurgeExpiredRefreshTokens:-true}"
+  Retention__PurgeUsedRecoveryCodes: "${Retention__PurgeUsedRecoveryCodes:-true}"
+  Retention__PurgeDeletedUsers: "${Retention__PurgeDeletedUsers:-true}"
+  Retention__PurgeLoginHistory: "${Retention__PurgeLoginHistory:-false}"
+  Retention__PurgeAuditLogs: "${Retention__PurgeAuditLogs:-false}"
+  Retention__PurgeFriendships: "${Retention__PurgeFriendships:-false}"
+  Retention__PurgeMessages: "${Retention__PurgeMessages:-false}"
+
 services:
   # PostgreSQL Database
   postgres:
@@ -156,6 +193,7 @@ services:
     ports:
       - "127.0.0.1:5031:80"
     environment:
+      <<: *retention-environment
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
       ConnectionStrings__AuthDatabase: "Host=postgres;Port=5432;Database=planora_auth_db;Username=postgres;Password=${POSTGRES_PASSWORD};Maximum Pool Size=10;Connection Idle Lifetime=60;"
@@ -195,6 +233,7 @@ services:
       - "127.0.0.1:5281:80"
       - "127.0.0.1:5282:81"
     environment:
+      <<: *retention-environment
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80;http://+:81"
       ConnectionStrings__CategoryDatabase: "Host=postgres;Port=5432;Database=planora_category;Username=postgres;Password=${POSTGRES_PASSWORD};Maximum Pool Size=10;Connection Idle Lifetime=60;"
@@ -234,6 +273,7 @@ services:
       - "127.0.0.1:5100:80"
       - "127.0.0.1:5101:81"
     environment:
+      <<: *retention-environment
       ASPNETCORE_ENVIRONMENT: Docker
       # Dual endpoint: :80 REST + :81 gRPC (CheckTaskCommentAccess consumed by Collaboration).
       ASPNETCORE_URLS: "http://+:80;http://+:81"
@@ -277,6 +317,7 @@ services:
     ports:
       - "127.0.0.1:5060:80"
     environment:
+      <<: *retention-environment
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
       ConnectionStrings__CollaborationDatabase: "Host=postgres;Port=5432;Database=planora_collaboration;Username=postgres;Password=${POSTGRES_PASSWORD};Maximum Pool Size=10;Connection Idle Lifetime=60;"
@@ -319,6 +360,7 @@ services:
     ports:
       - "127.0.0.1:5032:80"
     environment:
+      <<: *retention-environment
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
       # T2.5 — durable Notification + NotificationDelivery + Outbox log. The schema lives in
@@ -362,6 +404,7 @@ services:
     ports:
       - "127.0.0.1:5058:80"
     environment:
+      <<: *retention-environment
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
       ConnectionStrings__MessagingDatabase: "Host=postgres;Port=5432;Database=planora_messaging;Username=postgres;Password=${POSTGRES_PASSWORD};Maximum Pool Size=10;Connection Idle Lifetime=60;"

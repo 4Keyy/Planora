@@ -546,9 +546,10 @@ removal). Design decisions (ADR):
   `BuildingBlocks.Infrastructure.Retention`) runs inside every service and purges only its own tables — a
   central cleaner cannot reach another service's DB without breaking the ownership boundary.
 - **Modelled on `OutboxProcessor`.** A `BackgroundService` that opens a fresh DI scope per policy, on an
-  hourly schedule anchored at `RunAtHourUtc` (`RunEveryHours`, default 1; 24 gives one off-peak pass a
-  day) plus a catch-up pass shortly after every start, instead of a poll loop. It was once a day; the
-  archive's "deletes today" could then be a day early.
+  continuous UTC grid from `1970-01-01` at `RunAtHourUtc` (`RunEveryHours`, default 1; 24 gives one
+  off-peak pass a day) plus a catch-up pass shortly after every start, instead of a poll loop. The grid
+  stays identical across replicas/restarts and does not shorten intervals that do not divide 24 at
+  midnight. It was once a day; the archive's "deletes today" could then be a day early.
 - **Safety by construction (`RetentionExecutor`).** Every pass takes a Postgres session-level advisory lock
   (the single-instance guard — there is no other leader election), aborts via a tripwire if more than
   `MaxDeletionsPerRun` rows are eligible, supports a dry-run mode, and deletes in batches. `planora.retention.*`
@@ -568,6 +569,8 @@ removal). Design decisions (ADR):
 
 **Runs by default** (`Enabled=true`, `DryRun=false`). It used to ship disabled and in dry-run, waiting for
 an operator rollout no environment ever had: until October 2026 every service logged "scheduler idle" and
-nothing past its window was ever deleted. The forensics vectors (login history, audit log) and the
+nothing past its window was ever deleted. Docker Compose forwards all `Retention__*` switches and
+windows through a shared environment mapping to all six services; explicit disable/dry-run overrides
+take precedence over these defaults. The forensics vectors (login history, audit log) and the
 user-content vectors (friendships, messages) stay opt-in. Every policy is exercised live on PostgreSQL by
 `tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres` (CI runs them against a service container).

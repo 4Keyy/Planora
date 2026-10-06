@@ -3,7 +3,7 @@ using Planora.BuildingBlocks.Infrastructure.Retention;
 namespace Planora.UnitTests.BuildingBlocks.Retention;
 
 /// <summary>
-/// Unit coverage for the subtle, DB-free correctness points of the retention harness: the daily
+/// Unit coverage for the subtle, DB-free correctness points of the retention harness: the interval
 /// scheduling maths, the cross-process-stable advisory-lock key and the defaults. The full
 /// <c>RetentionExecutor.RunAsync</c> path (advisory lock + tripwire + batched ExecuteDelete) is
 /// Postgres-only and is exercised live by the suites in <c>Postgres/</c> (set <c>PLANORA_TEST_POSTGRES</c>).
@@ -89,6 +89,65 @@ public sealed class RetentionFoundationTests
         var delay = RetentionBackgroundService.ComputeDelayToNextRun(now, runAtHourUtc: 3, everyHours: 6);
 
         Assert.Equal(TimeSpan.FromHours(expectedHours), delay);
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    [Trait("TestType", "Regression")]
+    public void ComputeDelayToNextRun_EverySevenHours_DoesNotResetAtMidnight()
+    {
+        var beforeMidnight = new DateTime(1970, 1, 1, 17, 0, 0, DateTimeKind.Utc);
+        var midnight = beforeMidnight + RetentionBackgroundService.ComputeDelayToNextRun(
+            beforeMidnight, runAtHourUtc: 3, everyHours: 7);
+
+        Assert.Equal(new DateTime(1970, 1, 2, 0, 0, 0, DateTimeKind.Utc), midnight);
+        Assert.Equal(TimeSpan.FromHours(7), RetentionBackgroundService.ComputeDelayToNextRun(
+            midnight, runAtHourUtc: 3, everyHours: 7));
+    }
+
+    public static IEnumerable<object[]> ScheduleIntervals =>
+        Enumerable.Range(1, 24).Select(hours => new object[] { hours });
+
+    [Theory]
+    [Trait("TestType", "Unit")]
+    [MemberData(nameof(ScheduleIntervals))]
+    public void ComputeDelayToNextRun_AllIntervals_StayEvenAcrossDateChanges(int everyHours)
+    {
+        var now = new DateTime(2026, 12, 31, 23, 42, 13, DateTimeKind.Utc);
+        var firstDelay = RetentionBackgroundService.ComputeDelayToNextRun(now, 3, everyHours);
+        Assert.True(firstDelay > TimeSpan.Zero && firstDelay <= TimeSpan.FromHours(everyHours));
+        var nextRun = now + firstDelay;
+
+        for (var slot = 0; slot < 48; slot++)
+        {
+            var delay = RetentionBackgroundService.ComputeDelayToNextRun(nextRun, 3, everyHours);
+            Assert.Equal(TimeSpan.FromHours(everyHours), delay);
+            nextRun += delay;
+        }
+    }
+
+    [Theory]
+    [Trait("TestType", "Unit")]
+    [InlineData(0, 1)]
+    [InlineData(-10, 1)]
+    [InlineData(25, 24)]
+    [InlineData(99, 24)]
+    public void ComputeDelayToNextRun_ClampsTheInterval(int everyHours, int expectedHours)
+    {
+        var now = new DateTime(2026, 10, 6, 3, 0, 0, DateTimeKind.Utc);
+
+        Assert.Equal(TimeSpan.FromHours(expectedHours),
+            RetentionBackgroundService.ComputeDelayToNextRun(now, 3, everyHours));
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    public void ComputeDelayToNextRun_BeforeUnixEpoch_StillFindsTheNextSlot()
+    {
+        var now = new DateTime(1969, 12, 31, 22, 30, 0, DateTimeKind.Utc);
+
+        Assert.Equal(TimeSpan.FromMinutes(270),
+            RetentionBackgroundService.ComputeDelayToNextRun(now, 3, everyHours: 7));
     }
 
     // ── Advisory-lock key ─────────────────────────────────────────────────────────────────────
