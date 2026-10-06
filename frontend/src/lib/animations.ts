@@ -23,6 +23,11 @@ import { tokens } from "@/lib/design-tokens"
  * `MotionConfig reducedMotion="user"` at the app root already honours
  * `prefers-reduced-motion` for everything here, so no component needs its own
  * `useReducedMotion()` guard.
+ *
+ * Floating surfaces — dropdowns, popovers, menus, dialogs — are not animated from here.
+ * They enter and leave with CSS (`.dropdown-surface`, `.dialog-surface` in globals.css),
+ * kept mounted by `hooks/use-exit-presence.ts`: framer's hand-off from the Web Animations
+ * API ended every one of them with a one-frame blink. Their presets used to live here.
  */
 
 const { duration, ease, spring } = tokens.motion
@@ -79,9 +84,6 @@ export const TWEEN_FAST = { duration: DURATION_FAST, ease: EASE_OUT_EXPO } as co
 /** Page-level entrances and large layout changes. */
 export const TWEEN_DELIBERATE = { duration: DURATION_SLOW, ease: EASE_OUT_EXPO } as const
 
-/** A backdrop fades on the same beat as the surface it sits behind. */
-export const TWEEN_BACKDROP = { duration: DURATION_UI, ease: EASE_OUT_EXPO } as const
-
 /** Things leaving accelerate away rather than easing out. */
 export const TWEEN_EXIT = { duration: DURATION_FAST, ease: EASE_EXIT } as const
 
@@ -99,13 +101,6 @@ export const VARIANTS_MODAL = {
   hidden: { opacity: 0, scale: 0.95, y: 16 },
   visible: { opacity: 1, scale: 1, y: 0 },
   exit: { opacity: 0, scale: 0.95, y: 16 },
-} as const
-
-/** Dropdown and popover. Pair with TWEEN_FAST. */
-export const VARIANTS_DROPDOWN = {
-  hidden: { opacity: 0, y: -4, scale: 0.97 },
-  visible: { opacity: 1, y: 0, scale: 1 },
-  exit: { opacity: 0, y: -4, scale: 0.97 },
 } as const
 
 /** Toast. Arrives from above, leaves the way it came. */
