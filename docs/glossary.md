@@ -13,7 +13,7 @@ use. A glossary that never says what not to call something leaves the synonym in
 |---|---|---|
 | Access token | Short-lived JWT sent in `Authorization: Bearer` headers, held in frontend memory only (INV-AUTH-1) | `AuthenticationController.cs`, `frontend/src/store/auth.ts` |
 | ADR | Architecture Decision Record — closed-form record of a decision and its rejected alternatives | `docs/DECISIONS/000*.md` |
-| API Gateway | Ocelot ingress service that maps public routes to backend services. The only HTTP entry point into the system | `Planora.ApiGateway` |
+| API Gateway | Ocelot ingress service that maps public routes to backend services. The intended browser HTTP entry point; development Compose also publishes direct service ports | `Planora.ApiGateway` |
 | Arrival | A presence id that was not in the previous distinct set of ids, ringed once when its face appears. A first mount is deliberately not an arrival: a page load would otherwise ring every participant at once and teach the reader that the ring means nothing | `usePresenceArrivals` in `frontend/src/components/ui/presence-row.tsx` |
 | Audience | Who can see a task: `private`, `shared` with named friends, or `public`. The product's one word for reach — see the forbidden-synonym table below | `RedactionBadge`, `TodoItem.IsPublic` / `SharedWithUserIds` |
 | Auth API | Service that owns identity, sessions, friendships, roles, analytics intake | `Services/AuthApi` |
@@ -25,7 +25,7 @@ use. A glossary that never says what not to call something leaves the synonym in
 | CD pipeline | Tag-driven Fly.io blue/green deployment workflow | `.github/workflows/cd.yml` |
 | CheckTaskCommentAccess | Todo gRPC call returning task existence, comment access, owner and participants. It is how Collaboration authorises a comment without reading Todo's database | `GrpcContracts/Protos/todo.proto`, `TodoGrpcService.cs` |
 | Circle | The people a user shares with — their accepted friendships | `Friendship.cs`, `frontend/src/hooks/use-friends.ts` |
-| Collaboration API | Service that owns the task comment timeline and comment notifications; authorises every operation against Todo via gRPC | `Services/CollaborationApi` |
+| Collaboration API | Service that owns the task comment timeline and comment notifications; uses Todo gRPC for access/ownership context; audit documents incomplete revocation guards on selected operations | `Services/CollaborationApi` |
 | `@colour-data` | Marker comment on the five source files where a colour literal is data rather than theme — category swatches, default category colours, per-notification tints, WCAG luminance constants, the HSL wheel's primaries. The contract test keys off the marker, so the exemption sits beside the values instead of in a list somewhere else | `edit-todo-modal/utils.ts`, `edit-todo-modal/color-picker.tsx`, `lib/icon-map.ts`, `lib/utils.ts`, `lib/notifications/types.ts` |
 | Command palette | The ⌘K / Ctrl+K surface: one chord, three letters, Enter. The desktop keyboard path that used to stop at Tab | `frontend/src/components/command-palette.tsx` |
 | Comment timeline | Per-task chronological thread of user, genesis and system comments | `Services/CollaborationApi/.../Comment.cs` |
@@ -36,7 +36,7 @@ use. A glossary that never says what not to call something leaves the synonym in
 | CSRF double-submit | The protection named by INV-AUTH-3: Auth API sets a readable `XSRF-TOKEN` cookie, the frontend echoes it in `X-CSRF-Token`, and the middleware compares the two in constant time | `CsrfProtectionMiddleware.cs`, `frontend/src/lib/csrf.ts` |
 | Cursor | The single highlighted row of a keyboard-navigable list, held as an **id** and never as an index — completing a task, changing a filter and a realtime reconcile each replace the array, and an index would then point at a different task. Carried on the row as `aria-current="true"` plus `data-active` **only while shown**: a pointer press hides it (keeping the place), `Tab` or a navigation key shows it, and a hidden cursor's row keys do nothing | `frontend/src/hooks/use-list-navigation.ts` |
 | CycloneDX SBOM | Software Bill of Materials artifact emitted per build, listing every NuGet and npm dependency | `.github/workflows/security.yml` `sbom` job |
-| Dependabot | Automated dependency-update PRs for npm, nuget, github-actions, docker ecosystems | `.github/dependabot.yml` |
+| Dependabot | Configured npm, GitHub Actions and Docker update PRs; NuGet PR limit is zero and a separate scan tracks vulnerabilities | `.github/dependabot.yml` |
 | Duration tokens | The five motion durations, by name: `instant` 100ms, `fast` 160ms, `base` 220ms (the default), `slow` 320ms (the UI ceiling), `deliberate` 480ms. `deliberate` is non-UI only — a number roller or a progress ring reports a fact; it does not answer a press | `frontend/src/lib/design-tokens.ts`, re-exported as `DURATION_*` from `lib/animations.ts` |
 | Error budget | Allowed shortfall implied by an SLO; burning it pauses feature work in favour of reliability | [`docs/slo.md`](slo.md) |
 | Eyebrow label | The one uppercase micro-label style, exported as `FIELD_LABEL_CLASS`. It uses `ink-muted` rather than `ink-subtle` because 12px uppercase is the hardest combination to read and belongs clear of the floor | `frontend/src/components/ui/field.tsx` |
@@ -44,7 +44,7 @@ use. A glossary that never says what not to call something leaves the synonym in
 | `fly.toml` | Per-app Fly.io manifest declaring build context, env, health probes, concurrency, VM size | `deploy/fly/*.fly.toml` |
 | FLY_API_TOKEN | GitHub repository secret authenticating `flyctl` in the CD workflow | `.github/workflows/cd.yml` |
 | Focus indicator | The single focus ring, declared once through a zero-specificity `:where()` selector so a component can add to it and nothing can take it away. `outline-none` compiles to a transparent outline, which is why it is forbidden. Text fields are the exception: `field-box`, `field-rule` and `field-shell` draw the indicator on the field's own shape and keep a transparent outline for forced-colors mode | `frontend/src/app/globals.css` |
-| `force-dynamic` | The route-segment config declared once in `app/layout.tsx` and cascading to every route. A statically rendered page would serve a cached CSP nonce, which is the same as having no nonce | `frontend/src/app/layout.tsx`, ADR-0006 |
+| `force-dynamic` | The route-segment config declared once in `app/layout.tsx` and cascading to every route. A cached/static page would not receive the per-request nonce contract used by the dynamic rendering path | `frontend/src/app/layout.tsx`, ADR-0006 |
 | Friend request | Pending friendship relation between requester and addressee | `FriendshipsController.cs` |
 | Friendship | Accepted social relation. It gates task sharing and, through INV-AZ-4, the comment timeline | `Friendship.cs`, `auth.proto` |
 | Genesis comment | The task's initial description rendered as the first timeline entry; a system comment owned by the task owner, one per task | `Comment.CreateGenesis` |
@@ -52,7 +52,7 @@ use. A glossary that never says what not to call something leaves the synonym in
 | Grafana Loki | Log aggregation backend; enabled by setting `LOKI_URL` per app | `SerilogConfiguration.TryAddLokiSink` |
 | Hidden | A task collapsed out of one reader's own list without changing the owner's task. Not the same as `private`: hidden is about one viewer's list, private is about who was ever given access | `TodoItem.Hidden`, `UserTodoViewPreference` |
 | Hidden redaction | See **Redaction** | same |
-| Inbox | Integration event deduplication and receipt table pattern | `BuildingBlocks/.../Inbox` |
+| Inbox | Handler-specific event receipt pattern; active only where registered, with a non-atomic post-handler receipt write in current RabbitMQ dispatch | `BuildingBlocks/.../Inbox` |
 | Ink | The text-and-marks colour ramp: `ink` 17.93:1, `ink-muted` 7.81:1, `ink-subtle` 4.74:1 (the floor for body copy), `ink-faint` 2.52:1. `ink-faint` is non-text only — `text-ink-faint` is never correct, and `gray-400` is the same value wearing a different name | `frontend/src/lib/design-tokens.ts` |
 | INV-AUTH-1 | Access tokens live only in frontend memory. Never `localStorage`, `sessionStorage`, or any cookie | [`docs/INVARIANTS.md`](INVARIANTS.md), `frontend/src/store/auth.ts` |
 | INV-AUTH-2 | Refresh tokens live only in an httpOnly, `SameSite=Strict` cookie scoped to `/auth/api/v1/auth`. The frontend cannot read them and they are never returned in a response body | [`docs/INVARIANTS.md`](INVARIANTS.md), `AuthenticationController.cs` |
@@ -67,12 +67,12 @@ use. A glossary that never says what not to call something leaves the synonym in
 | Ocelot | .NET API Gateway library used for route mapping | `Planora.ApiGateway/ocelot*.json` |
 | OpenTelemetry (OTel) | Cross-cutting traces and metrics pipeline registered via `AddPlanoraTelemetry` | `BuildingBlocks/.../Logging/TelemetryConfiguration.cs` |
 | OTLP | OpenTelemetry Protocol — gRPC transport for traces and metrics; the exporter registers only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set | same |
-| Outbox | Integration event persistence pattern: the event row is written in the same transaction as the state change, then published | `BuildingBlocks/.../Outbox`, `Planora.Todo.Application/Common/OutboxExtensions.cs` |
+| Outbox | Integration-event persistence/dispatch pattern; transaction boundaries differ by handler and do not guarantee every business workflow is atomic | `BuildingBlocks/.../Outbox`, `Planora.Todo.Application/Common/OutboxExtensions.cs` |
 | PagedResult | Shared pagination response type | `BuildingBlocks/.../Pagination/PagedResult.cs` |
 | Paper | The surface ramp, plus its reverse for the dark auth panel: `paper`, `paper-sunken`, `paper-raised`, and `paper-muted` / `paper-subtle` for text **on** ink. They exist as their own tokens because `ink-muted` on `#171717` measured 2.29:1 | `frontend/src/lib/design-tokens.ts` |
 | Per-viewer completion | A non-owner marking a shared or public task done writes only `UserTodoViewPreference.CompletedByViewer`; the owner's task is untouched. Reopening is author-only — a viewer's way forward on a done task is Duplicate | `SetViewerPreferenceCommandHandler.cs` |
 | Planora.Migrator | One-shot CLI applying pending EF Core migrations before each service rollout | `tools/Planora.Migrator/` |
-| PlanoraMetrics | Shared `Meter("Planora.BuildingBlocks")` publishing CSRF, gRPC and outbox instruments | `BuildingBlocks/.../Observability/PlanoraMetrics.cs` |
+| PlanoraMetrics | Shared `Meter("Planora.BuildingBlocks")` publishing CSRF, gRPC, outbox, avatar, cache and retention instruments | `BuildingBlocks/.../Observability/PlanoraMetrics.cs` |
 | Playwright e2e | Docker-backed tests: one API spec covering auth, sharing and the hidden flow through the gateway, plus UI specs for the auth routes, profile and the tasks page | `frontend/e2e`, `.github/workflows/e2e.yml` |
 | Presence | Who is inside a task right now, drawn as overlapping faces rather than a count. "3 participants" answers how many, which is the one question nobody arrives with; the questions are who, and did someone just join | `frontend/src/components/ui/presence-row.tsx` |
 | Priority meter | Priority as a five-segment meter in one ink colour. Five hues collapse under deuteranopia — the two lowest measured 0.049 apart in OKLab, below the just-noticeable threshold — so the scale is length, not colour | `frontend/src/components/ui/priority-meter.tsx` |
@@ -105,7 +105,7 @@ use. A glossary that never says what not to call something leaves the synonym in
 | Task | The product's unit of work, stored as a `TodoItem`. The code still says `todo` in type names and routes for compatibility; user-facing text never does | `TodoItem.cs`, `frontend/src/types/todo.ts` |
 | Todo share | Explicit row granting another user access to a task | `TodoItemShare.cs` |
 | Todo status | Backend task lifecycle enum: `Todo`, `InProgress`, `Done`. The frontend's `TodoStatus` carries extra legacy aliases, which `toApiTodoStatus` normalises away before any write | `Planora.Todo.Domain/Enums/TodoStatus.cs`, `frontend/src/types/todo.ts` |
-| Touch target | The 44×44 minimum, and the `.touch-target` utility that paints an invisible 44×44 hit area around a control that must stay visually small. Two things silently defeat it: inherited `pointer-events: none`, and `overflow: hidden` clipping the pseudo-element | `frontend/src/app/globals.css` |
+| Touch target | The product's 44×44 target (WCAG enhanced target-size criterion), and the `.touch-target` utility that paints an invisible 44×44 hit area around a control that must stay visually small. Two things silently defeat it: inherited `pointer-events: none`, and `overflow: hidden` clipping the pseudo-element | `frontend/src/app/globals.css` |
 | Trace context | W3C `traceparent` header carrying trace-id and span-id across the browser → backend boundary | `frontend/src/lib/trace.ts`, `AddPlanoraTelemetry` AspNetCore instrumentation |
 | TryAddLokiSink | Helper that adds a Grafana Loki Serilog sink when `LOKI_URL` is configured, no-op otherwise | `BuildingBlocks/.../Logging/SerilogConfiguration.cs` |
 | Undo window | The five seconds between a delete gesture and the `DELETE` request being sent; undo cancels the timer and nothing reaches the server. The API has no restore endpoint, so an optimistic delete offering "restore" would be a lie | `UNDO_WINDOW_MS` in `frontend/src/components/ui/undo-bar.tsx` |

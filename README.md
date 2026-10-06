@@ -4,13 +4,12 @@
 
 **Organise. Share. Collaborate — in real time.**
 
-**Planora is a personal productivity & task-collaboration platform**, engineered as a
-production-grade **.NET 10 microservices** backend behind an **Ocelot API gateway**, with a
-fast, beautifully animated **Next.js 16** frontend.
+**Planora is a personal productivity & task-collaboration platform**, with six
+**.NET 10 services** behind an **Ocelot API gateway** and a **Next.js 16** frontend.
 
-It is both a genuinely usable product *and* a reference implementation of the patterns that
-make distributed systems trustworthy: database-per-service, the transactional outbox/inbox,
-CQRS, defense-in-depth security, full observability, and an enforced architecture.
+The repository implements database-per-service, CQRS, gRPC contracts, event
+dispatch, JWT authentication and optional telemetry. The audit records where
+the implementation still falls short of its architectural policies.
 
 [![CI](https://github.com/4Keyy/Planora/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/4Keyy/Planora/actions/workflows/ci.yml)
 [![Security Scan](https://github.com/4Keyy/Planora/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/4Keyy/Planora/actions/workflows/security.yml)
@@ -29,38 +28,33 @@ CQRS, defense-in-depth security, full observability, and an enforced architectur
 
 ---
 
+> **Current verification:** the [2026-10-06 repository audit](docs/audits/2026-10-06.md) records tested source coverage, corrected contracts, deployment/schema blockers and open authorization/reliability findings. Read it before treating clean-install or production-readiness claims as established.
+
 ## ✨ Why Planora
 
-Most side projects are either a polished UI with a toy backend, or a serious backend with a
-throwaway UI. **Planora refuses to compromise on either.**
+Planora combines collaborative task management with a service-based backend
+and a keyboard-oriented frontend.
 
-- **🧩 A real distributed system, not a monolith in disguise.** Six independent services, each
-  owning its own database, talking only through typed gRPC contracts and a reliable RabbitMQ
-  event bus. No service ever reaches into another's tables — and an architecture test suite
-  *fails the build* if anyone tries.
-- **🔒 Security taken seriously, end to end.** Rotating refresh tokens, in-memory access tokens,
-  httpOnly cookies, CSRF double-submit, per-service JWT validation with security-stamp
-  revocation, an `x-service-key` on every internal hop, PBKDF2 password hashing (HMAC-SHA512), and optional
-  TOTP two-factor auth with QR enrolment.
-- **👀 Observable by default.** Structured, correlation-enriched Serilog logging and end-to-end
-  OpenTelemetry traces & metrics across every service — so you can actually *see* a request
-  travel the gateway → service → database → event bus.
-- **⚡ A frontend built for the keyboard.** Next.js 16 App Router, a Framer Motion design system
-  with its own token set, a command palette on `⌘K` / `Ctrl K`, capture on `C`, a `?` map of every
-  binding, a live collaboration timeline, SignalR notifications, and a WebGL ribbon background
-  drawn by a single fragment shader — no scene-graph library in the bundle.
-- **🛠️ Developer experience that respects your time.** One PowerShell command boots the entire
-  stack (it even auto-installs the right .NET SDK and starts Docker), with health gating, a
-  graceful shutdown, and **one-flag Wi-Fi sharing** so a teammate can open the app from their
-  phone in seconds.
-- **🧪 Quality you can prove.** Backend builds with warnings-as-errors; unit, architecture, and
-  error-handling tests; 905 frontend Vitest tests across 79 files; Playwright end-to-end flows; and
-  a supply-chain security pipeline (CodeQL, Trivy, gitleaks, dependency audit, signed SBOM).
-
-> **In one line:** Planora is what "I built a task app" looks like when it's actually built like
-> production software.
-
----
+- **Independent services.** Six APIs own separate stores and communicate through
+  typed gRPC and RabbitMQ. Architecture tests check selected dependency rules;
+  they do not prove every runtime data-access boundary.
+- **Authentication controls.** Rotating refresh tokens, in-memory access tokens,
+  httpOnly cookies, double-submit CSRF, service JWT validation, service keys,
+  PBKDF2 password hashing and optional TOTP with recovery codes. Current access
+  and revocation limits are recorded in the [security reference](docs/auth-security.md).
+- **Observability support.** Serilog and OpenTelemetry registrations, correlation
+  identifiers and custom instruments. Exported data depends on the configured
+  collectors and service-specific logging setup.
+- **Keyboard and collaboration.** Next.js 16 App Router, shared motion tokens,
+  command palette, quick capture, live task branches, SignalR notifications and
+  a WebGL ribbon background.
+- **Windows development tooling.** A PowerShell launcher provisions local
+  prerequisites and coordinates services with health gating and shutdown.
+  [Database prerequisites](docs/getting-started.md) still apply; a successful
+  prerequisite check does not establish that a fresh stack can boot.
+- **Configured quality checks.** Backend unit/architecture/error-handling tests,
+  frontend coverage gates, Playwright API/UI suites and security workflows.
+  The [dated audit](docs/audits/2026-10-06.md) records actual results and open gaps.
 
 ## 🚀 Feature tour
 
@@ -71,11 +65,11 @@ throwaway UI. **Planora refuses to compromise on either.**
 | **Profiles** | Editable profile, avatar upload (server-side image processing), and a security center. |
 | **Friendships** | Send / accept / decline friend requests; sharing is friends-only by design. |
 | **Tasks** | Create, prioritise, schedule, and categorise tasks with colour- and icon-coded categories and custom ordering. |
-| **Sharing & privacy** | Share a task with named friends or with every accepted friend at once. Sharing never leaves the friend graph — nothing is published to the internet. Each participant carries their own *hidden* and *completed* flags, which never leak onto the owner, and a task hidden by a viewer is redacted by the backend rather than by the UI. |
+| **Sharing & privacy** | Named shares and public-to-friends discovery, plus per-viewer hidden/completion preferences and server redaction. Some join/revocation paths do not fully enforce the intended friend boundary; see the [authorization audit](docs/security-idor-coverage.md). |
 | **"Take it into work" (In Progress)** | Collaborators can join a shared task as a worker, with worker counts and capacity — or leave at any time. |
-| **Branch timeline** | Every task has a beautiful, continuous activity rail: a pinned Author's Note, threaded comments, and auto-generated system events (created / started / left / completed) — all materialised reliably via the outbox/inbox pattern and updated live. |
+| **Branch timeline** | A task timeline with an Author's Note, threaded comments and materialized lifecycle events. Outbox/Inbox gaps can cause missing or duplicated entries; see [Architecture](docs/architecture.md). |
 | **Direct messaging** | One-to-one messages between friends. |
-| **Real-time notifications** | SignalR push with a Redis backplane keeps every device in sync. |
+| **Real-time notifications** | SignalR push with an optional Redis backplane, and notification REST reads when a Realtime database is configured. Client receipt/reconnect replay is not guaranteed. |
 | **The keyboard** | A command palette on `⌘K` / `Ctrl K`, capture on `C` from every screen that has it, `?` for the full map, and `J`/`K`, `G G`, `Shift G`, `Space`, `E`, `1`–`5`, `X` over the task list. Every action that has a key shows it. |
 | **Undo instead of confirm** | Deleting a task — on the task list or on the dashboard — drops an undo bar for five seconds instead of asking a question first. |
 | **Redaction as a shape** | An owner sees how far a shared task reaches as an arc that narrows with the audience; a viewer sees whose task it is instead. |
@@ -129,9 +123,7 @@ the most important being:
   gRPC or events. Enforced by [NetArchTest](https://www.nuget.org/packages/NetArchTest.Rules) tests.
 - **Identity owned by Auth only** — every service validates the shared JWT locally and honours
   security-stamp revocation.
-- **Reliable messaging** — integration events are published through the **Outbox** pattern (in the
-  same transaction as the business write) and consumed **idempotently** through the **Inbox**
-  pattern. The outbox dispatcher is signal-driven for near-instant delivery, with a polling safety net.
+- **Event delivery** — a shared Outbox dispatcher combines signaling with polling. Transaction boundaries and Inbox registration vary by service; the [audit](docs/audits/2026-10-06.md) records duplicate-delivery and partial-write gaps. These patterns do not establish an exactly-once guarantee.
 - **Defense in depth** — gateway JWT *plus* per-service JWT, an `x-service-key` header on every
   gRPC hop, CSRF double-submit, access tokens held in memory only, refresh tokens in httpOnly cookies.
 
@@ -190,7 +182,7 @@ Backend package versions are managed centrally in
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/) (the Windows launcher auto-installs a local copy if missing)
-- [Node.js 20+](https://nodejs.org/) & npm
+- [Node.js 20.9+](https://nodejs.org/) & npm
 - [Docker & Docker Compose](https://docs.docker.com/)
 
 ### 1. Configure secrets
@@ -200,7 +192,7 @@ cp .env.example .env          # Linux/macOS/WSL
 # Copy-Item .env.example .env # PowerShell
 ```
 
-Then fill in the required values (see [Configuration](#%EF%B8%8F-configuration) below). To generate
+Then fill in the required values (see [Configuration](docs/configuration.md)). To generate
 strong secrets:
 
 ```bash
@@ -212,7 +204,9 @@ openssl rand -base64 24   # POSTGRES_PASSWORD / REDIS_PASSWORD
 Without OpenSSL on the path, PowerShell generates the same lengths:
 
 ```powershell
-$b = [byte[]]::new(48); [Security.Cryptography.RandomNumberGenerator]::Fill($b)
+$b = New-Object byte[] 48
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+try { $rng.GetBytes($b) } finally { $rng.Dispose() }
 [Convert]::ToBase64String($b)          # 48 bytes → JWT_SECRET; use 32 / 24 for the others
 ```
 
@@ -222,8 +216,7 @@ $b = [byte[]]::new(48); [Security.Cryptography.RandomNumberGenerator]::Fill($b)
 docker compose up --build
 ```
 
-This brings up PostgreSQL, Redis, RabbitMQ, every service, and the gateway. Databases and schemas
-are created automatically on first run.
+This brings up PostgreSQL, Redis, RabbitMQ, every service, and the gateway. Five services invoke schema initialization, but the tracked Todo migration chain lacks its initial baseline and Realtime needs a separate migration. Resolve the [fresh-install caveat](docs/deployment.md#schema-initialization-and-migration-runner) before expecting a clean database to boot.
 
 ### 3. Run the frontend
 
@@ -242,8 +235,7 @@ npm run dev
 On Windows, **`Start-Planora-Local.ps1`** orchestrates the whole stack for fast iteration: it runs a
 preflight (auto-resolving a .NET 10 SDK and starting Docker if needed), brings up the infrastructure
 containers, builds the solution, then launches every backend service + the gateway and the Next.js
-frontend as host processes — with health gating and a graceful Ctrl+C shutdown. Each service ensures
-its own schema on first start (no separate migration step), and the Docker data volumes are preserved
+frontend as host processes — with health gating and a graceful Ctrl+C shutdown. Auth/Category/Todo/Collaboration/Messaging invoke schema initialization; Realtime needs its explicit migration and Todo needs a complete baseline, and the Docker data volumes are preserved
 across every run, including `-Clean`.
 
 ```powershell
@@ -312,9 +304,9 @@ required secret is missing. The full annotated reference lives in
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `JWT_ACCESS_TOKEN_EXPIRATION_MINUTES` | `60` | Access-token lifetime. |
-| `JWT_REFRESH_TOKEN_EXPIRATION_DAYS` | `7` | Refresh-token lifetime. |
-| `ASPNETCORE_ENVIRONMENT` | `Development` | `Development` · `Docker` · `Production`. |
+| `JwtSettings__AccessTokenExpirationMinutes` | Auth configuration | Direct ASP.NET override; the similarly named `JWT_ACCESS_TOKEN_EXPIRATION_MINUTES` template variable is not injected by Compose. |
+| `JwtSettings__RefreshTokenExpirationDays` | `7` | Direct Auth override; `JWT_REFRESH_TOKEN_EXPIRATION_DAYS` is informational in current Compose. |
+| `ASPNETCORE_ENVIRONMENT` | launcher / container | Local launcher selects Development (or Production with `-Prod`); Compose sets Docker. |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:5132` | Gateway origin the browser calls (auto-derived per host in dev). |
 | `Frontend__BaseUrl` | `http://localhost:3000` | Origin used inside verification / password-reset emails. |
 | `Email__Provider` | `Log` | `Log` (prints links to logs) · `GmailSmtp` · `Smtp`. |
@@ -336,16 +328,17 @@ cd frontend && npm run test
 cd frontend && npm run e2e
 ```
 
-CI is split across workflows rather than one matrix, so a docs-only change does not boot Postgres:
+CI is split across workflows. The main CI still builds/tests backend and frontend on eligible docs-only pushes; the Docker-backed E2E workflow uses path filters:
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| [`ci.yml`](.github/workflows/ci.yml) | every push and pull request | markdown lint + offline link check, the backend build (`-warnaserror`) and tests, the frontend lint / type-check / test / build pipeline, coverage artefacts |
-| [`security.yml`](.github/workflows/security.yml) | push, pull request, and weekly | **gitleaks**, **CodeQL**, **Trivy** IaC scanning, `dotnet list package --vulnerable`, `npm audit`, and a Sigstore-signed **CycloneDX SBOM** |
+| [`ci.yml`](.github/workflows/ci.yml) | configured push branches and PRs to main/develop | markdown lint + offline link check, the backend build (`-warnaserror`) and tests, the frontend lint / type-check / test / build pipeline, coverage artefacts |
+| [`security.yml`](.github/workflows/security.yml) | push, pull request, and weekly | **gitleaks**, **CodeQL**, **Trivy** IaC scanning, `dotnet list package --vulnerable`, `npm audit`, and CycloneDX SBOM artifacts; the frontend SBOM is attested on push |
 | [`e2e.yml`](.github/workflows/e2e.yml) | pull requests touching services, gateway, frontend, or compose | Playwright flows against the full Docker stack |
-| [`openapi.yml`](.github/workflows/openapi.yml) | pull requests touching services or contracts | emits one OpenAPI document per HTTP service as a reviewable artefact |
-| [`migrations.yml`](.github/workflows/migrations.yml) | pull requests touching `Services/**/Migrations/**` | emits idempotent `dotnet ef migrations script` SQL per service |
-| [`perf-smoke.yml`](.github/workflows/perf-smoke.yml) | manual dispatch only | k6 load scenarios against the Docker stack |
+| [`openapi.yml`](.github/workflows/openapi.yml) | pull requests touching services or contracts | Swagger/Spectral artifacts for a five-service matrix; Collaboration is currently omitted |
+| [`migrations.yml`](.github/workflows/migrations.yml) | pull requests touching `Services/**/Migrations/**` | intended SQL artifacts for a five-service matrix; tool/build gaps and omitted Realtime are documented in the audit |
+| [`perf-smoke.yml`](.github/workflows/perf-smoke.yml) | manual dispatch only | k6 absolute-threshold scenarios against Docker |
+| [`cd.yml`](.github/workflows/cd.yml) | `v*` tags or manual ref | Fly blue/green deployment path with unresolved rollout blockers |
 
 ---
 
@@ -395,7 +388,7 @@ Planora/
 ## 🤝 Contributing
 
 Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). Please keep changes consistent
-with the [architectural invariants](docs/INVARIANTS.md) and update the relevant docs and
+with the [declared architectural rules and implementation status](docs/INVARIANTS.md) and update the relevant docs and
 [`CHANGELOG.md`](CHANGELOG.md). Under the license below, contributions are accepted on the terms set
 out in Section 2(d) of the [LICENSE](LICENSE).
 

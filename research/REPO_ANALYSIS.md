@@ -1,5 +1,7 @@
 # Claude Code Agents & Skills — Repository Analysis
 
+> Historical planning/research snapshot. Dates, counts, proposed policies and line references below describe the original work, not a current implementation contract. For current verified behavior and open gaps, use [the repository audit](../docs/audits/2026-10-06.md) and the maintained reference guides.
+>
 > Research pass executed June 2026 to extract the strongest, most reusable practices
 > from the leading public Claude Code agent/skill repositories, and to ground the
 > Planora-specific skill/agent set in `.claude/`. Star counts and dates are as reported
@@ -12,6 +14,7 @@ Before copying community patterns, the **official spec** was confirmed from
 `code.claude.com/docs`:
 
 ### Skills — `.claude/skills/<name>/SKILL.md`
+
 - Required frontmatter: `name`, `description`.
 - Optional: `allowed-tools`, `disallowed-tools`, `disable-model-invocation`,
   `user-invocable`, `model`, `context`, `argument-hint`, `arguments`.
@@ -24,6 +27,7 @@ Before copying community patterns, the **official spec** was confirmed from
 - `disable-model-invocation: true` makes a skill manual-only (`/name`).
 
 ### Subagents — `.claude/agents/<name>.md`
+
 - Required frontmatter: `name`, `description`. Optional: `tools` (allowlist),
   `disallowedTools` (denylist), `model`.
 - **Auto-delegation mechanism:** Claude delegates when a task matches the
@@ -54,6 +58,7 @@ Before copying community patterns, the **official spec** was confirmed from
 ## Per-repo detail
 
 ### 1. obra/superpowers — the gold standard for *workflow* skills
+
 - **Layout:** `/skills` (one dir per skill), `/hooks` (a `SessionStart` hook auto-activates
   the framework), `/docs`, `/evals` (a behavior-eval harness — skills are *tested*).
 - **Chain:** brainstorming → using-git-worktrees → writing-plans →
@@ -71,6 +76,7 @@ Before copying community patterns, the **official spec** was confirmed from
   and conflicts with Planora's "never create branches without instruction" rule.
 
 ### 2. wshobson/agents — production subagents
+
 - Flat collection, one `.md` per agent; each declares role, invocation criteria, and a
   **preferred model tier**. Orchestrated sequentially / in parallel / conditionally /
   review-based.
@@ -79,17 +85,20 @@ Before copying community patterns, the **official spec** was confirmed from
 - **Avoid:** breadth-for-breadth's-sake (76 agents) — most teams use <6.
 
 ### 3–5. Curated lists / large dumps (Composio, VoltAgent, sickn33)
+
 - Confirm the community consensus: **description quality drives triggering**, one skill
   should do one job, and big reference material belongs in `references/` files loaded on
   demand — never inline in the always-read index.
 - **Avoid:** quantity over curation; overlapping skills that fight for the same trigger.
 
 ### 6. claude-flow — orchestration
+
 - Names the orchestration topologies explicitly (sequential, parallel, conditional,
   review-gated). **Steal:** make orchestration a first-class, documented concept in
   `AGENTS.md`. **Avoid:** its heavyweight platform/runtime — out of scope here.
 
 ### 8–9. Anthropic official
+
 - Canonical frontmatter; skills structured as **Purpose → Procedure → Checklist →
   Anti-patterns**. Hooks (`SessionStart`, `UserPromptSubmit`) are the *real* mechanism
   for "always do X" — preferences/memory cannot enforce automation; the harness runs

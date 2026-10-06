@@ -1,8 +1,12 @@
 # Planora Architectural Invariants
 
-These are **closed-form rules** that hold across the system at all times. Violations are reverted, not negotiated. Each invariant carries the evidence and the enforcement plan.
+These are architectural review rules, with implementation evidence and explicit enforcement
+gaps. A rule marked as a policy is a requirement for new changes, not a claim that every
+existing path already satisfies it. The current-code notes below take precedence over older
+historical descriptions; verified behavior is detailed in the topic references.
 
-This file is short by design. If a rule belongs here, it belongs forever. Conditional or temporary items belong in ADRs (`docs/DECISIONS/`) until they harden into invariants.
+Decisions and their history live in [ADRs](DECISIONS/). Keep this file synchronized with
+runtime wiring, persistence boundaries and executable checks.
 
 ---
 
@@ -10,11 +14,15 @@ This file is short by design. If a rule belongs here, it belongs forever. Condit
 
 **INV-OWN-1.** Each domain owns its own PostgreSQL database. No service reads or writes another service's tables.
 
-- Domain → DB mapping: Auth → `planora_auth_db`; Todo → `planora_todo`; Category → `planora_category`; Messaging → `planora_messaging`; Collaboration → `planora_collaboration` (task comment timeline). Realtime currently has no DB (CSP-6).
+- Domain → DB mapping: Auth → `planora_auth_db`; Todo → `planora_todo`; Category → `planora_category`; Messaging → `planora_messaging`; Collaboration → `planora_collaboration`; Realtime → `planora_realtime` when its connection string is configured.
 - Cross-service reads happen via gRPC (synchronous) or RabbitMQ integration events (asynchronous), never via shared DB schemas.
+- Administrative exception: the migration runner's legacy-comment backfill reads Todo and
+  writes Collaboration during a controlled cutover; runtime domain services remain isolated.
 - Enforcement: `docker-compose.yml` connection-string envs are scoped per service; PR review rejects cross-service `ConnectionStrings__` references.
 
-**INV-OWN-2.** Identity is owned by Auth. No other service mints, validates, or rotates JWT/refresh tokens. Friendship existence is owned by Auth.
+**INV-OWN-2.** Identity is owned by Auth. No other service mints or rotates JWT/refresh tokens.
+The gateway and consuming services independently **validate** JWTs. Friendship existence
+is owned by Auth.
 
 - Evidence: `Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs`, `Services/AuthApi/Planora.Auth.Domain/Entities/Friendship.cs`.
 
@@ -28,7 +36,7 @@ This file is short by design. If a rule belongs here, it belongs forever. Condit
 
 **INV-COMM-1.** All synchronous internal calls go through gRPC contracts in `GrpcContracts/Protos/`. Internal HTTP-to-HTTP calls between services are forbidden.
 
-- Exception: API Gateway is the only HTTP ingress; it never makes internal HTTP calls except to its own health endpoints.
+- Exception: the API Gateway deliberately proxies browser HTTP/WebSocket traffic to downstream services; this is ingress routing, not domain-service integration.
 
 **INV-COMM-2.** Every gRPC server registers `ServiceKeyServerInterceptor`. Every gRPC client uses `ServiceKeyClientInterceptor`. Calls without a matching `x-service-key` are rejected with `Unauthenticated`. Until CSP-3 (mTLS migration) lands, this is the only line of defence for the backplane.
 
@@ -36,19 +44,30 @@ This file is short by design. If a rule belongs here, it belongs forever. Condit
 
 **INV-COMM-3.** Integration events flow through the Outbox pattern only. Code must not call `IEventBus.Publish` directly from a request handler — events are written into the service's outbox table inside the same DB transaction as the business mutation, and `OutboxProcessor` ships them to RabbitMQ.
 
+- **Current-code gap:** outbox `AddAsync` saves immediately; a handler with multiple events/fan-out recipients can make multiple commits. Category domain events dispatch after the category save, then write the outbox separately. Atomicity must be demonstrated at the actual save boundary, not inferred from an outbox interface. See [architecture.md](architecture.md#outbox-delivery-semantics).
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs`.
 - Rationale: at-least-once delivery; atomicity with business state.
 
 **INV-COMM-3a.** `OutboxMessage` owns its retry / dead-letter state machine. The processor never sets `Status` directly — it calls `MarkAsFailed` (for transient errors) or `MarkAsDeadLettered` (for shape errors that cannot recover on replay, such as `Type.GetType` returning null or `JsonSerializer.Deserialize` returning null). `MarkAsFailed` increments `RetryCount`; while retries remain it schedules `NextRetryUtc` and leaves the row in `Pending`; once the budget is exhausted it auto-transitions to the terminal `OutboxMessageStatus.DeadLettered` and clears `NextRetryUtc` so the polling WHERE clause cannot re-pick the row.
 
+- **Current-code gap:** Pending rows are selected without checking `NextRetryUtc`; scheduled backoff is therefore not honored for rows returned to Pending. The three-failure budget still bounds retry attempts.
+
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/OutboxMessage.cs`, `OutboxMessageStatus.cs`, `tests/Planora.UnitTests/Services/Infrastructure/OutboxMessageStateMachineTests.cs`.
 - Rationale: a previous implementation re-failed exhausted messages on every cycle forever because `Status == Failed && NextRetryUtc <= now` stayed true with a stale timestamp. The terminal `DeadLettered` state — never picked by the polling predicate — eliminates the cycle. Replay after a fix is an operator action (manual SQL update from `DeadLettered` back to `Pending` after the root cause is corrected); the processor never resurrects dead-lettered rows on its own.
 
-**INV-COMM-4.** Every integration-event consumer uses the Inbox pattern to deduplicate replayed messages, keyed per **(event id, handler type)** — not the event id alone — so an event fanned out to several handlers runs once *per handler* rather than being suppressed after the first. The bus derives the inbox primary key with `RabbitMqEventBus.DeriveInboxKey(eventId, handlerType)`. Handlers must be idempotent under replay.
+**INV-COMM-4.** Consumers must tolerate replay. The bus's optional Inbox is keyed per
+**(event id, handler type)** through `RabbitMqEventBus.DeriveInboxKey`; Collaboration is
+the only current service registering `IInboxRepository`. It records success after the
+handler and continues without deduplication on inbox errors, so it does not provide atomic
+exactly-once processing. Todo/Category handlers have no bus inbox; Realtime notification
+rows instead have a unique `SourceEventId`.
 
-- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/IdempotentConsumer/IdempotentMessageHandler.cs`.
+- Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs`, Collaboration `DependencyInjection.cs`, and Realtime `NotificationStore.cs`. The separate `IdempotentMessageHandler<T>` primitive is not the registered bus processing path.
 
 **INV-COMM-5.** Every service that holds an `OutboxMessages` table indexes the canonical polling predicate (`Status = 'Pending' OR (Status = 'Failed' AND NextRetryUtc <= NOW)`) with a partial composite index `(Status, NextRetryUtc, OccurredOnUtc) WHERE Status IN ('Pending', 'Failed')` named `ix_outbox_messages_active`. Excluding the terminal `Processed` and `DeadLettered` rows keeps the index small even when the table accumulates ahead of the cleanup sweep. Auth, Category, Messaging, and Realtime services all carry this index; the configurations live under each service's `Persistence/Configurations/OutboxMessageConfiguration.cs`.
+
+- **Coverage:** the partial index exists in the Auth, Category, Messaging and Realtime EF models. Todo and Collaboration currently use `(Status, OccurredOnUtc)`/processed-time indexes instead. Realtime does not currently register an outbox drainer.
 
 ---
 
@@ -86,7 +105,7 @@ This file is short by design. If a rule belongs here, it belongs forever. Condit
 
 Stamp rotation runs **only on successful execution** — a wrong-password attempt MUST NOT invalidate active sessions, otherwise an observer can DoS the user. Stamp rotation is NOT triggered on 2FA enable or 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit. Stamp rotation is NOT triggered on profile updates (first name, last name, avatar) because the access-claim set is unchanged. Stamp rotation is NOT triggered on revoking a *single* refresh token (`RevokeSessionCommandHandler`) because the user chose that specific session — other sessions remain authorized.
 
-Stamp rotation is meaningless unless **every** JWT-accepting service enforces the check on every authenticated request. All five services — Auth, Category, Todo, Messaging, Realtime — wire `SecurityStampValidator.IsTokenRevokedAsync` into `JwtBearerOptions.OnTokenValidated`. Auth API enforces this in `Planora.Auth.Infrastructure.DependencyInjection.AddJwtAuthentication`; consumer services use the shared `AddJwtAuthenticationForConsumer` or an equivalent inline hook. The coverage table lives in `docs/auth-security.md` § "Stamp enforcement coverage".
+Stamp rotation is meaningless unless **every** JWT-accepting service enforces the check on every authenticated request. All six domain services — Auth, Category, Todo, Collaboration, Messaging and Realtime — wire `SecurityStampValidator.IsTokenRevokedAsync` into `JwtBearerOptions.OnTokenValidated`. Auth API enforces this in `Planora.Auth.Infrastructure.DependencyInjection.AddJwtAuthentication`; consumer services use the shared `AddJwtAuthenticationForConsumer` or an equivalent inline hook. The coverage table lives in `docs/auth-security.md` § "Stamp enforcement coverage".
 
 The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Planora.UnitTests): any handler that injects `ISecurityStampService` must also invoke `SetStampAsync` somewhere in its body. The test is a source-file scan over `Services/AuthApi/Planora.Auth.Application/Features/**/Handlers/` so a future handler that forgets the rotation call (or drops it during refactoring) fails CI before merge.
 
@@ -99,9 +118,9 @@ The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Pla
 **INV-AUTH-6.** Refresh-token rotation enforces **reuse detection**. When `RefreshTokenCommandHandler` is presented with a refresh-token value that is already revoked with reason `"Replaced by new token"`, the entire refresh-token chain for that user is revoked (reason `"Reuse detected — chain invalidated"`) and the user's security stamp is rotated. Both effects are persisted in the same SaveChangesAsync call as the revocation. The handler returns Unauthorized; no new token is minted.
 
 - Evidence: `Services/AuthApi/Planora.Auth.Application/Features/Authentication/Handlers/RefreshToken/RefreshTokenCommandHandler.cs`, `tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthLifecycleHandlerTests.cs::RefreshToken_WhenReplayed_InvalidatesChainAndRotatesStamp`.
-- Rationale: a replayed rotated token is either a buggy client racing its own refresh or — much more likely — an attacker presenting a stolen value. Invalidating the chain logs the legitimate user out across all devices and, paired with stamp rotation, immediately retires every minted access token. The user must re-authenticate; the attacker is left holding revoked credentials.
+- Rationale: a replayed rotated token is either a buggy client racing its own refresh or — much more likely — an attacker presenting a stolen value. Refresh-chain invalidation prevents further refresh with those tokens. Stamp checks reject affected bearer requests while the Redis stamp is available and current; missing/error stamps fail open, the stamp TTL is fixed at 120 minutes, and existing WebSockets are not disconnected. Do not promise immediate universal access revocation; see [the actual enforcement limits](auth-security.md#stamp-enforcement-coverage).
 
-**INV-AUTH-7.** Every JWT-validating wiring point reads `ClockSkew` from one source — `Planora.BuildingBlocks.Infrastructure.Configuration.SecurityConstants.SecurityPolicies.TokenClockSkewSeconds`. No service writes a literal `TimeSpan.Zero` or numeric seconds value into `TokenValidationParameters.ClockSkew`. The pinned tests at `tests/Planora.UnitTests/Services/AuthApi/Configuration/AuthApiConfigurationTests.cs` and `tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs` assert the value matches the constant.
+**INV-AUTH-7.** JWT-validating wiring points should read `ClockSkew` from one source — `Planora.BuildingBlocks.Infrastructure.Configuration.SecurityConstants.SecurityPolicies.TokenClockSkewSeconds`. No service writes a literal `TimeSpan.Zero` or numeric seconds value into `TokenValidationParameters.ClockSkew`. The pinned tests at `tests/Planora.UnitTests/Services/AuthApi/Configuration/AuthApiConfigurationTests.cs` and `tests/Planora.UnitTests/Services/Infrastructure/DependencyInjectionContractTests.cs` assert the value matches the constant.
 
 - Evidence: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/SecurityConstants.cs`, every JWT bearer registration across Auth, Todo, Category, Messaging, Realtime, Gateway, and the standalone TokenService validation paths.
 - Rationale: divergent clock-skew values across services produce intermittent 401s under NTP drift between machines. A single source eliminates the entire class of clock-skew regressions.
@@ -142,15 +161,31 @@ The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Pla
 
 ## Data Integrity
 
-**INV-DATA-1.** Every domain mutation goes through an aggregate root method. Setters on entities are not used to mutate state from application code. Validation lives in domain methods + FluentValidation validators.
+**INV-DATA-1.** Aggregate mutations use domain methods plus FluentValidation. Join/value rows
+such as shares and `UserTodoViewPreference` have mutable setters and are updated by
+application/repository code; they are not aggregate roots.
 
-**INV-DATA-2.** EF Core `SaveChangesAsync` is the only commit primitive. Multi-table mutations within a service happen in a single transaction. The outbox row is in the same transaction as the business mutation.
+**INV-DATA-2.** A single EF Core `SaveChangesAsync` is transactional for its tracked changes.
+Do not claim handler-wide atomicity without an explicit transaction covering every save.
+Outbox repositories save immediately, and retention/startup/schema tools also use set-based
+SQL operations. See the producer-boundary table in [architecture.md](architecture.md#outbox-delivery-semantics).
 
 **INV-DATA-3.** Read-only queries use `.AsNoTracking()`. Mutating workflows do not.
 
-**INV-DATA-4.** Soft-deleted rows are filtered by global query filters. Admin/audit paths that need to see deleted rows must call `.IgnoreQueryFilters()` explicitly and document the reason in code.
+**INV-DATA-4.** User-facing queries must exclude soft-deleted rows. Global filters exist for
+Auth users/roles/user-roles/refresh tokens/login history/friendships, Category and Realtime
+notifications. Todo and Collaboration repositories filter explicitly; audit/password/recovery
+and messaging tables do not all have global filters. `IgnoreQueryFilters()` must have a
+documented purpose where a filter is configured.
 
-**INV-DATA-5 (scaffold; behaviour follow-up pending).** The Realtime persistence contract is defined: every `NotificationEvent` consumed from RabbitMQ lands in `Planora.Realtime.Domain.Entities.Notification` before fan-out to SignalR; per-recipient delivery state is tracked in `NotificationDelivery` with `Pending → Delivered | NotConnected | Failed`; deduplicated by `SourceEventId` (unique index) so transient redeliveries from the broker never insert twice. The domain entities, the `RealtimeDbContext`, the EF configurations, the migrator registration, and the conditional DI are in place. The `NotificationService` rewire (persist-before-push, idempotent on replay) and the initial EF migration ship next; until then `NotificationService` bypasses persistence and the scaffold is dormant — connection-string-aware activation means dev hosts without `ConnectionStrings__RealtimeDatabase` start clean.
+**INV-DATA-5.** With `RealtimeDatabase` configured, valid `NotificationEvent` payloads are
+persisted before SignalR push and deduplicated by unique `SourceEventId`. The tracked initial
+Realtime migration creates notification/delivery/outbox tables. Without that connection
+string, the null store performs ephemeral push and no persistence/deduplication.
+
+- **Delivery gap:** `NotificationDelivery` has domain transitions/schema but no runtime writer.
+  Hub reconnect does not replay stored events. A push failure after a successful insert leaves
+  durable read state, but a broker redelivery skips the push for that already-stored event.
 
 ---
 
@@ -247,9 +282,19 @@ The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Pla
 
 ## Workflow & Commit Hygiene
 
-**INV-FLOW-1.** Migrations are committed alongside the schema change that produced them. A schema change is never merged without its EF migration.
+**INV-FLOW-1 (schema-change policy).** Ship reviewed migration history with schema changes.
+New generated migration files are ignored and must not be force-added without explicit
+authorization. Current Todo history lacks its initial migration; some additive columns and
+indexes are applied through non-fatal startup DDL instead. These are enforcement gaps,
+documented in [database.md](database.md), not a complete auditable migration chain.
 
 **INV-FLOW-4.** Production migrations are applied by the dedicated `Planora.Migrator` CLI (`tools/Planora.Migrator/`), not by services calling `Database.MigrateAsync()` at startup. The migrator runs as a one-shot init step before service rollout — never simultaneously with the running service — so two replicas cannot race the migration history. The `.github/workflows/migrations.yml` workflow attaches an idempotent SQL script artifact (`dotnet ef migrations script --idempotent`) to every PR whose schema-relevant paths change; reviewers see exactly what will execute. The same workflow asserts every non-empty generated script carries `IF [NOT] EXISTS` markers — guarding against a future EF-tooling regression where `--idempotent` silently produces non-idempotent SQL.
+
+- **Current-code gap:** CD defines a pre-deploy migrator step, while every service still calls
+  `DatabaseStartup.EnsureReadyAsync` in Production. The migrator container inputs, CI EF tool/
+  build setup, missing Todo baseline and Realtime deployment connection strings require
+  reconciliation; see [production.md](production.md). The policy has not yet eliminated startup
+  migration races. The SQL-artifact service matrix currently omits Realtime.
 
 - Evidence: `tools/Planora.Migrator/Program.cs`, `.github/workflows/migrations.yml`, `deploy/fly/migrator.fly.toml`.
 - Rationale: EF Core's `Database.MigrateAsync` at app startup is a footgun in HA: two replicas booting the same schema change at once corrupt `__EFMigrationsHistory`. Idempotent script + one-shot runner removes the race and makes the migration auditable.
@@ -269,4 +314,5 @@ The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Pla
 
 - This is not a style guide. Style lives in `.editorconfig`.
 - This is not a roadmap. Future work is tracked through ADRs in `docs/DECISIONS/`.
-- This is not aspirational. Every rule above is currently observable in code, configuration, or CI. When a tightening lands (e.g. the API-response unification or the Realtime persistence behaviour rewire), the corresponding caveat is removed and the rule is restated.
+- Intended policies and current implementation are distinguished above. Remove a caveat only
+  after the code and meaningful validation demonstrate the tighter guarantee.

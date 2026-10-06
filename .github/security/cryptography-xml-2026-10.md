@@ -24,3 +24,8 @@ Data Protection update resolves a patched XML package throughout the solution.
 Validate with a forced restore, Release build, full backend tests and a fresh
 transitive vulnerability scan. A scanner finding describes the package graph;
 this correction does not assert that an exploit was reproduced in Planora.
+
+Local validation on 2026-10-06: forced solution restore and Release build with
+`-warnaserror` passed, all 972 backend tests passed, and the solution-wide
+transitive NuGet vulnerability scan reported no vulnerable packages against
+the current configured sources.

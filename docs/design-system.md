@@ -121,7 +121,7 @@ mechanical: if a token's name ends in `-surface`, `text-*` and icon `color` are 
 semantic tokens are drawn from it. **Use the semantic names in components.** A
 `gray-*` class in a component is a value that has lost its reason.
 
-```
+```text
 50  #fafafa   150 #eeeeee   300 #d4d4d4   500 #737373   700 #404040   900 #171717
 100 #f5f5f5   200 #e5e5e5   400 #a3a3a3   600 #525252   800 #262626
 ```
@@ -177,7 +177,7 @@ The latin-ext faces still come from `@fontsource` under the plain family name, s
 
 There is one, exported as `FIELD_LABEL_CLASS` from `components/ui/field.tsx`:
 
-```
+```text
 text-caption font-semibold uppercase tracking-wider text-ink-muted
 ```
 
@@ -311,7 +311,6 @@ Three separate mechanisms, because no single one reaches everywhere:
 If you write a rAF loop, it is your job to handle the third case. Nothing else will. `hooks/use-collapse-scroll.ts` does: its 650ms glide to the top jumps instead under
 reduced motion, stops the moment the reader scrolls (wheel, touch, key, pointer), and is
 cancelled on unmount so no frame writes to a page that has moved on.
-
 
 ### The four laws
 
@@ -492,11 +491,12 @@ reader has to re-find their place in the list when it closes.
 
 Three decisions inside it:
 
-- **Not a framer-motion `layoutId`.** That is the documented technique and it would
-  make every card in the list a layout-animated node. The tasks page renders up to 200
-  memoised `TodoCard`s inside a masonry; giving each a projection node costs a measure
-  on every list change — filtering, completing, an undo window closing — for an effect
-  used on one card at a time.
+- **An explicit rect, without a shared `layoutId`.** The editor records its source
+  card's rect and derives an entrance transform. Cards and masonry wrappers already
+  use position-only layout projection for list movement; the editor's origin does
+  not depend on a shared projection identity. The tasks page progressively mounts
+  cards from paged results, so 200 is a fetch page size, not a mounted-card ceiling.
+  This audit did not measure a comparative layout/projection cost.
 - **Uniform scale, from the width ratio.** Scaling x and y independently would match
   the card's rectangle exactly and shear every glyph in the dialog on the way. Text
   stretched vertically for 220ms reads as a rendering fault, not as motion.

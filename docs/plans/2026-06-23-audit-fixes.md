@@ -1,5 +1,7 @@
 # План реализации по итогам аудита — 2026-06-23
 
+> Historical planning/research snapshot. Dates, counts, proposed policies and line references below describe the original work, not a current implementation contract. For current verified behavior and open gaps, use [the repository audit](../audits/2026-10-06.md) and the maintained reference guides.
+>
 > Документ-задание для инженера. Каждый пункт самодостаточен: корневая причина → что
 > менять (бэкенд + фронтенд) → крайние случаи → тесты → документация → критерии приёмки.
 > Все ссылки на код кликабельны (`файл:строка`).
@@ -46,10 +48,12 @@ ReplyToAuthorAvatarUrl / ReplyToPreview / ReplyToDeleted` — а они в
 
 На фронте [branch-feed.tsx:834-835](../../frontend/src/components/todos/edit-todo-modal/branch-feed.tsx)
 подменяет элемент списка возвращённым DTO:
+
 ```ts
 const updated = await updateComment(todoId, id, content)
 setComments((prev) => prev.map((c) => (c.id === id ? updated : c)))
 ```
+
 `updated.replyToType === undefined` → `resolveThreads`/`buildFeed` считают комментарий корневым → ответ
 «выпадает» из треда. Поллинг 9с **не лечит**: `mergeLatest` обновляет элемент только при изменении
 `content`/`updatedAt` ([branch-feed.tsx:521](../../frontend/src/components/todos/edit-todo-modal/branch-feed.tsx)),
@@ -85,6 +89,7 @@ setComments((prev) => prev.map((c) => (c.id === id ? updated : c)))
 
 В [branch-feed.tsx:834-835](../../frontend/src/components/todos/edit-todo-modal/branch-feed.tsx)
 делать merge, сохраняющий reply-поля, если сервер их вдруг не прислал:
+
 ```ts
 setComments((prev) => prev.map((c) => c.id === id
   ? { ...c, ...updated,
@@ -99,22 +104,26 @@ setComments((prev) => prev.map((c) => c.id === id
 ```
 
 ### Крайние случаи
+
 - Ответ на удалённую цель: `ReplyToDeleted=true`, превью из снапшота — рендер «удалённой» цитаты.
 - Ответ на под-задачу: снапшот сохраняется, чинить нечего.
 - Редактирование обычного (не-reply) сообщения: блок reply пустой — поведение прежнее.
 - Живой пуш `CommentUpdated` другим участникам уже тянет полный DTO через GetComments — там всё ок.
 
 ### Тесты
+
 - **Backend (xUnit):** `UpdateCommentCommandHandler` — отредактированный reply сохраняет `ReplyToType/Id/
   AuthorId/Preview`; превью обновляется на «живой» текст цели; удалённая цель → `ReplyToDeleted=true`.
 - **Frontend (Vitest/RTL):** правка ответа в `branch-feed` — он остаётся в своём треде (не становится корневым).
 
 ### Документация
+
 - [docs/API.md](../API.md): пример ответа `PUT /collaboration/api/v1/comments/{taskId}/{commentId}` с reply-блоком.
 - [docs/features.md](../features.md): раздел веток/ответов — «редактирование сохраняет статус ответа».
 - `CHANGELOG.md`: запись `fix`.
 
 ### Критерии приёмки
+
 - [ ] Правка ответа на сообщение/ответ/под-задачу не меняет его на обычное сообщение (сразу, без перезагрузки).
 - [ ] Цитата корректна (актуальный текст; «удалено», если цель удалена).
 - [ ] Маппинг reply-блока вынесен в общий хелпер и переиспользован.
@@ -124,10 +133,12 @@ setComments((prev) => prev.map((c) => c.id === id
 ## Проблема 2 — Меню аватара сделать непрозрачным, как панель уведомлений
 
 ### Эталон (панель уведомлений)
+
 [notification-bell.tsx:109](../../frontend/src/components/notifications/notification-bell.tsx):
 `bg-white` (сплошной), `border-gray-200/90`, `shadow-[0_12px_40px_rgba(0,0,0,0.12)]`, **без** `backdrop-blur`.
 
 ### Что менять — фронтенд
+
 1. **Десктоп-дропдаун аватара** —
    [navbar.tsx:371](../../frontend/src/components/layout/navbar.tsx):
    было `bg-white/96 backdrop-blur-xl border-gray-100 shadow-[0_8px_32px_rgba(0,0,0,0.10)]`
@@ -138,19 +149,23 @@ setComments((prev) => prev.map((c) => c.id === id
    `bg-white/97 backdrop-blur-xl` → `bg-white` (убрать blur), бордер/тень привести к эталону.
 
 ### Чего НЕ трогать
+
 Сама «таблетка» навбара ([navbar.tsx:204](../../frontend/src/components/layout/navbar.tsx)) и кнопка-колокол —
 это панель-бар, а не меню. Их полупрозрачность остаётся.
 
 ### Крайние случаи / качество
+
 - Контраст текста на сплошном белом сохраняется (серые токены ок).
 - Анимация появления (`opacity/scale/y`) не меняется — без дёрганий.
 - Проверить светлую/тёмную тему и мобильный вид (390px) — меню не растягивается, помещается.
 
 ### Тесты / документация
+
 - Лёгкий тест классов (опционально) в `frontend/src/test/components`.
 - [docs/features.md](../features.md): упоминание про навбар (если есть раздел). `CHANGELOG.md`: `style/fix`.
 
 ### Критерии приёмки
+
 - [ ] Меню аватара (десктоп и мобайл) визуально непрозрачно и идентично панели уведомлений.
 - [ ] Анимации плавные; нет просвечивания контента под меню.
 
@@ -159,6 +174,7 @@ setComments((prev) => prev.map((c) => c.id === id
 ## Проблема 3 — Выполнение/восстановление публичных и приватных задач с учётом «В работе»
 
 ### Что УЖЕ работает (только покрыть тестами, код не трогать)
+
 - **Владелец выполняет** (PUT `status=done`) → `MarkAsDone` → `InProgress→Done`: «в работе» = 0, «выполнено» = 1
   ([TodoItem.cs:309-324](../../Services/TodoApi/Planora.Todo.Domain/Entities/TodoItem.cs)).
 - **Не-владелец выполняет чужую публичную** → `CompletedByViewer=true` **и снимается строка-воркер**
@@ -185,6 +201,7 @@ if (request.CompletedByViewer.HasValue && !request.CompletedByViewer.Value && pr
     // иначе — возврат разрешён (вьюер просто снимает свою галочку)
 }
 ```
+
 То же правило **добавить в ветку не-владельца** в
 [UpdateTodoCommandHandler.cs:166-187](../../Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs)
 (сейчас guard'а там нет — путь `PUT /todos/{id}` обходит правило): если `targetStatus != Done`,
@@ -198,6 +215,7 @@ if (request.CompletedByViewer.HasValue && !request.CompletedByViewer.Value && pr
 Когда **владелец** делает reopen (`Done→Todo`) задачи с аудиторией
 (`IsPublic || SharedWith.Any()`), очистить `CompletedByViewer` у **всех** вьюеров, чтобы задача снова
 стала активной для каждого:
+
 - новый метод репозитория `ClearCompletedByViewerForTodoAsync(Guid todoItemId, CancellationToken)`
   в [IUserTodoViewPreferenceRepository.cs](../../Services/TodoApi/Planora.Todo.Domain/Repositories/IUserTodoViewPreferenceRepository.cs)
   и [UserTodoViewPreferenceRepository.cs](../../Services/TodoApi/Planora.Todo.Infrastructure/Persistence/Repositories/UserTodoViewPreferenceRepository.cs)
@@ -226,10 +244,11 @@ if (request.CompletedByViewer.HasValue && !request.CompletedByViewer.Value && pr
 Везде заменить безусловный блок на правило: **reopen разрешён, если** `isCompletedByViewer === true &&
 ownerCompleted !== true`; иначе — тост «Нельзя восстановить — автор уже отметил задачу выполненной».
 Файлы:
-- [dashboard/page.tsx:438-447](../../frontend/src/app/dashboard/page.tsx)
-- [tasks/page.tsx:360-366](../../frontend/src/app/tasks/page.tsx)
-- [tasks/completed/page.tsx:250-251](../../frontend/src/app/tasks/completed/page.tsx)
-- [branch/[id]/page.tsx:123-137](../../frontend/src/app/branch/[id]/page.tsx)
+
+- [dashboard/page.tsx:438-447](<../../frontend/src/app/(app)/dashboard/page.tsx>)
+- [tasks/page.tsx:360-366](<../../frontend/src/app/(app)/tasks/page.tsx>)
+- [tasks/completed/page.tsx:250-251](<../../frontend/src/app/(app)/tasks/completed/page.tsx>)
+- [branch/[id]/page.tsx:123-137](<../../frontend/src/app/(app)/branch/[id]/page.tsx>)
 - [edit-todo-modal/modal.tsx:159](../../frontend/src/components/todos/edit-todo-modal/modal.tsx)
 - [todo-card.tsx:208-243](../../frontend/src/components/todos/todo-card.tsx): сейчас не-владельцу reopen
   отдаётся родителю без анимации (строка 213). Разрешить анимацию reopen не-владельцу, когда возврат
@@ -242,6 +261,7 @@ ownerCompleted !== true`; иначе — тост «Нельзя восстан�
 тост-предупреждение (текст с бэка/локализованный).
 
 ### Крайние случаи
+
 - Друг завершил для себя ДО глобального завершения автором → автор завершает глобально → друг возврат не
   может (`OwnerCompleted=true`) → тост.
 - Автор возвращает → 3.2 очищает все `CompletedByViewer` → активна у всех; «в работе» ни у кого не стоит.
@@ -250,6 +270,7 @@ ownerCompleted !== true`; иначе — тост «Нельзя восстан�
 - Под-задачи завершаются глобально (другой путь, [UpdateTodoCommandHandler.cs:97-164](../../Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommandHandler.cs)) — НЕ затрагиваем.
 
 ### Тесты
+
 - **Backend:** не-владелец возврат разрешён при `Status != Done`; запрещён (`AUTHOR_ALREADY_COMPLETED`) при
   `Status == Done` — для **обоих** путей (SetViewerPreference и UpdateTodo). Автор-reopen публичной задачи
   очищает `CompletedByViewer` всех вьюеров. Регресс: владелец complete→reopen даёт `Todo` (не `InProgress`);
@@ -258,12 +279,14 @@ ownerCompleted !== true`; иначе — тост «Нельзя восстан�
   вернуть завершённую автором (тост). Партиции активные/выполненные пересобираются.
 
 ### Документация
+
 - [docs/features.md](../features.md): полные правила выполнения/восстановления + взаимодействие с «В работе».
 - [docs/API.md](../API.md): семантика `PUT /todos/{id}` (status) и `PATCH /todos/{id}/viewer-preferences`,
   новое поле `ownerCompleted`, код ошибки `AUTHOR_ALREADY_COMPLETED`.
 - `CHANGELOG.md`: `feat` (новая механика восстановления). EF-миграция не требуется.
 
 ### Критерии приёмки
+
 - [ ] Выполнение своей/чужой задачи снимает «в работе» (0) и ставит «выполнено» (1).
 - [ ] Любой участник может вернуть свою задачу в активные (без «в работе»), пока автор не завершил глобально.
 - [ ] Автор-возврат публичной задачи делает её активной у всех; не-автор — только у себя.
@@ -275,26 +298,33 @@ ownerCompleted !== true`; иначе — тост «Нельзя восстан�
 ## Проблема 4 — Группа значков уведомлений на карточке («кольца Audi»)
 
 ### Текущее состояние
+
 Модель `TaskUnread(TaskId, Count, LatestType)`
 ([NotificationSummary.cs:4](../../Services/RealtimeApi/Planora.Realtime.Application/Response/NotificationSummary.cs))
 несёт только общий счётчик и тип последнего события. Карточка рисует **один** pill
 ([todo-card.tsx:407-420](../../frontend/src/components/todos/todo-card.tsx)).
 
 ### Что менять — бэкенд (разбивка по типам)
+
 В [NotificationReadStore.GetSummaryAsync:35-47](../../Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs):
+
 - добавить `n.OccurredOnUtc` в проекцию (сортировка по нему уже есть);
 - для каждой задачи дополнительно сгруппировать по `Type`: `Groups = [{ Type, Count,
   LatestOccurredOnUtc }]`, отсортированные по `LatestOccurredOnUtc` **по убыванию** (новейшее — первым).
 
 Модель ответа ([NotificationSummary.cs](../../Services/RealtimeApi/Planora.Realtime.Application/Response/NotificationSummary.cs)):
+
 ```csharp
 public sealed record TaskUnreadGroup(string Type, int Count, DateTime LatestOccurredOnUtc);
 public sealed record TaskUnread(Guid TaskId, int Count, string LatestType, IReadOnlyList<TaskUnreadGroup> Groups);
 ```
+
 `Count`/`LatestType` оставить для обратной совместимости (`LatestType == Groups[0].Type`).
 
 ### Что менять — фронтенд store
+
 [store/notifications.ts](../../frontend/src/store/notifications.ts):
+
 - расширить `TaskUnread` полем `groups: Array<{ type: string; count: number; latestOccurredOn: string }>`;
 - `toPerTask` — мапить `groups`;
 - `ingest` ([:122-153](../../frontend/src/store/notifications.ts)) — инкремент счётчика нужной type-группы
@@ -305,8 +335,10 @@ public sealed record TaskUnread(Guid TaskId, int Count, string LatestType, IRead
 - селектор `useTaskUnread` возвращает тот же объект (ссылочная стабильность сохраняется).
 
 ### Что менять — фронтенд UI (компонент-кластер)
+
 Новый `NotificationBadgeCluster` рядом с
 [notification-badge.tsx](../../frontend/src/components/notifications/notification-badge.tsx):
+
 - вход: `groups` (уже новейшие-первыми);
 - **1 тип** → текущий labeled `pill` (сохранить красивый вид);
 - **≥2 типов** → перекрывающиеся диски варианта `mark`, слева-направо: новейший слева и сверху
@@ -320,21 +352,25 @@ public sealed record TaskUnread(Guid TaskId, int Count, string LatestType, IRead
 `absolute -top-2 right-2` и `pulse` для активных карточек.
 
 ### Крайние случаи
+
 - Все непрочитанные одного типа → один pill (как сейчас).
 - Много типов (макс. 8 по [types.ts](../../frontend/src/lib/notifications/types.ts)) → 4 диска + «+N».
 - `markTaskRead` при открытии карточки/ветки очищает кластер целиком.
 - Неизвестный тип → дефолтный «колокол» (`getNotificationKind`).
 
 ### Тесты
+
 - **Backend:** `GetSummaryAsync` отдаёт `Groups`, отсортированные по `LatestOccurredOnUtc` desc, с верными счётчиками.
 - **Frontend:** `ingest` корректно добавляет/инкрементит/пересортирует группы; `markRead` пересчитывает их;
   рендер кластера: порядок (новейший слева), лимит+`+N`, reduced-motion.
 
 ### Документация
+
 - [docs/API.md](../API.md): новая форма `GET /realtime/api/v1/notifications/summary` (поле `groups`).
 - [docs/features.md](../features.md): кластер уведомлений на карточке. `CHANGELOG.md`: `feat`.
 
 ### Критерии приёмки
+
 - [ ] Карточка показывает все типы событий группой значков, новейший — слева/спереди.
 - [ ] Порядок строго по времени события; счётчики верны; есть `+N` при переполнении.
 - [ ] Анимации плавные; элементы не растягиваются и помещаются (десктоп/мобайл).
@@ -342,6 +378,7 @@ public sealed record TaskUnread(Guid TaskId, int Count, string LatestType, IRead
 ---
 
 ## Сводная проверка перед сдачей
+
 - [ ] `dotnet build` + `dotnet test` зелёные (бэкенд).
 - [ ] `npm run build` + `npm test` зелёные, покрытие ≥85% (фронт).
 - [ ] Документация обновлена (API.md / features.md / CHANGELOG.md) синхронно с кодом.

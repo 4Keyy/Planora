@@ -12,6 +12,14 @@ Forced restore, Release build with `-warnaserror` and all 972 backend tests pass
 NuGet auditing remains enabled. See the [security note](.github/security/cryptography-xml-2026-10.md)
 for the affected advisories and the override removal condition.
 
+### docs: reconcile repository references with source (2026-10-06)
+
+Audited the HTTP/auth contracts, data model, event-processing boundaries,
+frontend, configuration, deployment and verification tooling. Updated the
+maintained references and labeled historical plans/ADRs so implementation
+divergence is explicit. The [dated audit](docs/audits/2026-10-06.md) records
+source-backed findings, executed checks and remaining release blockers;
+documentation corrections do not fix application behavior.
 
 ### fix(motion): the branch feed moves as one, and five small snaps are gone (2026-10-06)
 
@@ -754,7 +762,6 @@ a 1200 ms ceiling, **CLS 0** across 45 cells against a 0.0014 invariant, 0 contr
 targets under 44×44, 0 unnamed, 0 horizontal scroll, 0 console errors. Clean in all three modes —
 data, reduced-motion and dark-OS.
 
-
 ### feat(frontend): the landing page's argument follows the scroll (2026-09-22)
 
 **One mark, riding the whole page.** The page argues a single thing — a task carries the list of
@@ -788,7 +795,6 @@ demo session.
 1724–2432 ms appear sporadically across viewports and runs on identical code, and a median of three
 is vulnerable to two of them landing together. Median of five, as written down, or the gate reports
 noise as regression.
-
 
 ### feat(frontend): the landing page runs on the product's real data layer (2026-09-22)
 
@@ -829,7 +835,6 @@ and never again. Measured after: 0 console errors across 9 viewports.
 Measured with the sandbox live, signed out, 9 viewports: CLS **0** everywhere, 36 interactive
 targets, 0 under 44×44, 0 unnamed, 0 contrast failures, 0 horizontal scroll, 0 console errors,
 37 focus stops with 0 missing an indicator, one `h1` and no level skips.
-
 
 ### fix: the password-reset email led to a 404, and the shader ran on NaN (2026-09-21)
 
@@ -873,7 +878,6 @@ and the branch scan confirms it: the feed renders its Author's Note, its message
 subtasks. Some earlier audit numbers for branch-bearing routes therefore described a partly
 broken mock.
 
-
 ### fix(frontend): /login and /register stop being 404s (2026-09-21)
 
 Those are the paths people type, bookmark and paste into emails, and every one of them was a
@@ -881,7 +885,6 @@ hard 404: the pages live under `/auth/*`, `next.config.js` had no `redirects()` 
 all, and nothing else mapped them. `/login`, `/register`, `/signin` and `/signup` now answer
 308 to the real routes — permanent because the destination is not going to move, and 308
 rather than 302 because it preserves the method if anything ever POSTs to one by mistake.
-
 
 ### fix(frontend): one refusal, one message, one place — and one password rule (2026-09-21)
 
@@ -921,7 +924,6 @@ Measured signed out over 9 viewports: max CLS 0.0011 on sign-in and 0.0001 on cr
 The `Remember me` checkbox measured 16×16 and now carries `.touch-target`; the only remaining
 sub-44 targets on either screen are links inside a sentence, which WCAG 2.5.8 exempts.
 
-
 ### feat(frontend): the landing page says the one thing, and lets you check it (2026-09-21)
 
 **`/` went from two blocks to nine, five of which you can put your hands on.** The old page
@@ -957,7 +959,6 @@ three modes, against a 0.0007 baseline and a 0.0014 invariant. The shell became 
 so the LCP text ships in the first byte instead of waiting on hydration. The median is not
 decoration: the same code measured 372, 2656, 372, 2708 and 380 ms at 1440 px, so a single run
 cannot tell a regression from noise.
-
 
 ### fix(frontend): finish the map, and let one measurement overrule an argument (2026-09-15)
 
@@ -1300,7 +1301,6 @@ because Windows recycles PIDs and a parent chain can loop back on itself. `Get-P
 `Assert-PortsFree` take an optional `-RepoRoot` for this and keep the old name-based guess only as a
 fallback for callers that cannot say where Planora lives. A foreign owner is now reported as a
 conflict to resolve, never terminated.
-
 
 ### feat: data-retention — purge soft-deleted user accounts (2026-07-08)
 

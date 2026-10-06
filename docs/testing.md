@@ -1,16 +1,20 @@
 # Testing
 
-Planora has backend xUnit tests, frontend Vitest tests, Docker-backed Playwright e2e tests, on-demand **k6 load scenarios**, markdown documentation checks, mutation tests (Stryker.NET), per-PR EF migration script artifacts, CI jobs, and coverage configuration.
+Planora has backend xUnit tests, frontend Vitest tests, Docker-backed Playwright
+API and Chromium UI suites, on-demand **k6 load scenarios**, documentation checks,
+on-demand mutation-test configurations, and per-PR migration/OpenAPI artifacts.
+The sections below distinguish configured gates, observed results and test gaps.
 
 ## Test Inventory
 
 | Area | Path | Framework |
 |---|---|---|
-| Backend unit/contract tests | `tests/Planora.UnitTests` | xUnit, Moq, FluentAssertions |
+| Backend unit/contract tests | `tests/Planora.UnitTests` | xUnit, Moq, EF InMemory, NetArchTest.Rules |
 | Backend architecture tests | `tests/Planora.UnitTests/Architecture` | xUnit, NetArchTest.Rules |
-| Backend error-handling/integration-style tests | `tests/Planora.ErrorHandlingTests` | xUnit, ASP.NET Core testing |
+| Backend error-handling/integration-style tests | `tests/Planora.ErrorHandlingTests` | xUnit, FluentAssertions, ASP.NET Core TestServer, EF InMemory and substituted external dependencies |
 | Frontend tests | `frontend/src/test` | Vitest, Testing Library, jsdom |
-| E2E flow tests | `frontend/e2e` | Playwright APIRequestContext through API Gateway |
+| E2E API flow | `frontend/e2e/*.api.spec.ts` | Playwright APIRequestContext through API Gateway |
+| E2E browser flows | `frontend/e2e/ui/*.ui.spec.ts` | Chromium against a running Next.js frontend and backend stack |
 | E2E configuration | `frontend/playwright.config.ts` | Playwright |
 | Backend coverage settings | `coverage.runsettings` | XPlat Code Coverage |
 | Frontend coverage settings | `frontend/vitest.config.ts` | V8 coverage |
@@ -18,15 +22,45 @@ Planora has backend xUnit tests, frontend Vitest tests, Docker-backed Playwright
 | Markdown link check | `.lychee.toml`, `.github/workflows/ci.yml` | lychee offline mode |
 | Load / perf scenarios | `perf/k6/scenarios`, `perf/k6/lib`, `perf/README.md` | k6 (JavaScript) |
 | Perf CI dispatch | `.github/workflows/perf-smoke.yml` | workflow_dispatch only |
-| Migration script artifacts | `.github/workflows/migrations.yml` | `dotnet ef migrations script --idempotent`, matrix-fanned across the four DB-owning services |
-| OpenAPI artifacts | `.github/workflows/openapi.yml` | `dotnet swagger tofile`, matrix-fanned across all five HTTP services |
+| Migration script artifacts | `.github/workflows/migrations.yml` | `dotnet ef migrations script --idempotent`, five DB-owning services |
+| OpenAPI artifacts | `.github/workflows/openapi.yml` | `dotnet swagger tofile`, five configured services; Collaboration is not in this matrix |
+
+## Verification Snapshot — 2026-10-06
+
+These are observed local results collected earlier in this audit, not promises
+that every future checkout will produce the same counts. Frontend lint, type check, coverage and production build were rerun after the
+parallel UI work at revision `b2e9c70a5781657dc7f24062d2d965c6c846844f`.
+Backend results include the publication follow-up that corrected two stale
+reset-link expectations and patched the XML cryptography dependency.
+
+| Check | Observed result |
+|---|---|
+| .NET Release build | Passed with SDK 10.0.300; 0 errors, 9 warnings |
+| `Planora.ErrorHandlingTests` | 90 passed |
+| `Planora.UnitTests` | 882 passed; zero failed/skipped |
+| Backend total | 972 passed; zero failed/skipped |
+| Frontend lint / type-check | Passed |
+| `npm run test:coverage` | 100 files, 1,231 tests passed |
+| V8 statements / branches / functions / lines | 94.48% / 86.46% / 94.20% / 96.34%; all configured 85% thresholds passed |
+
+The initial backend run had two stale password-reset URL expectations:
+`RequestPasswordResetCommandHandlerTests.Handle_ShouldPersistHashedTokenAndSendNormalizedResetLink`
+and `FrontendLinkBuilderTests.PasswordReset_ShouldUseConfiguredFrontendUrl_AndEscapeOpaqueToken`
+expected `/reset-password`, while current `FrontendLinkBuilder` emits
+`/auth/reset-password`. The frontend also retains a permanent `/reset-password`
+alias. The publication fix changed the expected paths without weakening the
+token escaping, hashing or persistence assertions. Forced restore, Release
+build with `-warnaserror` and the full backend suite subsequently passed.
+Four `motion-geometry.ui.spec.ts` browser tests were discovered but skipped
+against localhost because no frontend server was running; browser binaries
+were installed. Skips do not establish runtime motion/geometry correctness.
 
 ## Backend Commands
 
 ```powershell
 dotnet restore Planora.sln
 dotnet build Planora.sln
-dotnet test Planora.sln --settings coverage.runsettings
+dotnet test Planora.sln --collect:"XPlat Code Coverage" --settings coverage.runsettings
 ```
 
 Run a single backend test project:
@@ -42,7 +76,7 @@ Scripts are defined in `frontend/package.json`.
 
 ```powershell
 Push-Location frontend
-npm install
+npm ci
 Pop-Location
 npm --prefix frontend run lint
 npm --prefix frontend run type-check
@@ -57,11 +91,16 @@ Watch mode:
 npm --prefix frontend run test:watch
 ```
 
-`npx vitest run` against a clean tree currently reports **79 test files and 905 tests, all passing**. Treat that pair as the number to beat, not a target: a run that reports fewer files than the tree contains means a file failed to collect, which Vitest reports as a collection error rather than a failure and is easy to scroll past.
+Read the final test summary and process exit code, including failed collection,
+skipped tests and coverage-threshold failures. The dated result above is a baseline;
+the command should not have a hardcoded expected number of files or tests.
 
 ## Playwright E2E
 
-The e2e suite exercises the gateway and real backend services rather than mocked frontend state.
+The `api` project exercises the gateway and real backend services. The `ui`
+project drives a real Chromium browser against Next.js; helpers create/verify
+accounts through the gateway. This is separate from the UI-audit scripts, which
+route API calls to fixtures and cannot establish backend integration correctness.
 
 Confirmed flow in `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts`:
 
@@ -90,7 +129,7 @@ Since the comment timeline moved to the Collaboration service, worker lifecycle 
 
 - `Domain/CommentTests.cs` — the `Comment` aggregate: create/system/genesis factories, content limits (2000 / 5000), trimming, author-only edit, soft delete, domain-event emission.
 - `Handlers/CommentCommandHandlerTests.cs` — the access matrix delegated to `ITaskAccessService`: grant/deny/not-found for add, owner-only genesis with duplicate guard, author-vs-owner delete rules (and that non-genesis system comments are undeletable), and that adding a comment fans out one `NotificationEvent` per other participant.
-- `IntegrationEvents/IntegrationEventConsumerTests.cs` — the Inbox side: `TaskCreated` materialises system + genesis comments and is replay-safe (no duplicate genesis), `TaskActivity` writes the correct sentence per type and skips unknown types, `TaskDeleted` cascades a soft delete, and `UserDeleted` soft-deletes authored comments (no-op when none).
+- `IntegrationEvents/IntegrationEventConsumerTests.cs` directly tests lifecycle handlers: `TaskCreated_WritesOnlyTheCreatedSystemComment` asserts one created system comment and no stored genesis; activity tests check sentences and unknown-type skipping; task/subtask/user deletion tests check the intended repository calls. These are direct mocked-handler tests, not proof of atomic inbox recording, duplicate-delivery safety or a live database cascade.
 
 Frontend Vitest coverage in `frontend/src/test/app/todos-page.test.tsx` also verifies that a hidden shared card stays collapsed while reveal hydration is still loading, preventing a redacted `Hidden task` DTO from briefly rendering as an expanded task. The same test file covers author-name enrichment for public friend tasks without direct share rows.
 
@@ -102,25 +141,40 @@ Component coverage in `frontend/src/test/components/todo-heavy-components.test.t
 
 Layout and motion that jsdom cannot measure are covered in a real browser by `frontend/e2e/ui/motion-geometry.ui.spec.ts`: it seeds nine tasks through the create panel, then asserts that "New task" opens with an unfocused title and that typing (starting with the page's `F` shortcut letter) lands in it; that every open card's circle is within 0.5px of the card's vertical centre and its eye as far from the bottom as from the left, at 390px and 1280px; and that the droplet bar condenses in one motion — sampled every animation frame, the width's fastest frame must come within the first eight (one spring is a single early bell), and no frame may move more than 1.6× the frame before it plus 2px (at most 6px after a near-still frame). Checked against the recorded series: the old bug — a 70.6px frame after an 11.7px one, nine frames in — fails both rules; the fixed bar passes. The suite seeds through the create panel, which `/tasks` closes after every create, and signs in once for the whole file because the Auth API allows three registrations and five sign-ins a minute per address. Run it against a production build (`next start`), not `next dev`.
 
-`frontend/src/test/utils/todo-utils.test.ts` covers `applyCategoryPatch` — the helper that zeros all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) when a user removes a task's category, compensating for the backend silently ignoring `null` category IDs on PUT.
+At the audit snapshot, `motion-geometry.ui.spec.ts` is a local untracked suite.
+Its assertions and previously recorded browser series above are preserved as
+development evidence; a clean checkout and CI do not include that file unless
+it is separately added. This documentation audit did not execute the suite.
 
-`frontend/src/test/components/worker-and-comments.test.tsx` holds 48 tests across three groups: `WorkerJoinButton` (11), `TaskComments` (26), and `TaskComments genesis card` (11). `WorkerJoinButton` tests: isOwner null-render, isWorking strip + leave button, isFull lock icon, take-it button + join call, pending/debounce state, arrow hidden during join, `onControlHoverChange` for both hover-tracked branches. `TaskComments` tests: loading skeleton, empty state, comment list render, `isEdited` label, comment count header, `canComment=false` hides input, add comment on button click and Ctrl+Enter, empty-content submit guard, error display on API failure, edit/delete controls shown for own or owner-visible comments, enter edit mode and save, Cancel button and Escape key cancel edit, Ctrl+Enter keyboard save, error display on update/delete failure, Load-earlier pagination, `formatRelative` time branches (just now / Xm ago / Xh ago / locale date), char-count amber warning.
+`frontend/src/test/utils/todo-utils.test.ts` covers `applyCategoryPatch` — the helper that zeros all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) locally when a user removes a task's category. The backend ignores `null` category IDs on PUT, so this test establishes the local projection, not durable removal after reload.
 
-`frontend/src/test/components/color-bends.test.tsx` covers the WebGL animated background system (49 tests):
+`frontend/src/test/components/worker-and-comments.test.tsx` covers `WorkerJoinButton`,
+`TaskComments` and its genesis-card behavior: owner/worker/full-state controls,
+single-flight joins, loading/empty/error rendering, add/edit/delete, Ctrl+Enter,
+Escape/cancel, pagination, relative timestamps and limit warnings. Test counts in
+individual files are not a contract; inspect the current file and run summary.
 
-- `hexToVec3()` — black, white, red, 3-digit shorthand (`#f00`/`#fff`), neutral gray channel equality, gray palette light-to-dark progression, hash-optional input, `Vector3` instance type, determinism.
-- `ColorBends` component — div container presence, single-div invariant, `WebGLRenderer` instance created on mount, canvas appended to container, `requestAnimationFrame` started on mount, no RAF when `prefers-reduced-motion` is active, `cancelAnimationFrame` called on unmount, `renderer.dispose()` and `renderer.forceContextLoss()` called on unmount, `ResizeObserver` observed on mount and disconnected on unmount, `pointermove` listener added to window and removed on unmount, `visibilitychange` listener added to document and removed on unmount, full gray config accepted without throwing, extra `className` applied to container div, no throw when unmounted before RAF fires.
-- `ColorBendsLayer` — renders without crashing, inner content resolves after lazy load, wrapper has `fixed inset-0 -z-10` classes, wrapper has `pointer-events-none`, unmounts cleanly.
+`frontend/src/test/components/color-bends.test.tsx` covers the raw WebGL background
+with a stubbed WebGL context. It does not exercise a real GPU or three.js:
+
+- `hexToVec3()` — numeric three-element RGB tuples, shorthand/hash-optional input,
+  gray-channel equality, progression and determinism.
+- `ColorBends` — canvas/context setup, uniform updates, RAF, reduced-motion and
+  visibility handling, resize/input listeners and WebGL resource cleanup.
+- `ColorBendsLayer` — lazy/static behavior, landing-route scope, low-resource
+  device heuristics and cleanup.
 
 Run locally after the Docker backend stack is healthy:
 
 ```powershell
-Copy-Item .env.example .env
-# edit .env values
+if (-not (Test-Path -LiteralPath .env)) {
+    Copy-Item -LiteralPath .env.example -Destination .env
+}
+# Configure the local file; preserve existing values.
 docker compose --env-file .env up -d --build
 
 Push-Location frontend
-npm install
+npm ci
 $env:E2E_API_URL = "http://127.0.0.1:5132"
 $env:E2E_AUTH_LOG_CONTAINER = "planora-auth-api"
 npm run e2e
@@ -209,11 +263,18 @@ k6 run --out json=perf/results/todo-list.json `
 
 ## Migration Script Artifacts (per PR)
 
-When a PR changes a migration, an entity, a DbContext, a persistence configuration, [`tools/Planora.Migrator/`](../tools/Planora.Migrator/), the central package versions, or the workflow itself, [`.github/workflows/migrations.yml`](../.github/workflows/migrations.yml) runs `dotnet ef migrations script --idempotent` for each of the four DB-owning services and attaches the resulting `.sql` files as 30-day-retention artifacts. The scripts are guarded by `__EFMigrationsHistory` lookups so re-running them on an already-migrated schema is a no-op — the exact statements that `Planora.Migrator --all` will execute against production.
+When schema-relevant paths or the workflow change,
+[`.github/workflows/migrations.yml`](../.github/workflows/migrations.yml) builds
+the solution and runs `dotnet ef migrations script --idempotent` for Auth,
+Category, Todo, Messaging and Collaboration. It uploads `.sql` files with
+30-day retention and checks non-empty scripts for idempotence markers.
+These scripts are review artifacts generated from the current migration sets;
+`Planora.Migrator --all` applies those sets through EF rather than reading the
+uploaded SQL files. Artifact generation is not proof of a successful production migration.
 
 ## OpenAPI Artifacts (per PR)
 
-When a PR changes anything in `BuildingBlocks/**`, `Services/**`, `GrpcContracts/**`, `.config/dotnet-tools.json`, `Directory.Packages.props`, or the workflow itself, [`.github/workflows/openapi.yml`](../.github/workflows/openapi.yml) extracts a fresh `swagger.json` for each of the five HTTP services (auth, category, todo, messaging, realtime) via the `Swashbuckle.AspNetCore.Cli` local tool (`dotnet swagger tofile`). Each artifact is uploaded with 30-day retention.
+When a PR changes anything in `BuildingBlocks/**`, `Services/**`, `GrpcContracts/**`, `.config/dotnet-tools.json`, `Directory.Packages.props`, or the workflow itself, [`.github/workflows/openapi.yml`](../.github/workflows/openapi.yml) extracts a fresh `swagger.json` for each of its five configured services (auth, category, todo, messaging, realtime) via the `Swashbuckle.AspNetCore.Cli` local tool (`dotnet swagger tofile`). Each artifact is uploaded with 30-day retention. **Collaboration has HTTP controllers but is absent from this workflow matrix**, so the artifacts are not a complete API inventory.
 
 The workflow stands up Postgres + Redis + RabbitMQ as GitHub Actions services so the boot path completes; Redis and RabbitMQ failures degrade gracefully through the existing service `Program.cs` waiters, but providing all three keeps the boot deterministic. The JSON is validated post-extraction with `jq -e '.openapi and .info.title and .paths'` so a malformed document fails the job rather than slipping through as a zero-byte artifact.
 
@@ -234,7 +295,8 @@ Confirmed test areas from file paths:
 | Todo | command/query handlers, hidden/viewer state, repositories, mapping, specifications, gRPC clients |
 | Category | domain behavior, handlers, validators, repositories, gRPC |
 | Messaging | domain, send/get messages, validators |
-| Realtime | controllers, hubs, notification handlers, gRPC, infrastructure |
+| Realtime | controllers, notification/sync handlers, task-branch authorization, gRPC, connection/read-store infrastructure |
+| Collaboration | comment aggregate, validators, comment handlers and integration-event consumers |
 | Error handling | middleware and integration-style error response behavior |
 | Frontend | API interceptors, CSRF, auth store, todo types/sorting, category filter, UI components, app pages |
 
@@ -245,14 +307,24 @@ Backend coverage:
 - configured by `coverage.runsettings`;
 - outputs Cobertura and JSON;
 - excludes test assemblies, generated/bin/obj/migration/designer/program files, and common test libraries.
+- no numeric backend coverage threshold is configured in the CI job or runsettings;
+  collecting a report alone does not enforce the frontend's 85% policy on .NET.
 
 Frontend coverage:
 
 - configured in `frontend/vitest.config.ts`;
 - provider: V8;
 - includes `src/**/*.{ts,tsx}`;
-- excludes tests, `src/app/**`, and `src/components/todos/edit-todo-modal/**` (pointer/canvas-heavy — covered by e2e instead);
+- excludes tests, `src/app/**`, and the entire `src/components/todos/edit-todo-modal/**`
+  subtree. Unit/browser tests may exercise these areas, but the coverage percentages
+  do not measure them, and the browser suite does not cover every branch-editor state;
 - thresholds: ≥85% for statements, branches, functions, and lines.
+
+`TodoApiTestFactory` runs Todo API in ASP.NET Core TestServer, replaces persistence
+with EF InMemory and substitutes gRPC/RabbitMQ/Redis dependencies. These tests
+exercise middleware and HTTP behavior but do not establish PostgreSQL transaction,
+query-translation, production Redis stamp-check or real-gateway correctness. Its
+`CreateGatewayClient()` is a simulated client, not a running Ocelot gateway.
 
 ## CI Checks
 
@@ -267,12 +339,12 @@ lychee --offline --no-progress README.md CHANGELOG.md CONTRIBUTING.md SECURITY.m
 
 Backend:
 
-Backend:
-
 ```powershell
-dotnet restore
-dotnet build --no-restore
-dotnet test --no-build --collect:"XPlat Code Coverage"
+dotnet restore Planora.sln
+dotnet build Planora.sln --no-restore --configuration Release -warnaserror
+dotnet test Planora.sln --no-build --configuration Release `
+  --collect:"XPlat Code Coverage" --settings coverage.runsettings `
+  --results-directory ./coverage/backend
 ```
 
 Frontend:
@@ -288,12 +360,19 @@ npm run build
 Branches configured in the workflow:
 
 - `main`
+- `develop`
 - `audit/**`
 - `fix/**`
 
-Pull requests target `main`.
+Pull requests target `main` or `develop`.
 
-`.github/workflows/e2e.yml` runs the Playwright gateway flow on relevant pull requests and manual dispatch. It builds the Docker stack, generates temporary e2e secrets in `.env.e2e`, waits for gateway health endpoints, runs `npm run e2e`, uploads Playwright artifacts, then stops the stack.
+`.github/workflows/e2e.yml` runs both Playwright projects on relevant pull
+requests and manual dispatch. It starts the Docker stack using temporary
+environment secrets, waits for gateway health, installs Chromium, builds and
+starts Next.js, runs `npm run e2e`, uploads reports and stops frontend/containers.
+The config itself has no `webServer` launcher. A local UI file skips when the
+helper cannot reach the frontend; inspect skipped totals before calling a run complete.
+See [`frontend/e2e/README.md`](../frontend/e2e/README.md) for full local setup.
 
 ## Mutation Testing
 
@@ -309,19 +388,19 @@ dotnet stryker
 Two scoped configs ship with the repo. Run each individually:
 
 ```powershell
-# Hidden-shared-todo redaction logic — score holds above 95%.
+# Hidden-shared-todo factory and viewer-state resolver.
 dotnet stryker
 
 # Auth security modules (PasswordValidator, TwoFactorService,
-# RecoveryCodeService) — score holds above 85%; remaining survivors
-# are documented equivalent mutants (logger-only branches and
-# StringSetAsync keepTtl masked by When.NotExists).
+# RecoveryCodeService).
 dotnet stryker -f stryker-auth.json
 ```
 
-Both configs ignore `string` mutator output and the auth config also ignores
-`statement` mutator output (logger-only equivalent mutants). Reports are
-written to the git-ignored `StrykerOutput/` directory.
+Only `stryker-auth.json` currently declares ignored `string` and `statement`
+mutations; the default config does not. Both use high/low/break thresholds of
+90/80/70. Reports are written to the git-ignored `StrykerOutput/` directory.
+There is no automatic mutation-test CI job or current score established by the
+documentation audit; record a dated report before claiming an achieved score.
 
 ## Security Checks
 
@@ -365,8 +444,10 @@ Use this after feature changes or before a release.
 - Create category.
 - Create todo with category.
 - Create todo without category.
-- Update title, description, due date, expected date, priority, and status.
-- Verify expected date after due date is rejected.
+- Update title, description, estimated-completion date/interval, priority and status.
+- Verify interval start after end is rejected, and clearing the interval stays
+  cleared after reload. `expectedDate` is a legacy DTO field, not the editor's
+  current date-picker input.
 - Complete todo and verify completed view.
 - Delete todo.
 - Delete category and verify todo behavior after category deletion.
@@ -378,7 +459,10 @@ Use this after feature changes or before a release.
 - Accept request.
 - Share a todo.
 - Confirm shared todo appears to friend.
-- Confirm non-owner can only update status.
+- Confirm viewers cannot rename/rewrite the parent task, and can only use their
+  allowed worker, personal category/hide/completion and branch/subtask actions.
+- Confirm an owner's global completion prevents a viewer reopening the task;
+  duplicate makes a fresh task instead.
 - Hide shared todo as viewer and verify redaction.
 - Reveal shared todo and verify details reload only after explicit action.
 
@@ -410,6 +494,9 @@ These are documentation observations, not claims of missing tests after running 
 
 | Area | Why it is risky |
 |---|---|
-| Browser-rendered e2e | Playwright currently covers the critical API-gateway flow; UI selectors and browser navigation flows still need dedicated coverage. |
+| Browser-rendered breadth | Existing UI specs cover sign-in/register/recovery/verification, profile rename and basic task-page entry. They do not cover every branch reply, autosave, ownership, viewport or failure state. |
 | Full multi-service integration breadth | The e2e suite covers auth/todos/sharing/hidden, but messaging/realtime and admin flows are not covered end-to-end. |
 | Production smoke tests | The repository has a production baseline, but no deployment environment smoke workflow. |
+| Relational persistence | Many backend repository/factory tests use EF InMemory; passing them does not verify PostgreSQL-specific SQL, constraints or transaction behavior. |
+| Excluded frontend source | Route pages and the full branch-editor subtree are excluded from numeric coverage; audit their behavior independently. |
+| Session transitions | Friend cache isolation across accounts, scheduled refresh after later login and long-lived realtime reconnect exhaustion need targeted regression coverage. |

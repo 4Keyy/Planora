@@ -19,15 +19,15 @@ The core workflow is:
 | Access/refresh token lifecycle | implemented | `AuthenticationController.cs`, `frontend/src/store/auth.ts`, `frontend/src/lib/auth-public.ts` |
 | CSRF double-submit token | implemented | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs`, `frontend/src/lib/csrf.ts` |
 | Profile and account security | implemented | `Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs` |
-| Two-factor authentication | implemented | `UsersController.cs`, `Services/AuthApi/Planora.Auth.Application/Features/Users/Commands/*2FA` |
+| Two-factor authentication | implemented | `UsersController.cs`, `Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/Enable2FA`, `Confirm2FA`, `Disable2FA` |
 | Friend requests and friendships | implemented | `Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs` |
 | Category CRUD | implemented | `Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs` |
 | Todo CRUD and filtering | implemented | `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs` |
 | Shared todo hidden/viewer preferences | implemented | `Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs`, `TodoViewerStateResolver.cs` |
 | Task comment timeline | implemented | `Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs` |
 | Direct messages | implemented | `Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs` |
-| Realtime notification primitives | implemented | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Api/Hubs` |
-| Durable notifications (offline catch-up, unread counts) | implemented, conditional on `ConnectionStrings__RealtimeDatabase` | `Services/RealtimeApi/Planora.Realtime.Domain/Entities/Notification.cs`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs` |
+| Realtime notifications and branch/feed sync | implemented | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs` |
+| Durable notification list/unread counts | implemented, conditional on `ConnectionStrings__RealtimeDatabase`; no server-side toast replay on reconnect | `Services/RealtimeApi/Planora.Realtime.Application/Handlers/NotificationEventHandler.cs`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs` |
 | Keyboard-driven task list, command palette, quick capture | implemented | `frontend/src/components/command-palette.tsx`, `frontend/src/components/ui/shortcuts-overlay.tsx`, `frontend/src/components/todos/quick-capture.tsx` |
 | Undo window in place of a delete confirmation | implemented | `frontend/src/components/ui/undo-bar.tsx` (`UNDO_WINDOW_MS` = 5000), `frontend/src/app/(app)/tasks/page.tsx`, `frontend/src/app/(app)/dashboard/page.tsx` |
 | Product analytics event intake | implemented as structured business logging, not third-party analytics | `Services/AuthApi/Planora.Auth.Api/Controllers/AnalyticsController.cs`, `BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs` |
@@ -100,7 +100,7 @@ exists in the domain; the product does not surface it — see
 
 | Entity | What it is | What owns it → what it owns |
 |---|---|---|
-| `Comment` | One entry on a task's timeline, in three flavours: a user comment, the genesis comment (the author's note that opens the branch), and an auto-generated system event. A reply additionally snapshots its target's type, id, author, and a preview capped at 300 characters, plus a `ReplyToDeleted` flag | Owned by a task in another service, by `TaskId` alone → owns nothing |
+| `Comment` | Stored user comment/reply or auto-generated system event. A reply snapshots its target's type, id, author and a preview capped at 300 characters, plus a `ReplyToDeleted` flag. The Author's Note is synthesized from Todo's current description, not a stored genesis row | Associated with a task by `TaskId` alone, without a cross-database FK → owns nothing |
 
 `Services/CollaborationApi/Planora.Collaboration.Domain/Entities/Comment.cs`. Every read and write
 is authorised against the Todo service over gRPC, because this service cannot see the task.
@@ -117,8 +117,8 @@ is authorised against the Todo service over gRPC, because this service cannot se
 
 | Entity | What it is | What owns it → what it owns |
 |---|---|---|
-| `Notification` | The durable record of one notification consumed from the event bus: recipient, title, body, type, `TaskId` and `ActorId` for routing and attribution, read state, and `SourceEventId` — unique, which is what makes redelivery idempotent | Owned by a recipient (`UserId`) → owns its `NotificationDelivery` rows |
-| `NotificationDelivery` | The per-user delivery audit for one notification: status, attempt count, delivery time, last error | Owned by a `Notification` → owns nothing |
+| `Notification` | Durable notification record: recipient, title/body/type, task/actor UUIDs, read state and unique source event ID. Absent task/actor values use `Guid.Empty`, not null | Owned by a recipient; delivery reference is a value link without FK |
+| `NotificationDelivery` | Delivery-state domain/schema scaffold with status, attempt count, delivery time and error; current runtime does not write these rows | Associated by notification/user UUIDs; no configured notification FK |
 
 Persistence is conditional on `ConnectionStrings__RealtimeDatabase`. Without it the service still
 runs and still pushes over SignalR, but nothing is stored and the read API returns empty.
@@ -128,8 +128,8 @@ runs and still pushes over SignalR, but nothing is stored and the read API retur
 | Concept | Meaning | Code |
 |---|---|---|
 | Integration event | A RabbitMQ-delivered message used for async cross-service work — task lifecycle, category deletion, friendship removal, account state | `BuildingBlocks/Planora.BuildingBlocks.Application/Messaging/Events/` |
-| Outbox message | The event as written inside the business transaction, dispatched afterwards by a signal-driven processor with a polling safety net | `BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/` |
-| Inbox message | The consumer-side record that makes handling an event twice a no-op | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/` |
+| Outbox message | Persisted integration-event envelope dispatched by a five-second polling processor; Todo additionally signals it after saves. Some workflows make multiple commits, so atomicity is scoped to a save boundary | `BuildingBlocks/Planora.BuildingBlocks.Application/Outbox/`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/` |
+| Inbox message | Optional replay-suppression record keyed by event and handler. Only Collaboration registers the bus inbox; effects and recording are not one atomic transaction | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox/`, `Messaging/RabbitMqEventBus.cs` |
 
 The browser sees a flattened view of all of this: `frontend/src/types/todo.ts` folds the task, its
 category, its author, its workers, and the viewer's own completion state into one `Todo` object,
@@ -193,20 +193,20 @@ Implementation:
 Confirmed service ownership:
 
 - Auth owns users, roles, sessions, refresh tokens, login history, password history, friendships, audit logs, and auth-side outbox/inbox tables.
-- Todo owns todo items, tags, shares, and viewer preferences, and publishes task-lifecycle events via its outbox.
+- Todo owns todo items/subtasks, tags, shares, workers and viewer preferences, and publishes lifecycle/notification/live-sync events via its outbox.
 - Category owns categories.
 - Messaging owns messages and messaging-side outbox/inbox tables.
-- Collaboration owns the task comment timeline (user/genesis/system comments) and authorises every operation against Todo over gRPC; it never reads Todo's database.
-- Realtime owns SignalR connection state on the Redis backplane and, in `planora_realtime`, the durable notification read-model (`Notifications`, `NotificationDeliveries`, plus its own outbox).
+- Collaboration owns stored user/system/reply comments, synthesizes the Author's Note from Todo and authorizes comment operations over gRPC; it never reads Todo's database.
+- Realtime owns SignalR connection tracking/backplane and a conditional durable notification read-model; delivery/outbox tables are present but do not imply active delivery audit or event production.
 - Gateway owns public routing and ingress-level JWT/rate/CORS behavior.
 
 ## What Planora Deliberately Does Not Do
 
-Each of these is a decision visible in the code, not a gap waiting to be filled.
+The table distinguishes unsupported product surfaces from current implementation behavior.
 
 | Not supported | How the code says so |
 |---|---|
-| **Publishing anything to the open internet.** Sharing stops at the friend graph | `GetPublicTodosQueryHandler` resolves the viewer's accepted-friend list over gRPC before it reads a single row; the editor writes `isPublic: false` on every save (`frontend/src/components/todos/edit-todo-modal/utils.ts`) |
+| **Anonymous task publishing.** There is no anonymous task-reading surface | Feed/detail/branch paths require authentication and normally accepted friendship for non-owners. The API supports `IsPublic`; its join path currently allows any authenticated caller and returns a full DTO, an authorization inconsistency documented in [auth-security.md](auth-security.md). |
 | **A dark theme.** The product ships one palette | `frontend/src/app/globals.css` defines its tokens on `:root` only, with no `.dark` block and no `prefers-color-scheme` branch; `tailwind.config.ts` sets `darkMode: ["class"]` but no source file uses a `dark:` utility |
 | **Restoring a deleted task.** Delete is final once the undo window closes | `TodosController` exposes `DELETE /{id}` and no inverse. `BaseEntity.Restore()` exists but nothing in the Todo service calls it, and the retention purge removes soft-deleted rows for good after `SoftDeleteGraceDays` |
 | **Nested subtasks.** The tree is exactly two levels deep | `TodoItem.CreateSubtask` throws `BusinessRuleViolationException` when the parent is itself a subtask |
@@ -219,7 +219,10 @@ Each of these is a decision visible in the code, not a gap waiting to be filled.
 
 | Limitation | Evidence |
 |---|---|
-| Production hosting target and deploy automation are not committed. | `docker-compose.yml`, `.github/workflows/ci.yml`, `.github/workflows/e2e.yml` |
+| Fly.io templates and CD are committed, but current migration/container/secret prerequisites block a verified clean production rollout. | `deploy/fly/`, `.github/workflows/cd.yml`, [production.md](production.md) |
+| The tracked Todo migration chain lacks the initial schema migration; an empty Todo database cannot be initialized by that chain alone. | `Services/TodoApi/Planora.Todo.Infrastructure/Migrations/`, [database.md](database.md#startup-and-schema-initialization) |
 | No external analytics SDK/table was found; analytics events are allowlisted and logged through business logging. | `AnalyticsController.cs`, `IBusinessEventLogger.cs`, `frontend/src/lib/analytics.ts` |
 | Realtime persistence is optional: without `ConnectionStrings__RealtimeDatabase` the service falls back to ephemeral SignalR pushes and an empty read API. | `Services/RealtimeApi/Planora.Realtime.Infrastructure/Persistence/RealtimeDbContext.cs`, `docker-compose.yml` |
+| Durable notification recovery uses the read API; no hub reconnect replay or runtime delivery-audit writer exists. | `NotificationEventHandler.cs`, `NotificationHub.cs`, `NotificationService.cs` |
+| Outbox/inbox naming does not imply exactly-once consumption or one transaction per handler; some multi-event writes commit separately. | [architecture.md](architecture.md#outbox-delivery-semantics) |
 | Gateway route docs must include both canonical friendship route and legacy `/friendships` route because both are present in Ocelot and frontend code uses the legacy route. | `Planora.ApiGateway/ocelot.json`, `frontend/src/hooks/use-friends.ts` |

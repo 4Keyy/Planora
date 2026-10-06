@@ -25,6 +25,26 @@ For hidden shared/public tasks:
 
 ## Consequences
 
+### Implementation Note — 2026-10-06
+
+`HiddenTodoDtoFactory.ShouldMask` also masks the owner's hidden task when it has a public
+or explicit shared audience. A private owner's hidden task remains readable. Shared owners
+use `HiddenByViewer || TodoItem.Hidden` for compatibility; non-owners use their own
+preference only. The owner hide endpoint clears a legacy shared global hidden flag when
+updating their preference.
+
+The preference record additionally holds per-viewer completion. Global owner completion
+closes a task for every viewer; owner reopening clears viewer completion on shared/public
+tasks. A viewer can clear personal completion while the owner has not globally completed
+the task. This differs from the frontend's stricter author-only reopen action.
+
+Redaction is applied by list/detail read paths, not automatically by every DTO mapper.
+The current public-task join path returns a full mapped DTO and omits the live friendship
+check; this known inconsistency is documented in [auth-security.md](../auth-security.md).
+Do not interpret this ADR as proof that every mutation response is redacted.
+
+### Original Tradeoffs
+
 Positive:
 
 - Privacy is enforced server-side, not just in the UI.

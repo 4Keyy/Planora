@@ -7,7 +7,7 @@ This root file is the short test summary. The full guide is [`docs/testing.md`](
 ```powershell
 dotnet restore Planora.sln
 dotnet build Planora.sln
-dotnet test Planora.sln --settings coverage.runsettings
+dotnet test Planora.sln --collect:"XPlat Code Coverage" --settings coverage.runsettings
 ```
 
 Test projects:
@@ -25,7 +25,7 @@ Coverage settings:
 
 ```powershell
 Push-Location frontend
-npm install
+npm ci
 Pop-Location
 npm --prefix frontend run lint
 npm --prefix frontend run type-check
@@ -41,12 +41,31 @@ Frontend test config:
 
 Current frontend coverage includes authenticated navbar menu interactions, Todo author-name enrichment for public friend tasks, hidden-card category blur, urgency border styling, and all-friends sharing inside `Share With`.
 
+The V8 gate is ≥85% statements, branches, functions and lines for its included
+scope. It excludes route pages and the full `edit-todo-modal` subtree; a passing
+percentage does not establish coverage for those excluded paths.
+
+The final 2026-10-06 frontend run at `b2e9c70` passed 100 files / 1,231 tests,
+with 86.46% branch coverage and all four configured thresholds above 85%.
+Lint, type check and the isolated production build also passed. The publication
+follow-up corrected two stale password-reset URL expectations to
+`/auth/reset-password` and patched the XML cryptography dependency. A forced
+restore, Release build with `-warnaserror` and all 972 backend tests passed.
+The [dated report](docs/audits/2026-10-06.md) records the initial failures,
+subsequent corrections and practical limits. Four motion/geometry browser tests
+were discovered but skipped because the local frontend was unreachable.
+
 ## E2E
 
 ```powershell
 docker compose --env-file .env up -d --build
 npm --prefix frontend run e2e
 ```
+
+Playwright has `api` (gateway HTTP) and `ui` (Chromium) projects. The latter
+needs a separately built/running Next.js server; configuration does not launch
+it. A UI file may skip when the frontend is unreachable. Follow
+[`frontend/e2e/README.md`](frontend/e2e/README.md) and inspect skipped tests.
 
 E2E config:
 
@@ -69,11 +88,14 @@ See [`perf/README.md`](perf/README.md) for thresholds, baselines, and CI integra
 
 `.github/workflows/ci.yml` runs markdown lint/link checks, backend restore/build/test, and frontend lint/type-check/test/build.
 
-`.github/workflows/e2e.yml` runs Docker-backed Playwright e2e for auth/todos/sharing/hidden.
+`.github/workflows/e2e.yml` starts Docker and a production Next.js frontend and
+runs both API and UI Playwright projects.
 
 `.github/workflows/security.yml` runs Gitleaks (with Planora-specific rules in `.gitleaks.toml`), CodeQL SAST, Trivy IaC scanning, NuGet vulnerability checks, npm audit, and a CycloneDX SBOM artifact job.
 
-`.github/workflows/migrations.yml` attaches a per-service idempotent SQL migration script as a 30-day PR artifact whenever schema-relevant paths change.
+`.github/workflows/migrations.yml` attaches idempotent SQL artifacts for five
+DB-owning services. `.github/workflows/openapi.yml` generates five configured
+service contracts and currently omits Collaboration's HTTP API.
 
 `.github/workflows/perf-smoke.yml` runs the k6 scenarios on demand against the full Docker stack.
 

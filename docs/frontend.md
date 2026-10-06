@@ -8,24 +8,28 @@ For every visual value — colour, type, space, motion, elevation — see
 
 | | |
 |---|---|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| React | 18.3 |
-| Language | TypeScript, `strict` |
-| Styling | Tailwind 3.4, theme derived from `lib/design-tokens.ts` |
-| Motion | framer-motion 11 |
-| Primitives | Radix UI (`@radix-ui/react-slot`, dropdown, select, dialog) |
-| State | zustand |
+| Framework | Next.js 16.2.9 (App Router; lockfile version) |
+| React | React / React DOM 18.3.1 |
+| Language | TypeScript 5.9.3, `strict`, `@/*` → `src/*` |
+| Styling | Tailwind 3.4.19; semantic scales derived from `lib/design-tokens.ts` |
+| Motion | framer-motion 11.18.2 |
+| Primitives | Radix Slot, Dropdown Menu and Popover; custom modal/focus-management components |
+| State | Zustand 5.0.14 |
 | Realtime | SignalR over the gateway |
 | Tests | Vitest + Testing Library; Playwright for e2e and the audit harness |
+
+Versions above are from `frontend/package-lock.json`, verified on 2026-10-06.
+`package.json` generally specifies compatible ranges. Use `npm ci` to reproduce
+the locked dependency graph; read both files when upgrading.
 
 ---
 
 ## 1. Directory map
 
-```
+```text
 frontend/src/
   app/              route segments; one folder per URL
-    layout.tsx      root: fonts, CSP nonce consumer, providers, force-dynamic
+    layout.tsx      root: fonts, providers, force-dynamic; framework applies the nonce
     globals.css     the focus indicator, utilities, --pl-* variables
   components/
     ui/             the primitives. No product knowledge lives here
@@ -48,41 +52,64 @@ primitive that imports a `Todo` type has stopped being a primitive.
 
 ## 2. Rendering model
 
-The whole App Router is `force-dynamic`, declared once in `app/layout.tsx:71` and
+The whole App Router is `force-dynamic`, declared once in `app/layout.tsx` and
 cascading to every route. This is deliberate and documented in
 [`DECISIONS/0006-force-dynamic-and-csp-nonce.md`](DECISIONS/0006-force-dynamic-and-csp-nonce.md):
-`middleware.ts` mints a per-request CSP nonce, and a statically rendered page would
-serve a cached nonce, which is the same as having no nonce at all.
+`middleware.ts` mints a per-request CSP nonce. Reusing cached HTML with a fresh
+response policy would leave its script nonces mismatched; caching the policy and
+HTML together would reuse a nonce across requests. The current design avoids
+both by rendering dynamically.
 
-The cost is measured, not assumed: TTFB against SLO-02 (p95 ≤ 400ms) in
-[`slo.md`](slo.md).
+[`slo.md`](slo.md) defines performance targets; it is not evidence that every
+current route meets them. Re-measure TTFB against a running production build.
 
 Two consequences that bite:
 
-- **Every component renders twice** — once on the server, once during hydration. Any
-  value that differs between the two produces a hydration mismatch and React discards
-  the server pass. `Date.now()`, `Math.random()`, `window`, and an implicit locale are
-  the usual causes.
+- Client Components can contribute server-rendered HTML and are then hydrated in the
+  browser; Server Components do not all execute again in the browser. Browser-only
+  values belong in effects or an explicit client-only boundary. `Date.now()`,
+  `Math.random()`, `window`, locale and timezone differences can produce mismatches.
 - **`toLocaleDateString()` with no locale is a bug here.** It resolves to the host's
   locale, which is the container's on the server and the visitor's in the browser. All
-  date formatting goes through `lib/datetime.ts`, which pins the locale in one place.
+  shared date-formatting helpers in `lib/datetime.ts` pin `en-US`. They do not pin
+  the timezone; an instant near midnight can still format differently on server and
+  client. Date pickers and completion windows intentionally use browser-local dates.
 
-Of 90 `.tsx` files, 64 are `"use client"`. That is high, and it is honest: this is an
-interactive product, and a component that owns state, a handler or an effect must be a
-client component.
+The route layouts own metadata and shared framing. Interactive route pages, controls,
+hooks and stores form explicit client boundaries. Do not infer the rendering model
+from a stale count of `"use client"` directives.
+
+### Route ownership
+
+| URL | Responsibility |
+|---|---|
+| `/` | Public landing page, interactive product explanations and anonymous in-memory sandbox |
+| `/auth/login`, `/auth/register` | Credential forms; successful sign-in/registration navigates to `/dashboard` |
+| `/auth/forgot-password`, `/auth/forgot-password/sent` | Reset-link request, masked address and resend cooldown |
+| `/auth/reset-password`, `/auth/verify-email` | Token-driven recovery and verification |
+| `/dashboard` | Active-task overview, statistics and quick capture |
+| `/tasks` | Active feed, category filters, completed preview, keyboard selection and editor |
+| `/tasks/completed` | Paginated archive with local-day completion-window filters |
+| `/categories` | Category creation, edit/autosave and deletion |
+| `/profile` | Identity, account security, sessions, history, friends and role-gated administration |
+| `/branch/[id]` | Standalone instance of the same task editor/branch used in the modal |
+
+The `(app)` route group changes layout ownership, not the URL. `AppShell` keeps
+the navbar mounted across these routes and places guarded content inside `main#main`.
+`AuthGuard` waits for hydration and session restoration before rendering that content.
 
 ---
 
 ## 3. Authentication and the invariants
 
-Three rules from [`INVARIANTS.md`](INVARIANTS.md) constrain the frontend directly, and
+Rules from [`INVARIANTS.md`](INVARIANTS.md) constrain the frontend directly, and
 none may be relaxed for convenience:
 
 | Invariant | What it means here |
 |---|---|
 | `INV-AUTH-1` | The access token lives **in memory only**. `store/auth.ts` explicitly excludes it from the persisted slice |
 | `INV-AUTH-2` | The refresh token is an httpOnly cookie. The frontend never reads it and cannot |
-| `INV-AUTH-3` | Every mutating request carries a CSRF token — see `lib/csrf.ts` |
+| `INV-AUTH-3` | The shared API client attempts to attach `X-CSRF-Token` on POST/PUT/PATCH/DELETE; `auth-public.ts` requires successful token preparation. Server enforcement is service-specific; see `auth-security.md` |
 | `INV-AZ-3` | Redaction is **server-side**. The client never receives a field it is not allowed to see, so hiding something in the UI is never the security boundary |
 
 Identity is derived from the token's claims by `store/auth.ts` decoding it with
@@ -90,33 +117,67 @@ Identity is derived from the token's claims by `store/auth.ts` decoding it with
 job. This is also why the audit harness can reach an authenticated state by stubbing a
 single refresh response.
 
-`lib/auth-broadcast.ts` keeps tabs in step: signing out in one tab signs out the rest.
+`SecurityInitializer` bootstraps CSRF, listens for cross-tab logout, restores the
+session after Zustand hydration and enriches a missing avatar. Restoration always
+tries the httpOnly-cookie refresh when no valid access token is available; it does
+not treat missing sessionStorage metadata as proof that the cookie is absent.
+The store persists only `user`, token expiry metadata, `roles` and `emailVerified`
+under the per-tab sessionStorage key `planora-auth`. Neither authentication flags
+nor token strings are part of the persisted slice.
+
+`lib/auth-broadcast.ts` uses `BroadcastChannel` for best-effort logout notification
+to other tabs. `clearAuth()` clears local state and broadcasts; it does not itself
+revoke a server session or expire the cookie. The navbar calls the logout endpoint
+first, then clears local state even when that request fails.
+
+`scheduleTokenRefresh()` plans a refresh five minutes before the access-token
+expiry, retries a failed scheduled refresh after five minutes, and is invoked by
+the initializer after restoration. A login that happens later in that already
+mounted page does not itself start the timer. Foreground API requests also have
+a separate 401-triggered refresh path.
 
 ---
 
 ## 4. Data access
 
-`lib/api.ts` owns the axios instance and every endpoint wrapper. Rules:
+`lib/api.ts` owns the shared Axios instance and named task/comment wrappers.
+Pages and hooks also call that instance directly for auth, categories, friends and
+task lists. The instance has a 10-second timeout and `withCredentials: true`.
+Rules and current behavior:
 
-- **Components never call `axios` directly.** An endpoint gets a named function here.
-- Responses come back in an `ApiResponse<T>` envelope; `parseApiResponse` unwraps it and
-  throws on failure, so a caller's `try/catch` is the error path.
-- `getApiErrorMessage(error, fallback)` produces something a user can read. **Never put
-  a raw server message on screen** — it can carry a stack trace or another user's data,
-  and it means nothing to the reader. `StatusPanel` deliberately has no slot for one; it
-  takes a `referenceId` instead.
+- Use the shared instance so Authorization, trace context and CSRF handling remain
+  consistent. Axios is also imported for cancellation/error predicates.
+- Response bodies include bare DTOs as well as `value` and `data` wrappers.
+  `parseApiResponse` unwraps those shapes; it does not validate a DTO or throw just
+  because an envelope contains `success: false`. HTTP failures reject through Axios.
+- `getApiErrorMessage` returns the first available server `message`, nested error,
+  `detail`, `title` or exception message. It does **not** sanitize or redact that text.
+  Auth forms use the status/code-based mappings in `lib/errors.ts`; other call sites
+  may show returned server text. Prefer controlled user copy and an opaque reference
+  id when adding error surfaces; `StatusPanel` supports `referenceId`.
 - `lib/errors.ts` holds the predicates that classify a failure (`isAuthorAlreadyCompletedError`
   and friends) and the copy for refusals a user cannot act their way out of.
-- `lib/config.ts` `getApiBaseUrl()` resolves the gateway against the host the page was
-  *opened from*, not the host baked at build time. That is what makes a LAN or tunnel
-  viewer work, and the CSP in `middleware.ts` is written to match.
+- `getApiBaseUrl()` validates `NEXT_PUBLIC_API_URL`, then the legacy
+  `NEXT_PUBLIC_API_GATEWAY_URL`. A local/LAN browser can retarget a local gateway to
+  the browser's host on port 5132. A public browser host paired with a configured local
+  gateway uses the frontend origin; `NEXT_PUBLIC_API_SAME_ORIGIN=1` explicitly selects
+  this proxy path in the browser. Server-side calls still use the configured gateway.
+
+The interceptor attaches a W3C `traceparent`. A foreground 401 may share one
+refresh request and retry once, preserving the trace id with a new span id.
+Auth/login/register/logout/refresh/password-reset failures remain with their forms.
+Best-effort calls marked `suppressErrorLog` do not drive the global 401-refresh flow.
+A refresh 429 preserves state and backs off using a numeric `Retry-After`, clamped
+to 1–300 seconds, with a 60-second fallback. A mutating 403 gets one retry after
+clearing the readable CSRF cookie; a permission-denied 403 is retried by the same
+rule and is surfaced if it fails again.
 
 ### The error-state contract
 
-Every fetch path owes the user three things: a loading state that does not shift the
-layout when it resolves, an error state **with a retry**, and an empty state that says
-what to do next. All three are `StatusPanel`. Three error states in this product used to
-offer nothing at all — a full page reload was the only way forward.
+The preferred contract is a stable loading footprint, a retryable error and an
+actionable empty state. Skeletons cover loading; `StatusPanel` covers many empty/error
+panels. This is not universal: the branch page uses its own loading/not-found markup,
+while optional enrichment and some background polls retain old data or fail silently.
 
 ---
 
@@ -124,12 +185,23 @@ offer nothing at all — a full page reload was the only way forward.
 
 | Store | Holds | Persisted |
 |---|---|---|
-| `store/auth.ts` | User identity, token expiry, hydration flag | Everything **except** the access token |
+| `store/auth.ts` | User identity, in-memory access token, expiry, roles and lifecycle flags | Only user, expiry metadata, roles and email-verification state |
 | `store/notifications.ts` | Unread counts, the notification list | No |
 | `store/toast.ts` | The transient message queue | No |
 
-Everything else is component state. There is no global cache: lists are fetched by the
-page that shows them and reconciled against realtime events.
+Task/category lists and open forms mostly use component state. There is no query-cache
+framework, but `use-friends.ts` has a module-global friend cache with a 60-second TTL
+and a shared in-flight request. It pages at 200 entries, bounded to 50 pages, and
+`invalidateFriends()` is called after relevant profile friend mutations. That cache
+is currently not keyed by user id or cleared by `clearAuth()`; do not treat it as a
+session-isolated cache. Category-filter preferences in `localStorage` are separately
+keyed by user id. Lightweight warning preferences use `planora:pref:*`.
+
+`useAutosave` debounces by 600 ms by default, serializes writes, compares against
+the last saved baseline and sends a newer value after the current save succeeds.
+It exposes `idle`, `saving`, `saved` and `error`; errors retry on a later edit or
+explicit flush. Closing/unmounting attempts a final flush. This is best-effort
+network persistence, not a durable offline queue.
 
 **Guard every async action against re-entry.** Ten places once fired a mutation with no
 in-flight guard, including *delete account*, so a second click sent a second request.
@@ -141,7 +213,15 @@ jump.
 
 ## 6. Realtime
 
-SignalR, wired through `lib/realtime/`:
+SignalR, wired through `lib/realtime/`, shares one WebSocket connection to
+`/realtime/hubs/notifications`, using `skipNegotiation: true` and an access-token
+factory that reads the current in-memory token. There is no long-polling transport
+fallback in this client. Initial connection failures use 2/5/10/30-second backoff;
+SignalR handles automatic reconnect after a successful connection with its
+installed default delays of 0/2/10/30 seconds, then stops retrying. This client has
+no `onclose` restart handler after that exhaustion; a later auth/token lifecycle
+change can call `start()` again. Reconnected branch memberships are rejoined and
+membership is reference-counted.
 
 | Hook | Purpose |
 |---|---|
@@ -151,8 +231,16 @@ SignalR, wired through `lib/realtime/`:
 | `useBranchRoom(...)` | Presence and updates inside one task's branch |
 | `useTyping(taskId, enabled)` | Ephemeral "is typing" presence |
 
-Typing presence entries carry a TTL and are swept on an interval, because a dropped
-`StopTyping` would otherwise leave a stuck "… is typing" forever.
+Typing signals are throttled to two seconds, stop after three seconds of idle,
+expire after six seconds and are swept every two seconds.
+
+The notification store hydrates on authentication, focus and visible-tab return.
+When the socket is down it polls the summary every 20 seconds while visible; it
+deduplicates live ids and caps the in-memory bell list at 100 items. Read actions
+are optimistic and reconcile from a later summary on failure. OS notifications
+require browser permission and a background/unfocused tab; this is not a service
+worker push subsystem. The open branch merges comments/subtasks every nine seconds
+as well as reacting to room signals and short post-action catch-up timers.
 
 When a realtime event arrives while the user is working, **reconcile — do not replace**.
 Swapping the list wholesale moves the row under the user's cursor and loses their scroll
@@ -162,8 +250,10 @@ position.
 
 ## 6b. Short route aliases
 
-`/login`, `/register`, `/signin` and `/signup` are **308 redirects** to `/auth/login` and
-`/auth/register`, declared in `redirects()` in `next.config.js`.
+`/login`, `/signin` → `/auth/login`; `/register`, `/signup` → `/auth/register`;
+`/reset-password` → `/auth/reset-password`; `/verify-email` → `/auth/verify-email`.
+These are permanent **308 redirects** in `next.config.js`; query parameters are
+preserved by the redirect behavior.
 
 They exist because those are the paths people type, bookmark and paste into emails, and
 without them every one of those is a hard 404 — the pages live under `/auth/*` and nothing
@@ -196,10 +286,11 @@ desktop this is where an experienced user lives.
 | `Cmd/Ctrl + A` | Select everything visible | Task list |
 | `Delete` / `Backspace` | Delete it, with a five-second undo | Task list |
 
-**One list is the source of truth.** `SHORTCUT_GROUPS` in
-`components/ui/shortcuts-overlay.tsx` is exported and consumed by the `?` map; a second
-hand-written list would drift the moment a binding moved. The table above is the only
-copy that is not generated, and it is the one to check when a binding changes.
+`SHORTCUT_GROUPS` in `components/ui/shortcuts-overlay.tsx` defines the `?` map.
+The palette and some control hints also declare shortcut labels locally; they do
+not all derive them from that array. When a binding changes, check the handler,
+the map, palette labels and this table together. Shared `Kbd`/platform helpers
+keep spelling and accessibility consistent, but do not synchronize the bindings.
 
 **The `⌘` vs `Ctrl` spelling is resolved after mount, never during render.** The server
 has no `navigator`, so reading the platform in render emits `Ctrl` from the server and
@@ -273,10 +364,11 @@ lists on one screen would need a scope, and nothing asks for one today.
 
 ### Inline styles
 
-Tailwind utilities are the default. Where a value must be computed at runtime — a
-progress width, a user's category colour, a popover's measured position — an inline
-style is correct, and the value must still come from a token, through the `--pl-*` CSS
-variables declared in `globals.css`.
+Tailwind utilities are the default. Theme values in inline styles should use the
+tokens or `--pl-*` CSS variables declared in `globals.css`. Runtime geometry,
+progress values and user-provided category colours are data rather than palette
+tokens; current code also contains explicit numeric geometry. Prefer shared
+tokens for repeated design values without treating every inline value as a token.
 
 An inline style is **never** the right place for a colour literal, a font size below
 12px, or a global z-index.
@@ -293,14 +385,21 @@ name, because several screen readers do not announce it and it never appears on 
 
 | Suite | Command | Covers |
 |---|---|---|
-| Unit + component | `npx vitest run` | 688 tests. Gate: 85% branches |
+| Unit + component | `npm --prefix frontend run test:coverage` | V8 gate: ≥85% statements, branches, functions and lines in the included source scope |
 | Design-system contract | `src/test/quality/design-tokens.contract.test.ts` | The five rules, read from source |
 | Usability contract | `src/test/quality/usability-contract.test.tsx` | Copy and affordances that must not regress |
 | Dead-CSS scan | `node docs/ui-audit/tools/class-audit.mjs` | Classes that emit no rule. **Needs a build first** |
 | Static a11y | `node docs/ui-audit/tools/a11y-static.mjs` | Names, keyboard paths, tab order |
-| Focus indicators | `node docs/ui-audit/tools/focus-scan.mjs` | Every focus stop, measured against 2.4.11's 3:1. **Needs a running server** |
-| Live matrix | `node docs/ui-audit/tools/live-scan.mjs` | 12 routes × 9 viewports × 3 modes. Web vitals are read before the full-page screenshot: Playwright takes it by resizing the viewport, which paints everything below the fold and used to register a late, detached LCP candidate (`/profile` at 360px read 1.6s against a real ~280ms) |
+| Focus indicators | `node docs/ui-audit/tools/focus-scan.mjs` | Reached focus stops and contrast. **Needs a running production server**; this does not establish complete WCAG conformance |
+| Live matrix | `node docs/ui-audit/tools/live-scan.mjs` | Fixture-backed routes/viewports/modes configured in the script. Web vitals are read before the full-page screenshot; preserve the report's actual reached cells and date |
 | E2E | `npx playwright test` | Real flows against a live stack |
+
+The final 2026-10-06 coverage run at `b2e9c70` passed **100 test files / 1,231 tests**: statements
+94.48%, branches 86.46%, functions 94.20%, lines 96.34%. This is a dated
+measurement, not a fixed test-count gate. Coverage excludes `src/app/**` and the
+entire `src/components/todos/edit-todo-modal/**` subtree; tests can still execute
+excluded code, but those percentages cannot establish its coverage. See
+[`testing.md`](testing.md) for commands, artifacts and integration-test limits.
 
 ### Testing associations, not appearance
 
@@ -338,7 +437,11 @@ the product actually ships**, not the unit in isolation.
 
 ## 10. Performance
 
-Measured in a production build, not in dev.
+The table below is a **historical UI-audit measurement**, retained for comparison.
+It is not a fresh measurement of the 2026-10-06 tree. The fixture-backed audit,
+environment and measurement history are recorded in
+[`ui-audit/RESULTS.md`](ui-audit/RESULTS.md); repeat the scripts before using
+these values as release evidence.
 
 | | |
 |---|---|
@@ -347,45 +450,73 @@ Measured in a production build, not in dev.
 | Max CLS across the matrix | 0.115 |
 | Max LCP across the matrix | 2384 ms |
 
-The bundle grew 18 KB from its low point when the command palette, the rolling
-counters and the undo window landed. That is the honest trade: the palette alone is
-worth more than 18 KB of the 506 KB that three.js used to spend on one quad.
+The earlier audit recorded an 18 KB increase from its low point after the
+palette, counters and undo window. Do not infer the current bundle size from it.
 
 Decisions worth knowing:
 
 - **The WebGL background is raw WebGL, not three.js.** three.js cost 506.7 KB — 23% of
   the bundle — to draw one fullscreen quad with one fragment shader. The shader is
   unchanged; only the ~90 lines of plumbing differ.
-- **It is lazy, and phones never fetch it.** `ColorBendsLayer` upgrades to the live
-  shader only after mount, and only for a fine pointer on a wide viewport with enough
-  cores and memory. Touch, small viewport, `deviceMemory ≤ 2`, `hardwareConcurrency ≤ 2`
-  and Save-Data all keep the static CSS gradient and never load the chunk.
+- **It is lazy and scoped to `/`.** `ColorBendsLayer` starts with the static
+  gradient and upgrades on that route after load/idle. Coarse pointers, viewports
+  ≤768 px, Save-Data, reported `deviceMemory ≤ 2` or `hardwareConcurrency ≤ 2`
+  retain the static gradient. Other routes remain static even on capable desktops.
 - **The render loop stops when the tab is hidden**, and a lost WebGL context parks it
   rather than freezing on the last frame.
+
+The tasks page fetches active pages of 200 up to a 100-page safety bound and
+progressively mounts 24 more cards as its sentinel enters view. Mounted cards
+are not evicted, so this is incremental rendering, not a fixed-size virtualization
+window. Category filtering and smart sorting run over the fetched data; the
+completed preview uses 20 items and the separate archive paginates at 20.
+The palette loads the first 100 active tasks when opened and filters that set
+locally; it is not a search over every page of the repository's task data.
+
+At a fixed column count, `MasonryColumns` retains each existing card's column
+and assigns new cards to the shortest estimated column. A breakpoint changing
+the column count redistributes the grid. Cards retain source-list order within
+each column; DOM and keyboard order traverse columns, so this does not establish
+a global row-by-row reading order. Removal uses per-column `AnimatePresence`
+and position-only layout motion with `SPRING_LAYOUT`; height changes do not
+stretch the card's contents. The entrance stagger applies to the first paint,
+not later insertions.
+
+### Landing sandbox boundary
+
+`DemoSandbox` waits for hydration and real-session restoration. A signed-in
+visitor keeps their session and sees a link to their own tasks. An anonymous
+visitor receives invented data via an in-memory Axios adapter and a synthetic
+client-decoded token. The demo suppresses realtime/notification lifecycle and
+seeds a readable CSRF value for its local writes; teardown restores the prior
+adapter/cookie, silently clears the demo auth and removes its persisted identity.
+Demo actions are local; initial page load/session-restoration and static assets
+can still make network requests. Do not describe the whole landing page as offline.
 
 ---
 
 ## 11. Local development
 
-```bash
-cd frontend
-npm run dev            # http://localhost:3000
-npm run build          # production build — the only build the audit tools trust
-npx vitest run         # tests
-npx vitest run --coverage
+```powershell
+npm ci --prefix frontend
+npm --prefix frontend run dev          # http://localhost:3000
+npm --prefix frontend run type-check
+npm --prefix frontend run test:coverage
+npm --prefix frontend run build
 ```
 
-Run the browser through the preview tooling rather than a bare `npm run dev` when you
-need to *verify* something: a dev server's HMR socket never lets a page reach
-`networkidle`, and on a proxied machine it can block hydration entirely, which looks
-exactly like a broken product.
+Use `next build` followed by `next start` for the production CSP, chunk-loading
+and browser-audit checks. Development mode is useful for editing, but has different
+HMR, CSP and rendering timing. Wait for an observable page state rather than relying
+on `networkidle` for a page with long-lived realtime/background work.
 
 Two traps this machine has hit before, recorded in
 [`troubleshooting.md`](troubleshooting.md):
 
 - **Rebuilding under a running server** leaves a torn `.next`; the browser then gets
   `text/plain` for JS and CSS and the page dies with a `ChunkLoadError` that looks like
-  an application crash. Stop the server, `rm -rf .next`, rebuild, restart.
+  an application crash. Stop the server before replacing its build, or use the
+  separate `NEXT_DIST_DIR` workflow in [`development.md`](development.md).
 - **`next-env.d.ts` churns** between dev and production builds. It is generated; do not
   commit the flip.
 
@@ -395,13 +526,14 @@ Two traps this machine has hit before, recorded in
 
 1. `npx tsc --noEmit` — clean.
 2. `npm run build` — clean.
-3. `npx vitest run` — green, branches ≥ 85%.
+3. `npm run test:coverage` — green across all four configured 85% thresholds.
 4. `node ../docs/ui-audit/tools/class-audit.mjs` — every class emits a rule.
 5. `node ../docs/ui-audit/tools/a11y-static.mjs` — no unnamed control, no unreachable one.
-5b. If you touched anything focusable, `node ../docs/ui-audit/tools/focus-scan.mjs` against a
+6. If you touched anything focusable, `node ../docs/ui-audit/tools/focus-scan.mjs` against a
    running production server — every focus stop still clears 3:1.
-6. If the change is visible, look at it in a real browser at 390px and at 1440px.
-7. Docs updated — this page, [`design-system.md`](design-system.md), or
+7. If the change is visible, look at it in a real browser at 390px and at 1440px,
+   including keyboard, reduced-motion and relevant error states.
+8. Docs updated — this page, [`design-system.md`](design-system.md), or
    [`features.md`](features.md), whichever the change touched.
 
 ---

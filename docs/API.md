@@ -6,6 +6,10 @@ Base URL for the browser/frontend is the API Gateway:
 http://localhost:5132
 ```
 
+Audited against repository implementation on **2026-10-06**. HTTP status descriptions below distinguish controller returns, MVC validation, and exception middleware; Swagger attributes alone are not the wire contract.
+
+Navigation: [conventions](#conventions) · [gateway routes](#gateway-route-map) · [authentication](#authentication) · [users](#users) · [friendships](#friendships) · [categories](#categories) · [todos](#todos) · [collaboration](#collaboration) · [messaging](#messaging) · [realtime](#realtime).
+
 Route evidence:
 
 - `Planora.ApiGateway/ocelot.json`
@@ -22,29 +26,29 @@ Protected routes require:
 Authorization: Bearer <access-token>
 ```
 
-Auth state-changing browser routes also require CSRF:
+State-changing HTTP routes in **Auth, Todo, Category, Messaging and Collaboration** also require CSRF:
 
 ```http
 X-CSRF-Token: <value from XSRF-TOKEN cookie>
 ```
 
-The frontend sends CSRF headers for all state-changing API calls, but backend CSRF validation is implemented in the Auth API pipeline.
+The frontend sends CSRF headers for state-changing API calls. `UseCsrfProtection()` is registered in Auth, Todo, Category, Messaging and Collaboration; Realtime and the gateway do not register it. The middleware requires the matching cookie/header pair even for a bearer-authenticated caller. It exempts requests whose content type starts with `application/grpc`; `GET`, `HEAD` and `OPTIONS` do not run the comparison. A rejection is `403` with `{ "error": "CSRF_VALIDATION_FAILED", "message": "CSRF token validation failed" }`. See [authentication and security](auth-security.md#csrf-protection) and the implementation divergence recorded in [ADR 0005](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md#current-implementation-audit-2026-10-06).
 
 ### Response Shapes
 
 Which wrapper you get is decided by one rule: `ResultToActionResultFilter` (registered globally in
-the Todo, Category and Messaging services) rewrites an action result **only when the object it
+the Auth, Todo, Category, Collaboration and Messaging services) rewrites an action result **only when the object it
 carries is still a `Result<T>`**. A controller that unwraps the handler itself — `Ok(result.Value)` —
 never meets the filter, so its payload is the bare DTO.
 
 | Shape | Returned by | Code |
 |---|---|---|
-| raw DTO or `PagedResult<T>` | every action that unwraps the handler itself: all of `TodosController` **except** `GET /todos/public`, all of `CommentsController`, messaging, realtime, auth | controller return code |
-| `ApiResponse<T>` envelope (`success` / `data` / `meta`) | every action that hands the filter an unopened `Result<T>`: all four category routes, and `GET /todos/public` | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Filters/ResultToActionResultFilter.cs` |
+| raw DTO or `PagedResult<T>` | every action that unwraps the handler itself: Todo reads/mutations other than `GET /todos/public`, all of `CommentsController`, messaging, realtime, and most auth actions | controller return code |
+| `ApiResponse<T>` envelope (`success` / `data` / `meta`) | every action that hands the filter an unopened `Result<T>`: category `GET`/`POST`/`PUT`, `GET /todos/public`, and friendship accept/reject | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Filters/ResultToActionResultFilter.cs` |
 | bare `Error` object | explicit `BadRequest(result.Error)` / `NotFound(result.Error)` in `TodosController`, `CommentsController` and `CategoriesController.DeleteCategory` | controller return code |
 | `ApiResponse<object>` failure, `Content-Type: application/problem+json` | anything that **throws**: `ForbiddenException`, `EntityNotFoundException`, `BusinessRuleViolationException`, FluentValidation failures, gRPC faults | `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/EnhancedGlobalExceptionMiddleware.cs` |
 
-`ApiResponse<T>` envelope:
+`ApiResponse<T>` envelope skeleton (`data` is replaced by the endpoint's complete DTO or collection):
 
 ```json
 {
@@ -86,7 +90,7 @@ Page arguments are normalised server-side by
 `BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PaginationParameters.cs`: a page number
 below 1 becomes 1, a page size below 1 becomes 10, and anything above 100 is clamped to 100. The
 echoed `pageNumber` / `pageSize` are the normalised values, so a client that asked for 500 rows can
-tell from the response that it got 100.
+tell from the response that it got 100. This is a shared pagination primitive, not a universal promise to accept out-of-range input: Messaging's query validator rejects `page < 1` or `pageSize` outside `1..100` before its handler; Auth pagination queries normalize during property binding before their validators execute.
 
 Frontend unwrapping code:
 
@@ -101,8 +105,12 @@ Service-level rate limiting policies are configured in `BuildingBlocks/Planora.B
 |---|---:|---|
 | `register` | 3 requests/minute/IP | `POST /auth/api/v1/auth/register` |
 | `login` | 5 requests/minute/IP | `POST /auth/api/v1/auth/login` |
-| `auth` | 10 requests/minute/IP | refresh/logout/validate-token/password reset |
-| `data` | 50 requests/minute/IP | configured but no controller usage found in inspected routes |
+| `auth` | 10 requests/minute/partition | refresh/logout/validate-token/password reset |
+| `avatar-upload` | 5 requests/hour/partition | `POST /auth/api/v1/users/me/avatar` |
+| global | 100 requests/minute/partition | service routes, except an endpoint marked `[DisableRateLimiting]` such as CSRF-token issuance |
+| `data` | 50 requests/minute/partition | configured but no controller usage found in inspected routes |
+
+The partition resolver prefers a subject claim when available and otherwise uses normalized remote IP. Current service pipelines invoke `UseRateLimiter()` before `UseAuthentication()`, so ordinary bearer requests reach it without a validated JWT principal and use the IP fallback. Redis-backed service counters share their prefixes across services; the gateway limiter is a separate in-memory per-process layer.
 
 Every route in both Ocelot files carries `"RateLimitOptions": { "EnableRateLimiting": false }` — Ocelot
 throttles nothing. All gateway throttling comes from the ASP.NET Core limiter in
@@ -122,7 +130,7 @@ Rejection is `429 Too Many Requests` with `Retry-After: 60` and the body
 
 | Gateway route | Downstream service | Auth |
 |---|---|---|
-| `GET /health` | gateway | public |
+| `/health`, `/health/live`, `/health/ready` | gateway inline health branch | public |
 | `GET /auth/health` | Auth API | public |
 | `GET /todos/health` | Todo API | public |
 | `GET /categories/health` | Category API | public |
@@ -141,7 +149,11 @@ Rejection is `429 Too Many Requests` with `Retry-After: 60` and the body
 | `/messaging/api/v1/{everything}` | Messaging API | bearer |
 | `/collaboration/api/v1/{everything}` | Collaboration API (task comment timeline) | bearer |
 | `/realtime/api/v1/{everything}` | Realtime API HTTP route (notifications + connections REST) | bearer |
-| `/realtime/{everything}` | Realtime API websocket route (SignalR hub `/hubs/notifications`) | route-dependent |
+| `GET /realtime/{everything}` | Realtime API websocket route (SignalR hub `/hubs/notifications`) | bearer at gateway and hub |
+
+The local downstream prefix for authentication is `/api/v1/Authentication`; `/auth/api/v1/auth` is the gateway rewrite. Other REST controllers use `/api/v1/<controller>` locally. The refresh cookie is scoped to the **gateway** auth path, so direct service calls do not automatically receive it. The Ocelot user catch-all is `/users/{everything}`: the controller's admin `GET /api/v1/Users` collection route has no explicit root mapping in the checked-in gateway files. Confirm catch-all matching in the deployed Ocelot version before relying on the gateway collection URL.
+
+`POST /realtime/hubs/notifications/negotiate` has no matching POST hub route in these Ocelot files. The frontend uses WebSockets with `skipNegotiation: true`; an external client requiring negotiation/long polling needs additional routing.
 
 ## Authentication
 
@@ -185,7 +197,20 @@ Validation:
 - confirmation must match;
 - first and last name required, max 100, letters/spaces/hyphen/apostrophe.
 
-Success `200`: access token and user fields. Refresh token is set only as httpOnly cookie and omitted from JSON.
+Success `200` (exact controller projection):
+
+```json
+{
+  "accessToken": "<jwt>",
+  "userId": "11111111-1111-1111-1111-111111111111",
+  "email": "user@example.com",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "expiresAt": "2026-10-13T12:00:00Z"
+}
+```
+
+`expiresAt` is the **refresh-token** expiry, not JWT expiry. Read the JWT `exp` claim for access-token lifetime. Registration sets a session-only httpOnly refresh cookie (no `Expires`); the database token uses the configured refresh lifetime. The raw refresh token is omitted from JSON.
 
 Errors:
 
@@ -207,11 +232,25 @@ Body:
 }
 ```
 
-`twoFactorCode` is optional but must be 6 characters when present.
+`twoFactorCode` is optional. When supplied it must match either six digits (`^[0-9]{6}$`) or an uppercase recovery code (`^[A-Z0-9]{5}-[A-Z0-9]{5}$`). For an account with active 2FA it is required by the handler; pending setup does not impose this gate.
 
-Success `200`: access token, user fields, expiry, `twoFactorEnabled`. Refresh token is set as httpOnly cookie. If `rememberMe` is false, the cookie is session-only.
+Success `200` (exact controller projection; `profilePictureUrl` from the internal `LoginResponse` is not included):
 
-Error: `401` for failed login.
+```json
+{
+  "accessToken": "<jwt>",
+  "userId": "11111111-1111-1111-1111-111111111111",
+  "email": "user@example.com",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "expiresAt": "2026-11-05T12:00:00Z",
+  "twoFactorEnabled": true
+}
+```
+
+`expiresAt` describes the refresh token. `rememberMe=true` creates a persistent cookie and an initial 30-day database token; false creates a session-only cookie with the configured refresh lifetime. Rotation preserves the persistence flag but recalculates lifetime from `JwtSettings:RefreshTokenExpirationDays` (it does not preserve the initial 30 days). Login deduplicates an active session with the same SHA-256 fingerprint of `User-Agent|IP`.
+
+Errors: `400` validation; `401` incorrect credentials/missing or invalid 2FA; `403` locked account; `409` optimistic-concurrency failures; `429` rate limiting. The failed-credentials handler throws `UnauthorizedAccessException`, which the shared middleware currently labels `error.code=AUTHORIZATION.FORBIDDEN` despite HTTP `401`; use the HTTP status and context, not that code alone.
 
 ### `POST /auth/api/v1/auth/refresh`
 
@@ -234,8 +273,12 @@ Side effect: rotates the refresh cookie.
 
 Errors:
 
-- `204 No Content` if the refresh cookie is absent;
-- `400`, `401`, or `404` depending on refresh-token failure.
+- `204 No Content` if the refresh cookie is absent (this is an anonymous restore result, not an error);
+- `400` + `{ error, code: "INVALID_REFRESH_TOKEN" }` for missing/expired/revoked/reused tokens: the controller tests the `INVALID` code substring rather than the semantic `ErrorType`;
+- `401` + `{ error, code: "USER_LOCKED" }` for an account locked at refresh time;
+- `401` + `{ error, code: "REFRESH_ERROR" }` for a caught refresh-handler failure.
+
+Any handler failure deletes the browser refresh cookie. Re-presenting an already-rotated token revokes every active refresh token for that user and rotates the security stamp. The success `expiresAt` remains the new refresh expiry; the raw replacement is sent only in `Set-Cookie`.
 
 ### `POST /auth/api/v1/auth/logout`
 
@@ -249,7 +292,7 @@ Success `200`:
 { "message": "Logged out successfully" }
 ```
 
-Side effect: always deletes `refresh_token` cookie.
+Side effect: after the action executes, deletes `refresh_token` regardless of the handler's revocation result. Authorization/CSRF rejection occurs before the action and does not run cookie deletion. Logout revokes the presented refresh token only if it belongs to the caller; it does not invalidate already-issued access tokens or rotate the account stamp. A caught revocation failure returns `500 LOGOUT_ERROR`.
 
 ### `POST /auth/api/v1/auth/validate-token`
 
@@ -261,7 +304,7 @@ Token can be provided through `Authorization: Bearer <token>` or legacy body:
 { "token": "<jwt>" }
 ```
 
-Returns `TokenValidationDto` from `Services/AuthApi/Planora.Auth.Application/Features/Authentication/Response/TokenValidationDto.cs`.
+Returns the raw [`TokenValidationDto`](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/TokenValidationDto.cs): `isValid`, `userId`, `email`, `expiresAt`, `message`, `roles`. Invalid signature/expiry normally returns `200` with `isValid=false`; missing input is `400` validation. The handler leaves `roles` null and computes a successful `expiresAt` as current time plus the configured access lifetime, rather than reading the presented JWT's `exp`. Treat this endpoint as a validity check, not a canonical expiry/role lookup. Stamp/blacklist rejection of a bearer token occurs in the Auth pipeline; the legacy body-token path is validated cryptographically by the handler and is not independently checked against those revocation stores.
 
 ### `POST /auth/api/v1/auth/request-password-reset`
 
@@ -293,11 +336,13 @@ Body:
 }
 ```
 
-Success:
+Success `200`:
 
 ```json
 { "message": "Password has been reset successfully" }
 ```
+
+`confirmPassword` is checked when nonblank; the backend permits it to be omitted, although the UI requires confirmation. Returned handler failures (including `INVALID_TOKEN`, `WEAK_PASSWORD`, `COMPROMISED_PASSWORD` and `RESET_PASSWORD_ERROR`) are `400` with a bare `Error`. A successful reset clears the one-time token, revokes refresh sessions and rotates the stamp; unlike change-password, this handler does not consult or append password history.
 
 ## Users
 
@@ -324,7 +369,7 @@ Canonical prefix: `/auth/api/v1/users`
 | `GET` | `/me/login-history?pageNumber=&pageSize=` | bearer | login history |
 | `POST` | `/me/avatar` | bearer + CSRF + `multipart/form-data` | upload profile avatar |
 | `GET` | `/statistics` | admin | user statistics |
-| `GET` | `/` | admin | paged users |
+| `GET` | service root `/api/v1/Users` | admin | paged users; see gateway root-route caveat above |
 | `GET` | `/{userId}` | admin | user detail |
 
 ### Avatar upload
@@ -346,10 +391,11 @@ Error codes:
 | HTTP | Error code | Cause |
 |---|---|---|
 | `400` | `INVALID_IMAGE_CONTENT` | File is not a decodable image, or fails min-dimension check |
-| `413` | `INVALID_FILE_SIZE` | Payload exceeds 5 MB |
-| `415` | `UNSUPPORTED_MEDIA_TYPE` | MIME or magic bytes outside JPEG/PNG/WEBP whitelist |
-| `401` | `NOT_AUTHENTICATED` | Missing/invalid bearer token |
-| `404` | `USER_NOT_FOUND` | Authenticated user record was deleted |
+| `400` | validation error | Declared image bytes > 5 MB or disallowed declared MIME are rejected by `UploadAvatarCommandValidator` before processing |
+| `413` | `INVALID_FILE_SIZE` / server body limit | Processor detects excessive size, or multipart body exceeds the 6 MB cap |
+| `415` | `UNSUPPORTED_MEDIA_TYPE` | Declared MIME passed validation, but actual magic bytes fail the processor whitelist |
+| `401` | bearer challenge | Missing/invalid access token is rejected before the action |
+| `400` | `NOT_AUTHENTICATED` / `USER_NOT_FOUND` | A returned handler context/user failure is mapped by this action to `BadRequest(Error)` |
 
 Success returns `UserDto` with `profilePictureUrl` pointing at the canonical (medium, 128px) WebP variant. Three variants are persisted for every upload — the URL scheme is `/avatars/{userId:N}/{contentHash}/{size}.webp` where `size ∈ {64, 128, 512}`. Clients build other variant URLs by swapping the size segment.
 
@@ -376,12 +422,44 @@ Confirm 2FA success response shape:
   "message": "Two-factor authentication enabled successfully",
   "recoveryCodes": [
     "ABCDE-12345",
-    "FGHIJ-67890"
+    "FGHIJ-67890",
+    "KLMNO-13579",
+    "PQRST-24680",
+    "UVWXY-31415",
+    "Z1234-27182",
+    "56789-16180",
+    "AB123-CD456",
+    "EF789-GH012",
+    "JK345-LM678"
   ]
 }
 ```
 
-The `recoveryCodes` array contains exactly 10 codes formatted `XXXXX-XXXXX`. Each code is single-use and can be entered in place of a TOTP code at login. Store them securely — they are only returned once. A new set replaces all previous codes on every re-confirmation.
+The `recoveryCodes` array contains exactly 10 codes formatted `XXXXX-XXXXX`. Each code is single-use and can be entered in place of a TOTP code at login. Store them securely — they are only returned once. A successful pending-setup confirmation replaces the stored set. An already-enabled account cannot re-confirm or request another set through these endpoints; it must disable and enrol again.
+
+### Complete User Response Members
+
+The controller unwraps these results. Names below include serialized computed
+properties such as `fullName`; they are not a reduced UI projection.
+
+| DTO / route | Complete JSON members |
+|---|---|
+| [UserDto](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/UserDto.cs) — `GET/PUT /me`, avatar upload | `id`, `email`, `firstName`, `lastName`, `profilePictureUrl`, `status`, `isEmailVerified`, `emailVerifiedAt`, `lastLoginAt`, `twoFactorEnabled`, `createdAt` |
+| [UserDetailDto](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/UserDetailDto.cs) — admin user detail | `id`, `email`, `firstName`, `lastName`, `fullName`, `profilePictureUrl`, `status`, `isEmailVerified`, `emailVerifiedAt`, `lastLoginAt`, `twoFactorEnabled`, `failedLoginAttempts`, `lockedUntil`, `createdAt`, `updatedAt`, `recentLogins` |
+| [UserListDto](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/UserListDto.cs) — admin collection items | `id`, `email`, `firstName`, `lastName`, `fullName`, `status`, `lastLoginAt`, `createdAt` |
+| [UserSecurityDto](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/UserSecurityDto.cs) — `GET /me/security` | `userId`, `twoFactorEnabled`, `activeSessionsCount`, `lastPasswordChange`, `lastEmailChange`, `failedLoginAttempts`, `lockedUntil`, `activeTokens`, `recentLogins` |
+| [SessionDto](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/SessionDto.cs) — `GET /me/sessions` items | `id`, `deviceName`, `browser`, `ipAddress`, `location`, `isCurrent`, `createdAt`, `lastActivityAt`, `expiresAt` |
+| [LoginHistoryDto](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/LoginHistoryDto.cs) — nested recent logins | `id`, `ipAddress`, `userAgent`, `isSuccessful`, `loginAt`, `failureReason` |
+| [LoginHistoryPagedDto](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/LoginHistoryPagedDto.cs) — `GET /me/login-history` items | `id`, `ipAddress`, `userAgent`, `isSuccessful`, `loginAt`, `failureReason`, `location`, `device`, `browser` |
+| [RefreshTokenDetailDto](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/RefreshTokenDetailDto.cs) — `activeTokens` items | `id`, `token`, `expiresAt`, `createdAt`, `createdByIp`, `isActive`, `isExpired`, `isRevoked`, `revokedAt`, `revokedByIp`, `revokedReason`, `replacedByToken` |
+| [UserStatisticsDto](../Services/AuthApi/Planora.Auth.Application/Common/DTOs/UserStatisticsDto.cs) — admin statistics | `totalUsers`, `activeUsers`, `inactiveUsers`, `lockedUsers`, `usersWithTwoFactor`, `newUsersToday`, `newUsersThisWeek`, `newUsersThisMonth`, `lastUpdated` |
+
+`GET /me/sessions` is an array, login history is a `PagedResult`, and admin
+collection uses `PagedResult<UserListDto>`. `activeTokens` contains token
+metadata from the account-security handler; do not treat it as a token issued
+for login. `POST /me/2fa/enable` returns exactly `secret` and `qrCodeUrl`.
+These enrolment values and the confirmation recovery codes are sensitive
+account data and should not be written to client logs.
 
 ## Friendships
 
@@ -415,7 +493,14 @@ Send by email:
 { "email": "friend@example.com" }
 ```
 
-The by-email response is generic by design.
+The by-email response is generic by design. All friendship routes require bearer authentication and their HTTP mutations require CSRF. `friend-ids` requires `userId` to equal the caller; `are-friends` requires `userId1` to equal the caller. Mismatch returns `403` with the bearer forbid response. Lookup exceptions are logged and fail closed to `{ "value": [] }` / `{ "value": false }`.
+
+Success: by-id request `201` with body `{ "incoming": true }`; by-email `200` with its generic message; accept/reject `200` with the `ApiResponse` success envelope; remove `204`; friends `PagedResult<FriendDto>`; request list `FriendRequestDto[]`. Returned handler failures are normally `400` with bare `Error`, independently of the semantic error type.
+
+| DTO | Complete JSON members |
+|---|---|
+| `FriendDto` | `id`, `email`, `firstName`, `lastName`, `profilePictureUrl`, `friendsSince` |
+| `FriendRequestDto` | `friendshipId`, `userId`, `email`, `firstName`, `lastName`, `profilePictureUrl`, `requestedAt`, `status` |
 
 ## Analytics Events
 
@@ -459,7 +544,7 @@ Controller: `Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesCon
 
 Gateway prefix: `/categories/api/v1/categories`
 
-All routes require bearer auth. State-changing frontend calls include CSRF header, although CSRF validation was only found in Auth API.
+All routes require bearer auth. `POST`, `PUT` and `DELETE` also require the matching CSRF cookie/header pair in the Category pipeline.
 
 | Method | Path | Success | Purpose |
 |---|---|---|---|
@@ -762,16 +847,8 @@ not rejected — the task keeps its status and the call still returns `200`. **R
 the display form: `"Todo"`, `"In Progress"` (with a space) or `"Done"`. A client that round-trips
 `status` gets `"In Progress"` back, which parses correctly on the way in again.
 
-`TodoItemDto` worker fields:
-
-```json
-{
-  "requiredWorkers": 3,
-  "workerCount": 1,
-  "isWorking": true,
-  "workerUserIds": ["00000000-0000-0000-0000-000000000000"]
-}
-```
+`TodoItemDto` worker fields: `requiredWorkers`, `workerCount`, `isWorking`,
+`workerUserIds` and `workers`. The complete response example is below.
 
 On a **top-level task the owner is never counted**: they are implicitly the primary worker and hold
 no worker row, so `workerCount` and `workerUserIds` cover collaborators only. Capacity follows from
@@ -788,13 +865,7 @@ of the task:
 | `GET /{id}/subtasks` | the caller holds a worker row, owner included |
 | `POST /{id}/join` | always `true` — including the owner short-circuit, where no row was written |
 
-`TodoItemDto` subtask aggregate:
-
-```json
-{
-  "openSubtaskCount": 2
-}
-```
+`TodoItemDto` subtask aggregate: `openSubtaskCount`.
 
 - `openSubtaskCount` is the number of this task's subtasks that are still **open** (not `Done`, not
   deleted). `0` when the task has no subtasks or every subtask is finished. It is computed with a
@@ -868,10 +939,67 @@ The response is `ViewerPreferenceResponseDto`, not a `TodoItemDto`:
   reopen affordance and avoid sending a request the server will reject. `TodoItemDto` carries the
   same field, mapped straight from the entity, on every read that goes through the AutoMapper profile.
 
+### Complete Todo Response
+
+An ordinary private, top-level task returned by `GET /todos/{id}` has the
+following complete [`TodoItemDto`](../Services/TodoApi/Planora.Todo.Application/DTOs/TodoItemDto.cs) members. Nullable enrichment
+values and empty arrays below are intentional. Other endpoints use the same
+DTO with the projection differences described above.
+
+```json
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "userId": "22222222-2222-2222-2222-222222222222",
+  "createdByUserId": null,
+  "title": "Pay bills",
+  "description": null,
+  "status": "Todo",
+  "categoryId": null,
+  "dueDate": null,
+  "dueDateStart": null,
+  "expectedDate": null,
+  "actualDate": null,
+  "priority": "Medium",
+  "isPublic": false,
+  "hidden": false,
+  "isCompleted": false,
+  "completedAt": null,
+  "isOnTime": null,
+  "delay": null,
+  "tags": [],
+  "createdAt": "2026-10-06T12:00:00Z",
+  "updatedAt": null,
+  "categoryName": null,
+  "categoryColor": null,
+  "categoryIcon": null,
+  "authorCategoryName": null,
+  "authorCategoryColor": null,
+  "authorCategoryIcon": null,
+  "sharedWithUserIds": [],
+  "hasSharedAudience": false,
+  "isVisuallyUrgent": false,
+  "requiredWorkers": null,
+  "workerCount": 0,
+  "isWorking": false,
+  "workerUserIds": [],
+  "workers": [],
+  "isCompletedByViewer": null,
+  "ownerCompleted": false,
+  "parentTodoId": null,
+  "openSubtaskCount": 0,
+  "authorName": null,
+  "authorAvatarUrl": null
+}
+```
+
+`workers` contains `TodoWorkerDto` objects with exactly `userId`, `name` and
+`avatarUrl`; name/avatar are nullable and resolved from Auth. `delay` is a
+nullable serialized .NET `TimeSpan` string. Dates use the serializer's
+ISO 8601 representation; the presence of `Z` depends on the value's `DateTime` kind.
+
 ### `POST /{id}/join`
 
-Join the task as a worker. Access mirrors the read rule: the task must be public or directly shared
-with the caller, and a **non-public** shared task additionally requires friendship with the owner.
+Join the task as a worker. The implementation requires public visibility or a direct share; it checks friendship **only for a non-public shared task**. Unlike the list/detail/comment access rules, an authenticated non-friend with a public task id currently passes this path and receives an unredacted DTO. This is a known authorization gap, not a broader intended sharing policy; see [IDOR coverage](security-idor-coverage.md#known-findings-and-missing-regressions).
 
 The call is **idempotent**, and two cases that look like errors are not:
 
@@ -904,7 +1032,7 @@ no-op; `409` for a top-level owner trying to leave.
 
 Duplicate a task into a brand-new **active** task owned by the caller. **Open to any participant** —
 the owner, or a friend who can see the task (public or directly shared) — so a non-owner can fork a
-completed task instead of reopening it (returning a task to work is author-only). The server authors
+author-completed task instead of reopening it (viewers may reopen their own completion while the author has not completed globally). The server authors
 the copy and copies the task's content — title, description, priority, category (re-validated against
 the duplicator; dropped if not theirs or since-deleted), visibility (`isPublic`), shared audience
 (re-validated against the **duplicator's** current friendships — others dropped), tags, and
@@ -984,8 +1112,7 @@ a flag the client should interpret — the data is genuinely not in the response
 Gateway prefix: `/collaboration/api/v1/comments`. All routes require bearer auth.
 
 The Collaboration service owns the task **comment timeline**. It does not own tasks:
-every route authorises against the task via the `TodoService.CheckTaskCommentAccess` gRPC call,
-which applies the same owner / shared / public + friendship rule the Todo handlers used to.
+read/add/update authorise against the task via `TodoService.CheckTaskCommentAccess`, which applies owner or friend-visible public/direct-sharing access. Delete fetches the same result but currently checks existence plus comment-author/task-owner identity without testing `HasAccess`; a former participant can therefore delete their own comment after losing branch access. See [IDOR coverage](security-idor-coverage.md#known-findings-and-missing-regressions).
 
 The pinned **"Author's Note"** (the task description) is **not** stored here. It is the single
 source of truth on the task (`TodoItem.Description`, owned by Todo) and is synthesised into the
@@ -1002,7 +1129,7 @@ description via the task itself (`PUT /todos/api/v1/todos/{id}`), not through a 
 
 ### `GET /collaboration/api/v1/comments/{taskId}`
 
-Get paginated comments for a task. Access requires task visibility (public/shared) and friendship
+Get paginated comments for a task. The owner is allowed directly; a non-owner needs task visibility (public/shared) and friendship
 with the owner — enforced by the Todo gRPC access check. Default page size is 50, oldest-first.
 
 Success `200`: `PagedResult<CommentDto>`.
@@ -1045,7 +1172,7 @@ targets the preview is the title snapshot taken at reply time and `replyToDelete
 the `SubtaskDeletedIntegrationEvent` consumer. Reply chains are just replies whose target is itself
 a reply — there is no nesting limit and no extra endpoint.
 
-`isOwn` is `true` when `authorId == currentUserId` AND `isSystemComment` is `false`. `isEdited` is
+`isOwn` is `true` for a regular comment by the caller. The synthesised genesis is the exception: it is a system comment but reports `isOwn=true` to its task owner. `isEdited` is
 `true` when `updatedAt > createdAt + 5 seconds` for a regular user comment; system comments
 (including the synthesised genesis) never report `isEdited`.
 
@@ -1057,12 +1184,12 @@ its author is the task owner, and its `id` equals the task id. Author identity (
 both regular comments and the genesis is resolved **live** from Auth (`GetUserProfilesBatch`, 60 s
 cache) — never a stored copy, so a profile rename is reflected everywhere.
 
-Errors: `400` unauthenticated; `403` no access / non-friend; `404` task not found; `503` if the Todo
+Errors: `401` missing/invalid bearer; `400 AUTH_REQUIRED` when an authenticated principal has no usable user context; `403` no access / non-friend; `404` task not found; `503` if the Todo
 access check is unavailable.
 
 ### `POST /collaboration/api/v1/comments/{taskId}`
 
-Add a comment. Caller must have task access. Body:
+Add a comment. Caller must have task access. Comment writes are saved before the subsequent sync/notification outbox operations; the current implementation is not one atomic comment-plus-notification transaction. A successful comment save does not prove a notification was durably enqueued. Body:
 
 ```json
 {
@@ -1096,7 +1223,7 @@ validation call is unavailable.
 
 Edit a regular user comment. Only the author may edit it. Body: `{ "content": "Updated text" }` —
 required, max 2000 characters. Success `200`: updated `CommentDto` (author name/avatar resolved
-live). Errors: `400` wrong task scope / validation; `403` not author; `404` not found.
+live). Errors: `400` validation; `403` not author, system comment or revoked branch access; `404` comment missing, wrong task scope, or missing task. Cross-branch ids use the same `404` as absent ids. The PUT response retains the stored reply preview/deleted flag; GET refreshes a comment-target quote from its live target.
 
 ### `DELETE /collaboration/api/v1/comments/{taskId}/{commentId}`
 
@@ -1135,7 +1262,7 @@ Validation:
 - `subject` required, max 200;
 - `body` required, max 10000;
 - `pageSize` max 100;
-- explicit sender cannot equal recipient.
+- the request validator checks explicit `senderId != recipientId`, but the controller replaces `senderId` with null; the effective sender is always the caller and the handler also requires an accepted friendship. Self-send consequently fails the friendship check rather than relying on the body validator.
 
 Send returns `201 Created` with a `Location` header and the bare `SendMessageResponse` — the handler
 returns a plain DTO, not a `Result<T>`, so the filter leaves it alone:
@@ -1149,6 +1276,8 @@ returns a plain DTO, not a `Result<T>`, so the filter leaves it alone:
 
 `GET` returns `PagedResult<MessageDto>`, also unwrapped, newest-first by `createdAt`. A `MessageDto`
 carries `id`, `subject`, `body`, `senderId`, `recipientId`, `readAt`, `isArchived` and `createdAt`.
+Sending is allowed only to an accepted friend (`403 MESSAGING.FRIENDSHIP_REQUIRED` otherwise). Reading an existing conversation is scoped to the caller plus `otherUserId` and does not recheck friendship, so previous messages remain readable after removal.
+
 The query is strictly one conversation — messages between the caller and `otherUserId` in either
 direction — so omitting `otherUserId` substitutes an all-zero GUID and returns an empty page rather
 than every message the caller has.
@@ -1174,8 +1303,9 @@ Service-local protected routes:
 | `POST` | `/api/v1/notifications/send` | `/realtime/api/v1/notifications/send` | admin | operator/diagnostic self-notify; admin-only, non-security types only |
 | `POST` | `/api/v1/notifications/broadcast` | `/realtime/api/v1/notifications/broadcast` | admin | broadcast notification |
 
-Every notification endpoint is scoped to the JWT subject server-side — a user can only ever read or
-mark read **their own** notifications (no IDOR surface), and all reads are `AsNoTracking`.
+List/summary/read endpoints derive their recipient from the JWT subject, so callers read/mark only their own rows. `send` is admin-only self-notify; `broadcast` is admin-only and targets all connected users. The database read store uses `AsNoTracking`. Hosts without `ConnectionStrings:RealtimeDatabase` use `NullNotificationReadStore`, returning empty lists/summaries and no-op mark-read.
+
+The list response is a raw `NotificationPayload[]`, with no `PagedResult` wrapper or next-cursor member. List default `take=30`, clamped to `1..100`; `before` is an exclusive `OccurredOnUtc` timestamp cursor taken from the last item. It has no id tiebreaker, so equal-time rows at a page boundary can be skipped. Summary `totalUnread` is exact; the task/type breakdown scans at most the latest 1,000 unread task rows and may sum to less than the total.
 
 `GET /notifications/summary` response (drives every inline indicator in one round trip):
 
@@ -1200,11 +1330,13 @@ mark read **their own** notifications (no IDOR surface), and all reads are `AsNo
 `latestOccurredOnUtc` descending (newest type first). `count` / `latestType` are retained for
 backward compatibility — `latestType === groups[0].type`.
 
-`POST /notifications/read` request (exactly one selector, priority `all` → `taskId` → `ids`):
+`POST /notifications/read` request (the highest-priority supplied selector wins: `all=true` → `taskId` → nonempty `ids`; multiple selectors are not rejected, and no selector returns the existing summary without mutation):
 
 ```json
 { "taskId": "11111111-1111-1111-1111-111111111111" }
 ```
+
+`GET /connections/active` returns `{ userId, connectionCount, connections: [{ connectionId, connectedAt }] }`; `connectedAt` is the response generation time, not the actual connection creation time. `GET /connections/stats` returns `{ totalConnections, timestamp }`. Connection tracking is local to the responding Realtime process, even with a Redis SignalR backplane.
 
 `POST /notifications/send` body (admin-only operator tool — the production path is the gRPC/bus
 channel). `type` must be a non-security UI type (`info`, `success`, `warning`, `error`,
@@ -1216,20 +1348,27 @@ never spoof a security alert into a session:
 { "message": "Saved", "type": "info" }
 ```
 
+`POST /notifications/broadcast` accepts the same `{ message, type }` shape but does **not** apply the self-send type allowlist. Both manual actions return `{ success: true, message }`; neither is the durable database-list contract described above.
+
 SignalR:
 
 - Hub path inside service: `/hubs/notifications`
 - Gateway path: `/realtime/hubs/notifications`
-- JWT can be supplied as `access_token` query parameter for `/hubs` paths.
+- Downstream Realtime accepts `access_token` only on `/hubs` paths. Gateway extraction is broader (`/realtime`), but normal Realtime REST still requires the header at the service. Avoid logging query strings containing credentials.
+- Client hub methods: `Subscribe(topic)`, `Unsubscribe(topic)`, `JoinTask(taskId)`, `LeaveTask(taskId)`, `StartTyping(taskId)`, `StopTyping(taskId)`. Topics are allowlisted; branch joins ask Todo for access and fail closed on RPC failure. Start/stop typing require local joined-room membership.
+- Access is checked on connection/join, not continuously on each push. Current code does not evict joined rooms on subsequent share/friendship revocation or configure `CloseOnAuthenticationExpiration`.
 - The hub multiplexes three streams over one socket: `ReceiveNotification` (per-user notifications),
   `TaskFeedChanged` / `BranchChanged` (live data-sync), and `UserTyping` / `UserStoppedTyping`.
 
-`ReceiveNotification` payload (the full persisted shape — the client renders the toast, lights the
+`ReceiveNotification` payload (`NotificationPayload`, also used for REST-list items — the client renders the toast, lights the
 right card/branch indicator and decides on an OS notification without a follow-up fetch):
 
 ```json
 {
-  "id": "…", "userId": "…", "taskId": "…", "actorId": "…",
+  "id": "11111111-1111-1111-1111-111111111111",
+  "userId": "22222222-2222-2222-2222-222222222222",
+  "taskId": "33333333-3333-3333-3333-333333333333",
+  "actorId": "44444444-4444-4444-4444-444444444444",
   "type": "task.review", "title": "Ready for review",
   "message": "Everyone finished \"Launch plan\" — it's ready for your review",
   "occurredOnUtc": "2026-06-16T09:00:00Z", "isRead": false
@@ -1272,8 +1411,9 @@ and no branch entry at all; its in-work state is carried by the live `SubtaskCha
 | `/collaboration/health` | Collaboration API health |
 | `/realtime/health` | Realtime API health |
 
-Health routes are explicitly defined in both Ocelot route files, ahead of the authenticated routes and
-without `AuthenticationOptions`.
+Service aggregate `/health` routes are explicitly mapped in both Ocelot files without `AuthenticationOptions`. Gateway `/health*` is an inline `200 { "status": "Healthy" }` branch and does not test downstream readiness. Service-local `/health/live` and `/health/ready` exist through `MapPlanoraHealthEndpoints`, but the gateway route files expose only each service's aggregate `/health`.
+
+The shared admin-only `/system/info` controller describes process/runtime metadata when included by the service MVC application parts; it is outside `/api/v1` and has no explicit Ocelot route. Do not assume the gateway exposes it.
 
 ## Public API Not Found
 

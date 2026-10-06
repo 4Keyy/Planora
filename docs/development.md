@@ -16,7 +16,7 @@ For frontend-only work:
 
 ```powershell
 Push-Location frontend
-npm install
+npm ci
 Pop-Location
 npm --prefix frontend run dev
 npm --prefix frontend run lint
@@ -154,9 +154,7 @@ const HeavyModal = dynamic(
 ```
 
 `ssr: false` is appropriate when the component is rendered in a
-`"use client"` page and never needs SSR-pre-rendered markup. The
-framer-motion enter animation on conditionally-rendered modals absorbs
-the chunk fetch, so there is no visible delay on first open.
+`"use client"` page and never needs SSR-pre-rendered markup. Measure first-open latency and provide an appropriate loading state; an enter animation does not guarantee that chunk loading is invisible.
 
 ### API origin preconnect
 
@@ -164,7 +162,7 @@ the chunk fetch, so there is no visible delay on first open.
 `<link rel="dns-prefetch">` for the API gateway origin (read from
 `NEXT_PUBLIC_API_URL` at build time). This opens the TCP + TLS
 connection in parallel with the page render so the first auth call
-saves the handshake (~100-300 ms on a cold connection). If the URL is
+can reduce connection setup time; no fixed latency saving has been measured in this audit. If the URL is
 malformed the tag is omitted; the hint is a hint, never a hard
 dependency.
 
@@ -221,8 +219,7 @@ defect on every screen at once.
    value goes into `lib/design-tokens.ts`, never straight into `tailwind.config.ts`, and a new
    colour is committed with its measured contrast figure.
 5. **Animation is free to be declarative.** The root layout wraps the tree in `MotionConfig
-   reducedMotion="user"`, so any `framer-motion` animation inside a primitive honours
-   `prefers-reduced-motion` with no per-component code. A primitive that animates by some other
+   reducedMotion="user"`, which affects supported Motion animations. Opacity/color changes and imperative animation paths still need deliberate reduced-motion handling and verification. A primitive that animates by some other
    means — a shader, a manual `requestAnimationFrame`, a CSS keyframe — owns that check itself.
 6. **Write the test next to its siblings**, as `frontend/src/test/components/<name>.test.tsx`.
    Test the association and the announcement, not the class list: what the control is named, what
@@ -255,7 +252,7 @@ element with no keyboard equivalent, and an interactive element pulled out of th
 repository root.
 
 `focus-scan.mjs` measures whether the focus indicator can actually be *seen* — it composites the
-indicator colour over paper and reports anything under WCAG 2.4.11's 3:1. It drives Playwright
+indicator colour over paper and reports its measured contrast threshold. WCAG 2.4.11 concerns focus not being obscured; focus appearance is 2.4.13 (AAA), and non-text contrast is 1.4.11 (AA). It drives Playwright
 against a production build and stubs the API through `mock-api.mjs`, so the .NET stack need not be
 running, but a server must be listening on `127.0.0.1:3200`:
 
@@ -289,8 +286,7 @@ $env:NEXT_DIST_DIR = ".next-verify"; node docs/ui-audit/tools/class-audit.mjs
 
 `frontend/next.config.js` sets `distDir` from the variable and `class-audit.mjs` reads the same one.
 Unset, both use `.next`. The side directories match `frontend/.next-*/` in `.gitignore`. Next adds
-the directory's `types` glob to `frontend/tsconfig.json` and may touch `next-env.d.ts` — revert both
-before committing. Never set `NEXT_DIST_DIR` in an `.env` file: it is a tooling switch for one shell,
+the directory's `types` glob to `frontend/tsconfig.json` and may touch `next-env.d.ts`. Save their existing contents before the build and remove only the generated side-build edits afterward; preserve concurrent or user edits. Never set `NEXT_DIST_DIR` in an `.env` file: it is a tooling switch for one shell,
 not configuration.
 
 ## Database Changes
@@ -304,8 +300,7 @@ not configuration.
 Do not create cross-service foreign keys. IDs may reference another service's concept, but the owning service must validate through service contracts.
 
 `.gitignore` still lists `**/Migrations/**`, but that pattern no longer describes the policy:
-`INV-FLOW-1` requires a schema change to ship with its migration, and Todo and Realtime both have
-committed migration folders that were force-added past the ignore. **Never delete a `Migrations/`
+schema evolution needs a reviewed migration policy, and Todo and Realtime already have tracked migration folders despite the ignore. The tracked Todo chain is currently missing its initial baseline. **Never delete a `Migrations/`
 folder during a cleanup** — `Planora.Migrator` treats an applied migration that is missing from the
 compiled assembly as drift and refuses to apply anything for that service (`INV-FLOW-5`).
 
@@ -313,12 +308,11 @@ What happens at boot differs per service, and it matters when you add the first 
 
 | Service | At startup | Consequence |
 |---|---|---|
-| Auth, Category, Collaboration, Messaging | `DatabaseStartup.EnsureReadyAsync` finds no migrations and calls `EnsureCreatedAsync` | The first migration you add flips that service onto the `MigrateAsync` path; an existing dev database built by `EnsureCreatedAsync` has no `__EFMigrationsHistory` and must be recreated |
-| Todo | same helper, but migrations exist, so pending ones are applied (with retry) | Add the migration and restart |
+| Auth, Category, Collaboration, Messaging | `DatabaseStartup.EnsureReadyAsync` finds no tracked migrations and calls `EnsureCreatedAsync` | Adding the first migration changes the startup path; reconcile a deliberate baseline for existing model-created databases. Recreate only explicitly disposable development data. |
+| Todo | same helper, but migrations exist, so pending ones are applied (with retry) | Complete the missing initial baseline and verify the chain before relying on a fresh install |
 | Realtime | no `DatabaseStartup` call at all | Apply by hand: `dotnet run --project tools/Planora.Migrator -- --service realtime` |
 
-For production, migrations are applied by `Planora.Migrator` as a one-shot step before rollout,
-never by two service replicas racing each other (`INV-FLOW-4`). Full ownership and table-by-table
+The CD workflow includes a pre-deploy `Planora.Migrator` step, but service startup still applies migrations in five hosts and the runner image/workflow have unresolved build/configuration gaps. Production migration serialization is therefore a target policy, not an established guarantee; see [Deployment](deployment.md#confirmed-rollout-blockers). Full ownership and table-by-table
 detail: [`database.md`](database.md).
 
 ## gRPC Contract Changes
@@ -334,7 +328,7 @@ detail: [`database.md`](database.md).
 | Area | Convention |
 |---|---|
 | Backend target | `.NET 10`, nullable enabled, implicit usings enabled |
-| Warnings | treated as errors, with NuGet advisory warnings excluded from error mode |
+| Warnings | treated as errors; only NU1901/NU1902 (low/moderate), NU1510 and CS0612/CS0618 are nonfatal; high/critical NU1903/NU1904 remain fatal |
 | Packages | central package management in `Directory.Packages.props` |
 | Backend validation | FluentValidation |
 | Backend request dispatch | MediatR |
@@ -343,7 +337,7 @@ detail: [`database.md`](database.md).
 | Frontend state | Zustand |
 | Frontend validation/forms | Zod, React Hook Form where used |
 | Frontend tests | Vitest + Testing Library |
-| E2E tests | Playwright APIRequestContext through API Gateway |
+| E2E tests | Playwright API project through gateway plus Chromium UI specs |
 | Docs checks | markdownlint-cli2 and lychee in CI |
 
 ## Documentation Rules
@@ -372,11 +366,11 @@ The repository ignores generated and machine-local state:
 - local AI/agent/editor state such as `.claude/`, `.codex/`, `.agents/`, `.cursor/`, `.gemini/`, `.mcp/`, `.roo/`, `.kiro/`, and local Claude/Codex/Gemini/OpenCode/Qwen JSON files;
 - local knowledge-base/editor workspace state such as `.obsidian/`.
 
-`AGENTS.md` is intentionally the repository-level policy file for documentation discipline. Put machine-local or personal agent instructions in `AGENTS.local.md` or tool-specific local files instead.
+`AGENTS.md` is ignored and untracked in this checkout, together with assistant-local state. Shared contributor/documentation rules live in tracked `CONTRIBUTING.md` and this guide. Keep personal instructions in ignored assistant-local files.
 
 Do not commit local agent settings, generated build outputs, secrets, database files, or Docker override files.
 
-Mark uncertain behavior as "requires owner clarification" instead of documenting guesses.
+Label unverified behavior and planned policy explicitly. Cite the implementation or verification that establishes a contract; an architectural rule can have an open implementation gap.
 
 ## Pull Request Checklist
 
