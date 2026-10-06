@@ -18,6 +18,8 @@ interface DatePopoverProps {
   containerRef: RefObject<HTMLElement | null>
   /** When true the date options are shown muted and non-interactive (non-owner viewer). */
   readOnly?: boolean
+  /** Popover alignment under the trigger. Default "left"; the create panel centres it under its plate. */
+  align?: "left" | "right" | "center"
   /** Render in a viewport-fixed body portal (create panel / dashboard) so it can't stretch the page. */
   portal?: boolean
 }
@@ -41,9 +43,9 @@ function addDays(base: string | null, n: number): string {
 
 function todayISO(): string { return toISO(new Date()) }
 
-export function DatePopover({ open, onClose, start, end, onChange, containerRef, readOnly, portal }: DatePopoverProps) {
+export function DatePopover({ open, onClose, start, end, onChange, containerRef, readOnly, align = "left", portal }: DatePopoverProps) {
   return (
-    <Popover open={open} onClose={onClose} width={364} containerRef={containerRef} portal={portal}>
+    <Popover open={open} onClose={onClose} width={364} align={align} containerRef={containerRef} portal={portal}>
       <DateCalendar start={start} end={end} onChange={onChange} readOnly={readOnly} autoClose={onClose} />
     </Popover>
   )

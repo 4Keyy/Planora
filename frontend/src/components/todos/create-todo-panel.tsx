@@ -250,7 +250,7 @@ function SharePopover({
       : "only you"
 
   return (
-    <Popover open={open} onClose={onClose} width={320} align="right" containerRef={containerRef} portal>
+    <Popover open={open} onClose={onClose} width={320} align="center" containerRef={containerRef} portal>
       <PopoverHeader
         label="Share"
         sub={<span className="text-caption font-semibold text-ink-muted">{sub}</span>}
@@ -742,6 +742,7 @@ export function CreateTodoPanel({
                       value={priority}
                       onChange={setPriority}
                       containerRef={priorityCardRef as RefObject<HTMLElement | null>}
+                      align="center"
                       portal
                     />
                   </SelectorCard>
@@ -771,6 +772,7 @@ export function CreateTodoPanel({
                         setDueDate(e ?? "")
                       }}
                       containerRef={dateCardRef as RefObject<HTMLElement | null>}
+                      align="center"
                       portal
                     />
                   </SelectorCard>
@@ -805,6 +807,7 @@ export function CreateTodoPanel({
                       onDeleteCategory={handleDeleteCategory}
                       containerRef={categoryCardRef as RefObject<HTMLElement | null>}
                       canEdit
+                      align="center"
                       portal
                     />
                   </SelectorCard>

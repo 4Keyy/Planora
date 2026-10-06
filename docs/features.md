@@ -791,7 +791,10 @@ The viewer count is the length of that shared list.
   **selector plates** — Priority,
   Due date, Category, Share — each opening an anchored popover (the shared `PriorityPopover`,
   `DatePopover` with its Today/Tomorrow/+3/Next-week quick-picks, `CategoryPopover`, and a
-  panel-local `SharePopover`). The plate row auto-fits: 4-up at full column width on both `/tasks` and
+  panel-local `SharePopover`). Every one opens **centred under its own plate** (`align="center"`,
+  `transform-origin` at the plate's centre, clamped 8px inside the viewport) on `/tasks`, on the
+  dashboard and on a phone; they used to hang off the plate's left edge — Share off its right —
+  and sit visibly to one side of the control that opened them. The plate row auto-fits: 4-up at full column width on both `/tasks` and
   the dashboard, stacking on phones. Due date and Category plates expose inline ✕ clear controls; the footer
   shows a `⌘/Ctrl` + `↵` "to create" hint and a black `→ Create task` action that stays disabled
   until a title exists. Character-limited fields keep `current/max` counters (red from 80% of the
