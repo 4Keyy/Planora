@@ -11,6 +11,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
         private readonly ICurrentUserService _currentUserService;
         private readonly IEventBus _eventBus;
         private readonly ISecurityStampService _securityStamp;
+        private readonly IAvatarStorage _avatarStorage;
         private readonly ILogger<DeleteUserCommandHandler> _logger;
 
         public DeleteUserCommandHandler(
@@ -19,6 +20,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
             ICurrentUserService currentUserService,
             IEventBus eventBus,
             ISecurityStampService securityStamp,
+            IAvatarStorage avatarStorage,
             ILogger<DeleteUserCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
@@ -26,6 +28,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
             _currentUserService = currentUserService;
             _eventBus = eventBus;
             _securityStamp = securityStamp;
+            _avatarStorage = avatarStorage;
             _logger = logger;
         }
 
@@ -70,8 +73,21 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
             // check IsDeleted would treat the request as authentic.
             await _securityStamp.SetStampAsync(user.Id, cancellationToken);
 
-            // Publish cross-service integration event so TodoApi, CategoryApi, and
-            // MessagingApi can clean up data owned by this user.
+            // PRIVACY: the photo goes with the account. Avatars are public static files
+            // (/avatars/{userId}/…), and nothing ever called DeleteAsync: a deleted person's
+            // face stayed reachable by URL for good. Best-effort — a filesystem hiccup must not
+            // undo a completed deletion, and the deleted-account purge sweeps the tree again.
+            try
+            {
+                await _avatarStorage.DeleteAsync(user.Id, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not delete the avatar of deleted user {UserId}; the retention purge retries", user.Id);
+            }
+
+            // Publish cross-service integration event so TodoApi, CategoryApi, CollaborationApi
+            // and RealtimeApi clean up the data they hold for this user.
             var integrationEvent = new UserDeletedIntegrationEvent(user.Id, user.Email.Value);
             await _eventBus.PublishAsync(integrationEvent, cancellationToken);
 

@@ -165,6 +165,32 @@ public sealed class IntegrationEventHandlerTests
     }
 
     [Fact]
+    [Trait("TestType", "Regression")]
+    public async Task TodoUserDeletedConsumer_RemovesWhatTheAccountLeftOnOtherPeoplesTasks()
+    {
+        // A friend who owned no tasks still leaves shares, worker rows and per-viewer preferences on
+        // other people's tasks. They used to stay forever: the consumer returned early on zero own todos.
+        var userId = Guid.NewGuid();
+        var repository = new Mock<ITodoRepository>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        repository
+            .Setup(x => x.SoftDeleteByUserIdAsync(userId, userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        repository
+            .Setup(x => x.RemoveUserFromOthersTodosAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(3);
+        var consumer = new TodoUserDeletedEventConsumer(
+            repository.Object,
+            unitOfWork.Object,
+            Mock.Of<ILogger<TodoUserDeletedEventConsumer>>());
+
+        await consumer.HandleAsync(new UserDeletedIntegrationEvent(userId, "user@example.com"), CancellationToken.None);
+
+        repository.Verify(x => x.RemoveUserFromOthersTodosAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+        unitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     [Trait("TestType", "Integration")]
     [Trait("TestType", "Regression")]
     public async Task CategoryDeletedEventHandler_ShouldClearCategoryFromTodosAndSkipEmptyCategories()

@@ -75,5 +75,12 @@ namespace Planora.Todo.Domain.Repositories
         /// friendship has been revoked. Deletes shares in both directions.
         /// </summary>
         Task RemoveSharesBetweenUsersAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes what a deleted account left on other people's tasks: the shares naming it, its
+        /// "in progress" worker rows and its per-viewer preferences (personal category, hidden flag,
+        /// personal completion). Tracked removals — the caller saves. Returns the number of rows removed.
+        /// </summary>
+        Task<int> RemoveUserFromOthersTodosAsync(Guid userId, CancellationToken cancellationToken = default);
     }
 }

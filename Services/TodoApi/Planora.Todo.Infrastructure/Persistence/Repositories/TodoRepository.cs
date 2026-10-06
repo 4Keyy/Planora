@@ -283,5 +283,28 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
             Context.TodoItemShares.RemoveRange(shares);
             await Context.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task<int> RemoveUserFromOthersTodosAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            // Loaded and removed rather than ExecuteDelete, so the consumer's single SaveChangesAsync
+            // commits them together with the soft-delete of the account's own tasks, and so the
+            // InMemory test provider can run it. A deleted account's own tasks take their shares,
+            // workers and preferences with them when they are purged; these are the rows it left on
+            // tasks that belong to someone else, which nothing else ever removed.
+            var shares = await Context.TodoItemShares
+                .Where(s => s.SharedWithUserId == userId)
+                .ToListAsync(cancellationToken);
+            var workers = await Context.Set<TodoItemWorker>()
+                .Where(w => w.UserId == userId)
+                .ToListAsync(cancellationToken);
+            var preferences = await Context.UserTodoViewPreferences
+                .Where(p => p.ViewerId == userId)
+                .ToListAsync(cancellationToken);
+
+            Context.TodoItemShares.RemoveRange(shares);
+            Context.Set<TodoItemWorker>().RemoveRange(workers);
+            Context.UserTodoViewPreferences.RemoveRange(preferences);
+            return shares.Count + workers.Count + preferences.Count;
+        }
     }
 }

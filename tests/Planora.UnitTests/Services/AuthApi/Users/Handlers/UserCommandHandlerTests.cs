@@ -156,6 +156,36 @@ public sealed class UserCommandHandlerTests
         fixture.SecurityStamp.Verify(
             x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()),
             Times.Once);
+
+        // PRIVACY: the photo is a public static file; it goes with the account.
+        fixture.AvatarStorage.Verify(
+            x => x.DeleteAsync(user.Id, It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Regression")]
+    public async Task DeleteUser_StillSucceeds_WhenTheAvatarCannotBeDeleted()
+    {
+        var user = CreateUser("delete-avatar-io@example.com", "Delete", "AvatarIo");
+        var fixture = CreateDeleteFixture(user.Id);
+        fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
+        fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        fixture.AvatarStorage
+            .Setup(x => x.DeleteAsync(user.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("file in use"));
+
+        var result = await fixture.Handler.Handle(
+            new DeleteUserCommand { Password = "Password123!" },
+            CancellationToken.None);
+
+        // The deletion is already committed; the purge sweeps the avatar tree again later.
+        Assert.True(result.IsSuccess);
+        Assert.True(user.IsDeleted);
+        fixture.EventBus.Verify(
+            x => x.PublishAsync(It.IsAny<UserDeletedIntegrationEvent>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -345,6 +375,7 @@ public sealed class UserCommandHandlerTests
         var currentUser = new Mock<ICurrentUserService>();
         var eventBus = new Mock<IEventBus>();
         var securityStamp = new Mock<ISecurityStampService>();
+        var avatarStorage = new Mock<IAvatarStorage>();
         unitOfWork.SetupGet(x => x.Users).Returns(users.Object);
         currentUser.SetupGet(x => x.UserId).Returns(currentUserId);
 
@@ -354,12 +385,14 @@ public sealed class UserCommandHandlerTests
             passwordHasher,
             eventBus,
             securityStamp,
+            avatarStorage,
             new DeleteUserCommandHandler(
                 unitOfWork.Object,
                 passwordHasher.Object,
                 currentUser.Object,
                 eventBus.Object,
                 securityStamp.Object,
+                avatarStorage.Object,
                 Mock.Of<ILogger<DeleteUserCommandHandler>>()));
     }
 
@@ -404,6 +437,7 @@ public sealed class UserCommandHandlerTests
         Mock<IPasswordHasher> PasswordHasher,
         Mock<IEventBus> EventBus,
         Mock<ISecurityStampService> SecurityStamp,
+        Mock<IAvatarStorage> AvatarStorage,
         DeleteUserCommandHandler Handler);
 
     private sealed record Confirm2FaFixture(

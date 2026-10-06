@@ -33,7 +33,13 @@ namespace Planora.Todo.Application.Features.IntegrationEvents
                 var affected = await _todoRepository.SoftDeleteByUserIdAsync(
                     @event.UserId, @event.UserId, cancellationToken);
 
-                if (affected == 0)
+                // What the account left on other people's tasks — the shares naming it, its worker
+                // rows, its per-viewer preferences. Deleting an account emits no FriendshipRemoved, so
+                // nothing else removes them: they stayed for good as a deleted person's data.
+                var leftOnOthers = await _todoRepository.RemoveUserFromOthersTodosAsync(
+                    @event.UserId, cancellationToken);
+
+                if (affected == 0 && leftOnOthers == 0)
                 {
                     _logger.LogInformation(
                         "No todos found for deleted user {UserId} — nothing to clean up",
@@ -44,8 +50,9 @@ namespace Planora.Todo.Application.Features.IntegrationEvents
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation(
-                    "Soft-deleted {Count} todos for deleted user {UserId}",
+                    "Soft-deleted {Count} todos and removed {Left} share/worker/preference rows for deleted user {UserId}",
                     affected,
+                    leftOnOthers,
                     @event.UserId);
             }
             catch (Exception ex)

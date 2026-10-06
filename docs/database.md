@@ -446,6 +446,7 @@ pass is guarded by an advisory lock + tripwire.
 | `OutboxMessages` / `InboxMessages` | all | `Status=Processed` older than `OutboxProcessedDays` / `InboxProcessedDays` (7) | `(Status, ProcessedOnUtc)` |
 | `RefreshTokens` | Auth | `ExpiresAt` older than `ExpiredRefreshTokenDays` (30) | `(ExpiresAt)` |
 | `Users` (soft-deleted) | Auth | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) — a bespoke policy deletes all Auth-owned dependents first (friendships, refresh tokens, login/password history, recovery codes, roles) then the user | `(IsDeleted)` |
+| `todo_item_shares` / `todo_item_workers` / `user_todo_view_preferences` naming a deleted user | Todo | at account deletion (`UserDeletedIntegrationEvent`): the rows the account left on other people's tasks are removed with the soft-delete of its own tasks | — |
 | `LoginHistory` | Auth | opt-in: `LoginAt` older than `LoginHistoryDays` (180) | `(LoginAt)` |
 | `AuditLogs` | Auth | opt-in: `CreatedAt` older than `AuditLogDays` (365) | `(CreatedAt)` |
 | `UserRecoveryCodes` (used) | Auth | spent codes (`IsUsed`) older than `RecoveryCodeUsedDays` (30) | — (tiny table) |
