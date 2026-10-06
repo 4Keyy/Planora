@@ -19,8 +19,11 @@ drowning in dashboards.
 | **Owner** | The component whose health the SLO measures. |
 | **Source** | Where the SLI samples come from. |
 
-The 28-day window matches Google SRE-book convention and absorbs the
-weekly traffic cycle without smoothing away a real outage.
+A rolling 28-day window contains four weekly cycles. This is the project's proposed accounting period; it is not evidence that a dashboard/rule is deployed.
+
+## Query validation prerequisite
+
+PromQL expressions are templates that assume the collector exposes the listed names/resource labels. Verify actual metric samples first: Ocelot may label catch-all routes instead of raw URL paths, and no production metrics backend was queried in this audit. Health trace filtering does not automatically filter probe metrics. Do not install a route-specific SLI that matches zero series.
 
 ## SLO-01 — Gateway request availability
 
@@ -31,7 +34,7 @@ error, excluding probe traffic.
 |---|---|
 | SLI | `1 - (sum(rate(http_server_request_duration_seconds_count{service_name="ApiGateway",http_response_status_code=~"5..", http_route!~"/health.*"}[28d])) / sum(rate(http_server_request_duration_seconds_count{service_name="ApiGateway",http_route!~"/health.*"}[28d])))` |
 | Objective | **≥ 99.5%** over a rolling 28-day window |
-| Error budget | 3 h 36 m of unavailability per 28 days |
+| Error budget | 0.5% of eligible requests may fail; at uniform traffic only, this corresponds to 3 h 21 m 36 s per 28 days |
 | Owner | Gateway (ingress edge) |
 | Source | OpenTelemetry ASP.NET Core request metric exported from `Planora.ApiGateway` |
 
@@ -49,8 +52,7 @@ The 95th-percentile end-to-end latency for the hot read path
 | Source | OpenTelemetry ASP.NET Core request metric (gateway side) |
 
 The matching k6 baseline scenario `perf/k6/scenarios/todo-list.js` codifies
-the same threshold against the local Docker stack — they are the same
-budget at two different scales.
+the same threshold against the local Docker stack — the absolute latency targets match, but a local k6 run does not implement a rolling production error budget. The default list workload has no seeded tasks/shares and can encounter gateway rate limits.
 
 ## SLO-03 — Login authentication latency (p95)
 
@@ -83,16 +85,15 @@ consumers see a producer's event within one minute at p95.
 
 ## SLO-05 — Realtime notification fan-out
 
-Notifications submitted by `POST /realtime/api/v1/notifications/...` are
-delivered to every connected target within 5 seconds.
+Proposed target: a notification submitted through the implemented Realtime send endpoint reaches the connected target group within 5 seconds. The current code does not measure or guarantee client receipt.
 
 | Field | Value |
 |---|---|
-| SLI | Not yet directly observable. Until the Realtime persistence behaviour rewire (INV-DATA-5) and the matching `planora.realtime.fanout.latency` instrumentation ship, fan-out time is best-effort and not metric-instrumented. The proxy metric today is gateway request latency for the notification submission endpoints. |
+| SLI | No fan-out latency instrument exists. Persistent notification storage is implemented conditionally, but delivery-attempt rows and reconnect replay are not active guarantees. Gateway submission latency is only a server request proxy, not delivery latency. |
 | Objective | **(provisional)** p95 submission → SignalR group send ≤ 5 s once instrumented. |
-| Error budget | TBD post-instrumentation. |
+| Error budget | No measurable error budget is defined until a delivery/receipt SLI is implemented. |
 | Owner | Realtime API |
-| Source | OpenTelemetry SignalR instrumentation + a planned `planora.realtime.fanout.latency` histogram. |
+| Source | Proposed `planora.realtime.fanout.latency` instrument; current startup has ASP.NET/HTTP/EF/runtime instrumentation, not a dedicated client-receipt metric. |
 
 This SLO is published as **provisional** so operators can see the gap and
 the team can plan toward closing it.
@@ -122,10 +123,10 @@ These SLOs are **declared but not yet enforced**. Enforcement requires:
    to a real metrics backend (see [`docs/observability.md`](observability.md)).
 2. The PromQL above pinned into Grafana Cloud dashboards (named
    `planora-slo-gateway`, `planora-slo-todo`, etc.).
-3. The four alert rules from [`docs/observability.md`](observability.md)
+3. The example alert rules from [`docs/observability.md`](observability.md)
    "Suggested Alerts" hooked into your notification channel.
 
-Until activation, treat this file as the **agreed numeric definition** of
+Until activation, treat this file as the **proposed numeric definition** of
 what "good enough" looks like, so the eventual dashboards land with the
 right thresholds.
 

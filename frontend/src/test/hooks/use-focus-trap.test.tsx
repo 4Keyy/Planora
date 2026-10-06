@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { useState } from "react"
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
+import { ModalPortal } from "@/components/ui/modal-portal"
 
 function Dialog({ active, empty = false }: { active: boolean; empty?: boolean }) {
   const ref = useFocusTrap<HTMLDivElement>(active)
@@ -84,5 +85,28 @@ describe("useFocusTrap", () => {
     await waitFor(() => expect(screen.getByText("first")).toHaveFocus())
     fireEvent.click(trigger) // close → focus returns to the trigger
     await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
+  it("engages through a portal, which is how every modal in this product mounts", async () => {
+    // ModalPortal renders null on its first pass and creates the portal from its
+    // own effect. With a plain useRef the trap ran one tick early, found null, and
+    // never ran again — so every dialog shipped with a focus trap that did nothing.
+    function WithPortal() {
+      const ref = useFocusTrap<HTMLDivElement>(true)
+      return (
+        <ModalPortal>
+          <div ref={ref} role="dialog" tabIndex={-1}>
+            <button>first</button>
+            <button>last</button>
+          </div>
+        </ModalPortal>
+      )
+    }
+    render(<WithPortal />)
+    await waitFor(() => expect(screen.getByText("first")).toHaveFocus())
+
+    act(() => screen.getByText("last").focus())
+    fireEvent.keyDown(document, { key: "Tab" })
+    await waitFor(() => expect(screen.getByText("first")).toHaveFocus())
   })
 })

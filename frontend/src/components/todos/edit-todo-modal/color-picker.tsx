@@ -1,4 +1,11 @@
 "use client"
+/**
+ * @colour-data — hue-wheel geometry.
+ *
+ * The gradient stops below are the six primaries of the HSL colour wheel. They
+ * describe the picker's coordinate space; they are not a palette and substituting
+ * tokens for them would make the wheel stop being a wheel.
+ */
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CATEGORY_COLOR_SWATCHES } from "./utils"
@@ -153,6 +160,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
         {/* Layer 1: white → hue color */}
         <div style={{
           position: "absolute", inset: 0,
+          // Colour-space geometry, not theme: the saturation axis runs from pure
+          // white to the pure hue and the value axis to pure black, by definition.
           background: `linear-gradient(to right, #ffffff, ${pureHueHex})`,
         }} />
         {/* Layer 2: transparent → black */}
@@ -170,7 +179,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
             width: 16,
             height: 16,
             borderRadius: "50%",
-            border: "2px solid white",
+            border: "2px solid var(--pl-paper)",
             boxShadow: "0 0 0 1px rgba(0,0,0,0.3), 0 2px 6px rgba(0,0,0,0.25)",
             pointerEvents: "none",
             background: previewHex,
@@ -195,7 +204,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
           height: 20,
           borderRadius: "50%",
           background: pureHueHex,
-          border: "2px solid white",
+          border: "2px solid var(--pl-paper)",
           boxShadow: "0 0 0 1px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.2)",
           pointerEvents: "none",
           zIndex: 1,
@@ -226,22 +235,20 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
           flexShrink: 0,
           boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
         }} />
-        {/* Hex input */}
-        <div style={{
-          flex: 1, display: "flex", alignItems: "center",
-          background: "#f5f5f5", borderRadius: 8, padding: "0 10px",
-          border: "1px solid #eaeaea",
-        }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#a3a3a3", marginRight: 2 }}>#</span>
+        {/* Hex input. The grey box IS the field: its edge turns ink with a halo while the
+            input inside has focus (globals.css `.field-shell`), and the input draws nothing. */}
+        <div className="field-shell flex flex-1 items-center rounded-sm border border-line bg-gray-100 px-2.5">
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink-muted)", marginRight: 2 }}>#</span>
           <input
             value={hexInput.replace("#", "")}
             onChange={(e) => handleHexInput(e.target.value)}
             maxLength={6}
             spellCheck={false}
+            aria-label="Hex colour"
+            className="field-naked"
             style={{
               flex: 1, border: "none", background: "transparent",
-              fontSize: 12, fontWeight: 700, color: "#262626",
-              outline: "none", fontFamily: "monospace", letterSpacing: "0.04em",
+              fontSize: 12, fontWeight: 700, color: "var(--pl-ink)", fontFamily: "monospace", letterSpacing: "0.04em",
               padding: "8px 0",
             }}
           />
@@ -251,8 +258,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       {/* ── Preset swatches ── */}
       <div>
         <div style={{
-          fontSize: 9, fontWeight: 900, letterSpacing: "0.14em",
-          textTransform: "uppercase", color: "#a3a3a3", marginBottom: 7,
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+          textTransform: "uppercase", color: "var(--pl-ink-muted)", marginBottom: 7,
         }}>
           Presets
         </div>

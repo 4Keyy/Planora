@@ -116,6 +116,10 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  // A second build directory, so a verification build never rewrites the `.next` a running
+  // `next start` is serving — rebuilding under a live server tears it into an error page.
+  // Unset in every normal run; see docs/development.md.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   compress: true,
   // Trust the host's own LAN IPs in dev so a teammate opening the shared `next dev -H 0.0.0.0`
   // URL gets the internal `/_next/*` resources (incl. the HMR websocket) instead of cross-origin
@@ -191,6 +195,26 @@ const nextConfig = {
       },
     ]
   },
+  async redirects() {
+    // The short paths people actually type, bookmark and paste into emails. The real
+    // routes live under /auth/*, and without these both of these are hard 404s — there
+    // is no /login page and nothing else in the config maps to one.
+    //
+    // Permanent (308), because the destination is not going to move and a 308 keeps the
+    // method, which matters if anything ever POSTs to one of these by mistake.
+    return [
+      { source: '/login', destination: '/auth/login', permanent: true },
+      { source: '/register', destination: '/auth/register', permanent: true },
+      { source: '/signin', destination: '/auth/login', permanent: true },
+      { source: '/signup', destination: '/auth/register', permanent: true },
+      // Password-reset emails sent before FrontendLinkBuilder was corrected point at
+      // /reset-password, which never existed. Those links are already in people's
+      // inboxes and stay valid for 24 hours, so the alias has to outlive the fix.
+      // The query string rides along automatically.
+      { source: '/reset-password', destination: '/auth/reset-password', permanent: true },
+      { source: '/verify-email', destination: '/auth/verify-email', permanent: true },
+    ]
+  },
   async rewrites() {
     // Same-origin API proxy. When the dev server is reached through a tunnel /
     // single-forwarded-port (e.g. a phone that can hit :3000 but not the gateway's
@@ -200,6 +224,12 @@ const nextConfig = {
     // sub-paths so they never shadow the frontend's own /auth/* or /categories pages,
     // and they are inert for localhost / LAN-IP access (which call the gateway
     // directly with an absolute URL and never hit these frontend paths).
+    //
+    // `/friendships` is the one gateway route the frontend calls WITHOUT a service
+    // prefix (src/hooks/use-friends.ts, src/app/(app)/profile/page.tsx call api.get('/friendships')),
+    // so it needs its own entries — the bare path and its sub-paths — or every friends
+    // request 404s against Next instead of reaching the gateway. There is no frontend
+    // page at /friendships, so nothing is shadowed.
     const gatewayProxies = [
       '/auth/api/:path*',
       '/todos/api/:path*',
@@ -208,6 +238,8 @@ const nextConfig = {
       '/messaging/api/:path*',
       '/realtime/:path*',
       '/avatars/:path*',
+      '/friendships',
+      '/friendships/:path*',
     ].map((source) => ({ source, destination: `${safeApiUrl}${source}` }))
 
     return [

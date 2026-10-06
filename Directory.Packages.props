@@ -10,6 +10,10 @@
          "MessagePack" /> to force this patched 2.5.x (kept on the 2.5 line for SignalR-2.x protocol
          compatibility). Remove both once SignalR ships a patched transitive. -->
     <PackageVersion Include="MessagePack" Version="2.5.302" />
+    <!-- Security override: DataProtection 10.0.8 pulls vulnerable XML cryptography.
+         Auth.Infrastructure references the patched package directly; keep this override
+         until the DataProtection dependency graph resolves to 10.0.10 or newer. -->
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.12" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection" Version="10.0.8" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" Version="10.0.8" />

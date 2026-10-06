@@ -1,132 +1,111 @@
 # Caching Strategy
 
-This document is the single reference for **what is cached, where, with which
-TTL, and how it is invalidated**. The goal is one explicit answer for every
-piece of cached state in the system, so a reviewer can spot the addition of
-an undocumented cache during code review.
+This reference records the caches that are actually wired in Planora. PostgreSQL remains the
+source of truth; a registered cache abstraction does not imply that every query uses it.
+For deployment variables, see [configuration.md](configuration.md).
 
 ## Cache Layers
 
-| Layer | Backend | Purpose | Code |
-|---|---|---|---|
-| Distributed application cache | Redis (StackExchange.Redis via `Microsoft.Extensions.Caching.StackExchangeRedis`) | Cross-replica, durable-during-restart cache for entity reads and derived values. | `BuildingBlocks.Infrastructure.Caching.CacheService`, `ICacheService` |
-| Cache key builder | (no backend) | Centralized key naming convention so every reader and invalidator agrees on the literal Redis key. | `BuildingBlocks.Infrastructure.Caching.CacheKeyBuilder` |
-| Cache invalidator | Redis | Pattern-based key deletion driven by integration events. | `BuildingBlocks.Infrastructure.Caching.CacheInvalidator`, `ICacheInvalidator` |
-| ASP.NET output cache / response cache | none | Not used — `[ResponseCache]` is intentionally absent on data endpoints because their freshness budget is shorter than a sensible Cache-Control TTL. |  |
-| Browser HTTP cache | per response | Static frontend assets only. Next.js handles its own `Cache-Control` headers on `_next/static/*`; API responses are not cached. |  |
-| Rate-limit counter store | Redis (`RedisRateLimiting.AspNetCore`) | Per-partition fixed-window counters shared across every replica. See [`auth-security.md`](auth-security.md) "Rate Limiting". | `ServiceCollectionExtensions.AddConfiguredRateLimiting` |
-| ASP.NET Data Protection key ring | Redis (`PersistKeysToStackExchangeRedis`) | Encryption keys for TOTP secrets at rest; survives container restart. | `Services/AuthApi/Planora.Auth.Infrastructure/DependencyInjection.cs` |
+| Layer | Implementation | Scope and behavior |
+|---|---|---|
+| Shared application cache | `ICacheService` → `CacheService` | Optional L1 `IMemoryCache` followed by L2 `IDistributedCache`/Redis; JSON serialization. Registered in BuildingBlocks; no domain query currently calls this abstraction. |
+| Todo friend-id cache | `CachingFriendshipService` | Process-local list cache, 30 seconds; used by share validation, feed queries and audience resolution. `AreFriendsAsync` always calls Auth. |
+| Collaboration profile cache | `CachingUserService` | Process-local name/avatar cache, 60 seconds; fetches missing profiles in one Auth gRPC batch and only caches positive results. |
+| Security stamps | `SecurityStampService` and `SecurityStampValidator` | Raw Redis keys used for access-token revocation; 120-minute TTL, outside `CacheService`. |
+| Token blacklist | `TokenBlacklistService` | `IDistributedCache` entry expires at the supplied token expiry; the read catches errors and returns false. |
+| Data Protection keys | Auth `PersistKeysToStackExchangeRedis` | Persistent encryption key ring; not an entity cache and not covered by application invalidation. |
+| Rate-limit counters | Configured Redis rate limiter | Counter state; see [auth-security.md](auth-security.md). |
+| Browser assets | Next.js / Auth avatar static files | Framework-managed asset caching; avatar URLs are content-addressed and immutable. |
 
-The "rate-limit" and "data-protection" layers are listed for completeness;
-they are not application caches and are not invalidated by the same rules.
+`CategoryGrpcClient` does **not** cache category metadata. Todo category enrichment performs
+live gRPC calls scoped to the category owner. `ICacheService` has `GetAsync`, `SetAsync`,
+`RemoveAsync` and `RemoveByPatternAsync`; there is no `GetOrCreateAsync` method.
 
 ## Naming Convention
 
-Every cache key is produced by `CacheKeyBuilder` so the literal Redis key is
-not a free-form string. The convention is:
+`CacheKeyBuilder.Build` joins caller-provided segments with `:`. It does not add a service
+namespace. `ForEntity<T>(id)` produces `EntityTypeName:<guid>`; `ForEntityList<T>(filters)`
+produces `EntityTypeName:list:<filters>`; `PatternForEntity<T>()` produces `EntityTypeName:*`.
+The shared Redis distributed-cache provider prepends the instance name `planora_` to physical
+Redis keys. For example, a logical `Category:<guid>` becomes `planora_Category:<guid>`.
 
-    planora:<service>:<resource>:<id-or-shape>
+Concrete caches have separate naming rules:
 
-For example: `planora:todo:item:<guid>`, `planora:auth:friend-ids:<user>`.
-
-This gives operators a non-overlapping Redis key namespace per service and
-makes `KEYS planora:todo:*` (in a maintenance window, never in prod) a
-reliable way to inspect a single service's cache footprint.
-
-## Cached Resources Today
-
-The list below is exhaustive at the time of writing. **Adding a new cached
-resource requires adding a row here in the same commit.**
-
-| Resource | Reader | TTL | Invalidator | Why |
-|---|---|---|---|---|
-| Category metadata (name/color/icon) read by Todo service | `CategoryGrpcClient.GetCategoryInfoAsync` (caches the gRPC result) | short (minutes) — gRPC client cache | `CategoryDeletedIntegrationEvent` consumer in Todo API | Todo lists render the friend's category badge; without a cache the read is one gRPC call per todo. |
-| Cached helper values inside `BuildingBlocks.Infrastructure.Caching` | `CacheService.GetOrCreateAsync` callers | per-call (passed to `GetOrCreateAsync`) | per-caller via `CacheInvalidator` | Generic primitive; concrete TTLs are defined at the call site, not in the layer. |
-
-The deliberately short list reflects Planora's current scale. Anything that
-fits in a single PostgreSQL roundtrip and serves browser UI is **not**
-cached, on the grounds that the optimization is premature and a stale cache
-is a worse failure mode than a 30 ms query.
-
-## TTL Convention
-
-Use these as the default budget; a longer TTL needs justification in the
-PR description and a corresponding row in the table above.
-
-| Class of data | TTL | Rationale |
+| State | Key | Expiration |
 |---|---|---|
-| User-owned resource that the user can mutate from the same browser session | ≤ 30 s | The user expects "create then list" to be consistent within one screen interaction. |
-| Cross-service metadata that changes rarely (category color, friendship existence) | 1–5 minutes | These are read on every todo list response. The bound is set by the worst latency the user accepts for the metadata to catch up after the owner edits it. |
-| Reference data with no mutation surface (enum labels, system messages) | hours | Indefinite is acceptable for truly immutable values; pin the TTL anyway so a key purge naturally heals drift. |
-| Anything stored in Data Protection / rate-limit Redis | governed by their own pipeline, not this convention | Listed only because they share the Redis instance. |
+| Todo accepted friend IDs | `todo:friend-ids:<guid in N format>` in memory | 30 seconds absolute |
+| Collaboration profile | `collaboration:user-profile:<guid in N format>` in memory | 60 seconds absolute |
+| Security stamp | `security:stamp:<guid>` in raw Redis | 120 minutes |
+| Token blacklist | `token:blacklist:<token>` logical distributed-cache key | Remaining token lifetime |
+| Auth Data Protection | `Planora:Auth:DataProtection-Keys` in raw Redis | Key-ring lifecycle |
+
+Redis access can contain sensitive token/key-ring material. Inspect key names and TTLs only
+when diagnosing a specific issue; do not dump values into logs or documentation.
+
+## Shared Cache TTL And Failure Behavior
+
+`CacheOptions` defaults are `DefaultExpiration = 30 minutes`, `ShortExpiration = 5 minutes`,
+`LongExpiration = 2 hours`, `UseLocalCache = true`, `LocalCacheSize = 1000`, and
+`EnableCompression = true`. The latter two options are currently not consumed by
+`CacheService`: JSON is not compressed, and the shared memory cache is configured separately
+in BuildingBlocks DI with `SizeLimit = 104857600`. This is an entry-size budget, not a
+measurement of bytes; these cache entries declare `Size = 1`.
+
+`SetAsync` uses the caller's TTL, or `DefaultExpiration` when omitted. L1 expires after the
+smaller of that TTL and five minutes. A Redis hit uses the remaining Redis key TTL when the
+raw multiplexer is available; otherwise L1 falls back to five minutes. The cache catches
+read/write/remove errors: reads return the default value, while writes/removes log and return.
+Callers must treat a cache miss as a reason to consult the source of truth.
 
 ## Invalidation Rules
 
-The cache is invalidated by **integration events**, never by HTTP-side
-"after save" code in handlers. Handlers write to the DB through the outbox;
-the matching consumer drains the event and calls `ICacheInvalidator`. This
-guarantees:
+The shared `CacheInvalidator` delegates explicit key removal and entity-prefix removal to
+`CacheService`. No service handler or integration-event consumer currently calls it;
+there is no automatic integration-event invalidation pipeline for the two concrete local
+caches. Their consistency bound is their absolute TTL.
 
-1. **At-least-once invalidation.** The integration-event delivery is durable;
-   the outbox/inbox pattern survives broker outages and consumer restarts.
-2. **Idempotent invalidation.** Re-delivery of an event re-runs the same
-   delete; Redis `DEL` is naturally idempotent.
-3. **No write-path coupling.** A handler that forgets to invalidate does not
-   ship stale data forever — the invalidator runs from a separate process
-   path and any change still flows through the outbox.
+`RemoveAsync` removes the distributed key and the current process's L1 entry.
+`RemoveByPatternAsync` cancels the current process's prefix token, scans primary Redis
+endpoints with the `planora_` prefix, and deletes matched keys in batches of 500. It skips
+Redis scanning with a warning if no raw multiplexer is registered. It does not broadcast
+L1 eviction to other replicas. Do not assume distributed removal immediately evicts an
+entry already cached in another process.
 
-For caches that depend on a piece of data the producer cannot enumerate
-(e.g. category color used by many todos), the invalidator uses Redis
-`SCAN` with the relevant key prefix and deletes the matched keys. Avoid
-`KEYS *` in any code path — it blocks the Redis main thread.
+## Authorization And Freshness
 
-## What is NOT cached, and why
-
-- **Todo lists themselves** — viewer-specific (hidden state, viewer category,
-  worker membership). The cardinality is `users × pages × filters` which
-  defeats the point of caching.
-- **Auth user details** — the JWT carries the relevant claims; the only
-  per-request DB hit is the security stamp validator, and that path already
-  uses Redis through `ISecurityStampService`.
-- **CSRF tokens** — produced fresh per request, validated by constant-time
-  comparison; caching would either reduce entropy or add no value.
-- **Frontend `accessToken`** — in-memory Zustand store only.
-  See [`docs/auth-security.md`](auth-security.md) "Authentication Model".
+- Live `AreFriendsAsync` checks gate normal non-owner task detail, completion and branch
+  access. The 30-second friend-ID list is also used by feed selection and share validation;
+  a friendship change can therefore take up to that TTL to affect those list-based paths.
+  Friendship-removal events independently remove stale explicit shares; they do not remove
+  worker rows in that consumer. The public join path and subtask-creator mutation path have
+  documented authorization exceptions in [auth-security.md](auth-security.md). A cache is
+  not a replacement for the live authorization check.
+- Collaboration profile staleness is bounded at 60 seconds. Missing users and failures are
+  not negatively cached, so a recovered Auth service can provide names/avatars on the next read.
+- Todo items, task lists, categories, comments, messages and notification read models are
+  read from their owning services; the generic entity-cache registration does not cache them.
+- Access tokens live in frontend memory. The auth store's persistence policy and security
+  stamp failure behavior are documented in [auth-security.md](auth-security.md).
 
 ## Observability
 
-The Redis instance health is part of the readiness probe (see
-[`docs/architecture.md`](architecture.md) "Health Probe Architecture").
+`CacheService.GetAsync` records `planora.cache.operations` with `prefix` and `outcome`:
+`hit_l1`, `hit_l2`, `miss`, or `error`. `prefix` is the first colon-delimited key segment;
+an empty segment or one longer than 48 characters becomes `_other_`.
+These metrics cover the generic shared cache only, not the friend-ID/profile decorators,
+security-stamp checks or rate limiter. A registered meter with no domain call sites can
+correctly produce no samples.
 
-`CacheService.GetAsync` emits the `planora.cache.operations` counter on every
-read. Tags:
-
-- `prefix` — the first colon-delimited segment of the cache key. With the
-  `CacheKeyBuilder.ForEntity<T>(id)` convention this is the entity class
-  name (`User`, `Todo`, `Category`, …) — low cardinality by design. Keys
-  whose first segment exceeds 48 characters or is empty collapse to
-  `_other_` so a future buggy callsite cannot blow up the time-series
-  cardinality budget.
-- `outcome` ∈ `hit_l1` (in-process MemoryCache), `hit_l2` (Redis),
-  `miss`, `error` (exception during the read path).
-
-Hit ratio is derived in the metrics back-end with a Prometheus query:
-
-    sum by (prefix) (rate(planora_cache_operations_total{outcome=~"hit_.*"}[5m]))
-    /
-    sum by (prefix) (rate(planora_cache_operations_total[5m]))
-
-A persistent low ratio per prefix (< 0.5 sustained) usually means the
-TTL is too short for the access pattern, or the invalidator is firing
-on a key that should be sticky.
+The two local decorators emit debug logs on misses. Redis health is included when an
+explicit Redis connection is configured; see [observability.md](observability.md) and
+[architecture.md](architecture.md#health-probe-architecture).
 
 ## References
 
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheService.cs`
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheInvalidator.cs`
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheKeyBuilder.cs`
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheOptions.cs`
-- [`docs/architecture.md`](architecture.md) — outbox/inbox pattern.
-- [`docs/observability.md`](observability.md) — current metric surface.
-- [`docs/INVARIANTS.md`](INVARIANTS.md) — `INV-COMM-3` and `INV-COMM-4`
-  bind invalidation to the outbox/inbox.
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/DependencyInjection.cs`
+- `Services/TodoApi/Planora.Todo.Infrastructure/Services/CachingFriendshipService.cs`
+- `Services/TodoApi/Planora.Todo.Infrastructure/Grpc/CategoryGrpcClient.cs`
+- `Services/CollaborationApi/Planora.Collaboration.Infrastructure/Grpc/CachingUserService.cs`
+- `Services/AuthApi/Planora.Auth.Infrastructure/Services/Security/`
+- [Architectural invariants](INVARIANTS.md)

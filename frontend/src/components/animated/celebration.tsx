@@ -3,8 +3,15 @@
 import { motion } from "framer-motion"
 import { useMemo } from "react"
 import { cn } from "@/lib/utils"
+import { DURATION_DELIBERATE, DURATION_SLOW, EASE_OUT_EXPO } from "@/lib/animations"
 
-const CONFETTI_COLORS = ["#10b981", "#111827", "#f59e0b", "#60a5fa", "#f43f5e"]
+/**
+ * The burst's palette: the confirmed state and the neutrals around it. It used to throw
+ * warn, accent and alert as well — the three colours the system spends on meaning — so
+ * finishing a task scattered "overdue" red across the card that had just stopped being
+ * overdue.
+ */
+const CONFETTI_FILLS = ["bg-positive", "bg-ink", "bg-ink-faint", "bg-positive/60", "bg-ink-muted"]
 const CONFETTI_COUNT = 18
 
 interface ConfettiPieceProps {
@@ -15,8 +22,9 @@ interface ConfettiPieceProps {
 function ConfettiPiece({ index, variant }: ConfettiPieceProps) {
   const angle = (index / CONFETTI_COUNT) * Math.PI * 2 + (index % 2 === 0 ? 0.14 : -0.1)
   const distance = variant === "card" ? 34 + (index % 4) * 8 : 88 + (index % 5) * 18
-  const duration = variant === "card" ? 0.58 + (index % 3) * 0.04 : 0.84 + (index % 4) * 0.06
-  const delay = (index % 6) * 0.012
+  // Two beats instead of eighteen hand-tuned ones: half the pieces land on `slow`, half on
+  // `deliberate`, which is all the scatter the eye reads in a burst this short.
+  const duration = index % 2 === 0 ? DURATION_DELIBERATE : DURATION_SLOW
 
   return (
     <motion.div
@@ -34,22 +42,14 @@ function ConfettiPiece({ index, variant }: ConfettiPieceProps) {
         scale: [0.72, 1, 0.82],
         rotate: index % 2 === 0 ? 180 : -180,
       }}
-      transition={{
-        duration,
-        delay,
-        ease: [0.16, 1, 0.3, 1],
-      }}
+      transition={{ duration, ease: EASE_OUT_EXPO }}
       data-testid="confetti-piece"
       className={cn(
-        "absolute pointer-events-none",
-        variant === "screen" ? "left-1/2 top-1/2" : "left-10 top-1/2"
+        "pointer-events-none absolute",
+        variant === "screen" ? "left-1/2 top-1/2 h-2 w-2" : "left-9 top-1/2 h-1.5 w-1.5",
+        index % 3 === 0 ? "rounded-full" : "rounded-none",
+        CONFETTI_FILLS[index % CONFETTI_FILLS.length],
       )}
-      style={{
-        width: variant === "card" ? "5px" : "7px",
-        height: variant === "card" ? "5px" : "7px",
-        backgroundColor: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
-        borderRadius: index % 3 === 0 ? "999px" : "2px",
-      }}
     />
   )
 }
@@ -69,36 +69,44 @@ export function CompletionCelebration({
     <div
       className={cn(
         "pointer-events-none overflow-hidden",
-        variant === "screen" ? "fixed inset-0 z-[3000]" : "absolute inset-0 z-40"
+        variant === "screen" ? "fixed inset-0 z-tooltip" : "absolute inset-0 z-40"
       )}
     >
       {confettiPieces.map((i) => (
         <ConfettiPiece key={i} index={i} variant={variant} />
       ))}
 
-      {/* Success pulse */}
+      {/*
+        The pulse is centred by framer's own `x`/`y`, not by `-translate-*` classes: a
+        motion element writes its whole `transform` inline, which silently overrode the
+        Tailwind translate and parked the pulse's top-left corner on the centre point.
+      */}
       <motion.div
         initial={{ opacity: 0, scale: 0 }}
         animate={{ opacity: [0, 0.28, 0], scale: [0.74, 1.28] }}
-        transition={{ duration: variant === "card" ? 0.5 : 0.64, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: DURATION_DELIBERATE, ease: EASE_OUT_EXPO }}
+        style={{ x: "-50%", y: "-50%" }}
         className={cn(
           "pointer-events-none",
-          variant === "screen"
-            ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-            : "absolute left-10 top-1/2 -translate-x-1/2 -translate-y-1/2"
+          variant === "screen" ? "fixed left-1/2 top-1/2" : "absolute left-9 top-1/2"
         )}
       >
         <div className={cn("relative flex items-center justify-center", variant === "card" ? "h-16 w-16" : "h-24 w-24")}>
           <motion.div
             initial={{ scale: 0.7, rotate: -18 }}
-            animate={{ scale: [0.7, 1, 0.92], rotate: [ -18, 8, 0 ] }}
-            transition={{ duration: variant === "card" ? 0.42 : 0.52, ease: [0.16, 1, 0.3, 1] }}
+            animate={{ scale: [0.7, 1, 0.92], rotate: [-18, 8, 0] }}
+            transition={{ duration: DURATION_DELIBERATE, ease: EASE_OUT_EXPO }}
             className={cn(
-              "rounded-full bg-gray-900 flex items-center justify-center shadow-xl shadow-emerald-500/20",
+              "flex items-center justify-center rounded-full bg-ink shadow-xl",
               variant === "card" ? "h-9 w-9" : "h-14 w-14"
             )}
           >
-            <svg className={cn("text-white", variant === "card" ? "h-5 w-5" : "h-7 w-7")} fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              aria-hidden="true"
+              className={cn("text-paper", variant === "card" ? "h-5 w-5" : "h-7 w-7")}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
             </svg>
           </motion.div>
@@ -113,12 +121,10 @@ export function SuccessPulse({ position = "center" }: { position?: "center" | "i
     <motion.div
       initial={{ scale: 0.8, opacity: 1 }}
       animate={{ scale: 1.2, opacity: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className={`absolute pointer-events-none ${
-        position === "center" ? "inset-0 flex items-center justify-center" : ""
-      }`}
+      transition={{ duration: DURATION_DELIBERATE, ease: EASE_OUT_EXPO }}
+      className={cn("pointer-events-none absolute", position === "center" && "inset-0 flex items-center justify-center")}
     >
-      <div className="w-full h-full rounded-full border-2 border-green-400" />
+      <div className="h-full w-full rounded-full border-2 border-positive" />
     </motion.div>
   )
 }

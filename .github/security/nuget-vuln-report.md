@@ -1,11 +1,13 @@
 # NuGet Vulnerable Packages — Tracking Report
 
+> Historical workflow output from June 2026; this is not the current dependency scan. MessagePack is now pinned to 2.5.302 in the central package file. See [the current audit](../../docs/audits/2026-10-06.md) for scanner results and their limits.
+
 Generated: 2026-06-13T06:53:44Z
-Workflow run: https://github.com/4Keyy/Planora/actions/runs/27459604238
+Workflow run: <https://github.com/4Keyy/Planora/actions/runs/27459604238>
 
 Apply fixes by bumping the affected package versions in `Directory.Packages.props`.
 
-```
+```text
   Determining projects to restore...
 /home/runner/work/Planora/Planora/Services/RealtimeApi/Planora.Realtime.Api/Planora.Realtime.Api.csproj : warning NU1903: Package 'MessagePack' 2.5.187 has a known high severity vulnerability, https://github.com/advisories/GHSA-hv8m-jj95-wg3x [/home/runner/work/Planora/Planora/Planora.sln]
 /home/runner/work/Planora/Planora/tests/Planora.UnitTests/Planora.UnitTests.csproj : warning NU1903: Package 'MessagePack' 2.5.187 has a known high severity vulnerability, https://github.com/advisories/GHSA-hv8m-jj95-wg3x [/home/runner/work/Planora/Planora/Planora.sln]

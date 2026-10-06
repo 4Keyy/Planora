@@ -91,4 +91,53 @@ describe("useCollapseScroll", () => {
     expect(document.documentElement.style.scrollBehavior).toBe("smooth")
     expect(document.body.style.minHeight).toBe("10px")
   })
+
+  it("jumps instead of gliding under reduced motion", () => {
+    Object.defineProperty(window, "scrollY", { value: 300, configurable: true })
+    document.body.style.minHeight = ""
+    // jsdom has no matchMedia; this one reports the reader's reduced-motion preference.
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string) => ({ matches: query.includes("reduce"), media: query }) as MediaQueryList,
+    })
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined)
+    const raf = vi.spyOn(window, "requestAnimationFrame")
+
+    const { rerender } = renderHook(({ isOpen }) => useCollapseScroll(isOpen), { initialProps: { isOpen: true } })
+    act(() => rerender({ isOpen: false }))
+
+    expect(scrollTo).toHaveBeenCalledWith(0, 0)
+    expect(raf).not.toHaveBeenCalled()
+    expect(document.body.style.minHeight).toBe("")
+    Reflect.deleteProperty(window, "matchMedia")
+  })
+
+  it("hands the page back the moment the reader scrolls, and stops on unmount", () => {
+    Object.defineProperty(window, "scrollY", { value: 400, configurable: true })
+    document.body.style.minHeight = ""
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined)
+    const frames: FrameRequestCallback[] = []
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => { frames.push(cb); return frames.length })
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined)
+
+    const { rerender, unmount } = renderHook(({ isOpen }) => useCollapseScroll(isOpen), { initialProps: { isOpen: true } })
+    act(() => rerender({ isOpen: false }))
+    act(() => frames.shift()!(performance.now() + 100))
+    const writes = scrollTo.mock.calls.length
+    expect(writes).toBeGreaterThan(0)
+
+    // The reader takes the wheel: the glide stops, the height lock comes off.
+    act(() => { window.dispatchEvent(new WheelEvent("wheel")) })
+    for (const cb of frames.splice(0)) act(() => cb(performance.now() + 300))
+    expect(scrollTo.mock.calls.length).toBe(writes)
+    expect(document.body.style.minHeight).toBe("")
+
+    // A second glide, cut short by unmount.
+    act(() => rerender({ isOpen: true }))
+    act(() => rerender({ isOpen: false }))
+    unmount()
+    const afterUnmount = scrollTo.mock.calls.length
+    for (const cb of frames.splice(0)) act(() => cb(performance.now() + 300))
+    expect(scrollTo.mock.calls.length).toBe(afterUnmount)
+  })
 })

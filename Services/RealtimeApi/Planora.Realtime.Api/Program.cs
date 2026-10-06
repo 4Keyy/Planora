@@ -6,8 +6,11 @@ using Planora.BuildingBlocks.Infrastructure.Grpc;
 using Planora.BuildingBlocks.Infrastructure.Security;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Planora.Realtime.Api.Grpc;
+using Microsoft.EntityFrameworkCore;
 using Planora.Realtime.Infrastructure.Hubs;
+using Planora.Realtime.Infrastructure.Persistence;
 using Planora.Realtime.Application.Handlers;
+using Planora.Realtime.Application.Features.IntegrationEvents;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using System.Text;
 using Serilog;
@@ -159,7 +162,33 @@ public class Program
                 // Subscribe to events
                 await eventBus.SubscribeAsync<NotificationEvent, NotificationEventHandler>(app.Lifetime.ApplicationStopping);
                 await eventBus.SubscribeAsync<RealtimeSyncIntegrationEvent, RealtimeSyncEventHandler>(app.Lifetime.ApplicationStopping);
+
+                // Cascade cleanup: drop notifications when their task or recipient is deleted upstream.
+                await eventBus.SubscribeAsync<TaskDeletedIntegrationEvent, TaskDeletedNotificationCleanupHandler>(app.Lifetime.ApplicationStopping);
+                await eventBus.SubscribeAsync<UserDeletedIntegrationEvent, UserDeletedNotificationCleanupHandler>(app.Lifetime.ApplicationStopping);
                 logger.LogInformation("✅ RealtimeApi dependencies ready");
+
+                // Retention purge indexes — the daily notification housekeeping sweeps read notifications
+                // by (IsRead, ReadAtUtc), unread by (IsRead, OccurredOnUtc) and delivered rows by
+                // DeliveredAtUtc. Additive, idempotent (IF NOT EXISTS); only runs when a database is
+                // configured (the durable log is conditional on a connection string).
+                var realtimeDb = scope.ServiceProvider.GetService<RealtimeDbContext>();
+                if (realtimeDb is not null)
+                {
+                    try
+                    {
+                        await realtimeDb.Database.ExecuteSqlRawAsync(
+                            @"CREATE INDEX IF NOT EXISTS ix_notifications_isread_readatutc ON ""Notifications"" (""IsRead"", ""ReadAtUtc"");
+                              CREATE INDEX IF NOT EXISTS ix_notifications_isread_occurredonutc ON ""Notifications"" (""IsRead"", ""OccurredOnUtc"");
+                              CREATE INDEX IF NOT EXISTS ix_notification_deliveries_deliveredatutc ON ""NotificationDeliveries"" (""DeliveredAtUtc"");",
+                            app.Lifetime.ApplicationStopping);
+                        logger.LogInformation("✅ Ensured notification retention purge indexes exist");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Could not ensure notification retention indexes (non-fatal)");
+                    }
+                }
             }
 
             // MIDDLEWARE PIPELINE

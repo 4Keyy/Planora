@@ -23,6 +23,21 @@ Services communicate through HTTP via the gateway, gRPC for synchronous boundary
 
 ## Consequences
 
+### Implementation Note — 2026-10-06
+
+The implemented system now has six domain services plus the gateway. Collaboration owns
+stored user/system/reply comments and obtains the live task description/access rules from
+Todo over gRPC. Realtime conditionally owns the durable notification read-model in
+`planora_realtime`; its delivery-state table remains a scaffold without a runtime writer.
+These additions extend the database-per-service decision above.
+
+The migration runner is an explicit administrative exception: its Collaboration backfill
+reads the legacy Todo comment table and writes Collaboration during cutover. Runtime domain
+services do not share databases. See [architecture.md](../architecture.md) and
+[database.md](../database.md) for current topology, transaction boundaries and schema gaps.
+
+### Original Tradeoffs
+
 Positive:
 
 - Service ownership is explicit.
