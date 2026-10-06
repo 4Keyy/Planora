@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState, type FocusEvent } from "react"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
-import { useReducedMotion } from "framer-motion"
+import { motion, useReducedMotion } from "framer-motion"
+import { SPRING_STANDARD } from "@/lib/animations"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
 import { Wordmark } from "@/components/ui/wordmark"
@@ -77,12 +78,23 @@ export function LandingNav() {
         {/* The name from 400px: below that, the mark, the sign-in link and the primary action
             need the whole width of a 360px capsule, and the name was pushing "Sign in" onto
             two lines. The mark still names the product, and the page's h1 is right below. */}
-        <span className="relative flex h-11 items-center gap-2 px-3">
+        {/* Both groups are `layout="position"`, as the droplet's contract asks: when the CTA's
+            label settles after the session is read, the capsule springs to its new width, and
+            a plain child would be stretched by its scale until the spring settles. */}
+        <motion.span
+          layout="position"
+          transition={{ layout: reduce ? { duration: 0 } : SPRING_STANDARD }}
+          className="relative flex h-11 items-center gap-2 px-3"
+        >
           <Wordmark showName={false} />
           <span className="hidden text-body font-bold tracking-tight text-ink min-[400px]:inline">Planora</span>
-        </span>
+        </motion.span>
 
-        <span className="relative ml-auto flex items-center gap-1 sm:ml-2">
+        <motion.span
+          layout="position"
+          transition={{ layout: reduce ? { duration: 0 } : SPRING_STANDARD }}
+          className="relative ml-auto flex items-center gap-1 sm:ml-2"
+        >
           <Link
             href="/auth/login"
             className="inline-flex h-11 items-center whitespace-nowrap rounded-full px-4 text-body-sm font-semibold text-ink-muted transition-colors duration-fast hover:bg-ink/5 hover:text-ink"
@@ -93,7 +105,7 @@ export function LandingNav() {
             {signedIn ? "Open Planora" : "Start for free"}
             <ArrowRight className="ml-1 hidden h-4 w-4 sm:block" aria-hidden="true" />
           </Button>
-        </span>
+        </motion.span>
       </DropletFrame>
 
       {/* The room the droplet floats in: the height the in-flow bar used to take. */}

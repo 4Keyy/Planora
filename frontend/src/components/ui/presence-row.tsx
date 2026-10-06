@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { Avatar } from "@/components/ui/avatar"
 import { NumberRoll } from "@/components/ui/number-roll"
-import { DURATION_SLOW, DURATION_UI, EASE_OUT_EXPO, EASE_STANDARD, SPRING_GENTLE, TWEEN_EXIT } from "@/lib/animations"
+import { DURATION_SLOW, DURATION_UI, EASE_OUT_EXPO, EASE_STANDARD, SPRING_GENTLE, SPRING_LAYOUT, TWEEN_EXIT } from "@/lib/animations"
 import { cn } from "@/lib/utils"
 
 /**
@@ -184,13 +184,16 @@ export function PresenceRow({ members, required, max = 4, size = "md", className
     >
       <span className="sr-only">{presenceSentence(members, need)}</span>
 
-      <div aria-hidden="true" className="flex items-center">
+      {/* `relative`: the offset parent a leaving face is pinned to (`popLayout`). */}
+      <div aria-hidden="true" className="relative flex items-center">
         {/*
          * `initial={false}`: the faces already present on the first render appear,
          * they do not arrive. Anything AnimatePresence sees added afterwards is, by
          * definition, new since the last render — which is exactly the event.
          */}
-        <AnimatePresence initial={false}>
+        {/* `popLayout`: a leaving face fades where it was while the faces to its right
+            close the gap, instead of holding its slot and then snapping them left. */}
+        <AnimatePresence initial={false} mode="popLayout">
           {visible.map((member, i) => {
             const { firstName, lastName } = splitName(member.name)
             const rank = arrivalOrder.indexOf(member.id)
@@ -203,10 +206,11 @@ export function PresenceRow({ members, required, max = 4, size = "md", className
                 // it two dark avatars at 8px overlap read as one wide blob, and the
                 // stack stops communicating a headcount.
                 className={cn("relative inline-flex rounded-full ring-2 ring-paper", i > 0 && s.overlap)}
+                layout="position"
                 initial={{ scale: 0.6, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.6, opacity: 0, transition: TWEEN_EXIT }}
-                transition={{ ...SPRING_GENTLE, delay }}
+                transition={{ ...SPRING_GENTLE, delay, layout: reduce ? { duration: 0 } : SPRING_LAYOUT }}
               >
                 <Avatar src={member.avatarUrl} firstName={firstName} lastName={lastName} size={s.px} />
 

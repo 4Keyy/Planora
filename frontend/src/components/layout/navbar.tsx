@@ -67,6 +67,12 @@ import {
  *   every change is instant.
  */
 
+/** The hover drop's exit: instant when it hands over to the next tab, a fade when the pointer leaves. */
+const HOVER_DROP = {
+  gone: (handingOver: boolean) =>
+    handingOver ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, transition: TWEEN_FAST },
+}
+
 /** How long the pointer rests on the mark or the tabs before a condensed droplet opens. */
 const HOVER_DWELL_MS = 160
 
@@ -328,14 +334,23 @@ export function Navbar() {
                         active ? "text-paper" : "text-ink-muted hover:text-ink",
                       )}
                     >
-                      {hoverTab === tab.href && !active ? (
-                        <motion.span
-                          layoutId="droplet-hover"
-                          aria-hidden="true"
-                          className="absolute inset-0 rounded-full bg-ink/5"
-                          transition={morph}
-                        />
-                      ) : null}
+                      {/* The hover drop. Leaving the tabs it fades instead of vanishing in a
+                          frame; moving to the next tab it hands over at once, because the
+                          new drop flows out of this one (`layoutId`) and a fading copy left
+                          behind would read as two drops. `custom` tells a leaving drop which. */}
+                      <AnimatePresence initial={false} custom={hoverTab !== null}>
+                        {hoverTab === tab.href && !active ? (
+                          <motion.span
+                            key="hover"
+                            layoutId="droplet-hover"
+                            aria-hidden="true"
+                            className="absolute inset-0 rounded-full bg-ink/5"
+                            variants={HOVER_DROP}
+                            exit="gone"
+                            transition={morph}
+                          />
+                        ) : null}
+                      </AnimatePresence>
                       {active ? (
                         <motion.span
                           layoutId="droplet-active"

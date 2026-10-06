@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { cn } from "@/lib/utils"
 import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, RotateCcw, Copy, type LucideIcon } from "lucide-react"
@@ -12,7 +12,7 @@ import {
   getApiErrorMessage,
 } from "@/lib/api"
 import { sameUserId, type TodoComment, type Todo, type TodoWorker, type ReplyTargetType } from "@/types/todo"
-import { SPRING_RESPONSIVE, SPRING_STANDARD, TWEEN_EXIT, TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
+import { SPRING_LAYOUT, SPRING_RESPONSIVE, SPRING_STANDARD, TWEEN_EXIT, TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import { useBranchRoom, useTyping } from "@/lib/realtime/hooks"
@@ -1287,6 +1287,12 @@ export function BranchFeed({
               pointerEvents: "none",
             }} />
 
+            {/* One LayoutGroup round the rail: when any presence inside it finishes an exit
+                (a message, a subtask, a completion note, a footer chip) it re-renders the whole
+                group, so every row is measured in the commit that removes the child and glides
+                to its new place. Without it the rows below snapped up once the exit ended —
+                the same unmeasured change the navbar's name once caused. */}
+            <LayoutGroup id="branch-feed">
             <AnimatePresence initial={false}>
               {feed.map((item) => {
                 if (item.type === "separator") {
@@ -1390,6 +1396,7 @@ export function BranchFeed({
                 ]
               })}
             </AnimatePresence>
+            </LayoutGroup>
           </div>
         )}
         </div>
@@ -1403,7 +1410,8 @@ export function BranchFeed({
       <div style={{ position: "relative", marginTop: 8 }}>
 
         {/* Reply chip — the quoted target the next message will answer. Animates its height so
-            the composer grows/settles smoothly instead of jumping. */}
+            the composer grows/settles smoothly instead of jumping — on a tween: a spring on
+            `height` overshot by a couple of pixels and wobbled the whole chat column above. */}
         <AnimatePresence initial={false}>
           {replyDraft && composeMode === "text" && (
             <motion.div
@@ -1411,7 +1419,7 @@ export function BranchFeed({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={SPRING_SNAP}
+              transition={{ height: TWEEN_UI, opacity: TWEEN_FAST }}
               style={{ overflow: "hidden" }}
             >
               <div style={{
@@ -1963,7 +1971,7 @@ function MenuActionItem({ icon, iconBg, title, subtitle, pending, disabled, onCl
 /* ── Day separator ── */
 function DaySeparator({ label }: { label: string }) {
   return (
-    <div style={{ position: "relative", display: "flex", alignItems: "center", padding: "10px 0 6px", marginLeft: -RAIL_GUTTER, zIndex: 1 }}>
+    <motion.div layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: TWEEN_FAST }} transition={FEED_ROW_TRANSITION} style={{ position: "relative", display: "flex", alignItems: "center", padding: "10px 0 6px", marginLeft: -RAIL_GUTTER, zIndex: 1 }}>
       <span style={{
         background: "var(--pl-paper)",
         border: "1px solid var(--pl-line)",
@@ -1982,12 +1990,14 @@ function DaySeparator({ label }: { label: string }) {
         {label}
       </span>
       <div style={{ flex: 1, height: 1, background: "var(--pl-gray-100)", marginLeft: 8 }} />
-    </div>
+    </motion.div>
   )
 }
 
 /* ── System event ── */
 const SYSTEM_MARKER = 22
+/** A plain feed row: a short fade-rise in, a fade out, and a critically damped glide when rows around it change. */
+const FEED_ROW_TRANSITION = { ...TWEEN_FAST, layout: SPRING_LAYOUT }
 function SystemEvent({ comment }: { comment: TodoComment }) {
   const Icon = getSystemEventIcon(comment.content)
   // System comments carry no stored author name (the name is inline in the sentence), so render
@@ -1998,7 +2008,7 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
     : comment.content
 
   return (
-    <div style={{ position: "relative", padding: "6px 0", minHeight: SYSTEM_MARKER + 8 }}>
+    <motion.div layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: TWEEN_FAST }} transition={FEED_ROW_TRANSITION} style={{ position: "relative", padding: "6px 0", minHeight: SYSTEM_MARKER + 8 }}>
       {/* Marker — centred on the rail, tinted to the event type */}
       <div style={{
         position: "absolute",
@@ -2029,7 +2039,7 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
           {formatTimeHHMM(comment.createdAt)}
         </span>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -2250,13 +2260,16 @@ function SubtaskCard({
 
   return (
     <motion.div
-      layout
+      // Position only, and no height in the exit: a size `layout` stretched the card's text
+      // while a completion note grew under it, and `height: 0` re-laid out the whole feed on
+      // every frame. The feed's LayoutGroup closes the gap with a glide once the exit ends.
+      layout="position"
       ref={nodeRef}
       className={flash ? "reply-flash" : undefined}
       initial={{ opacity: 0, y: 8, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.96, height: 0, marginTop: -2, marginBottom: 0 }}
-      transition={SPRING_SNAP}
+      exit={{ opacity: 0, scale: 0.96, transition: TWEEN_FAST }}
+      transition={{ ...SPRING_SNAP, layout: SPRING_LAYOUT }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setDeleteHovered(false) }}
       style={{
@@ -2610,10 +2623,11 @@ const REPLY_ROW = 26
 function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
   return (
     <motion.div
+      layout="position"
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
-      transition={SPRING_SNAP}
+      transition={{ ...SPRING_SNAP, layout: SPRING_LAYOUT }}
       style={{ position: "relative", paddingLeft: SUBTASK_OFFSET, minHeight: REPLY_ROW }}
     >
       {/* "└" elbow — continues the sub-branch down from the card, then curves into the note.
@@ -2939,8 +2953,9 @@ function MessageItem({
   const quoteVisible = showQuote ?? !!c.replyToType
 
   return (
-    <div
+    <motion.div
       ref={nodeRef}
+      layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: TWEEN_FAST }} transition={FEED_ROW_TRANSITION}
       className={flash ? "reply-flash" : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -3094,6 +3109,6 @@ function MessageItem({
           {c.content}
         </p>
       )}
-    </div>
+    </motion.div>
   )
 }

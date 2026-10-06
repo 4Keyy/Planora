@@ -308,7 +308,9 @@ Three separate mechanisms, because no single one reaches everywhere:
    the media query itself, renders one static frame, and subscribes to `change` so a
    preference flipped mid-session takes effect without a reload.
 
-If you write a rAF loop, it is your job to handle the third case. Nothing else will.
+If you write a rAF loop, it is your job to handle the third case. Nothing else will. `hooks/use-collapse-scroll.ts` does: its 650ms glide to the top jumps instead under
+reduced motion, stops the moment the reader scrolls (wheel, touch, key, pointer), and is
+cancelled on unmount so no frame writes to a page that has moved on.
 
 
 ### The four laws

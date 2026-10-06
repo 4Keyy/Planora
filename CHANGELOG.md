@@ -4,6 +4,27 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(motion): the branch feed moves as one, and five small snaps are gone (2026-10-06)
+
+- **Branch feed.** Messages, system events and day separators were plain rows with no layout and
+  no exit, so deleting one removed it in a frame while subtasks and threads beside it glided, and a
+  subtask's completion note left its card (and every row below) to snap up once its fade ended. The
+  rail now sits in one `LayoutGroup` — any finished exit re-measures every row — and every row is a
+  position-only layout node with a short fade-rise in and a fade out. A deleted subtask no longer
+  animates `height` (a re-layout of the whole feed per frame), and the reply chip's height runs on a
+  tween instead of a spring that overshot and wobbled the chat column.
+- **Collapse glide.** `useCollapseScroll`'s 650ms rAF glide to the top jumps instead under reduced
+  motion (no CSS block or MotionConfig reaches a rAF loop), stops the moment the reader scrolls —
+  it used to drag the page back against a wheel — and is cancelled on unmount.
+- **Calendar.** The date popover always draws six weeks of 44px rows, so moving between a 5- and a
+  6-week month no longer changes its height by a row in one frame while the days slide.
+- **Presence row.** A leaving face fades where it was (`popLayout`) while the faces to its right
+  close the gap, instead of holding its slot and then snapping them left.
+- **Navbar hover drop.** Leaving the tabs, it fades instead of vanishing in a frame; moving to the
+  next tab it hands over at once, so no fading copy is left behind the one that flows on.
+- **Landing nav.** Both groups in the droplet are `layout="position"`, so the capsule's width spring
+  (when the CTA's label settles after the session is read) no longer stretches the text inside it.
+
 ### fix(motion): toasts and categories glide instead of jumping (2026-10-06)
 
 The toast stack ran in `popLayout`, which pins a leaving toast out of the flow at once, but the
