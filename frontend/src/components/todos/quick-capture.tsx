@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 
 import { motion } from "framer-motion"
 import { Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { SPRING_RESPONSIVE, TAP_PRESS, TWEEN_FAST } from "@/lib/animations"
+import { SPRING_LAYOUT, TAP_PRESS, TWEEN_FAST } from "@/lib/animations"
 import { haptic } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 
@@ -243,7 +243,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
         {expanded ? (
           <motion.form
             layoutId={surfaceId}
-            transition={SPRING_RESPONSIVE}
+            transition={SPRING_LAYOUT}
             onSubmit={handleSubmit}
             aria-label="Quick capture"
             onKeyDown={(event) => {
@@ -328,7 +328,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
           <motion.button
             type="button"
             layoutId={surfaceId}
-            transition={SPRING_RESPONSIVE}
+            transition={SPRING_LAYOUT}
             // The press is framer's, like the morph. A CSS `transition-transform` here
             // re-eased every frame the layout projection wrote, and `active:scale-95`
             // lost to the inline transform whenever one was set.

@@ -4,6 +4,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(motion): long travel lands without bouncing past its target (2026-10-06)
+
+`SPRING_STANDARD` was documented as settling "without overshoot", but its damping ratio is 0.70 —
+about 5% past the target — and `SPRING_RESPONSIVE` is 0.49, 17%. On short moves that is the
+droplet's liquid settle; on long travel it is a visible bounce. A fourth preset, `SPRING_LAYOUT`
+(400 / 40, ratio 1.0), now carries travel: the task editor growing out of the pressed card (a
+660px surface swung about 15px past its size), quick capture's circle-to-pill morph on a phone
+(the pill overshot to ~409px on a 390px screen, and closing pinched the circle to a ~5px sliver),
+the phone menu's drip, and a card moving up its column. The editor's exit now returns on the
+symmetric curve in 220ms instead of re-using the entrance spring. The token comments state the
+real ratios.
+
 ### fix(a11y): the collapsed create panel is out of the tab order (2026-10-06)
 
 Collapsed, the create panel's form was only `aria-hidden` inside a 0px grid row, so Tab walked about

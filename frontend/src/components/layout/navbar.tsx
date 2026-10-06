@@ -22,6 +22,7 @@ import {
   EASE_EXIT,
   EASE_OUT_EXPO,
   SPRING_GENTLE,
+  SPRING_LAYOUT,
   SPRING_STANDARD,
   TAP_PRESS,
   TWEEN_FAST,
@@ -495,7 +496,7 @@ export function Navbar() {
                 id="navbar-sheet"
                 data-testid="navbar-mobile"
                 {...drip}
-                transition={reduce ? { duration: 0 } : SPRING_STANDARD}
+                transition={reduce ? { duration: 0 } : SPRING_LAYOUT}
                 className={cn(POPOVER_SURFACE, "absolute inset-x-0 top-full mt-2 origin-top rounded-xl p-2 sm:hidden")}
               >
                 <nav aria-label="Main" className="space-y-1">

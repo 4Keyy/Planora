@@ -223,12 +223,22 @@ const motion = {
     exit: [0.4, 0, 1, 1],
   },
   spring: {
-    /** Modals, cards. Settles without overshoot. */
+    /**
+     * Modals, cards, the droplet's width. Damping ratio 0.70: about 5% overshoot, the
+     * "liquid" settle the droplet is built on. Use `layout` for long travel.
+     */
     standard: { type: "spring", stiffness: 400, damping: 28 },
-    /** Chips, buttons, small elements. Matches a finger tap. */
+    /** Chips, buttons, small elements. Matches a finger tap. Ratio 0.49 (17%): small travel only. */
     responsive: { type: "spring", stiffness: 416, damping: 20 },
-    /** Presence, decorative. Floats into place. */
+    /** Presence, decorative. Floats into place. Ratio 0.74 (3%). */
     gentle: { type: "spring", stiffness: 260, damping: 24 },
+    /**
+     * Travel: a surface growing out of a card, a pill becoming a circle, a list closing a
+     * gap. Critically damped (ratio 1.0) — it lands without passing its target, which on a
+     * 300px move would otherwise read as a bounce — and settles in about the same 0.3s as
+     * `standard`.
+     */
+    layout: { type: "spring", stiffness: 400, damping: 40 },
   },
 } as const
 

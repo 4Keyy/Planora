@@ -263,7 +263,7 @@ scale. The contract test draws the line at 10.
 
 ## 8. Motion
 
-Five duration tokens, three curves and three spring presets. Prefer `transform`
+Five duration tokens, three curves and four spring presets. Prefer `transform`
 and `opacity` for animation. SVG strokes, layout projection and CSS field-focus
 color/border/shadow transitions are explicit exceptions; compositor behavior still
 depends on the browser, layers and surrounding content.
@@ -290,9 +290,10 @@ depends on the browser, layers and surrounding content.
 
 | Token | Stiffness / damping | Use for |
 |---|---|---|
-| `SPRING_STANDARD` | 400 / 28 | Modals, cards. Settles without overshoot |
-| `SPRING_RESPONSIVE` | 416 / 20 | Chips, buttons. Matches a finger tap |
-| `SPRING_GENTLE` | 260 / 24 | Presence, decorative. Floats into place |
+| `SPRING_STANDARD` | 400 / 28 | Modals, cards, the droplet's width. Damping ratio 0.70: about 5% overshoot, the droplet's liquid settle |
+| `SPRING_RESPONSIVE` | 416 / 20 | Chips, buttons. Matches a finger tap. Ratio 0.49 (17% overshoot): small travel only |
+| `SPRING_GENTLE` | 260 / 24 | Presence, decorative. Floats into place. Ratio 0.74 (3%) |
+| `SPRING_LAYOUT` | 400 / 40 | Travel — a surface growing out of a card, a pill becoming a circle, a list closing a gap. Critically damped (ratio 1.0): lands without passing its target, settles in about 0.3s |
 
 ### Reduced motion
 
@@ -458,8 +459,8 @@ reader has to re-find their place in the list when it closes.
 |---|---|---|
 | 1 | The pressed card's rect is recorded, on the press | — |
 | 2 | The dialog mounts at that rect: uniform `scale`, `x`/`y` centre-to-centre, `opacity 0` | — |
-| 3 | It grows to its own geometry | `SPRING_STANDARD` |
-| 4 | Closing returns along the same path | `SPRING_STANDARD` |
+| 3 | It grows to its own geometry | `SPRING_LAYOUT` — critically damped, so a 660px surface never swings past its size or the centre |
+| 4 | Closing returns along the same path | `base` 220, `standard` (no fade-into-a-snap ease-in: the eye follows it back to the card) |
 
 Three decisions inside it:
 
@@ -566,7 +567,7 @@ session. Five seconds is not consent.
 
 `components/todos/quick-capture.tsx`. A 56×56 control in the phone's easy thumb arc
 (blueprint 10.1: y 560–844 of 844) that **becomes** the input bar — both surfaces share
-one `layoutId`, projected by `SPRING_RESPONSIVE`. A crossfade between two separate
+one `layoutId`, projected by `SPRING_LAYOUT` (critically damped: the 56px circle and the 358px pill meet their size without bouncing past it). A crossfade between two separate
 elements would read as "one thing vanished, another appeared", which is the wrong
 story: the user pressed a button and it opened.
 

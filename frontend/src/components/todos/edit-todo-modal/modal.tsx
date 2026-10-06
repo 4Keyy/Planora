@@ -9,7 +9,7 @@ import { useAutosave }      from "@/hooks/use-autosave"
 import { useFocusTrap }     from "@/hooks/use-focus-trap"
 import { useAuthStore }     from "@/store/auth"
 import { useFriends }       from "@/hooks/use-friends"
-import { SPRING_STANDARD, TWEEN_FAST } from "@/lib/animations"
+import { DURATION_FAST, DURATION_UI, EASE_STANDARD, SPRING_LAYOUT, TWEEN_FAST } from "@/lib/animations"
 import { editorDialogRect, originTransform, takeOrigin } from "@/lib/shared-origin"
 import { Todo, type UpdateTodoPayload, isTodoOwner } from "@/types/todo"
 import { Category }         from "@/types/category"
@@ -685,14 +685,18 @@ export function EditTodoModal(props: EditTodoModalProps) {
           /*
            * It leaves the way it came, so closing returns the reader's eye to the row
            * they opened. Faster than the entrance on purpose: an exit that takes as
-           * long as an entrance reads as the app being slow to let go.
+           * long as an entrance reads as the app being slow to let go. On the symmetric
+           * curve, not an ease-in: the eye follows this travel back to the card, and an
+           * accelerating exit would end in a snap.
            */
           exit={
             entrance
-              ? { opacity: 0, scale: entrance.scale, x: entrance.x, y: entrance.y }
-              : { opacity: 0, scale: 0.95, y: 20 }
+              ? { opacity: 0, scale: entrance.scale, x: entrance.x, y: entrance.y, transition: { duration: DURATION_UI, ease: EASE_STANDARD } }
+              : { opacity: 0, scale: 0.95, y: 20, transition: { duration: DURATION_FAST, ease: EASE_STANDARD } }
           }
-          transition={SPRING_STANDARD}
+          // Critically damped: a 660px surface growing out of a card must not swing past
+          // its size and the centre on the way in.
+          transition={SPRING_LAYOUT}
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "relative",
