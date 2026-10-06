@@ -381,12 +381,22 @@
   /* Past the sixth row the wait would outlast the reader: the rest arrive together. */
   [data-cascade] > :nth-child(n + 6) { --cascade-row: 5; }
 
-  /* A scrim behind a floating surface fades on its beat, by the same presence. */
+  /* A dialog's scrim (and the phone menu's) fades on its surface's beat; a dialog rises 8px
+     into place and sinks back out of it, faster than it came. Same presence, same reasons. */
   .backdrop-surface[data-state="open"] {
     animation: surface-fade-in theme("transitionDuration.base") var(--pl-ease-emphasized) both;
   }
   .backdrop-surface[data-state="closed"] {
     animation: surface-fade-out theme("transitionDuration.fast") var(--pl-ease-exit) forwards;
+  }
+  .dialog-surface {
+    will-change: transform, opacity;
+  }
+  .dialog-surface[data-state="open"] {
+    animation: dialog-in theme("transitionDuration.base") var(--pl-ease-emphasized) both;
+  }
+  .dialog-surface[data-state="closed"] {
+    animation: dialog-out theme("transitionDuration.fast") var(--pl-ease-exit) forwards;
   }
 }
 
@@ -416,6 +426,12 @@
 }
 @keyframes surface-fade-out {
   to { opacity: 0; }
+}
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+}
+@keyframes dialog-out {
+  to { opacity: 0; transform: translateY(8px) scale(0.98); }
 }
 
 @layer utilities {

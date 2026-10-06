@@ -328,7 +328,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | File | What it is |
 |---|---|
 | `advanced-search-bar.tsx` | text search plus status/priority narrowing over a loaded task array |
-| `category-filter-modal.tsx` | the category picker used by the quick filter |
+| `category-filter-modal.tsx` | the category picker used by the quick filter, built on `Overlay` |
 | `create-todo-panel.tsx` | the full create surface: title plus the four selector plates (priority, due date, category, share) |
 | `date-filter-popover.tsx` | the completion-date filter, opened as a floating popover from inside the QuickFilter plate |
 | `friend-multi-select.tsx` | the audience picker |

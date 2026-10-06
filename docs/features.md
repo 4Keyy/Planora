@@ -812,7 +812,10 @@ The viewer count is the length of that shared list.
   `N active` / `N done` count pills whose numbers roll on change). Under it, two control plates that
   share one surface, one 80px row and one ink disc (`components/todos/plate.ts`): the create panel's
   collapsed header ("New task" / "Date, category, audience") and the quick filter ("Quick filter" /
-  "Filter tasks by category." / an `F` hint / "Choose categories"). Both are always on screen, the
+  "Filter tasks by category." / an `F` hint / "Choose categories"; the category picker it opens,
+  `components/todos/category-filter-modal.tsx`, is an `Overlay` — scrim, focus trap, Escape, scroll
+  lock and a CSS rise-and-fade from there — after its own framer-motion copy blinked its dark "Show
+  All Tasks" row once it had opened and came back for a frame after it had closed). Both are always on screen, the
   create panel above the filter; the panel's header is the "new task" affordance and expands in place.
   On phones the filter's actions sit on their own row under its title, always, because whether the
   archive's date control is present is known only after the data arrives. While either plate's code or

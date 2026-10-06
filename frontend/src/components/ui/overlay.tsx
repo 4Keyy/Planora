@@ -1,11 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useId, type ReactNode } from "react"
-import { AnimatePresence, motion } from "framer-motion"
 import { ModalPortal } from "@/components/ui/modal-portal"
+import { useExitPresence } from "@/hooks/use-exit-presence"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
-import { SPRING_STANDARD, TWEEN_EXIT, TWEEN_FAST } from "@/lib/animations"
 import { cn } from "@/lib/utils"
 
 /**
@@ -29,11 +28,16 @@ import { cn } from "@/lib/utils"
  *   close (see {@link useFocusTrap}).
  * - **Escape closes it**, listening in the capture phase so a nested popover can
  *   still take the key first by stopping propagation.
- * - **Page scroll locked** while open, with the scrollbar's width replaced as
- *   padding so the layout behind does not jump sideways when it disappears.
+ * - **Page scroll locked** while open, on `<html>`, without moving the layout
+ *   behind it (see {@link useScrollLock}).
  * - **Backdrop click closes it** — the pointer equivalent of Escape. The backdrop
  *   is deliberately NOT focusable and carries no role: a viewport-sized button
  *   would be announced as one.
+ * - **No blink on the way in or out.** The scrim fades and the dialog rises with CSS
+ *   (`.backdrop-surface`, `.dialog-surface` in globals.css), kept mounted through the
+ *   exit by {@link useExitPresence}. With framer-motion the dialog reappeared for a
+ *   frame after it had faded out — see the hook. While it folds away it lets clicks
+ *   through, so the page under a closing dialog is already live.
  *
  * `labelledBy` exists for the case where the dialog renders its own heading with
  * markup this component should not own; pass the heading's id and omit `title`.
@@ -68,6 +72,7 @@ export function Overlay({
   const generatedId = useId()
   const titleId = labelledBy ?? `${generatedId}-title`
   const dialogRef = useFocusTrap<HTMLDivElement>(open)
+  const { mounted, presenceProps } = useExitPresence(open)
 
   useScrollLock(open)
 
@@ -95,58 +100,50 @@ export function Overlay({
 
   return (
     <ModalPortal>
-      <AnimatePresence>
-        {open && (
-          <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={TWEEN_FAST}
-              onClick={onClose}
-              // Not focusable and no role: the pointer affordance is real, but a
-              // viewport-sized "button" in the accessibility tree is noise. Escape
-              // is the keyboard equivalent and is handled above.
-              aria-hidden="true"
-              // A light scrim and a small blur: enough to set the page back, not so much
-              // that the browser re-blurs a whole viewport of content under a heavy radius
-              // for every frame of the fade.
-              className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
-            />
+      {mounted && (
+        <div className={cn("fixed inset-0 z-modal flex items-center justify-center p-4", !open && "pointer-events-none")}>
+          <div
+            data-state={presenceProps["data-state"]}
+            onClick={onClose}
+            // Not focusable and no role: the pointer affordance is real, but a
+            // viewport-sized "button" in the accessibility tree is noise. Escape
+            // is the keyboard equivalent and is handled above.
+            aria-hidden="true"
+            // A light scrim and a small blur: enough to set the page back, not so much
+            // that the browser re-blurs a whole viewport of content under a heavy radius
+            // for every frame of the fade.
+            className="backdrop-surface absolute inset-0 bg-ink/40 backdrop-blur-sm"
+          />
 
-            <motion.div
-              ref={dialogRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={titleId}
-              tabIndex={-1}
-              // Arrives from below on the system's 8px, and leaves faster than it came.
-              initial={{ opacity: 0, scale: 0.98, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 8, transition: TWEEN_EXIT }}
-              transition={SPRING_STANDARD}
-              className={cn(
-                "relative z-modal max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-paper shadow-xl outline-none",
-                className,
-              )}
-            >
-              {!hideHeader && title ? (
-                <div className="flex items-start justify-between gap-4 p-6 pb-0">
-                  <div>
-                    <h2 id={titleId} className="text-title-sm font-bold tracking-tight text-ink">
-                      {title}
-                    </h2>
-                    {description ? (
-                      <p className="mt-1 text-body-sm text-ink-muted">{description}</p>
-                    ) : null}
-                  </div>
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            tabIndex={-1}
+            // Arrives from below on the system's 8px, and leaves faster than it came.
+            {...presenceProps}
+            className={cn(
+              "dialog-surface relative z-modal max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-paper shadow-xl outline-none",
+              className,
+            )}
+          >
+            {!hideHeader && title ? (
+              <div className="flex items-start justify-between gap-4 p-6 pb-0">
+                <div>
+                  <h2 id={titleId} className="text-title-sm font-bold tracking-tight text-ink">
+                    {title}
+                  </h2>
+                  {description ? (
+                    <p className="mt-1 text-body-sm text-ink-muted">{description}</p>
+                  ) : null}
                 </div>
-              ) : null}
-              {children}
-            </motion.div>
+              </div>
+            ) : null}
+            {children}
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </ModalPortal>
   )
 }
