@@ -248,7 +248,8 @@ export function TodoEditor({
     if (editingTitle && titleTextareaRef.current) {
       const el = titleTextareaRef.current
       el.style.height = "auto"
-      el.style.height = el.scrollHeight + "px"
+      // The field's 1px border sits outside scrollHeight; border-box height must carry it.
+      el.style.height = el.scrollHeight + el.offsetHeight - el.clientHeight + "px"
     }
   }, [editingTitle])
 
@@ -356,7 +357,7 @@ export function TodoEditor({
         onChange={(e) => {
           setTitleDraft(e.target.value)
           e.target.style.height = "auto"
-          e.target.style.height = e.target.scrollHeight + "px"
+          e.target.style.height = e.target.scrollHeight + e.target.offsetHeight - e.target.clientHeight + "px"
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitTitle() }
@@ -365,12 +366,11 @@ export function TodoEditor({
         onBlur={commitTitle}
         maxLength={200}
         rows={1}
-        style={{
-          ...box,
-          resize: "none", border: "none",
-          background: "var(--pl-paper-sunken)", fontFamily: "inherit", overflow: "hidden",
-          transition: "background 140ms",
-        }}
+        // A boxed field while it is being edited: the hover tint it grew out of turns to
+        // paper with an ink edge and a soft halo (globals.css "Field focus"), the same frame
+        // every other field in the product draws — never the global outline rectangle.
+        className="field-box border border-transparent bg-paper-sunken transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
+        style={{ ...box, resize: "none", fontFamily: "inherit", overflow: "hidden" }}
       />
     ) : (
       <h1
@@ -378,6 +378,8 @@ export function TodoEditor({
         onClick={() => isOwner && setEditingTitle(true)}
         style={{
           ...box,
+          // The same 1px edge as the field it turns into, so swapping them moves nothing.
+          border: "1px solid transparent",
           marginTop: 0, marginRight: 0, marginBottom: 0,
           cursor: isOwner ? "text" : "default",
           background: "transparent", transition: "background 140ms", wordBreak: "break-word",

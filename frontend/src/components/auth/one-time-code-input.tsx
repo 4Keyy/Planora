@@ -21,7 +21,9 @@ export function normaliseCode(raw: string): string {
  * backspace has to be taught to walk backwards. One input with
  * `autoComplete="one-time-code"` and `inputMode="numeric"` gets all of that from the
  * platform; the cells are only how its value is drawn. Its text and caret are
- * transparent, and the cell where the next digit will land shows the focus instead.
+ * transparent, and the cell where the next digit will land shows the focus instead —
+ * the same 1px ink edge and 3px halo a focused <Input> draws (`field-box`), so the
+ * input itself is `field-naked` and never boxes the whole row in the global ring.
  *
  * `onComplete` fires once, when the sixth digit arrives, so the form can submit without
  * a button press — the button is still there for anyone who expects it.
@@ -57,8 +59,12 @@ export const OneTimeCodeInput = forwardRef<HTMLInputElement, OneTimeCodeInputPro
               key={i}
               className={cn(
                 "flex h-14 items-center justify-center rounded-md bg-paper text-title font-bold tabular-nums text-ink",
-                "transition-colors duration-fast",
-                invalid ? "border-2 border-alert" : active ? "border-2 border-ink" : "border border-line-strong",
+                "transition-[border-color,box-shadow] duration-base ease-emphasized",
+                invalid
+                  ? cn("border-2 border-alert", active && "ring-[3px] ring-alert/[0.12]")
+                  : active
+                    ? "border border-ink ring-[3px] ring-ink/[0.08]"
+                    : "border border-line-strong",
               )}
             >
               <AnimatePresence initial={false}>
@@ -99,7 +105,7 @@ export const OneTimeCodeInput = forwardRef<HTMLInputElement, OneTimeCodeInputPro
         // "123 45" before `normaliseCode` ever saw it.
         pattern="[0-9]*"
         spellCheck={false}
-        className="absolute inset-0 h-full w-full rounded-md bg-transparent text-transparent caret-transparent selection:bg-transparent"
+        className="field-naked absolute inset-0 h-full w-full bg-transparent text-transparent caret-transparent selection:bg-transparent"
       />
     </div>
   )

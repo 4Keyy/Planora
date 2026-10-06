@@ -772,8 +772,11 @@ field's own geometry:
 | Class | Where | Indicator |
 |---|---|---|
 | `field-rule` (container) + `field-naked` (fields) | the create panel's title and details | the 2px left rule: an ink rule draws itself over the `line` track top-down on focus (`duration-slow`, `ease-emphasized`, a `scaleY` transform) and retracts on `ease-exit` |
-| `field-box` | `<Input>`, `<Textarea>` | a 1px ink edge and a 3px `ink/8%` halo on the field's radius, through the component's own colour/shadow transition; `data-over-limit` keeps the edge red |
-| `field-shell` (container) + `field-naked` (field) | quick capture's pill | the pill's edge turns ink with the same halo, its `shadow-xl` kept |
+| `field-box` | `<Input>`, `<Textarea>`, the task editor's title while it is edited, the branch's Author's Note, subtask-title and comment editors, the new-category name, the (unused) advanced search bar | a 1px ink edge and a 3px `ink/8%` halo on the field's radius, through the field's own colour/shadow transition; a field with `data-over-limit` or `aria-invalid` keeps a red edge (and the over-limit pink surface) while focused |
+| `field-shell` (container) + `field-naked` (field) | quick capture's pill, the branch composer, the colour picker's hex box, the command palette's query row | the shell's edge turns ink with the same halo over whatever elevation it already carries (`--tw-shadow`: quick capture keeps its `shadow-xl`); the palette's row adds `focus-within:shadow-none`, so it shows an ink underline only, since a halo would be clipped by the dialog |
+| `field-naked` + its own cells | the one-time-code input (login 2FA) | one transparent input over six cells; the cell where the next digit lands draws the `field-box` look (1px ink edge, 3px `ink/8%` ring), so the row is never boxed |
+
+Every `<input>`/`<textarea>` that takes text must carry `field-box` or `field-naked` — a contract in `design-tokens.contract.test.ts` scans every component and fails on any that does not.
 
 Ink on paper is 17.93:1 and ink against the resting `line` 14.23:1; the halos are
 decoration. No library is involved: react-aria's `useFocusRing` only reports the same

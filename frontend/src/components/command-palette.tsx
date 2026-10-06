@@ -320,7 +320,7 @@ export function CommandPalette() {
               className="relative z-modal w-full max-w-xl overflow-hidden rounded-xl border border-line bg-paper shadow-xl outline-none"
             >
               {/* Query */}
-              <div className="flex items-center gap-3 border-b border-line px-4 py-1.5">
+              <div className="field-shell flex items-center gap-3 border-b border-line px-4 py-1.5 focus-within:shadow-none">
                 <Search className="h-4 w-4 flex-shrink-0 text-ink-subtle" aria-hidden="true" />
                 <input
                   ref={inputRef}
@@ -335,7 +335,7 @@ export function CommandPalette() {
                   aria-activedescendant={results[active] ? `cmd-${results[active].id}` : undefined}
                   autoComplete="off"
                   spellCheck={false}
-                  className="h-control w-full rounded-md bg-transparent px-1 text-body text-ink placeholder:text-ink-subtle"
+                  className="field-naked h-control w-full bg-transparent px-1 text-body text-ink placeholder:text-ink-subtle"
                 />
                 <span aria-hidden="true" className="hidden flex-shrink-0 sm:inline-flex">
                   <Kbd>Esc</Kbd>

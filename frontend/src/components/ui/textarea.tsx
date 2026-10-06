@@ -31,7 +31,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       "placeholder:text-ink-subtle placeholder:font-normal",
       "shadow-none hover:shadow-sm",
       "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-paper-sunken disabled:border-line disabled:hover:border-line disabled:hover:shadow-none",
-      overLimit && "border-alert bg-alert-surface/40 hover:border-alert",
+      overLimit && "border-alert bg-alert-surface/40 hover:border-alert hover:bg-alert-surface/40",
       showCount && maxLength ? "pb-7" : "",
       className
     )

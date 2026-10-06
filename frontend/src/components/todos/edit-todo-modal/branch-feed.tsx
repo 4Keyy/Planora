@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
+import { cn } from "@/lib/utils"
 import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, RotateCcw, Copy, type LucideIcon } from "lucide-react"
 import {
   fetchComments, addComment, updateComment, deleteComment,
@@ -1189,8 +1190,10 @@ export function BranchFeed({
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenesisSave() }
                   if (e.key === "Escape") setEditingGenesis(false)
                 }}
+                // A boxed field: ink edge and halo on focus (globals.css "Field focus").
+                className="field-box border border-line hover:border-line-strong transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
                 style={{
-                  width: "100%", background: "var(--pl-paper)", border: "1px solid var(--pl-line)", borderRadius: 12,
+                  width: "100%", background: "var(--pl-paper)", borderRadius: 12,
                   padding: 12, fontSize: 14, lineHeight: 1.6, resize: "none",
                   fontFamily: "inherit", color: "var(--pl-ink)", boxSizing: "border-box",
                   minHeight: 60, overflowY: "hidden",
@@ -1586,18 +1589,16 @@ export function BranchFeed({
           </AnimatePresence>
         </div>
 
-        {/* Compose box — position:relative anchors the floating menu */}
-        <div style={{
-          position: "relative",
-          background: composeMode !== "text" ? "var(--pl-accent-surface)" : "var(--pl-paper-sunken)",
-          border: composeMode !== "text" ? "1.5px solid var(--pl-accent-surface)" : "1px solid var(--pl-line)",
-          borderRadius: 14,
-          padding: 4,
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          transition: "border-color 200ms, background 200ms",
-        }}>
+        {/* Compose box — position:relative anchors the floating menu. The box IS the field:
+            while the textarea inside has focus its edge turns ink with a soft halo
+            (globals.css `.field-shell`), and the mode change still crossfades its fill. */}
+        <div
+          className={cn(
+            "field-shell",
+            composeMode !== "text" ? "border-[1.5px] border-accent-surface bg-accent-surface" : "border border-line bg-paper-sunken",
+          )}
+          style={{ position: "relative", borderRadius: 14, padding: 4, display: "flex", alignItems: "center", gap: 4 }}
+        >
 
           {/* Attach menu — absolutely above the compose box (empty/closed on a completed task) */}
           {plusMenuOpen && hasMenuItems && (
@@ -1849,6 +1850,7 @@ export function BranchFeed({
                   : COMMENT_MAX
             }
             disabled={submitting}
+            className="field-naked"
             style={{
               flex: 1, background: "transparent", border: "none",
               minHeight: 44, padding: "11px 10px", fontSize: 14, fontWeight: 500, lineHeight: 1.5,
@@ -2367,7 +2369,8 @@ function SubtaskCard({
               onBlur={commitEdit}
               maxLength={SUBTASK_MAX}
               rows={1}
-              style={{ ...SUBTASK_TITLE_BOX, background: "var(--pl-paper)", border: "1.5px solid var(--pl-accent-surface)", color: "var(--pl-ink)", resize: "none", maxHeight: 160, overflowY: "auto" }}
+              className="field-box border-[1.5px] border-accent-surface transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
+              style={{ ...SUBTASK_TITLE_BOX, background: "var(--pl-paper)", color: "var(--pl-ink)", resize: "none", maxHeight: 160, overflowY: "auto" }}
             />
           ) : (
             <span
@@ -3064,8 +3067,9 @@ function MessageItem({
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEditSave(c.id) }
               if (e.key === "Escape") onEditCancel()
             }}
+            className="field-box border border-line hover:border-line-strong transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
             style={{
-              width: "100%", border: "1px solid var(--pl-line)", borderRadius: 10,
+              width: "100%", borderRadius: 10,
               padding: "8px 10px", fontSize: 14, lineHeight: 1.55, fontFamily: "inherit",
               resize: "none", background: "var(--pl-paper)", color: "var(--pl-ink)", boxSizing: "border-box",
             }}

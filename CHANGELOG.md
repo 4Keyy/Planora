@@ -4,6 +4,20 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ui): every text field in the product draws the same focus frame (2026-10-06)
+
+The field-focus system reached only `<Input>`, `<Textarea>`, the create panel and quick capture;
+ten other text fields still drew the global dark outline as a hard box on every click or
+autofocus. The command palette's query (boxed on every Cmd/Ctrl+K), the login 2FA code (a ring round
+all six cells on top of the active cell's own border), the task editor's title, the branch composer
+and its Author's Note, subtask-title and comment editors, the new-category name, the colour picker's
+hex box and the advanced search bar now carry `field-box`, or `field-naked` inside a `field-shell`.
+`field-shell` keeps whatever elevation a shell already has instead of hard-coding quick capture's
+`shadow-xl`, and crossfades its fill. A field in error (`aria-invalid`) keeps a red edge, and an
+over-limit field keeps its pink surface while focused and hovered — it used to turn white at the
+moment of typing, the only moment it crosses its limit. A contract test now fails on any text
+`<input>`/`<textarea>` without a `field-*` class.
+
 ### fix(todos): the task card's circle sits on its centre, the eye in its corner (2026-10-05)
 
 The completion / take-it circle was pinned to the title's first line, so it sat 23-86px above the

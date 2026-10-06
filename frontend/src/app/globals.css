@@ -179,15 +179,6 @@
     --pl-shadow-md: theme("boxShadow.md");
     --pl-shadow-lg: theme("boxShadow.lg");
     --pl-shadow-xl: theme("boxShadow.xl");
-    --pl-radius-md: theme("borderRadius.md");
-    --pl-radius-lg: theme("borderRadius.lg");
-    --pl-radius-xl: theme("borderRadius.xl");
-    /* The elevation scale, for the same inline styles: a popover or a dialog built there
-       uses the product's shadows instead of re-typing its own rgba stack. */
-    --pl-shadow-sm: theme("boxShadow.sm");
-    --pl-shadow-md: theme("boxShadow.md");
-    --pl-shadow-lg: theme("boxShadow.lg");
-    --pl-shadow-xl: theme("boxShadow.xl");
   }
 
   /* Dark theme is FROZEN, not supported. The product pins `color-scheme: light`
@@ -313,21 +304,34 @@
     background-color: theme("colors.paper");
     box-shadow: 0 0 0 3px theme("colors.ink / 8%");
   }
-  .field-box[data-over-limit]:focus-visible:not(:disabled) {
+  /* A field in error (`aria-invalid`, set by <Field>) or past 80% of its limit keeps its
+     red edge — at rest, and while focused, where the halo turns red too and the pink
+     surface stays: the moment of typing is the only moment a field crosses its limit. */
+  .field-box[aria-invalid="true"]:not(:disabled) {
+    border-color: theme("colors.alert");
+  }
+  .field-box:is([data-over-limit], [aria-invalid="true"]):focus-visible:not(:disabled) {
     border-color: theme("colors.alert");
     box-shadow: inset 0 0 0 1px theme("colors.alert"), 0 0 0 3px theme("colors.alert / 12%");
   }
+  .field-box[data-over-limit]:focus-visible:not(:disabled) {
+    background-color: theme("colors.alert-surface / 40%");
+  }
 
-  /* 3. A shell that IS the field — quick capture's pill. Its edge is the indicator, and
-        its elevation is kept under the halo. */
+  /* 3. A shell that IS the field — quick capture's pill, the branch composer, the colour
+        picker's hex box, the command palette's query row. Its edge is the indicator.
+        Whatever elevation the shell already carries (Tailwind's --tw-shadow, e.g. quick
+        capture's shadow-xl) stays under the halo; a flat shell gets the halo alone. Do not
+        put hover:border-* on a shell: it is 0,2,0 like this rule and emitted later. */
   .field-shell {
     transition:
       border-color theme("transitionDuration.fast") var(--pl-ease-emphasized),
+      background-color theme("transitionDuration.base") var(--pl-ease-emphasized),
       box-shadow theme("transitionDuration.base") var(--pl-ease-emphasized);
   }
   .field-shell:focus-within {
     border-color: theme("colors.ink");
-    box-shadow: 0 0 0 3px theme("colors.ink / 8%"), theme("boxShadow.xl");
+    box-shadow: 0 0 0 3px theme("colors.ink / 8%"), var(--tw-shadow, 0 0 #0000);
   }
 }
 

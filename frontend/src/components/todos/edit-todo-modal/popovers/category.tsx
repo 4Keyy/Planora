@@ -126,11 +126,14 @@ export function CategoryPopover({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Category name"
+            aria-label="Category name"
             maxLength={30}
+            // Focused on purpose: the press on "New category" is the press on this field.
             autoFocus
+            // A boxed field: sunken at rest, paper with an ink edge and a halo while focused.
+            className="field-box border border-line bg-paper-sunken hover:border-line-strong transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
             style={{
-              width: "100%", marginBottom: 14,
-              background: "var(--pl-paper-sunken)", border: "1px solid var(--pl-line)", borderRadius: 12,
+              width: "100%", marginBottom: 14, borderRadius: 12,
               minHeight: 44, padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", boxSizing: "border-box", fontFamily: "inherit",
             }}
           />
