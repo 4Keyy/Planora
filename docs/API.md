@@ -354,7 +354,7 @@ Canonical prefix: `/auth/api/v1/users`
 |---|---|---|---|
 | `GET` | `/me` | bearer | current user profile |
 | `PUT` | `/me` | bearer + CSRF | update profile |
-| `DELETE` | `/me` | bearer + CSRF | delete account |
+| `DELETE` | `/me` | bearer + CSRF | soft-delete account and atomically queue its cross-service cleanup; broker delivery is asynchronous |
 | `POST` | `/me/change-password` | bearer + CSRF | change password |
 | `POST` | `/me/change-email` | bearer + CSRF | request email change |
 | `GET` | `/verify-email?token=...` | public | verify email by token |

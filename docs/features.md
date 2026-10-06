@@ -1425,11 +1425,14 @@ notifications from June were still in the bell.
   read; an unread one after `UnreadNotificationDays` (default 90). Deleting a task or user also removes its
   notifications asynchronously through deletion consumers. User deletion removes notifications
   addressed to that user; it does not emit per-task cleanup for every owned task.
-- **A deleted account leaves nothing behind.** Its own tasks, categories and comments are soft-deleted at
-  once and purged after the grace window; the shares naming it, its "in progress" worker rows and its
-  per-viewer preferences on other people's tasks are removed at once (Todo's `UserDeletedEventConsumer`);
-  its avatar files are deleted at once and swept again when the account row is purged after the grace
-  window, together with its friendships, tokens, history, recovery codes and roles.
+- **Account deletion survives a broker outage.** Auth commits the account's soft-delete and its
+  `UserDeletedIntegrationEvent` together in the outbox. Consumers asynchronously soft-delete its own
+  tasks, categories and comments, and remove its shares, "in progress" worker rows and per-viewer
+  preferences on other people's tasks. The outbox retries delivery after broker failures; exhausted
+  retries require operator replay. Avatar deletion is attempted immediately, including when the Redis
+  security-stamp update fails. After the grace window, retention retries avatar cleanup before removing
+  the account and its friendships, tokens, history, recovery codes and roles. A filesystem failure keeps
+  that account and its dependents for the next pass, while other accounts can still be purged.
 - **Housekeeping.** Processed outbox/inbox messages (7 days), long-expired refresh tokens (30 days past
   expiry) and spent recovery codes (30 days) are reaped. Login history (180 days), audit logs (365 days),
   terminal friendships (90 days) and messages (365 days) are opt-in.

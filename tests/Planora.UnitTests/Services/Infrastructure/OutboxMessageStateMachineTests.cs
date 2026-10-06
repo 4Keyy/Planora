@@ -148,13 +148,15 @@ public sealed class OutboxMessageStateMachineTests
     public void DeadLetteredMessage_IsNotPickedByPollingPredicate()
     {
         // Reproduces the OutboxProcessor polling WHERE clause:
-        //   Status == Pending OR (Status == Failed && NextRetryUtc <= UtcNow)
+        //   (Status == Pending && (NextRetryUtc == null || NextRetryUtc <= UtcNow))
+        //   OR (Status == Failed && NextRetryUtc <= UtcNow)
         var msg = NewMessage();
         msg.MarkAsFailed("attempt 1");
         msg.MarkAsFailed("attempt 2");
         msg.MarkAsFailed("attempt 3");
 
-        var matchesPending = msg.Status == OutboxMessageStatus.Pending;
+        var matchesPending = msg.Status == OutboxMessageStatus.Pending &&
+            (msg.NextRetryUtc is null || msg.NextRetryUtc <= DateTime.UtcNow);
         var matchesFailedReady =
             msg.Status == OutboxMessageStatus.Failed &&
             msg.NextRetryUtc.HasValue &&

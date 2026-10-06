@@ -379,8 +379,9 @@ The shared outbox row requires `Id`, type ≤255, JSON content, occurrence time,
 and retry count (default 0); processed time, next retry and error ≤2000 are nullable.
 Statuses are Pending, Processing, Processed, Failed and DeadLettered. `MarkAsFailed` budgets
 three failures: the first two schedule 1-minute/5-minute retry timestamps while returning
-to Pending; the third dead-letters. The polling predicate selects every Pending row, so the
-timestamp does not delay rows returned to Pending — a known retry-backoff gap.
+to Pending; the third dead-letters. The canonical repository and shared processor select Pending rows
+only when `NextRetryUtc` is absent or due, so those timestamps enforce the backoff. Failed rows are
+selected when their retry is due; terminal dead-lettered rows are retained for operator replay.
 
 Outbox and inbox primitives exist in shared infrastructure:
 
@@ -446,7 +447,7 @@ lock + tripwire. Every policy below is run live on PostgreSQL by the `Retention/
 | `Notifications` / `NotificationDeliveries` | Realtime | cascade-deleted when their task or user is deleted; deliveries also purged after `NotificationDeliveryDays` (30) | `(DeliveredAtUtc)` |
 | `OutboxMessages` / `InboxMessages` | all | `Status=Processed` older than `OutboxProcessedDays` / `InboxProcessedDays` (7) | `(Status, ProcessedOnUtc)` |
 | `RefreshTokens` | Auth | `ExpiresAt` older than `ExpiredRefreshTokenDays` (30) | `(ExpiresAt)` |
-| `Users` (soft-deleted) | Auth | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) — a bespoke policy deletes all Auth-owned dependents first (friendships, refresh tokens, login/password history, recovery codes, roles) then the user, then the user's avatar tree on disk | `(IsDeleted)` |
+| `Users` (soft-deleted) | Auth | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) — avatar cleanup must succeed first; then a bespoke policy deletes all Auth-owned dependents (friendships, refresh tokens, login/password history, recovery codes, roles) and the user. An avatar failure retains that account for the next pass without blocking other accounts | `(IsDeleted)` |
 | `todo_item_shares` / `todo_item_workers` / `user_todo_view_preferences` naming a deleted user | Todo | at account deletion (`UserDeletedIntegrationEvent`): the rows the account left on other people's tasks are removed with the soft-delete of its own tasks | — |
 | `LoginHistory` | Auth | opt-in: `LoginAt` older than `LoginHistoryDays` (180) | `(LoginAt)` |
 | `AuditLogs` | Auth | opt-in: `CreatedAt` older than `AuditLogDays` (365) | `(CreatedAt)` |

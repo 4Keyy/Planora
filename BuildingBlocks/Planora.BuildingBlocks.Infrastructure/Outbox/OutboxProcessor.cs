@@ -124,9 +124,13 @@ namespace Planora.BuildingBlocks.Infrastructure.Outbox
             // claim a batch atomically first — e.g. `SELECT ... FOR UPDATE SKIP LOCKED` (raw SQL) or a
             // guarded `UPDATE ... SET Status = Processing ... RETURNING` — so each row is owned by exactly
             // one worker. See docs/architecture.md (Outbox) for the rationale.
+            // MarkAsFailed keeps retryable rows Pending, so that status alone must not
+            // bypass the scheduled backoff and exhaust every retry during a brief outage.
+            var now = DateTime.UtcNow;
             var messages = await dbContext.Set<OutboxMessage>()
-                .Where(m => m.Status == OutboxMessageStatus.Pending ||
-                           (m.Status == OutboxMessageStatus.Failed && m.NextRetryUtc <= DateTime.UtcNow))
+                .Where(m => (m.Status == OutboxMessageStatus.Pending &&
+                             (m.NextRetryUtc == null || m.NextRetryUtc <= now)) ||
+                           (m.Status == OutboxMessageStatus.Failed && m.NextRetryUtc <= now))
                 .OrderBy(m => m.OccurredOnUtc)
                 .Take(BatchSize)
                 .ToListAsync(cancellationToken);

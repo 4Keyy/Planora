@@ -13,6 +13,7 @@ using Planora.BuildingBlocks.Infrastructure.Retention;
 using Planora.BuildingBlocks.Infrastructure.Retention.Policies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Planora.BuildingBlocks.Infrastructure.Outbox;
 
 namespace Planora.Auth.Infrastructure;
 
@@ -30,6 +31,7 @@ public static class DependencyInjection
         AddGrpcServices(services, configuration);
         AddHealthChecks(services, configuration);
         AddRabbitMqBackground(services, configuration);
+        services.AddHostedService<OutboxProcessor>();
 
         // Retention: purge long-expired refresh tokens (token rotation never removes old rows) plus the
         // processed outbox rows. Safety-gated (advisory lock + tripwire), on by default.
@@ -66,7 +68,9 @@ public static class DependencyInjection
                 "Planora:Auth:DataProtection-Keys");
         }
 
-        services.AddDbContext<AuthDbContext>(options =>
+        services.AddSingleton<OutboxSignal>();
+        services.AddScoped<OutboxNotifyInterceptor>();
+        services.AddDbContext<AuthDbContext>((sp, options) =>
         {
             options.UseNpgsql(connectionString, npgsqlOptions =>
             {
@@ -76,6 +80,7 @@ public static class DependencyInjection
                     errorCodesToAdd: null);
                 npgsqlOptions.CommandTimeout(30);
             });
+            options.AddInterceptors(sp.GetRequiredService<OutboxNotifyInterceptor>());
         });
 
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AuthDbContext>());
@@ -93,6 +98,8 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ILoginHistoryRepository, LoginHistoryRepository>();
         services.AddScoped<IPasswordHistoryRepository, PasswordHistoryRepository>();
+        services.AddScoped<IOutboxRepository,
+            Planora.BuildingBlocks.Infrastructure.Persistence.OutboxRepository<AuthDbContext>>();
     }
 
     private static void AddAuthenticationServices(IServiceCollection services, IConfiguration configuration)

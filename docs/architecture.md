@@ -318,7 +318,7 @@ and still ACKs the message, silently dropping every event of that type.
 
 Publishers via outbox:
 
-- Auth publishes `UserDeletedIntegrationEvent` on account deletion and `FriendshipRemovedIntegrationEvent` when a friendship is removed; the second is what makes Todo drop a share that friendship used to justify.
+- Auth queues `UserDeletedIntegrationEvent` atomically with account soft-deletion through its outbox. Its friendship-removal handler still publishes `FriendshipRemovedIntegrationEvent` directly to the broker; that event makes Todo drop a share that friendship used to justify.
 - Category publishes `CategoryDeletedIntegrationEvent` from the category domain-event handler, so Todo can detach the tasks that referenced it.
 - Todo publishes `TaskCreated` / `TaskActivity` / `TaskDeleted` / `SubtaskDeleted` on task lifecycle (create, duplicate, complete/start/leave, delete) — these drive the Collaboration timeline instead of the old in-transaction comment writes.
 - Todo publishes `NotificationEvent` through `NotificationFanout`, which excludes the actor who triggered the change so nobody is notified of their own action.
@@ -334,7 +334,7 @@ Collaboration run the shared `OutboxProcessor`. Realtime currently consumes and 
 notifications; its outbox schema has no runtime producer/drainer registration.
 
 The processor reads up to 20 rows per pass, publishes persistent messages with publisher
-confirms and `mandatory: true`, then marks the row Processed. Todo additionally wakes the
+confirms and `mandatory: true`, then marks the row Processed. Auth and Todo additionally wake the
 processor with `OutboxSignal`; otherwise the idle polling cadence is five seconds. An
 accepted broker publish followed by a crash before the processed save can be repeated:
 delivery is **at least once**, subject to the finite retry/dead-letter policy.
@@ -346,7 +346,7 @@ Transaction boundaries differ by workflow:
 | Todo / Collaboration | `OutboxRepository.AddAsync` immediately calls `SaveChangesAsync`; tracked business changes and the first enqueued event can commit together, but later events/recipient fan-out commit separately. A whole handler is not automatically one transaction. |
 | Messaging send | Message is tracked before the outbox add; that add saves the message and its notification row together. |
 | Category deletion | `CategoryDbContext.SaveChangesAsync` commits deletion before dispatching the domain event; the event handler writes the outbox with a second save. A crash in between can lose the cleanup event. |
-| Auth | Context dispatch is also after its business save; individual command handlers explicitly add integration events. Atomicity must be checked at each handler's save boundary. |
+| Auth account deletion | The user is marked deleted/deactivated before canonical `OutboxRepository.AddAsync` saves that tracked change and `UserDeletedIntegrationEvent` together. Redis stamp rotation and best-effort avatar cleanup follow the commit; neither can erase the queued event. Other Auth handlers retain their own publication boundaries. |
 
 Only Collaboration registers `IInboxRepository` for bus deduplication. Auth/Messaging have
 inbox tables but no active subscribers, and Todo/Category/Realtime do not register the bus
@@ -363,8 +363,9 @@ is a domain/schema scaffold with no current writer; hub reconnect does not repla
 notifications. Clients recover durable state through the authorized notification read API.
 
 `OutboxMessage.MarkAsFailed` budgets three failures. The first two set retry timestamps
-one/five minutes ahead but return the row to Pending; the processor selects all Pending
-rows regardless of `NextRetryUtc`, so those timestamps currently do not enforce backoff.
+one/five minutes ahead and return the row to Pending. The shared processor and canonical repository
+select Pending rows only when `NextRetryUtc` is absent or due, so the backoff is enforced; Failed rows
+are selected when their retry is due. The third failure dead-letters the row for operator replay.
 An unresolved event type or null deserialization result is dead-lettered immediately.
 Broker consumer failures requeue once and then route to `planora-eventbus-dlx`; malformed
 JSON is dead-lettered immediately. Replay of terminal rows is an operator action.

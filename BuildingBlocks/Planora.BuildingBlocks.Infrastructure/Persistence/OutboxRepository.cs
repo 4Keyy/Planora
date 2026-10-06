@@ -1,7 +1,7 @@
 namespace Planora.BuildingBlocks.Infrastructure.Persistence;
 
 /// <summary>
-/// Canonical outbox repository. Picks up <see cref="OutboxMessageStatus.Pending"/>
+/// Canonical outbox repository. Picks up new or retry-eligible <see cref="OutboxMessageStatus.Pending"/>
 /// rows plus retry-eligible <see cref="OutboxMessageStatus.Failed"/> rows whose
 /// <c>NextRetryUtc</c> has elapsed. Terminal <see cref="OutboxMessageStatus.DeadLettered"/>
 /// rows are never picked up — they require operator action (see INV-COMM-3a).
@@ -39,7 +39,8 @@ public sealed class OutboxRepository<TContext> : IOutboxRepository
         // server-side function across providers.
         var now = DateTime.UtcNow;
         return await _context.Set<OutboxMessage>()
-            .Where(m => m.Status == OutboxMessageStatus.Pending ||
+            .Where(m => (m.Status == OutboxMessageStatus.Pending &&
+                        (m.NextRetryUtc == null || m.NextRetryUtc <= now)) ||
                        (m.Status == OutboxMessageStatus.Failed && m.NextRetryUtc <= now))
             .OrderBy(m => m.OccurredOnUtc)
             .Take(batchSize)

@@ -18,6 +18,31 @@ namespace Planora.UnitTests.Services.Infrastructure;
 public sealed class CanonicalOutboxRepositoryTests
 {
     [Fact]
+    [Trait("TestType", "Resilience")]
+    [Trait("TestType", "Regression")]
+    public async Task GetPendingMessagesAsync_RespectsScheduledBackoffForPendingRetries()
+    {
+        using var context = CreateContext();
+        var repository = new OutboxRepository<CategoryDbContext>(context);
+        var now = DateTime.UtcNow;
+        var initial = new OutboxMessage("Initial", "{}", now.AddMinutes(-30));
+        var due = new OutboxMessage("DueRetry", "{}", now.AddMinutes(-20));
+        due.MarkAsFailed("transient broker failure");
+        SetProperty(due, nameof(OutboxMessage.NextRetryUtc), now.AddMinutes(-1));
+        var future = new OutboxMessage("FutureRetry", "{}", now.AddMinutes(-40));
+        future.MarkAsFailed("transient broker failure");
+        SetProperty(future, nameof(OutboxMessage.NextRetryUtc), now.AddHours(1));
+        context.OutboxMessages.AddRange(initial, due, future);
+        await context.SaveChangesAsync();
+
+        var pending = await repository.GetPendingMessagesAsync(batchSize: 10);
+
+        Assert.Equal(new[] { "Initial", "DueRetry" }, pending.Select(m => m.Type));
+        Assert.Equal(OutboxMessageStatus.Pending, future.Status);
+        Assert.Equal(1, future.RetryCount);
+    }
+
+    [Fact]
     [Trait("TestType", "Module")]
     [Trait("TestType", "Integration")]
     [Trait("TestType", "Regression")]

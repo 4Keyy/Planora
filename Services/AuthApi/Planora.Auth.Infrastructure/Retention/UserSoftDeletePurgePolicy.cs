@@ -18,7 +18,8 @@ namespace Planora.Auth.Infrastructure.Retention
     /// </summary>
     /// <remarks>
     /// The cross-service cascade (<c>UserDeletedIntegrationEvent</c> → Todo/Category/Collaboration/Realtime)
-    /// already ran when the account was soft-deleted, so this pass re-publishes nothing — it only reclaims
+    /// was queued durably when the account was soft-deleted; delivery is asynchronous and follows the
+    /// outbox retry/dead-letter policy. This pass re-publishes nothing — it only reclaims
     /// Auth's own storage — rows, and the avatar tree on disk (deleting the account already removes it;
     /// accounts deleted before that did not, so the purge sweeps it again). Audit-log rows (no FK,
     /// `EntityId` only) are deliberately kept as the forensic
@@ -46,25 +47,54 @@ namespace Planora.Auth.Infrastructure.Retention
             var db = scopedServices.GetRequiredService<DbContext>();
             var avatars = scopedServices.GetService<IAvatarStorage>();
             var cutoff = context.UtcNow.AddDays(-context.Options.SoftDeleteGraceDays);
+            var failedAvatars = new HashSet<Guid>();
 
             return RetentionExecutor.RunAsync(
                 Name, db, _lock, context,
                 ct => db.Set<User>().IgnoreQueryFilters().CountAsync(u => u.IsDeleted && u.DeletedAt < cutoff, ct),
-                (batch, ct) => PurgeBatchAsync(db, avatars, cutoff, batch, ct),
+                (batch, ct) => PurgeBatchAsync(db, avatars, failedAvatars, cutoff, batch, ct),
                 _logger, cancellationToken);
         }
 
-        private async Task<int> PurgeBatchAsync(DbContext db, IAvatarStorage? avatars, DateTime cutoff, int batchSize, CancellationToken ct)
+        private async Task<int> PurgeBatchAsync(DbContext db, IAvatarStorage? avatars, HashSet<Guid> failedAvatars, DateTime cutoff, int batchSize, CancellationToken ct)
         {
-            var ids = await db.Set<User>().IgnoreQueryFilters()
-                .Where(u => u.IsDeleted && u.DeletedAt < cutoff)
-                .OrderBy(u => u.DeletedAt)
-                .Select(u => u.Id)
-                .Take(batchSize)
-                .ToListAsync(ct);
+            List<Guid> ids;
+            do
+            {
+                ids = await db.Set<User>().IgnoreQueryFilters()
+                    .Where(u => u.IsDeleted && u.DeletedAt < cutoff && !failedAvatars.Contains(u.Id))
+                    .OrderBy(u => u.DeletedAt)
+                    .Select(u => u.Id)
+                    .Take(batchSize)
+                    .ToListAsync(ct);
 
-            if (ids.Count == 0)
-                return 0;
+                if (ids.Count == 0)
+                    return 0;
+
+                // Keep the account and all dependents until its public photo is gone, so a filesystem
+                // failure remains discoverable on the next pass. Skip it only for this pass: a locked
+                // first batch must not starve other accounts, or be retried forever inside this loop.
+                if (avatars is not null)
+                {
+                    foreach (var id in ids.ToArray())
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        try
+                        {
+                            await avatars.DeleteAsync(id, ct);
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            failedAvatars.Add(id);
+                            ids.Remove(id);
+                            _logger.LogWarning(ex, "Retention[{Policy}] retained deleted user {UserId} because avatar cleanup failed; retrying next pass", Name, id);
+                        }
+                    }
+                }
+            }
+            while (ids.Count == 0);
+
+            ct.ThrowIfCancellationRequested();
 
             // Dependents first. IgnoreQueryFilters throughout: several of these tables filter on
             // !User.IsDeleted, which would otherwise HIDE exactly the rows (owned by deleted users) that
@@ -78,26 +108,7 @@ namespace Planora.Auth.Infrastructure.Retention
             await db.Set<UserRecoveryCode>().IgnoreQueryFilters().Where(c => ids.Contains(c.UserId)).ExecuteDeleteAsync(ct);
             await db.Set<UserRole>().IgnoreQueryFilters().Where(r => ids.Contains(r.UserId)).ExecuteDeleteAsync(ct);
 
-            var purged = await db.Set<User>().IgnoreQueryFilters().Where(u => ids.Contains(u.Id)).ExecuteDeleteAsync(ct);
-
-            // The photo is a public static file, not a row: remove the tree for every purged account.
-            // Best-effort — a locked file must not roll back a purge whose rows are already gone.
-            if (avatars is not null)
-            {
-                foreach (var id in ids)
-                {
-                    try
-                    {
-                        await avatars.DeleteAsync(id, ct);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Retention[{Policy}] could not delete the avatar tree of purged user {UserId}", Name, id);
-                    }
-                }
-            }
-
-            return purged;
+            return await db.Set<User>().IgnoreQueryFilters().Where(u => ids.Contains(u.Id)).ExecuteDeleteAsync(ct);
         }
     }
 }

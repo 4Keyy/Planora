@@ -1,6 +1,7 @@
 using Planora.Auth.Application.Features.Users.Commands.DeleteUser;
-using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
+using Planora.BuildingBlocks.Application.Outbox;
+using System.Text.Json;
 
 namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
 {
@@ -9,7 +10,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
         private readonly IAuthUnitOfWork _unitOfWork;
         private readonly IPasswordHasher _passwordHasher;
         private readonly ICurrentUserService _currentUserService;
-        private readonly IEventBus _eventBus;
+        private readonly IOutboxRepository _outbox;
         private readonly ISecurityStampService _securityStamp;
         private readonly IAvatarStorage _avatarStorage;
         private readonly ILogger<DeleteUserCommandHandler> _logger;
@@ -18,7 +19,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
             IAuthUnitOfWork unitOfWork,
             IPasswordHasher passwordHasher,
             ICurrentUserService currentUserService,
-            IEventBus eventBus,
+            IOutboxRepository outbox,
             ISecurityStampService securityStamp,
             IAvatarStorage avatarStorage,
             ILogger<DeleteUserCommandHandler> logger)
@@ -26,7 +27,7 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
             _unitOfWork = unitOfWork;
             _passwordHasher = passwordHasher;
             _currentUserService = currentUserService;
-            _eventBus = eventBus;
+            _outbox = outbox;
             _securityStamp = securityStamp;
             _avatarStorage = avatarStorage;
             _logger = logger;
@@ -62,8 +63,14 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
 
             _unitOfWork.Users.Update(user);
 
-            // Persist the soft-delete BEFORE publishing the integration event so that
-            // if the publish fails the deletion can be retried without losing data.
+            // The canonical outbox shares this unit of work's context: AddAsync commits
+            // the tracked deletion and its cleanup event together. A Redis or broker outage
+            // after this commit must not leave other services with an unrepeatable deletion.
+            var integrationEvent = new UserDeletedIntegrationEvent(user.Id, user.Email.Value);
+            await _outbox.AddAsync(new OutboxMessage(
+                typeof(UserDeletedIntegrationEvent).AssemblyQualifiedName!,
+                JsonSerializer.Serialize(integrationEvent),
+                DateTime.UtcNow), cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // SECURITY: rotate the security stamp on soft-delete so that any access
@@ -71,25 +78,24 @@ namespace Planora.Auth.Application.Features.Users.Handlers.DeleteUser
             // this, a deleted user's outstanding token could still hit endpoints
             // until it expired naturally — and any handler that did not separately
             // check IsDeleted would treat the request as authentic.
-            await _securityStamp.SetStampAsync(user.Id, cancellationToken);
-
-            // PRIVACY: the photo goes with the account. Avatars are public static files
-            // (/avatars/{userId}/…), and nothing ever called DeleteAsync: a deleted person's
-            // face stayed reachable by URL for good. Best-effort — a filesystem hiccup must not
-            // undo a completed deletion, and the deleted-account purge sweeps the tree again.
             try
             {
-                await _avatarStorage.DeleteAsync(user.Id, cancellationToken);
+                await _securityStamp.SetStampAsync(user.Id, cancellationToken);
             }
-            catch (Exception ex)
+            finally
             {
-                _logger.LogWarning(ex, "Could not delete the avatar of deleted user {UserId}; the retention purge retries", user.Id);
+                // PRIVACY: even a security-stamp outage must not skip deleting the public
+                // avatar. Filesystem failures remain best-effort and are retried by retention;
+                // a stamp failure itself still propagates rather than reporting success.
+                try
+                {
+                    await _avatarStorage.DeleteAsync(user.Id, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not delete the avatar of deleted user {UserId}; the retention purge retries", user.Id);
+                }
             }
-
-            // Publish cross-service integration event so TodoApi, CategoryApi, CollaborationApi
-            // and RealtimeApi clean up the data they hold for this user.
-            var integrationEvent = new UserDeletedIntegrationEvent(user.Id, user.Email.Value);
-            await _eventBus.PublishAsync(integrationEvent, cancellationToken);
 
             _logger.LogInformation("User account deleted: {UserId}, Email: {Email}", user.Id, user.Email.Value);
             return Result.Success();

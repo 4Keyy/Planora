@@ -82,6 +82,13 @@ code housekeeping, the opt-in vectors, the outbox/inbox purge, what a deleted ac
 people's tasks, and the lock itself. Each test creates and drops its own database; without the variable
 they are skipped.
 
+Account-purge regressions also cover a locked avatar with all dependent rows retained, successful cleanup
+on the next pass, continued progress across batches when one account fails, and cancellation before a
+physical delete. `Services/AuthApi/Infrastructure/AuthDeletionOutboxTests` uses the same PostgreSQL fixture
+to verify atomic account/event persistence, rollback on a database failure, durable cleanup after a Redis
+failure, and publication retry after a broker outage. Its DI contract also verifies the Auth processor,
+canonical repository and immediate-dispatch signal registrations.
+
 ```powershell
 docker run -d --name planora-retention-test -e POSTGRES_PASSWORD=retention-test -p 127.0.0.1:55433:5432 postgres:16-alpine
 $env:PLANORA_TEST_POSTGRES = "Host=127.0.0.1;Port=55433;Username=postgres;Password=retention-test"

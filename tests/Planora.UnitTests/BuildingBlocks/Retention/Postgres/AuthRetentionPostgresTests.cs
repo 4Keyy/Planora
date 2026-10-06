@@ -126,6 +126,137 @@ public sealed class AuthRetentionPostgresTests
     }
 
     [PostgresFact]
+    public async Task DeletedAccount_AvatarFailurePreservesDependents_AndTheNextPassRetries()
+    {
+        var avatars = new Mock<IAvatarStorage>();
+        var (database, provider) = await CreateAsync(avatars.Object);
+        await using var _ = database;
+        await using var __ = provider;
+        var now = DateTime.UtcNow;
+        Guid deletedId;
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            var role = Role.Create($"Retry-{Guid.NewGuid():N}");
+            var friend = NewUser("friend");
+            var deleted = NewUser("locked-avatar");
+            db.Roles.Add(role);
+            db.Users.Add(friend);
+            AddWithDependents(db, deleted, friend, role);
+            await db.SaveChangesAsync();
+            deleted.MarkAsDeleted(deleted.Id);
+            Set(deleted, nameof(User.DeletedAt), now.AddDays(-30));
+            await db.SaveChangesAsync();
+            deletedId = deleted.Id;
+        }
+
+        avatars.SetupSequence(a => a.DeleteAsync(deletedId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Avatar file is locked"))
+            .Returns(Task.CompletedTask);
+        var policy = new UserSoftDeletePurgePolicy(new PostgresRetentionLock(), NullLogger<UserSoftDeletePurgePolicy>.Instance);
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var result = await RunAsync(policy, scope.ServiceProvider, Live(), now);
+            Assert.Equal(0, result.Deleted);
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            Assert.True(await db.Users.IgnoreQueryFilters().AnyAsync(u => u.Id == deletedId));
+            Assert.True(await db.RefreshTokens.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.True(await db.LoginHistory.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.True(await db.PasswordHistory.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.True(await db.UserRecoveryCodes.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.True(await db.UserRoles.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.True(await db.Friendships.IgnoreQueryFilters().AnyAsync(t => t.RequesterId == deletedId));
+        }
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var result = await RunAsync(policy, scope.ServiceProvider, Live(), now.AddHours(1));
+            Assert.Equal(1, result.Deleted);
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            Assert.False(await db.Users.IgnoreQueryFilters().AnyAsync(u => u.Id == deletedId));
+            Assert.False(await db.RefreshTokens.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.False(await db.LoginHistory.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.False(await db.PasswordHistory.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.False(await db.UserRecoveryCodes.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.False(await db.UserRoles.IgnoreQueryFilters().AnyAsync(t => t.UserId == deletedId));
+            Assert.False(await db.Friendships.IgnoreQueryFilters().AnyAsync(t => t.RequesterId == deletedId));
+        }
+        avatars.Verify(a => a.DeleteAsync(deletedId, It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [PostgresFact]
+    public async Task DeletedAccount_LockedAvatarDoesNotBlockOtherAccounts_AcrossBatches()
+    {
+        var avatars = new Mock<IAvatarStorage>();
+        var (database, provider) = await CreateAsync(avatars.Object);
+        await using var _ = database;
+        await using var __ = provider;
+        var now = DateTime.UtcNow;
+        var locked = NewUser("locked-first");
+        var removable = new[] { NewUser("removable-a"), NewUser("removable-b") };
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            db.Users.AddRange(removable.Append(locked));
+            await db.SaveChangesAsync();
+            locked.MarkAsDeleted(locked.Id);
+            Set(locked, nameof(User.DeletedAt), now.AddDays(-40));
+            foreach (var user in removable)
+            {
+                user.MarkAsDeleted(user.Id);
+                Set(user, nameof(User.DeletedAt), now.AddDays(-30));
+            }
+            await db.SaveChangesAsync();
+        }
+        avatars.Setup(a => a.DeleteAsync(locked.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Avatar file is locked"));
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var policy = new UserSoftDeletePurgePolicy(new PostgresRetentionLock(), NullLogger<UserSoftDeletePurgePolicy>.Instance);
+            var result = await RunAsync(policy, scope.ServiceProvider, Live(o => o.BatchSize = 1), now);
+            Assert.Equal(2, result.Deleted);
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            Assert.Equal(new[] { locked.Id }, await db.Users.IgnoreQueryFilters().Select(u => u.Id).ToArrayAsync());
+        }
+        avatars.Verify(a => a.DeleteAsync(locked.Id, It.IsAny<CancellationToken>()), Times.Once);
+        foreach (var user in removable)
+            avatars.Verify(a => a.DeleteAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [PostgresFact]
+    public async Task DeletedAccount_CancelledAvatarCleanupDoesNotPurgeTheAccount()
+    {
+        var avatars = new Mock<IAvatarStorage>();
+        var (database, provider) = await CreateAsync(avatars.Object);
+        await using var _ = database;
+        await using var __ = provider;
+        var now = DateTime.UtcNow;
+        var deleted = NewUser("cancelled-cleanup");
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            db.Users.Add(deleted);
+            await db.SaveChangesAsync();
+            deleted.MarkAsDeleted(deleted.Id);
+            Set(deleted, nameof(User.DeletedAt), now.AddDays(-30));
+            await db.SaveChangesAsync();
+        }
+        avatars.Setup(a => a.DeleteAsync(deleted.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var policy = new UserSoftDeletePurgePolicy(new PostgresRetentionLock(), NullLogger<UserSoftDeletePurgePolicy>.Instance);
+            await Assert.ThrowsAsync<OperationCanceledException>(() => RunAsync(policy, scope.ServiceProvider, Live(), now));
+            var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            Assert.True(await db.Users.IgnoreQueryFilters().AnyAsync(u => u.Id == deleted.Id));
+        }
+    }
+
+    [PostgresFact]
     public async Task TokenAndCodeHousekeeping_ReapsOnlyExpiredTokensAndSpentCodes()
     {
         var (database, provider) = await CreateAsync();

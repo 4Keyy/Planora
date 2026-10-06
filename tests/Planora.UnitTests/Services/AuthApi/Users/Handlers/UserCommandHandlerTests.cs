@@ -11,10 +11,11 @@ using Planora.Auth.Application.Features.Users.Validators.UpdateUser;
 using Planora.Auth.Domain.Entities;
 using Planora.Auth.Domain.Repositories;
 using Planora.Auth.Domain.ValueObjects;
-using Planora.BuildingBlocks.Application.Messaging;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Planora.BuildingBlocks.Application.Outbox;
+using System.Text.Json;
 
 namespace Planora.UnitTests.Services.AuthApi.Users.Handlers;
 
@@ -115,24 +116,31 @@ public sealed class UserCommandHandlerTests
         Assert.True(invalidPasswordResult.IsFailure);
         Assert.Equal("INVALID_PASSWORD", invalidPasswordResult.Error!.Code);
         invalidPassword.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-        invalidPassword.EventBus.Verify(x => x.PublishAsync(It.IsAny<UserDeletedIntegrationEvent>(), It.IsAny<CancellationToken>()), Times.Never);
+        invalidPassword.Outbox.Verify(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
     [Trait("TestType", "Functional")]
     [Trait("TestType", "Integration")]
     [Trait("TestType", "Regression")]
-    public async Task DeleteUser_ShouldSoftDeleteDeactivatePersistAndPublishCleanupEvent()
+    public async Task DeleteUser_ShouldSoftDeleteDeactivateAndPersistCleanupEventBeforeExternalCalls()
     {
         var user = CreateUser("delete-success@example.com", "Delete", "Success");
         var fixture = CreateDeleteFixture(user.Id);
-        UserDeletedIntegrationEvent? publishedEvent = null;
+        OutboxMessage? persistedMessage = null;
         fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
         fixture.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
-        fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        fixture.EventBus
-            .Setup(x => x.PublishAsync(It.IsAny<UserDeletedIntegrationEvent>(), It.IsAny<CancellationToken>()))
-            .Callback<UserDeletedIntegrationEvent, CancellationToken>((@event, _) => publishedEvent = @event)
+        fixture.Outbox
+            .Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))
+            .Callback<OutboxMessage, CancellationToken>((message, _) => persistedMessage = message)
+            .Returns(Task.CompletedTask);
+        fixture.UnitOfWork
+            .Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => Assert.NotNull(persistedMessage))
+            .ReturnsAsync(1);
+        fixture.SecurityStamp
+            .Setup(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()))
+            .Callback(() => Assert.NotNull(persistedMessage))
             .Returns(Task.CompletedTask);
 
         var result = await fixture.Handler.Handle(
@@ -145,9 +153,12 @@ public sealed class UserCommandHandlerTests
         Assert.Equal(user.Id, user.DeletedBy);
         fixture.Users.Verify(x => x.Update(user), Times.Once);
         fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        Assert.NotNull(publishedEvent);
-        Assert.Equal(user.Id, publishedEvent!.UserId);
-        Assert.Equal(user.Email.Value, publishedEvent.Email);
+        Assert.NotNull(persistedMessage);
+        Assert.Equal(OutboxMessageStatus.Pending, persistedMessage.Status);
+        Assert.Equal(typeof(UserDeletedIntegrationEvent).AssemblyQualifiedName, persistedMessage.Type);
+        var cleanupEvent = JsonSerializer.Deserialize<UserDeletedIntegrationEvent>(persistedMessage.Content)!;
+        Assert.Equal(user.Id, cleanupEvent.UserId);
+        Assert.Equal(user.Email.Value, cleanupEvent.Email);
 
         // SECURITY: stamp MUST rotate so any outstanding access token issued before
         // the deletion is rejected on its next authenticated request. Without this,
@@ -183,9 +194,49 @@ public sealed class UserCommandHandlerTests
         // The deletion is already committed; the purge sweeps the avatar tree again later.
         Assert.True(result.IsSuccess);
         Assert.True(user.IsDeleted);
-        fixture.EventBus.Verify(
-            x => x.PublishAsync(It.IsAny<UserDeletedIntegrationEvent>(), It.IsAny<CancellationToken>()),
+        fixture.Outbox.Verify(
+            x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Security")]
+    [Trait("TestType", "Regression")]
+    public async Task DeleteUser_WhenSecurityStampFails_PreservesCleanupEventAndStillDeletesAvatar()
+    {
+        var user = CreateUser("delete-redis-down@example.com", "Delete", "RedisDown");
+        var fixture = CreateDeleteFixture(user.Id);
+        fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
+        fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        fixture.SecurityStamp.Setup(x => x.SetStampAsync(user.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Redis unavailable"));
+
+        await Assert.ThrowsAsync<IOException>(() => fixture.Handler.Handle(
+            new DeleteUserCommand { Password = "Password123!" }, CancellationToken.None));
+
+        Assert.True(user.IsDeleted);
+        fixture.Outbox.Verify(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        fixture.AvatarStorage.Verify(x => x.DeleteAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    [Trait("TestType", "Regression")]
+    public async Task DeleteUser_WhenPersistenceFails_DoesNotDeleteAvatarOrRotateStamp()
+    {
+        var user = CreateUser("delete-db-down@example.com", "Delete", "DbDown");
+        var fixture = CreateDeleteFixture(user.Id);
+        fixture.Users.Setup(x => x.GetByIdAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        fixture.PasswordHasher.Setup(x => x.VerifyPassword("Password123!", user.PasswordHash)).Returns(true);
+        fixture.UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("Database unavailable"));
+
+        await Assert.ThrowsAsync<IOException>(() => fixture.Handler.Handle(
+            new DeleteUserCommand { Password = "Password123!" }, CancellationToken.None));
+
+        fixture.AvatarStorage.Verify(x => x.DeleteAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        fixture.SecurityStamp.Verify(x => x.SetStampAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -373,7 +424,7 @@ public sealed class UserCommandHandlerTests
         var users = new Mock<IUserRepository>();
         var passwordHasher = new Mock<IPasswordHasher>();
         var currentUser = new Mock<ICurrentUserService>();
-        var eventBus = new Mock<IEventBus>();
+        var outbox = new Mock<IOutboxRepository>();
         var securityStamp = new Mock<ISecurityStampService>();
         var avatarStorage = new Mock<IAvatarStorage>();
         unitOfWork.SetupGet(x => x.Users).Returns(users.Object);
@@ -383,14 +434,14 @@ public sealed class UserCommandHandlerTests
             unitOfWork,
             users,
             passwordHasher,
-            eventBus,
+            outbox,
             securityStamp,
             avatarStorage,
             new DeleteUserCommandHandler(
                 unitOfWork.Object,
                 passwordHasher.Object,
                 currentUser.Object,
-                eventBus.Object,
+                outbox.Object,
                 securityStamp.Object,
                 avatarStorage.Object,
                 Mock.Of<ILogger<DeleteUserCommandHandler>>()));
@@ -435,7 +486,7 @@ public sealed class UserCommandHandlerTests
         Mock<IAuthUnitOfWork> UnitOfWork,
         Mock<IUserRepository> Users,
         Mock<IPasswordHasher> PasswordHasher,
-        Mock<IEventBus> EventBus,
+        Mock<IOutboxRepository> Outbox,
         Mock<ISecurityStampService> SecurityStamp,
         Mock<IAvatarStorage> AvatarStorage,
         DeleteUserCommandHandler Handler);
