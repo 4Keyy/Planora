@@ -47,10 +47,11 @@
     (e.g. JWT_SECRET -> JwtSettings__Secret), and Redis/RabbitMQ/Database connection strings
     are rewritten to the host-mapped localhost ports.
 
-    Logs & lifecycle: a transcript plus per-service logs are written under .\logs; process
-    IDs are tracked in PID files. The script stays in the foreground - press Ctrl+C for a
-    graceful shutdown that stops the frontend, then the services in reverse start order, and
-    clears the PID files (infrastructure containers and data volumes are left running/intact).
+    Logs & lifecycle: a transcript plus per-service logs are written under .\logs (each start
+    removes the ones older than 14 days); process IDs are tracked in PID files. The script
+    stays in the foreground - press Ctrl+C for a graceful shutdown that stops the frontend,
+    then the services in reverse start order, and clears the PID files (infrastructure
+    containers and data volumes are left running/intact).
 
     Requirements: Windows PowerShell 5.1+ or PowerShell 7+, Docker Desktop, Node.js + npm,
     and a .NET 10 SDK (auto-installed locally if missing).
@@ -145,7 +146,8 @@
     - All shell behaviour is Windows PowerShell-compatible.
     - Companion script: .\Start-Planora-Docker.ps1 runs the entire stack (services included)
       inside Docker; this launcher instead runs the services on the host for fast iteration.
-    - Logs: .\logs\startup-<timestamp>.log (transcript) plus .\logs\<service>-<timestamp>.log.
+    - Logs: .\logs\startup-<timestamp>.log (transcript) plus .\logs\<service>-<timestamp>.log;
+      each start removes the ones older than 14 days.
 #>
 param(
     # Wipe bin/obj/.next, restore, and rebuild images with --no-cache. Data volumes preserved.
@@ -432,6 +434,15 @@ if ($Help) {
 #  Logging via transcript
 # ---------------------------------------------------------------------------
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
+
+# Every start writes a transcript plus one log per service, and nothing ever removed them: by
+# 2026-10 .\logs held 253 files and 1.4 GB. Keep two weeks of runs. A log still being written is
+# newer than that, and one that cannot be removed is simply left for the next start.
+$LogRetentionDays = 14
+Get-ChildItem -Path $LogDir -Filter '*.log' -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-$LogRetentionDays) } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+
 $LogFile = Join-Path $LogDir "startup-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').log"
 Start-Transcript -Path $LogFile -Append | Out-Null
 

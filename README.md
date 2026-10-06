@@ -264,7 +264,8 @@ across every run, including `-Clean`.
 `Start-Planora-Docker.ps1` takes `-Clean`, `-SkipFrontend`, `-NoBrowser`, `-ExitAfterHealthCheck`,
 `-Stop`, and `-Help`; `-SkipBuild`, `-Lan`, and `-Prod` belong to the local launcher only.
 
-Logs land in `.\logs` (a transcript plus a file per service). The companion
+Logs land in `.\logs` (a transcript plus a file per service); each start of either launcher removes
+the ones older than 14 days. The companion
 **`Start-Planora-Docker.ps1`** runs the entire stack (services included) inside Docker.
 
 #### 📡 Sharing on your Wi-Fi/LAN

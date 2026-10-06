@@ -161,6 +161,13 @@ if ($Help) {
 #  Logging via transcript
 # ---------------------------------------------------------------------------
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir | Out-Null }
+
+# The same .\logs as the local launcher, and the same two-week retention (see Start-Planora-Local.ps1).
+$LogRetentionDays = 14
+Get-ChildItem -Path $LogDir -Filter '*.log' -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-$LogRetentionDays) } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
+
 $LogFile = Join-Path $LogDir "startup-$(Get-Date -Format 'yyyy-MM-dd_HH-mm-ss').log"
 Start-Transcript -Path $LogFile -Append | Out-Null
 
