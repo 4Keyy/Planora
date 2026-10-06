@@ -372,17 +372,23 @@ The Realtime service is wired conditionally: when `ConnectionStrings:RealtimeDat
 
 ## Data Retention (automatic cleanup)
 
-A daily background job (`RetentionBackgroundService`, in `BuildingBlocks.Infrastructure.Retention`)
-physically removes stale data. It runs in every service that owns purgeable data and is governed by the
-`Retention` configuration section (env `Retention__*`). It ships **disabled** and, once enabled, **dry-run
-by default**; every pass is guarded by a Postgres advisory lock (single-instance), a per-pass tripwire, and
+A background job (`RetentionBackgroundService`, in `BuildingBlocks.Infrastructure.Retention`) physically
+removes stale data every hour, plus once shortly after every start. It runs in every service that owns
+purgeable data and is governed by the `Retention` configuration section (env `Retention__*`). It **runs by
+default** — its windows are promises the product makes, such as the completed archive's "deletes in N
+days" — and every pass is guarded by a Postgres advisory lock (single-instance), a per-pass tripwire, and
 batched deletes.
+
+It used to ship disabled and in dry-run. An older `.env` copied from that `.env.example` still says
+`Retention__Enabled=false` and `Retention__DryRun=true`, and with those two lines nothing is ever deleted:
+change them or remove them.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `Retention__Enabled` | `false` | Master switch. When false the scheduler never runs. |
-| `Retention__DryRun` | `true` | Count and log only — delete nothing. On-prod rehearsal. |
-| `Retention__RunAtHourUtc` | `3` | UTC hour (0–23) the daily pass fires. |
+| `Retention__Enabled` | `true` | Master switch. When false the scheduler never runs — for an environment that must keep everything (a forensic copy, a legal hold). |
+| `Retention__DryRun` | `false` | Count and log "would delete N" only — delete nothing. An opt-in rehearsal before retuning a window or switching on a vector. |
+| `Retention__RunEveryHours` | `1` | Hours between passes (1–24). Hourly, so a task leaves within the hour its window ends; `24` gives one pass a day at `RunAtHourUtc`. |
+| `Retention__RunAtHourUtc` | `3` | UTC hour (0–23) the schedule is anchored on; with `RunEveryHours=24`, the hour of the single daily pass. |
 | `Retention__RunOnStartup` | `true` | Also run a catch-up pass shortly after every startup, so data already past its window is cleaned on each launch — not only at `RunAtHourUtc`. |
 | `Retention__StartupDelaySeconds` | `60` | Delay before the startup catch-up pass, letting the database/broker come up first. |
 | `Retention__BatchSize` | `1000` | Rows deleted per batch statement. |
@@ -411,9 +417,10 @@ Each content vector also has its own `Retention__Purge*` toggle (e.g. `PurgeSoft
 `PurgeCompletedTasks`, `PurgeReadNotifications`, `PurgeOutboxInbox`, `PurgeExpiredRefreshTokens`), all
 defaulting to true so the master switch enables them together.
 
-**Rollout:** set `Retention__Enabled=true` with `Retention__DryRun=true`, watch the `Retention[...]`
-"would delete N" logs and the `planora.retention.*` metrics for a day, then set `Retention__DryRun=false`.
-Login-history/audit-log purge stays off by default. These are runtime defaults, not a compliance certification.
+**Rehearsing a change:** to retune a window or switch on an opt-in vector, set `Retention__DryRun=true`,
+read the `Retention[...]` "would delete N" logs and the `planora.retention.*` metrics, then set it back to
+`false`. Login-history, audit-log, friendship and message purges stay off by default. These are runtime
+defaults, not a compliance certification.
 
 ## Deployment configuration that templates do not supply
 

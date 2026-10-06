@@ -31,6 +31,23 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # A real PostgreSQL for the retention suites (tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres):
+    # ExecuteDelete, ExecuteUpdate and the advisory lock are PostgreSQL-only, so the policies that delete
+    # data are run live here. Every test creates and drops its own database on this server.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PLANORA_TEST_POSTGRES: Host=localhost;Port=5432;Username=postgres;Password=postgres
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5

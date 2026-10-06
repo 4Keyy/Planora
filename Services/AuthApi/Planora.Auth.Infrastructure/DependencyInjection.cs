@@ -32,7 +32,7 @@ public static class DependencyInjection
         AddRabbitMqBackground(services, configuration);
 
         // Retention: purge long-expired refresh tokens (token rotation never removes old rows) plus the
-        // processed outbox rows. Safety-gated (advisory lock + tripwire + dry-run), disabled by default.
+        // processed outbox rows. Safety-gated (advisory lock + tripwire), on by default.
         services.AddRetention(configuration)
             .AddRetentionPolicy<ProcessedMessagePurgePolicy>()
             .AddRetentionPolicy<Retention.ExpiredRefreshTokenPurgePolicy>()

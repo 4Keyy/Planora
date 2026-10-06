@@ -4,23 +4,51 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
     /// Strongly-typed configuration for the data-retention / hard-purge subsystem, bound from the
     /// <c>Retention</c> configuration section (env vars <c>Retention__*</c>). Every window is expressed
     /// in whole days; every vector has its own enable flag so operators can roll policies out one at a
-    /// time. The defaults are deliberately conservative: the whole subsystem ships <b>disabled</b> and,
-    /// once enabled, runs in <see cref="DryRun"/> mode until an operator flips it off after watching the
-    /// "would delete N" logs on production.
+    /// time.
     /// </summary>
+    /// <remarks>
+    /// The subsystem <b>runs by default</b>. Its windows are promises the product already makes — the
+    /// completed archive counts down to each task's removal and says "deletes today" on the last day —
+    /// and it used to ship disabled and in dry-run, waiting for an operator rollout that no environment
+    /// (local, Docker, Fly) ever had: in October 2026 every service logged "scheduler idle", completed
+    /// tasks from August were still in the archive and notifications from June still in the bell. The
+    /// guards that made the rollout cautious are all still here: forensic and user-content vectors ship
+    /// off (<see cref="PurgeLoginHistory"/>, <see cref="PurgeAuditLogs"/>, <see cref="PurgeFriendships"/>,
+    /// <see cref="PurgeMessages"/>), the <see cref="MaxDeletionsPerRun"/> tripwire aborts a pass that finds
+    /// too much, deletes are batched, an advisory lock keeps replicas apart, and a completed task is only
+    /// soft-deleted first. <see cref="Enabled"/> and <see cref="DryRun"/> remain operator switches.
+    /// </remarks>
     public sealed class RetentionOptions
     {
         public const string SectionName = "Retention";
 
         // ── Global switches ────────────────────────────────────────────────────────────────────
-        /// <summary>Master kill-switch. When false the <c>RetentionBackgroundService</c> never runs a pass.</summary>
-        public bool Enabled { get; set; } = false;
+        /// <summary>
+        /// Master switch, on by default. When false the <c>RetentionBackgroundService</c> never runs a
+        /// pass — for an environment that must keep everything (a forensic copy, a legal hold).
+        /// </summary>
+        public bool Enabled { get; set; } = true;
 
-        /// <summary>When true every policy counts and logs but deletes nothing. Safe on-prod rehearsal.</summary>
-        public bool DryRun { get; set; } = true;
+        /// <summary>
+        /// When true every policy counts and logs "would delete N" but deletes nothing — an opt-in
+        /// rehearsal before retuning a window or switching on a new vector. Off by default.
+        /// </summary>
+        public bool DryRun { get; set; } = false;
 
-        /// <summary>UTC hour of day (0–23) the daily pass fires. Pinned to an off-peak window.</summary>
+        /// <summary>
+        /// UTC hour of day (0–23) the schedule is anchored on: with <see cref="RunEveryHours"/> = 24 the
+        /// single daily pass fires at this hour (an off-peak window); with a shorter interval the passes
+        /// fall on this hour and every interval from it.
+        /// </summary>
         public int RunAtHourUtc { get; set; } = 3;
+
+        /// <summary>
+        /// Hours between passes (1–24), default 1. The completed archive tells people a task "deletes
+        /// today"; with one pass a day at <see cref="RunAtHourUtc"/> a task could stay up to a day past
+        /// that, so the passes run hourly and a task goes within the hour its window ends. Each pass is a
+        /// handful of indexed counts when there is nothing to do. Set 24 for one pass a day.
+        /// </summary>
+        public int RunEveryHours { get; set; } = 1;
 
         /// <summary>Max rows a single policy deletes per batch statement (WAL / lock-duration hygiene).</summary>
         public int BatchSize { get; set; } = 1000;
@@ -96,9 +124,9 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         /// <summary>
         /// Physically purge soft-deleted user accounts (and all their Auth-owned dependent rows) after
         /// <see cref="SoftDeleteGraceDays"/>. Honours the "soft-deleted ⇒ really deleted after the grace
-        /// window" rule for accounts too. On by default, but — like the whole subsystem — gated behind the
-        /// master switch and dry-run, so nothing is erased until an operator deliberately enables it. Set
-        /// false where legal/GDPR policy requires keeping deleted-account records.
+        /// window" rule for accounts too — an account deleted more than the grace window ago is gone,
+        /// with every Auth row that depended on it. On by default; set false where legal/GDPR policy
+        /// requires keeping deleted-account records.
         /// </summary>
         public bool PurgeDeletedUsers { get; set; } = true;
 

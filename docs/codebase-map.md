@@ -60,7 +60,7 @@ Important files:
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs` — publisher confirms, per-handler optional inbox key, ACK/NACK/DLX handling
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheService.cs` — generic L1/L2 cache primitive; concrete domain decorators are separate
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionOptions.cs` — disabled/dry-run defaults and policy windows
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionOptions.cs` — on-by-default switches, the hourly cadence and policy windows
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs`
 

@@ -1404,21 +1404,32 @@ that costs every frame.
 
 ## Automatic data cleanup (retention)
 
-Confirmed behaviour once the retention subsystem is enabled (it ships disabled + dry-run — see
-`configuration.md`):
+The retention subsystem runs by default, every hour and once shortly after every start (see
+`configuration.md`). Until October 2026 it shipped disabled and in dry-run, so none of the following had
+ever happened: completed tasks from August were still in the archive under "deletes today", and
+notifications from June were still in the bell.
 
-- **Completed tasks auto-delete.** A task left completed for `CompletedTaskDays` (default 30) is deleted —
-  through the same cascade as a manual delete, so its comment timeline and notifications go too, and the
-  whole branch (all subtasks, any status) goes with the root. Shared/public tasks are deleted for everyone
-  once the owner's completion is ≥30 days old; a task a friend completed only for themselves (owner still
-  active) is instead hidden from that friend after 30 days. The completed archive shows a small
-  "удалится через N дн." badge on tasks that are on the delete path.
-- **Soft-deleted data is physically purged** after `SoftDeleteGraceDays` (default 7) once the
-  subsystem and relevant policy are enabled and dry-run is off. This database grace is separate
-  from the UI's five-second undo delay; there is no general task restore endpoint.
+- **Completed tasks auto-delete.** A task left completed for `CompletedTaskDays` (default 30) is deleted
+  within the hour its window ends — through the same cascade as a manual delete, so its comment timeline
+  and notifications go too, and the whole branch (all subtasks, any status) goes with the root.
+  Shared/public tasks are deleted for everyone once the owner's completion is ≥30 days old; a task a friend
+  completed only for themselves (owner still active) is instead hidden from that friend after 30 days. The
+  completed archive shows a small "deletes in N days" badge (`components/todos/task-deletion-badge.tsx`) on
+  tasks that are on the delete path, counted in calendar days of the reader's time zone: "deletes today"
+  when the window ends today (or has just ended and is waiting for the hourly pass), "deletes tomorrow" for
+  any time tomorrow. It used to round the remaining hours up, which said "tomorrow" for a task leaving
+  that evening and "today" only once its window had passed.
+- **Soft-deleted data is physically purged** after `SoftDeleteGraceDays` (default 7). This database grace
+  is separate from the UI's five-second undo delay; there is no general task restore endpoint.
 - **Notifications expire.** A read notification is removed `ReadNotificationDays` (default 3) after it was
   read; an unread one after `UnreadNotificationDays` (default 90). Deleting a task or user also removes its
   notifications asynchronously through deletion consumers. User deletion removes notifications
   addressed to that user; it does not emit per-task cleanup for every owned task.
-- **Housekeeping.** Processed outbox/inbox messages (7 days) and long-expired refresh tokens (30 days past
-  expiry) are reaped. Login history (180 days) and audit logs (365 days) are opt-in (forensics).
+- **A deleted account leaves nothing behind.** Its own tasks, categories and comments are soft-deleted at
+  once and purged after the grace window; the shares naming it, its "in progress" worker rows and its
+  per-viewer preferences on other people's tasks are removed at once (Todo's `UserDeletedEventConsumer`);
+  its avatar files are deleted at once and swept again when the account row is purged after the grace
+  window, together with its friendships, tokens, history, recovery codes and roles.
+- **Housekeeping.** Processed outbox/inbox messages (7 days), long-expired refresh tokens (30 days past
+  expiry) and spent recovery codes (30 days) are reaped. Login history (180 days), audit logs (365 days),
+  terminal friendships (90 days) and messages (365 days) are opt-in.

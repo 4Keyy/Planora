@@ -59,7 +59,7 @@ namespace Planora.Todo.Infrastructure
             services.AddHostedService<Planora.BuildingBlocks.Infrastructure.Outbox.OutboxProcessor>();
 
             // Retention: purge processed outbox/inbox rows past their configured window. Safety-gated
-            // (advisory lock + tripwire + dry-run) and disabled by default until an operator opts in.
+            // (advisory lock + tripwire) and on by default (RetentionOptions).
             services.AddRetention(configuration)
                 .AddRetentionPolicy<ProcessedMessagePurgePolicy>()
                 .AddRetentionPolicy<Retention.TodoSoftDeletePurgePolicy>()

@@ -133,7 +133,7 @@ public static class DependencyInjection
 
             // Retention: notification-log housekeeping (read 3d / unread 90d / deliveries 30d) plus the
             // processed outbox purge. Registered only when a database is configured; safety-gated
-            // (advisory lock + tripwire + dry-run) and disabled by default.
+            // (advisory lock + tripwire) and on by default (RetentionOptions).
             services.AddRetention(configuration)
                 .AddRetentionPolicy<ProcessedMessagePurgePolicy>()
                 .AddRetentionPolicy<Retention.ReadNotificationPurgePolicy>()

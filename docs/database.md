@@ -431,9 +431,10 @@ planora_realtime
 
 ## Data Retention Policies
 
-A daily background purge (`RetentionBackgroundService`) physically removes stale rows. Windows are
-env-configurable (`Retention__*`, see `configuration.md`); the subsystem ships disabled + dry-run and each
-pass is guarded by an advisory lock + tripwire.
+An hourly background purge (`RetentionBackgroundService`) physically removes stale rows. Windows are
+env-configurable (`Retention__*`, see `configuration.md`); the subsystem runs by default (it shipped
+disabled + dry-run until 2026-10, so nothing had ever been purged) and each pass is guarded by an advisory
+lock + tripwire. Every policy below is run live on PostgreSQL by the `Retention/Postgres` test suite.
 
 | Table / entity | Service | Purged when | Scan index |
 |---|---|---|---|
@@ -445,7 +446,7 @@ pass is guarded by an advisory lock + tripwire.
 | `Notifications` / `NotificationDeliveries` | Realtime | cascade-deleted when their task or user is deleted; deliveries also purged after `NotificationDeliveryDays` (30) | `(DeliveredAtUtc)` |
 | `OutboxMessages` / `InboxMessages` | all | `Status=Processed` older than `OutboxProcessedDays` / `InboxProcessedDays` (7) | `(Status, ProcessedOnUtc)` |
 | `RefreshTokens` | Auth | `ExpiresAt` older than `ExpiredRefreshTokenDays` (30) | `(ExpiresAt)` |
-| `Users` (soft-deleted) | Auth | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) — a bespoke policy deletes all Auth-owned dependents first (friendships, refresh tokens, login/password history, recovery codes, roles) then the user | `(IsDeleted)` |
+| `Users` (soft-deleted) | Auth | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) — a bespoke policy deletes all Auth-owned dependents first (friendships, refresh tokens, login/password history, recovery codes, roles) then the user, then the user's avatar tree on disk | `(IsDeleted)` |
 | `todo_item_shares` / `todo_item_workers` / `user_todo_view_preferences` naming a deleted user | Todo | at account deletion (`UserDeletedIntegrationEvent`): the rows the account left on other people's tasks are removed with the soft-delete of its own tasks | — |
 | `LoginHistory` | Auth | opt-in: `LoginAt` older than `LoginHistoryDays` (180) | `(LoginAt)` |
 | `AuditLogs` | Auth | opt-in: `CreatedAt` older than `AuditLogDays` (365) | `(CreatedAt)` |

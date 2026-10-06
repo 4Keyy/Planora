@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Planora.Auth.Application.Common.Interfaces;
 using Planora.Auth.Domain.Entities;
 using Planora.BuildingBlocks.Infrastructure.Retention;
 
@@ -18,10 +19,12 @@ namespace Planora.Auth.Infrastructure.Retention
     /// <remarks>
     /// The cross-service cascade (<c>UserDeletedIntegrationEvent</c> → Todo/Category/Collaboration/Realtime)
     /// already ran when the account was soft-deleted, so this pass re-publishes nothing — it only reclaims
-    /// Auth's own storage. Audit-log rows (no FK, `EntityId` only) are deliberately kept as the forensic
-    /// record of the deletion. Enabled by default but, like the whole subsystem, inert until the master
-    /// switch is on and dry-run is off; set <see cref="RetentionOptions.PurgeDeletedUsers"/> false where
-    /// legal/GDPR policy requires retaining deleted-account records.
+    /// Auth's own storage — rows, and the avatar tree on disk (deleting the account already removes it;
+    /// accounts deleted before that did not, so the purge sweeps it again). Audit-log rows (no FK,
+    /// `EntityId` only) are deliberately kept as the forensic
+    /// record of the deletion. On by default, like the whole subsystem; set
+    /// <see cref="RetentionOptions.PurgeDeletedUsers"/> false where legal/GDPR policy requires retaining
+    /// deleted-account records.
     /// </remarks>
     public sealed class UserSoftDeletePurgePolicy : IRetentionPolicy
     {
@@ -41,16 +44,17 @@ namespace Planora.Auth.Infrastructure.Retention
         public Task<RetentionResult> ExecuteAsync(IServiceProvider scopedServices, RetentionContext context, CancellationToken cancellationToken)
         {
             var db = scopedServices.GetRequiredService<DbContext>();
+            var avatars = scopedServices.GetService<IAvatarStorage>();
             var cutoff = context.UtcNow.AddDays(-context.Options.SoftDeleteGraceDays);
 
             return RetentionExecutor.RunAsync(
                 Name, db, _lock, context,
                 ct => db.Set<User>().IgnoreQueryFilters().CountAsync(u => u.IsDeleted && u.DeletedAt < cutoff, ct),
-                (batch, ct) => PurgeBatchAsync(db, cutoff, batch, ct),
+                (batch, ct) => PurgeBatchAsync(db, avatars, cutoff, batch, ct),
                 _logger, cancellationToken);
         }
 
-        private static async Task<int> PurgeBatchAsync(DbContext db, DateTime cutoff, int batchSize, CancellationToken ct)
+        private async Task<int> PurgeBatchAsync(DbContext db, IAvatarStorage? avatars, DateTime cutoff, int batchSize, CancellationToken ct)
         {
             var ids = await db.Set<User>().IgnoreQueryFilters()
                 .Where(u => u.IsDeleted && u.DeletedAt < cutoff)
@@ -74,7 +78,26 @@ namespace Planora.Auth.Infrastructure.Retention
             await db.Set<UserRecoveryCode>().IgnoreQueryFilters().Where(c => ids.Contains(c.UserId)).ExecuteDeleteAsync(ct);
             await db.Set<UserRole>().IgnoreQueryFilters().Where(r => ids.Contains(r.UserId)).ExecuteDeleteAsync(ct);
 
-            return await db.Set<User>().IgnoreQueryFilters().Where(u => ids.Contains(u.Id)).ExecuteDeleteAsync(ct);
+            var purged = await db.Set<User>().IgnoreQueryFilters().Where(u => ids.Contains(u.Id)).ExecuteDeleteAsync(ct);
+
+            // The photo is a public static file, not a row: remove the tree for every purged account.
+            // Best-effort — a locked file must not roll back a purge whose rows are already gone.
+            if (avatars is not null)
+            {
+                foreach (var id in ids)
+                {
+                    try
+                    {
+                        await avatars.DeleteAsync(id, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Retention[{Policy}] could not delete the avatar tree of purged user {UserId}", Name, id);
+                    }
+                }
+            }
+
+            return purged;
         }
     }
 }

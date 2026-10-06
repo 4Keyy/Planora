@@ -70,6 +70,27 @@ dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj
 dotnet test tests/Planora.ErrorHandlingTests/Planora.ErrorHandlingTests.csproj
 ```
 
+### Retention policies on a real PostgreSQL
+
+The suites in `tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres` run every retention policy live —
+dry-run off, the real advisory lock — on each service's own `DbContext` model, because the SQL that deletes
+data (`ExecuteDelete`, `ExecuteUpdate`, `pg_try_advisory_lock`) is PostgreSQL-only and EF InMemory stops
+before it. They cover completed-task deletion with its outbox cascade, the soft-delete purges (children
+before parents, viewer rows, shares and owned tags with them), the per-viewer hide, the notification and
+delivery windows, deleted-account purge with every dependent row and the avatar sweep, token and recovery
+code housekeeping, the opt-in vectors, the outbox/inbox purge, what a deleted account leaves on other
+people's tasks, and the lock itself. Each test creates and drops its own database; without the variable
+they are skipped.
+
+```powershell
+docker run -d --name planora-retention-test -e POSTGRES_PASSWORD=retention-test -p 127.0.0.1:55433:5432 postgres:16-alpine
+$env:PLANORA_TEST_POSTGRES = "Host=127.0.0.1;Port=55433;Username=postgres;Password=retention-test"
+dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --filter "FullyQualifiedName~Retention.Postgres"
+docker rm -f planora-retention-test
+```
+
+CI's backend job runs them on every push against a `postgres:16-alpine` service container.
+
 ## Frontend Commands
 
 Scripts are defined in `frontend/package.json`.
@@ -231,6 +252,7 @@ browser geometry or frame-by-frame motion.
 |---|---|---|---|
 | Portalled content is not under the render `container` | `Overlay` mounts through `ModalPortal` into `<body>`, so a container query finds an empty div and reports zero — which reads as "the overlay renders no pairs" rather than "the query looked in the wrong subtree" | query `document.body` | `frontend/src/test/components/shortcuts-overlay.test.tsx` |
 | `NumberRoll` renders its digit twice by design | The animated column carries one copy and `<span class="sr-only">` the other, so `getByText` throws "found multiple elements" on a component that is behaving correctly | `getAllByText` | `frontend/src/test/components/redaction-badge.test.tsx` |
+| jsdom has no `AnimationEvent`, so React listens for `webkitAnimationEnd` | `fireEvent.animationEnd` dispatches `animationend`, which React does not hear in jsdom: a CSS-presence surface (`useExitPresence`) never unmounts and the test fails against working code | fire both names (`endAnimation` helper) | `frontend/src/test/hooks/use-exit-presence.test.tsx` |
 | `HTMLElement.prototype.scrollIntoView` shadows an `Element.prototype` stub | `frontend/src/test/setup.ts` already defines the method on `HTMLElement.prototype`. A spy installed on `Element.prototype` is never reached, because the call on an `HTMLElement` resolves the nearer prototype first — so it records zero calls and the assertion fails against working code | spy on `HTMLElement.prototype` | `frontend/src/test/hooks/use-list-navigation.test.tsx` |
 | `userEvent.keyboard("J")` does not set `shiftKey` | It types the character `J` with `shiftKey: false`. A Shift binding tested this way covers nothing and stays green | write `{Shift>}J{/Shift}` | `frontend/src/test/hooks/use-list-navigation.test.tsx` |
 | jsdom has no layout, so it never updates `scrollY` and never fires `scroll` | A scroll-dependent policy is simply never entered, and every branch of it reads as the top-of-list case | assign `window.scrollY` / `element.scrollTop` and dispatch a `scroll` event by hand | `frontend/src/test/components/update-pill.test.tsx` |
@@ -354,7 +376,8 @@ markdownlint-cli2
 lychee --offline --no-progress README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md TESTING.md ARCHITECTURE.md 'docs/**/*.md'
 ```
 
-Backend:
+Backend (with a `postgres:16-alpine` service container and `PLANORA_TEST_POSTGRES` set, so the retention
+policies run live — see "Retention policies on a real PostgreSQL"):
 
 ```powershell
 dotnet restore Planora.sln
@@ -514,6 +537,6 @@ These are documentation observations, not claims of missing tests after running 
 | Browser-rendered breadth | Existing UI specs cover sign-in/register/recovery/verification, profile rename and basic task-page entry. They do not cover every branch reply, autosave, ownership, viewport or failure state. |
 | Full multi-service integration breadth | The e2e suite covers auth/todos/sharing/hidden, but messaging/realtime and admin flows are not covered end-to-end. |
 | Production smoke tests | The repository has a production baseline, but no deployment environment smoke workflow. |
-| Relational persistence | Many backend repository/factory tests use EF InMemory; passing them does not verify PostgreSQL-specific SQL, constraints or transaction behavior. |
+| Relational persistence | Many backend repository/factory tests use EF InMemory; passing them does not verify PostgreSQL-specific SQL, constraints or transaction behavior. The retention policies are the exception: they run live on PostgreSQL (see above). |
 | Excluded frontend source | Route pages and the full branch-editor subtree are excluded from numeric coverage; audit their behavior independently. |
 | Session transitions | Friend cache isolation across accounts, scheduled refresh after later login and long-lived realtime reconnect exhaustion need targeted regression coverage. |

@@ -4,11 +4,13 @@ using Planora.BuildingBlocks.Infrastructure.Observability;
 namespace Planora.BuildingBlocks.Infrastructure.Retention
 {
     /// <summary>
-    /// Daily scheduler that runs every registered <see cref="IRetentionPolicy"/> once per day at the
-    /// configured off-peak UTC hour. Follows the <c>OutboxProcessor</c> shape (a <see cref="BackgroundService"/>
-    /// that opens a fresh DI scope per unit of work) but on a once-a-day cadence rather than a 5-second poll.
-    /// Every delete is idempotent, so a rare double-run (e.g. across a restart) is harmless; the advisory
-    /// lock inside each policy prevents two replicas purging concurrently.
+    /// Scheduler that runs every registered <see cref="IRetentionPolicy"/> every
+    /// <see cref="RetentionOptions.RunEveryHours"/> hours (hourly by default; 24 for a single daily pass at
+    /// <see cref="RetentionOptions.RunAtHourUtc"/>), plus a catch-up pass shortly after startup. Follows the
+    /// <c>OutboxProcessor</c> shape (a <see cref="BackgroundService"/> that opens a fresh DI scope per unit of
+    /// work) on an hourly cadence rather than a 5-second poll. Every delete is idempotent, so a rare
+    /// double-run (e.g. across a restart) is harmless; the advisory lock inside each policy prevents two
+    /// replicas purging concurrently.
     /// </summary>
     public sealed class RetentionBackgroundService : BackgroundService
     {
@@ -38,8 +40,8 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
             }
 
             _logger.LogInformation(
-                "Retention scheduler started — daily at {Hour:00}:00 UTC, dry-run={DryRun}, runOnStartup={RunOnStartup}, {PolicyCount} policy(ies) registered",
-                _options.RunAtHourUtc, _options.DryRun, _options.RunOnStartup, _policies.Count());
+                "Retention scheduler started — every {EveryHours}h from {Hour:00}:00 UTC, dry-run={DryRun}, runOnStartup={RunOnStartup}, {PolicyCount} policy(ies) registered",
+                Math.Clamp(_options.RunEveryHours, 1, 24), _options.RunAtHourUtc, _options.DryRun, _options.RunOnStartup, _policies.Count());
 
             // Startup catch-up pass: on every launch, purge data that is already past its window instead of
             // waiting for the next RunAtHourUtc. A short delay first lets the database and broker come up so
@@ -62,7 +64,7 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                var delay = ComputeDelayToNextRun(DateTime.UtcNow, _options.RunAtHourUtc);
+                var delay = ComputeDelayToNextRun(DateTime.UtcNow, _options.RunAtHourUtc, _options.RunEveryHours);
                 try
                 {
                     await Task.Delay(delay, stoppingToken);
@@ -122,14 +124,18 @@ namespace Planora.BuildingBlocks.Infrastructure.Retention
         }
 
         /// <summary>
-        /// Delay from <paramref name="utcNow"/> until the next occurrence of <paramref name="runAtHourUtc"/>.
+        /// Delay from <paramref name="utcNow"/> until the next pass: the first slot strictly after now on the
+        /// grid that starts at today's <paramref name="runAtHourUtc"/> and steps every
+        /// <paramref name="everyHours"/> (clamped to 1–24). With 24 that is "the next <paramref name="runAtHourUtc"/>".
         /// Pure and static so the scheduling maths is unit-testable without a clock abstraction.
         /// </summary>
-        internal static TimeSpan ComputeDelayToNextRun(DateTime utcNow, int runAtHourUtc)
+        internal static TimeSpan ComputeDelayToNextRun(DateTime utcNow, int runAtHourUtc, int everyHours = 24)
         {
             var hour = Math.Clamp(runAtHourUtc, 0, 23);
-            var todayRun = new DateTime(utcNow.Year, utcNow.Month, utcNow.Day, hour, 0, 0, DateTimeKind.Utc);
-            var nextRun = utcNow < todayRun ? todayRun : todayRun.AddDays(1);
+            var step = TimeSpan.FromHours(Math.Clamp(everyHours, 1, 24));
+            var anchor = new DateTime(utcNow.Year, utcNow.Month, utcNow.Day, hour, 0, 0, DateTimeKind.Utc);
+            var slotsElapsed = Math.Floor((utcNow - anchor) / step);
+            var nextRun = anchor + step * (slotsElapsed + 1);
             return nextRun - utcNow;
         }
     }

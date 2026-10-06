@@ -538,14 +538,17 @@ ADRs are stored in [`DECISIONS/`](DECISIONS/):
 
 ## Data Retention subsystem
 
-A daily background purge that physically removes stale data, keeping storage bounded and honouring data
-minimisation. Design decisions (ADR):
+An hourly background purge that physically removes stale data, keeping storage bounded, honouring data
+minimisation and keeping the promises the UI makes (the completed archive counts down to each task's
+removal). Design decisions (ADR):
 
 - **Per-service, not central.** Each service owns its database, so the `RetentionBackgroundService` (shared
   `BuildingBlocks.Infrastructure.Retention`) runs inside every service and purges only its own tables — a
   central cleaner cannot reach another service's DB without breaking the ownership boundary.
-- **Modelled on `OutboxProcessor`.** A `BackgroundService` that opens a fresh DI scope per policy, but on a
-  once-a-day off-peak schedule (`RunAtHourUtc`) instead of a poll loop.
+- **Modelled on `OutboxProcessor`.** A `BackgroundService` that opens a fresh DI scope per policy, on an
+  hourly schedule anchored at `RunAtHourUtc` (`RunEveryHours`, default 1; 24 gives one off-peak pass a
+  day) plus a catch-up pass shortly after every start, instead of a poll loop. It was once a day; the
+  archive's "deletes today" could then be a day early.
 - **Safety by construction (`RetentionExecutor`).** Every pass takes a Postgres session-level advisory lock
   (the single-instance guard — there is no other leader election), aborts via a tripwire if more than
   `MaxDeletionsPerRun` rows are eligible, supports a dry-run mode, and deletes in batches. `planora.retention.*`
@@ -563,5 +566,8 @@ minimisation. Design decisions (ADR):
   notifications (they carry a `TaskId`/`UserId` but no cross-service foreign key), so a deleted task/user no
   longer orphans its notification log.
 
-Ships **disabled** and **dry-run by default**; the forensics vectors (login history, audit log) are
-additionally opt-in.
+**Runs by default** (`Enabled=true`, `DryRun=false`). It used to ship disabled and in dry-run, waiting for
+an operator rollout no environment ever had: until October 2026 every service logged "scheduler idle" and
+nothing past its window was ever deleted. The forensics vectors (login history, audit log) and the
+user-content vectors (friendships, messages) stay opt-in. Every policy is exercised live on PostgreSQL by
+`tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres` (CI runs them against a service container).
