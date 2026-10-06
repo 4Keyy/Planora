@@ -482,6 +482,15 @@ and position-only layout motion with `SPRING_LAYOUT`; height changes do not
 stretch the card's contents. The entrance stagger applies to the first paint,
 not later insertions.
 
+HTML motion surfaces import `motion` from `@/components/ui/motion`; hooks, controls,
+types and `AnimatePresence` still come from `framer-motion`. The shared facade gives
+animated opacity an externally created `MotionValue`, keeping it on Framer's frame
+renderer to avoid Framer 11's native-animation cancellation resetting opacity for
+one frame. Existing transform targets, transitions and layout projection remain
+unchanged. Geometry-only elements keep their CSS opacity; caller-owned motion
+values and SVG tags retain native behavior. Do not bypass the facade for a new
+HTML fade without checking its native-animation completion in the browser.
+
 ### Landing sandbox boundary
 
 `DemoSandbox` waits for hydration and real-session restoration. A signed-in

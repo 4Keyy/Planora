@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { DURATION_DELIBERATE, EASE_OUT_EXPO } from "@/lib/animations"
 import { cn } from "@/lib/utils"
 

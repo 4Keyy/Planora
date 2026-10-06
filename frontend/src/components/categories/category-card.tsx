@@ -1,11 +1,12 @@
 "use client"
 
 import { forwardRef, useState, type CSSProperties } from "react"
-import { AnimatePresence, motion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Folder, Trash2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import {
-  HOVER_LIFT, SPRING_RESPONSIVE, TAP_CARD, TAP_PRESS,
+  HOVER_LIFT, SPRING_LAYOUT, SPRING_RESPONSIVE, TAP_CARD, TAP_PRESS,
   TWEEN_EXIT, TWEEN_UI, VARIANTS_CARD,
 } from "@/lib/animations"
 import { ICON_MAP } from "@/lib/icon-map"
@@ -17,7 +18,10 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
   category: Category
   onEdit: () => void
   onDelete: () => void
-}>(function CategoryCard({ category, onEdit, onDelete }, ref) {
+  /** Reading-order stagger on the page's first loaded grid only. */
+  entranceDelay?: number
+}>(function CategoryCard({ category, onEdit, onDelete, entranceDelay = 0 }, ref) {
+  const reduce = useReducedMotion() ?? false
   const CategoryIcon = category.icon ? (ICON_MAP[category.icon] ?? Folder) : Folder
   const accentColor = category.color?.trim() || "var(--pl-accent)"
   const glowStyle = {
@@ -25,6 +29,7 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
   } as CSSProperties
   const [isDeleteZoneHovered, setIsDeleteZoneHovered] = useState(false)
   const [isDeleteZoneFocused, setIsDeleteZoneFocused] = useState(false)
+  const [entrancePending, setEntrancePending] = useState(true)
 
   return (
     <motion.div
@@ -34,12 +39,24 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
       // Size layout would scale the rounded surface as neighbours leave the grid.
       layout="position"
       initial={VARIANTS_CARD.hidden}
-      animate={VARIANTS_CARD.visible}
+      animate={{
+        ...VARIANTS_CARD.visible,
+        transition: reduce ? { duration: 0 } : { ...SPRING_RESPONSIVE, delay: entrancePending ? entranceDelay : 0 },
+      }}
       exit={VARIANTS_CARD.exit}
       whileHover={isDeleteZoneHovered ? undefined : HOVER_LIFT}
       whileTap={TAP_CARD}
-      transition={SPRING_RESPONSIVE}
-      className="group/card relative"
+      transition={{
+        layout: reduce ? { duration: 0 } : SPRING_LAYOUT,
+        default: reduce ? { duration: 0 } : SPRING_RESPONSIVE,
+      }}
+      onAnimationComplete={() => setEntrancePending(false)}
+      onHoverStart={() => setEntrancePending(false)}
+      onClick={(e) => {
+        rememberOrigin(e.currentTarget.querySelector<HTMLElement>("[data-category-card]") ?? e.currentTarget)
+        onEdit()
+      }}
+      className="group/card relative cursor-pointer"
     >
       {/* Keep the moving layer free of clipping and shadows, as on task cards:
           repainting a rounded shadow on that layer can leave hover artefacts.
@@ -106,10 +123,6 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
 
         <button
           type="button"
-          onClick={(e) => {
-            rememberOrigin(e.currentTarget.closest<HTMLElement>("[data-category-card]") ?? e.currentTarget)
-            onEdit()
-          }}
           aria-label={`Edit category ${category.name}`}
           // Keep the focus outline inside the surface's clipped edge.
           className="relative z-10 flex w-full items-center gap-4 rounded-lg p-5 pr-14 text-left focus-visible:-outline-offset-2 md:pr-5"

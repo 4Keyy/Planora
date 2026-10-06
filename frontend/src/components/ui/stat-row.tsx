@@ -1,6 +1,7 @@
 "use client"
 
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import type { LucideIcon } from "lucide-react"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"

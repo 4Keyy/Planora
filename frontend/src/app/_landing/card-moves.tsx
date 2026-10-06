@@ -1,7 +1,8 @@
 "use client"
 
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useInView, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { AlarmClock, Check, Palette, Users, Zap } from "lucide-react"
 import { TodoCard } from "@/components/todos/todo-card"
 import { Button } from "@/components/ui/button"

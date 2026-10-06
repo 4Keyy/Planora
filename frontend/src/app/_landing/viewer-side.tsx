@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo, useReducer, type ReactNode } from "react"
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { TodoCard } from "@/components/todos/todo-card"
 import { Button } from "@/components/ui/button"
 import { DURATION_DELIBERATE, DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO, EASE_STANDARD } from "@/lib/animations"

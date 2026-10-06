@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { ArrowUp } from "lucide-react"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { TWEEN_EXIT, TWEEN_UI } from "@/lib/animations"

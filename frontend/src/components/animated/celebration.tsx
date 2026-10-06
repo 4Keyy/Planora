@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { DURATION_DELIBERATE, DURATION_SLOW, EASE_OUT_EXPO } from "@/lib/animations"

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react"
-import { motion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SPRING_LAYOUT, TAP_PRESS, TWEEN_FAST } from "@/lib/animations"

@@ -1,7 +1,8 @@
 "use client"
 
 import { memo } from "react"
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { getNotificationKind } from "@/lib/notifications/types"
 import { NotificationBadge, PING_TRANSITION } from "./notification-badge"
 import { SPRING_RESPONSIVE } from "@/lib/animations"

@@ -1,7 +1,8 @@
 "use client"
 
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react"
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Plus } from "lucide-react"
 import { SHARING_CEILING, viewerValueText } from "@/lib/landing-audience"
 import { SPRING_GENTLE, SPRING_STANDARD, TWEEN_FAST } from "@/lib/animations"

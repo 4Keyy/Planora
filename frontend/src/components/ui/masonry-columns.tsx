@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useLayoutEffect, useMemo, useState, useRef, type ReactNode } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { AnimatePresence } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { cn } from "@/lib/utils"
 import { SPRING_LAYOUT, SPRING_STANDARD, TWEEN_EXIT } from "@/lib/animations"
 

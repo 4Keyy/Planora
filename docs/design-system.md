@@ -295,6 +295,15 @@ depends on the browser, layers and surrounding content.
 | `SPRING_GENTLE` | 260 / 24 | Presence, decorative. Floats into place. Ratio 0.74 (3%) |
 | `SPRING_LAYOUT` | 400 / 40 | Travel — a surface growing out of a card, a pill becoming a circle, a list closing a gap. Critically damped (ratio 1.0): lands without passing its target, settles in about 0.3s |
 
+### DOM motion
+
+HTML motion components use `motion` from `@/components/ui/motion`; Framer hooks,
+controls, types and presence stay imported from `framer-motion`. The shared facade
+renders animated opacity through an externally owned `MotionValue` to avoid
+Framer 11's one-frame opacity reset at native-animation cancellation. It preserves
+existing transition targets, CSS opacity on geometry-only nodes, supplied motion
+values and SVG behavior.
+
 ### Reduced motion
 
 Three separate mechanisms, because no single one reaches everywhere:
@@ -386,12 +395,16 @@ CSS (`.dropdown-surface` in `globals.css`) and kept mounted through its exit by
    (a row's bubbling one does not count) and falls back to a timer when no animation runs, so
    an invisible surface is never left behind catching clicks. The phone menu's scrim fades on
    the same presence with `.backdrop-surface`.
-5. **Dialogs follow the same rules.** `Overlay` (and through it "Choose categories", the
-   category editor and the shortcuts sheet) and `ConfirmDialog` fade their scrim with
+5. **Ordinary dialogs follow the same rules.** `Overlay` (and through it "Choose categories"
+   and the shortcuts sheet) and `ConfirmDialog` fade their scrim with
    `.backdrop-surface` and raise the dialog 8px with `.dialog-surface` — `base` in, `fast` out.
    While a dialog folds away it lets clicks through to the page it is uncovering. The task
-   editor keeps framer-motion for its one choreography, the surface growing out of the card
-   that was pressed (§ 9.3).
+   editor and the category editor's `animateFromOrigin` overlay share the card-to-dialog
+   choreography: `SPRING_LAYOUT` in, 220ms `EASE_STANDARD` back to the pressed card,
+   `TWEEN_FAST` scrim. New Category uses the task editor's centered fallback with its
+   160ms exit. Controlled animation completion keeps the surface mounted through exit;
+   an interrupted entrance leaves from its current pose, and rapid reopening invalidates
+   the old exit completion. Reduced motion keeps the fade without transform travel (§ 9.3).
 
 ### Direction carries meaning
 

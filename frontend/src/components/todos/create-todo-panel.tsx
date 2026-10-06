@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import {
   ArrowRight,
   Calendar,

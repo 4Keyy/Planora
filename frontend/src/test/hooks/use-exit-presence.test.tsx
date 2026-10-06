@@ -2,8 +2,8 @@ import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { useExitPresence } from "@/hooks/use-exit-presence"
 
-function Surface({ open }: { open: boolean }) {
-  const { mounted, presenceProps } = useExitPresence(open)
+function Surface({ open, exitMs }: { open: boolean; exitMs?: number }) {
+  const { mounted, presenceProps } = useExitPresence(open, exitMs)
   if (!mounted) return null
   return (
     <div data-testid="surface" {...presenceProps}>
@@ -27,6 +27,24 @@ function endAnimation(el: Element) {
 }
 
 describe("useExitPresence", () => {
+  it("accepts a controlled animation's completion without unmounting a reopened surface", () => {
+    let completeExit = () => {}
+    function ControlledSurface({ open }: { open: boolean }) {
+      const presence = useExitPresence(open, 220)
+      completeExit = presence.finishExit
+      return presence.mounted ? <div data-testid="controlled" {...presence.presenceProps} /> : null
+    }
+    const view = render(<ControlledSurface open />)
+    view.rerender(<ControlledSurface open={false} />)
+    view.rerender(<ControlledSurface open />)
+    act(() => completeExit())
+    expect(screen.getByTestId("controlled")).toHaveAttribute("data-state", "open")
+
+    view.rerender(<ControlledSurface open={false} />)
+    act(() => completeExit())
+    expect(screen.queryByTestId("controlled")).toBeNull()
+  })
+
   it("renders nothing until it is opened, then the surface in its open state", () => {
     const { rerender } = render(<Surface open={false} />)
     expect(screen.queryByTestId("surface")).toBeNull()
@@ -73,6 +91,16 @@ describe("useExitPresence", () => {
     act(() => {
       vi.advanceTimersByTime(400)
     })
+    expect(screen.queryByTestId("surface")).toBeNull()
+  })
+
+  it.each([160, 220])("keeps a stalled controlled exit for its %ims duration and fallback margin", (exitMs) => {
+    vi.useFakeTimers()
+    const view = render(<Surface open exitMs={exitMs} />)
+    view.rerender(<Surface open={false} exitMs={exitMs} />)
+    act(() => vi.advanceTimersByTime(exitMs + 99))
+    expect(screen.getByTestId("surface")).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1))
     expect(screen.queryByTestId("surface")).toBeNull()
   })
 

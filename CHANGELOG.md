@@ -6,6 +6,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Fixed
 
+- Categories: initial card entrances, position-only rearrangement, and editor opening/closing now follow the task motion presets. The full card opens its editor from the card's static geometry; New Category uses the task editor's centered fallback. Interrupted entrances and rapid reopening retain a continuous pose without changing dialog sizes or form behavior.
 - Completed archive: retention-hidden shared/public tasks are excluded before counting and paging, while their personal completion stays set so they do not return to Active. The filter plate stays mounted when categories arrive late or fail; later requests keep the current cards while loading and cannot overwrite a newer date/page selection. Failed changes of criteria show the retry panel instead of displaying old results as the new selection.
 - Account cleanup reliability: Auth now commits `UserDeletedIntegrationEvent` in its outbox together with account deletion, so a broker or Redis failure cannot lose the cross-service cleanup event. Avatar removal is attempted even when security-stamp rotation fails; physical retention keeps an account and its dependents until avatar cleanup succeeds, without blocking other accounts. Outbox dispatch now honours scheduled retry timestamps instead of exhausting the retry budget during a brief outage.
 - Data retention configuration: Docker Compose now forwards every retention switch and window to all six backend services, including explicit `Enabled=false` and `DryRun=true` overrides. Intervals from 1 to 24 hours use a continuous UTC grid, so settings such as seven hours no longer shorten at midnight.
@@ -19,6 +20,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - Dropdowns: no dropdown blinks any more half a second after it opens, and none reappears for a frame after it closes. Every dropdown — the New task pickers, the task editor's pickers and attach menu, the archive's date filter, notifications, the account and phone menus, the Radix menus — now enters and leaves with one CSS motion (`.dropdown-surface` in `globals.css`, kept mounted by the new `useExitPresence` hook): the sheet unfolds out of its trigger, its rows pour out one after another, and it folds back faster than it came. The framer-motion springs they replaced overshot and settled in two waves, and framer's hand-off from the Web Animations API left each surface at its starting opacity for a frame after opening and at full opacity for a frame after closing.
 - Dialogs: opening a task (or any dialog) no longer slides the page behind it 5px to the left. `useScrollLock` now locks scrolling on `<html>`, the element that scrolls, and no longer pads `<body>` by the scrollbar's width — `scrollbar-gutter: stable` already keeps that lane reserved, so the padding pushed the layout sideways. The lock also stops the wheel from scrolling the page behind a dialog, which the old `<body>` lock never did.
 - Category cards: separate the moving wrapper from the clipped, rounded shadow surface to address reported black flickering dots beneath cards during rapid pointer movement. Cards now follow task-card motion and styling, with category-coloured hover glow, a desktop gradient delete panel, and a neutral mobile delete button.
+
+### Performance
+
+- Shared UI motion no longer resets animated opacity for a frame when Framer 11 cancels
+  a completed native animation. HTML motion consumers now use a shared public `MotionValue`
+  facade for opacity while retaining their existing springs, geometry and gestures. A paired
+  production-build check of Dashboard, Tasks, Completed and Categories with rich/extreme
+  fixtures recorded 559 opacity reversions before the change and zero after it. Final Google
+  Chrome desktop/mobile, resize and reduced-motion checks also passed. This does not establish
+  an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
+  inspected frames.
 
 ### test(ci): await landing branch entry frames (2026-10-06)
 

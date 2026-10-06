@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState, type FocusEventHandler, type PointerEventHandler, type ReactNode } from "react"
-import { motion, useMotionValueEvent, useReducedMotion, useScroll } from "framer-motion"
+import { useMotionValueEvent, useReducedMotion, useScroll } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { DROPLET_OPEN, DROPLET_START, trackDropletScroll, type DropletScroll, type DropletTrack } from "@/lib/droplet"
 import { SPRING_STANDARD } from "@/lib/animations"
 import { cn } from "@/lib/utils"

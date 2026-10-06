@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, type ReactNode } from "react"
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { redactionArc, type Audience } from "@/components/ui/redaction-badge"
 import { DURATION_DELIBERATE, DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
 import { cn } from "@/lib/utils"

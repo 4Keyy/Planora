@@ -2,7 +2,8 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, useId } from "react"
 import { useRouter } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
+import { AnimatePresence } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO } from "@/lib/animations"
 import { Plus, Folder, X } from "lucide-react"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
@@ -24,6 +25,7 @@ import { StatusPanel } from "@/components/ui/status-panel"
 import { PageHeader } from "@/components/layout/page-header"
 import { CategoryCard } from "@/components/categories/category-card"
 import { CategoryCardSkeleton } from "@/components/categories/category-card-skeleton"
+import { forgetOrigin } from "@/lib/shared-origin"
 
 type CategoryFormData = {
   name: string
@@ -147,7 +149,7 @@ function CategoryModal({
       hideHeader
       labelledBy={headingId}
       className="max-w-3xl"
-      animateFromOrigin={autosave}
+      animateFromOrigin
     >
       <div className="p-6 sm:p-8">
         <div className="flex items-start justify-between gap-4">
@@ -307,6 +309,15 @@ export default function CategoriesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null)
+  const hasLoadedGrid = useRef(false)
+  useEffect(() => {
+    if (!loading) hasLoadedGrid.current = true
+  }, [loading])
+
+  const openCreate = useCallback(() => {
+    forgetOrigin()
+    setIsCreateOpen(true)
+  }, [])
 
   /**
    * Fetch categories from API
@@ -328,15 +339,15 @@ export default function CategoriesPage() {
     const handler = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() !== "c") return
       if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
-      if (isCreateOpen) return
+      if (isCreateOpen || editingCategory || deletingCategory) return
       const target = e.target as HTMLElement
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
       e.preventDefault()
-      setIsCreateOpen(true)
+      openCreate()
     }
     window.addEventListener("keydown", handler, true)
     return () => window.removeEventListener("keydown", handler, true)
-  }, [isCreateOpen])
+  }, [isCreateOpen, editingCategory, deletingCategory, openCreate])
 
   /**
    * Initialize on mount
@@ -448,7 +459,7 @@ export default function CategoriesPage() {
         actions={
           // The shortcut hint is visual; `aria-keyshortcuts` carries it to assistive tech,
           // so the button is not announced as "New category c".
-          <Button onClick={() => setIsCreateOpen(true)} aria-keyshortcuts="c" className="w-full sm:w-auto">
+          <Button onClick={openCreate} aria-keyshortcuts="c" className="w-full sm:w-auto">
             <Plus className="h-4 w-4" aria-hidden="true" />
             New category
             <kbd
@@ -473,20 +484,21 @@ export default function CategoriesPage() {
           icon={Folder}
           title="No categories yet"
           description="Categories group tasks the way you think about them: home, work, a trip."
-          action={{ label: "Create a category", onClick: () => setIsCreateOpen(true) }}
+          action={{ label: "Create a category", onClick: openCreate }}
         />
       ) : (
         // The presence wraps the cards, not the grid: wrapped round the grid it had one child
         // that never left, so a deleted category vanished in a frame while its neighbours
         // glided. `relative` is the offset parent a leaving card is pinned to.
         <div className="relative grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {categories.map((category) => (
+          <AnimatePresence mode="popLayout">
+            {categories.map((category, index) => (
               <CategoryCard
                 key={category.id}
                 category={category}
                 onEdit={() => setEditingCategory(category)}
                 onDelete={() => setDeletingCategory(category)}
+                entranceDelay={hasLoadedGrid.current ? 0 : Math.min(index, 8) * 0.04}
               />
             ))}
           </AnimatePresence>

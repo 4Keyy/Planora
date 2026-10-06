@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import {
   ArrowDown,
   Fingerprint,

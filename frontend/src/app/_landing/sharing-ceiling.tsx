@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { AnimatePresence, motion, useInView, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useInView, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { ShieldCheck } from "lucide-react"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
 import { NumberRoll } from "@/components/ui/number-roll"

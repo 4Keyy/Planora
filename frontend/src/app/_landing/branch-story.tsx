@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { motion, useInView, useReducedMotion } from "framer-motion"
+import { useInView, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Check, ChevronLeft, ChevronRight, FileText, Play, RotateCcw } from "lucide-react"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"

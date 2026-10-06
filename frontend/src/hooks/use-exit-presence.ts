@@ -1,11 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useState, type AnimationEvent } from "react"
+import { useCallback, useEffect, useRef, useState, type AnimationEvent } from "react"
 import { tokens } from "@/lib/design-tokens"
 
 /**
- * Keeps a floating surface mounted through its exit animation, and leaves both of its
- * animations to CSS (`DROPDOWN_MOTION` in `components/ui/surfaces.ts`).
+ * Keeps a floating surface mounted through its exit animation. CSS surfaces spread
+ * `presenceProps`; controlled motion surfaces call `finishExit` after their own exit.
  *
  * The surfaces used to animate with framer-motion, and every one of them ended with a
  * tic. framer-motion 11 hands `opacity` to the Web Animations API and, when that
@@ -26,7 +26,8 @@ import { tokens } from "@/lib/design-tokens"
  * the animation, and give it the enter/exit animation for `data-state="open"` and
  * `data-state="closed"`. The exit's own `animationend` unmounts it; the timer only
  * catches the case where no animation runs at all (jsdom, `display: none`, an
- * interrupted animation), so a surface can never be left behind invisible.
+ * interrupted animation), so a surface can never be left behind invisible. A controlled
+ * surface also guards its completion against an earlier, interrupted closing run.
  */
 
 /** How long after the exit should have ended the fallback gives up waiting for it. */
@@ -37,6 +38,8 @@ export type PresenceState = "open" | "closed"
 export interface ExitPresence {
   /** Render the surface while this is true: `open`, or still folding away. */
   mounted: boolean
+  /** Complete a controlled exit; ignored if the surface has reopened. */
+  finishExit: () => void
   /** Spread onto the animated element. */
   presenceProps: {
     "data-state": PresenceState
@@ -46,6 +49,12 @@ export interface ExitPresence {
 
 export function useExitPresence(open: boolean, exitMs: number = tokens.motion.duration.fast): ExitPresence {
   const [present, setPresent] = useState(open)
+  const openRef = useRef(open)
+  openRef.current = open
+
+  const finishExit = useCallback(() => {
+    if (!openRef.current) setPresent(false)
+  }, [])
 
   useEffect(() => {
     if (open) {
@@ -65,6 +74,7 @@ export function useExitPresence(open: boolean, exitMs: number = tokens.motion.du
 
   return {
     mounted: open || present,
+    finishExit,
     presenceProps: { "data-state": open ? "open" : "closed", onAnimationEnd },
   }
 }

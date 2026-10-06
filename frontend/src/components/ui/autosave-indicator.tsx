@@ -1,6 +1,7 @@
 "use client"
 
-import { AnimatePresence, motion } from "framer-motion"
+import { AnimatePresence } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Check, Loader2, RotateCw } from "lucide-react"
 import type { AutosaveStatus } from "@/hooks/use-autosave"
 import { SPRING_RESPONSIVE, TWEEN_EXIT, TWEEN_FAST } from "@/lib/animations"

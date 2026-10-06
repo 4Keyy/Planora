@@ -1,6 +1,7 @@
 "use client"
 
-import { AnimatePresence, motion } from "framer-motion"
+import { AnimatePresence } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { X, type LucideIcon } from "lucide-react"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { EASE_OUT_EXPO, DURATION_UI, SPRING_STANDARD } from "@/lib/animations"

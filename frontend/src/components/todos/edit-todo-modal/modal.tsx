@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import Link from "next/link"
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { X, ExternalLink, ArrowLeft } from "lucide-react"
 import { ModalPortal }      from "@/components/ui/modal-portal"
 import { useAutosave }      from "@/hooks/use-autosave"

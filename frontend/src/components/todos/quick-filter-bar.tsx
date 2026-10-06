@@ -1,6 +1,7 @@
 "use client"
 
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { SlidersHorizontal, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PLATE_ROW, PLATE_SURFACE, PLATE_ICON } from "@/components/todos/plate"

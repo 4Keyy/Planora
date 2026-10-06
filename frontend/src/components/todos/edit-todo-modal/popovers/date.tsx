@@ -2,7 +2,8 @@
 
 import { RefObject, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { SPRING_STANDARD, TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
 import { Popover, PopoverHeader } from "../popover"
 import { EN_MONTHS_LONG, EN_DAYS_SHORT, computeNextDueRange, type DueRange } from "../utils"

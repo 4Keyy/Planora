@@ -1,7 +1,8 @@
 "use client"
 
 import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from "react"
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import {
   Trash, Check, Calendar, AlertTriangle, Share2, Eye, Clock, Zap, Users,
 } from "lucide-react"

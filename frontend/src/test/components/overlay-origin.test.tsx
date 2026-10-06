@@ -1,9 +1,9 @@
 import { useMemo } from "react"
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Overlay } from "@/components/ui/overlay"
-import { SPRING_LAYOUT, TWEEN_FAST } from "@/lib/animations"
+import { DURATION_FAST, DURATION_UI, EASE_STANDARD, SPRING_LAYOUT, TWEEN_FAST } from "@/lib/animations"
 import { forgetOrigin, rememberOrigin, takeOrigin } from "@/lib/shared-origin"
 
 const motionCalls = vi.hoisted(() => ({
@@ -11,6 +11,8 @@ const motionCalls = vi.hoisted(() => ({
   start: vi.fn(),
   stop: vi.fn(),
   reduce: false,
+  deferExits: false,
+  exitResolvers: [] as Array<() => void>,
   controllers: new Set<import("framer-motion").AnimationControls>(),
 }))
 
@@ -30,6 +32,9 @@ vi.mock("framer-motion", async (importOriginal) => {
         },
         start: (...args: Parameters<typeof controls.start>) => {
           motionCalls.start(...args)
+          if (motionCalls.deferExits && typeof args[0] === "object" && "opacity" in args[0] && args[0].opacity === 0) {
+            return new Promise<void>((resolve) => motionCalls.exitResolvers.push(resolve))
+          }
           return controls.start(...args)
         },
         stop: () => {
@@ -53,6 +58,8 @@ function recordCard(left = 40, top = 120) {
 beforeEach(() => {
   vi.clearAllMocks()
   motionCalls.reduce = false
+  motionCalls.deferExits = false
+  motionCalls.exitResolvers = []
   motionCalls.controllers.clear()
   forgetOrigin()
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
@@ -87,7 +94,7 @@ describe("Overlay opening from a card", () => {
     expect(motionCalls.start).toHaveBeenCalledWith(resting, SPRING_LAYOUT)
   })
 
-  it("consumes the next card on each open edge, including reopening during the CSS exit", () => {
+  it("consumes the next card on each open edge, including reopening during the exit", () => {
     const onClose = vi.fn()
     const view = render(<Overlay open={false} animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
     recordCard()
@@ -99,7 +106,7 @@ describe("Overlay opening from a card", () => {
     view.rerender(<Overlay open animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
 
     expect(motionCalls.set).toHaveBeenLastCalledWith({ opacity: 0, scale: 0.55, x: -145, y: -90 })
-    expect(dialogStarts()).toBe(2)
+    expect(dialogStarts()).toBe(3)
     expect(takeOrigin()).toBeNull()
   })
 
@@ -131,9 +138,27 @@ describe("Overlay opening from a card", () => {
     expect(screen.getByText("saved content")).toBeInTheDocument()
   })
 
-  it("leaves ordinary overlays and create-category entrances on their existing CSS animation", () => {
+  it("ignores an old exit completion after reopening and closing again", async () => {
+    motionCalls.deferExits = true
     recordCard()
-    render(<Overlay open onClose={vi.fn()} title="New category">body</Overlay>)
+    const onClose = vi.fn()
+    const view = render(<Overlay open animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
+    view.rerender(<Overlay open={false} animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
+    const finishOldDialogExit = motionCalls.exitResolvers.at(-1)!
+    recordCard(400, 300)
+    view.rerender(<Overlay open animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
+    view.rerender(<Overlay open={false} animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
+    const finishCurrentDialogExit = motionCalls.exitResolvers.at(-1)!
+
+    await act(async () => finishOldDialogExit())
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-state", "closed")
+    await act(async () => finishCurrentDialogExit())
+    expect(screen.queryByRole("dialog")).toBeNull()
+  })
+
+  it("leaves ordinary overlays on their existing CSS animation", () => {
+    recordCard()
+    render(<Overlay open onClose={vi.fn()} title="Other dialog">body</Overlay>)
     expect(motionCalls.start).not.toHaveBeenCalled()
     expect(screen.getByRole("dialog").style.animation).toBe("")
     expect(screen.getByRole("dialog")).toHaveClass("dialog-surface")
@@ -149,7 +174,7 @@ describe("Overlay opening from a card", () => {
     expect(takeOrigin()).toBeNull()
   })
 
-  it("stops the entrance and retains the original CSS fold-away until animationend", () => {
+  it("returns to the pressed card with the task editor's exit and unmounts when it finishes", async () => {
     recordCard()
     const onClose = vi.fn()
     const view = render(<Overlay open animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
@@ -160,11 +185,13 @@ describe("Overlay opening from a card", () => {
     expect(motionCalls.stop).toHaveBeenCalled()
     expect(motionCalls.set).toHaveBeenCalledTimes(entranceSetCount)
     expect(dialog).toHaveAttribute("data-state", "closed")
-    expect(dialog.style.animation).toBe("")
+    expect(motionCalls.start).toHaveBeenLastCalledWith(
+      { opacity: 0, scale: 0.55, x: -505, y: -270 },
+      { duration: DURATION_UI, ease: EASE_STANDARD },
+    )
+    expect(dialog.style.animation).toBe("none")
     expect(dialog.parentElement).toHaveClass("pointer-events-none")
-    fireEvent.animationEnd(dialog)
-    fireEvent(dialog, new Event("webkitAnimationEnd", { bubbles: true }))
-    expect(screen.queryByRole("dialog")).toBeNull()
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
   })
 
   it("keeps the current pose and opacity when closing during the entrance", async () => {
@@ -182,11 +209,14 @@ describe("Overlay opening from a card", () => {
     expect(transformAtClose).toContain("0.72")
 
     view.rerender(<Overlay open={false} animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
-    await act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
-    // CSS takes over from this pose; jumping to opacity1/scale1/centre would flash.
+    // Reversing the entrance starts from its current pose rather than flashing at rest.
     expect(dialog.style.opacity).toBe("0.42")
     expect(dialog.style.transform).toBe(transformAtClose)
     expect(dialog).toHaveAttribute("data-state", "closed")
+    expect(motionCalls.start).toHaveBeenLastCalledWith(
+      { opacity: 0, scale: 0.55, x: -505, y: -270 },
+      { duration: DURATION_UI, ease: EASE_STANDARD },
+    )
   })
 
   it.each([false, true])("opens its backdrop with the task editor's TWEEN_FAST (reduced motion: %s)", (reduce) => {
@@ -200,8 +230,20 @@ describe("Overlay opening from a card", () => {
     expect(backdrop).toHaveAttribute("data-state", "open")
     expect(backdrop).toHaveAttribute("aria-hidden", "true")
     view.rerender(<Overlay open={false} animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
-    expect(backdrop.style.animation).toBe("")
+    expect(backdrop.style.animation).toBe("none")
     expect(backdrop).toHaveAttribute("data-state", "closed")
+    expect(motionCalls.start).toHaveBeenCalledWith({ opacity: 0 }, TWEEN_FAST)
+  })
+
+  it.each([false, true])("uses the task fallback exit without a card (reduced motion: %s)", (reduce) => {
+    motionCalls.reduce = reduce
+    const onClose = vi.fn()
+    const view = render(<Overlay open animateFromOrigin onClose={onClose} title="New category">body</Overlay>)
+    view.rerender(<Overlay open={false} animateFromOrigin onClose={onClose} title="New category">body</Overlay>)
+    expect(motionCalls.start).toHaveBeenLastCalledWith(
+      { opacity: 0, scale: reduce ? 1 : 0.95, x: 0, y: reduce ? 0 : 20 },
+      { duration: DURATION_FAST, ease: EASE_STANDARD },
+    )
   })
 
   it("keeps focus trapped and restores it to the category trigger on close", async () => {

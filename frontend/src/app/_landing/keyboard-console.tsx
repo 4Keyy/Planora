@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { TodoCard } from "@/components/todos/todo-card"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"

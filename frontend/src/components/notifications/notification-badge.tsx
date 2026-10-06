@@ -1,7 +1,8 @@
 "use client"
 
 import { memo } from "react"
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Check, GitBranch, MessageCircle, Users, type LucideIcon } from "lucide-react"
 import { getNotificationKind, type NotificationMotif } from "@/lib/notifications/types"
 import { cn } from "@/lib/utils"

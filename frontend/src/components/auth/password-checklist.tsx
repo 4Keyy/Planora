@@ -1,6 +1,7 @@
 "use client"
 
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { DURATION_FAST, EASE_OUT_EXPO } from "@/lib/animations"
 import { PASSWORD_RULES } from "@/lib/password-policy"
 import { cn } from "@/lib/utils"

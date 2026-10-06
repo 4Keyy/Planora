@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
 import { cn } from "@/lib/utils"

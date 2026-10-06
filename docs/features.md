@@ -166,8 +166,10 @@ Organize todos with user-owned labels that carry color, icon, and display order.
 ### Frontend Behavior
 
 - Category cards use the task card's paper surface, hairline border, rounded corners, icon watermark, and entrance, hover, press, and exit animations. Hover glow uses the category colour through `--card-glow` (the app accent when no colour is set); motion stays on an outer wrapper, with clipping and shadows on the inner surface to avoid hover rendering artefacts.
-- The card body is an edit button showing the coloured icon, name, and description (`No description` when empty). On desktop, the delete zone reveals a gradient panel and animated trash icon on hover or keyboard focus; its button supports Enter/Space. Phones use a neutral 44×44 delete button. Both open the existing confirmation dialog before deletion; reduced motion follows the app's `MotionConfig`.
-- Opening an existing category uses the task editor's card-to-dialog entrance: `shared-origin` supplies the pressed card's geometry, `originTransform` targets the category dialog's natural size, and `SPRING_LAYOUT` drives the surface while `TWEEN_FAST` fades the backdrop. Each opening reads a fresh origin; an interrupted entrance closes from its current pose. Reduced motion keeps the fade without travel or scaling. Creating a category retains its existing dialog entrance.
+- The full card surface opens the editor; the edit button showing the coloured icon, name, and description (`No description` when empty) retains keyboard activation. On desktop, the delete zone reveals a gradient panel and animated trash icon on hover or keyboard focus; its button supports Enter/Space. Phones use a neutral 44×44 delete button. Both open the existing confirmation dialog before deletion; reduced motion follows the app's `MotionConfig`.
+- Initial category results use the task grid's 40ms stagger, capped at the ninth card; later updates do not replay it. Position-only rearrangement uses `SPRING_LAYOUT`, while small hover/press feedback uses `SPRING_RESPONSIVE`. Reduced motion removes the stagger and transform travel.
+- Opening an existing category uses the task editor's card-to-dialog entrance: `shared-origin` measures the pressed card's static inner surface, `originTransform` targets the category dialog's natural size, and `SPRING_LAYOUT` drives the surface while `TWEEN_FAST` fades the backdrop. Closing returns to that origin on a 220ms `EASE_STANDARD` tween. An interrupted entrance exits from its current pose, and an old exit cannot unmount a reopened dialog. Reduced motion keeps the fade without travel or scaling.
+- New Category clears any saved card origin and uses the task editor's centered fallback: opacity 0, scale 0.95 and y 20 to the resting surface on `SPRING_LAYOUT`, then the 160ms fallback exit. Dialog dimensions, fields and save behavior are unchanged.
 - Editing an existing category is **quick-save**: there are no Save/Cancel buttons. Changing the name, description, color (color picker), or icon persists automatically. The debounced `useAutosave` hook (`frontend/src/hooks/use-autosave.ts`) coalesces bursts (e.g. dragging the color picker) into a single `PUT`, updates the grid optimistically, and a `AutosaveIndicator` reports `Saving… / All changes saved / Couldn’t save`.
 - An empty name is never persisted (a category's only required field); the modal shows an inline "Enter a name to save your changes" hint and skips the save until a name is present.
 - Pending edits are flushed when the modal closes (X / `Escape` / backdrop / `Done`), so a change made inside the debounce window is never lost.
@@ -725,6 +727,12 @@ The viewer count is the length of that shared list.
 
 ### Frontend Behavior
 
+- **Stable motion opacity** (`components/ui/motion.tsx`): HTML motion surfaces use an externally
+  owned opacity `MotionValue` when opacity animates, keeping it on Framer's frame renderer.
+  Framer 11's native animation cancellation used to restore the starting opacity for a frame
+  after a fade finished. Geometry, springs, layout, gestures, stylesheet opacity, SVG and
+  caller-owned motion values retain their existing behavior. This applies to cards, page
+  entrances, create panels, dialogs and the other existing motion consumers.
 - **Branch composer conventions** (`edit-todo-modal/branch-feed.tsx`): **Enter** sends/adds in every
   mode — plain message, subtask, and description; **Shift+Enter** inserts a newline. The same
   Enter-saves / Shift+Enter-newline convention applies to editing a message and to the Author's

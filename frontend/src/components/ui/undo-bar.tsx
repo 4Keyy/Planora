@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Undo2 } from "lucide-react"
 import { ModalPortal } from "@/components/ui/modal-portal"
 import { SPRING_STANDARD } from "@/lib/animations"

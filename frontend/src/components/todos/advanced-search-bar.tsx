@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { AnimatePresence } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Search, X, Command, Zap, Clock, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Todo } from "@/types/todo"

@@ -64,6 +64,13 @@ describe("CategoryCard", () => {
     expect(onDelete).not.toHaveBeenCalled()
   })
 
+  it("opens editing from the card surface outside its inner button", async () => {
+    const { container, onEdit, onDelete } = renderCard()
+    await userEvent.click(container.querySelector("[data-category-card]")!)
+    expect(onEdit).toHaveBeenCalledTimes(1)
+    expect(onDelete).not.toHaveBeenCalled()
+  })
+
   it.each(["{Enter}", " "])("deletes from the desktop control using Tab and %s", async (key) => {
     const user = userEvent.setup()
     const { desktopDelete, onEdit, onDelete } = renderCard()

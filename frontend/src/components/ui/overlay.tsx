@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefCallback } from "react"
-import { motion, useAnimationControls, useReducedMotion, type HTMLMotionProps } from "framer-motion"
+import { useAnimationControls, useReducedMotion, type HTMLMotionProps } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { ModalPortal } from "@/components/ui/modal-portal"
 import { useExitPresence } from "@/hooks/use-exit-presence"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
-import { SPRING_LAYOUT, TWEEN_FAST } from "@/lib/animations"
-import { originTransform, takeOrigin } from "@/lib/shared-origin"
+import { DURATION_FAST, DURATION_UI, EASE_STANDARD, SPRING_LAYOUT, TWEEN_FAST } from "@/lib/animations"
+import { originTransform, takeOrigin, type OriginTransform } from "@/lib/shared-origin"
 import { cn } from "@/lib/utils"
 
 /**
@@ -36,10 +37,9 @@ import { cn } from "@/lib/utils"
  * - **Backdrop click closes it** — the pointer equivalent of Escape. The backdrop
  *   is deliberately NOT focusable and carries no role: a viewport-sized button
  *   would be announced as one.
- * - **CSS exits** keep the dialog mounted through its fold-away by
- *   {@link useExitPresence}, without framer-motion's exit hand-off blink. The normal
- *   entrance is also CSS; card editors can opt into the task editor's shared-origin
- *   entrance. While it folds away it lets clicks through to the page beneath.
+ * - **Exit presence** keeps the dialog mounted through its fold-away. Ordinary
+ *   dialogs use CSS; card editors opt into the task editor's shared-origin entrance
+ *   and return to the same card on close. Exiting dialogs let clicks through.
  *
  * `labelledBy` exists for the case where the dialog renders its own heading with
  * markup this component should not own; pass the heading's id and omit `title`.
@@ -58,7 +58,7 @@ export interface OverlayProps {
   className?: string
   /** Hides the built-in header entirely; requires `labelledBy`. */
   hideHeader?: boolean
-  /** Use the task editor's card-to-dialog entrance; ordinary dialogs keep their CSS entrance. */
+  /** Use the task editor's entrance and exit; without a card, use its centred fallback. */
   animateFromOrigin?: boolean
   children: ReactNode
 }
@@ -73,25 +73,32 @@ function OriginBackdrop({ open, ...props }: Omit<HTMLMotionProps<"div">, "animat
       void controls.start({ opacity: 1 }, TWEEN_FAST)
     } else {
       controls.stop()
+      void controls.start({ opacity: 0 }, TWEEN_FAST)
     }
   }, [open, controls])
 
-  return <motion.div {...props} initial={{ opacity: 0 }} animate={controls} style={{ animation: open ? "none" : undefined }} />
+  return <motion.div {...props} initial={{ opacity: 0 }} animate={controls} style={{ animation: "none" }} />
 }
 
 function OriginDialog({
   open,
   dialogRef,
+  onExitComplete,
+  onExitDurationChange,
   children,
   ...props
 }: Omit<HTMLMotionProps<"div">, "animate" | "initial" | "ref"> & {
   open: boolean
   dialogRef: RefCallback<HTMLDivElement>
+  onExitComplete: () => void
+  onExitDurationChange: (durationMs: number) => void
 }) {
   const controls = useAnimationControls()
   const reduce = useReducedMotion() ?? false
   const [node, setNode] = useState<HTMLDivElement | null>(null)
   const wasOpen = useRef(false)
+  const entranceRef = useRef<OriginTransform | null>(null)
+  const animationRun = useRef(0)
   const attachRef = useCallback((element: HTMLDivElement | null) => {
     dialogRef(element)
     setNode(element)
@@ -100,13 +107,28 @@ function OriginDialog({
   useLayoutEffect(() => {
     if (!node) return
     if (!open) {
+      if (!wasOpen.current) return
       wasOpen.current = false
       controls.stop()
-      // Let CSS leave from the current pose, including an interrupted entrance.
+      const run = ++animationRun.current
+      const entrance = reduce ? null : entranceRef.current
+      const duration = entrance ? DURATION_UI : DURATION_FAST
+      onExitDurationChange(duration * 1000)
+      void controls.start(
+        entrance
+          ? { opacity: 0, ...entrance }
+          : { opacity: 0, scale: reduce ? 1 : 0.95, x: 0, y: reduce ? 0 : 20 },
+        { duration, ease: EASE_STANDARD },
+      ).then(() => {
+        // An interrupted close must never remove a freshly reopened editor.
+        if (animationRun.current === run && !wasOpen.current) onExitComplete()
+      })
       return
     }
     if (wasOpen.current) return
     wasOpen.current = true
+    ++animationRun.current
+    controls.stop()
 
     // The portal attaches later, and this dialog has natural height. Measure its
     // untransformed panel before the first visible frame, once per opening edge.
@@ -119,11 +141,18 @@ function OriginDialog({
     const entrance = !reduce && origin && target.width > 0 && target.height > 0
       ? originTransform(origin, target)
       : null
+    entranceRef.current = entrance
+    onExitDurationChange((entrance ? DURATION_UI : DURATION_FAST) * 1000)
     controls.set(entrance
       ? { opacity: 0, ...entrance }
       : { opacity: 0, scale: reduce ? 1 : 0.95, x: 0, y: reduce ? 0 : 20 })
     void controls.start(RESTING_TRANSFORM, SPRING_LAYOUT)
-  }, [node, open, reduce, controls])
+  }, [node, open, reduce, controls, onExitComplete, onExitDurationChange])
+
+  useLayoutEffect(() => () => {
+    ++animationRun.current
+    controls.stop()
+  }, [controls])
 
   return (
     <motion.div
@@ -131,8 +160,7 @@ function OriginDialog({
       ref={attachRef}
       initial={{ opacity: 0 }}
       animate={controls}
-      // Only the entrance belongs to motion; retain Overlay's existing CSS exit.
-      style={{ animation: open ? "none" : undefined }}
+      style={{ animation: "none" }}
     >
       {children}
     </motion.div>
@@ -153,7 +181,8 @@ export function Overlay({
   const generatedId = useId()
   const titleId = labelledBy ?? `${generatedId}-title`
   const dialogRef = useFocusTrap<HTMLDivElement>(open)
-  const { mounted, presenceProps } = useExitPresence(open)
+  const [originExitMs, setOriginExitMs] = useState(DURATION_FAST * 1000)
+  const { mounted, presenceProps, finishExit } = useExitPresence(open, animateFromOrigin ? originExitMs : undefined)
 
   useScrollLock(open)
 
@@ -226,7 +255,13 @@ export function Overlay({
           )}
 
           {animateFromOrigin ? (
-            <OriginDialog open={open} dialogRef={dialogRef} {...panelProps}>{content}</OriginDialog>
+            <OriginDialog
+              open={open}
+              dialogRef={dialogRef}
+              onExitComplete={finishExit}
+              onExitDurationChange={setOriginExitMs}
+              {...panelProps}
+            >{content}</OriginDialog>
           ) : (
             <div ref={dialogRef} {...panelProps}>{content}</div>
           )}

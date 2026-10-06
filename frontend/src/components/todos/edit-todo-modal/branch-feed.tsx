@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from "react"
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
+import { AnimatePresence, LayoutGroup } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { cn } from "@/lib/utils"
 import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, RotateCcw, Copy, type LucideIcon } from "lucide-react"

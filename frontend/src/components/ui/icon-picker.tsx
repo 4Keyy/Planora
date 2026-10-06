@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { motion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { cn } from "@/lib/utils"
 import { TAP_PRESS } from "@/lib/animations"
 import { POPOVER_SURFACE } from "@/components/ui/surfaces"

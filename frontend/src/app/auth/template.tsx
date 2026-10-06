@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { motion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
 import { isFirstPageOfVisit, markPageShown } from "@/lib/route-transition"
 

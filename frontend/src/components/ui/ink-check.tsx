@@ -1,6 +1,7 @@
 "use client"
 
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { DURATION_FAST, DURATION_INSTANT, EASE_OUT_EXPO } from "@/lib/animations"
 
 /**

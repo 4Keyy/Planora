@@ -2,7 +2,8 @@
 
 import * as React from "react"
 import { X } from "lucide-react"
-import { motion, AnimatePresence } from "framer-motion"
+import { AnimatePresence } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { cn } from "@/lib/utils"
 import { useToastStore, type ToastType } from "@/store/toast"
 import { VARIANTS_TOAST, TWEEN_UI } from "@/lib/animations"

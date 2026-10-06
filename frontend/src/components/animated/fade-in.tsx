@@ -1,7 +1,8 @@
 "use client"
 
 import { useMemo } from "react"
-import { motion, HTMLMotionProps, useReducedMotion } from "framer-motion"
+import { HTMLMotionProps, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { cn } from "@/lib/utils"
 import {
   SPRING_RESPONSIVE,

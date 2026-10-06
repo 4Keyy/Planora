@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Check, Minus, Plus } from "lucide-react"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
 import { Avatar } from "@/components/ui/avatar"

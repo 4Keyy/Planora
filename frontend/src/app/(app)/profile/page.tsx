@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import {
   Activity,
   ArrowLeft,

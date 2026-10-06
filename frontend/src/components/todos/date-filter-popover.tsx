@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { TWEEN_FAST } from "@/lib/animations"
 import { CalendarSearch, ChevronDown, X } from "lucide-react"
 import { useExitPresence } from "@/hooks/use-exit-presence"

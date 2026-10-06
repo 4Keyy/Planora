@@ -1,7 +1,8 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { motion, useReducedMotion } from "framer-motion"
+import { useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import type { LucideIcon } from "lucide-react"
 import { InkCheck } from "@/components/ui/ink-check"
 import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"

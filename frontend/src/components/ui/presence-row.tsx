@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { motion } from "@/components/ui/motion"
 import { Avatar } from "@/components/ui/avatar"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { DURATION_SLOW, DURATION_UI, EASE_OUT_EXPO, EASE_STANDARD, SPRING_GENTLE, SPRING_LAYOUT, TWEEN_EXIT } from "@/lib/animations"
