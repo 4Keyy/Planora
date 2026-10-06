@@ -2,8 +2,9 @@
 
 import { useEffect, useId, useRef, useState } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
-import { TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
+import { TWEEN_FAST } from "@/lib/animations"
 import { CalendarSearch, ChevronDown, X } from "lucide-react"
+import { useExitPresence } from "@/hooks/use-exit-presence"
 import { cn } from "@/lib/utils"
 import { DateCalendar } from "./edit-todo-modal/popovers/date"
 import { formatDueRange } from "./edit-todo-modal/utils"
@@ -25,9 +26,9 @@ interface DateFilterPopoverProps {
  *
  * Why a popover and not an inline collapse: the calendar must never push the page down or grow the
  * filter plate. The trigger is the same height as the plate's other controls, and the calendar is
- * absolutely positioned (z-50) so it overlays the task grid below instead of reflowing it. It scales
- * out of its top-right corner (origin-aware), closes on outside-click / Escape, and honours
- * prefers-reduced-motion.
+ * absolutely positioned (z-50) so it overlays the task grid below instead of reflowing it. It unfolds
+ * out of its top-right corner with the product's shared dropdown motion (`.dropdown-surface`),
+ * closes on outside-click / Escape, and honours prefers-reduced-motion.
  */
 export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterPopoverProps) {
   const reduce = useReducedMotion()
@@ -35,6 +36,7 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
   const wrapRef = useRef<HTMLDivElement>(null)
   const panelId = useId()
   const hasFilter = !!(start || end)
+  const { mounted, presenceProps } = useExitPresence(open)
 
   // Dismiss on outside pointer-down and Escape. Capture phase so a click that also lands on another
   // interactive element still closes the popover first. Only wired while open to stay cheap.
@@ -100,42 +102,36 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
       </div>
 
       {/* Floating calendar — overlays the grid below; never affects page height. */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            id={panelId}
-            role="dialog"
-            aria-label="Filter completed tasks by completion date"
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.96 }}
-            transition={TWEEN_UI}
-            style={{ transformOrigin: "top right" }}
-            className="absolute right-0 top-full z-50 mt-2 w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-line bg-paper shadow-xl shadow-black/10"
-          >
-            <div className="flex items-center justify-between border-b border-line px-3.5 py-2.5">
-              <span className="text-caption font-semibold uppercase tracking-wider text-ink-muted">Completed on</span>
-              {hasFilter && (
-                <button
-                  type="button"
-                  onClick={onClear}
-                  className="text-caption font-semibold uppercase tracking-wider text-ink-muted transition-colors hover:text-ink rounded cursor-pointer"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-            <DateCalendar
-              start={start}
-              end={end}
-              onChange={onChange}
-              autoClose={() => setOpen(false)}
-              headless
-              hideQuickPicks
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {mounted && (
+        <div
+          id={panelId}
+          role="dialog"
+          aria-label="Filter completed tasks by completion date"
+          {...presenceProps}
+          className="dropdown-surface absolute right-0 top-full z-50 mt-2 w-[320px] max-w-[calc(100vw-2rem)] origin-top-right overflow-hidden rounded-xl border border-line bg-paper shadow-xl shadow-black/10"
+        >
+          <div className="flex items-center justify-between border-b border-line px-3.5 py-2.5">
+            <span className="text-caption font-semibold uppercase tracking-wider text-ink-muted">Completed on</span>
+            {hasFilter && (
+              <button
+                type="button"
+                onClick={onClear}
+                className="text-caption font-semibold uppercase tracking-wider text-ink-muted transition-colors hover:text-ink rounded cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <DateCalendar
+            start={start}
+            end={end}
+            onChange={onChange}
+            autoClose={() => setOpen(false)}
+            headless
+            hideQuickPicks
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -187,7 +187,7 @@ export function VisibilityPanel({
             </button>
           </div>
 
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarGutter: "stable", padding: "0 6px 6px" }}>
+          <div data-cascade style={{ flex: 1, minHeight: 0, overflowY: "auto", scrollbarGutter: "stable", padding: "0 6px 6px" }}>
             {friends.map((f) => {
                   const isSelected = sharedIds.includes(f.id)
                   return (

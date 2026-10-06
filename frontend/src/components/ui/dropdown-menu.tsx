@@ -18,12 +18,10 @@ const DropdownMenuContent = React.forwardRef<
       align={align}
       className={cn(
         "z-50 min-w-[12rem] overflow-hidden rounded-lg border border-line/60 bg-paper p-1.5 text-ink shadow-xl",
-        // Smooth open/close: fade + gentle scale FROM the trigger anchor (Radix supplies the
-        // transform-origin) so the menu grows centred out of its plate — no slide, no jitter.
-        "origin-[var(--radix-dropdown-menu-content-transform-origin)]",
-        "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
-        "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
-        "duration-fast ease-emphasized",
+        // The product's one dropdown motion (globals.css): it unfolds out of its trigger from
+        // the anchor Radix supplies, and folds back into it. Radix sets `data-state` and
+        // `data-side`, and keeps the menu mounted until the fold's `animationend`.
+        "dropdown-surface origin-[var(--radix-dropdown-menu-content-transform-origin)]",
         className
       )}
       {...props}

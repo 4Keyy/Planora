@@ -22,6 +22,7 @@ import { getBoolPreference, setBoolPreference, SUPPRESS_INCOMPLETE_SUBTASK_WARNI
 import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/subtask-warning"
 import { FriendAvatar } from "./friend-avatar"
 import { tokens } from "@/lib/design-tokens"
+import { useExitPresence } from "@/hooks/use-exit-presence"
 import {
   formatDayLabel,
   formatTimeHHMM,
@@ -1046,6 +1047,8 @@ export function BranchFeed({
   const menuShowsActions          = (showWorkAction || showCompleteAction) && !isCompleted
   const menuShowsCompletedActions = isCompleted && (canRestore || showDuplicate)
   const hasMenuItems              = menuShowsDescription || menuShowsSubtask || menuShowsActions || menuShowsCompletedActions
+  // The attach menu folds back into the + button instead of vanishing (`.dropdown-surface`).
+  const plusMenu                  = useExitPresence(plusMenuOpen && hasMenuItems)
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%", minHeight: 0 }}>
@@ -1608,10 +1611,14 @@ export function BranchFeed({
           style={{ position: "relative", borderRadius: 14, padding: 4, display: "flex", alignItems: "center", gap: 4 }}
         >
 
-          {/* Attach menu — absolutely above the compose box (empty/closed on a completed task) */}
-          {plusMenuOpen && hasMenuItems && (
+          {/* Attach menu — absolutely above the compose box (empty/closed on a completed task).
+              It unfolds upwards out of the + button and its rows follow it out. */}
+          {plusMenu.mounted && (
             <div
               ref={plusMenuRef}
+              {...plusMenu.presenceProps}
+              data-cascade
+              className="dropdown-surface dropdown-above"
               style={{
                 position: "absolute",
                 bottom: "calc(100% + 8px)",
@@ -1623,7 +1630,7 @@ export function BranchFeed({
                 padding: 6,
                 minWidth: 200,
                 zIndex: tokens.layer.popover,
-                animation: "pop_in_up 160ms var(--pl-ease-emphasized) both",
+                transformOrigin: "bottom left",
               }}
             >
               {/* Author-only: add the task description (disabled once one exists) */}

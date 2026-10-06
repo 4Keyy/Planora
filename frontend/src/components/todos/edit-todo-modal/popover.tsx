@@ -2,9 +2,9 @@
 
 import { ReactNode, RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { AnimatePresence, motion } from "framer-motion"
-import { SPRING_STANDARD } from "@/lib/animations"
+import { useExitPresence } from "@/hooks/use-exit-presence"
 import { tokens } from "@/lib/design-tokens"
+import { cn } from "@/lib/utils"
 
 interface PopoverProps {
   open: boolean
@@ -34,6 +34,8 @@ type FixedPos = {
   bottom?: number
   maxHeight: number
   transformOrigin: string
+  /** Flipped above the trigger: the surface unfolds upwards, out of the trigger's top edge. */
+  above: boolean
 }
 
 /** Position a fixed popover against the trigger rect, flipping up + capping height to fit the viewport. */
@@ -62,6 +64,7 @@ function computeFixedPos(rect: DOMRect, width: number, align: "left" | "right" |
       bottom: vh - rect.top + GAP,
       maxHeight: Math.max(spaceAbove - MARGIN, 160),
       transformOrigin: `bottom ${originX}`,
+      above: true,
     }
   }
   return {
@@ -69,12 +72,30 @@ function computeFixedPos(rect: DOMRect, width: number, align: "left" | "right" |
     top: rect.bottom + GAP,
     maxHeight: Math.max(spaceBelow - MARGIN, 160),
     transformOrigin: `top ${originX}`,
+    above: false,
   }
 }
 
+/** The floating sheet itself, the same in both rendering modes. */
+const SURFACE_STYLE = {
+  background: "var(--pl-paper)",
+  borderRadius: "var(--pl-radius-lg)",
+  border: "1px solid var(--pl-line)",
+  boxShadow: "var(--pl-shadow-lg)",
+} as const
+
+/**
+ * A dropdown anchored to its trigger. It unfolds out of the trigger and folds back into it
+ * with the product's shared surface motion (`.dropdown-surface` in globals.css), kept
+ * mounted through the fold by {@link useExitPresence}. It used to animate with a
+ * framer-motion spring, and every opening ended with a blink: the spring overshot and
+ * settled in two waves, and framer's hand-off from the Web Animations API left the sheet
+ * at its starting `opacity: 0` for a frame — see the hook for the measurements.
+ */
 export function Popover({ open, onClose, children, width = 300, align = "left", containerRef, portal = false }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<FixedPos | null>(null)
+  const { mounted, presenceProps } = useExitPresence(open)
 
   // Outside-click + Escape — shared by both rendering modes.
   useEffect(() => {
@@ -116,74 +137,58 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
 
   // ── Portal (viewport-fixed) mode — never grows the document, flips + caps to fit ──
   if (portal) {
-    if (typeof document === "undefined") return null
+    if (typeof document === "undefined" || !mounted || !pos) return null
     return createPortal(
-      <AnimatePresence>
-        {open && pos && (
-          <motion.div
-            ref={ref}
-            role="dialog"
-            initial={{ opacity: 0, y: -6, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.96 }}
-            transition={SPRING_STANDARD}
-            style={{
-              position: "fixed",
-              left: pos.left,
-              top: pos.top,
-              bottom: pos.bottom,
-              width,
-              maxHeight: pos.maxHeight,
-              overflowY: "auto",
-              zIndex: tokens.layer.popover,
-              transformOrigin: pos.transformOrigin,
-              background: "var(--pl-paper)",
-              borderRadius: "var(--pl-radius-lg)",
-              border: "1px solid var(--pl-line)",
-              boxShadow: "var(--pl-shadow-lg)",
-            }}
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>,
+      <div
+        ref={ref}
+        role="dialog"
+        {...presenceProps}
+        className={cn("dropdown-surface", pos.above && "dropdown-above")}
+        style={{
+          position: "fixed",
+          left: pos.left,
+          top: pos.top,
+          bottom: pos.bottom,
+          width,
+          maxHeight: pos.maxHeight,
+          overflowY: "auto",
+          zIndex: tokens.layer.popover,
+          transformOrigin: pos.transformOrigin,
+          ...SURFACE_STYLE,
+        }}
+      >
+        {children}
+      </div>,
       document.body,
     )
   }
 
-  // ── In-flow (absolute) mode — unchanged. Positioning lives on the (static) wrapper so the
-  // motion.div can own its transform for a clean scale/fade/slide on BOTH open and close. ──
+  // ── In-flow (absolute) mode. Positioning lives on the (static) wrapper, so the surface
+  // inside it owns its transform for the unfold on open and the fold on close. ──
+  if (!mounted) return null
+
   const alignStyle: React.CSSProperties =
     align === "right"  ? { right: 0 } :
     align === "center" ? { left: "50%", transform: "translateX(-50%)" } :
     { left: 0 }
 
   return (
-    <AnimatePresence>
-      {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 8px)", zIndex: tokens.layer.popover, ...alignStyle }}>
-          <motion.div
-            ref={ref}
-            role="dialog"
-            initial={{ opacity: 0, y: -6, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.96 }}
-            transition={SPRING_STANDARD}
-            style={{
-              width,
-              transformOrigin: align === "right" ? "top right" : align === "center" ? "top center" : "top left",
-              background: "var(--pl-paper)",
-              borderRadius: "var(--pl-radius-lg)",
-              border: "1px solid var(--pl-line)",
-              boxShadow: "var(--pl-shadow-lg)",
-              overflow: "hidden",
-            }}
-          >
-            {children}
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+    <div style={{ position: "absolute", top: "calc(100% + 8px)", zIndex: tokens.layer.popover, ...alignStyle }}>
+      <div
+        ref={ref}
+        role="dialog"
+        {...presenceProps}
+        className="dropdown-surface"
+        style={{
+          width,
+          transformOrigin: align === "right" ? "top right" : align === "center" ? "top center" : "top left",
+          overflow: "hidden",
+          ...SURFACE_STYLE,
+        }}
+      >
+        {children}
+      </div>
+    </div>
   )
 }
 

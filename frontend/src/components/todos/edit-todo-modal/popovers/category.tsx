@@ -242,7 +242,7 @@ export function CategoryPopover({
             }
           />
 
-          <div style={{ padding: 6, maxHeight: 280, overflowY: "auto" }}>
+          <div data-cascade style={{ padding: 6, maxHeight: 280, overflowY: "auto" }}>
             {/* No category */}
             <button
               type="button"

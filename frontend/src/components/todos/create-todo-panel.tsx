@@ -299,7 +299,7 @@ function SharePopover({
             No friends yet.
           </div>
         ) : (
-          <div className="max-h-52 space-y-0.5 overflow-y-auto">
+          <div data-cascade className="max-h-52 space-y-0.5 overflow-y-auto">
             {friends.map(f => {
               const selected = !isPublic && selectedIds.includes(f.id)
               return (

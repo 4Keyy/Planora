@@ -120,7 +120,7 @@ remaining audit/E2E limits.
 | Keyboard model | `frontend/src/hooks/use-list-navigation.ts` (cursor, multi-select), `frontend/src/components/ui/shortcuts-overlay.tsx` (`SHORTCUT_GROUPS` — the single source of truth for every key), `frontend/src/components/command-palette.tsx` |
 | Selection and capture | `frontend/src/components/ui/selection-bar.tsx`, `frontend/src/components/todos/quick-capture.tsx` |
 | Card → dialog transition | `frontend/src/lib/shared-origin.ts`, consumed in `frontend/src/components/todos/edit-todo-modal/modal.tsx` |
-| Frontend hooks | `frontend/src/hooks/` — `use-list-navigation`, `use-focus-trap`, `use-scroll-lock`, `use-autosave`, `use-collapse-scroll`, `use-friends` |
+| Frontend hooks | `frontend/src/hooks/` — `use-list-navigation`, `use-focus-trap`, `use-scroll-lock`, `use-exit-presence`, `use-autosave`, `use-collapse-scroll`, `use-friends` |
 | Design-system enforcement | `frontend/src/test/quality/design-tokens.contract.test.ts`, `docs/ui-audit/tools/class-audit.mjs`, `docs/ui-audit/tools/a11y-static.mjs`, `docs/ui-audit/tools/focus-scan.mjs` |
 | Documentation enforcement | `docs/ui-audit/tools/link-check.mjs` — relative file/anchor checker; counts depend on the checkout, and its traversal includes ignored local Markdown |
 | Auth endpoints | `Services/AuthApi/Planora.Auth.Api/Controllers` |

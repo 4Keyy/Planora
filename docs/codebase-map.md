@@ -354,10 +354,11 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 |---|---|
 | `use-autosave.ts` | one autosave channel with `idle` / `saving` / `saved` / `error` |
 | `use-collapse-scroll.ts` | height-locked collapse that does not let the page jump |
+| `use-exit-presence.ts` | keeps a dropdown mounted through its CSS fold-away; unmounts on the surface's own `animationend` |
 | `use-focus-trap.ts` | remembers focus, traps Tab inside a dialog, restores it on close |
 | `use-friends.ts` | the shared friend cache; `invalidateFriends()` after any mutation |
 | `use-list-navigation.ts` | the keyboard cursor and multi-selection over a list of ids |
-| `use-scroll-lock.ts` | counted, not boolean — two open overlays must not unlock on the first close |
+| `use-scroll-lock.ts` | counted, not boolean — two open overlays must not unlock on the first close; locks `<html>`, adds no padding |
 
 ### `lib`
 

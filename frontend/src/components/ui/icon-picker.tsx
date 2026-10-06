@@ -2,9 +2,9 @@
 
 import { useState } from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { TAP_PRESS, TWEEN_FAST, VARIANTS_DROPDOWN } from "@/lib/animations"
+import { TAP_PRESS } from "@/lib/animations"
 import { POPOVER_SURFACE } from "@/components/ui/surfaces"
 import {
   CheckCircle2,
@@ -133,57 +133,48 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
       </PopoverPrimitive.Trigger>
 
       <PopoverPrimitive.Portal>
-        <AnimatePresence>
-          {isOpen && (
-            <PopoverPrimitive.Content
-              forceMount
-              asChild
-              align="center"
-              sideOffset={8}
-              collisionPadding={12}
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              <motion.div
-                variants={VARIANTS_DROPDOWN}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                transition={TWEEN_FAST}
-                className={cn(POPOVER_SURFACE, "z-popover w-[min(320px,calc(100vw-24px))] outline-none")}
-              >
-                <div className="custom-scrollbar grid max-h-[min(328px,calc(100vh-96px))] grid-cols-5 justify-items-center gap-2 overflow-y-auto p-4">
-                {ICON_PICKER_ITEMS.map((item) => {
-                  const IconComponent = item.icon
-                  const isSelected = selectedIcon === item.name
-                  return (
-                    /* Colour on hover is CSS; the press is the one transform, and it is
-                       framer's alone — a CSS `transition` on `transform` would re-ease
-                       every frame framer writes. It used to grow 10% on hover, in
-                       framer-motion, and paint its background through the same spring. */
-                    <motion.button
-                      key={item.name}
-                      type="button"
-                      whileTap={TAP_PRESS}
-                      aria-label={iconLabel(item.name)}
-                      aria-pressed={isSelected}
-                      onClick={() => {
-                        onIconSelect(item.name)
-                        setIsOpen(false)
-                      }}
-                      className={cn(
-                        "flex h-11 w-11 items-center justify-center rounded-md transition-colors duration-fast",
-                        isSelected ? "bg-ink text-paper shadow-sm" : "text-ink hover:bg-gray-100"
-                      )}
-                    >
-                      <IconComponent className="h-4 w-4" aria-hidden="true" />
-                    </motion.button>
-                  )
-                })}
-                </div>
-              </motion.div>
-            </PopoverPrimitive.Content>
+        {/* Radix keeps the content mounted until the fold's `animationend`; the motion is the
+            product's shared dropdown motion (globals.css), unfolding from the anchor Radix supplies. */}
+        <PopoverPrimitive.Content
+          align="center"
+          sideOffset={8}
+          collisionPadding={12}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className={cn(
+            POPOVER_SURFACE,
+            "dropdown-surface z-popover w-[min(320px,calc(100vw-24px))] origin-[var(--radix-popover-content-transform-origin)] outline-none",
           )}
-        </AnimatePresence>
+        >
+          <div className="custom-scrollbar grid max-h-[min(328px,calc(100vh-96px))] grid-cols-5 justify-items-center gap-2 overflow-y-auto p-4">
+          {ICON_PICKER_ITEMS.map((item) => {
+            const IconComponent = item.icon
+            const isSelected = selectedIcon === item.name
+            return (
+              /* Colour on hover is CSS; the press is the one transform, and it is
+                 framer's alone — a CSS `transition` on `transform` would re-ease
+                 every frame framer writes. It used to grow 10% on hover, in
+                 framer-motion, and paint its background through the same spring. */
+              <motion.button
+                key={item.name}
+                type="button"
+                whileTap={TAP_PRESS}
+                aria-label={iconLabel(item.name)}
+                aria-pressed={isSelected}
+                onClick={() => {
+                  onIconSelect(item.name)
+                  setIsOpen(false)
+                }}
+                className={cn(
+                  "flex h-11 w-11 items-center justify-center rounded-md transition-colors duration-fast",
+                  isSelected ? "bg-ink text-paper shadow-sm" : "text-ink hover:bg-gray-100"
+                )}
+              >
+                <IconComponent className="h-4 w-4" aria-hidden="true" />
+              </motion.button>
+            )
+          })}
+          </div>
+        </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>
   )

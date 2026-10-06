@@ -333,6 +333,89 @@
     border-color: theme("colors.ink");
     box-shadow: 0 0 0 3px theme("colors.ink / 8%"), var(--tw-shadow, 0 0 #0000);
   }
+
+  /* ── Floating surfaces: menus, popovers, pickers, dialogs ─────────────────────────
+     One entrance and one exit for every dropdown in the product, run by CSS rather than
+     framer-motion, so the end of an animation changes nothing on screen — see
+     hooks/use-exit-presence.ts for the blink framer's hand-off to the Web Animations API
+     caused. `data-state` comes from useExitPresence, or from Radix on a Radix surface.
+     These are classes rather than utilities because the row cascade below is indexed by
+     `:nth-child`, which a utility cannot say.
+
+     The sheet unfolds out of the control that opened it: from 8px towards it, a little
+     narrow and noticeably short. Its content settles in a beat behind it, and the rows of
+     a list marked `data-cascade` pour out one after another, so no text is drawn while the
+     sheet is still being squeezed. It folds back the way it came, faster than it arrived.
+     `will-change` holds it on one layer from its first frame to its last. A surface that
+     opens above its trigger takes `.dropdown-above` (Radix says `data-side="top"`); one
+     that should unfold further — the phone menu dripping out of the droplet — sets the
+     two scale variables. The whole entrance, the last row included, ends inside the
+     320ms ceiling for a UI response. */
+  .dropdown-surface {
+    --dropdown-shift: -8px;
+    --dropdown-scale-x: 0.97;
+    --dropdown-scale-y: 0.9;
+    will-change: transform, opacity;
+  }
+  .dropdown-surface:is(.dropdown-above, [data-side="top"]) {
+    --dropdown-shift: 8px;
+  }
+  .dropdown-surface[data-state="open"] {
+    animation: dropdown-in theme("transitionDuration.base") var(--pl-ease-emphasized) both;
+  }
+  .dropdown-surface[data-state="closed"] {
+    animation: dropdown-out theme("transitionDuration.fast") var(--pl-ease-exit) forwards;
+  }
+  .dropdown-surface > * {
+    animation: dropdown-content theme("transitionDuration.base") var(--pl-ease-emphasized) 30ms backwards;
+  }
+  .dropdown-surface[data-cascade] > *,
+  .dropdown-surface [data-cascade] > * {
+    animation: dropdown-content theme("transitionDuration.fast") var(--pl-ease-emphasized) backwards;
+    animation-delay: calc(40ms + var(--cascade-row, 0) * 12ms);
+  }
+  [data-cascade] > :nth-child(2) { --cascade-row: 1; }
+  [data-cascade] > :nth-child(3) { --cascade-row: 2; }
+  [data-cascade] > :nth-child(4) { --cascade-row: 3; }
+  [data-cascade] > :nth-child(5) { --cascade-row: 4; }
+  /* Past the sixth row the wait would outlast the reader: the rest arrive together. */
+  [data-cascade] > :nth-child(n + 6) { --cascade-row: 5; }
+
+  /* A scrim behind a floating surface fades on its beat, by the same presence. */
+  .backdrop-surface[data-state="open"] {
+    animation: surface-fade-in theme("transitionDuration.base") var(--pl-ease-emphasized) both;
+  }
+  .backdrop-surface[data-state="closed"] {
+    animation: surface-fade-out theme("transitionDuration.fast") var(--pl-ease-exit) forwards;
+  }
+}
+
+/* Each animates transform and opacity only, and states only the end that differs from the
+   element's own style: an entrance needs no `to`, an exit no `from`. */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--dropdown-shift)) scale(var(--dropdown-scale-x), var(--dropdown-scale-y));
+  }
+}
+@keyframes dropdown-out {
+  to {
+    opacity: 0;
+    transform: translateY(calc(var(--dropdown-shift) / 2))
+      scale(calc((1 + var(--dropdown-scale-x)) / 2), calc((1 + var(--dropdown-scale-y)) / 2));
+  }
+}
+@keyframes dropdown-content {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--dropdown-shift, -8px) / 2));
+  }
+}
+@keyframes surface-fade-in {
+  from { opacity: 0; }
+}
+@keyframes surface-fade-out {
+  to { opacity: 0; }
 }
 
 @layer utilities {
@@ -437,11 +520,6 @@
 
 /* ── Branch surface ───────────────────────────────────────────────────────── */
 
-@keyframes pop_in {
-  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0)    scale(1);    }
-}
-
 @keyframes pl_pulse {
   0%, 100% { opacity: 0.25; transform: scale(1);   }
   50%      { opacity: 0;    transform: scale(1.9); }
@@ -455,12 +533,6 @@
 .branch-scroll::-webkit-scrollbar       { width: 6px; }
 .branch-scroll::-webkit-scrollbar-thumb { background: theme("colors.line"); border-radius: var(--pl-radius-sm); }
 .branch-scroll::-webkit-scrollbar-track { background: transparent; }
-
-/* Compose attach-menu (rises from below) */
-@keyframes pop_in_up {
-  from { opacity: 0; transform: translateY(6px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0)   scale(1);    }
-}
 
 /* Mode chip slide-in from left */
 @keyframes chip_enter {
@@ -579,5 +651,12 @@ a, button, [role="button"], label, summary {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  /* A dropdown's content and its cascading rows also wait on a delay, which the rule
+     above does not shorten: without this they would sit invisible for up to 100ms. */
+  .dropdown-surface > *,
+  .dropdown-surface[data-cascade] > *,
+  .dropdown-surface [data-cascade] > * {
+    animation-delay: 0ms !important;
   }
 }

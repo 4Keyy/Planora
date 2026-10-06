@@ -28,7 +28,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
   return (
     <Popover open={open} onClose={onClose} width={300} align={align} containerRef={containerRef} portal={portal}>
       <PopoverHeader label="Priority" />
-      <div style={{ padding: 6, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
+      <div data-cascade style={{ padding: 6, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
         {PRIORITY_LEVELS.map((p, i) => {
           const isActive = value === p.key
           return (

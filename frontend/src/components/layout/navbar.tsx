@@ -17,16 +17,8 @@ import { useToastStore } from "@/store/toast"
 import { api } from "@/lib/api"
 import { clearCsrfToken } from "@/lib/csrf"
 import { DropletFrame, isKeyboardFocus, useDropletScroll, useIsPhone } from "@/components/layout/droplet"
-import {
-  DURATION_FAST,
-  EASE_EXIT,
-  EASE_OUT_EXPO,
-  SPRING_GENTLE,
-  SPRING_LAYOUT,
-  SPRING_STANDARD,
-  TAP_PRESS,
-  TWEEN_FAST,
-} from "@/lib/animations"
+import { useExitPresence } from "@/hooks/use-exit-presence"
+import { SPRING_GENTLE, SPRING_STANDARD, TAP_PRESS, TWEEN_FAST } from "@/lib/animations"
 
 /**
  * The app's bar: a droplet.
@@ -100,6 +92,9 @@ export function Navbar() {
   const [open, setOpen] = useState<"menu" | "sheet" | "bell" | null>(null)
   const menuOpen = open === "menu"
   const sheetOpen = open === "sheet"
+  // Both stay mounted through their fold-away; the motion itself is CSS (`.dropdown-surface`).
+  const menu = useExitPresence(menuOpen)
+  const sheet = useExitPresence(sheetOpen)
   const [mounted, setMounted] = useState(false)
   const scroll = useDropletScroll()
   const [hovered, setHovered] = useState(false)
@@ -208,39 +203,17 @@ export function Navbar() {
 
   const onTab = NAV_TABS.some((tab) => isActive(tab.href))
 
-  const popIn = reduce
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
-    : {
-        initial: { opacity: 0, y: -6, scale: 0.97 },
-        animate: { opacity: 1, y: 0, scale: 1 },
-        exit: { opacity: 0, y: -6, scale: 0.97, transition: { duration: DURATION_FAST, ease: EASE_EXIT } },
-      }
-
-  // The phone menu drips: it grows down out of the droplet, narrow and short first.
-  const drip = reduce
-    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } }
-    : {
-        initial: { opacity: 0, y: -12, scaleX: 0.86, scaleY: 0.6 },
-        animate: { opacity: 1, y: 0, scaleX: 1, scaleY: 1 },
-        exit: { opacity: 0, y: -8, scaleX: 0.92, scaleY: 0.8, transition: { duration: DURATION_FAST, ease: EASE_EXIT } },
-      }
-
   return (
     <>
-      <AnimatePresence>
-        {sheetOpen ? (
-          <motion.div
-            key="backdrop"
-            aria-hidden="true"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={TWEEN_FAST}
-            onClick={() => setOpen(null)}
-            className="fixed inset-0 z-sticky bg-ink/20 backdrop-blur-sm sm:hidden"
-          />
-        ) : null}
-      </AnimatePresence>
+      {/* The scrim fades on the sheet's beat; the sheet's own fold-away decides when both go. */}
+      {sheet.mounted ? (
+        <div
+          aria-hidden="true"
+          data-state={sheet.presenceProps["data-state"]}
+          onClick={() => setOpen(null)}
+          className="backdrop-surface fixed inset-0 z-sticky bg-ink/20 backdrop-blur-sm sm:hidden"
+        />
+      ) : null}
 
       <DropletFrame
         hidden={hidden}
@@ -438,40 +411,38 @@ export function Navbar() {
                 />
               </motion.button>
 
-              <AnimatePresence>
-                {menuOpen ? (
-                  <motion.div
-                    {...popIn}
-                    transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
-                    id="navbar-account"
-                    aria-label="Account"
-                    className={cn(POPOVER_SURFACE, "absolute right-0 top-full z-dropdown mt-3.5 w-64 origin-top-right rounded-xl p-1.5")}
-                  >
-                    <div className="flex items-center gap-3 px-3 pb-2.5 pt-2">
-                      <Avatar
-                        src={user?.profilePictureUrl}
-                        firstName={user?.firstName}
-                        lastName={user?.lastName}
-                        email={user?.email}
-                        size={36}
-                      />
-                      <div className="min-w-0">
-                        <p className="truncate text-body-sm font-semibold text-ink">{displayName}</p>
-                        <p className="mt-0.5 truncate text-caption text-ink-muted">{user?.email}</p>
-                      </div>
+              {menu.mounted ? (
+                <div
+                  {...menu.presenceProps}
+                  id="navbar-account"
+                  aria-label="Account"
+                  data-cascade
+                  className={cn(POPOVER_SURFACE, "dropdown-surface absolute right-0 top-full z-dropdown mt-3.5 w-64 origin-top-right rounded-xl p-1.5")}
+                >
+                  <div className="flex items-center gap-3 px-3 pb-2.5 pt-2">
+                    <Avatar
+                      src={user?.profilePictureUrl}
+                      firstName={user?.firstName}
+                      lastName={user?.lastName}
+                      email={user?.email}
+                      size={36}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-body-sm font-semibold text-ink">{displayName}</p>
+                      <p className="mt-0.5 truncate text-caption text-ink-muted">{user?.email}</p>
                     </div>
-                    <div className="my-1 h-px bg-line" aria-hidden="true" />
-                    <button type="button" onClick={goToProfile} className={MENU_ITEM}>
-                      <User className="h-4 w-4" aria-hidden="true" />
-                      Profile
-                    </button>
-                    <button type="button" onClick={handleLogout} className={MENU_ITEM}>
-                      <LogOut className="h-4 w-4" aria-hidden="true" />
-                      Sign out
-                    </button>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
+                  </div>
+                  <div className="my-1 h-px bg-line" aria-hidden="true" />
+                  <button type="button" onClick={goToProfile} className={MENU_ITEM}>
+                    <User className="h-4 w-4" aria-hidden="true" />
+                    Profile
+                  </button>
+                  <button type="button" onClick={handleLogout} className={MENU_ITEM}>
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
+                    Sign out
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             {/* The phone menu's toggle: your face and a chevron that turns. */}
@@ -504,63 +475,64 @@ export function Navbar() {
             </motion.button>
           </motion.div>
 
-          <AnimatePresence>
-            {sheetOpen ? (
-              <motion.div
-                key="sheet"
-                id="navbar-sheet"
-                data-testid="navbar-mobile"
-                {...drip}
-                transition={reduce ? { duration: 0 } : SPRING_LAYOUT}
-                className={cn(POPOVER_SURFACE, "absolute inset-x-0 top-full mt-2 origin-top rounded-xl p-2 sm:hidden")}
-              >
-                <nav aria-label="Main" className="space-y-1">
-                  {NAV_TABS.map((tab) => {
-                    const active = isActive(tab.href)
-                    return (
-                      <Link
-                        key={tab.href}
-                        href={tab.href}
-                        onClick={() => setOpen(null)}
-                        aria-current={active ? "page" : undefined}
-                        className={cn(
-                          "flex h-12 items-center justify-between rounded-xl px-4 text-body font-semibold transition-colors duration-fast",
-                          active ? "bg-ink text-paper" : "text-ink-muted hover:bg-paper-sunken hover:text-ink",
-                        )}
-                      >
-                        {tab.label}
-                        {active ? <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-paper" /> : null}
-                      </Link>
-                    )
-                  })}
-                </nav>
+          {sheet.mounted ? (
+            <div
+              id="navbar-sheet"
+              data-testid="navbar-mobile"
+              {...sheet.presenceProps}
+              // The phone menu drips out of the droplet: the shared unfold, from narrower and
+              // much shorter, so it reads as growing down out of the capsule.
+              className={cn(
+                POPOVER_SURFACE,
+                "dropdown-surface absolute inset-x-0 top-full mt-2 origin-top rounded-xl p-2 [--dropdown-scale-x:0.86] [--dropdown-scale-y:0.6] [--dropdown-shift:-12px] sm:hidden",
+              )}
+            >
+              <nav aria-label="Main" data-cascade className="space-y-1">
+                {NAV_TABS.map((tab) => {
+                  const active = isActive(tab.href)
+                  return (
+                    <Link
+                      key={tab.href}
+                      href={tab.href}
+                      onClick={() => setOpen(null)}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex h-12 items-center justify-between rounded-xl px-4 text-body font-semibold transition-colors duration-fast",
+                        active ? "bg-ink text-paper" : "text-ink-muted hover:bg-paper-sunken hover:text-ink",
+                      )}
+                    >
+                      {tab.label}
+                      {active ? <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-paper" /> : null}
+                    </Link>
+                  )
+                })}
+              </nav>
 
-                <div className="mt-2 border-t border-line pt-2">
-                  <div className="flex items-center gap-3 px-4 py-2">
-                    <Avatar
-                      src={user?.profilePictureUrl}
-                      firstName={user?.firstName}
-                      lastName={user?.lastName}
-                      email={user?.email}
-                      size={36}
-                    />
-                    <div className="min-w-0">
-                      <p className="truncate text-body-sm font-semibold text-ink">{displayName}</p>
-                      {user?.email ? <p className="truncate text-caption text-ink-muted">{user.email}</p> : null}
-                    </div>
+              <div className="mt-2 border-t border-line pt-2">
+                <div className="flex items-center gap-3 px-4 py-2">
+                  <Avatar
+                    src={user?.profilePictureUrl}
+                    firstName={user?.firstName}
+                    lastName={user?.lastName}
+                    email={user?.email}
+                    size={36}
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-body-sm font-semibold text-ink">{displayName}</p>
+                    {user?.email ? <p className="truncate text-caption text-ink-muted">{user.email}</p> : null}
                   </div>
-                  <button type="button" onClick={goToProfile} className={cn(MENU_ITEM, "h-12 rounded-xl px-4")}>
-                    <User className="h-4 w-4" aria-hidden="true" />
-                    Profile
-                  </button>
-                  <button type="button" onClick={handleLogout} className={cn(MENU_ITEM, "h-12 rounded-xl px-4")}>
-                    <LogOut className="h-4 w-4" aria-hidden="true" />
-                    Sign out
-                  </button>
                 </div>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+                <button type="button" onClick={goToProfile} className={cn(MENU_ITEM, "h-12 rounded-xl px-4")}>
+                  <User className="h-4 w-4" aria-hidden="true" />
+                  Profile
+                </button>
+                <button type="button" onClick={handleLogout} className={cn(MENU_ITEM, "h-12 rounded-xl px-4")}>
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                  Sign out
+                </button>
+              </div>
+            </div>
+          ) : null}
       </DropletFrame>
     </>
   )

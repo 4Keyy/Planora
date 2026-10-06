@@ -356,6 +356,37 @@ none of them. Five rules follow.
    (`components/ui/masonry-columns.tsx`) instead of re-dealing — re-dealing remounted every
    card after the one that changed and replayed its entrance.
 
+### Floating surfaces — CSS, not framer-motion
+
+Every dropdown in the product — the create panel's four pickers and the editor's (the shared
+`Popover`), the archive's date filter, the branch composer's attach menu, notifications, the
+account menu, the phone menu, and the Radix menus — enters and leaves with one motion, run by
+CSS (`.dropdown-surface` in `globals.css`) and kept mounted through its exit by
+`hooks/use-exit-presence.ts` (Radix does the same for its own surfaces).
+
+1. **It unfolds out of its trigger.** The sheet arrives from 8px towards the control that
+   opened it, at `scale(0.97, 0.9)` from the trigger's edge (`transform-origin`), on `base` /
+   `ease-emphasized`. Its content settles in 30ms behind it, and the rows of a list marked
+   `data-cascade` pour out one after another, 12ms apart from 40ms, the sixth and every later
+   row together — so no text is drawn while the sheet is still being squeezed, and the last
+   row lands at 260ms, inside the 320ms ceiling. It folds back the way it came on `fast` /
+   `ease-exit`. A surface that opens above its trigger takes `.dropdown-above` (Radix says
+   `data-side="top"`); the phone menu sets `--dropdown-scale-x/-y` to 0.86 / 0.6 and drips.
+2. **Why not framer-motion.** framer-motion 11 hands `opacity` to the Web Animations API and,
+   when that animation finishes, cancels it before it writes the final value back — the write
+   waits for the next frame. Recorded frame by frame, an opened popover sat at its starting
+   `opacity: 0` for one frame after the animation ended, and a closed one was back at full
+   opacity for one frame before it unmounted; the spring under it overshot to 100.18% and
+   settled in two waves. A CSS animation has no hand-off: its last keyframe is the resting
+   style, and the exit's `forwards` fill holds the folded state until the node is removed.
+3. **One layer, first frame to last.** `will-change: transform, opacity` keeps the surface
+   composited for its whole life, so the end of the motion changes nothing on screen — no
+   re-rasterised text at the moment it stops.
+4. **The presence is honest.** `useExitPresence` unmounts on the surface's own `animationend`
+   (a row's bubbling one does not count) and falls back to a timer when no animation runs, so
+   an invisible surface is never left behind catching clicks. The phone menu's scrim fades on
+   the same presence with `.backdrop-surface`.
+
 ### Direction carries meaning
 
 | Motion | Means |
@@ -950,7 +981,7 @@ block and the glass is always behind the contents. The landing page's nav is the
 | Whole | The resting state at the top of every page; tabs always present, search shows its ⌘K hint from `lg` |
 | Condensed (desktop) | While scrolling down past 96px: the mark, the current tab and the buttons. The capsule's width springs (`layout`) in ONE measured change: the tucked tabs go `sr-only` and the name leaves through `AnimatePresence mode="popLayout"` in the same commit, so nothing reflows after the spring starts (a child removed after its exit is a layout change framer never measures — the capsule used to snap ~70px narrower at the end). Pointing at it, focus inside it, scrolling up or an open menu make it whole |
 | Hidden (phone) | While scrolling down the whole frame slides up by its own height plus 2rem — a CSS translate on the plain wrapper, `duration-slow`, leaving on `ease-standard` and arriving on `ease-emphasized`. No fade and nothing on the capsule: its transform belongs to the layout projection, and opacity on an ancestor of the glass would switch its blur off. Scrolling up or focus brings it back |
-| Phone menu | Drips out of the droplet (`scaleX`/`scaleY` from the top), the page dimmed and blurred behind it by a backdrop that is a sibling of the capsule |
+| Phone menu | Drips out of the droplet — the shared `.dropdown-surface` unfold from `scale(0.86, 0.6)`, 12px up, from the top — the page dimmed and blurred behind it by a backdrop that is a sibling of the capsule |
 | Popovers | Account menu and notifications hang 8px under the capsule's edge; one open at a time |
 | Room | The capsule is `fixed` and takes none. `--bar-clearance` (globals.css: safe-area inset + 5.5rem) is the room `<main>` starts after, and what the update pill, toasts, the profile rail and anchor scroll-margins offset by |
 | Reduced motion | Never condenses or hides; every change instant |
@@ -1411,7 +1442,7 @@ the section, and the thirteenth — the one that is wrong — goes in unnoticed.
 
 | Hatch | Uses | Why it is the only answer |
 |---|---|---|
-| `!important` | **12**, all in `globals.css` | Four outrank a stylesheet the product does not own (`react-remove-scroll-bar` injects `margin-right: …px !important` to compensate for a disappearing scrollbar; ours lives on `<html>` and never disappears, so the compensation only shoves the page sideways). One pins mobile form controls to 16px, because iOS Safari zooms the whole page when a focused control is smaller and the fix has to outrank a Tailwind utility. Four are the reduced-motion kill switch, which by definition must beat every author style. |
+| `!important` | **13**, all in `globals.css` | Four outrank a stylesheet the product does not own (`react-remove-scroll-bar` injects `margin-right: …px !important` to compensate for a disappearing scrollbar; ours lives on `<html>` and never disappears, so the compensation only shoves the page sideways). One pins mobile form controls to 16px, because iOS Safari zooms the whole page when a focused control is smaller and the fix has to outrank a Tailwind utility. Five are the reduced-motion kill switch, which by definition must beat every author style; the fifth zeroes the delay a dropdown's content and cascading rows wait on, which the other four do not shorten. |
 | Inline `style` | **388** in the earlier audit, 78% in `edit-todo-modal/` | Runtime geometry and component-specific dimensions not present in the named scales. Semantic colors should use `--pl-*` or tokens; geometry also contains literal dimensions. A source count of zero hex/`"white"` literals does not mean every inline value comes from a token. New code outside the branch editor generally uses utilities. |
 | A non-transform animation | **2 kinds** | `pathLength` on an SVG, because no transform turns an arc into a longer arc — the completion stroke, the weekly ring, the presence ring, the redaction arc. And `stroke-dasharray`/`pathOffset`, which is the same exception wearing a different name. |
 

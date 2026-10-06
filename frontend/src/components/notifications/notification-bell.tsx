@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Bell, CheckCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { DURATION_FAST, EASE_EXIT, EASE_OUT_EXPO, SPRING_RESPONSIVE } from "@/lib/animations"
+import { SPRING_RESPONSIVE } from "@/lib/animations"
 import { ICON_BUTTON, POPOVER_SURFACE } from "@/components/ui/surfaces"
+import { useExitPresence } from "@/hooks/use-exit-presence"
 import { getNotificationKind } from "@/lib/notifications/types"
 import { ensurePermission } from "@/lib/notifications/web-notifications"
 import { useNotificationStore, type AppNotification } from "@/store/notifications"
@@ -52,6 +53,7 @@ export function NotificationBell({
   const router = useRouter()
   const [ownOpen, setOwnOpen] = useState(false)
   const open = openProp ?? ownOpen
+  const panel = useExitPresence(open)
   const setOpen = (next: boolean) => {
     if (onOpenChange) onOpenChange(next)
     else setOwnOpen(next)
@@ -135,80 +137,75 @@ export function NotificationBell({
         </AnimatePresence>
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98, transition: { duration: DURATION_FAST, ease: EASE_EXIT } }}
-            transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
-            className={cn(
-              POPOVER_SURFACE,
-              // 8px under the droplet's edge at every width: the phone panel hangs from the droplet
-              // itself, the desktop one from this 44px button, 6px inside the 56px capsule.
-              "absolute inset-x-0 top-full z-dropdown mt-2 origin-top overflow-hidden sm:inset-x-auto sm:right-0 sm:mt-3.5 sm:w-96 sm:origin-top-right",
+      {panel.mounted && (
+        <div
+          {...panel.presenceProps}
+          className={cn(
+            POPOVER_SURFACE,
+            // 8px under the droplet's edge at every width: the phone panel hangs from the droplet
+            // itself, the desktop one from this 44px button, 6px inside the 56px capsule.
+            "dropdown-surface absolute inset-x-0 top-full z-dropdown mt-2 origin-top overflow-hidden sm:inset-x-auto sm:right-0 sm:mt-3.5 sm:w-96 sm:origin-top-right",
+          )}
+          // A dialog, not an ARIA menu: it holds a heading, an action and a list of rows —
+          // a menu may contain only menu items, and an empty one is an empty menu.
+          role="dialog"
+          aria-labelledby={headingId}
+        >
+          <div className="flex h-12 items-center justify-between border-b border-line pl-4 pr-2">
+            <h2 id={headingId} className="text-body-sm font-bold text-ink">Notifications</h2>
+            {totalUnread > 0 && (
+              <button
+                type="button"
+                onClick={() => void markAllRead()}
+                className="touch-target inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-caption font-semibold text-ink-muted transition-colors duration-fast hover:bg-paper-sunken hover:text-ink"
+              >
+                <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                Mark all read
+              </button>
             )}
-            // A dialog, not an ARIA menu: it holds a heading, an action and a list of rows —
-            // a menu may contain only menu items, and an empty one is an empty menu.
-            role="dialog"
-            aria-labelledby={headingId}
-          >
-            <div className="flex h-12 items-center justify-between border-b border-line pl-4 pr-2">
-              <h2 id={headingId} className="text-body-sm font-bold text-ink">Notifications</h2>
-              {totalUnread > 0 && (
-                <button
-                  type="button"
-                  onClick={() => void markAllRead()}
-                  className="touch-target inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-caption font-semibold text-ink-muted transition-colors duration-fast hover:bg-paper-sunken hover:text-ink"
-                >
-                  <CheckCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  Mark all read
-                </button>
-              )}
-            </div>
+          </div>
 
-            <div className="max-h-96 overflow-y-auto overscroll-contain">
-              {items.length === 0 ? (
-                <p className="px-4 py-12 text-center text-body-sm text-ink-muted">You&apos;re all caught up</p>
-              ) : (
-                items.map((n) => {
-                  const kind = getNotificationKind(n.type)
-                  const Icon = kind.icon
-                  return (
-                    <button
-                      key={n.id}
-                      type="button"
-                      onClick={() => openItem(n)}
-                      className={cn(
-                        "flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left transition-colors duration-fast last:border-b-0 hover:bg-paper-sunken",
-                        !n.isRead && "bg-paper-sunken",
-                      )}
+          <div data-cascade className="max-h-96 overflow-y-auto overscroll-contain">
+            {items.length === 0 ? (
+              <p className="px-4 py-12 text-center text-body-sm text-ink-muted">You&apos;re all caught up</p>
+            ) : (
+              items.map((n) => {
+                const kind = getNotificationKind(n.type)
+                const Icon = kind.icon
+                return (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => openItem(n)}
+                    className={cn(
+                      "flex w-full items-start gap-3 border-b border-line px-4 py-3 text-left transition-colors duration-fast last:border-b-0 hover:bg-paper-sunken",
+                      !n.isRead && "bg-paper-sunken",
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
+                      style={{ background: `${kind.tint}1f`, color: kind.tint }}
                     >
-                      <span
-                        aria-hidden="true"
-                        className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
-                        style={{ background: `${kind.tint}1f`, color: kind.tint }}
-                      >
-                        <Icon className="h-4 w-4" strokeWidth={2.25} />
+                      <Icon className="h-4 w-4" strokeWidth={2.25} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate text-caption font-semibold text-ink">{n.title}</span>
+                        <span className="flex-shrink-0 text-caption tabular-nums text-ink-muted">{formatRelative(n.occurredOn)}</span>
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="truncate text-caption font-semibold text-ink">{n.title}</span>
-                          <span className="flex-shrink-0 text-caption tabular-nums text-ink-muted">{formatRelative(n.occurredOn)}</span>
-                        </span>
-                        <span className="mt-0.5 line-clamp-2 block text-caption text-ink-muted">{n.message}</span>
-                      </span>
-                      {!n.isRead && (
-                        <span aria-hidden="true" className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: kind.tint }} />
-                      )}
-                    </button>
-                  )
-                })
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                      <span className="mt-0.5 line-clamp-2 block text-caption text-ink-muted">{n.message}</span>
+                    </span>
+                    {!n.isRead && (
+                      <span aria-hidden="true" className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: kind.tint }} />
+                    )}
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

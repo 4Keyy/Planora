@@ -474,7 +474,11 @@ The editor seeds its local fields from the task **once per task** (`todo.id`), n
 update — so on the page (where the parent feeds the saved task back after autosave) the controls
 never "snap back". This matters because a friends-visibility task with no one selected persists as
 `isPublic:false, sharedWith:[]`, indistinguishable from private; re-seeding on every update used to
-flip the selection. The shared `Popover` animates open **and** close (framer-motion).
+flip the selection. The shared `Popover` animates open **and** close with the product's one
+dropdown motion (`.dropdown-surface` in `globals.css`, kept mounted through its fold by
+`hooks/use-exit-presence.ts`): it unfolds out of its trigger and its rows pour out after it, then
+folds back the way it came. Every dropdown in the product uses the same motion — see "Dropdowns
+open and close without a blink" under the Todos frontend behavior.
 
 **Popover positioning modes** (`edit-todo-modal/popover.tsx`): the shared `Popover` renders in one of
 two modes. By default it is an **in-flow absolute** child of its trigger wrapper — used inside the
@@ -487,7 +491,8 @@ opening a `portal` popover can **never stretch the page** and closing it can **n
 is what the create-task panel (on `/tasks` and the dashboard) uses for all four selectors, so
 even the tall inline "create category" form stays inside the viewport instead of growing the page.
 `PriorityPopover`, `DatePopover`, and `CategoryPopover` accept and forward an optional `portal` prop
-(default `false`, so the edit-modal usages are unchanged).
+(default `false`, so the edit-modal usages are unchanged). A portal popover that flips above its
+trigger also unfolds upwards (`.dropdown-above`), out of the trigger's top edge.
 
 The page owns the task + category data and wires every editor action against the API: owner
 autosave (`PUT` preserving status), viewer category preference, take/leave work, complete/restore,
@@ -733,8 +738,8 @@ The viewer count is the length of that shared list.
   QuickFilter plate** via its `dateControl` slot (`DateFilterPopover`) rather than sitting as a
   separate block. A compact trigger (same height as the plate's other controls, so the plate never
   grows) opens the calendar as a **floating popover** — it is absolutely positioned and overlays the
-  task grid below, so opening it never reflows the page or stretches the plate. The popover scales out
-  of its top-right corner (origin-aware), closes on outside-click / `Escape`, and honors
+  task grid below, so opening it never reflows the page or stretches the plate. The popover unfolds out
+  of its top-right corner with the shared dropdown motion, closes on outside-click / `Escape`, and honors
   `prefers-reduced-motion`. It reuses the same two-click `DateCalendar` (headless, quick-picks hidden)
   as the estimated-completion date, so a first click picks a single day and a second click turns it
   into a range. **The popover stays open after the first pick** so the day can be extended into a
@@ -835,6 +840,7 @@ The viewer count is the length of that shared list.
 - The bar no longer creates tasks. It carried a second capture field whose placeholder promised natural-language dates ("tomorrow at 5pm #work") that nothing parsed; creating a task lives on the pages that list tasks (the capture control and the "New task" panel) and in the palette's "Capture a task", which goes to `/tasks` and opens capture from any screen.
 - The bar renders before the session restore finishes (only the avatar's initials arrive later), and `AuthGuard` wraps the page content beneath it, so the first paint of a signed-in route is the product's frame rather than a blank screen. `<main id="main">` on every signed-in route is the target of the root layout's "Skip to content" link, which had no target on any of them.
 - Task list updates feel instant because mutation-triggered refetches run in "silent" mode (`fetchActiveTodos`/`fetchTodos` accept `{ silent }`): creating a task inserts it from the POST response right away, and create/reopen refreshes no longer flash the skeleton grid over existing cards. The first full page load still shows skeletons; only background reconciliation is silent.
+- **Dropdowns open and close without a blink** (`frontend/src/app/globals.css` `.dropdown-surface`, `frontend/src/hooks/use-exit-presence.ts`): every dropdown — the create panel's Priority / Due date / Category / Share pickers, the task editor's pickers and its composer's attach menu, the archive's date filter, notifications, the account menu, the phone menu and the Radix menus — enters and leaves with one CSS motion. The sheet unfolds out of the control that opened it (from 8px towards it, `scale(0.97, 0.9)` from the trigger's edge), its content settles in a beat behind it, and the rows of its list pour out one after another; it folds back the way it came, faster than it arrived, and the whole entrance ends inside 320ms. They used to animate with framer-motion, and each ended with a blink about half a second after opening: the spring overshot and settled in two waves, and framer's hand-off from the Web Animations API left the surface at its starting opacity for a frame (and, on close, back at full opacity for a frame before it unmounted). CSS has no hand-off, and `will-change` keeps each surface on one layer from its first frame to its last, so nothing changes on screen when the motion stops.
 - **Opening a task leaves the page where it was** (`frontend/src/hooks/use-scroll-lock.ts`): every dialog locks page scroll on `<html>`, the element that actually scrolls, and `scrollbar-gutter: stable` keeps the scrollbar's lane reserved under the lock, so nothing behind the blurred backdrop moves when a task — or any other dialog — opens or closes. The lock used to pad `<body>` by the scrollbar's width on top of that reserved lane, which slid the whole page 5px to the left while the dialog was open and back when it closed; and its `overflow: hidden` on `<body>` never stopped a wheel over the backdrop from scrolling the page.
 - In the Task Branch edit modal, the title heading and its inline edit field share the exact same box model (padding, negative margin, border radius and font metrics), so clicking the title to rename it never shifts the heading sideways or changes its size — it simply fades from the hover background into an editable field.
 - The Task Branch edit modal (`frontend/src/components/todos/edit-todo-modal`) is **quick-save** with no Save/Cancel buttons: editing the title, priority, due date, category, or visibility/sharing autosaves via the debounced `useAutosave` hook. Owners persist the full task payload; a shared viewer who can manage their own category autosaves only their private category preference. The description ("Author's Note" in the branch) keeps its own explicit editor and is intentionally excluded from the autosave equality check so it is never written twice. There is **no footer panel** — no autosave-status indicator and no `Done` button; the modal closes via the header **✕**, the backdrop, or `Escape`, and a pending edit is flushed on close/unmount. Save failures are toasted once; the autosave retries on the next edit.

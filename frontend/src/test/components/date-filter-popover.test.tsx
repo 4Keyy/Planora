@@ -27,7 +27,7 @@ describe("DateFilterPopover", () => {
     expect(await screen.findByRole("dialog")).toBeInTheDocument()
 
     fireEvent.keyDown(document, { key: "Escape" })
-    // AnimatePresence unmounts after the exit animation, so poll for removal.
+    // The surface stays mounted through its fold-away, so poll for removal.
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
   })
 
