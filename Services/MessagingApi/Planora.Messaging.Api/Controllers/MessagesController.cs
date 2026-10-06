@@ -59,6 +59,7 @@ namespace Planora.Messaging.Api.Controllers
 
         [HttpGet("health")]
         [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public IActionResult Health()
         {
             return Ok(new { status = "ok" });

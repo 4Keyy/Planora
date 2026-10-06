@@ -119,8 +119,8 @@ connection required). Review and back up affected data before executing them.
 | [`ci.yml`](../.github/workflows/ci.yml) | Push on configured branches and PR to main/develop: Markdown/offline links; .NET restore/build/test; frontend npm ci/lint/types/coverage/build |
 | [`e2e.yml`](../.github/workflows/e2e.yml) | Path-filtered PR or manual dispatch: Compose stack, production frontend, Playwright API and Chromium UI projects |
 | [`security.yml`](../.github/workflows/security.yml) | Secret/dependency scanning, CodeQL, Trivy, SBOM; frontend SBOM attested on push |
-| [`openapi.yml`](../.github/workflows/openapi.yml) | Path-filtered PR or manual: Swagger + Spectral; matrix covers Auth, Category, Todo, Messaging, Realtime, omits Collaboration |
-| [`migrations.yml`](../.github/workflows/migrations.yml) | Path-filtered PR or manual: intended SQL artifacts for Auth, Category, Todo, Messaging, Collaboration; omits Realtime |
+| [`openapi.yml`](../.github/workflows/openapi.yml) | Path-filtered PR or manual: Swagger + Spectral for all six HTTP services; Testing skips Todo/Collaboration startup migrations |
+| [`migrations.yml`](../.github/workflows/migrations.yml) | Path-filtered PR or manual: SQL artifacts for all six DB-owning services; EF CLI 10.0.8 after restore/Release build |
 | [`perf-smoke.yml`](../.github/workflows/perf-smoke.yml) | Manual k6 login/todo-list scenarios; absolute thresholds, no relative-baseline comparison implementation |
 | [`cd.yml`](../.github/workflows/cd.yml) | `v*` tag or manual ref: preflight, migration runner, service matrix, gateway, public health smoke |
 | [`nuget-vuln-pr.yml`](../.github/workflows/nuget-vuln-pr.yml) | Nightly/manual vulnerability tracking PR; report generation, not package upgrades |
@@ -139,7 +139,7 @@ not trigger CD.
 |---|---|---|
 | Incomplete Todo migration history | Earliest tracked migration alters `todo.user_todo_view_preferences` | Restore/baseline complete schema history and validate against an empty PostgreSQL DB |
 | Migrator container omits project dependencies | Dockerfile copies four service trees; csproj also references Realtime/Collaboration | Align Docker build context with the actual project-reference graph |
-| Migration artifact job is not self-contained | EF CLI 9.0.15 with EF runtime 10; `--no-build` without a preceding build | Align tool version, build assemblies, include Realtime and validate SQL output |
+| Migration artifacts do not prove database bootstrap | The workflow now restores/builds with EF CLI 10.0.8 and includes Realtime, but scripts describe the tracked migration chain | Verify the initial schema and empty-database application separately; artifact generation alone does not repair missing migration history |
 | Production gateway uses local targets | `Program.cs` selects `ocelot.Docker.json` only for Docker; Production selects tracked `ocelot.json` with loopback targets | Supply verified production routes and service addresses |
 | Listener/proxy port alignment unverified | Fly `internal_port=8080`; committed Kestrel endpoints use local ports | Configure/test effective Kestrel REST and HTTP/2 endpoints, not just `ASPNETCORE_URLS` |
 | Realtime DB secret omitted | `set-secrets.ps1` lacks RealtimeDatabase in Realtime and migrator matrices | Stage the correct connection on both; apply Realtime migrations |
