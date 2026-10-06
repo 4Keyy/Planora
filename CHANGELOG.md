@@ -4,6 +4,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ci): make contract artifacts reproducible (2026-10-06)
+
+The migration artifact workflow now restores and builds Release assemblies
+before invoking EF CLI 10.0.8; its matrix includes Realtime with the same private
+EF design-time reference used by the other API startup projects. OpenAPI extraction
+includes Collaboration and uses the existing Testing startup guards to avoid
+running Todo/Collaboration migrations while collecting API metadata. Messaging
+health now declares its existing `200` response in OpenAPI. These tooling fixes
+do not reconcile migration history or certify empty-database deployment.
+
 ### fix(ci): restore dependency and auth contract checks (2026-10-06)
 
 Pinned XML cryptography to patched 10.0.12 through an explicit Auth Infrastructure

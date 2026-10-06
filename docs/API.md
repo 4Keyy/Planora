@@ -1243,6 +1243,12 @@ Gateway prefix: `/messaging/api/v1/messages`
 | `GET` | `?otherUserId=&page=1&pageSize=20` | bearer | `200` | get messages |
 | `GET` | `/health` | public at service route | `200` | service-local health helper |
 
+The Messaging controller health helper returns `{ "status": "ok" }`. Its
+successful `200` response is explicitly registered in OpenAPI metadata so the
+strict contract lint can distinguish it from the controller's inherited
+`401`/`403` responses. This service-local helper is separate from the aggregate
+`/messaging/health` gateway route.
+
 Send body:
 
 ```json
