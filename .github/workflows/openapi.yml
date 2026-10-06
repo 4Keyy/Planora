@@ -8,9 +8,9 @@ name: OpenAPI
 #
 # The Swashbuckle.AspNetCore.Cli tool boots the service's host briefly,
 # extracts the swagger.json from DI, then exits. Postgres, Redis, and
-# RabbitMQ are provided so the host can complete its startup waiters;
-# Redis/RabbitMQ failures degrade gracefully in service code so this job
-# is forgiving of brief container start-up.
+# RabbitMQ support services whose startup still accesses dependencies. The
+# existing Testing environment skips Todo/Collaboration startup migrations;
+# OpenAPI generation inspects registered metadata and does not validate schema.
 
 on:
   pull_request:
@@ -100,8 +100,13 @@ jobs:
           - service: realtime
             project: Services/RealtimeApi/Planora.Realtime.Api
             dll: Planora.Realtime.Api.dll
-            db: ""        # no DB
-            db_key: ""
+            db: planora_realtime
+            db_key: RealtimeDatabase
+          - service: collaboration
+            project: Services/CollaborationApi/Planora.Collaboration.Api
+            dll: Planora.Collaboration.Api.dll
+            db: planora_collaboration
+            db_key: CollaborationDatabase
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -138,7 +143,9 @@ jobs:
           # checks accept the boot. The host degrades gracefully when
           # Redis / RabbitMQ are slow to connect; placeholders satisfy the
           # length and presence rules without exposing real values.
-          ASPNETCORE_ENVIRONMENT: Development
+          # Existing Testing guards skip startup waiters/migrations while the CLI
+          # obtains the same registered controllers and Swagger generation options.
+          ASPNETCORE_ENVIRONMENT: Testing
           JwtSettings__Secret: "0123456789abcdef0123456789abcdef0123456789abcdef"
           JwtSettings__Issuer: "Planora.Auth"
           JwtSettings__Audience: "Planora.Clients"

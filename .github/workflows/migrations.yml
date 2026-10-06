@@ -55,6 +55,10 @@ jobs:
             project: Services/CollaborationApi/Planora.Collaboration.Infrastructure
             startup: Services/CollaborationApi/Planora.Collaboration.Api
             context: CollaborationDbContext
+          - name: realtime
+            project: Services/RealtimeApi/Planora.Realtime.Infrastructure
+            startup: Services/RealtimeApi/Planora.Realtime.Api
+            context: RealtimeDbContext
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -68,7 +72,13 @@ jobs:
             Directory.Build.props
 
       - name: Install dotnet-ef
-        run: dotnet tool install --global dotnet-ef --version 9.0.15
+        run: dotnet tool install --global dotnet-ef --version 10.0.8
+
+      - name: Restore solution
+        run: dotnet restore Planora.sln
+
+      - name: Build ${{ matrix.name }} (Release)
+        run: dotnet build ${{ matrix.startup }} --configuration Release --no-restore
 
       - name: Generate idempotent SQL script for ${{ matrix.name }}
         env:
@@ -79,6 +89,7 @@ jobs:
           ConnectionStrings__TodoDatabase: "Host=localhost;Database=planora_todo;Username=postgres;Password=postgres"
           ConnectionStrings__MessagingDatabase: "Host=localhost;Database=planora_messaging;Username=postgres;Password=postgres"
           ConnectionStrings__CollaborationDatabase: "Host=localhost;Database=planora_collaboration;Username=postgres;Password=postgres"
+          ConnectionStrings__RealtimeDatabase: "Host=localhost;Database=planora_realtime;Username=postgres;Password=postgres"
           JwtSettings__Secret: "0123456789abcdef0123456789abcdef0123456789abcdef"
           GrpcSettings__ServiceKey: "0123456789abcdef0123456789abcdef"
         run: |
@@ -88,6 +99,7 @@ jobs:
             --project ${{ matrix.project }} \
             --startup-project ${{ matrix.startup }} \
             --context ${{ matrix.context }} \
+            --configuration Release \
             --output migration-scripts/${{ matrix.name }}.sql \
             --no-build || (echo "::error::Migration script generation failed for ${{ matrix.name }}" && exit 1)
 
