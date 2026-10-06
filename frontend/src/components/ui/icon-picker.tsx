@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { TAP_PRESS } from "@/lib/animations"
 import { POPOVER_SURFACE } from "@/components/ui/surfaces"
+import { useDismissHiddenAnchor } from "@/hooks/use-dismiss-hidden-anchor"
 import {
   CheckCircle2,
   Clock,
@@ -114,14 +115,24 @@ function iconLabel(name: string): string {
 
 export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const skipCloseFocus = useRef(false)
+  useDismissHiddenAnchor(isOpen, triggerRef, () => {
+    skipCloseFocus.current = true
+    setIsOpen(false)
+  })
 
   const SelectedIconComponent =
     ICON_PICKER_ITEMS.find((i) => i.name === selectedIcon)?.icon || Tag
 
   return (
-    <PopoverPrimitive.Root open={isOpen} onOpenChange={setIsOpen}>
+    <PopoverPrimitive.Root open={isOpen} onOpenChange={(next) => {
+      if (next) skipCloseFocus.current = false
+      setIsOpen(next)
+    }}>
       <PopoverPrimitive.Trigger asChild>
         <button
+          ref={triggerRef}
           type="button"
           className="group flex h-control w-full items-center gap-3 rounded-md bg-paper-sunken px-4 transition-[color,background-color,transform] duration-fast hover:bg-gray-100 active:scale-95"
         >
@@ -140,6 +151,7 @@ export function IconPicker({ selectedIcon, onIconSelect }: IconPickerProps) {
           sideOffset={8}
           collisionPadding={12}
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => { if (skipCloseFocus.current) e.preventDefault() }}
           className={cn(
             POPOVER_SURFACE,
             "dropdown-surface z-popover w-[min(320px,calc(100vw-24px))] origin-[var(--radix-popover-content-transform-origin)] outline-none",

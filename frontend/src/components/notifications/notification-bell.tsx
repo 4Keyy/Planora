@@ -1,5 +1,7 @@
 "use client"
 
+import { useDismissHiddenAnchor } from "@/hooks/use-dismiss-hidden-anchor"
+
 import { useEffect, useId, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -60,6 +62,7 @@ export function NotificationBell({
   }
   const ref = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
+  useDismissHiddenAnchor(open, triggerRef, () => setOpen(false))
   const headingId = useId()
   // The listeners below are attached once per opening; they read the latest setter
   // through this ref instead of re-subscribing on every render.

@@ -23,6 +23,7 @@ import { INCOMPLETE_SUBTASK_DIALOG, incompleteSubtaskDescription } from "@/lib/s
 import { FriendAvatar } from "./friend-avatar"
 import { tokens } from "@/lib/design-tokens"
 import { useExitPresence } from "@/hooks/use-exit-presence"
+import { useDismissHiddenAnchor } from "@/hooks/use-dismiss-hidden-anchor"
 import {
   formatDayLabel,
   formatTimeHHMM,
@@ -1049,6 +1050,7 @@ export function BranchFeed({
   const hasMenuItems              = menuShowsDescription || menuShowsSubtask || menuShowsActions || menuShowsCompletedActions
   // The attach menu folds back into the + button instead of vanishing (`.dropdown-surface`).
   const plusMenu                  = useExitPresence(plusMenuOpen && hasMenuItems)
+  useDismissHiddenAnchor(plusMenuOpen, plusBtnRef, () => setPlusMenuOpen(false))
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0, height: "100%", minHeight: 0 }}>

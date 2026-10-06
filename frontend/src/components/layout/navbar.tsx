@@ -18,6 +18,7 @@ import { api } from "@/lib/api"
 import { clearCsrfToken } from "@/lib/csrf"
 import { DropletFrame, isKeyboardFocus, useDropletScroll, useIsPhone } from "@/components/layout/droplet"
 import { useExitPresence } from "@/hooks/use-exit-presence"
+import { useDismissHiddenAnchor } from "@/hooks/use-dismiss-hidden-anchor"
 import { SPRING_GENTLE, SPRING_STANDARD, TAP_PRESS, TWEEN_FAST } from "@/lib/animations"
 
 /**
@@ -103,6 +104,8 @@ export function Navbar() {
   const menuRef = useRef<HTMLDivElement>(null)
   const menuTriggerRef = useRef<HTMLButtonElement>(null)
   const sheetToggleRef = useRef<HTMLButtonElement>(null)
+  useDismissHiddenAnchor(menuOpen, menuTriggerRef, () => setOpen(null))
+  useDismissHiddenAnchor(sheetOpen, sheetToggleRef, () => setOpen(null))
   const dwell = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Hover expands only after a short dwell, so a pointer crossing the bar on its way to the

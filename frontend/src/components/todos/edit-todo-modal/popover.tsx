@@ -1,8 +1,10 @@
 "use client"
 
-import { ReactNode, RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import { ReactNode, RefObject, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useExitPresence } from "@/hooks/use-exit-presence"
+import { useDismissHiddenAnchor } from "@/hooks/use-dismiss-hidden-anchor"
+import { useFixedPopoverPosition } from "@/hooks/use-fixed-popover-position"
 import { tokens } from "@/lib/design-tokens"
 import { cn } from "@/lib/utils"
 
@@ -28,54 +30,6 @@ interface PopoverProps {
   portal?: boolean
 }
 
-type FixedPos = {
-  left: number
-  top?: number
-  bottom?: number
-  maxHeight: number
-  transformOrigin: string
-  /** Flipped above the trigger: the surface unfolds upwards, out of the trigger's top edge. */
-  above: boolean
-}
-
-/** Position a fixed popover against the trigger rect, flipping up + capping height to fit the viewport. */
-function computeFixedPos(rect: DOMRect, width: number, align: "left" | "right" | "center"): FixedPos {
-  const GAP = 8
-  const MARGIN = 8
-  const vw = window.innerWidth || 1024
-  const vh = window.innerHeight || 768
-
-  let left =
-    align === "right" ? rect.right - width :
-    align === "center" ? rect.left + rect.width / 2 - width / 2 :
-    rect.left
-  // Never let the panel spill off either edge of the viewport.
-  left = Math.min(Math.max(left, MARGIN), Math.max(MARGIN, vw - width - MARGIN))
-
-  const spaceBelow = vh - rect.bottom - GAP
-  const spaceAbove = rect.top - GAP
-  // Prefer opening downward; flip up only when below is cramped and above genuinely roomier.
-  const openUp = spaceBelow < 300 && spaceAbove > spaceBelow
-  const originX = align === "right" ? "right" : align === "center" ? "center" : "left"
-
-  if (openUp) {
-    return {
-      left,
-      bottom: vh - rect.top + GAP,
-      maxHeight: Math.max(spaceAbove - MARGIN, 160),
-      transformOrigin: `bottom ${originX}`,
-      above: true,
-    }
-  }
-  return {
-    left,
-    top: rect.bottom + GAP,
-    maxHeight: Math.max(spaceBelow - MARGIN, 160),
-    transformOrigin: `top ${originX}`,
-    above: false,
-  }
-}
-
 /** The floating sheet itself, the same in both rendering modes. */
 const SURFACE_STYLE = {
   background: "var(--pl-paper)",
@@ -94,8 +48,9 @@ const SURFACE_STYLE = {
  */
 export function Popover({ open, onClose, children, width = 300, align = "left", containerRef, portal = false }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState<FixedPos | null>(null)
   const { mounted, presenceProps } = useExitPresence(open)
+  useDismissHiddenAnchor(open, containerRef, onClose)
+  const pos = useFixedPopoverPosition(portal && open, containerRef, ref, width, align)
 
   // Outside-click + Escape — shared by both rendering modes.
   useEffect(() => {
@@ -115,26 +70,6 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
     }
   }, [open, onClose, containerRef])
 
-  // Portal mode: recompute the fixed position from the trigger rect on open, and keep the
-  // popover glued to the trigger while the page/modal scrolls or the window resizes.
-  const reposition = useCallback(() => {
-    const anchor = containerRef?.current
-    if (!anchor) return
-    setPos(computeFixedPos(anchor.getBoundingClientRect(), width, align))
-  }, [containerRef, width, align])
-
-  useLayoutEffect(() => {
-    if (!portal || !open) return
-    reposition()
-    // Capture-phase scroll so nested scroll containers (e.g. the modal body) also reposition.
-    window.addEventListener("scroll", reposition, true)
-    window.addEventListener("resize", reposition)
-    return () => {
-      window.removeEventListener("scroll", reposition, true)
-      window.removeEventListener("resize", reposition)
-    }
-  }, [portal, open, reposition])
-
   // ── Portal (viewport-fixed) mode — never grows the document, flips + caps to fit ──
   if (portal) {
     if (typeof document === "undefined" || !mounted || !pos) return null
@@ -149,7 +84,7 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
           left: pos.left,
           top: pos.top,
           bottom: pos.bottom,
-          width,
+          width: pos.width,
           maxHeight: pos.maxHeight,
           overflowY: "auto",
           zIndex: tokens.layer.popover,

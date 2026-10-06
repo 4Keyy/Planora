@@ -1,10 +1,13 @@
 "use client"
 
 import { useEffect, useId, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import { TWEEN_FAST } from "@/lib/animations"
 import { CalendarSearch, ChevronDown, X } from "lucide-react"
 import { useExitPresence } from "@/hooks/use-exit-presence"
+import { useDismissHiddenAnchor } from "@/hooks/use-dismiss-hidden-anchor"
+import { useFixedPopoverPosition } from "@/hooks/use-fixed-popover-position"
 import { cn } from "@/lib/utils"
 import { DateCalendar } from "./edit-todo-modal/popovers/date"
 import { formatDueRange } from "./edit-todo-modal/utils"
@@ -26,24 +29,28 @@ interface DateFilterPopoverProps {
  *
  * Why a popover and not an inline collapse: the calendar must never push the page down or grow the
  * filter plate. The trigger is the same height as the plate's other controls, and the calendar is
- * absolutely positioned (z-50) so it overlays the task grid below instead of reflowing it. It unfolds
- * out of its top-right corner with the product's shared dropdown motion (`.dropdown-surface`),
+ * fixed in a portal so it stays within the viewport without reflowing the grid. It unfolds
+ * out of the trigger's edge with the product's shared dropdown motion (`.dropdown-surface`),
  * closes on outside-click / Escape, and honours prefers-reduced-motion.
  */
 export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterPopoverProps) {
   const reduce = useReducedMotion()
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const panelId = useId()
   const hasFilter = !!(start || end)
   const { mounted, presenceProps } = useExitPresence(open)
+  useDismissHiddenAnchor(open, wrapRef, () => setOpen(false))
+  const pos = useFixedPopoverPosition(open, wrapRef, panelRef, 320, "right", 16)
 
   // Dismiss on outside pointer-down and Escape. Capture phase so a click that also lands on another
   // interactive element still closes the popover first. Only wired while open to stay cheap.
   useEffect(() => {
     if (!open) return
     const onPointerDown = (e: PointerEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      if (!wrapRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false)
     }
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false)
@@ -102,13 +109,15 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
       </div>
 
       {/* Floating calendar — overlays the grid below; never affects page height. */}
-      {mounted && (
+      {mounted && pos && createPortal(
         <div
+          ref={panelRef}
           id={panelId}
           role="dialog"
           aria-label="Filter completed tasks by completion date"
           {...presenceProps}
-          className="dropdown-surface absolute right-0 top-full z-50 mt-2 w-[320px] max-w-[calc(100vw-2rem)] origin-top-right overflow-hidden rounded-xl border border-line bg-paper shadow-xl shadow-black/10"
+          className={cn("dropdown-surface z-popover overflow-hidden rounded-xl border border-line bg-paper shadow-xl shadow-black/10", pos.above && "dropdown-above")}
+          style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight, overflowY: "auto", transformOrigin: pos.transformOrigin }}
         >
           <div className="flex items-center justify-between border-b border-line px-3.5 py-2.5">
             <span className="text-caption font-semibold uppercase tracking-wider text-ink-muted">Completed on</span>
@@ -130,7 +139,8 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
             headless
             hideQuickPicks
           />
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
