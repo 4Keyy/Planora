@@ -14,9 +14,11 @@ interface PriorityPopoverProps {
   readOnly?: boolean
   /** Popover alignment under the trigger. Default "left"; the page sidebar uses "center". */
   align?: "left" | "right" | "center"
+  /** Render in a viewport-fixed body portal (create panel / dashboard) so it can't stretch the page. */
+  portal?: boolean
 }
 
-export function PriorityPopover({ open, onClose, value, onChange, containerRef, readOnly, align = "left" }: PriorityPopoverProps) {
+export function PriorityPopover({ open, onClose, value, onChange, containerRef, readOnly, align = "left", portal }: PriorityPopoverProps) {
   const handleSelect = (key: string) => {
     if (readOnly) return
     onChange(key)
@@ -24,7 +26,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
   }
 
   return (
-    <Popover open={open} onClose={onClose} width={300} align={align} containerRef={containerRef}>
+    <Popover open={open} onClose={onClose} width={300} align={align} containerRef={containerRef} portal={portal}>
       <PopoverHeader label="Priority" />
       <div style={{ padding: 6, opacity: readOnly ? 0.55 : 1, pointerEvents: readOnly ? "none" : "auto" }}>
         {PRIORITY_LEVELS.map((p, i) => {
@@ -42,15 +44,15 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                padding: "10px",
+                minHeight: 44, padding: "10px",
                 borderRadius: 11,
                 border: "none",
                 cursor: "pointer",
-                background: isActive ? "#0a0a0a" : "transparent",
+                background: isActive ? "var(--pl-ink)" : "transparent",
                 transition: "background 120ms",
                 textAlign: "left",
               }}
-              onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "#fafafa" }}
+              onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)" }}
               onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
             >
               {/* Intensity bars */}
@@ -65,8 +67,8 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
                         height: 14,
                         borderRadius: 2,
                         background: isActive
-                          ? (filled ? "white" : "rgba(255,255,255,0.22)")
-                          : (filled ? p.color : "#eaeaea"),
+                          ? (filled ? "var(--pl-paper)" : "color-mix(in srgb, var(--pl-paper) 22%, transparent)")
+                          : (filled ? "var(--pl-ink-subtle)" : "var(--pl-line)"),
                         transition: "background 120ms",
                       }}
                     />
@@ -77,18 +79,18 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
               {/* Label + desc */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  fontSize: 13,
-                  fontWeight: 900,
+                  fontSize: 14,
+                  fontWeight: 700,
                   letterSpacing: "-0.01em",
-                  color: isActive ? "white" : "#0a0a0a",
+                  color: isActive ? "var(--pl-paper)" : "var(--pl-ink)",
                   lineHeight: 1.2,
                 }}>
                   {p.label}
                 </div>
                 <div style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: 600,
-                  color: isActive ? "rgba(255,255,255,0.55)" : "#a3a3a3",
+                  color: isActive ? "color-mix(in srgb, var(--pl-paper) 55%, transparent)" : "var(--pl-ink-subtle)",
                   marginTop: 2,
                 }}>
                   {p.desc}
@@ -97,7 +99,7 @@ export function PriorityPopover({ open, onClose, value, onChange, containerRef, 
 
               {/* Check mark */}
               {isActive && (
-                <span style={{ fontSize: 12, color: "white", flexShrink: 0 }}>✓</span>
+                <span style={{ fontSize: 12, color: "var(--pl-paper)", flexShrink: 0 }}>✓</span>
               )}
             </button>
           )

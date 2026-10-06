@@ -31,18 +31,14 @@ Docker backend mode:
 
 ### Optional — Install pre-commit hooks
 
-A one-shot per-clone setup installs ESLint (frontend) and `dotnet format`
-(backend) gates so style and basic-lint regressions never reach CI:
+A per-clone opt-in hook runs frontend ESLint and backend `dotnet format` checks when the relevant tools are available:
 
 ```bash
 ./scripts/install-hooks.sh
 ```
 
 The script sets `git config core.hooksPath .githooks` for the current
-working clone — nothing global is changed. Bypass for an emergency commit
-with `git commit --no-verify`. Disable with `git config --unset
-core.hooksPath`. The gates only run on the files actually staged; a
-no-op commit is instant.
+working clone — nothing global is changed. Disable the local hook with `git config --unset core.hooksPath`. Repository build/test/documentation requirements still apply. Frontend lint targets the staged paths. A backend change triggers `dotnet format` over the whole solution. Missing tool executables print a skip message, so hook installation alone is not proof that checks ran.
 
 ## Required Checks
 
@@ -53,7 +49,7 @@ dotnet build Planora.sln
 dotnet test Planora.sln --settings coverage.runsettings
 npm --prefix frontend run lint
 npm --prefix frontend run type-check
-npm --prefix frontend run test
+npm --prefix frontend run test:coverage
 ```
 
 For frontend production-impacting changes, also run:
@@ -82,7 +78,7 @@ npx markdownlint-cli2 README.md CHANGELOG.md CONTRIBUTING.md SECURITY.md TESTING
 - Add tests for behavior, not just implementation details.
 - Update docs when changing routes, config, DB schema, security behavior, launch scripts, tests, or UI workflows.
 - Update production and secret-management docs when changing deployment assumptions or secret names.
-- Mark uncertain behavior as "requires owner clarification" instead of documenting assumptions.
+- Separate implemented behavior, target policy, historical decisions and unverified operations. The [audit](docs/audits/2026-10-06.md) lists known implementation gaps; citing an invariant does not demonstrate compliance.
 - Do not commit `.env`, secrets, logs, build outputs, coverage outputs, `.next`, `bin`, `obj`, or `node_modules`.
 
 ## Pull Request Checklist

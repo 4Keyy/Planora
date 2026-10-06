@@ -1,6 +1,12 @@
 # Authentication And Security
 
-This document describes the security model that is visible in code and configuration.
+This document describes the implementation inspected on **2026-10-06** at commit
+`8b072a9f3da0e57e1aecfce0e814d780506b3078`. It separates implemented controls from
+their limits; it does not certify a deployed environment.
+
+Use the [API contract](API.md), [authorization coverage map](security-idor-coverage.md),
+[secret operations](secrets-management.md), and [repository audit](audits/2026-10-06.md)
+for endpoint details, known findings, configuration, and validation evidence.
 
 ## Authentication Model
 
@@ -9,16 +15,59 @@ Planora uses JWT access tokens and server-side refresh tokens.
 | Credential | Storage | Lifetime | Code |
 |---|---|---|---|
 | Access token | frontend memory only | configured in `JwtSettings:AccessTokenExpirationMinutes` | `frontend/src/store/auth.ts`, `AuthenticationController.cs` |
-| Refresh token | httpOnly `refresh_token` cookie; server-side DB row stores only the **SHA-256 hash** of the token (`RefreshTokenHash`), never the raw value | configured in `JwtSettings:RefreshTokenExpirationDays` | `AuthenticationController.cs`, `RefreshToken` entity/config |
+| Refresh token | httpOnly `refresh_token` cookie; DB stores the SHA-256 `RefreshTokenHash`, not the raw token | registration and refresh use `JwtSettings:RefreshTokenExpirationDays`; initial remembered login uses 30 days | `AuthenticationController.cs`, login/refresh handlers, `RefreshToken` entity |
 | CSRF token | readable `XSRF-TOKEN` cookie and `X-CSRF-Token` header | 1 hour | `AuthenticationController.GetCsrfToken`, `CsrfProtectionMiddleware.cs` |
 
-The frontend persists user metadata and expiry timestamps in session storage, but not raw access or refresh tokens.
+The frontend persists user metadata, roles, email-verification state and expiry timestamps
+in `sessionStorage` (`planora-auth`), but not raw access or refresh tokens. Access expiry
+comes from JWT `exp`; register/login/refresh JSON `expiresAt` is **refresh-token expiry**.
+
+Refresh tokens are 32-byte random base64url values. The server hashes them with SHA-256,
+rotates them on refresh, and detects replay of tokens revoked as `Replaced by new token`:
+that path revokes all active refresh tokens and rotates the account's security stamp.
+An initial remembered login gets a 30-day refresh lifetime, but subsequent refresh uses
+the configured lifetime (7 days by settings-class default), preserving `rememberMe` only
+for cookie persistence. Non-remembered sessions and registration use session cookies.
+Logout and single-session revocation revoke refresh credentials; they do not directly
+invalidate already-issued access JWTs. See [the exact HTTP failure behavior](API.md#post-authapiv1authrefresh).
+
+### The landing page's sandbox session
+
+The landing page (`/`) runs the product's real task list and command palette against an in-memory
+transport, and those components require a session, so it seeds one: an unsigned `alg: none` JWT
+the client decodes and never verifies (`frontend/src/lib/demo/enable.ts`). The server never sees it,
+and three rules keep it that way:
+
+- **It installs only after `restoreSession()` has finished, and only when there is no real
+  session** (`frontend/src/app/_landing/demo-sandbox.tsx`). Installing on mount raced the restore:
+  an anonymous visitor's failed refresh called `clearAuth()`, which broadcasts a logout to every
+  other tab over `BroadcastChannel`; a seeded token already in the store was POSTed to the real
+  `validate-token` endpoint; and a signed-in visitor's real token was overwritten, then erased when
+  the sandbox tore down. A signed-in visitor now keeps their session and the block links to
+  `/tasks`.
+- **Teardown is silent and complete.** `disableDemo()` restores the previous axios adapter, calls
+  `clearAuth(true)` (no broadcast), restores the page's real `XSRF-TOKEN` cookie, and removes the
+  persisted identity — as does `pagehide`, so a reload never starts from a made-up user.
+- **It never reaches the auth endpoints.** Every call the sandbox makes goes through `api`, whose
+  transport is the in-memory adapter; realtime is off for a demo session; and the only code that
+  talks to `lib/auth-public.ts` — the restore — has already run before the seed exists.
 
 ### Reading the user id from claims — always check `sub` AND `NameIdentifier`
 
 The access token carries the user id in the JWT `sub` claim, but every service's JWT handler runs with the default inbound claim mapping (`JwtBearerOptions.MapInboundClaims = true`), which **remaps `sub` to `ClaimTypes.NameIdentifier`** on the validated principal. Server code must therefore resolve the subject as `User.FindFirst("sub") ?? User.FindFirst(ClaimTypes.NameIdentifier)` (the SignalR hub is unaffected — `Context.UserIdentifier` already derives from `NameIdentifier`). Reading only the raw `"sub"` claim returns null against a real token and 401s every call.
 
 This fallback is the standing convention — `CurrentUserContext`, `CurrentUserService`, and the rate-limit `PartitionKey` all use it. A handler that reads only `"sub"` is a latent bug: it returns `401`/`403` where the id is required (it broke the realtime notification REST endpoints with `401` — `NotificationsController`/`ConnectionsController`/`PresenceHub` — and the Auth friendship lookups `GetFriendIds`/`AreFriends` with `403`, since the null id fails their self-scoped guard).
+
+### The client's 401 handling stops at the anonymous auth endpoints
+
+`frontend/src/lib/api.ts` answers a 401 by refreshing once and replaying the request, and clears
+auth — broadcasting a logout to every open tab — when that fails. That is right for an expired
+session and wrong for an endpoint whose 401 means something else. Login, register, logout, refresh
+**and the two password-reset endpoints** (`/auth/reset-password`, `/auth/request-password-reset`)
+pass their 401 straight to the caller. The reset endpoints were added after an expired reset link
+(401 `INVALID_TOKEN`) was found to start a refresh and a broadcast logout, and — for a visitor
+signed in in another tab, where the refresh succeeds and the replay 401s again — to sign them out
+of every tab.
 
 ## Login / Register Cookie Contract
 
@@ -28,7 +77,14 @@ Auth API sets:
 refresh_token=<opaque-token>; HttpOnly; SameSite=Strict; Path=/auth/api/v1/auth
 ```
 
-The `Secure` flag is set from `!IWebHostEnvironment.IsDevelopment()`, so it is `true` in every non-development environment regardless of `HttpContext.Request.IsHttps`. This keeps the flag correct behind a TLS-terminating reverse proxy, where the backend sees plain HTTP. On local development it is `false`. Production must still terminate or enforce HTTPS so the cookie is actually transmitted over TLS.
+`Secure` is selected by `Security:RequireHttps` when explicitly configured; otherwise
+it defaults to `!IWebHostEnvironment.IsDevelopment()`. It does not depend on the backend's
+`Request.IsHttps`, so the default remains correct behind a TLS-terminating proxy.
+An explicit `Security__RequireHttps=false` disables this flag even outside Development;
+reserve that override for local HTTP runs. Production must enforce HTTPS at the edge.
+The cookie is host-only (no `Domain`), HttpOnly, SameSite=Strict and path-scoped as above.
+Logout deletes it after the action executes; authentication/CSRF rejection before the
+action does not execute cookie cleanup.
 
 Code:
 
@@ -37,7 +93,7 @@ Code:
 
 ## CSRF Protection
 
-State-changing browser requests to Auth API require the double-submit token:
+State-changing HTTP requests to **Auth, Todo, Category, Messaging and Collaboration** require the double-submit token, including bearer-authenticated requests and public login/register:
 
 1. frontend calls `GET /auth/api/v1/auth/csrf-token`;
 2. Auth API sets readable `XSRF-TOKEN`;
@@ -59,15 +115,30 @@ Code:
 - `frontend/src/lib/auth-public.ts`
 - `docs/DECISIONS/0003-csrf-double-submit.md`
 
-Important: CSRF middleware was found in Auth API startup. Other services receive CSRF headers from the frontend but do not appear to validate them in their pipelines.
+The comparison applies to POST/PUT/PATCH/DELETE. GET/HEAD/OPTIONS are not checked,
+and `application/grpc*` content types bypass the comparison so the internal gRPC
+transport can use its service-key interceptor. Realtime and the gateway do not register
+CSRF middleware. Realtime HTTP mutations use bearer authentication and role/self scope.
+
+Failure is `403` JSON `{ "error": "CSRF_VALIDATION_FAILED", "message": "CSRF token validation failed" }`.
+The readable cookie is Strict, path `/`, expires after one hour, and follows the same
+Secure configuration as the refresh cookie. The token endpoint disables service rate
+limiting; the gateway's global/auth windows still apply.
+
+[ADR 0005](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md#current-implementation-audit-2026-10-06)
+records the original Auth-only decision and the current divergence. The wider middleware
+coverage does **not** mean those services accept cookie credentials: their protected REST
+endpoints still require bearer JWTs.
 
 ## Email Verification Delivery
 
 Registration, password reset, and account-security notifications use `IEmailService`. The default provider is `Email__Provider=Log`, which writes links to Auth API logs and sends no email. Real Gmail delivery is enabled with `Email__Provider=GmailSmtp`, `Email__Username=<gmail address>`, and `Email__Password=<Google App Password>`.
 
-Gmail delivery uses `smtp.gmail.com:587` with TLS by default. The Gmail app password is a secret and must stay in `.env`, Docker/CI secrets, or a production secret manager. The service does not log SMTP passwords and only logs successful real sends by subject and recipient.
+Gmail delivery uses `smtp.gmail.com:587` with TLS by default. The Gmail app password is a secret and must stay in `.env`, Docker/CI secrets, or a production secret manager. The service does not log SMTP passwords and logs successful real sends by subject and recipient. The `Log` provider exposes reset/verification bearer links in logs: treat those logs as sensitive and use actual delivery in production.
 
-Email verification status is exposed in user DTOs as both `isEmailVerified` and `emailVerifiedAt`. The email verification frontend route automatically confirms `?token=...` links and refreshes the current access token when an authenticated session is present.
+Email verification status is exposed in user DTOs as both `isEmailVerified` and `emailVerifiedAt`. The email verification frontend route automatically confirms `?token=...` links (once per token, guarded against StrictMode's double effect, since a second request would find the token spent) and refreshes the current access token when an authenticated session is present.
+
+The reset and verification tokens are never displayed or editable in the frontend: both pages read them from the link's query string. The password-reset request page carries the address to the "check your inbox" step in `sessionStorage` (this tab only, cleared on a successful reset), and that step shows it masked (`a•••n@gmail.com`). Its copy says "If … has an account", because `request-password-reset` answers identically whether or not the address exists — the page must not undo the endpoint's protection against account enumeration.
 
 Code:
 
@@ -101,12 +172,12 @@ Code:
 
 ## gRPC Inter-Service Authentication
 
-Internal gRPC calls between services are authenticated with a shared secret (`GRPC_SERVICE_KEY`). Every gRPC server in the system (Auth, Todo, Category, Messaging, Realtime) registers `ServiceKeyServerInterceptor`, which reads the `x-service-key` metadata header from each incoming call using a constant-time comparison and returns `StatusCode.Unauthenticated` if the header is missing or does not match. The client-side `ServiceKeyClientInterceptor` attaches the secret to every outbound call. Both interceptors reject a key shorter than 16 characters at startup.
+Internal gRPC calls use `GrpcSettings:ServiceKey`. Compose maps the `GRPC_SERVICE_KEY` input to `GrpcSettings__ServiceKey`; a standalone process must set the configuration key itself. Every gRPC server in the system (Auth, Todo, Category, Messaging, Realtime) registers `ServiceKeyServerInterceptor`, which reads the `x-service-key` metadata header from each incoming call using a constant-time comparison and returns `StatusCode.Unauthenticated` if the header is missing or does not match. The client-side `ServiceKeyClientInterceptor` attaches the secret to every outbound call. Both interceptors reject a key shorter than 16 characters at startup. Collaboration is a gRPC client; the gateway is an HTTP/WebSocket proxy and needs no service key. The shared key authenticates a trusted service, not an end user; servers trust user ids in internal payloads. The key does not itself encrypt transport or provide per-service identity.
 
 Configure with:
 
 ```text
-GRPC_SERVICE_KEY=<random-hex-at-least-32-chars>
+GrpcSettings__ServiceKey=<random-value-at-least-32-characters>
 ```
 
 Code:
@@ -125,13 +196,15 @@ Confirmed admin-only routes:
 - `GET /auth/api/v1/users/{userId}`
 - `GET /auth/api/v1/users/statistics`
 - `GET /realtime/api/v1/connections/stats`
+- `POST /realtime/api/v1/notifications/send` (target is the caller)
 - `POST /realtime/api/v1/notifications/broadcast`
+- `GET /system/info`, on a service exposing the shared controller; no gateway route is committed
 
 Role data is configured in Auth persistence. `RoleConfiguration` seeds `Admin` and `User` roles.
 
 ## Password Security
 
-Password validation includes:
+Registration enforces length and character complexity through FluentValidation. Change-password and reset additionally use the infrastructure password validator. These controls have different scope:
 
 - 8-128 characters;
 - uppercase, lowercase, digit, special character;
@@ -139,7 +212,7 @@ Password validation includes:
 - sequential character detection;
 - repeating character detection;
 - optional HIBP k-anonymity check enabled by `Password:CheckCompromised` default true;
-- previous-password reuse check using password history limit default 5.
+- previous-password reuse check, default history limit 5, **on change-password only**; reset does not check or append password history.
 
 Code:
 
@@ -149,6 +222,8 @@ Code:
 - `Services/AuthApi/Planora.Auth.Domain/Entities/PasswordHistory.cs`
 
 HIBP lookup failures are logged and do not block the password operation.
+
+Reset and change-password additionally run `PasswordValidator.IsStrongPassword` (the common-password list, four ascending characters, four repeats); registration does not. The frontend mirrors this split: `PASSWORD_SCHEMA` for create-account, `NEW_PASSWORD_SCHEMA` (the same plus `isEasyToGuess`) for the reset form and the profile's change-password form, to give immediate pattern feedback. The server remains authoritative: the client cannot precompute a breached-password lookup or account-specific password history.
 
 ### Password Hashing
 
@@ -160,7 +235,7 @@ TOTP 2FA is exposed through `UsersController`:
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /auth/api/v1/users/me/2fa/enable` | start TOTP setup (secret + QR code URL) — **pending**, not yet active |
+| `POST /auth/api/v1/users/me/2fa/enable` | start pending setup; `secret` plus `qrCodeUrl` containing base64 PNG bytes, despite the field name |
 | `POST /auth/api/v1/users/me/2fa/confirm` | confirm with TOTP code — activates 2FA, returns 10 recovery codes |
 | `POST /auth/api/v1/users/me/2fa/disable` | disable with password |
 
@@ -179,7 +254,16 @@ Code:
 
 ### 2FA Recovery Codes
 
-When 2FA is confirmed, the server generates 10 single-use recovery codes formatted `XXXXX-XXXXX` using a cryptographically secure alphabet (`A-Z0-9`). Codes are hashed with PBKDF2 (HMAC-SHA512, 210,000 iterations) before storage and can be used in place of a TOTP code at login. Using a code marks it as consumed. New codes are generated on every re-confirmation, replacing all previous codes.
+When 2FA is confirmed, the server generates 10 single-use recovery codes formatted `XXXXX-XXXXX` using a cryptographically secure alphabet (`A-Z0-9`). Codes are hashed with PBKDF2 (HMAC-SHA512, 210,000 iterations) before storage and can be used in place of a TOTP code at login. Using a code marks it as consumed. Successful pending confirmation generates the set once. Confirmation of an already-enabled
+account returns `2FA_ALREADY_ENABLED`; these endpoints provide no separate regenerate operation.
+To generate a new set, disable 2FA with the password, begin enrolment and confirm again.
+The login validator accepts six decimal TOTP digits or an uppercase `XXXXX-XXXXX` recovery code.
+
+TOTP uses a 20-byte Base32 secret, 30-second steps and a ±2-step verification window.
+Successful verification reserves `totp:used:{userId}:{timeStep}` in Redis with `NX` and
+a three-minute TTL. A reused step or Redis failure rejects the TOTP (fail closed);
+an unused recovery code remains an alternative. This replay policy differs from the
+fail-open security-stamp policy below.
 
 Code:
 
@@ -190,7 +274,10 @@ Code:
 
 ## Access Token Invalidation (Security Stamp)
 
-Every command that materially changes the security posture of an account rotates a per-user security stamp in Redis. The `TokenBlacklistFilter` validates the stamp on every authorized request; mismatches return `401 Unauthorized` and force the client to re-authenticate.
+The following successful commands write a per-user UTC stamp under
+`security:stamp:{userId}` in Redis. All six backend JWT validators compare JWT `iat`
+against that stamp in `OnTokenValidated`; Auth also has `TokenBlacklistFilter`.
+A token issued before an available stamp is rejected with `401`.
 
 | Command | Why the stamp rotates |
 |---|---|
@@ -200,13 +287,13 @@ Every command that materially changes the security posture of an account rotates
 | `Disable2FACommandHandler` | Disabling 2FA reduces the account's security posture — invalidate live sessions so the user re-authenticates on every device. |
 | `RevokeAllSessionsCommandHandler` | The command's raison d'être. Refresh-token revocation alone leaves outstanding access tokens valid until their natural expiry; the stamp rotation makes "revoke all" actually do what the name says. |
 | `DeleteUserCommandHandler` | Account is soft-deleted — outstanding tokens must not continue to hit endpoints whose handlers do not separately check `IsDeleted`. |
-| `RefreshTokenCommandHandler` (reuse path) | A presented refresh token already revoked with reason `"Replaced by new token"` indicates either a buggy client racing its own refresh or — much more likely — an attacker presenting a stolen value. The handler revokes the entire chain and rotates the stamp so any already-minted access tokens become invalid on next call. See INV-AUTH-6. |
+| `RefreshTokenCommandHandler` (reuse path) | A presented refresh token already revoked with reason `"Replaced by new token"` indicates either a buggy client racing its own refresh or an attacker presenting a stolen value; the server cannot distinguish these causes. The handler revokes the entire chain and rotates the stamp so any already-minted access tokens become invalid on next call. See INV-AUTH-6. |
 
 The stamp rotates **only on successful execution** of the command. A wrong-password attempt does not invalidate active sessions — otherwise an observer could DoS a legitimate user. Regression tests under `tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/` pin both the success-path stamp call and the failure-path absence-of-call.
 
 The stamp is NOT rotated on 2FA enable / 2FA confirm because enabling strengthens the account; invalidating live sessions there would be friction without security benefit.
 
-The stamp is NOT rotated on profile-only updates (`UpdateUserCommandHandler` — first name, last name, avatar) because the access-claim set is unchanged. It is NOT rotated on revoking a *single* refresh token (`RevokeSessionCommandHandler`) because the user chose that specific session — other sessions remain authorized by design.
+The stamp is NOT rotated on profile-only updates (`UpdateUserCommandHandler` — first name, last name, avatar) even though first name, last name and avatar claims can become stale until the next token is issued. It is NOT rotated on revoking a *single* refresh token (`RevokeSessionCommandHandler`) because the user chose that specific session — other sessions remain authorized by design.
 
 ### Forward-looking rotation policy
 
@@ -218,7 +305,7 @@ Any future command that mutates the security posture of an account MUST rotate t
 - **Email change via admin override** — bypassing the standard confirmation flow still re-binds identity, so stamp rotation applies.
 - Any new command that changes the set of access claims, the set of permitted scopes, or the set of resources the user can reach.
 
-The policy is enforced automatically by `SecurityStampUsageContractTests` (`tests/Planora.UnitTests/Services/AuthApi/Infrastructure/SecurityStampUsageContractTests.cs`): a source-file scan asserts that every handler injecting `ISecurityStampService` also invokes `SetStampAsync`. A future handler that silently drops the rotation (e.g. during a refactor) fails CI before merge.
+A narrower wiring contract is enforced by `SecurityStampUsageContractTests` (`tests/Planora.UnitTests/Services/AuthApi/Infrastructure/SecurityStampUsageContractTests.cs`): a source-file scan asserts that every handler injecting `ISecurityStampService` also invokes `SetStampAsync`. This source scan does not discover a new security-sensitive handler that never injects the interface; reviewers still need to assess rotation requirements.
 
 ### Stamp enforcement coverage
 
@@ -229,9 +316,25 @@ Every service that accepts JWT-authenticated requests must wire the stamp check 
 | Auth API | inline `OnTokenValidated` calling `SecurityStampValidator.IsTokenRevokedAsync` in `Planora.Auth.Infrastructure.DependencyInjection.AddJwtAuthentication` | `tests/Planora.UnitTests/Services/AuthApi/Infrastructure/AuthJwtStampWiringTests.cs` |
 | Category API | shared `AddJwtAuthenticationForConsumer` | `JwtAuthenticationExtensions.cs` |
 | Todo API | shared `AddJwtAuthenticationForConsumer` | `JwtAuthenticationExtensions.cs` |
+| Collaboration API | shared `AddJwtAuthenticationForConsumer` | `Services/CollaborationApi/Planora.Collaboration.Api/Program.cs` |
 | Messaging API | inline `OnTokenValidated` | `Services/MessagingApi/Planora.Messaging.Api/Program.cs` |
 | Realtime API | inline `OnTokenValidated` | `Services/RealtimeApi/Planora.Realtime.Api/Program.cs` |
-| API Gateway | downstream services enforce; gateway only routes | n/a (defense-in-depth handled at consumers) |
+| API Gateway | JWT signature, issuer, audience and lifetime; no Redis stamp check | downstream consumer enforces stamp |
+
+Enforcement limits:
+
+- The stamp TTL is hardcoded to **120 minutes**, not derived from access-token settings.
+  An access lifetime longer than that can outlive the revocation marker. Keep lifetime
+  below the marker lifetime until this relationship is enforced in code.
+- Missing Redis/stamp, malformed stamp or Redis errors fail open. When a valid stamp
+  exists, absent/unparseable `iat` fails closed. These choices are pinned in
+  [SecurityStampValidatorTests](../tests/Planora.UnitTests/BuildingBlocks/Security/SecurityStampValidatorTests.cs).
+- JWT `iat` has second precision but the stamp includes fractions of a second; a token
+  issued immediately after rotation in the same second can still compare as older.
+- A successful WebSocket handshake checks the stamp once. Existing hub connections
+  are not disconnected on a later stamp rotation or JWT expiry by the inspected code.
+- The public body-token `validate-token` handler does not perform the Redis revocation
+  checks used by the authenticated middleware/filter. It is not a revocation oracle.
 
 Code:
 
@@ -252,13 +355,18 @@ A `GlobalLimiter` applies a default cap of 100 requests/minute per IP to every e
 | global | 100/minute/partition | all services (default) |
 | `register` | 3/minute/partition | `POST /auth/register` |
 | `login` | 5/minute/partition | `POST /auth/login` |
-| `auth` | 10/minute/partition | refresh, logout, CSRF |
+| `auth` | 10/minute/partition | refresh, logout, token validation, reset operations; CSRF GET disables service limiting |
 | `avatar-upload` | 5/hour/partition | `POST /users/me/avatar` |
 | `data` | 50/minute/partition | reserved for data-heavy endpoints |
 
-The `GlobalLimiter` and named policies are configured in `AddConfiguredRateLimiting(IConfiguration)` and partitioned by authenticated user id (JWT `sub` / `NameIdentifier`) with fallback to `RemoteIpAddress`. IPv4-mapped IPv6 addresses (`::ffff:1.2.3.4`) are normalized to their IPv4 form so dual-stack listeners do not split a client's quota into two buckets. The backend is selected at startup:
+The partition function prefers authenticated user id (`sub` / `NameIdentifier`), then
+`RemoteIpAddress`. **The inspected service pipelines call `UseRateLimiter` before
+`UseAuthentication`**, so requests normally reach the limiter without an authenticated
+principal and use the IP partition. This can couple users behind one NAT or proxy.
+The gateway also intentionally partitions by remote IP. The service configuration
+lives in `AddConfiguredRateLimiting(IConfiguration)`. IPv4-mapped IPv6 addresses (`::ffff:1.2.3.4`) are normalized to their IPv4 form so dual-stack listeners do not split a client's quota into two buckets. The backend is selected at startup:
 
-- `RateLimiting:Backend = Redis` (production, set in `docker-compose.yml` for every service) — partitions are backed by `RedisRateLimitPartition.GetFixedWindowRateLimiter` from `RedisRateLimiting.AspNetCore`, so the per-IP counters are shared across every replica of every service. Without this, the in-memory limiter would let an attacker exceed the configured limits by a factor of `N` (the replica count).
+- `RateLimiting:Backend = Redis` (production, set in `docker-compose.yml` for every service) — partitions are backed by `RedisRateLimitPartition.GetFixedWindowRateLimiter` from `RedisRateLimiting.AspNetCore`, so counters can be shared by replicas and services using the same Redis and configured prefixes. The in-memory alternative is process-local.
 - Unset or anything else (tests, local dev) — falls back to the in-memory `FixedWindowRateLimiter`. The integration test factory deliberately leaves it unset, so the in-memory path stays the default for tests.
 
 Auth controller adds the stricter named policies on top via `[EnableRateLimiting("...")]`.
@@ -279,7 +387,17 @@ The API Gateway throttles at the edge with the ASP.NET Core rate limiter (`AddRa
 
 Auth traffic must satisfy both windows; this is a coarse edge layer on top of the stricter per-operation limits the Auth service enforces (`login` 5/min, `register` 3/min, `auth` 10/min).
 
-**Why Ocelot route rate limiting is disabled (`EnableRateLimiting: false` on every route).** Ocelot 24.x partitions its per-route limiter by a `ClientId` request header and fail-closes with `503 Service Unavailable` when that header is absent — which it always is for browser traffic. Enabling it on the auth and realtime routes therefore rejected *every* login, refresh, and SignalR negotiate with a 503. Edge throttling must stay in the ASP.NET Core limiter (keyed by IP), so `RateLimitOptions` is left disabled in both `ocelot.json` and `ocelot.Docker.json`.
+Both committed Ocelot route files disable their per-route limiter; the active gateway
+throttle is the ASP.NET Core limiter. Gateway auth traffic must pass both 100/minute
+global and 30/minute auth windows, then the stricter Auth service window.
+Gateway forwarded headers are opt-in with `ForwardedHeaders:KnownProxies`. The parser
+accepts individual IP addresses with `IPAddress.TryParse`, **not CIDR ranges** despite
+comments suggesting CIDR support. Configure actual trusted proxy addresses and verify
+`RemoteIpAddress`; otherwise multiple clients can share one proxy bucket.
+
+Service rejections currently advertise `Retry-After: 60` even for the hourly avatar policy;
+it is not a computed remaining-window duration. The `data` policy is defined but not
+attached to the inspected controllers.
 
 Code:
 
@@ -290,9 +408,16 @@ Code:
 
 `NotificationHub.Subscribe()` validates the requested topic against a static allowlist before adding the connection to a group. Only `system`, `announcements`, and `todos` are permitted. Requests for any other topic are silently rejected and logged as warnings.
 
+`JoinTask` uses Todo's `CheckTaskCommentAccess` through a fail-closed branch authorizer.
+Typing requires local joined-room membership. A later removal of task access does not
+evict existing task-room members or recheck each typing call. Query-string bearer
+tokens are accepted on gateway `/realtime*` and backend `/hubs*` paths for WebSockets;
+proxy and request-log configuration must avoid recording those query credentials.
+
 Code:
 
-- `Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs`
+- [NotificationHub](../Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs)
+- [TaskBranchAuthorizer](../Services/RealtimeApi/Planora.Realtime.Infrastructure/Grpc/TaskBranchAuthorizer.cs)
 
 ## Security Headers
 
@@ -301,7 +426,8 @@ All backend services apply security headers through a single shared middleware. 
 - `X-Frame-Options: DENY`
 - `X-Content-Type-Options: nosniff`
 - `X-XSS-Protection: 1; mode=block`
-- `Content-Security-Policy: default-src 'self'; style-src 'self'; script-src 'self'; ...`
+- `Content-Security-Policy: default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 - `Strict-Transport-Security` outside development
 
@@ -337,7 +463,11 @@ Code:
 
 ## CORS
 
-Services use explicit configured origins with credentials. Development defaults include local frontend origins. `AllowAnyOrigin()` with credentials is not used in the inspected service configuration.
+Service CORS policies use configured origins with credentials where registered. The
+gateway additionally accepts loopback and private IPv4 origins on any port in
+**Development**; outside Development its policy uses the configured allow-list.
+`AllowAnyOrigin()` with credentials is not used. CORS controls browser response access,
+not authorization of non-browser clients.
 
 Code:
 
@@ -347,7 +477,7 @@ Code:
 
 ## Hidden Shared Todo Privacy
 
-Hidden shared/public todos are redacted server-side. This protects title, description, dates, tags, shared users, completion metadata, and owner user id for non-owners. The redacted DTO still preserves non-content visual state (`Priority`, `IsPublic`, `HasSharedAudience`, and `IsVisuallyUrgent`) so hidden cards can render the same shared/urgent frame after reload.
+The normal list/detail paths redact hidden shared/public todos server-side, including the owner's own hidden shared view. This is path-specific: the `join` handler returns an unredacted DTO, as recorded in the [coverage findings](security-idor-coverage.md#known-findings-and-missing-regressions). This protects title, description, dates, tags, shared users, completion metadata, and owner user id for non-owners. The redacted DTO still preserves non-content visual state (`Priority`, `IsPublic`, `HasSharedAudience`, and `IsVisuallyUrgent`) so hidden cards can render the same shared/urgent frame after reload.
 
 Code:
 
@@ -362,18 +492,21 @@ Code:
 1. **Edge size cap** — `[RequestSizeLimit(6 MB)]` and `[RequestFormLimits(MultipartBodyLengthLimit = 6 MB)]` on the action reject oversized bodies before any handler runs. 6 MB allows 5 MB image + multipart overhead.
 2. **Validation** — `UploadAvatarCommandValidator` (FluentValidation) enforces presence, size ≤ 5 MB, and MIME ∈ {`image/jpeg`, `image/png`, `image/webp`}.
 3. **Magic-byte sniff** — `ImageSharpImageProcessor` re-checks the first 12 bytes against JPEG (`FF D8 FF`), PNG (`89 50 4E 47 0D 0A 1A 0A`), and WEBP (`RIFF…WEBP`) signatures. A spoofed `Content-Type` cannot bypass this.
-4. **Decode + dimension check** — ImageSharp parses the file; rejects anything outside `64×64..4096×4096`. Malformed/exploit-crafted payloads fail decode and are rejected with `INVALID_IMAGE_CONTENT`.
+4. **Decode + dimension check** — ImageSharp parses the file; rejects anything outside `64×64..4096×4096`. Decode/dimension failures return `INVALID_IMAGE_CONTENT`. Dimensions are checked after decode; the configured limits are not proof of a bounded decoder memory allocation.
 5. **Metadata stripping** — `ExifProfile`, `IccProfile`, and `XmpProfile` are explicitly cleared. EXIF GPS and similar privacy leaks cannot survive an upload.
-6. **Re-encoding to WebP** — the decoded image is re-emitted as lossy WebP (quality 85). The result is a brand-new byte stream produced by ImageSharp; any polyglot or steganographic payload in the source is discarded.
+6. **Re-encoding to WebP** — the decoded image is re-emitted as lossy WebP (quality 85). The result is a brand-new byte stream produced by ImageSharp; original container metadata/trailing bytes are not copied. This does not prove that all malicious decoder inputs or information encoded in visible pixels are eliminated.
 7. **Variants** — three sizes are produced server-side per upload: `64×64`, `128×128`, `512×512`, each cropped center via Lanczos3. Clients pick the closest fit; bandwidth is saved by avoiding full-resolution downloads for thumbnail rendering.
 8. **Storage** — `LocalAvatarStorage.PutAsync` writes variants to `{WebRoot}/avatars/{userId:N}/{contentHash}/{size}.webp`. The hash is the lowercase hex SHA-256 prefix (16 chars) of all variant bytes concatenated. Content-addressed paths make URL invalidation automatic when bytes change.
 9. **Old-avatar cleanup** — `LocalAvatarStorage` prunes every prior hash subdirectory for the user on successful `PutAsync`; only the latest revision persists. Account deletion triggers `DeleteAsync` to remove the user's avatar tree entirely.
 10. **Path-traversal guard** — storage refuses to write or delete anything that resolves outside the uploads root.
 11. **Cache-Control** — `Services/AuthApi/Planora.Auth.Api/Program.cs` configures `UseStaticFiles` to emit `Cache-Control: public, max-age=31536000, immutable` and `X-Content-Type-Options: nosniff` for any URL under `/avatars/`. `ServeUnknownFileTypes` is `false` so only known content types ship.
 
-Error responses use HTTP `413` for size violations and `415` for unsupported media so clients can distinguish them from generic `400` validation errors.
+Validation failures for declared size/MIME return `400` before image processing.
+The body cap can return `413`; processor size failure maps to `413`, and an actual
+signature failure with an allowed declared MIME maps to `415`. Decode/dimension
+failures return `400`. See [the API table](API.md#avatar-upload).
 
-Code: `Services/AuthApi/Planora.Auth.Application/Features/Users/{Commands,Validators,Handlers}/UploadAvatar`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/{ImageSharpImageProcessor,LocalFileStorageService}.cs`.
+Code: [UploadAvatarCommandHandler](../Services/AuthApi/Planora.Auth.Application/Features/Users/Handlers/UploadAvatar/UploadAvatarCommandHandler.cs), [ImageSharpImageProcessor](../Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/ImageSharpImageProcessor.cs), [LocalAvatarStorage](../Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/LocalAvatarStorage.cs).
 
 ## Logging And Sensitive Data
 
@@ -393,7 +526,8 @@ Code:
 | `POSTGRES_PASSWORD` | database compromise | use strong local/prod values, do not commit `.env` |
 | `REDIS_PASSWORD` | Redis access; required by Docker Redis | keep synchronized with Redis connection strings |
 | `RABBITMQ_PASSWORD` | message broker access | use non-default values outside throwaway local dev |
-| `Cors:AllowedOrigins` | credentialed cross-origin access | keep explicit origins only |
+| `GRPC_SERVICE_KEY` / `GrpcSettings__ServiceKey` | trusted internal caller impersonation | random shared value; restrict internal transport and rotate all participating clients/servers |
+| `Cors:AllowedOrigins` | credentialed cross-origin access | explicit production origins; gateway LAN allowance is Development-only |
 | HTTPS | token/cookie interception if absent in production | enforce HTTPS and HSTS in production |
 
 Secret handling details are centralized in [`secrets-management.md`](secrets-management.md). Production rollout requirements are in [`production.md`](production.md).
@@ -404,9 +538,29 @@ The repository has a root [`SECURITY.md`](../SECURITY.md) policy. The documented
 
 ## Known Security Gaps / Clarifications
 
-| Topic | Observation | Action |
+The [authorization coverage map](security-idor-coverage.md#known-findings-and-missing-regressions)
+records the concrete access-control gaps: public-task `join` bypasses the normal friend
+gate and hidden redaction; revoked subtask creators retain edit/delete paths; comment
+deletion checks actor identity without current branch access. No application fix is
+included in this documentation audit.
+
+| Topic | Observed behavior | Operational implication |
 |---|---|---|
-| Production deployment automation | Production baseline exists, but no automated deploy/promotion workflow is committed. | Implement the chosen hosting pipeline after owner selects platform. |
-| RabbitMQ AMQP binding | Compose binds AMQP to `127.0.0.1:5672`. | Keep broker traffic private in non-local environments. |
-| CSRF coverage | CSRF middleware is registered in Auth API, not in Todo/Category/Messaging/Realtime pipelines. | Confirm intended scope; add middleware to other cookie-sensitive services only if they accept cookie auth. |
-| Security contact ownership | GitHub Private Vulnerability Reporting is documented, but repository settings cannot be verified from code. | Owner must enable it or add a real security email/contact before public release. |
+| Revocation | stamp errors fail open; TTL is fixed at 120 minutes | Redis availability and access lifetime bound revocation guarantees |
+| Live rooms | no eviction/recheck after task access or JWT changes | existing connections can retain subscriptions until disconnect |
+| Public token validation | no stamp/blacklist check; expiry computed from current time | use JWT `exp` and authenticated endpoint behavior, not this response, to infer access validity |
+| Rate limiting | middleware runs before authentication; trusted proxy parser accepts IPs only | verify actual client IP and avoid promising independent per-user quotas |
+| Avatar decode | dimensions checked after decode | retain decoder updates and resource limits; re-encoding is not a universal payload guarantee |
+| Email logs | default `Log` provider prints one-time bearer links | restrict log access; configure SMTP for actual production delivery |
+| Deployment | [CD workflow](../.github/workflows/cd.yml) exists, but route/listener/secret limitations remain | follow [deployment audit](deployment.md) before rollout; manifests alone do not prove a working deployment |
+| Dependencies | the initial npm/NuGet scans reported vulnerable package versions; the XML cryptography dependency is now pinned to patched 10.0.12 | scanner severity is an inventory result, not proof of reachability; see [repository audit](audits/2026-10-06.md) |
+| Reporting | GitHub private reporting is policy; settings were not inspected | maintainers must enable the channel or publish a real owned contact |
+
+## XML cryptography dependency correction
+
+Auth Infrastructure explicitly references `System.Security.Cryptography.Xml`
+10.0.12 through central package management. This overrides Data Protection's
+vulnerable transitive version without suppressing NuGet auditing. Remove the
+override only after the upstream dependency graph resolves a patched version
+throughout the solution. See the [dated security note](../.github/security/cryptography-xml-2026-10.md)
+for advisory references and verification commands.

@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { CreateTodoPanel } from "@/components/todos/create-todo-panel"
 import type { Category } from "@/types/category"
@@ -44,17 +44,21 @@ describe("frontend usability contract", () => {
         onSubmit={vi.fn()}
         onCreateCategory={vi.fn()}
         onDeleteCategory={vi.fn()}
-        shortcutHint="c"
       />,
     )
 
     expect(screen.getByText("New task")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Open create task panel" })).toHaveAttribute("aria-expanded", "false")
-    // shortcut hint rendered as kbd element inside the subtitle
-    expect(screen.getByText("C")).toBeInTheDocument()
+
+    // The subtitle says what this panel is FOR, and deliberately advertises no key.
+    // It used to print "press C to open" — and `C` opens quick capture, which asks
+    // for a title and nothing else. A printed key that does something else teaches
+    // the wrong binding, and the user only finds out from a surface that disagrees.
+    expect(screen.getByText(/Date, category, audience/i)).toBeInTheDocument()
+    expect(screen.queryByText(/press/i)).toBeNull()
   })
 
-  it("autofocuses task creation and exposes core controls through accessible roles", () => {
+  it("opens without focusing the title, lets the first keystroke in, and exposes core controls by role", () => {
     render(
       <CreateTodoPanel
         isOpen
@@ -67,14 +71,23 @@ describe("frontend usability contract", () => {
     )
 
     act(() => {
-      vi.advanceTimersByTime(220)
+      vi.advanceTimersByTime(400)
     })
 
-    expect(screen.getByPlaceholderText("What needs to be done?")).toHaveFocus()
+    // Owner's ruling: nothing lights up by itself. A field shows focus only after the user
+    // clicks it or starts typing — and typing from nowhere lands in the title.
+    const title = screen.getByPlaceholderText("What needs to be done?")
+    expect(title).not.toHaveFocus()
+    fireEvent.keyDown(document.body, { key: "B" })
+    expect(title).toHaveFocus()
+
     expect(screen.getByRole("button", { name: "Close create task panel" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Create Task" })).toBeDisabled()
-    expect(screen.getByRole("combobox")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Create task" })).toBeDisabled()
+    // The four selector plates are reachable by accessible name
+    expect(screen.getByRole("button", { name: "Priority" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Due date" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Category" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Private task" })).toBeInTheDocument()
     expect(screen.queryByText("Visible to all friends")).not.toBeInTheDocument()
   })

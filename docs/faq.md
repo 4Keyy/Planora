@@ -8,7 +8,7 @@ A personal productivity web app with tasks, categories, account security, friend
 
 ### Is it a monolith?
 
-No. The backend is split into Auth, Todo, Category, Messaging, Realtime, and API Gateway projects. Shared primitives live under `BuildingBlocks`.
+No. The backend is split into Auth, Todo, Category, Collaboration, Messaging, Realtime, and API Gateway projects. Shared primitives live under `BuildingBlocks`.
 
 ### Is there a public production deployment guide?
 
@@ -20,10 +20,7 @@ zero-to-deployable walkthrough in
 in three commands". Migration governance is centralized in
 [`tools/Planora.Migrator/`](../tools/Planora.Migrator/).
 
-Activation depends on three external accounts that the maintainer
-registers when ready (Grafana Cloud, Fly.io, a Postgres provider — Neon
-is the recommendation). The codebase is no-op-safe until the
-corresponding env vars are set.
+Production activation also requires resolving the [confirmed rollout blockers](deployment.md#confirmed-rollout-blockers), configuring actual service addresses/ports and choosing frontend hosting. Optional telemetry exporters remain disabled without their endpoints; core database/broker/JWT requirements are not optional.
 
 ## Setup
 
@@ -33,7 +30,7 @@ Use the API Gateway: `http://localhost:5132`. The frontend defaults to that in `
 
 ### Why is PostgreSQL on port `5433`?
 
-`docker-compose.yml` maps container port `5432` to host `127.0.0.1:5433`, probably to avoid collisions with a local PostgreSQL install.
+`docker-compose.yml` explicitly maps container port `5432` to host `127.0.0.1:5433`. Use 5433 from host tools and 5432 inside the Compose network.
 
 ### Can I run only the frontend?
 
@@ -101,15 +98,15 @@ Use `frontend/src/lib/api.ts` for authenticated API behavior and `frontend/src/l
 
 ### Should AI assistant settings be committed?
 
-No. Repository policy ignores Claude/Codex/Cursor/Gemini/MCP and similar local assistant state. `AGENTS.md` is the intentional project-level exception for shared documentation rules; use `AGENTS.local.md` for personal or machine-specific instructions.
+No. Repository policy ignores Claude/Codex/Cursor/Gemini/MCP and similar local assistant state. `AGENTS.md` is also ignored and untracked in this checkout; tracked contributor rules are in `CONTRIBUTING.md` and `docs/development.md`.
 
 ### Are EF migrations committed?
 
-No. Generated `Migrations/` folders are ignored by repository policy. Clean local/Docker installs create schema from the current EF model if no user-owned migrations exist. Production owners should generate and manage migrations in their deployment branch/environment when auditable schema evolution is required.
+Todo and Realtime have tracked migrations; generated migration paths are nevertheless ignored for new untracked files. Auth, Category, Collaboration and Messaging currently use model bootstrap when no local migrations are compiled. The tracked Todo chain is missing its initial baseline, and Realtime needs explicit schema initialization. See [Database](database.md).
 
 ### Is there e2e browser testing?
 
-There is Playwright e2e coverage for the critical gateway/service flow in `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts`. It is API-level Playwright, not browser-rendered UI navigation. Frontend component/page tests remain Vitest-based.
+Yes. Playwright has an API project for `auth-todos-sharing-hidden.api.spec.ts` and a Chromium UI project under `frontend/e2e/ui`. UI specs cover auth routes, profile and tasks. CI builds/starts the frontend plus Compose stack. See [Testing](testing.md) for setup, scope and measured results.
 
 ### How do I report a security issue?
 
@@ -127,13 +124,7 @@ written permission from the copyright holder.
 
 ### Are CSRF checks needed on Todo / Category / Messaging / Realtime?
 
-No. Those services are bearer-only — they do not accept cookie-based
-authentication. The browser cannot forge an `Authorization: Bearer`
-header on a cross-origin request, so there is no CSRF surface to defend.
-Auth API is the only service that accepts a cookie credential (the
-refresh token), and Auth API is the only one that registers
-`UseCsrfProtection`. The full rationale is in
-[ADR-0005](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md).
+The Auth-only scope recorded in [ADR-0005](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md) is not the current registration. Auth, Todo, Category, Messaging and Collaboration register `UseCsrfProtection`; Realtime and gateway do not. The frontend sends a token header on mutations. See [Auth security](auth-security.md) for exclusions and actual validation behavior.
 
 ### How do I turn on traces / metrics / logs in production?
 
@@ -152,8 +143,7 @@ No code change is required; the pipelines are no-op without these. See
 Run `.\scripts\Verify-Phase1-Prereqs.ps1`. It checks flyctl auth, every
 Fly app's existence and required secret set, the local
 `dotnet build -warnaserror` state, and the `FLY_API_TOKEN` GitHub
-repository secret. Exit code = number of failed checks; `0` means the CD
-workflow is ready to fire.
+repository secret. Exit code counts failed checks; `0` means only those limited checks passed. The script applies the same common secret list to all apps, misses service DB requirements and does not validate Docker build graphs, source tests, listener ports or gateway production routes. Use [Production acceptance](production.md) as the release checklist.
 
 ## Documentation
 

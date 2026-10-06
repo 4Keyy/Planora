@@ -1,73 +1,70 @@
-# Performance Baseline
+# Performance Scenarios
 
-k6 load-test scripts establishing the **regression-detection baseline** for
-Planora's hot endpoints. The pipeline pattern is: stand up the local Docker
-stack, run a scenario, compare its p95/p99 latency and error rate against the
-documented baseline. Any P95 regression > +20% on the same hardware fails the
-gate. This is the foundation Phase 0 T0.1 leaves in place for every subsequent
-phase to lean on.
+Two committed k6 scenarios measure login and authenticated Todo list reads.
+Their thresholds are absolute gates defined in the scripts. The repository
+has no committed numerical baseline or automated `+20%` regression comparison;
+`perf/baselines/local.md` does not exist in the audited checkout.
 
-## What is measured
+## Workloads and thresholds
 
-| Scenario | Endpoint(s) | Stage profile | Key thresholds |
-|---|---|---|---|
-| `login.js` | `POST /auth/api/v1/auth/login` (with prior CSRF + register) | warm-up 10s @ 1 VU → ramp 20s @ 5 VUs → steady 30s @ 10 VUs | `http_req_duration{stage:steady} p95<800ms`, `http_req_failed<1%` |
-| `todo-list.js` | `GET /todos/api/v1/todos?pageNumber=1&pageSize=20` | warm-up 10s @ 1 VU → steady 30s @ 10 VUs | `http_req_duration{name:todo_list} p95<400ms`, `http_req_failed<1%` |
+| Scenario | Profile | Script-enforced thresholds |
+|---|---|---|
+| `login.js` | 1 VU for 10 s; ramp to 5 over 20 s; 10 VUs for 30 s | Login steady p95 < 800 ms, p99 < 1500 ms; CSRF p95 < 200 ms; HTTP failures < 1% |
+| `todo-list.js` | 1 VU for 10 s, then 10 VUs for 30 s | Todo steady p95 < 400 ms, p99 < 800 ms; HTTP failures < 1% |
 
-Both scenarios share `lib/api.js` for CSRF + register + login bootstrapping.
-Each scenario emits per-request tags so JSON output can be sliced after the run.
+`lib/api.js` bootstraps CSRF and registration/login. The login scenario uses
+one account for all VUs. Todo setup registers one reader and does not seed
+tasks, categories, friends or shares: the default workload measures an empty
+list, not a populated collaboration workload. k6 helpers make real writes;
+run them in an isolated disposable environment.
 
-## Prerequisites
+## Local invocation
 
-- k6 v0.49+ — install via `winget install k6` (Windows) or `brew install k6` (macOS).
-- The Planora Docker stack must be running:
-
-  ```powershell
-  docker compose --env-file .env.e2e up -d --build
-  # wait for /health on the gateway
-  ```
-
-  Use the same `.env.e2e` shape as `.github/workflows/e2e.yml` so every scenario
-  hits the same secret-derived stack the CI E2E job exercises.
-
-## Running locally
+Prerequisites: k6, a reachable gateway and a healthy backend/schema. Set up
+the stack following [Deployment](../docs/deployment.md), including its
+fresh-database migration caveat; an arbitrary copied env file does not repair
+the schema chain.
 
 ```powershell
-# One scenario:
-k6 run perf/k6/scenarios/todo-list.js -e API_BASE_URL=http://127.0.0.1:5132
-
-# With JSON output for later diff:
-k6 run --out json=perf/results/todo-list.json `
-  perf/k6/scenarios/todo-list.js `
-  -e API_BASE_URL=http://127.0.0.1:5132
+k6 run -e API_BASE_URL=http://127.0.0.1:5132 perf/k6/scenarios/login.js
+k6 run -e API_BASE_URL=http://127.0.0.1:5132 perf/k6/scenarios/todo-list.js
 ```
 
-The `--out json=...` flag writes per-request samples. Pair it with a tracked
-baseline file under `perf/baselines/` (created on first prod-shape run) to
-compute deltas in CI.
+For reproducible comparison, record commit, k6 version, hardware, pool limits,
+rate-limit settings, data cardinality, warm-up state and elapsed time. Create
+an output directory before exporting results:
 
-## Running in CI
+```powershell
+New-Item -ItemType Directory -Force perf/results | Out-Null
+k6 run -e API_BASE_URL=http://127.0.0.1:5132 `
+  --summary-export=perf/results/todo-list-summary.json `
+  --out json=perf/results/todo-list.json perf/k6/scenarios/todo-list.js
+```
 
-`.github/workflows/perf-smoke.yml` runs on `workflow_dispatch` only — load tests
-should not block routine PR merges, but should be exercised before any release
-that touches a hot path. The job stands up the full Docker stack, runs every
-scenario, uploads the k6 summary, and fails if a threshold is breached.
+Generated performance results are not currently ignored by a dedicated
+`perf/results/` rule; inspect Git status and keep local runs out of commits.
 
-## Baselines
+## Interpretation and known limitations
 
-| File | When refreshed | Owner |
-|---|---|---|
-| `perf/baselines/local.md` | Whenever the hot path materially changes (handler rewrite, schema migration with hot-table impact, new gRPC hop) | The author of the change |
+- Gateway permits 100 requests/min/IP overall and 30/min/IP on Auth routes;
+  its counters also cover CSRF fetches. These scenario rates can intentionally
+  hit `429` before measuring sustainable handler throughput. Document the
+  rate-limit configuration used in any result instead of attributing all
+  failures to server performance.
+- Repeated login also grows session/token history for the same account.
+- The Todo setup returns a k6 cookie-jar object together with serializable
+  token fields. Validate setup-data serialization in the installed k6 version;
+  cookie state is not automatically portable between setup and VU contexts.
+- The scenarios load `uuidv4` from a remote k6-utils URL; offline operation
+  needs that dependency available.
+- Absolute k6 thresholds can match SLO targets, but they do not implement the
+  rolling-window/error-budget policy in [SLOs](../docs/slo.md).
 
-The baseline is intentionally **per-machine hardware-bound** — absolute numbers
-are not portable. Use them only for delta comparison on the same runner class.
+## CI
 
-## Why k6
-
-- Pure JavaScript scenarios — no learning curve for a TS-heavy team.
-- Native Prometheus exporter (`--out experimental-prometheus-rw`) when the
-  observability stack is up, so a perf run shows up as spikes on the same
-  Grafana dashboards as production traffic.
-- Threshold expressions live in the script itself — no separate gating
-  configuration to drift from the scenario.
-- Free, open source, single binary.
+[`perf-smoke.yml`](../.github/workflows/perf-smoke.yml) runs only on manual
+dispatch with `login`, `todo-list`, or `all`. It creates temporary secrets,
+starts Compose, polls selected health endpoints, installs k6, runs the selected
+scripts and uploads summary/raw JSON for 30 days. A failed script threshold
+fails that run. It does not seed representative data, compare a historical
+baseline, prove startup correctness, or gate every pull request.

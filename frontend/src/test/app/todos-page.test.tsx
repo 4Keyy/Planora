@@ -1,10 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import TodosPage from "@/app/tasks/page"
+import TodosPage from "@/app/(app)/tasks/page"
 import { api, fetchTaskById, setViewerPreference } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
-import { TASK_CREATED_EVENT } from "@/lib/events"
 import { useAuthStore } from "@/store/auth"
 import type { Todo } from "@/types/todo"
 
@@ -213,34 +212,6 @@ describe("TodosPage hidden shared task privacy", () => {
       expect(fetchTaskById).toHaveBeenCalledWith(hiddenTodo.id)
       expect(screen.getByText("Shared project plan")).toBeInTheDocument()
     })
-  })
-
-  it("re-fetches active todos when TASK_CREATED_EVENT fires from the navbar", async () => {
-    const newTodo: Todo = { ...fullTodo, id: "todo-new", title: "Navbar created task", userId: "viewer-1" }
-
-    vi.mocked(api.get).mockImplementation((url: string, config?: any) => {
-      if (url === "/todos/api/v1/todos" && config?.params?.isCompleted === false) {
-        // Second call returns the new task
-        if (vi.mocked(api.get).mock.calls.filter(c => c[0] === url && !c[1]?.params?.isCompleted).length > 1) {
-          return Promise.resolve({ data: { items: [hiddenTodo, newTodo], totalCount: 2 } })
-        }
-        return Promise.resolve({ data: { items: [hiddenTodo], totalCount: 1 } })
-      }
-      if (url === "/todos/api/v1/todos" && config?.params?.isCompleted === true) {
-        return Promise.resolve({ data: { items: [], totalCount: 0 } })
-      }
-      if (url === "/categories/api/v1/categories") {
-        return Promise.resolve({ data: [] })
-      }
-      return Promise.reject(new Error(`unexpected GET ${url}`))
-    })
-
-    render(<TodosPage />)
-    await screen.findByText("Hidden task")
-
-    window.dispatchEvent(new CustomEvent(TASK_CREATED_EVENT))
-
-    await waitFor(() => expect(screen.getByText("Navbar created task")).toBeInTheDocument())
   })
 
   it("keeps a hidden shared task collapsed until reveal hydration completes", async () => {

@@ -68,6 +68,10 @@ namespace Planora.Collaboration.Infrastructure.Persistence.Configurations
             // TodoItem aggregate, so there is no foreign key to the task (INV-OWN-1) — the
             // task↔comment link lives only as the TaskId value.
             builder.HasIndex(x => x.AuthorId);
+
+            // Retention purge scan: rows soft-deleted before the grace cutoff (IsDeleted + DeletedAt range).
+            builder.HasIndex(x => new { x.IsDeleted, x.DeletedAt })
+                .HasDatabaseName("ix_comments_isdeleted_deletedat");
         }
     }
 }

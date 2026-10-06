@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuthStore } from "@/store/auth"
+import { isDemoSession } from "@/lib/demo/flag"
 import { useNotificationStore } from "@/store/notifications"
 import { isSystemNotification } from "@/lib/notifications/types"
 import { notifySystem } from "@/lib/notifications/web-notifications"
@@ -22,6 +23,21 @@ export function useRealtimeLifecycle(): void {
   const accessToken = useAuthStore((s) => s.accessToken)
 
   useEffect(() => {
+    // The landing page's sandbox seeds a session so the palette and the list work, and
+    // realtime is the one subsystem a browser cannot answer: a WebSocket handshake needs
+    // a server. Without this the sandbox opens a socket, fails against a gateway that is
+    // not there, and retries on the client's own backoff indefinitely — measured at 486
+    // console errors on a single page view.
+    //
+    // The check belongs HERE rather than in RealtimeManager's render, because the flag is
+    // a plain module value: a render-time guard is evaluated once, before the sandbox has
+    // seeded anything, and never re-evaluated. This effect re-runs when the session
+    // changes, which is exactly when the flag is already set.
+    //
+    // Skipping it is the truthful behaviour, not a concession — with no socket the product
+    // falls back to the 9-second poll it already documents, and the sandbox answers that.
+    if (isDemoSession()) return
+
     if (!isAuthenticated || !accessToken) {
       void realtime.stop()
       return
@@ -43,6 +59,10 @@ export function useNotificationsLifecycle(): void {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   useEffect(() => {
+    // Same reason as above: the sandbox has no notification service, and this hook's
+    // 20-second fallback poll would otherwise run for the whole visit.
+    if (isDemoSession()) return
+
     if (!isAuthenticated) {
       useNotificationStore.getState().reset()
       return
@@ -110,6 +130,14 @@ export function useFeedSync(onChange: (payload: TaskFeedChangedPayload) => void)
  * Joins a task's branch room for as long as the component is mounted (a branch page or the edit
  * modal), and invokes `onChange` whenever something in that branch changes. Membership is
  * reference-counted in the client, so the modal and the page can both be open without fighting.
+ *
+ * It starts the connection itself rather than waiting for `useRealtimeLifecycle`, because a
+ * branch can be opened before that effect has settled. That made it the one realtime entry point
+ * with no authentication check: for a visitor with no token, `accessTokenFactory` returns "",
+ * the handshake fails, and the client's own backoff retries at 2s/5s/10s/30s **forever**, logging
+ * a warning each time. Harmless on a guarded route, which is why it was never noticed; a
+ * permanent background loop on a public one. The gate below is the fix, and it matches the
+ * condition `useRealtimeLifecycle` already applies (`hooks.ts` above).
  */
 export function useBranchRoom(
   taskId: string | null | undefined,
@@ -118,8 +146,12 @@ export function useBranchRoom(
   const handlerRef = useRef(onChange)
   handlerRef.current = onChange
 
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hasToken = useAuthStore((s) => Boolean(s.accessToken))
+  const canConnect = isAuthenticated && hasToken
+
   useEffect(() => {
-    if (!taskId) return
+    if (!taskId || !canConnect) return
 
     void realtime.start().then(() => realtime.joinTask(taskId))
 
@@ -131,7 +163,7 @@ export function useBranchRoom(
       off()
       void realtime.leaveTask(taskId)
     }
-  }, [taskId])
+  }, [taskId, canConnect])
 }
 
 const TYPING_THROTTLE_MS = 2_000
@@ -150,7 +182,7 @@ interface TypingState {
  *
  * `notifyTyping` throttles StartTyping to one signal per few seconds and schedules a StopTyping
  * after a short idle gap, so a burst of keystrokes produces minimal traffic. Indicators also carry
- * a TTL and are swept on an interval, so a dropped StopTyping never leaves a stuck "… печатает".
+ * a TTL and are swept on an interval, so a dropped StopTyping never leaves a stuck "… is typing".
  */
 export function useTyping(taskId: string | null | undefined, enabled: boolean): {
   typingNames: string[]
@@ -199,11 +231,24 @@ export function useTyping(taskId: string | null | undefined, enabled: boolean): 
     const offStopped = realtime.on("UserStoppedTyping", (p) => apply(p, false))
     const sweep = setInterval(recompute, 2_000)
 
+    /*
+     * Captured here, not read in the cleanup.
+     *
+     * `typersRef.current` is read when the cleanup RUNS, which is after the next
+     * task id has already been committed — so a cleanup that dereferenced the ref
+     * would clear the map belonging to the branch the user has just moved to,
+     * dropping its typing indicators until the next keystroke arrives. Holding the
+     * map this effect actually subscribed with makes the cleanup match its own
+     * subscription. The ref itself is stable, so this is the same object today;
+     * it stops being the same object the moment anyone reassigns it.
+     */
+    const typers = typersRef.current
+
     return () => {
       offTyping()
       offStopped()
       clearInterval(sweep)
-      typersRef.current.clear()
+      typers.clear()
       setTypingNames([])
     }
   }, [taskId, enabled, recompute])

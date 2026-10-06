@@ -1,123 +1,189 @@
-# IDOR coverage map
+# Authorization And IDOR Coverage Map
 
-This document enumerates every `[Authorize]` endpoint that takes a
-resource-identifier path parameter and pairs it with the test (or
-mechanism) that verifies it cannot be exercised against another user's
-resource. Hand-curated; one row per endpoint. Auto-generation from the
-OpenAPI surface is the planned successor.
+Source audit: **2026-10-06**, baseline `8b072a9f3da0e57e1aecfce0e814d780506b3078`.
+This maps implemented authorization and actual test evidence, including identifiers
+in paths, queries and bodies. It does not certify that every cross-user scenario has a
+regression test. See [API.md](API.md) for contracts and [auth-security.md](auth-security.md)
+for authentication, CSRF, revocation and service trust.
 
-Conventions:
+## Evidence Conventions
 
-- **Mechanism** — `Owner check (handler)` means the handler reads
-  `_currentUserService.UserId` and either filters the query by that
-  user-id or rejects with `Forbidden`. `Owner check (filter)` means the
-  EF global query filter excludes other users' rows so the handler's
-  `GetByIdAsync` returns null and surfaces as `NotFound` (still safe —
-  the attacker cannot tell the difference between "doesn't exist" and
-  "isn't yours"). `gRPC peer check` means the cross-service caller must
-  present the right service key.
-- **Status** — `pinned` means an explicit cross-user xUnit test exists
-  and is named in the third column; `covered by suite` means the handler
-  carries `_currentUserService` reads + filter-based protection but the
-  specific cross-user scenario is implicit in the handler's broader test
-  class (every test sets `currentUser` to one identity and the handler
-  resolves rows scoped to that identity); `gap` is an explicit hole that
-  should be filled before the related code is touched again.
-
-The xUnit test class names in the right column are the **actual files
-that ship in `tests/Planora.UnitTests/`** — verified at commit time.
+- **Explicit regression** means the named test asserts the relevant denial/actor rule.
+- **Implementation / suite** means source carries the rule and the linked suite
+  exercises related behavior; this does not imply a missing cross-user test exists.
+- **Finding** means the inspected path differs from the intended access invariant.
+- Direct controller tests do not exercise ASP.NET role/authentication attributes,
+  CSRF, gateway routing or real database filters; those require integration evidence.
+- A gRPC service key proves a trusted service caller, not the end-user identity in
+  its payload. Shared service trust is not an ownership check.
 
 ## Auth API
 
-| Method + path | Resource | Mechanism | Status |
-|---|---|---|---|
-| `PUT /auth/api/v1/users/me` | User | Self-only — handler derives the target from `_currentUserService`; no path parameter. | covered by `Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs` |
-| `DELETE /auth/api/v1/users/me` | User | Self-only — no path parameter. | covered by `Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs` |
-| `POST /auth/api/v1/users/me/avatar` | User | Self-only — no path parameter. | covered by `Services/AuthApi/Users/Handlers/UploadAvatarCommandHandlerTests.cs` |
-| `GET /auth/api/v1/users/me/sessions` | RefreshToken | Self-only — handler queries `_currentUserService`; no path parameter. | covered by `Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs` (GetUserSecurity tests) |
-| `DELETE /auth/api/v1/users/me/sessions/{tokenId}` | RefreshToken | `RevokeSessionCommandHandler` rejects with `Forbidden` if `token.UserId != currentUser`. | pinned by `Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs::RevokeSession_WhenTokenBelongsToAnotherUser_ReturnsForbidden` |
-| `GET /auth/api/v1/users/{userId:guid}` | User | Admin-only via `[Authorize(Roles = "Admin")]`. Role gate, not IDOR. | covered by `Services/AuthApi/Controllers/UsersControllerTests.cs` |
-| `GET /auth/api/v1/users` | User (list) | Admin-only via `[Authorize(Roles = "Admin")]`. Role gate, not IDOR. | covered by `Services/AuthApi/Users/Handlers/GetUsersQueryHandlerTests.cs` |
-| `GET /auth/api/v1/users/statistics` | Aggregate | Admin-only via `[Authorize(Roles = "Admin")]`. Role gate, not IDOR. | covered by `Services/AuthApi/Users/Handlers/UserQueryHandlerTests.cs` |
-| `POST /auth/api/v1/friendships/requests` | Friendship | Self-as-requester. Body-supplied `friendId` is the *target* — not an IDOR vector because creating outbound requests is by design. | pinned by `Services/AuthApi/Friendships/FriendshipHandlerTests.cs::SendFriendRequest_ShouldRejectSelfMissingFriendAndExistingRelationship` |
-| `POST /auth/api/v1/friendships/requests/{friendshipId}/accept` | Friendship | Acceptor must be the addressee. | pinned by `Services/AuthApi/Friendships/FriendshipHandlerTests.cs::AcceptRejectAndRemove_ShouldEnforceActorAndPersistStateTransitions` |
-| `POST /auth/api/v1/friendships/requests/{friendshipId}/reject` | Friendship | Same — acceptor must be the addressee. | same as accept (one combined test asserts all three transitions enforce actor) |
-| `DELETE /auth/api/v1/friendships/{friendId}` | Friendship | Either party can delete — `userId` matches one side of the row. | same as above (combined test) |
-| `POST /auth/api/v1/analytics/events` | Analytics event | No path parameter — accepts the event body for the current user. | covered by `Services/AuthApi/Controllers/AnalyticsControllerTests.cs` |
+Sources: [UsersController](../Services/AuthApi/Planora.Auth.Api/Controllers/UsersController.cs),
+[FriendshipsController](../Services/AuthApi/Planora.Auth.Api/Controllers/FriendshipsController.cs),
+[AuthenticationController](../Services/AuthApi/Planora.Auth.Api/Controllers/AuthenticationController.cs).
+Users collection has a service `GET /api/v1/Users` route; the gateway has a users
+catch-all but no explicit collection-root mapping. See the API route caveat.
+
+| Gateway method/path | Implemented scope | Evidence |
+|---|---|---|
+| `GET/PUT/DELETE /auth/api/v1/users/me` | caller's account; delete also requires password | [UserCommandHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UserCommandHandlerTests.cs), [UserQueryHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UserQueryHandlerTests.cs); implementation/suite |
+| `POST /auth/api/v1/users/me/avatar` | target derived from caller | [UploadAvatarCommandHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UploadAvatarCommandHandlerTests.cs); implementation/suite |
+| `POST /auth/api/v1/users/me/change-password`, `/change-email` | caller plus current password | [UserSecurityHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/UserSecurityHandlerTests.cs), `ChangePassword_ShouldReturnSecurityFailuresBeforeMutatingUser`, `ChangeEmail_ShouldValidateAuthenticationPasswordEmailAndUniqueness`; explicit credential regressions |
+| `POST /auth/api/v1/users/me/verify-email` | caller for resend; legacy body token identifies the one-time target | [VerifyEmailCommandHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/VerifyEmailCommandHandlerTests.cs); token capability |
+| `GET /auth/api/v1/users/verify-email?token=...` | public one-time hashed verification token | same suite; intentionally no bearer gate |
+| `POST /auth/api/v1/users/me/2fa/enable`, `/confirm`, `/disable` | caller; pending setup/TOTP for confirm, password for disable | [Enable2FACommandHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/Enable2FACommandHandlerTests.cs), [Confirm2FACommandHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/Confirm2FACommandHandlerTests.cs), UserSecurityHandlerTests |
+| `GET /auth/api/v1/users/me/security`, `/sessions`, `/login-history` | caller-scoped queries | UserSecurityHandlerTests and UserQueryHandlerTests; implementation/suite |
+| `DELETE /auth/api/v1/users/me/sessions/{tokenId}` | token owner must equal caller before update/save | UserSecurityHandlerTests, `RevokeSession_WhenTokenBelongsToAnotherUser_ReturnsForbidden`; explicit regression. Controller maps returned failure to `400`, despite the semantic forbidden error. |
+| `POST /auth/api/v1/users/me/sessions/revoke-all` | caller plus password; no supplied target | UserSecurityHandlerTests, `RevokeAllSessions_ShouldRequirePasswordAndRevokeActiveRefreshTokens`; explicit credential regression |
+| `GET /auth/api/v1/users/{userId}`, `/statistics`, service collection | `[Authorize(Roles = "Admin")]`; other-user administration is intentional | [UsersControllerTests](../tests/Planora.UnitTests/Services/AuthApi/Controllers/UsersControllerTests.cs), [GetUsersQueryHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Users/Handlers/GetUsersQueryHandlerTests.cs); role attribute/source plus direct tests |
+| `POST /auth/api/v1/auth/logout` | handler will not revoke a token belonging to another non-empty caller | [AuthSessionHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Authentication/Handlers/AuthSessionHandlerTests.cs); implementation/suite |
+| `POST /auth/api/v1/friendships/requests`, `/requests/by-email` | requester from caller; friend id/email is destination | [FriendshipHandlerTests](../tests/Planora.UnitTests/Services/AuthApi/Friendships/FriendshipHandlerTests.cs), `SendFriendRequest_ShouldRejectSelfMissingFriendAndExistingRelationship`; explicit regression |
+| `POST /auth/api/v1/friendships/requests/{friendshipId}/accept`, `/reject` | only request addressee | FriendshipHandlerTests, `AcceptRejectAndRemove_ShouldEnforceActorAndPersistStateTransitions`; explicit actor regression |
+| `DELETE /auth/api/v1/friendships/{friendId}` | caller participates in relationship | same actor regression |
+| `GET /auth/api/v1/friendships`, `/requests` | caller's relationships/request direction | FriendshipHandlerTests and [FriendshipsControllerTests](../tests/Planora.UnitTests/Services/AuthApi/Controllers/FriendshipsControllerTests.cs); implementation/suite |
+| `GET /auth/api/v1/friendships/friend-ids?userId=...`, `/are-friends?userId1=...&userId2=...` | `userId`/`userId1` must equal caller, resolving `sub` or mapped `NameIdentifier`; lookup exceptions deny access | FriendshipsControllerTests, `InternalFriendshipEndpoints_AcceptSubjectRemappedToNameIdentifier`, `InternalFriendshipEndpoints_FailClosedOnFailureOrExceptions` |
+| `POST /auth/api/v1/analytics/events` | caller-associated event; no supplied user target | [AnalyticsControllerTests](../tests/Planora.UnitTests/Services/AuthApi/Controllers/AnalyticsControllerTests.cs); implementation/suite |
 
 ## Todo API
 
-| Method + path | Resource | Mechanism | Status |
-|---|---|---|---|
-| `GET /todos/api/v1/todos/{id}` | TodoItem | Owner OR shared-with-current-user OR public. `GetTodoByIdQueryHandler` applies the visibility predicate. | pinned by `Services/TodoApi/Handlers/TodoOwnershipHandlerTests.cs::GetTodoById_ShouldRejectSharedTodo_WhenFriendshipNoLongerExists` |
-| `PUT /todos/api/v1/todos/{id}` | TodoItem | Owner-only mutation. | pinned by `Services/TodoApi/Handlers/TodoOwnershipHandlerTests.cs::UpdateTodo_*` |
-| `DELETE /todos/api/v1/todos/{id}` | TodoItem | Owner-only. | covered by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs` |
-| `PATCH /todos/api/v1/todos/{id}/hidden` | TodoItem | Viewer-only — every authenticated user may hide a *visible* todo for themselves; viewer-preference row keys on `(userId, todoId)`. Cross-user IDOR is irrelevant because hidden state is per-viewer. | covered by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs` (per-viewer scope) |
-| `PATCH /todos/api/v1/todos/{id}/viewer-preferences` | UserTodoViewPreference | Same as hidden — viewer scope is the current user. Returning a completed task to active is **author-only**: a non-owner's `completedByViewer: false` (reopen) is rejected (`SetViewerPreferenceCommandHandler` → 403) once their stored preference is completed; they may complete (`: true`) but must **Duplicate** to fork a done task. | pinned by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs::SetViewerPreference_NonOwnerCannotReopenCompletedTask_ButMayStillComplete` |
-| `POST /todos/api/v1/todos/{id}/join` | TodoItemWorker | Viewer joins an open public todo. IDOR not applicable (visibility predicate is the gate). | covered by `Services/TodoApi/Domain/TodoItemWorkerTests.cs` (capacity/eviction) + handler access checks |
-| `POST /todos/api/v1/todos/{id}/leave` | TodoItemWorker | Viewer leaves; row keyed on `(userId, todoId)`. | covered by `Services/TodoApi/Domain/TodoItemWorkerTests.cs` |
-| `GET /todos/api/v1/todos/{id}/subtasks` | TodoItem (children) | Caller must see the parent: owner OR shared-with-current-user OR public+friend. `GetSubtasksQueryHandler` mirrors the `GetTodoById` visibility predicate; per-viewer completion applied. | pinned by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs::GetSubtasks_RejectsViewerWithoutAccessToPrivateParent` (+ `GetSubtasks_ReturnsChildrenForOwner`) |
-| `POST /todos/api/v1/todos/{id}/subtasks` | TodoItem (child) | **Branch access** required — mirrors `GET …/subtasks`: owner, OR a friend with access to a shared/public parent (collaborators may add steps, not only the author). The child is **owned by the parent owner** for access purposes, but its creator is recorded in `CreatedByUserId` so **rename/delete are allowed for the owner OR the creator** (a collaborator manages the step they added); it inherits the parent's category/visibility/sharing. Never nests under another subtask. | pinned by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs::CreateSubtask_RejectsForeignParent`, `CreateSubtask_ByNonFriendOnSharedParent_ThrowsForbidden`, `CreateSubtask_BySharedFriend_Succeeds` (+ `CreateSubtask_RejectsNestingUnderSubtask`) |
-| `PUT /todos/api/v1/todos/{id}` (subtask) | TodoItem (child) | Editing a subtask's title/priority — and deleting it — is allowed for the **parent owner OR its creator** (`CreatedByUserId`); completing/reopening is allowed for anyone who can see the parent and applies **globally** (entity status, not a per-viewer row). Other participants may complete but not rename/delete. | pinned by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs::UpdateTodo_NonOwnerCompletesSubtask_GloballyNotPerViewer`, `UpdateSubtask_TitleByCreator_Succeeds`, `DeleteSubtask_ByCreator_Succeeds`, `DeleteSubtask_ByNonCreatorNonOwner_ThrowsForbidden` (+ `UpdateTodo_NonOwnerCannotEditSubtaskTitleOrPriority`) |
-| `POST /todos/api/v1/todos/{id}/duplicate` | TodoItem (new copy) | **Any participant** — owner OR friend who can see a public/shared task — may fork it into a copy owned by the caller; access mirrors the view rule and is re-validated server-side (visibility **and** friendship). Subtasks cannot be duplicated. | pinned by `Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs::DuplicateTodo_ByParticipant_OnPublicFriendTask_CopiesUnderDuplicator` (+ `DuplicateTodo_ByNonFriendOnPublicTask_ThrowsForbidden`, `DuplicateTodo_ByNonOwner_ThrowsForbidden`) |
+The normal non-owner view rule requires current friendship with the owner **and**
+a public task or direct share. A public task is not normally readable by any
+authenticated stranger. Main-list reads use a 30-second cached friend-id set; detail
+and command paths can use a live check. The exceptions below are material.
+
+Sources: [TodosController](../Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs),
+[Todo handlers](../Services/TodoApi/Planora.Todo.Application/Features/Todos/).
+Evidence: [TodoOwnershipHandlerTests](../tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoOwnershipHandlerTests.cs)
+and [TodoCommandHandlerExpandedTests](../tests/Planora.UnitTests/Services/TodoApi/Handlers/TodoCommandHandlerExpandedTests.cs).
+
+| Gateway method/path | Implemented rule | Evidence / limit |
+|---|---|---|
+| `GET /todos/api/v1/todos`, `/public`, `/category/{categoryId}` | own rows or eligible audience; viewer projection depends on query | ownership/query suites; main-list cached friendship creates a short revocation window |
+| `GET /todos/api/v1/todos/{id}` | owner or current friend with public/share access; hidden DTO redaction | `GetTodoById_ShouldRejectSharedTodo_WhenFriendshipNoLongerExists`; explicit regression |
+| `POST /todos/api/v1/todos` | owner from caller; supplied owner is discarded | command suite; category/share checks are separate |
+| `PUT /todos/api/v1/todos/{id}` (top level) | owner edits content; eligible non-owner changes their own completion | ownership/expanded suites; viewer can reopen own completion unless author globally completed task |
+| `DELETE /todos/api/v1/todos/{id}` (top level) | owner-only | expanded suite; implementation/suite |
+| `PATCH /todos/api/v1/todos/{id}/hidden` | **owner-only**; shared owner uses own preference, private owner uses entity flag | expanded suite; not an arbitrary viewer mutation |
+| `PATCH /todos/api/v1/todos/{id}/viewer-preferences` | visible non-owner's own state; owner rejected; foreign viewer category rejected | expanded suite; no body-supplied viewer id; author-global Done blocks reopening |
+| `POST /todos/api/v1/todos/{id}/join` | owner shortcut; public non-owner bypasses friendship guard; full DTO returned | **AZ-01**: normal visibility and hidden redaction are not applied |
+| `POST /todos/api/v1/todos/{id}/leave` | removes caller's worker row | worker/command suites; no supplied worker target |
+| `GET /todos/api/v1/todos/{id}/subtasks` | current parent access | `GetSubtasks_RejectsViewerWithoutAccessToPrivateParent`; explicit regression |
+| `POST /todos/api/v1/todos/{id}/subtasks` | owner or eligible friend; child owned by parent owner, creator recorded; no nesting | `CreateSubtask_RejectsForeignParent`, `CreateSubtask_ByNonFriendOnSharedParent_ThrowsForbidden`, `CreateSubtask_BySharedFriend_Succeeds`, `CreateSubtask_RejectsNestingUnderSubtask` |
+| `PUT /todos/api/v1/todos/{id}` (subtask) | parent owner/creator edit; visible participants globally complete/reopen | `UpdateSubtask_TitleByCreator_Succeeds`, `UpdateTodo_NonOwnerCompletesSubtask_GloballyNotPerViewer`; **AZ-02**, creator shortcut precedes current access |
+| `DELETE /todos/api/v1/todos/{id}` (subtask) | parent owner/creator delete; stranger denied | `DeleteSubtask_ByCreator_Succeeds`, `DeleteSubtask_ByNonCreatorNonOwner_ThrowsForbidden`; **AZ-02**, revoked creator still accepted |
+| `POST /todos/api/v1/todos/{id}/duplicate` | owner/eligible current friend, new copy owned by caller; no subtask duplication | `DuplicateTodo_ByParticipant_OnPublicFriendTask_CopiesUnderDuplicator`, `DuplicateTodo_ByNonFriendOnPublicTask_ThrowsForbidden` |
 
 ## Collaboration API
 
-Base path `/collaboration/api/v1/comments`. The comment timeline moved out of Todo into the
-Collaboration service. Every route delegates the access decision to Todo via the
-`TodoService.CheckTaskCommentAccess` gRPC call (owner / shared / public + friendship, INV-AZ-4),
-so the friend gate is enforced server-side in one place and never duplicated.
+Sources: [CommentsController](../Services/CollaborationApi/Planora.Collaboration.Api/Controllers/CommentsController.cs),
+[comment commands/queries](../Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/).
+Evidence: [CommentCommandHandlerTests](../tests/Planora.UnitTests/Services/CollaborationApi/Handlers/CommentCommandHandlerTests.cs).
+There is **no HTTP genesis-create endpoint**. The first-page author's note is
+synthesized from Todo's live description.
 
-| Endpoint | Entity | Access rule | Coverage |
-|---|---|---|---|
-| `GET /collaboration/api/v1/comments/{taskId}` | Comment | Friend-of-owner OR owner (Todo `CheckTaskCommentAccess`). Missing task → 404; no access → 403. | `Services/CollaborationApi/Handlers/CommentCommandHandlerTests.cs`, `Services/CollaborationApi/IntegrationEvents/IntegrationEventConsumerTests.cs` |
-| `POST /collaboration/api/v1/comments/{taskId}` | Comment | Same access check as GET; denied access → 403. | `CommentCommandHandlerTests.cs` (grant/deny/not-found) |
-| `POST /collaboration/api/v1/comments/{taskId}/genesis` | Comment | Owner-only (`ownerId == requester`); one genesis per task. | `CommentCommandHandlerTests.cs` (non-owner → 403, duplicate guard) |
-| `PUT /collaboration/api/v1/comments/{taskId}/{commentId}` | Comment | Comment author; task owner for genesis. Wrong task scope → 404. | `CommentCommandHandlerTests.cs` |
-| `DELETE /collaboration/api/v1/comments/{taskId}/{commentId}` | Comment | Comment author OR task owner; non-genesis system comments are undeletable. | `CommentCommandHandlerTests.cs` (author/stranger/system) |
+| Gateway method/path | Implemented scope | Evidence |
+|---|---|---|
+| `GET /collaboration/api/v1/comments/{taskId}` | Todo `CheckTaskCommentAccess`: missing 404, no current access 403 | query source; command suite does not certify GET pagination |
+| `POST /collaboration/api/v1/comments/{taskId}` | current branch access; reply targets must be eligible and inside branch | `AddComment_WithoutAccess_ThrowsForbidden`, `AddComment_ReplyToCommentFromAnotherTask_ThrowsNotFound`, `AddComment_ReplyToSystemComment_IsRejected`, `AddComment_ReplyToSubtask_ValidatesViaTodoAndSnapshotsTitle` |
+| `PUT /collaboration/api/v1/comments/{taskId}/{commentId}` | branch match and current access; regular author edits own content | `UpdateComment_AuthorWithoutTaskAccess_ThrowsForbidden`, `UpdateComment_WrongTask_ThrowsNotFound`; explicit regressions |
+| `DELETE /collaboration/api/v1/comments/{taskId}/{commentId}` | matching branch, task exists, author/task-owner identity; system/genesis denied; **no `HasAccess` check** | `DeleteComment_ByStranger_ThrowsForbidden`, `DeleteComment_SystemComment_ThrowsForbidden`, `DeleteComment_ByAuthor_SoftDeletes`; **AZ-03**, revoked-author denial missing |
 
 ## Category API
 
-| Method + path | Resource | Mechanism | Status |
-|---|---|---|---|
-| `PUT /categories/api/v1/categories/{id}` | Category | Owner-only — query filtered by `userId`. | pinned by `Services/CategoryApi/Handlers/UpdateCategoryCommandHandlerTests.cs` |
-| `DELETE /categories/api/v1/categories/{id}` | Category | Owner-only — same filter. | covered by `Services/CategoryApi/Handlers/CreateDeleteCategoryCommandHandlerTests.cs` |
+Source: [CategoriesController](../Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs).
+Handlers explicitly compare ownership after fetching by id; EF soft-delete filters
+are not a global current-user isolation guarantee.
+
+| Gateway method/path | Implemented scope | Evidence |
+|---|---|---|
+| `GET /categories/api/v1/categories` | caller-filtered query | [GetUserCategoriesQueryHandlerTests](../tests/Planora.UnitTests/Services/CategoryApi/Handlers/GetUserCategoriesQueryHandlerTests.cs); implementation/suite |
+| `POST /categories/api/v1/categories` | controller discards supplied `userId`; handler takes caller | [CreateDeleteCategoryCommandHandlerTests](../tests/Planora.UnitTests/Services/CategoryApi/Handlers/CreateDeleteCategoryCommandHandlerTests.cs) |
+| `PUT /categories/api/v1/categories/{id}` | fetched owner must equal caller before mutation | [UpdateCategoryCommandHandlerTests](../tests/Planora.UnitTests/Services/CategoryApi/Handlers/UpdateCategoryCommandHandlerTests.cs), `Handle_ShouldRejectMissingOrForeignCategoryBeforeMutating`; explicit regression |
+| `DELETE /categories/api/v1/categories/{id}` | fetched owner equality before delete | CreateDeleteCategoryCommandHandlerTests, `DeleteCategory_ShouldRejectMissingOrForeignCategoryBeforeDeleting`; explicit regression |
+
+Update string-code failures can become `400` through the shared result filter;
+delete explicitly maps `FORBIDDEN` to bearer `Forbid()`/403. Do not infer status
+solely from a semantic error label.
 
 ## Messaging API
 
-| Method + path | Resource | Mechanism | Status |
-|---|---|---|---|
-| `GET /messaging/api/v1/messages` | Message | Sender OR recipient — pagination query filters both sides by current user. | covered by `Services/MessagingApi/Messages/GetMessagesQueryHandlerTests.cs` |
-| `POST /messaging/api/v1/messages` | Message | New row — sender derived from `_currentUserService`, not request body. | covered by `Services/MessagingApi/Handlers/SendMessageHandlerTests.cs` |
+Source: [MessagesController](../Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs).
 
-## Realtime API
-
-| Method + path | Resource | Mechanism | Status |
-|---|---|---|---|
-| `POST /realtime/api/v1/notifications/send` | Notification | Self-only — controller derives target user from the JWT `sub` claim (`User.FindFirst("sub")?.Value`); the body type is server-whitelisted to prevent type injection. | covered by `Services/RealtimeApi/Controllers/NotificationsControllerTests.cs` |
-| `POST /realtime/api/v1/notifications/broadcast` | Notification | Admin-only via `[Authorize(Roles = "Admin")]`. | covered by `Services/RealtimeApi/Controllers/NotificationsControllerTests.cs` |
-| `GET /realtime/api/v1/connections/active` | Connection (list) | Self-only — returns only the authenticated user's own connection ids. | covered by `Services/RealtimeApi/Controllers/ConnectionsControllerTests.cs` |
-| `GET /realtime/api/v1/connections/stats` | Aggregate | Admin-only via `[Authorize(Roles = "Admin")]`. | covered by `Services/RealtimeApi/Controllers/ConnectionsControllerTests.cs` |
-
-## Cross-service gRPC
-
-| Procedure | Mechanism | Status |
+| Gateway method/path | Implemented scope | Evidence |
 |---|---|---|
-| `Auth.FriendshipService/AreFriends` | gRPC service-key on every request (INV-COMM-2). Caller passes the *requesting user's* id in the payload — caller is trusted by the key, not by the payload. | pinned by `tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs` |
-| `Auth.UserService/GetUserAvatarsByIds` | Same — service-key. | pinned by `tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs` |
-| `Category.CategoryService/GetCategoryById` | Same — service-key. | pinned by `tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs` |
+| `GET /messaging/api/v1/messages?otherUserId=...` | conversation must involve caller and other id in either direction; current friendship not required for history | [GetMessagesQueryHandlerTests](../tests/Planora.UnitTests/Services/MessagingApi/Messages/GetMessagesQueryHandlerTests.cs); implementation/suite |
+| `POST /messaging/api/v1/messages` | controller removes supplied sender; handler derives caller, rejects internal mismatch and requires friendship | [SendMessageHandlerTests](../tests/Planora.UnitTests/Services/MessagingApi/Handlers/SendMessageHandlerTests.cs), `Handle_ShouldRejectSenderMismatch_BeforeFriendshipCheck`, `Handle_ShouldRejectAndNotSave_WhenUsersAreNotFriends`; explicit regressions |
 
-## Known gaps
+## Realtime API And Hub
 
-None at the time of writing. Every row above is either explicitly pinned
-by a named test or covered by a broader handler test class. If a future
-review finds a new gap, add a row to this section with the endpoint, the
-missing assertion, and an effort estimate; remove the row when the test
-ships.
+Sources: [NotificationsController](../Services/RealtimeApi/Planora.Realtime.Api/Controllers/NotificationsController.cs),
+[ConnectionsController](../Services/RealtimeApi/Planora.Realtime.Api/Controllers/ConnectionsController.cs),
+[NotificationHub](../Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs).
 
-## Maintenance contract
+| Gateway method/path or hub call | Implemented scope | Evidence / limit |
+|---|---|---|
+| `GET /realtime/api/v1/notifications/summary`, collection root | caller from `sub`/`NameIdentifier`; user-filtered store | [NotificationsControllerTests](../tests/Planora.UnitTests/Services/RealtimeApi/Controllers/NotificationsControllerTests.cs), `GetSummary_AcceptsSubjectRemappedToNameIdentifier`; [NotificationReadStoreTests](../tests/Planora.UnitTests/Services/RealtimeApi/Infrastructure/NotificationReadStoreTests.cs) |
+| `POST /realtime/api/v1/notifications/read` | caller-scoped even with supplied notification/task ids | same suites; all/task/ids selector priority |
+| `POST /realtime/api/v1/notifications/send` | **Admin-only**, target caller, type whitelist | NotificationsControllerTests, `SendNotification_RejectsSecuritySpoofTypes`; role attribute needs HTTP evidence beyond direct calls |
+| `POST /realtime/api/v1/notifications/broadcast` | Admin-only, all users; no identical type whitelist | same suite; attribute/source |
+| `GET /realtime/api/v1/connections/active` | caller's local connections | [ConnectionsControllerTests](../tests/Planora.UnitTests/Services/RealtimeApi/Controllers/ConnectionsControllerTests.cs); inventory is process-local |
+| `GET /realtime/api/v1/connections/stats` | Admin-only aggregate | same suite; attribute/source |
+| `Subscribe`/`Unsubscribe` | static `system`, `announcements`, `todos`; no client-controlled `user:{otherUser}` group | hub source; no dedicated hub test file found |
+| `JoinTask` | current Todo branch access; RPC failure denies join | [TaskBranchAuthorizerTests](../tests/Planora.UnitTests/Services/RealtimeApi/Grpc/TaskBranchAuthorizerTests.cs), `NoAccessOrMissingTask_ReturnsFalse`, `TodoGrpcFailure_FailsClosed_ReturnsFalseWithoutThrowing`; authorizer regressions, not full hub tests |
+| `StartTyping`/`StopTyping` | must already have joined room locally | source; no current-access recheck |
+| `LeaveTask` | removes caller; sends stopped-typing to any valid task id without prior membership check | source; **AZ-06**, signal injection does not grant content reads |
 
-Any PR adding a new authorized endpoint with a path parameter must
-update this table and ship an explicit cross-user handler test. Reviewers
-reject PRs that omit either side. See `INV-AZ-8` in
-[`INVARIANTS.md`](INVARIANTS.md).
+Existing rooms are not evicted on friendship/sharing removal. Existing WebSockets
+are not disconnected on JWT expiry or later security-stamp rotation by the inspected
+code. Authorization at connect/join time does not prove continuous current access.
+
+## Shared Administration
+
+`GET /system/info`, where the shared
+[SystemInfoController](../BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Services/SystemInfoController.cs)
+is exposed, requires Admin. No gateway route is committed. Controller existence
+alone does not prove its assembly is registered by a particular API.
+
+## Cross-Service gRPC Trust
+
+Actual contracts: [auth.proto](../GrpcContracts/Protos/auth.proto),
+[todo.proto](../GrpcContracts/Protos/todo.proto), [category.proto](../GrpcContracts/Protos/category.proto),
+[messaging.proto](../GrpcContracts/Protos/messaging.proto), [realtime.proto](../GrpcContracts/Protos/realtime.proto).
+
+| Contract | Implemented trust | Evidence |
+|---|---|---|
+| `auth.AuthService/AreFriends`, `/GetFriendIds`, `/GetUserAvatarsBatch`, `/GetUserProfilesBatch`, `/GetUserInfo` | shared service key; payload user ids are trusted internal inputs | [AuthGrpcServiceTests](../tests/Planora.UnitTests/Services/AuthApi/Grpc/AuthGrpcServiceTests.cs), [ServiceKeyInterceptorTests](../tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs) |
+| `todo.TodoService/CheckTaskCommentAccess` | key plus owner/friend and public/share rule for supplied requester | Todo gRPC source; caller must supply its authenticated requester |
+| `todo.TodoService/GetSubtaskBrief` | key plus parent/child scope; no independent bearer identity | source; Collaboration checks branch access first |
+| `category.CategoryService/GetCategoryById` | key; response owner checked by client where needed | [CategoryGrpcServiceTests](../tests/Planora.UnitTests/Services/CategoryApi/Grpc/CategoryGrpcServiceTests.cs) |
+| Messaging / Realtime RPCs | key; trusted internal recipient/sender payloads | [MessagingGrpcServiceTests](../tests/Planora.UnitTests/Services/MessagingApi/Grpc/MessagingGrpcServiceTests.cs), [RealtimeGrpcServiceTests](../tests/Planora.UnitTests/Services/RealtimeApi/Grpc/RealtimeGrpcServiceTests.cs) |
+
+Interceptor tests establish key enforcement, not each RPC's end-user ownership
+correctness or deployed transport encryption.
+
+## Known Findings And Missing Regressions
+
+Findings are based on inspected code paths; application fixes/tests are outside this
+documentation change. Severity reflects the demonstrated source-level impact.
+
+| Finding | Trigger and impact | Missing regression / remediation direction |
+|---|---|---|
+| **AZ-01 (high)** | non-friend authenticated user joins a public task: friendship skipped, full DTO returned even when normal view should deny/redact | deny non-friend under normal visibility; test hidden join response; reuse safe access/projection |
+| **AZ-02 (medium)** | former collaborator edits/deletes own-created subtask after parent access removed: creator shortcut precedes current access | revoked-creator rename/delete regression; clarify intended retained authority or enforce current branch access |
+| **AZ-03 (medium)** | former comment author deletes known regular comment after branch access removed: author/owner checked, `HasAccess` ignored | deletion denial matching existing `UpdateComment_AuthorWithoutTaskAccess_ThrowsForbidden` |
+| **AZ-04 (medium)** | main Todo list retains removed friendship in cached ids for up to 30 seconds | invalidation/current-access regression; define revocation latency |
+| **AZ-05 (medium)** | task room stays subscribed after access removal; JWT revocation/expiry does not end existing socket | room eviction/continuous authorization/expiry integration tests |
+| **AZ-06 (low)** | `LeaveTask` emits `UserStoppedTyping` to a room caller never joined | assert no unrelated-room event; require membership before signaling |
+
+Stamp fail-open/TTL behavior, public token-validation discrepancies, IP quotas and
+dependency advisories are described in [the security reference](auth-security.md#known-security-gaps--clarifications).
+Passing a broader suite does not remove these source findings.
+
+## Maintenance Contract
+
+For a new authorized endpoint/procedure, document actor, resource and current-access
+checks and add a meaningful cross-user/revoked-access regression where ids select
+another resource. Keep routes, statuses and test names grounded in source. Reconcile
+[INVARIANTS.md](INVARIANTS.md) when the stated invariant differs from code instead
+of treating implicit suite coverage as proof.

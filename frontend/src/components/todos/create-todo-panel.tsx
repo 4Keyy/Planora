@@ -1,35 +1,38 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import {
-  AlignLeft,
+  ArrowRight,
   Calendar,
+  Check,
   ChevronDown,
   ChevronRight,
-  FileText,
   Folder,
+  UsersRound,
+  Lock,
   Plus,
   Sparkles,
   Users,
   X,
 } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Avatar } from "@/components/ui/avatar"
 import { Category } from "@/types/category"
 import type { CreateTodoPayload } from "@/types/todo"
-import { IconPicker } from "@/components/ui/icon-picker"
+import type { FriendDto } from "@/types/auth"
 import { ICON_MAP } from "@/lib/icon-map"
-import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
-import { FriendMultiSelect } from "@/components/todos/friend-multi-select"
-import { DateCalendar } from "@/components/todos/edit-todo-modal/popovers/date"
-import { formatDueRange } from "@/components/todos/edit-todo-modal/utils"
+import { Popover, PopoverHeader } from "@/components/todos/edit-todo-modal/popover"
+import { PriorityPopover } from "@/components/todos/edit-todo-modal/popovers/priority"
+import { CategoryPopover } from "@/components/todos/edit-todo-modal/popovers/category"
+import { DatePopover } from "@/components/todos/edit-todo-modal/popovers/date"
+import { formatDueRange, getPriorityLabel, getPriorityNumber } from "@/components/todos/edit-todo-modal/utils"
 import { useFriends } from "@/hooks/use-friends"
+import { isTextEntry } from "@/hooks/use-list-navigation"
 import { cn } from "@/lib/utils"
-import { TWEEN_FAST, SPRING_RESPONSIVE, EASE_OUT_EXPO } from "@/lib/animations"
+import { DURATION_FAST, DURATION_INSTANT, DURATION_SLOW, DURATION_UI, TWEEN_FAST, TWEEN_UI, SPRING_RESPONSIVE, EASE_OUT_EXPO } from "@/lib/animations"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
+import { PLATE_ICON, PLATE_ROW, PLATE_SURFACE } from "@/components/todos/plate"
 
 interface CreateTodoPanelProps {
   isOpen: boolean
@@ -38,62 +41,13 @@ interface CreateTodoPanelProps {
   onSubmit: (payload: CreateTodoPayload) => Promise<void>
   onCreateCategory: () => Promise<void>
   onDeleteCategory: (id: string) => Promise<void>
-  shortcutHint?: string
 }
-
-const priorityOptions = [
-  { value: "VeryLow", label: "Very Low", short: "1", num: 1 },
-  { value: "Low", label: "Low", short: "2", num: 2 },
-  { value: "Medium", label: "Medium", short: "3", num: 3 },
-  { value: "High", label: "High", short: "4", num: 4 },
-  { value: "Urgent", label: "Urgent", short: "5", num: 5 },
-]
 
 const TITLE_MAX_LENGTH = 200
 const DESCRIPTION_MAX_LENGTH = 5000
-const CATEGORY_NAME_MAX_LENGTH = 50
 const LIMIT_WARNING_RATIO = 0.8
 
-const getPriorityNumber = (p: string): number => {
-  const match = priorityOptions.find(o => o.value === p)
-  return match?.num ?? 3
-}
-
-
-function SectionLabel({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <Icon className="h-3.5 w-3.5 text-gray-400" strokeWidth={2.4} />
-      <span className="text-[11px] font-black uppercase tracking-[0.14em] text-gray-500">
-        {children}
-      </span>
-    </div>
-  )
-}
-
-function PanelBlock({
-  icon,
-  title,
-  meta,
-  children,
-  className,
-}: {
-  icon: LucideIcon
-  title: string
-  meta?: React.ReactNode
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cn("rounded-2xl border border-gray-200/70 bg-white p-3.5 shadow-sm transition-[background-color,border-color,box-shadow] duration-300", className)}>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <SectionLabel icon={icon}>{title}</SectionLabel>
-        {meta}
-      </div>
-      {children}
-    </div>
-  )
-}
+type OpenPopover = "priority" | "date" | "category" | "share" | null
 
 function LimitCounter({ value, max }: { value: number; max: number }) {
   const isNearLimit = value >= max * LIMIT_WARNING_RATIO
@@ -101,8 +55,8 @@ function LimitCounter({ value, max }: { value: number; max: number }) {
   return (
     <span
       className={cn(
-        "text-[11px] font-black tabular-nums transition-colors duration-300",
-        isNearLimit ? "text-red-500" : "text-gray-400"
+        "text-caption font-bold tabular-nums transition-colors duration-slow",
+        isNearLimit ? "text-alert" : "text-ink-subtle"
       )}
     >
       {value}/{max}
@@ -110,13 +64,287 @@ function LimitCounter({ value, max }: { value: number; max: number }) {
   )
 }
 
-const limitPanelClass = (active: boolean) =>
-  active ? "border-red-200 bg-red-50/55 shadow-red-100/60" : undefined
+function friendName(f: FriendDto): string {
+  const full = [f.firstName, f.lastName].filter(Boolean).join(" ").trim()
+  if (full) return full
+  return f.email ? f.email.split("@")[0] : f.id
+}
 
-const limitInputClass = (active: boolean) =>
-  active
-    ? "border-red-300 bg-red-50/40 text-red-950 placeholder:text-red-300 hover:border-red-400 focus:border-red-500 focus:ring-red-100"
-    : undefined
+/**
+ * One visible character in any layout ("a", "Ж", "7", "?"). Space is deliberately not one:
+ * with focus on the header or a selector plate, Space presses that button.
+ */
+const PRINTABLE_KEY = /^\S$/u
+
+/**
+ * One of the four selector plates under the title area (Priority / Due date /
+ * Category / Share). A compact card trigger whose current value crossfades in
+ * place; the actual picker opens as an anchored popover rendered via
+ * {@link Popover} inside the same relative wrapper (`containerRef`).
+ */
+function SelectorCard({
+  containerRef,
+  label,
+  ariaLabel,
+  value,
+  valueKey,
+  muted,
+  icon,
+  iconClass,
+  iconStyle,
+  open,
+  onToggle,
+  onClear,
+  clearLabel,
+  children,
+}: {
+  containerRef: RefObject<HTMLDivElement>
+  label: string
+  /** Accessible name of the trigger; defaults to the visible label. */
+  ariaLabel?: string
+  value: string
+  /** Key driving the value crossfade — change it to animate the swap. */
+  valueKey: string
+  /** Placeholder-ish values ("No date", "None") render in a lighter tone. */
+  muted?: boolean
+  icon: React.ReactNode
+  iconClass: string
+  /** Inline squircle background (e.g. a category color tint). */
+  iconStyle?: React.CSSProperties
+  open: boolean
+  onToggle: () => void
+  onClear?: () => void
+  clearLabel?: string
+  children?: React.ReactNode
+}) {
+  return (
+    <div ref={containerRef} className="relative">
+      <motion.button
+        type="button"
+        onClick={onToggle}
+        aria-label={ariaLabel ?? label}
+        aria-expanded={open}
+        whileTap={{ scale: 0.98 }}
+        transition={SPRING_RESPONSIVE}
+        className={cn(
+          "group flex w-full items-center gap-3 rounded-lg border bg-paper p-3 text-left shadow-sm",
+          "transition-[border-color,box-shadow,background-color] duration-base",
+          open
+            ? "border-line-strong shadow-md"
+            : "border-line hover:border-line-strong hover:shadow-md"
+        )}
+      >
+        <span
+          className={cn(
+            "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md transition-colors duration-base",
+            iconClass
+          )}
+          style={iconStyle}
+        >
+          {icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className={FIELD_LABEL_CLASS}>
+            {label}
+          </span>
+          {/* Fixed-height value row so the crossfade never resizes the card. */}
+          <span className="relative block h-5 overflow-hidden">
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={valueKey}
+                initial={{ y: 8, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -8, opacity: 0 }}
+                transition={TWEEN_FAST}
+                className={cn(
+                  "block truncate text-body-sm font-bold leading-5 tracking-tight",
+                  muted ? "text-ink-subtle" : "text-ink"
+                )}
+              >
+                {value}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+        </span>
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={TWEEN_UI}
+          className={cn(
+            "flex-shrink-0 text-ink-muted transition-colors duration-fast group-hover:text-ink",
+            // Room for the clear control, which now sits OUTSIDE this button.
+            onClear && "mr-8",
+          )}
+        >
+          <ChevronDown className="h-4 w-4" strokeWidth={2.2} />
+        </motion.span>
+      </motion.button>
+
+      {/*
+       * The clear control is a SIBLING of the trigger, not a child of it.
+       *
+       * It used to be a `role="button"` span inside the `<button>`, and nesting one
+       * control in another is invalid: the accessibility tree has nowhere to put the
+       * inner one, so a screen reader announces a single button whose name is the
+       * card's — and the clear action simply does not exist for anyone not using a
+       * pointer. The `stopPropagation` it carried was the tell: a control that has to
+       * stop its own parent from also firing is a control in the wrong place.
+       *
+       * Absolutely positioned over the trigger's right edge so the card's layout is
+       * unchanged, and given a real `<button>` with the touch target the design system
+       * requires.
+       */}
+      {onClear && (
+        <button
+          type="button"
+          aria-label={clearLabel}
+          onClick={onClear}
+          className="absolute right-9 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-ink-subtle transition-colors duration-fast hover:bg-gray-100 hover:text-ink-muted"
+        >
+          <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+        </button>
+      )}
+      {children}
+    </div>
+  )
+}
+
+/**
+ * Share picker mirroring the FriendMultiSelect semantics the panel used before
+ * the redesign: "All friends" toggles the public flag (clearing direct shares),
+ * picking a friend while public switches to a direct share with just them.
+ */
+function SharePopover({
+  open,
+  onClose,
+  containerRef,
+  friends,
+  isPublic,
+  onPublicChange,
+  selectedIds,
+  onChange,
+}: {
+  open: boolean
+  onClose: () => void
+  containerRef: RefObject<HTMLElement | null>
+  friends: FriendDto[]
+  isPublic: boolean
+  onPublicChange: (v: boolean) => void
+  selectedIds: string[]
+  onChange: (ids: string[]) => void
+}) {
+  const toggleFriend = (id: string) => {
+    if (isPublic) {
+      onPublicChange(false)
+      onChange([id])
+      return
+    }
+    onChange(
+      selectedIds.includes(id) ? selectedIds.filter(fid => fid !== id) : [...selectedIds, id]
+    )
+  }
+
+  const sub = isPublic
+    ? "all friends"
+    : selectedIds.length > 0
+      ? `${selectedIds.length} of ${friends.length}`
+      : "only you"
+
+  return (
+    <Popover open={open} onClose={onClose} width={320} align="right" containerRef={containerRef} portal>
+      <PopoverHeader
+        label="Share"
+        sub={<span className="text-caption font-semibold text-ink-muted">{sub}</span>}
+      />
+      <div className="p-1.5">
+        <button
+          type="button"
+          onClick={() => {
+            const nextPublic = !isPublic
+            onPublicChange(nextPublic)
+            if (nextPublic) onChange([])
+          }}
+          className={cn(
+            "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors duration-fast",
+            isPublic ? "bg-ink text-paper" : "hover:bg-paper-sunken"
+          )}
+        >
+          <span
+            className={cn(
+              "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md",
+              isPublic ? "bg-paper/10 text-paper" : "bg-gray-100 text-ink-subtle"
+            )}
+          >
+            <UsersRound className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-caption font-bold tracking-tight">All friends</span>
+            <span className={cn("block text-caption font-semibold", isPublic ? "text-paper/55" : "text-ink-subtle")}>
+              Every accepted friend can see it
+            </span>
+          </span>
+          <span
+            className={cn(
+              "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-caption font-bold transition-colors",
+              isPublic ? "bg-paper text-ink" : "shadow-[inset_0_0_0_1.5px_var(--pl-line)] text-transparent"
+            )}
+          >
+            <Check className="h-3 w-3" strokeWidth={3} />
+          </span>
+        </button>
+
+        <div className="mx-1.5 my-1.5 h-px bg-gray-100" />
+
+        {friends.length === 0 ? (
+          <div className="px-3 py-5 text-center text-caption font-bold text-ink-muted">
+            No friends yet.
+          </div>
+        ) : (
+          <div className="max-h-52 space-y-0.5 overflow-y-auto">
+            {friends.map(f => {
+              const selected = !isPublic && selectedIds.includes(f.id)
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={selected}
+                  aria-label={friendName(f)}
+                  onClick={() => toggleFriend(f.id)}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast",
+                    selected ? "bg-paper-sunken" : "hover:bg-paper-sunken"
+                  )}
+                >
+                  <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-md">
+                    <Avatar
+                      src={f.profilePictureUrl}
+                      firstName={f.firstName}
+                      lastName={f.lastName}
+                      email={f.email}
+                      size={28}
+                      className="rounded-md"
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-caption font-bold text-ink">
+                    {friendName(f)}
+                  </span>
+                  <span
+                    className={cn(
+                      "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full transition-colors",
+                      selected ? "bg-ink text-paper" : "shadow-[inset_0_0_0_1.5px_var(--pl-line)] text-transparent"
+                    )}
+                  >
+                    <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </Popover>
+  )
+}
 
 export function CreateTodoPanel({
   isOpen,
@@ -131,23 +359,31 @@ export function CreateTodoPanel({
   const [priority, setPriority] = useState("Medium")
   const [dueDate, setDueDate] = useState("")
   const [dueDateStart, setDueDateStart] = useState("")
-  const [dateOpen, setDateOpen] = useState(false)
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined)
   const [creating, setCreating] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [isPublic, setIsPublic] = useState(false)
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([])
+  const [openPopover, setOpenPopover] = useState<OpenPopover>(null)
 
   const prefersReducedMotion = useReducedMotion()
   const friends = useFriends(isOpen)
   const titleRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  /** What held focus when the panel opened: its header, an empty state's button, or nothing. */
+  const openerRef = useRef<Element | null>(null)
 
-  const [newCatName, setNewCatName] = useState("")
-  const [newCatColor, setNewCatColor] = useState("#6366f1")
-  const [newCatIcon, setNewCatIcon] = useState<string | null>(null)
+  const priorityCardRef = useRef<HTMLDivElement>(null)
+  const dateCardRef = useRef<HTMLDivElement>(null)
+  const categoryCardRef = useRef<HTMLDivElement>(null)
+  const shareCardRef = useRef<HTMLDivElement>(null)
+
   const titleNearLimit = title.length >= TITLE_MAX_LENGTH * LIMIT_WARNING_RATIO
-  const descriptionNearLimit = description.length >= DESCRIPTION_MAX_LENGTH * LIMIT_WARNING_RATIO
-  const categoryNameNearLimit = newCatName.length >= CATEGORY_NAME_MAX_LENGTH * LIMIT_WARNING_RATIO
+
+  const togglePopover = (key: Exclude<OpenPopover, null>) =>
+    setOpenPopover(prev => (prev === key ? null : key))
 
   const resetForm = () => {
     setTitle("")
@@ -155,22 +391,84 @@ export function CreateTodoPanel({
     setPriority("Medium")
     setDueDate("")
     setDueDateStart("")
-    setDateOpen(false)
     setCategoryId(undefined)
     setFormError(null)
     setIsPublic(false)
     setSelectedFriendIds([])
-    setNewCatName("")
-    setNewCatColor("#6366f1")
-    setNewCatIcon(null)
+    setOpenPopover(null)
   }
 
+  /*
+   * Opening the panel focuses NOTHING (owner's ruling, 2026-10-05).
+   *
+   * It used to focus the title 220ms after opening. A text field matches :focus-visible on
+   * every focus, script included, so the field lit up by itself the moment "New task" was
+   * pressed — and on the dashboard's first-run auto-open with no press at all — and on Android
+   * the programmatic focus raised the keyboard over the selector plates. Focus now stays
+   * where the press left it (the header keeps it, as a disclosure button should), and the
+   * field lights up only when the user clicks it or starts typing; the effect below catches
+   * the typing.
+   */
   useEffect(() => {
     if (isOpen) {
-      const t = setTimeout(() => titleRef.current?.focus(), 220)
-      return () => clearTimeout(t)
+      const active = document.activeElement
+      openerRef.current = active && !isTextEntry(active) ? active : null
+      return
     }
+    openerRef.current = null
+    setOpenPopover(null)
   }, [isOpen])
+
+  /*
+   * Closing with focus inside the form (Escape in the title, Cancel) hands focus back to the
+   * header. The collapsed body is `inert`, and a focused element that turns inert drops
+   * focus to <body> — the next Tab would restart from the top of the page. A layout effect
+   * runs before the browser's focus fixup, while the element still holds focus.
+   */
+  useLayoutEffect(() => {
+    if (isOpen) return
+    if (bodyRef.current?.contains(document.activeElement)) toggleRef.current?.focus({ preventScroll: true })
+  }, [isOpen])
+
+  /*
+   * Type-to-focus. While the panel is open and nothing editable has focus, the first printable
+   * key moves focus into the title, and the browser then inserts that very character there:
+   * text input goes to whatever is focused once keydown returns.
+   *
+   * - Window, capture phase, then stopPropagation: no later shortcut may also act on a key
+   *   that is now the first letter of a title. The tasks page's `F` is an earlier capture
+   *   listener, so it stands down by itself while the panel is open.
+   * - Only from "nowhere": <body>, the panel's own non-text controls, or the button that
+   *   opened it. Focus in any other field, dialog or menu keeps its keys.
+   * - Never with a modifier (Ctrl/Cmd+K is the palette), except AltGr, which types.
+   * - Not while a selector popover is open: its keys are its own.
+   * - Not while the panel is scrolled out of view: nobody types into a title they cannot see.
+   * - `preventScroll`: the content may still be growing out of a 0px grid row, and a
+   *   scrolling focus would scroll that clipped container and leave the form shifted up.
+   */
+  useEffect(() => {
+    if (!isOpen || openPopover) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.isComposing || !PRINTABLE_KEY.test(e.key)) return
+      if ((e.ctrlKey || e.metaKey || e.altKey) && !e.getModifierState("AltGraph")) return
+      const title = titleRef.current
+      const panel = panelRef.current
+      if (!title || !panel) return
+      const active = document.activeElement
+      const idle =
+        active === null ||
+        active === document.body ||
+        active === openerRef.current ||
+        (panel.contains(active) && !isTextEntry(active))
+      if (!idle) return
+      const box = panel.getBoundingClientRect()
+      if (box.height > 0 && (box.bottom <= 0 || box.top >= window.innerHeight)) return
+      title.focus({ preventScroll: true })
+      e.stopPropagation()
+    }
+    window.addEventListener("keydown", onKeyDown, true)
+    return () => window.removeEventListener("keydown", onKeyDown, true)
+  }, [isOpen, openPopover])
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -182,28 +480,11 @@ export function CreateTodoPanel({
     setCreating(true)
 
     try {
-      let finalCategoryId = categoryId && categoryId !== "__new" && categoryId !== "__none" ? categoryId : undefined
-
-      if (categoryId === "__new" && newCatName.trim()) {
-        try {
-          const catRes = await api.post<ApiResponse<Category>>("/categories/api/v1/categories", {
-            name: newCatName.trim(),
-            color: newCatColor,
-            icon: newCatIcon,
-            displayOrder: 0,
-          })
-          finalCategoryId = parseApiResponse<Category>(catRes.data).id
-          await onCreateCategory()
-        } catch {
-          // Category creation failed; create the task without category.
-        }
-      }
-
       await onSubmit({
         userId: null,
         title: title.trim(),
         description: description.trim() || null,
-        categoryId: finalCategoryId || null,
+        categoryId: categoryId || null,
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
         dueDateStart: dueDateStart ? new Date(dueDateStart).toISOString() : null,
         priority: getPriorityNumber(priority),
@@ -224,70 +505,104 @@ export function CreateTodoPanel({
 
   useEffect(() => {
     if (!isOpen) return
+    // Capture phase: this must observe an open selector popover BEFORE the
+    // popover's own (document-level) Escape handler closes it, so one Escape
+    // closes the popover and only the next one closes the panel.
     const handler = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey
       if (meta && e.key === "Enter") {
         e.preventDefault()
         handleSubmit()
       } else if (e.key === "Escape" && !creating) {
+        if (openPopover) return
         e.preventDefault()
         onToggle()
       }
     }
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
+    window.addEventListener("keydown", handler, true)
+    return () => window.removeEventListener("keydown", handler, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, title, description, priority, dueDate, dueDateStart, categoryId, isPublic, selectedFriendIds, newCatName, newCatColor, newCatIcon, creating])
+  }, [isOpen, title, description, priority, dueDate, dueDateStart, categoryId, isPublic, selectedFriendIds, creating, openPopover])
 
   const fieldMotion = (delay = 0) => ({
-    initial: { opacity: 0, y: prefersReducedMotion ? 0 : 8, scale: prefersReducedMotion ? 1 : 0.99 },
-    animate: { opacity: 1, y: 0, scale: 1 },
+    initial: { opacity: 0, y: prefersReducedMotion ? 0 : 8 },
+    animate: { opacity: 1, y: 0 },
     transition: {
-      duration: prefersReducedMotion ? 0.01 : 0.25,
+      duration: prefersReducedMotion ? 0 : DURATION_UI,
       delay: prefersReducedMotion ? 0 : delay,
       ease: EASE_OUT_EXPO,
     },
   })
 
-  // CSS timing for the grid-row height transition
+  /*
+   * The panel opens by growing its grid row, the one height animation on the page. It
+   * answers a press and pushes the list down, so it is kept on the scale's `slow` (320ms,
+   * the ceiling for a response) with the product's emphasized curve rather than its own
+   * 380ms; the contents fade in behind the opening and out before the closing.
+   */
   const rowTransition = prefersReducedMotion
     ? "grid-template-rows 0.01s linear"
-    : "grid-template-rows 0.38s cubic-bezier(0.34, 1.2, 0.64, 1)"
+    : `grid-template-rows ${DURATION_SLOW}s var(--pl-ease-emphasized)`
   const contentOpacityTransition = prefersReducedMotion
     ? "opacity 0.01s linear"
-    : `opacity ${isOpen ? "0.18s 0.12s" : "0.10s 0s"} cubic-bezier(0.16,1,0.3,1)`
+    : `opacity ${isOpen ? `${DURATION_FAST}s ${DURATION_FAST}s` : `${DURATION_INSTANT}s 0s`} var(--pl-ease-emphasized)`
+
+  const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
+
+  const selectedCategory = categoryId ? categories.find(c => c.id === categoryId) : undefined
+  const SelectedCatIcon = selectedCategory?.icon ? (ICON_MAP[selectedCategory.icon] ?? Folder) : Folder
+
+  // "All friends", never "Public": every accepted friend is still a circle the owner
+  // chose, and there is no public link.
+  const shareValue = isPublic
+    ? "All friends"
+    : selectedFriendIds.length > 0
+      ? `${selectedFriendIds.length} ${selectedFriendIds.length === 1 ? "friend" : "friends"}`
+      : "Private"
+  const shareAria = isPublic
+    ? "Shared with all friends"
+    : selectedFriendIds.length > 0
+      ? `Shared with ${selectedFriendIds.length} ${selectedFriendIds.length === 1 ? "friend" : "friends"}`
+      : "Private task"
+
+  const handleDeleteCategory = async (id: string) => {
+    await onDeleteCategory(id)
+    if (categoryId === id) setCategoryId(undefined)
+  }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-gray-200/80 bg-white shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)]">
+    <div ref={panelRef} className={PLATE_SURFACE}>
       {/*
         Always-visible header — clicking opens/closes the panel.
         The + button is ONE persistent element that rotates 0° ↔ 45°,
         so the animation plays correctly in both directions.
       */}
       <button
+        ref={toggleRef}
         type="button"
         onClick={onToggle}
-        className="group flex w-full items-center justify-between gap-4 p-4 text-left transition-colors duration-200 hover:bg-gray-50/60 sm:p-5"
+        // The same 80px row as the quick filter below it (`plate.ts`), at every width. The
+        // ring is drawn inside the edge: the plate clips its overflow.
+        className={cn(
+          PLATE_ROW,
+          "group h-20 items-center text-left transition-colors duration-fast hover:bg-paper-sunken focus-visible:-outline-offset-2",
+        )}
         aria-label={isOpen ? "Close create task panel" : "Open create task panel"}
         aria-expanded={isOpen}
       >
-        <div className="flex min-w-0 items-center gap-3.5">
+        <div className="flex min-w-0 items-center gap-4">
           {/* The single + icon that rotates between open/closed — never unmounts */}
-          <motion.div
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.94 }}
-            transition={SPRING_RESPONSIVE}
-            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-gray-950 text-white shadow-md shadow-black/15"
-          >
+          {/* Decorative: framer-motion makes an element with whileTap focusable,
+              which put an unnamed 44x44 target inside an already-labelled button. */}
+          <span aria-hidden="true" className={PLATE_ICON}>
             <motion.span
-              aria-hidden
               animate={{ rotate: isOpen ? 45 : 0 }}
-              transition={{ type: "spring", stiffness: 420, damping: 24 }}
+              transition={SPRING_RESPONSIVE}
               className="flex"
             >
               <Plus className="h-5 w-5" strokeWidth={2.5} />
             </motion.span>
-          </motion.div>
+          </span>
 
           {/* Title area swaps between two states */}
           <div className="min-w-0">
@@ -298,10 +613,19 @@ export function CreateTodoPanel({
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.14, ease: EASE_OUT_EXPO }}
+                  transition={TWEEN_FAST}
                 >
-                  <h3 className="text-sm font-black tracking-tight text-gray-950">New task</h3>
-                  <p className="truncate text-[11px] font-semibold text-gray-400">press <kbd className="rounded bg-gray-100 px-1 py-px font-mono text-[10px] text-gray-500">C</kbd> to open</p>
+                  <h2 className="text-body-sm font-bold tracking-tight text-ink">New task</h2>
+                  {/*
+                    This used to read "press C to open", which stopped being true when
+                    `C` was given to quick capture — the one key, one meaning rule. A
+                    printed key that does something else is worse than no key at all:
+                    the user learns the wrong binding and finds out later, from a
+                    surface that disagrees with this one.
+                  */}
+                  <p className="mt-0.5 truncate text-caption font-semibold text-ink-muted">
+                    Date, category, audience
+                  </p>
                 </motion.div>
               ) : (
                 <motion.div
@@ -309,10 +633,10 @@ export function CreateTodoPanel({
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 4 }}
-                  transition={{ duration: 0.14, ease: EASE_OUT_EXPO }}
+                  transition={TWEEN_FAST}
                 >
-                  <p className="text-sm font-black leading-none tracking-tight text-gray-950">New task</p>
-                  <p className="mt-0.5 text-[11px] font-semibold text-gray-400">Ready for the list</p>
+                  <p className="text-body-sm font-bold tracking-tight text-ink">New task</p>
+                  <p className="mt-0.5 truncate text-caption font-semibold text-ink-muted">Title is all you need</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -321,11 +645,12 @@ export function CreateTodoPanel({
 
         {/* Chevron — fades out when open */}
         <motion.div
+          aria-hidden="true"
           animate={{ opacity: isOpen ? 0 : 1, x: isOpen ? 4 : 0 }}
-          transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
+          transition={TWEEN_FAST}
           className="flex flex-shrink-0 items-center"
         >
-          <ChevronRight className="h-4 w-4 text-gray-300 transition-colors group-hover:text-gray-700" />
+          <ChevronRight className="h-4 w-4 text-ink-muted transition-colors duration-fast group-hover:text-ink" />
         </motion.div>
       </button>
 
@@ -335,289 +660,192 @@ export function CreateTodoPanel({
         visually-hidden form, and makes queryByPlaceholderText return null when closed.
       */}
       <div
+        ref={bodyRef}
         aria-hidden={!isOpen}
+        // Not only hidden from assistive tech but out of the tab order: collapsed, the form
+        // is a 0px row, and Tab used to walk eight invisible stops through it.
+        inert={!isOpen}
         style={{
           display: "grid",
           gridTemplateRows: isOpen ? "1fr" : "0fr",
           transition: rowTransition,
         }}
       >
-        <div className="overflow-hidden min-h-0">
+        {/* The selector popovers render in a body portal (see Popover `portal`), so the panel
+            can stay clipped through the whole height animation without trapping them. */}
+        <div className="min-h-0 overflow-hidden">
           <div
             style={{ opacity: isOpen ? 1 : 0, transition: contentOpacityTransition }}
           >
             {/* Separator between header and form */}
             <div className="h-px bg-gray-100 mx-4" />
 
-            <div className="space-y-4 p-4 sm:p-5">
+            <div className="space-y-6 p-5 sm:p-6">
+              {/* Title + details behind a single left rule, exactly like the
+                  mock: naked oversized inputs, no boxed fields. The rule IS the
+                  focus indicator: while either field has focus an ink rule draws
+                  itself over it top-down (globals.css `.field-rule`), and
+                  `field-naked` keeps the global ring from boxing the fields. */}
               <motion.div
-                {...fieldMotion(0.06)}
+                {...fieldMotion(0.04)}
+                className="field-rule pl-4 sm:pl-6"
               >
-                <PanelBlock
-                  icon={FileText}
-                  title="Title"
-                  meta={<LimitCounter value={title.length} max={TITLE_MAX_LENGTH} />}
-                  className={limitPanelClass(titleNearLimit)}
-                >
-                  <Input
+                <div className="flex items-start gap-3">
+                  <input
                     ref={titleRef}
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                     placeholder="What needs to be done?"
                     maxLength={TITLE_MAX_LENGTH}
                     className={cn(
-                      "h-12 rounded-xl border-gray-200 bg-white px-4 text-base font-black tracking-tight shadow-sm placeholder:font-semibold",
-                      limitInputClass(titleNearLimit)
+                      "field-naked min-h-control w-full border-none bg-transparent p-0 text-title font-bold tracking-tight sm:text-display-sm sm:leading-tight",
+                      "placeholder:text-ink-subtle",
+                      titleNearLimit ? "text-alert" : "text-ink"
                     )}
                   />
-                </PanelBlock>
-              </motion.div>
-
-              <motion.div
-                {...fieldMotion(0.08)}
-              >
-                <PanelBlock
-                  icon={AlignLeft}
-                  title="Description"
-                  meta={<LimitCounter value={description.length} max={DESCRIPTION_MAX_LENGTH} />}
-                  className={limitPanelClass(descriptionNearLimit)}
-                >
-                  <Textarea
+                  <span className="mt-2 flex-shrink-0">
+                    <LimitCounter value={title.length} max={TITLE_MAX_LENGTH} />
+                  </span>
+                </div>
+                <div className="mt-2 flex items-start gap-3">
+                  <textarea
                     value={description}
                     onChange={e => setDescription(e.target.value)}
-                    placeholder="Add details, context, or acceptance criteria..."
-                    rows={3}
+                    placeholder="Add details — optional."
+                    rows={2}
                     maxLength={DESCRIPTION_MAX_LENGTH}
-                    className={cn(
-                      "min-h-[84px] rounded-xl border-gray-200 bg-white p-4 text-sm shadow-sm",
-                      limitInputClass(descriptionNearLimit)
-                    )}
+                    className="field-naked min-h-control max-h-40 w-full resize-none border-none bg-transparent p-0 text-body-sm font-medium text-ink-muted placeholder:text-ink-subtle"
                   />
-                </PanelBlock>
+                  <span className="flex-shrink-0">
+                    <LimitCounter value={description.length} max={DESCRIPTION_MAX_LENGTH} />
+                  </span>
+                </div>
               </motion.div>
 
-              <motion.div
-                {...fieldMotion(0.1)}
-              >
-                <PanelBlock icon={Sparkles} title="Priority">
-                  <div className="grid grid-cols-5 gap-1 rounded-2xl border border-gray-100 bg-gray-50 p-1">
-                    {priorityOptions.map(p => {
-                      const active = priority === p.value
-                      const urgent = p.value === "Urgent"
-                      return (
-                        <motion.button
-                          key={p.value}
-                          type="button"
-                          onClick={() => setPriority(p.value)}
-                          aria-pressed={active}
-                          whileTap={{ scale: 0.97 }}
-                          className={cn(
-                            "group relative isolate flex min-h-[58px] flex-col items-center justify-center gap-1 overflow-hidden rounded-xl text-center transition-colors duration-300",
-                            active
-                              ? urgent
-                                ? "text-red-600"
-                                : "text-white"
-                              : "text-gray-500 hover:text-gray-950"
-                          )}
-                        >
-                          {active && (
-                            <motion.span
-                              layoutId="create-priority-active"
-                              className={cn(
-                                "absolute inset-0 rounded-xl shadow-sm",
-                                urgent ? "bg-white ring-1 ring-inset ring-red-200" : "bg-gray-950"
-                              )}
-                              transition={SPRING_RESPONSIVE}
-                            />
-                          )}
-                          <span className={cn(
-                            "relative z-10 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black transition-colors duration-300",
-                            active
-                              ? urgent
-                                ? "bg-red-50 text-red-600"
-                                : "bg-white text-gray-950"
-                              : "bg-white text-gray-500 group-hover:bg-gray-100 group-hover:text-gray-800"
-                          )}>
-                            {p.short}
-                          </span>
-                          <span className="relative z-10 text-[10px] font-black uppercase">{p.label}</span>
-                        </motion.button>
-                      )
-                    })}
-                  </div>
-                </PanelBlock>
-              </motion.div>
-
-              <motion.div
-                {...fieldMotion(0.12)}
-              >
-                <PanelBlock icon={Folder} title="Category">
-                  <Select
-                    value={categoryId || "__none"}
-                    onValueChange={val => setCategoryId(val === "__none" ? undefined : val)}
+              {/* Selector plates — auto-fit so the row is 4-up on the wide
+                  tasks page and stacks gracefully in the dashboard sidebar. */}
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3">
+                <motion.div {...fieldMotion(0.08)}>
+                  <SelectorCard
+                    containerRef={priorityCardRef}
+                    label="Priority"
+                    value={getPriorityLabel(priority)}
+                    valueKey={priority}
+                    icon={<Sparkles className="h-4 w-4" strokeWidth={2.2} />}
+                    iconClass="bg-ink text-paper shadow-md shadow-black/15"
+                    open={openPopover === "priority"}
+                    onToggle={() => togglePopover("priority")}
                   >
-                    <SelectTrigger className="h-11 rounded-xl border-gray-200 bg-white shadow-sm focus:ring-4 focus:ring-black/10">
-                      <SelectValue placeholder="Select Category" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[3000] rounded-2xl border-gray-100 p-2 shadow-2xl">
-                      <SelectItem value="__none" className="rounded-xl text-xs font-bold text-gray-500">
-                        No Category
-                      </SelectItem>
-                      {categories.map(cat => {
-                        const CatIcon = cat.icon ? (ICON_MAP[cat.icon] ?? null) : null
-                        return (
-                          <SelectItem key={cat.id} value={cat.id} className="group rounded-xl">
-                            <div className="flex w-full items-center justify-between gap-3">
-                              <div className="flex min-w-0 items-center gap-2">
-                                <span
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-100 bg-gray-50"
-                                  style={{ color: cat.color ?? undefined }}
-                                >
-                                  {CatIcon ? <CatIcon className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
-                                </span>
-                                <span className="truncate text-sm font-bold">{cat.name}</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.preventDefault()
-                                  e.stopPropagation()
-                                  onDeleteCategory(cat.id)
-                                }}
-                                className="ml-2 rounded-lg p-1 text-gray-300 opacity-0 transition-[opacity,color,background-color] hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
-                                aria-label={`Delete ${cat.name}`}
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          </SelectItem>
-                        )
-                      })}
-                      <SelectItem value="__new" className="rounded-xl font-black text-gray-950">
-                        + Create Category
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <PriorityPopover
+                      open={openPopover === "priority"}
+                      onClose={() => setOpenPopover(null)}
+                      value={priority}
+                      onChange={setPriority}
+                      containerRef={priorityCardRef as RefObject<HTMLElement | null>}
+                      portal
+                    />
+                  </SelectorCard>
+                </motion.div>
 
-                  <AnimatePresence>
-                    {categoryId === "__new" && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, height: "auto", marginTop: 10 }}
-                        exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                        transition={{ duration: 0.24, ease: EASE_OUT_EXPO }}
-                        className="overflow-hidden"
-                      >
-                        <div
-                          className={cn(
-                            "rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 p-3 transition-[background-color,border-color] duration-300",
-                            limitPanelClass(categoryNameNearLimit)
-                          )}
-                        >
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <span className="text-[10px] font-black uppercase tracking-[0.12em] text-gray-400">
-                              New category
-                            </span>
-                            <LimitCounter value={newCatName.length} max={CATEGORY_NAME_MAX_LENGTH} />
-                          </div>
-                          <Input
-                            value={newCatName}
-                            onChange={e => setNewCatName(e.target.value)}
-                            placeholder="Category name *"
-                            maxLength={CATEGORY_NAME_MAX_LENGTH}
-                            className={cn("h-9 rounded-lg text-sm", limitInputClass(categoryNameNearLimit))}
-                          />
-                          <div className="mt-2 grid grid-cols-[1fr_52px] gap-2">
-                            <IconPicker selectedIcon={newCatIcon} onIconSelect={setNewCatIcon} />
-                            <Input
-                              type="color"
-                              value={newCatColor}
-                              onChange={e => setNewCatColor(e.target.value)}
-                              aria-label="Category color"
-                              className="h-9 cursor-pointer rounded-lg border-gray-200 bg-white p-1"
-                            />
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </PanelBlock>
-              </motion.div>
-
-              <motion.div
-                {...fieldMotion(0.14)}
-              >
-                <PanelBlock icon={Calendar} title="Due date">
-                  {/* The project's own calendar (DateCalendar) — hidden by default, opens on click
-                      (collapsible inline so it isn't clipped by the panel's overflow-hidden height
-                      animation, unlike a popover). It carries its own quick-picks, so no extra chip
-                      row is needed. Only the standalone branch page keeps the calendar always open. */}
-                  <button
-                    type="button"
-                    onClick={() => setDateOpen(o => !o)}
-                    className="flex w-full items-center gap-2 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+                <motion.div {...fieldMotion(0.12)}>
+                  <SelectorCard
+                    containerRef={dateCardRef}
+                    label="Due date"
+                    value={dueDate ? formatDueRange(dueDateStart, dueDate) : "No date"}
+                    valueKey={`${dueDateStart}|${dueDate}`}
+                    muted={!dueDate}
+                    icon={<Calendar className="h-4 w-4" strokeWidth={2.2} />}
+                    iconClass={dueDate ? "bg-ink text-paper shadow-md shadow-black/15" : "bg-gray-100 text-ink-subtle"}
+                    open={openPopover === "date"}
+                    onToggle={() => togglePopover("date")}
+                    onClear={dueDate ? () => { setDueDate(""); setDueDateStart("") } : undefined}
+                    clearLabel="Clear due date"
                   >
-                    <Calendar className="h-3.5 w-3.5" strokeWidth={1.8} />
-                    {dueDate ? formatDueRange(dueDateStart, dueDate) : <span className="text-gray-400">Select a date</span>}
-                    {dueDate && (
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={e => { e.stopPropagation(); setDueDate(""); setDueDateStart("") }}
-                        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setDueDate(""); setDueDateStart("") } }}
-                        className="ml-auto cursor-pointer text-[10px] font-black uppercase tracking-wider text-gray-400 hover:text-gray-700"
-                      >
-                        Clear
-                      </span>
-                    )}
-                    <ChevronDown className={cn("h-4 w-4 text-gray-400 transition-transform", dueDate ? "ml-2" : "ml-auto", dateOpen && "rotate-180")} />
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {dateOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                        className="overflow-hidden"
-                      >
-                        <div className="mt-2 overflow-hidden rounded-2xl border border-gray-100 bg-white">
-                          {/* Range-capable: a first click sets the target date; clicking another day
-                              forms the interval. autoClose fires only on terminal selections (a
-                              quick-pick, a completed interval, or a clear), so the panel stays open
-                              after a first single pick — letting an interval be built inline. */}
-                          <DateCalendar
-                            start={dueDateStart}
-                            end={dueDate}
-                            onChange={(s, e) => {
-                              setDueDateStart(s ?? "")
-                              setDueDate(e ?? "")
-                            }}
-                            autoClose={() => setDateOpen(false)}
-                            headless
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </PanelBlock>
-              </motion.div>
+                    <DatePopover
+                      open={openPopover === "date"}
+                      onClose={() => setOpenPopover(null)}
+                      start={dueDateStart}
+                      end={dueDate}
+                      onChange={(s, e) => {
+                        setDueDateStart(s ?? "")
+                        setDueDate(e ?? "")
+                      }}
+                      containerRef={dateCardRef as RefObject<HTMLElement | null>}
+                      portal
+                    />
+                  </SelectorCard>
+                </motion.div>
 
-              <motion.div
-                {...fieldMotion(0.16)}
-              >
-                <PanelBlock icon={Users} title="Share With" className="bg-gradient-to-b from-white to-gray-50/70">
-                  <FriendMultiSelect
-                    friends={friends}
-                    selectedIds={selectedFriendIds}
-                    onChange={setSelectedFriendIds}
-                    publicSelected={isPublic}
-                    onPublicChange={setIsPublic}
-                    placeholder="Private task"
-                    contentClassName="z-[3000]"
-                  />
-                </PanelBlock>
-              </motion.div>
+                <motion.div {...fieldMotion(0.16)}>
+                  <SelectorCard
+                    containerRef={categoryCardRef}
+                    label="Category"
+                    value={selectedCategory?.name ?? "None"}
+                    valueKey={categoryId ?? "__none"}
+                    muted={!selectedCategory}
+                    icon={
+                      selectedCategory
+                        ? <SelectedCatIcon className="h-4 w-4" style={{ color: selectedCategory.color ?? "var(--pl-ink-muted)" }} />
+                        : <Folder className="h-4 w-4" strokeWidth={2.2} />
+                    }
+                    iconClass={selectedCategory ? "" : "bg-gray-100 text-ink-subtle"}
+                    iconStyle={selectedCategory ? { background: `${selectedCategory.color ?? "var(--pl-ink-muted)"}1A` } : undefined}
+                    open={openPopover === "category"}
+                    onToggle={() => togglePopover("category")}
+                    onClear={selectedCategory ? () => setCategoryId(undefined) : undefined}
+                    clearLabel="Clear category"
+                  >
+                    <CategoryPopover
+                      open={openPopover === "category"}
+                      onClose={() => setOpenPopover(null)}
+                      value={categoryId ?? null}
+                      onChange={id => setCategoryId(id ?? undefined)}
+                      categories={categories}
+                      onCreateCategory={onCreateCategory}
+                      onDeleteCategory={handleDeleteCategory}
+                      containerRef={categoryCardRef as RefObject<HTMLElement | null>}
+                      canEdit
+                      portal
+                    />
+                  </SelectorCard>
+                </motion.div>
+
+                <motion.div {...fieldMotion(0.2)}>
+                  <SelectorCard
+                    containerRef={shareCardRef}
+                    label="Share"
+                    ariaLabel={shareAria}
+                    value={shareValue}
+                    valueKey={shareValue}
+                    muted={!isPublic && selectedFriendIds.length === 0}
+                    icon={
+                      isPublic
+                        ? <UsersRound className="h-4 w-4" strokeWidth={2.2} />
+                        : selectedFriendIds.length > 0
+                          ? <Users className="h-4 w-4" strokeWidth={2.2} />
+                          : <Lock className="h-4 w-4" strokeWidth={2.2} />
+                    }
+                    iconClass={
+                      isPublic || selectedFriendIds.length > 0
+                        ? "bg-ink text-paper shadow-md shadow-black/15"
+                        : "bg-gray-100 text-ink-subtle"
+                    }
+                    open={openPopover === "share"}
+                    onToggle={() => togglePopover("share")}
+                  >
+                    <SharePopover
+                      open={openPopover === "share"}
+                      onClose={() => setOpenPopover(null)}
+                      containerRef={shareCardRef as RefObject<HTMLElement | null>}
+                      friends={friends}
+                      isPublic={isPublic}
+                      onPublicChange={setIsPublic}
+                      selectedIds={selectedFriendIds}
+                      onChange={setSelectedFriendIds}
+                    />
+                  </SelectorCard>
+                </motion.div>
+              </div>
 
               <AnimatePresence>
                 {formError && (
@@ -626,7 +854,7 @@ export function CreateTodoPanel({
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -6, scale: 0.98 }}
                     transition={TWEEN_FAST}
-                    className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-center text-[11px] font-bold text-red-600"
+                    className="rounded-lg border border-alert-surface bg-alert-surface px-3 py-2.5 text-center text-caption font-bold text-alert"
                   >
                     {formError}
                   </motion.div>
@@ -634,25 +862,41 @@ export function CreateTodoPanel({
               </AnimatePresence>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-              <div className="flex gap-2 sm:ml-auto">
+            <motion.div
+              {...fieldMotion(0.24)}
+              className="flex flex-col gap-3 rounded-b-md border-t border-line bg-paper-sunken/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+            >
+              <div className="hidden items-center gap-1.5 sm:flex">
+                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted shadow-sm">
+                  {isMac ? "⌘" : "Ctrl"}
+                </kbd>
+                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted shadow-sm">
+                  ↵
+                </kbd>
+                <span className="ml-1 text-caption font-bold text-ink-muted">to create</span>
+              </div>
+              <div className="flex gap-2">
                 <Button
                   variant="secondary"
                   onClick={onToggle}
                   disabled={creating}
-                  className="h-10 flex-1 rounded-xl border border-gray-200 bg-white px-5 font-bold text-gray-700 shadow-sm hover:bg-gray-50 sm:flex-none"
+                  className="h-10 flex-1 rounded-lg border border-line bg-paper px-5 font-bold text-ink-muted shadow-sm hover:bg-paper-sunken sm:flex-none"
                 >
                   Cancel
                 </Button>
                 <Button
-                  className="h-10 flex-1 rounded-xl bg-gray-950 px-6 font-black text-white shadow-lg shadow-black/15 hover:bg-black disabled:shadow-none sm:flex-none"
+                  className={cn(
+                    "group h-10 flex-1 rounded-lg bg-ink px-6 font-bold text-paper shadow-lg shadow-black/15 hover:bg-ink sm:flex-none",
+                    "disabled:bg-gray-200 disabled:text-ink-muted disabled:shadow-none"
+                  )}
                   onClick={handleSubmit}
                   disabled={creating || !title.trim()}
                 >
-                  {creating ? "Creating..." : "Create Task"}
+                  <ArrowRight className="h-4 w-4 transition-transform duration-base group-hover:translate-x-0.5" strokeWidth={2.5} />
+                  {creating ? "Creating..." : "Create task"}
                 </Button>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>
