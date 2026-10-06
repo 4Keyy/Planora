@@ -216,6 +216,15 @@ One switch drives every test in the file, and it drives the thing the component 
 
 Exit animations are the other half of the same problem. framer-motion does not drive an `exit` variant to completion in jsdom, so assert the effect — the callback that fired, the row that left the data — and never the exit itself. `frontend/src/test/components/dashboard-primitives.test.tsx` asserts that the undo window's commit never happens rather than that the undo bar disappeared. Where the removal genuinely is the behaviour under test, poll for it with `waitFor` instead of asserting it synchronously, as `frontend/src/test/components/date-filter-popover.test.tsx` does for the popover's Escape close.
 
+Entry transitions can also lag behind a React state update: `BranchStory` keeps
+future rows in the DOM with hidden visibility, then reveals them on a motion
+frame. Its cycle test in `frontend/src/test/app/landing-blocks.test.tsx` uses
+`findByRole` before pressing the newly revealed circle and after reopening,
+and `waitFor` for the completion row's visibility. These bounded waits retain
+the accessible-name and visibility assertions without assuming that a click
+also finished the next animation frame. jsdom assertions still do not measure
+browser geometry or frame-by-frame motion.
+
 ### Other jsdom traps
 
 | Trap | Why the test lies | Fix | Exercised by |

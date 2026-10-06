@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AudienceConsole } from "@/app/_landing/audience-console"
@@ -191,11 +191,12 @@ describe("the branch story", () => {
     render(<BranchStory />)
     // Pressing a chapter hands the story over to the reader.
     await user.click(screen.getByRole("button", { name: /A step forks off/ }))
-    await user.click(screen.getByRole("button", { name: "Take the step into work" }))
+    // Rows become accessible on framer-motion's next frame, after the chapter commits.
+    await user.click(await screen.findByRole("button", { name: "Take the step into work" }))
     expect(screen.getByText("Working")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Finish the step" }))
-    expect(screen.getByText("completed the step", { exact: false })).toBeVisible()
+    await waitFor(() => expect(screen.getByText("completed the step", { exact: false })).toBeVisible())
     await user.click(screen.getByRole("button", { name: "Reopen the step" }))
-    expect(screen.getByRole("button", { name: "Take the step into work" })).toBeInTheDocument()
+    expect(await screen.findByRole("button", { name: "Take the step into work" })).toBeInTheDocument()
   })
 })

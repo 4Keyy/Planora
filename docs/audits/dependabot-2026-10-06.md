@@ -105,5 +105,30 @@ pushes. Docs, backend, NuGet, gitleaks and Trivy jobs had already succeeded;
 the npm job reported the expected 7 high / 3 moderate development findings.
 Cancelled frontend/CodeQL jobs are not counted as successful checks. These
 partial results are distinct from the complete pre-merge checks above.
+
+### Frontend CI follow-up
+
+The [CI run after publishing this review](https://github.com/4Keyy/Planora/actions/runs/37501989940)
+passed docs and backend, but its frontend suite reproduced the intermittent
+landing-circle failure: the completion row existed before its motion frame
+made it visible. The earlier #109 failure queried a control before the same
+entry transition exposed it. The follow-up changes only that test's
+synchronization to `findByRole` / `waitFor`; it retains the original accessible
+names, visibility assertion and complete state cycle. Application source and
+motion timings remain unchanged. See [testing guidance](../testing.md#testing-motion-and-reduced-motion)
+for the boundary between React state changes and motion frames in jsdom.
+
+The corrected landing test file passed five consecutive local runs. The full
+frontend suite then passed all 100 files / 1,231 tests with the same four
+coverage percentages recorded above; ESLint and TypeScript also passed. No
+assertion, test, coverage threshold or production transition was removed.
+
+The [Security Scan on the published dependency tree](https://github.com/4Keyy/Planora/actions/runs/37501990143)
+completed with successful C# and JavaScript/TypeScript CodeQL analyses, gitleaks,
+NuGet auditing, Trivy and SBOM generation. Its only failed job was the recorded
+full-graph npm audit (7 high / 3 moderate). This establishes that the coordinated
+CodeQL action versions work together; the aggregate security workflow remains
+red for the accepted development-dependency findings.
+
 The owner's acceptance of these integration limits does not certify production
 readiness or close the unrelated findings in the repository audit.

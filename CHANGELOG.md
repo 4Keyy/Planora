@@ -4,6 +4,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### test(ci): await landing branch entry frames (2026-10-06)
+
+The branch-circle regression now waits for newly revealed accessible controls
+and the completion row's visibility. The previous synchronous assertions
+intermittently failed on CI before framer-motion advanced the next frame.
+The full idle → working → done → reopened cycle and its assertions are retained;
+application behavior and animation timings are unchanged.
+
 ### build(deps): integrate reviewed GitHub Actions updates (2026-10-06)
 
 Merged the five reviewed action PRs alongside frontend PR #123. CodeQL init,
