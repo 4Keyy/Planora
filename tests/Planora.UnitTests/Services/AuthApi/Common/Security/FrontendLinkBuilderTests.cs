@@ -25,7 +25,7 @@ public class FrontendLinkBuilderTests
 
         var link = FrontendLinkBuilder.PasswordReset(options, "token+/= with spaces");
 
-        Assert.Equal("https://app.example.com/reset-password?token=token%2B%2F%3D%20with%20spaces", link);
+        Assert.Equal("https://app.example.com/auth/reset-password?token=token%2B%2F%3D%20with%20spaces", link);
     }
 
     [Fact]

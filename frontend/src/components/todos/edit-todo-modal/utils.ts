@@ -1,10 +1,12 @@
-// Priority levels with English labels, colors, and descriptions
+// Priority levels. There is deliberately no colour here: five hues collapse under
+// deuteranopia (measured 0.049 apart in OKLab for the two lowest) and read as
+// unordered labels rather than a scale. Magnitude is drawn by PriorityMeter.
 export const PRIORITY_LEVELS = [
-  { key: "VeryLow", label: "Very Low", color: "#9ca3af", desc: "Can be postponed" },
-  { key: "Low",     label: "Low",      color: "#10b981", desc: "Not urgent" },
-  { key: "Medium",  label: "Medium",   color: "#0ea5e9", desc: "Standard" },
-  { key: "High",    label: "High",     color: "#f59e0b", desc: "Important" },
-  { key: "Urgent",  label: "Urgent",   color: "#ef4444", desc: "Do it now" },
+  { key: "VeryLow", label: "Very Low", desc: "Can be postponed" },
+  { key: "Low",     label: "Low",      desc: "Not urgent" },
+  { key: "Medium",  label: "Medium",   desc: "Standard" },
+  { key: "High",    label: "High",     desc: "Important" },
+  { key: "Urgent",  label: "Urgent",   desc: "Do it now" },
 ] as const
 
 const PRIORITY_TO_NUM: Record<string, number> = {
@@ -24,8 +26,9 @@ export function getPriorityString(priority: string | number): string {
   return NUM_TO_PRIORITY[s] ?? "Medium"
 }
 
-export function getPriorityColor(priority: string): string {
-  return PRIORITY_LEVELS.find((p) => p.key === priority)?.color ?? "#9ca3af"
+/** @deprecated Priority is not encoded by colour. Use `PriorityMeter`. */
+export function getPriorityColor(): string {
+  return "var(--pl-ink-subtle)"
 }
 
 export function getPriorityLabel(priority: string): string {
@@ -36,10 +39,6 @@ export function getPriorityLabel(priority: string): string {
 const EN_MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 export const EN_MONTHS_LONG  = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 export const EN_DAYS_SHORT   = ["Mo","Tu","We","Th","Fr","Sa","Su"]
-
-// Keep Russian aliases for backward compatibility with date popover import
-export const RU_MONTHS_LONG = EN_MONTHS_LONG
-export const RU_DAYS_SHORT  = EN_DAYS_SHORT
 
 export function formatDatePretty(isoDate: string): string {
   if (!isoDate) return ""
@@ -108,7 +107,7 @@ export function formatDueRange(start: string | null | undefined, end: string | n
   return `${formatDatePretty(start)} – ${formatDatePretty(end)}`
 }
 
-export function formatRelativeRu(isoDate: string): string {
+export function formatRelativeDay(isoDate: string): string {
   const diff = new Date(isoDate).getTime() - Date.now()
   const days = Math.round(diff / 86_400_000)
   if (days === 0)  return "today"
@@ -148,8 +147,90 @@ export function getHueFromId(id: string): number {
   return Math.abs(hash) % 360
 }
 
+/**
+ * Category colours are USER DATA, not theme. They are persisted on the Category
+ * record and round-trip through the API, so they must stay literal hex values —
+ * a CSS variable would be stored verbatim and render as nothing everywhere else.
+ * These twelve are the offered swatches; a user may pick any colour.
+ *
+ * They never carry text: the category name renders in ink and the colour appears
+ * only on a 16px icon and a 6px dot, which keeps an arbitrary user choice from
+ * ever becoming a contrast failure.
+ */
+/**
+ * @colour-data — a user's own choice, not the product's palette.
+ *
+ * These twelve are the swatches a person picks from when naming a category, and the
+ * value they choose is stored against their data. Rewriting them to design tokens
+ * would silently repaint every category every existing user has made. A sweep has
+ * done exactly that once already.
+ */
 export const CATEGORY_COLOR_SWATCHES = [
   "#0ea5e9","#10b981","#f59e0b","#ef4444","#8b5cf6",
   "#ec4899","#06b6d4","#84cc16","#f97316","#6366f1",
   "#14b8a6","#a855f7",
 ]
+
+/**
+ * A complete owner payload built straight from a task.
+ *
+ * Two callers need it and they need it to agree. The editor uses it as the
+ * autosave baseline, so a freshly-opened task is never seen as "dirty"; the task
+ * list uses it to change one field from the keyboard (`1`-`5` for priority)
+ * without opening the editor at all.
+ *
+ * It has to be the whole task, because the endpoint is a PUT: sending
+ * `{ priority: 4 }` alone would clear the title, the description, the date and
+ * the audience. That is the shape of bug a one-key shortcut is most likely to
+ * ship with, and the reason this lives here rather than being re-typed at the
+ * second call site.
+ *
+ * It lives in `utils.ts` — which imports nothing — specifically so the tasks page
+ * can call it without pulling the code-split editor chunk into the first load.
+ */
+export function todoToOwnerPayload(todo: {
+  title: string
+  description?: string | null
+  priority: string | number
+  dueDate?: string | null
+  dueDateStart?: string | null
+  categoryId?: string | null
+  isPublic: boolean
+  sharedWithUserIds?: string[] | null
+}): {
+  title: string
+  description: string | null
+  priority: number
+  dueDate: string | null
+  dueDateStart: string | null
+  clearDueDate: boolean
+  categoryId: string | null
+  isPublic: boolean
+  sharedWithUserIds: string[]
+  requiredWorkers: number | null
+  clearRequiredWorkers: boolean
+} {
+  const visFriends = todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0
+  const shared = todo.isPublic ? [] : (todo.sharedWithUserIds ?? [])
+  // Normalised to midnight UTC the same way the editor's date fields are, so an
+  // autosave triggered by a different field does not silently move the date.
+  const dueDate = todo.dueDate
+    ? new Date(new Date(todo.dueDate).toISOString().split("T")[0]).toISOString()
+    : null
+  const dueDateStart = todo.dueDateStart
+    ? new Date(new Date(todo.dueDateStart).toISOString().split("T")[0]).toISOString()
+    : null
+  return {
+    title: todo.title.trim(),
+    description: (todo.description ?? "").trim() || null,
+    priority: getPriorityNumber(getPriorityString(todo.priority)),
+    dueDate,
+    dueDateStart,
+    clearDueDate: !todo.dueDate,
+    categoryId: todo.categoryId || null,
+    isPublic: false,
+    sharedWithUserIds: visFriends ? shared : [],
+    requiredWorkers: visFriends ? 1 + shared.length : null,
+    clearRequiredWorkers: !visFriends,
+  }
+}

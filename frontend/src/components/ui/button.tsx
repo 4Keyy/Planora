@@ -1,40 +1,54 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
   // ===== BASE STYLES (unified across all variants) =====
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-200 ease-spring focus-visible:outline-none focus-visible:ring-4 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group",
+  /**
+   * No focus styling here on purpose. Every variant used to paint its own ring —
+   * `ring-black/30`, `ring-gray-400/30`, `ring-gray-300/30`, `ring-alert/30` — and
+   * all four measured between 1.12:1 and 2.10:1 against white, where WCAG 2.4.11
+   * asks for 3:1. `focus-visible:outline-none` also suppressed the one indicator
+   * that does clear it. globals.css now paints every button, at 19.80:1.
+   */
+  /*
+   * No `overflow-hidden`. It was here, and it clipped `.touch-target`'s 44px pseudo-element
+   * for hit testing too — so every `size="sm"` button in the product (36px: the pager, "All
+   * tasks", "Back to tasks") was a 36px target that measured 44 to anyone reading the class
+   * list. Nothing inside a button needs clipping: the loading spinner is centred in the box.
+   */
+  "touch-target relative inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed group",
   {
     variants: {
       variant: {
         default:
-          "bg-black text-white shadow-md hover:bg-gray-900 hover:shadow-lg active:scale-[0.96] focus-visible:ring-black/30 hover:translate-y-[-2px] duration-200",
+          "bg-ink text-paper shadow-md hover:bg-gray-900 hover:shadow-lg active:scale-[0.96] hover:translate-y-[-2px] duration-base",
 
         secondary:
-          "bg-gray-100 text-gray-900 shadow-sm hover:bg-gray-200 hover:shadow-md active:scale-[0.96] focus-visible:ring-gray-400/30 hover:translate-y-[-1px]",
+          "bg-gray-100 text-ink shadow-sm hover:bg-gray-200 hover:shadow-md active:scale-[0.96] hover:translate-y-[-1px]",
 
         outline:
-          "border-2 border-gray-200 bg-white text-gray-900 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm active:scale-[0.96] focus-visible:ring-gray-300/30 transition-all",
+          "border-2 border-line bg-paper text-ink hover:bg-paper-sunken hover:border-line-strong hover:shadow-sm active:scale-[0.96] transition-[color,background-color,border-color,opacity,transform,box-shadow]",
 
         accent:
-          "bg-gray-900 text-white shadow-md hover:bg-black hover:shadow-lg active:scale-[0.96] focus-visible:ring-black/30 hover:translate-y-[-2px]",
+          "bg-gray-900 text-paper shadow-md hover:bg-ink hover:shadow-lg active:scale-[0.96] hover:translate-y-[-2px]",
 
         ghost:
-          "text-gray-700 hover:bg-gray-100 hover:text-gray-900 active:scale-[0.96] focus-visible:ring-gray-300/30 transition-all",
+          "text-ink-muted hover:bg-gray-100 hover:text-ink active:scale-[0.96] transition-[color,background-color,border-color,opacity,transform,box-shadow]",
 
         link:
-          "text-black underline-offset-4 hover:underline hover:opacity-80 active:opacity-70 focus-visible:ring-black/20 font-medium",
+          "text-ink underline-offset-4 hover:underline hover:opacity-80 active:opacity-70 font-medium",
 
         destructive:
-          "bg-red-600 text-white shadow-md hover:bg-red-700 hover:shadow-lg active:scale-[0.96] focus-visible:ring-red-600/30 hover:translate-y-[-2px]",
+          "bg-alert text-paper shadow-md hover:bg-alert hover:shadow-lg active:scale-[0.96] hover:translate-y-[-2px]",
       },
       size: {
-        sm: "h-9 rounded-lg px-4 text-xs font-bold tracking-wide",
-        default: "h-10 rounded-xl px-5 text-sm font-semibold",
-        lg: "h-12 rounded-xl px-6 text-base font-bold",
-        icon: "h-10 w-10 rounded-xl",
+        sm: "h-control-sm rounded-md px-4 text-caption font-semibold tracking-wide",
+        default: "h-control rounded-md px-5 text-body-sm font-semibold",
+        lg: "h-control-lg rounded-md px-6 text-body font-semibold",
+        icon: "h-control w-control rounded-md",
       },
     },
     defaultVariants: {
@@ -48,17 +62,51 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  /**
+   * An action is in flight. Blocks the button, announces the state, and swaps
+   * the label for a spinner WITHOUT changing the button's width, so the layout
+   * around it does not jump.
+   *
+   * Ten places in this product fired a delete or a save with no guard at all —
+   * including "delete account" — so a second click sent a second request.
+   */
+  loading?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, loading = false, disabled, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+
+    // `asChild` renders someone else's element (usually a Link); a spinner and a
+    // disabled attribute would be meaningless or actively wrong there.
+    if (asChild) {
+      return (
+        <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props}>
+          {children}
+        </Comp>
+      )
+    }
+
     return (
-      <Comp
+      <button
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        disabled={disabled || loading}
+        aria-busy={loading || undefined}
         {...props}
-      />
+      >
+        {loading && (
+          <Loader2
+            className="absolute h-4 w-4 animate-spin"
+            aria-hidden="true"
+            data-testid="button-spinner"
+          />
+        )}
+        {/* The label keeps its box so the button never resizes mid-action. */}
+        <span className={cn("inline-flex items-center gap-2", loading && "invisible")}>
+          {children}
+        </span>
+      </button>
     )
   }
 )

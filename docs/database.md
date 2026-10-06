@@ -30,7 +30,8 @@ Code:
 
 ## Startup And Schema Initialization
 
-Auth, Todo, Category, and Messaging all:
+Auth, Todo, Category, Messaging and Collaboration initialize their database during startup.
+Realtime does so when `ConnectionStrings__RealtimeDatabase` is configured. The common path:
 
 1. wait for PostgreSQL with database creation support through `DependencyWaiter.WaitForPostgresWithDatabaseCreationAsync`;
 2. call `DatabaseStartup.EnsureReadyAsync`;
@@ -38,9 +39,21 @@ Auth, Todo, Category, and Messaging all:
 4. if no EF migrations exist, create the schema from the current EF model through `EnsureCreatedAsync`;
 5. fail startup after retry exhaustion.
 
-The repository intentionally ignores `**/Migrations/**`. This keeps generated EF migrations user-owned for local forks/installations. A clean Docker/local install still starts because `EnsureCreatedAsync` can create the current schema when no migrations are present.
+The repository ignores newly generated `**/Migrations/**`, but already-tracked migrations
+remain tracked: Todo has three incremental migrations and Realtime has one initial migration.
+Auth, Category, Messaging and Collaboration have no tracked migrations. Do not assume all
+services take the `EnsureCreatedAsync` branch.
 
-Operational caveat: `EnsureCreatedAsync` is suitable for first-run local/bootstrap installs without committed migrations. For production environments that require auditable schema evolution, generate service-owned migrations before deployment and let `DatabaseStartup.EnsureReadyAsync` use the normal `MigrateAsync` path.
+**Clean Todo bootstrap is currently incomplete.** Its earliest tracked migration,
+`20260511105105_AddViewerCompletion`, alters an existing `todo.user_todo_view_preferences`
+table; the migration that creates the base schema is absent. Since migrations exist,
+`DatabaseStartup` selects `MigrateAsync`, so an empty Todo database cannot be initialized
+from this migration chain. An existing compatible database or a reviewed baseline migration
+is required. Startup DDL runs after migration and does not repair this missing baseline.
+
+`EnsureCreatedAsync` creates an absent schema; it never upgrades an existing schema.
+Production schema evolution requires a reviewed, service-owned migration chain. Startup
+schema mutation is currently enabled in Production too; no environment gate disables it.
 
 Do not mix both paths on the same persistent database without planning. If a database was created by `EnsureCreatedAsync` and you later decide to use EF migrations for that same database, recreate the local database/volume or create a proper baseline migration strategy first.
 
@@ -52,38 +65,55 @@ Code:
 
 ## Migration Governance
 
-For production rollouts the project ships a dedicated, standalone migration runner — [`tools/Planora.Migrator/`](../tools/Planora.Migrator/) — that replaces the implicit "every service applies pending migrations at startup" pattern, which is unsafe under HA (two replicas racing the same migration can corrupt `__EFMigrationsHistory`).
+The standalone migration runner — [`tools/Planora.Migrator/`](../tools/Planora.Migrator/) —
+supports `auth`, `category`, `todo`, `messaging`, `realtime` and `collaboration`. The CD workflow
+attempts a pre-deploy migration, but the runner does not disable service startup migrations.
+Migration history, container build inputs and connection strings must be reconciled before
+treating this as a working deployment path; see [production.md](production.md).
 
 | Concern | How it is handled |
 |---|---|
 | Pre-deploy migration | `dotnet Planora.Migrator.dll --all` (or `--service <name>` for a single service). On Fly.io: `flyctl machine run --rm planora-migrator -- --all`. |
-| Review-time visibility | `.github/workflows/migrations.yml` runs `dotnet ef migrations script --idempotent` for each of the four DB-owning services on every PR whose schema-relevant paths change, and attaches the `.sql` files as 30-day-retention artifacts. |
+| Review-time visibility | `.github/workflows/migrations.yml` defines SQL-script artifacts for Auth, Category, Todo, Messaging and Collaboration; Realtime is omitted. Its current EF tool/build setup requires correction before the job can be relied on. |
 | Idempotence | The generated scripts wrap every statement in a `__EFMigrationsHistory` lookup so re-running them on an up-to-date schema is a no-op. |
 | Connection-string priority | The CLI reads `ConnectionStrings__<Name>` from env vars / `appsettings.json` first; `--connection-string` overrides everything. |
 | Failure semantics | The CLI returns `0` on success, `64` on bad args, `70` if any one service migration failed. |
-| Auth / Category DbContexts | Both require an `IDomainEventDispatcher` for their constructors; the migrator injects a `NoOpDomainEventDispatcher` because migrations never raise domain events. |
+| Dispatcher-dependent contexts | Auth, Category and Realtime require `IDomainEventDispatcher`; the runner injects a no-op dispatcher for schema operations. |
+| Schema drift | Applied migration IDs absent from the compiled migration set cause a failure; the CLI does not silently migrate an unknown history. |
+| No migrations | The CLI reports no pending migrations and returns successfully; it does not invoke `EnsureCreatedAsync` to bootstrap these services. |
 
-This convention is locked in by [`docs/INVARIANTS.md`](INVARIANTS.md) `INV-FLOW-4`. Until the CD pipeline lands and invokes the migrator pre-deploy, services continue to auto-migrate at startup as described in the previous section. The cutover is a single change in the CD workflow plus disabling startup migration in each service.
+The committed CD workflow exists, while rollout readiness remains limited by its build and
+schema prerequisites. `INV-FLOW-4` in [INVARIANTS.md](INVARIANTS.md) records the migration
+policy and its current enforcement gaps. A startup migration succeeding on one developer's
+database is not evidence that an empty database or multiple replicas can start safely.
 
 ## Auth Database
+
+Unless explicitly listed as a composite key, entity and message tables use `Id uuid NOT NULL`
+as the primary key. `BaseEntity` also contributes `CreatedAt` (required), nullable
+`CreatedBy`/`UpdatedAt`/`UpdatedBy`/`DeletedAt`/`DeletedBy`, and required `IsDeleted`.
+Domain construction sets identity and creation time; do not assume these are database
+`DEFAULT` expressions. `?` below means nullable. Cross-service UUIDs are value references,
+not foreign keys to another database. EF convention mappings remain part of the model even
+when a property has no explicit configuration statement.
 
 DbContext: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbContext.cs`
 
 ### Tables / DbSets
 
-| DbSet | Purpose |
-|---|---|
-| `Users` | account identity, profile, status, email verification, password reset, 2FA, lockout, soft delete |
-| `Roles` | role catalog |
-| `UserRoles` | user-role join |
-| `RefreshTokens` | server-side refresh token records and device/session metadata |
-| `LoginHistory` | login attempts and audit history |
-| `Friendships` | requester/addressee friendship state |
-| `AuditLogs` | auth audit trail |
-| `PasswordHistory` | previous password hashes for reuse checks |
-| `UserRecoveryCodes` | single-use 2FA recovery codes (PBKDF2-hashed) |
-| `InboxMessages` | integration inbox |
-| `OutboxMessages` | integration outbox |
+| DbSet / table | Purpose | Key and important constraints |
+|---|---|---|
+| `Users` | Identity, profile, status, verification, reset, 2FA, lockout | PK `Id`; unique required `Email varchar(255)`; required first/last name ≤100 and password hash ≤500; verification/reset hashes ≤500 nullable; TOTP ciphertext ≤1024 nullable; soft-delete query filter. |
+| `Roles` | Role catalog | PK `Id`; unique required `Name varchar(100)`, nullable description ≤500; cascade role→user-role join; seeded Admin/User; soft-delete filter. |
+| `UserRoles` | User-role join | PK `Id` (not a composite PK); unique `(UserId, RoleId)`; both required UUID FKs with cascade deletion; query excludes deleted join/user/role. |
+| `RefreshTokens` | Session records | PK `Id`; unique required `Token varchar(500)` stores SHA-256 hash; required user FK, expiry/IP; nullable device fingerprint ≤64/name ≤255 and revocation fields; `RememberMe=false`, `LoginCount=1`, `LastLoginAt=NOW()` defaults; partial unique `(UserId, DeviceFingerprint)` where `RevokedAt IS NULL`. |
+| `LoginHistory` | Login attempts | PK `Id`; required user FK, IP ≤50, user agent ≤500, attempt time/success; nullable failure reason ≤500; query excludes deleted history/users. |
+| `Friendships` | Requester/addressee state | PK `Id`; two required user FKs with `Restrict`; required string status, nullable requested/accepted/rejected dates; requester/addressee pair indexes are **not unique**; `xmin` concurrency; query excludes deleted rows and deleted endpoints. |
+| `AuditLogs` | Auth audit trail | PK `Id`; required `Action` ≤50, `EntityName` ≤100 and `EntityId`; old/new values, details, IP and severity nullable; no global soft-delete filter. |
+| `PasswordHistory` | Previous password hashes | PK `Id`; required `UserId`, password hash ≤500 and changed time; no configured user FK or global query filter. |
+| `UserRecoveryCodes` | Single-use 2FA recovery codes | PK `Id`; required `UserId`, PBKDF2 `CodeHash` ≤500, `IsUsed`; nullable `UsedAt`; `(UserId, IsUsed)` index; no configured user FK or global query filter. |
+| `InboxMessages` | Inbox primitives; no active Auth subscriber | PK `Id`; unique required `MessageId` ≤255, required type ≤255/content/received date/string status; nullable processed date/error ≤2000. |
+| `OutboxMessages` | Integration outbox | PK `Id`; shared outbox contract below; active partial polling index. |
 
 ### Important Configuration
 
@@ -96,7 +126,7 @@ DbContext: `Services/AuthApi/Planora.Auth.Infrastructure/Persistence/AuthDbConte
 | `Friendship` | requester/addressee/status/date fields; indexes for both sides and status | `Persistence/Configurations/FriendshipConfiguration.cs` |
 | `LoginHistory` | IP/user agent/failure reason, indexes by user/login/success/delete | `Persistence/Configurations/LoginHistoryConfiguration.cs` |
 | `PasswordHistory` | user id, password hash max 500, changed date | `Persistence/Configurations/PasswordHistoryConfiguration.cs` |
-| `UserRecoveryCodes` | user id (FK), PBKDF2 code hash max 500, `IsUsed` flag, `UsedAt` nullable; composite index on `(UserId, IsUsed)` | `Persistence/Configurations/UserRecoveryCodeConfiguration.cs` |
+| `UserRecoveryCodes` | user id value reference (no configured FK), PBKDF2 code hash max 500, `IsUsed` flag, `UsedAt` nullable; composite index on `(UserId, IsUsed)` | `Persistence/Configurations/UserRecoveryCodeConfiguration.cs` |
 
 ### Auth Schema Bootstrap
 
@@ -114,19 +144,20 @@ Default schema: `todo`
 
 ### Tables / DbSets
 
-| DbSet/table | Purpose |
-|---|---|
-| `TodoItems` | task core data |
-| `todo_tags` | owned collection for todo tags |
-| `todo_item_shares` | explicit shared-with users |
-| `todo_item_workers` | non-owner participants (workers) on public/shared tasks |
-| `user_todo_view_preferences` | viewer-specific hidden/category preferences |
-| `OutboxMessages` | task-lifecycle integration events shipped to RabbitMQ (drives the Collaboration timeline) |
+| DbSet/table | Purpose | Key and important constraints |
+|---|---|---|
+| `TodoItems` | Task and subtask aggregates | PK `Id`; required title ≤1500/owner UUID; nullable description ≤2000/category/creator/parent/dates/capacity; `ParentTodoId` self-FK with `NoAction`; string status default Todo, integer priority default Medium; public/hidden/deleted default false; `xmin` concurrency; no global query filter (repositories filter explicitly). |
+| `todo_tags` | Owned labels | PK `Id`; required name ≤50; owner FK `TodoItemId`; case-insensitive uniqueness is domain-only, no unique-name DB index. |
+| `todo_item_shares` | Explicit shared audience | Composite PK `(TodoItemId, SharedWithUserId)`; task FK with cascade; recipient UUID is not an Auth FK. |
+| `todo_item_workers` | Per-user task/subtask work membership | Composite PK `(TodoItemId, UserId)`; task FK cascade; required `JoinedAt` default `now()`; owner can hold a row only on subtasks. |
+| `user_todo_view_preferences` | Viewer hiding/category/completion | Composite PK `(ViewerId, TodoItemId)`; required hidden/completed flags default false; nullable category and completion date; no task/viewer/category FKs. |
+| `OutboxMessages` | Lifecycle, notification and sync events | PK `Id`; shared outbox contract; `(Status, OccurredOnUtc)` and processed-time indexes, without the active partial index used by Auth/Category/Messaging/Realtime. |
 
 > The comment thread no longer lives in the Todo database. It moved to the
 > **Collaboration** service (`planora_collaboration.collaboration.comments`). Todo only
 > publishes task-lifecycle facts (`TaskCreated` / `TaskActivity` / `TaskDeleted`) via its
-> outbox; Collaboration consumes them and materialises system/genesis comments. See the
+> outbox; Collaboration consumes them and materialises system comments. Genesis is
+> synthesized from the live task description on reads, rather than persisted. See the
 > **Collaboration Database** section below.
 
 ### Important Configuration
@@ -142,29 +173,38 @@ Default schema: `todo`
 
 ### Worker Capacity Semantics
 
-`RequiredWorkers` = total headcount including the owner. A task with `RequiredWorkers = 2` allows one non-owner worker slot. The owner is **never** stored in `todo_item_workers`; they implicitly always participate. Capacity is full when `Workers.Count >= RequiredWorkers - 1`.
+For a top-level task, `RequiredWorkers` is total headcount including the owner. A value of 2
+allows one non-owner slot. The owner is not stored in `todo_item_workers` for top-level tasks.
+Subtasks have independent per-user worker membership, including the owner, and do not inherit
+the parent's capacity. Capacity is full when `Workers.Count >= RequiredWorkers - 1` when a
+capacity is set.
 
-When access changes (task made private, `SharedWith` list shrunk, or capacity reduced), workers who lose access are evicted automatically inside the domain model. Eviction on capacity reduction uses LIFO order (most-recently-joined workers are removed first).
+Share replacement evicts workers outside the explicit share set plus the owner; this cleanup
+also runs on public tasks. Making a task private performs the same cleanup. Reducing capacity
+evicts the most recently joined workers first. Adding a worker touches the parent aggregate
+so `xmin` guards concurrent capacity checks.
 
 ### Todo Schema Bootstrap
 
-The repository `.gitignore` lists `**/Migrations/**`, so migrations are **force-added**
-(`git add -f`) when they must ship a schema change for review and CD. Runtime startup applies
-pending migrations automatically via `DatabaseStartup.EnsureReadyAsync`. Current committed migrations:
+The repository `.gitignore` lists `**/Migrations/**`; adding an ignored migration requires an
+explicit repository-policy decision. Do not use `git add -f` without authorization. Current
+tracked Todo migrations are:
 
 | Migration name | Date | Change |
 |---|---|---|
-| `AddWorkersAndComments` | 2026-05-10 | Adds `todo_item_workers`, `todo_item_comments`, and related FK/indexes |
-| `AddSystemComment` | 2026-05-17 | Adds `is_system_comment bool NOT NULL DEFAULT false` to `todo_item_comments`; adds `completed_by_viewer` and `completed_by_viewer_at` to `user_todo_view_preferences` |
-| `AddGenesisComment` | 2026-05-18 | Adds `is_genesis_comment bool NOT NULL DEFAULT false` to `todo_item_comments` |
-| `AddCommentAvatarUrl` | 2026-05-25 | Adds `AuthorAvatarUrl varchar(2048) NULL` to `todo_item_comments`; adds `xmin` row-version column to `TodoItems` for EF Core optimistic concurrency |
-| `RemoveCommentAvatarSnapshot` | 2026-05-26 | Drops `AuthorAvatarUrl` from `todo_item_comments`. Comment listing now always batch-fetches the live avatar from Auth via gRPC, cached in-memory 60 s. Single source of truth eliminates stale-avatar drift after the user changes their picture. |
+| `20260511105105_AddViewerCompletion` | 2026-05-11 | Adds `CompletedByViewer` and nullable `CompletedByViewerAt` to an existing preference table; this is not an initial-schema migration. |
 | `RemoveCommentsAddOutbox` | 2026-05-29 | **Drops `todo_item_comments`** (the timeline moved to the Collaboration service) and creates `todo.OutboxMessages` so Todo can publish task-lifecycle integration events. Run the Collaboration backfill (`Planora.Migrator --backfill-collaboration`) **before** this migration is applied in production so no comment is lost. |
+| `20260602111500_AddSubtaskParentTodoId` | 2026-06-02 | Adds nullable `ParentTodoId`, self-reference FK and `(ParentTodoId, IsDeleted, CreatedAt)` index. |
 | `AddTodoCreatedByUserId` (startup ALTER) | 2026-06-16 | Adds nullable `CreatedByUserId uuid` to `todo.TodoItems`. Records who created a subtask (a collaborator may now add one) so the creator — as well as the parent owner — can rename/delete it; null for top-level tasks. Applied idempotently at TodoApi startup (`ADD COLUMN IF NOT EXISTS`, see `Planora.Todo.Api/Program.cs`), so existing databases pick it up on the next deploy without a formal EF migration. |
 | `AddTodoDueDateStart` (startup ALTER) | 2026-06-19 | Adds nullable `DueDateStart timestamptz` to `todo.TodoItems`. Turns the estimated-completion date into an optional interval: the existing `DueDate` becomes the later bound (deadline / single target date) and `DueDateStart` the earlier bound (null for a single date). Additive and backward-compatible — existing rows keep their single `DueDate`. Applied idempotently at TodoApi startup (`ADD COLUMN IF NOT EXISTS`, see `Planora.Todo.Api/Program.cs`); no formal EF migration committed. |
 | `AddTodoCompletedAtIndex` (startup CREATE INDEX) | 2026-06-21 | Adds the `(UserId, Status, IsDeleted, CompletedAt)` covering index `ix_todo_items_user_status_deleted_completed` to `todo.TodoItems`. Backs the completed archive's "find a task by roughly when it was finished" date-range search — all three leading columns are equality predicates and `CompletedAt` is the range bound, so the search becomes an index range scan instead of scanning every one of a user's done tasks. Applied idempotently at TodoApi startup (`CREATE INDEX IF NOT EXISTS`, see `Planora.Todo.Api/Program.cs`); no formal EF migration committed. A very large production table would prefer a one-off `CREATE INDEX CONCURRENTLY`. |
 
-To apply manually:
+Startup also widens `Title` to `varchar(1500)` and ensures the soft-delete retention index.
+These reconciliation statements log a warning and continue when they fail; they are not
+versioned migrations and do not appear in `__EFMigrationsHistory`. PostgreSQL `xmin` is a
+system concurrency column, not a column added by a migration.
+
+For an existing compatible schema with its full migration history, apply manually:
 
 ```powershell
 dotnet ef database update `
@@ -183,10 +223,10 @@ DbContext: `Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Cat
 
 ### Tables / DbSets
 
-| DbSet | Purpose |
-|---|---|
-| `Categories` | user-owned category definitions |
-| `OutboxMessages` | integration outbox |
+| DbSet | Purpose | Key and important constraints |
+|---|---|---|
+| `Categories` | User-owned labels | PK `Id`; required name ≤50/color ≤7/owner UUID/order; nullable description ≤500, icon and parent UUID; order default 0, color EF default `#007BFF`, delete default false; conventional parent navigation; no DB unique name/default-category index; `xmin` concurrency and soft-delete filter. |
+| `OutboxMessages` | Integration outbox | PK `Id`; shared contract; active partial polling index. |
 
 ### Important Configuration
 
@@ -195,6 +235,9 @@ DbContext: `Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Cat
 | `Category` | name required max 50; description max 500; color required max 7 default `#007BFF`; optional icon; user id; order default 0; soft delete; indexes by user/delete/created | `Persistence/Configurations/CategoryConfiguration.cs` |
 
 Color validation is in `Services/CategoryApi/Planora.Category.Domain/Enums/CategoryColors.cs`.
+The create handler supplies `#000000` when no color is provided; the EF `#007BFF` default is
+therefore not the normal API default. Parent/archive fields exist in the model but the
+current CRUD request contracts do not expose category hierarchy or archival operations.
 
 Committed migrations are not stored in the repository. Category schema is derived from `CategoryDbContext` plus configuration classes under `Services/CategoryApi/Planora.Category.Infrastructure/Persistence/Configurations`.
 
@@ -206,11 +249,11 @@ DbContext: `Services/MessagingApi/Planora.Messaging.Infrastructure/Persistence/M
 
 ### Tables / DbSets
 
-| DbSet | Purpose |
-|---|---|
-| `Messages` | direct messages |
-| `OutboxMessages` | integration outbox |
-| `InboxMessages` | integration inbox |
+| DbSet | Purpose | Key and important constraints |
+|---|---|---|
+| `Messages` | Direct messages | PK `Id`, never database-generated; required subject ≤200/body/sender/recipient/created time; nullable read time; archived default false; required `AttachmentUrls` JSON text defaults to `[]` in the entity; no sender/recipient FKs or global soft-delete filter. |
+| `OutboxMessages` | Integration outbox | PK `Id`; shared contract and active partial polling index. |
+| `InboxMessages` | Inbox primitive; no active Messaging subscriber | PK `Id`; convention-mapped required message ID/type/content/received time/status and nullable processed time/error; no dedicated Inbox configuration or unique `MessageId` index. |
 
 ### Important Configuration
 
@@ -246,11 +289,11 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 
 ### Tables / DbSets
 
-| DbSet/table | Purpose |
-|---|---|
-| `comments` | timeline: user comments, **replies** (comments carrying a quoted-target reference), and system comments, soft-deletable (the Author's Note/description is synthesised on read, not stored; legacy genesis rows, if any, are excluded by the read query) |
-| `OutboxMessages` | `NotificationEvent` fan-out to RabbitMQ (consumed by Realtime → SignalR) |
-| `InboxMessages` | consumer idempotency: PK = integration event id. The event bus skips a handler when the event id already exists (dedup of redelivered/replayed events — INV-COMM-4) |
+| DbSet/table | Purpose | Key and important constraints |
+|---|---|---|
+| `comments` | User/system timeline and replies | PK `Id`; required task/author UUIDs, author fallback ≤200, content ≤5000; nullable reply kind ≤16/target UUID/author UUID/name ≤200/preview ≤300; system/genesis/reply-deleted flags default false; `xmin`; no task/author/reply FK and no global query filter. Author's Note is synthesized from Todo, not stored. |
+| `OutboxMessages` | Notifications and live branch sync | PK `Id`; shared contract, without active partial polling index. |
+| `InboxMessages` | Replay suppression | PK derived from `(event id, handler type)`; required message ID/type ≤255/content/received time/string status; nullable processed time/error ≤2000; `(Status, ProcessedOn)` index; no unique `MessageId` index. Effects and inbox record are separate saves. |
 
 ### Important Configuration
 
@@ -262,9 +305,10 @@ read from `TodoService.CheckTaskCommentAccess` (which now also returns the live 
 ### Event Flow
 
 - **Inbound (Inbox):** subscribes to `TaskCreatedIntegrationEvent`, `TaskActivityIntegrationEvent`,
-  `TaskDeletedIntegrationEvent`, `SubtaskDeletedIntegrationEvent` (from Todo) and `UserDeletedIntegrationEvent` (from Auth). Replay-safe
-  (INV-COMM-4): the event bus dedups on the integration event id via the `InboxMessages` table —
-  a redelivered event is skipped before its handler runs, so system comments are never duplicated.
+  `TaskDeletedIntegrationEvent`, `SubtaskDeletedIntegrationEvent` (from Todo) and `UserDeletedIntegrationEvent` (from Auth).
+  Recorded `(event id, handler type)` keys suppress a later replay. Handler effects and the
+  subsequent inbox insert are separate saves; crashes/concurrent deliveries or failed inbox
+  operations can still repeat side effects. See [architecture.md](architecture.md#outbox-delivery-semantics).
 - **Outbound (Outbox):** `AddComment` writes a `NotificationEvent` per participant
   (owner + workers + shared-with, minus the author) so RealtimeApi can push a SignalR notification.
 
@@ -278,7 +322,7 @@ is auto-created at startup by `DependencyWaiter.WaitForPostgresWithDatabaseCreat
 `comments` table created before the reply feature lacks the `ReplyTo*` columns. Run the idempotent
 upgrade once (fresh installs never need it):
 
-```bash
+```powershell
 dotnet run --project tools/Planora.Migrator -- --upgrade-collaboration-replies
 ```
 
@@ -290,7 +334,7 @@ It executes `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for the six reply columns
 When extracting from an existing deployment, run the idempotent backfill **before** dropping the
 old table:
 
-```bash
+```powershell
 dotnet run --project tools/Planora.Migrator -- --backfill-collaboration
 ```
 
@@ -308,14 +352,18 @@ UI can query unread counts.
 
 | Table | Purpose | Notable columns / constraints |
 |---|---|---|
-| `Notifications` | one row per delivered notification | `UserId`, `Title`, `Message`, `Type` (taxonomy discriminator), `TaskId` + `ActorId` (routing/attribution), `IsRead` + `ReadAtUtc` (read state), `OccurredOnUtc`, `SourceEventId`. **Unique `SourceEventId`** (idempotency anchor); indexes on `(UserId, IsRead)`, `(UserId, TaskId, IsRead)`, `(UserId, OccurredOnUtc)`; global soft-delete query filter. |
-| `NotificationDeliveries` | per-user SignalR delivery audit | `NotificationId`, `UserId`, `Status`, `AttemptCount`, `DeliveredAtUtc`. |
-| `OutboxMessages` | canonical outbox (shared shape) | standard outbox state machine. |
+| `Notifications` | Persisted notification log | PK `Id`; required user UUID/title ≤200/message ≤2000/type ≤64/occurred time/source UUID; `TaskId` and `ActorId` are **non-null UUIDs**, `Guid.Empty` is the absence sentinel; required read flag default false/read time nullable; unique `SourceEventId`; user/read/task/time indexes; global soft-delete filter; no cross-service FKs. |
+| `NotificationDeliveries` | Delivery-state scaffold | PK `Id`; required notification/user UUIDs and string status ≤32; attempt count default 0; nullable delivery time/error ≤2000; unique `(NotificationId, UserId)`; **no notification FK**; no runtime writer. |
+| `OutboxMessages` | Shared outbox schema, currently unused as a producer | PK `Id`; shared contract and active partial polling index. |
 
-Migration: `20260615211750_InitialRealtimeNotifications` (the first Realtime migration — creates all
-three tables). Apply with `Planora.Migrator --service realtime`. Per the repo convention, Realtime
-migration files are kept out of git (gitignored, like Auth/Category/Messaging) and ship in the build
-context.
+Migration: `20260615211750_InitialRealtimeNotifications` is tracked and creates all three tables.
+Apply with `Planora.Migrator --service realtime` after configuring its connection string.
+New generated migration files remain ignored until explicitly approved for tracking.
+
+`NotificationDelivery` is a schema/domain scaffold: the current notification consumer and
+SignalR service do not create or update delivery records. There is no server-side replay on
+hub reconnect. Persisted notifications remain available through the read API; this does not
+guarantee delivery of every missed toast.
 
 Code:
 
@@ -327,12 +375,23 @@ Code:
 
 ## Outbox / Inbox Pattern
 
+The shared outbox row requires `Id`, type ≤255, JSON content, occurrence time, string status
+and retry count (default 0); processed time, next retry and error ≤2000 are nullable.
+Statuses are Pending, Processing, Processed, Failed and DeadLettered. `MarkAsFailed` budgets
+three failures: the first two schedule 1-minute/5-minute retry timestamps while returning
+to Pending; the third dead-letters. The polling predicate selects every Pending row, so the
+timestamp does not delay rows returned to Pending — a known retry-backoff gap.
+
 Outbox and inbox primitives exist in shared infrastructure:
 
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Inbox`
 
-Auth, Category, Messaging, Todo, and Collaboration explicitly expose outbox/inbox DbSets where needed. Todo consumes integration events for category and user deletion, and publishes task-lifecycle events via its outbox. Collaboration consumes those task-lifecycle events plus user deletion, and publishes comment `NotificationEvent`s via its outbox.
+All six service contexts expose an outbox table. Auth, Messaging and Collaboration expose
+inbox DbSets, but only Collaboration registers `IInboxRepository` for the event bus. Todo,
+Category and Realtime do not use a bus inbox; Realtime notifications deduplicate on
+`SourceEventId`. Todo also consumes friendship removal. See [architecture.md](architecture.md)
+for the distinction between table availability, registration and actual consumption.
 
 ## Safe Database Operations
 
@@ -366,4 +425,33 @@ planora_auth_db
 planora_todo
 planora_category
 planora_messaging
+planora_collaboration
+planora_realtime
 ```
+
+## Data Retention Policies
+
+A daily background purge (`RetentionBackgroundService`) physically removes stale rows. Windows are
+env-configurable (`Retention__*`, see `configuration.md`); the subsystem ships disabled + dry-run and each
+pass is guarded by an advisory lock + tripwire.
+
+| Table / entity | Service | Purged when | Scan index |
+|---|---|---|---|
+| any soft-deleted row (`TodoItems`, `Categories`, `comments`, …) | owning service | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) | `(IsDeleted, DeletedAt)` |
+| `TodoItems` (completed) | Todo | `Status=Done` and `CompletedAt` older than `CompletedTaskDays` (30) → soft-deleted via cascade, then purged after grace | `(UserId, Status, IsDeleted, CompletedAt)` |
+| `user_todo_view_preferences` | Todo | deleted alongside their task (no FK/cascade, so purged explicitly); hidden per-viewer after 30 days for viewer-only completions | `(TodoItemId, ViewerId)` |
+| `Notifications` (read) | Realtime | `IsRead` and `ReadAtUtc` older than `ReadNotificationDays` (3) | `(IsRead, ReadAtUtc)` |
+| `Notifications` (unread) | Realtime | `!IsRead` and `OccurredOnUtc` older than `UnreadNotificationDays` (90) | `(IsRead, OccurredOnUtc)` |
+| `Notifications` / `NotificationDeliveries` | Realtime | cascade-deleted when their task or user is deleted; deliveries also purged after `NotificationDeliveryDays` (30) | `(DeliveredAtUtc)` |
+| `OutboxMessages` / `InboxMessages` | all | `Status=Processed` older than `OutboxProcessedDays` / `InboxProcessedDays` (7) | `(Status, ProcessedOnUtc)` |
+| `RefreshTokens` | Auth | `ExpiresAt` older than `ExpiredRefreshTokenDays` (30) | `(ExpiresAt)` |
+| `Users` (soft-deleted) | Auth | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) — a bespoke policy deletes all Auth-owned dependents first (friendships, refresh tokens, login/password history, recovery codes, roles) then the user | `(IsDeleted)` |
+| `LoginHistory` | Auth | opt-in: `LoginAt` older than `LoginHistoryDays` (180) | `(LoginAt)` |
+| `AuditLogs` | Auth | opt-in: `CreatedAt` older than `AuditLogDays` (365) | `(CreatedAt)` |
+| `UserRecoveryCodes` (used) | Auth | spent codes (`IsUsed`) older than `RecoveryCodeUsedDays` (30) | — (tiny table) |
+| `Friendships` (terminal) | Auth | opt-in: Rejected/Cancelled/Removed older than `FriendshipTerminalDays` (90) | — (small table) |
+| `Messages` | Messaging | opt-in (user content): `CreatedAt` older than `MessageDays` (365) | `(CreatedAt)` |
+
+Dead-lettered / failed outbox/inbox rows are deliberately kept for investigation. The `(IsDeleted,
+DeletedAt)` scan indexes land via the EF model on the migration-less services (created by `EnsureCreated`)
+and via idempotent startup DDL on TodoApi and RealtimeApi; no new EF migration was added.

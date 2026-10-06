@@ -1,25 +1,78 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { EASE_OUT_EXPO } from "@/lib/animations"
+import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
+import { isFirstPageOfVisit, markPageShown } from "@/lib/route-transition"
 
 /**
- * Route transition wrapper. A `template.tsx` re-mounts on every navigation
- * (unlike `layout.tsx`), so this gives every route a quick, coherent fade-in as
- * the user moves between pages.
+ * Route transition. A `template.tsx` re-mounts on every navigation (unlike
+ * `layout.tsx`), so this gives every route a coherent fade-in as the user moves
+ * between pages.
  *
- * Opacity only — deliberately no transform. Animating transform here would
- * create a containing block that captures the fixed navbar/background; opacity
- * does not, so position:fixed chrome keeps anchoring to the viewport. Kept short
- * (160ms) so it layers cleanly over each page's own entrance animations and the
- * global MotionConfig still collapses it under prefers-reduced-motion.
+ * ## Opacity only, and this time the reason is measured
+ *
+ * BLUEPRINT moment 9 asks for the content to rise 8px as it fades. A transform
+ * here creates a containing block, and a `position: fixed` descendant anchors to
+ * that block instead of the viewport — this page tree has fixed descendants
+ * (quick capture, the selection bar, the undo bar).
+ *
+ * That objection was argued rather than measured, so it was tested. framer-motion
+ * genuinely does clean up after itself: on the shipped build, an element that runs
+ * a `y` animation and settles reports inline `transform: none`, computed
+ * `transform: none`, `will-change: auto`, and a fixed child of it anchors to the
+ * viewport. The containing block really does stop existing.
+ *
+ * **The cost is not the drift during the animation. It is the moment the
+ * containing block disappears.** The fixed control is laid out against the
+ * transformed ancestor for 220ms and against the viewport from one frame later,
+ * and the browser records the difference as a layout shift. Measured on `/tasks`
+ * at 390px, four runs:
+ *
+ * | | CLS |
+ * |---|---|
+ * | opacity only | 0.0037 |
+ * | with `y: 8 → 0` | 0.0600, 0.0607, 0.0600 |
+ *
+ * A 16× regression on the product's main screen, for an 8px rise. The shift is
+ * attributable: the capture control's wrapper, `fixed inset-x-0 bottom-0`, at
+ * 339ms — exactly when the transform is cleared.
+ *
+ * The transform could be bought back by portalling every fixed control out of the
+ * page tree, which is three components and a new set of stacking and focus-order
+ * questions to answer. It is not worth an 8px rise. The navbar's active-tab
+ * indicator carries the continuity between routes instead, moving by `layoutId`,
+ * and that half of moment 9 is built.
+ *
+ * Kept short (160ms) so it layers cleanly over each page's own entrance
+ * animations, and the global `MotionConfig` still collapses it under
+ * `prefers-reduced-motion`.
+ */
+/*
+ * ## The first page of a visit is not faded in — it is simply there
+ *
+ * This fade used to start every page from `initial={{ opacity: 0 }}`, and framer-motion
+ * writes that into the server's HTML as `style="opacity:0"`. So every route — the
+ * landing page first of all — arrived as a blank page and stayed blank until the
+ * JavaScript had hydrated and played the fade. On a slow device that is a blank screen;
+ * with scripts blocked it was a blank screen forever. And it made LCP bimodal: measured
+ * on `/`, the `h1` reported at ~540 ms when hydration finished early and not at all
+ * when hydration collided with other main-thread work, leaving a 648 px² button as the
+ * page's "largest" paint at 2.5 s.
+ *
+ * Now the server and the first client render both start visible (`initial={false}`, so
+ * hydration agrees byte for byte), and only a navigation inside the app fades — which is
+ * the transition this was ever for.
  */
 export default function Template({ children }: { children: React.ReactNode }) {
+  const [initial] = useState(() => (isFirstPageOfVisit() ? false : { opacity: 0 }))
+  useEffect(markPageShown, [])
+
   return (
     <motion.div
-      initial={{ opacity: 0 }}
+      initial={initial}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
+      transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
     >
       {children}
     </motion.div>

@@ -1,12 +1,13 @@
 "use client"
 
+import Link from "next/link"
 import { RefObject } from "react"
-import { Globe2, Lock } from "lucide-react"
+import { Lock, Users, UsersRound } from "lucide-react"
 import { Popover, PopoverHeader } from "../popover"
 import { FriendAvatar } from "../friend-avatar"
 import type { FriendDto } from "@/types/auth"
 
-// Both visibility modes (Private / Public) render their body at this CONSTANT height, so switching
+// Both visibility modes (Private / Friends) render their body at this CONSTANT height, so switching
 // modes never resizes the panel. That stops the meta sidebar from gaining/losing a scrollbar — which
 // would otherwise reflow the calendar below it — and makes the two states equally tall, as required.
 const VIS_BODY_HEIGHT = 200
@@ -22,6 +23,8 @@ interface VisibilityPopoverProps {
   containerRef: RefObject<HTMLElement | null>
   /** When true the access controls are shown muted and non-interactive (non-owner viewer). */
   readOnly?: boolean
+  /** Shared with every accepted friend rather than with the people ticked below. */
+  allFriends?: boolean
 }
 
 function friendName(f: FriendDto): string {
@@ -30,7 +33,7 @@ function friendName(f: FriendDto): string {
 }
 
 export function VisibilityPopover({
-  open, onClose, mode, onModeChange, sharedIds, onSharedIdsChange, friends, containerRef, readOnly,
+  open, onClose, mode, onModeChange, sharedIds, onSharedIdsChange, friends, containerRef, readOnly, allFriends,
 }: VisibilityPopoverProps) {
   return (
     <Popover open={open} onClose={onClose} width={340} align="right" containerRef={containerRef}>
@@ -41,6 +44,7 @@ export function VisibilityPopover({
         onSharedIdsChange={onSharedIdsChange}
         friends={friends}
         readOnly={readOnly}
+        allFriends={allFriends}
       />
     </Popover>
   )
@@ -55,14 +59,16 @@ interface VisibilityPanelProps {
   readOnly?: boolean
   /** Drops the internal "Task access" header — the always-open sidebar renders its own label. */
   headless?: boolean
+  /** Shared with every accepted friend; ticking a person turns it into a share with just them. */
+  allFriends?: boolean
 }
 
 /**
- * The visibility body (private/public mode picker + friend access list), extracted from
+ * The visibility body (private/friends mode picker + friend access list), extracted from
  * {@link VisibilityPopover} so it can render always-open inline in the branch page's meta sidebar.
  */
 export function VisibilityPanel({
-  mode, onModeChange, sharedIds, onSharedIdsChange, friends, readOnly, headless,
+  mode, onModeChange, sharedIds, onSharedIdsChange, friends, readOnly, headless, allFriends = false,
 }: VisibilityPanelProps) {
   const toggleFriend = (id: string) => {
     if (readOnly) return
@@ -80,8 +86,10 @@ export function VisibilityPanel({
   const changeMode = (m: "private" | "friends") => { if (readOnly) return; onModeChange(m) }
 
   const sub: React.ReactNode = mode === "private"
-    ? <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>only you</span>
-    : <span style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3" }}>{sharedIds.length} of {friends.length}</span>
+    ? <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>only you</span>
+    : <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>
+        {allFriends ? "all friends" : `${sharedIds.length} of ${friends.length}`}
+      </span>
 
   return (
     <>
@@ -93,7 +101,7 @@ export function VisibilityPanel({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: "10px 10px 6px" }}>
         {([
           { key: "private" as const, Icon: Lock,   label: "Private" },
-          { key: "friends" as const, Icon: Globe2,  label: "Public"  },
+          { key: "friends" as const, Icon: UsersRound, label: "Friends" },
         ] as const).map(({ key, Icon, label }) => {
           const isActive = mode === key
           return (
@@ -104,13 +112,13 @@ export function VisibilityPanel({
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 padding: "8px 4px", borderRadius: 11, border: "none", cursor: "pointer",
                 gap: 4,
-                background: isActive ? "#0a0a0a" : "#fafafa",
-                color: isActive ? "white" : "#0a0a0a",
+                background: isActive ? "var(--pl-ink)" : "var(--pl-paper-sunken)",
+                color: isActive ? "var(--pl-paper)" : "var(--pl-ink)",
                 transition: "background 120ms, color 120ms",
               }}
             >
               <Icon size={15} />
-              <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
                 {label}
               </span>
             </button>
@@ -118,7 +126,7 @@ export function VisibilityPanel({
         })}
       </div>
 
-      {/* Body — a CONSTANT height across modes (see VIS_BODY_HEIGHT) so toggling Private/Public
+      {/* Body — a CONSTANT height across modes (see VIS_BODY_HEIGHT) so toggling Private/Friends
           never changes the panel's size; the friend list scrolls *inside* this fixed area. */}
       <div style={{ height: VIS_BODY_HEIGHT }}>
       {mode === "private" ? (
@@ -129,24 +137,32 @@ export function VisibilityPanel({
         }}>
           <div style={{
             width: 44, height: 44, borderRadius: "50%",
-            background: "#fafafa", display: "flex", alignItems: "center", justifyContent: "center",
+            background: "var(--pl-paper-sunken)", display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <Lock size={18} color="#a3a3a3" />
+            <Lock size={18} color="var(--pl-ink-subtle)" />
           </div>
-          <p style={{ fontSize: 12.5, fontWeight: 800, color: "#262626", margin: 0, letterSpacing: "-0.01em" }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", margin: 0, letterSpacing: "-0.01em" }}>
             Only you can see this task
           </p>
-          <p style={{ fontSize: 11, fontWeight: 600, color: "#a3a3a3", margin: 0 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)", margin: 0 }}>
             None of your friends have access
           </p>
         </div>
       ) : friends.length === 0 ? (
-        <div style={{
-          height: "100%",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "12px 14px", fontSize: 12, color: "#a3a3a3", textAlign: "center",
-        }}>
-          You have no friends yet
+        // The same shape as the private state above — a disc, a line, a way forward — instead
+        // of one small grey sentence floating in the middle of an empty box.
+        <div className="flex h-full flex-col items-center justify-center gap-2 px-5 text-center">
+          <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-paper-sunken text-ink-muted">
+            <Users size={18} />
+          </span>
+          <p className="text-body-sm font-bold text-ink">No friends to share with yet</p>
+          <p className="text-caption font-semibold text-ink-muted">
+            Add them on your{" "}
+            <Link href="/profile#friends" className="touch-target rounded-sm text-ink underline decoration-line-strong underline-offset-4 hover:decoration-ink">
+              profile
+            </Link>
+            , then share this task.
+          </p>
         </div>
       ) : (
         /* Friends list — header pinned, rows scroll within the fixed body height */
@@ -156,15 +172,15 @@ export function VisibilityPanel({
             padding: "6px 14px 4px", flexShrink: 0,
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
-            <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: "0.14em", textTransform: "uppercase", color: "#a3a3a3" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
               Shared with
             </span>
             <button
               onClick={toggleAll}
               style={{
                 background: "none", border: "none", cursor: "pointer",
-                fontSize: 10, fontWeight: 900, letterSpacing: "0.04em",
-                textTransform: "uppercase", color: "#0a0a0a", padding: 0,
+                fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+                textTransform: "uppercase", color: "var(--pl-ink)", padding: 0,
               }}
             >
               {allSelected ? "NONE" : "ALL"}
@@ -184,15 +200,15 @@ export function VisibilityPanel({
                       style={{
                         width: "100%", display: "flex", alignItems: "center", gap: 10,
                         padding: "7px 10px", borderRadius: 10, border: "none", cursor: "pointer",
-                        background: isSelected ? "#fafafa" : "transparent",
+                        background: isSelected ? "var(--pl-paper-sunken)" : "transparent",
                         textAlign: "left", transition: "background 100ms",
                       }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5" }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isSelected ? "#fafafa" : "transparent" }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = isSelected ? "var(--pl-paper-sunken)" : "transparent" }}
                     >
                       <FriendAvatar friend={f} size={24} />
                       <span style={{
-                        flex: 1, fontSize: 12, fontWeight: 700, letterSpacing: "-0.005em", color: "#262626",
+                        flex: 1, fontSize: 12, fontWeight: 700, letterSpacing: "-0.005em", color: "var(--pl-ink)",
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>
                         {friendName(f)}
@@ -201,9 +217,9 @@ export function VisibilityPanel({
                       <div style={{
                         width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        background: isSelected ? "#0a0a0a" : "transparent",
-                        boxShadow: isSelected ? "none" : "inset 0 0 0 1.5px #e5e5e5",
-                        fontSize: 9, fontWeight: 900, color: "white",
+                        background: isSelected ? "var(--pl-ink)" : "transparent",
+                        boxShadow: isSelected ? "none" : "inset 0 0 0 1.5px var(--pl-line)",
+                        fontSize: 12, fontWeight: 700, color: "var(--pl-paper)",
                         transition: "background 100ms, box-shadow 100ms",
                       }}>
                         {isSelected ? "✓" : ""}

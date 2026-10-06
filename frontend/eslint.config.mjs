@@ -38,6 +38,8 @@ const config = [
   {
     ignores: [
       '.next/**',
+      // Side builds made with NEXT_DIST_DIR (docs/development.md) — generated chunks, never source.
+      '.next-*/**',
       'node_modules/**',
       'coverage/**',
       'vitest.config.ts',

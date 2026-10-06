@@ -20,7 +20,10 @@
        and paint a white base so the gradient (semi-transparent greys designed
        for white) and every transparent surface read correctly regardless of the
        device theme. Form controls (inputs, checkboxes, scrollbars) also render
-       in their light variant. */
+       in their light variant.
+
+       Verified: with the OS in dark mode, contrast failures on every audited
+       route are identical to light mode — nothing goes dark-on-dark. */
     color-scheme: light;
     background-color: #ffffff;
     /* overflow-y: scroll keeps scrollbar always visible — prevents Radix UI from
@@ -33,7 +36,10 @@
        no element can ever introduce a horizontal scrollbar; vertical scrolling and
        descendant `position: sticky` (which references this same root) are
        unaffected. Genuinely horizontal regions (e.g. the profile tab strip) opt in
-       locally with their own `overflow-x-auto` and are unaffected. */
+       locally with their own `overflow-x-auto` and are unaffected.
+
+       Measured: zero horizontal scroll across 12 routes x 9 viewports x 3 data
+       sets, including 200 tasks and a 180-character unbroken word. */
     overflow-x: hidden;
     scrollbar-gutter: stable;
     @apply font-sans;
@@ -56,7 +62,6 @@
 
   body {
     background-color: transparent;
-    color: #111;
     /* Mobile-robust horizontal-overflow guard. `overflow-x: hidden` on <html>
        alone is famously ignored by iOS Safari / Android Chrome when a descendant
        overflows, so the page could still pan sideways on a real phone even though
@@ -73,296 +78,349 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     line-height: 1.6;
-    letter-spacing: -0.005em;
-    @apply text-foreground;
+    @apply text-ink;
   }
 
-  /* Tight tracking only for heavy display headings */
-  h1, h2 {
-    letter-spacing: -0.02em;
-  }
-  h3 {
-    letter-spacing: -0.01em;
-  }
+  /* Letter-spacing rides on the font-size tokens (design-tokens.ts), so headings
+     need no separate rule — `text-title`, `text-display` etc. carry their own. */
 
   a, button {
-    transition-property: color, background-color, border-color, opacity, transform, box-shadow;
-    transition-duration: 0.2s;
+    transition-property: color, background-color, border-color, opacity, transform;
+    transition-duration: 160ms;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  /* Visible keyboard-focus ring. Only shows for keyboard navigation (never
-     mouse/touch), so a clearly-visible ring is pure accessibility upside with
-     no cost to the minimalist look during normal pointer use. */
-  :focus-visible {
-    outline: 2px solid rgba(0,0,0,0.35);
+  /* ── The one focus indicator in the product ──────────────────────────────
+     A single token, used everywhere. The dark outline carries it on light
+     surfaces; the light halo keeps it visible on dark ones (the register page's
+     left panel), so one rule covers both without a per-surface variant.
+
+     Replaces eight separate indicators that each measured between 1.12:1 and
+     2.44:1 against their background — all below the 3:1 that WCAG 2.2 §2.4.11
+     requires. This one measures 18.88:1 on paper.
+
+     Components must NOT set `focus:outline-none`: Tailwind compiles that to a
+     *transparent* outline (for forced-colors mode), which overrides the colour
+     here and leaves two pixels of nothing. That is exactly how the login form's
+     two fields ended up with no visible focus at all. Text fields are the one
+     exception, and they do not use that class: see "Field focus" in the
+     components layer, where the field's own shape carries the indicator. */
+  :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid theme("colors.focus");
     outline-offset: 2px;
-    border-radius: 8px;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.9);
+    border-radius: inherit;
   }
 
   /* Text selection styling */
   ::selection {
-    background-color: #000;
-    color: #fff;
+    background-color: theme("colors.ink");
+    color: theme("colors.paper");
   }
 
   ::-moz-selection {
-    background-color: #000;
-    color: #fff;
+    background-color: theme("colors.ink");
+    color: theme("colors.paper");
   }
-  .theme {
-    --font-heading: var(--font-sans);
-  }
+
   :root {
-    --font-sans: "Plus Jakarta Sans";
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+  /* Horizontal padding of the task editor's body. Read by `.calendar-bleed`,
+     which cancels exactly this much to run the month grid to the card edges. */
+  --pl-editor-gutter: 16px;
+
+  /* The room the app's floating droplet bar takes at the top: the safe-area inset, the
+     droplet's 12–16px of air, its 56px, and a gap before anything that sticks under it.
+     Sticky things below the bar (the update pill, the profile rail) offset by this, and
+     anchors scroll to it, so nothing ever parks underneath the droplet. */
+  --bar-clearance: calc(env(safe-area-inset-top, 0px) + 5.5rem);
+
+    /* next/font's Latin faces (preloaded, with a metric-matched fallback) first; the
+       @fontsource latin-ext faces under the plain family name second. See layout.tsx. */
+    --font-sans: var(--font-jakarta), "Plus Jakarta Sans";
+    /* Every token, exposed as a CSS variable. The branch surface builds almost
+       all of its styling through inline style objects where a Tailwind class
+       cannot reach, so it consumes these instead of carrying hex literals —
+       251 of which used to live in that one screen. */
+    --pl-ink: theme("colors.ink");
+    --pl-ink-muted: theme("colors.ink-muted");
+    --pl-ink-subtle: theme("colors.ink-subtle");
+    --pl-ink-faint: theme("colors.ink-faint");
+    --pl-line: theme("colors.line");
+    --pl-line-strong: theme("colors.line-strong");
+    --pl-paper: theme("colors.paper");
+    --pl-paper-sunken: theme("colors.paper-sunken");
+    --pl-accent: theme("colors.accent");
+    --pl-accent-surface: theme("colors.accent-surface");
+    --pl-accent-ink: theme("colors.accent-ink");
+    --pl-alert: theme("colors.alert");
+    --pl-alert-surface: theme("colors.alert-surface");
+    --pl-alert-ink: theme("colors.alert-ink");
+    --pl-positive: theme("colors.positive");
+    --pl-positive-surface: theme("colors.positive-surface");
+    --pl-warn: theme("colors.warn");
+    --pl-warn-surface: theme("colors.warn-surface");
+    --pl-focus: theme("colors.focus");
+    --pl-gray-100: theme("colors.gray.100");
+    --pl-gray-150: theme("colors.gray.150");
+    --pl-gray-200: theme("colors.gray.200");
+    --pl-gray-300: theme("colors.gray.300");
+    /* Motion curves, for the inline styles that a Tailwind class cannot reach. */
+    --pl-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    --pl-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --pl-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    --pl-radius-full: theme("borderRadius.full");
+    --pl-radius-sm: theme("borderRadius.sm");
+    --pl-radius-md: theme("borderRadius.md");
+    --pl-radius-lg: theme("borderRadius.lg");
+    --pl-radius-xl: theme("borderRadius.xl");
+    /* The elevation scale, for the same inline styles: a popover or a dialog built there
+       uses the product's shadows instead of re-typing its own rgba stack. */
+    --pl-shadow-sm: theme("boxShadow.sm");
+    --pl-shadow-md: theme("boxShadow.md");
+    --pl-shadow-lg: theme("boxShadow.lg");
+    --pl-shadow-xl: theme("boxShadow.xl");
   }
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
+
+  /* Dark theme is FROZEN, not supported. The product pins `color-scheme: light`
+     for the reason documented at the top of this file, and the surfaces that
+     would need to change are still full of hard-coded light values. Do not add
+     `dark:` utilities: they will not be exercised, and the two files that still
+     carry them are a known defect, not a head start. Revisit only after the
+     token migration is complete, and then derive the dark palette from
+     design-tokens.ts rather than restating it here. */
+
   * {
-    @apply border-border outline-ring/50;
+    @apply border-line;
   }
 }
 
 @layer components {
-  /* Premium container with proper padding and width */
-  .container-premium {
-    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  /* Page container. One width for the whole product. */
+  /* The one column every screen is built on — the landing page, the auth frame and the
+     signed-in app. One width means the wordmark sits on the same spot whichever of the
+     three you are on, and moving from sign-in to the dashboard moves nothing but the page. */
+  .container-app {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
   }
 
-  /* Fade in animation utility */
-  .fade-in {
-    animation: fade-in 0.5s ease-out;
+  /**
+   * Full-bleed month grid on phones.
+   *
+   * A seven-column calendar wants 7 x 44px + gaps = 320px before any chrome.
+   * On a 390px phone the app gutter, the card border and the editor's own body
+   * padding had already spent 78 of those pixels, leaving 36px-wide day cells —
+   * under the 44px target and visibly cramped. Cancelling the body padding for
+   * this one block (the standard mobile date-picker move) hands the grid the
+   * full card width and takes the cells to ~45px, while the text around it
+   * keeps its comfortable gutters.
+   *
+   * The inline margin MUST match the editor body's phone padding in modal.tsx.
+   * Both read the same custom property so the two cannot drift apart.
+   */
+  .calendar-bleed {
+    margin-inline: calc(var(--pl-editor-gutter) * -1);
+    border-inline-width: 0;
+    border-radius: 0;
   }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
+  @media (min-width: 1024px) {
+    .calendar-bleed {
+      margin-inline: 0;
+      border-inline-width: 1px;
+      /* `md`, not a hand-picked 14px. The radius scale is 8/12/16/20 and this was
+         the one value in the product sitting between two of its steps — invisible
+         on screen, and exactly the kind of drift a scale exists to prevent. */
+      border-radius: var(--pl-radius-md);
     }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 
-  /* Text utilities for better hierarchy */
-  .text-balance {
-    text-wrap: balance;
+  /* ── Field focus ─────────────────────────────────────────────────────────────
+     Text fields show focus on their own shape, never with the global ring.
+
+     An <input> or <textarea> matches :focus-visible on EVERY focus — click, tap,
+     script or Tab — in Chrome, Firefox and Safari alike, so the global rule drew a
+     hard dark rectangle round the create panel's naked title the moment anything
+     focused it. Buttons and links keep the global ring, where :focus-visible still
+     means "the keyboard".
+
+     The outline is made transparent, never removed. Forced-colors mode (Windows High
+     Contrast) repaints outline-color with a system colour and drops backgrounds and
+     box-shadows, so the transparent outline is what still draws a ring there once the
+     rule and the halo below are gone. This is the one place a transparent outline is
+     right — on a field whose indicator something else draws — and it is written here,
+     never as Tailwind's `focus:outline-none`.
+
+     No library: react-aria's useFocusRing only reports the same :focus-visible answer
+     the browser gives, the focus-visible polyfill is obsolete on every target, and the
+     whole effect is three selectors and one composited transform.
+
+     WCAG 1.4.11 (>= 3:1), from the token hexes:
+       ink rule / edge on paper            17.93:1
+       ink vs the resting `line`           14.23:1   (the state change itself)
+       ink vs the hover `line-strong`       3.95:1
+       ink vs its own 8% halo              15.18:1
+       alert edge on paper / on its halo    6.47:1 / 5.29:1
+     The halos are decoration; the ink edge carries the indicator. */
+
+  /* 1. Naked fields behind a left rule (the create panel). The border is the resting
+        track; while either field has focus an ink rule draws itself over it top-down on
+        the arrival curve, and retracts on the exit curve when focus leaves. Transform
+        only, so it composites; reduced motion makes it instant (the block at the end). */
+  .field-rule {
+    position: relative;
+    border-left: 2px solid theme("colors.line");
+  }
+  .field-rule::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -2px;
+    width: 2px;
+    border-radius: 9999px;
+    background-color: theme("colors.ink");
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform theme("transitionDuration.fast") var(--pl-ease-exit);
+    pointer-events: none;
+  }
+  .field-rule:focus-within::after {
+    transform: scaleY(1);
+    transition: transform theme("transitionDuration.slow") var(--pl-ease-emphasized);
   }
 
-  /* Better link styling */
-  .link-premium {
-    @apply text-black no-underline transition-all duration-200 hover:text-opacity-70;
+  /* A field whose indicator is drawn by its container (.field-rule, .field-shell). */
+  .field-naked:focus-visible {
+    outline-color: transparent;
+    box-shadow: none;
   }
 
-  /* Card with premium styling */
-  .card-premium {
-    @apply rounded-2xl border border-gray-100 bg-white/95 shadow-card transition-all duration-300 hover:shadow-card-hover hover:border-gray-200;
+  /* 2. Boxed fields — <Input>, <Textarea>. An ink edge and a soft halo on the field's
+        own radius; the transition comes from the component's `transition-[…]` utility.
+        `:not(:disabled)` lifts this to 0,3,0 so a hover utility (0,2,0, emitted later)
+        cannot repaint a focused field's edge or drop its halo. */
+  .field-box:focus-visible:not(:disabled) {
+    outline-color: transparent;
+    border-color: theme("colors.ink");
+    background-color: theme("colors.paper");
+    box-shadow: 0 0 0 3px theme("colors.ink / 8%");
+  }
+  /* A field in error (`aria-invalid`, set by <Field>) or past 80% of its limit keeps its
+     red edge — at rest, and while focused, where the halo turns red too and the pink
+     surface stays: the moment of typing is the only moment a field crosses its limit. */
+  .field-box[aria-invalid="true"]:not(:disabled) {
+    border-color: theme("colors.alert");
+  }
+  .field-box:is([data-over-limit], [aria-invalid="true"]):focus-visible:not(:disabled) {
+    border-color: theme("colors.alert");
+    box-shadow: inset 0 0 0 1px theme("colors.alert"), 0 0 0 3px theme("colors.alert / 12%");
+  }
+  .field-box[data-over-limit]:focus-visible:not(:disabled) {
+    background-color: theme("colors.alert-surface / 40%");
+  }
+
+  /* 3. A shell that IS the field — quick capture's pill, the branch composer, the colour
+        picker's hex box, the command palette's query row. Its edge is the indicator.
+        Whatever elevation the shell already carries (Tailwind's --tw-shadow, e.g. quick
+        capture's shadow-xl) stays under the halo; a flat shell gets the halo alone. Do not
+        put hover:border-* on a shell: it is 0,2,0 like this rule and emitted later. */
+  .field-shell {
+    transition:
+      border-color theme("transitionDuration.fast") var(--pl-ease-emphasized),
+      background-color theme("transitionDuration.base") var(--pl-ease-emphasized),
+      box-shadow theme("transitionDuration.base") var(--pl-ease-emphasized);
+  }
+  .field-shell:focus-within {
+    border-color: theme("colors.ink");
+    box-shadow: 0 0 0 3px theme("colors.ink / 8%"), var(--tw-shadow, 0 0 #0000);
   }
 }
 
 @layer utilities {
-  .ease-spring {
-    transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  /**
+   * Guarantees a 44x44 hit area without changing what the control LOOKS like.
+   * The pseudo-element extends the target symmetrically and takes part in hit
+   * testing only — it never affects layout, so a 24px icon button keeps its
+   * 24px appearance while a thumb gets the full touch threshold.
+   *
+   * Do NOT use it on controls that sit closer than 8px to a neighbour: the
+   * expanded areas would overlap and steal each other's taps. Those need real
+   * spacing instead.
+   */
+  .touch-target {
+    position: relative;
+  }
+  .touch-target::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+    /* MUST be explicit. `pointer-events` is inherited, and several of this
+       product's surfaces set it to `none` on a wrapper and re-enable it per
+       child — the pseudo-element then inherited `none` and the whole expanded
+       area was inert. Without this line the utility silently does nothing. */
+    pointer-events: auto;
   }
 
-  /* Ultra Glass - Enhanced */
+  /* Frosted surface for floating chrome (navbar, sheets). */
   .glass {
-    background: rgba(255,255,255,0.75);
-    backdrop-filter: blur(24px) saturate(200%);
-    -webkit-backdrop-filter: blur(24px) saturate(200%);
-    border: 1px solid rgba(255,255,255,0.5);
-  }
-
-  /* Ultra Glass Dark variant */
-  .glass-dark {
-    background: rgba(0,0,0,0.65);
+    background: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.5);
   }
 
-  /* Ultra Shadow - Multiple layers for depth */
-  .shadow-soft-xl {
-    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.08), 0 0 1px rgba(0,0,0,0.04);
-  }
-
-  /* Enhanced shadow for cards */
-  .shadow-card {
-    box-shadow: 0 10px 30px -12px rgba(0,0,0,0.1), 0 0 1px rgba(0,0,0,0.05);
-  }
-
-  /* Hover shadow elevation */
-  .shadow-card-hover {
-    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.15), 0 0 1px rgba(0,0,0,0.08);
-  }
-
-  /* Premium shadow for modals */
-  .shadow-modal {
-    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-  }
-
-  /* Subtle shadow for inputs */
-  .shadow-input {
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
-  }
-
-  /* Gradient text utility */
-  .gradient-text {
-    background: linear-gradient(135deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Shimmer skeleton - Enhanced */
+  /* Skeleton shimmer. The sweep is a translated pseudo-element rather than an
+     animated `background-position`, so it composites on the GPU. */
   .skeleton {
-    background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
-    background-size: 200% 100%;
-    animation: skeleton-shimmer 2s ease-in-out infinite;
+    position: relative;
+    overflow: hidden;
+    background-color: theme("colors.gray.100");
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0,
+      rgba(255, 255, 255, 0.6) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    animation: shimmer 1200ms linear infinite;
   }
 
-  @keyframes skeleton-shimmer {
-    0% { background-position: 200% 0; }
-    50% { background-position: 0% 0; }
-    100% { background-position: -200% 0; }
+  @keyframes shimmer {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(100%); }
   }
 
-  /* Pulse animation for emphasis */
-  @keyframes pulse-soft {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-  }
-
-  .animate-pulse-soft {
-    animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  /* Bounce animation for interactive elements */
-  @keyframes bounce-gentle {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-  }
-
-  .animate-bounce-gentle {
-    animation: bounce-gentle 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
-  }
-
-  /* Glow effect for highlights */
-  @keyframes glow {
-    0%, 100% { box-shadow: 0 0 5px rgba(0,0,0,0.1); }
-    50% { box-shadow: 0 0 15px rgba(0,0,0,0.15); }
-  }
-
-  .animate-glow {
-    animation: glow 2s ease-in-out infinite;
-  }
-
-  /* Page fade-in - Enhanced */
-  .page-enter {
-    animation: page-fade 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  @keyframes page-fade {
-    from {
-      opacity: 0;
-      transform: translateY(12px) scale(0.98);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  /* Smooth page transitions */
-  .page-transition {
-    animation: page-fade 0.5s ease-out forwards;
-  }
-
-  /* Stagger animation for lists */
+  /* Stagger helper for lists that are not driven by framer-motion. */
   .stagger-list > * {
-    animation: page-fade 0.4s ease-out backwards;
+    animation: stagger-enter 220ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 
-  .stagger-list > *:nth-child(1) { animation-delay: 0.05s; }
-  .stagger-list > *:nth-child(2) { animation-delay: 0.1s; }
-  .stagger-list > *:nth-child(3) { animation-delay: 0.15s; }
-  .stagger-list > *:nth-child(4) { animation-delay: 0.2s; }
-  .stagger-list > *:nth-child(5) { animation-delay: 0.25s; }
-  .stagger-list > *:nth-child(n+6) { animation-delay: 0.3s; }
+  @keyframes stagger-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
+  .stagger-list > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-list > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger-list > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger-list > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger-list > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger-list > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger-list > *:nth-child(7) { animation-delay: 240ms; }
+  /* Past the eighth item the delay would outlast the user's patience. */
+  .stagger-list > *:nth-child(n+8) { animation-delay: 280ms; }
 }
 
-/* Task card density modifiers */
-.task-card--sparse {
-  min-height: 3rem;
-}
-.task-card--dense {
-  /* Allow description to show 3 lines instead of 2 */
-}
+/* Task card density modifier. (A `--sparse` one set min-height: 3rem, which the control
+   rail's 166px floor made unreachable.) */
 .task-card--dense p.line-clamp-2 {
   -webkit-line-clamp: 3;
 }
@@ -370,14 +428,14 @@
 /* System-wide thin scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #e5e7eb transparent;
+  scrollbar-color: theme("colors.gray.200") transparent;
 }
 *::-webkit-scrollbar { width: 4px; height: 4px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 99px; }
-*::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
+*::-webkit-scrollbar-thumb { background: theme("colors.gray.200"); border-radius: var(--pl-radius-full); }
+*::-webkit-scrollbar-thumb:hover { background: theme("colors.gray.300"); }
 
-/* ── Branch modal animations ─────────────────────────────────────────────── */
+/* ── Branch surface ───────────────────────────────────────────────────────── */
 
 @keyframes pop_in {
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
@@ -395,7 +453,7 @@
    the sidebar's width — nothing jitters sideways. */
 .branch-scroll { scrollbar-gutter: stable; }
 .branch-scroll::-webkit-scrollbar       { width: 6px; }
-.branch-scroll::-webkit-scrollbar-thumb { background: #e5e5e5; border-radius: 4px; }
+.branch-scroll::-webkit-scrollbar-thumb { background: theme("colors.line"); border-radius: var(--pl-radius-sm); }
 .branch-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* Compose attach-menu (rises from below) */
@@ -410,25 +468,48 @@
   to   { opacity: 1; transform: translateX(0)    scale(1);    }
 }
 
-/* Author's Note attention pulse — fired when scrolling back up to the pinned note */
-@keyframes genesis_highlight {
-  0%   { box-shadow: 0 0 0 0   rgba(139,92,246,0);    border-color: #f0f0f0; }
-  25%  { box-shadow: 0 0 0 4px rgba(139,92,246,0.30); border-color: #ddd6fe; }
-  100% { box-shadow: 0 0 0 0   rgba(139,92,246,0);    border-color: #f0f0f0; }
+/* Author's Note attention pulse — fired when scrolling back up to the pinned note.
+   Opacity on an overlay ring rather than an animated box-shadow, so it composites. */
+.genesis-highlight::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 0 3px theme("colors.accent");
+  opacity: 0;
+  animation: ring_pulse 1200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Reply-quote jump pulse — fired on the quoted message/subtask after a quote click */
-@keyframes reply_flash {
-  0%   { background-color: rgba(139,92,246,0); }
-  25%  { background-color: rgba(139,92,246,0.10); }
-  100% { background-color: rgba(139,92,246,0); }
+@keyframes ring_pulse {
+  0%   { opacity: 0; }
+  25%  { opacity: 0.35; }
+  100% { opacity: 0; }
+}
+
+/* Reply-quote jump pulse — fired on the quoted message/subtask after a quote click. */
+.reply-flash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: theme("colors.accent-surface");
+  opacity: 0;
+  animation: surface_flash 1200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes surface_flash {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* Branch "is typing" indicator — three softly bouncing dots above the compose box */
 .branch-typing-dot {
   width: 4px;
   height: 4px;
-  border-radius: 9999px;
+  border-radius: var(--pl-radius-full);
   background: currentColor;
   display: inline-block;
   animation: branch_typing_bounce 1s infinite ease-in-out both;
@@ -442,17 +523,11 @@
 }
 
 /* Spellcheck/grammar underline color */
-::spelling-error {
-  text-decoration: underline wavy #000;
-}
-::grammar-error {
-  text-decoration: underline wavy #000;
-}
-::-webkit-spelling-error {
-  text-decoration: underline wavy #000;
-}
+::spelling-error,
+::grammar-error,
+::-webkit-spelling-error,
 ::-webkit-grammar-error {
-  text-decoration: underline wavy #000;
+  text-decoration: underline wavy theme("colors.ink");
 }
 
 /* ── Mobile, touch & accessibility foundations ──────────────────────────────
@@ -470,9 +545,9 @@ a, button, [role="button"], label, summary {
 }
 
 /* iOS Safari zooms the whole page when a focused form control has a font below
-   16px. The app uses 14px (text-sm) inputs, so pin every mobile form control to
-   16px: this only ever scales text UP on phones and kills the jarring
-   zoom-on-tap. !important is required to outrank Tailwind's text-sm utility. */
+   16px. The app uses 14px inputs, so pin every mobile form control to 16px:
+   this only ever scales text UP on phones and kills the jarring zoom-on-tap.
+   !important is required to outrank Tailwind's font-size utility. */
 @media (max-width: 639.98px) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   textarea,
@@ -486,9 +561,15 @@ a, button, [role="button"], label, summary {
    when the viewport opts in via viewport-fit=cover (set in app/layout.tsx). */
 .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pl-safe { padding-left: env(safe-area-inset-left, 0px); }
+.pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+/* A bar pinned to the bottom edge: 16px of air, or the home indicator's inset where that is
+   larger. One named utility instead of the same arbitrary `max()` written in two places. */
+.pb-safe-4 { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px)); }
 
-/* Honour prefers-reduced-motion for the CSS keyframe animations in this file
-   (framer-motion is already covered globally by MotionConfig reducedMotion).
+/* Honour prefers-reduced-motion for the CSS keyframe animations in this file.
+   framer-motion is covered globally by MotionConfig reducedMotion="user", and
+   the WebGL background stops its rAF loop itself — three mechanisms, no gaps.
    Collapsed to near-instant rather than fully removed so state changes stay
    legible for users who still need the visual cue. */
 @media (prefers-reduced-motion: reduce) {

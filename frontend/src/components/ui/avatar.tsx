@@ -65,7 +65,7 @@ export function Avatar({
   return (
     <div
       className={cn(
-        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-white",
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink text-paper",
         className
       )}
       style={{ width: size, height: size }}
@@ -91,7 +91,7 @@ export function Avatar({
         />
       ) : (
         <span
-          className="font-black tracking-tighter"
+          className="font-bold tracking-tighter"
           style={{ fontSize: size * 0.4 }}
         >
           {initials}

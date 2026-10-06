@@ -1,134 +1,139 @@
 # Fly.io Deployment Manifests
 
-Per-app `fly.toml` manifests for Planora's production hosting on Fly.io.
-These files are **deployment templates** — they do not contain secrets and
-they are committed to the repository so the deployment shape is reviewable.
+These are reviewable deployment templates and bootstrap scripts. They contain
+no real secrets. The [deployment guide](../../docs/deployment.md) records
+confirmed rollout blockers; a valid TOML file or green prerequisite checker
+does not mean this checkout can be promoted successfully.
 
 ## Layout
 
-| File | App | Role |
+| Manifest | App | Role |
 |---|---|---|
-| `gateway.fly.toml` | `planora-gateway` | Public HTTP edge — Ocelot API Gateway |
-| `auth.fly.toml` | `planora-auth` | Auth API |
-| `category.fly.toml` | `planora-category` | Category API + gRPC server |
-| `todo.fly.toml` | `planora-todo` | Todo API + gRPC server |
-| `messaging.fly.toml` | `planora-messaging` | Messaging API + gRPC server |
-| `realtime.fly.toml` | `planora-realtime` | Realtime API + SignalR hub |
-| `outbox-worker.fly.toml` | `planora-outbox-worker` | Reserved for Phase 4 T4.6 (separate outbox process) |
-| `migrator.fly.toml` | `planora-migrator` | Reserved for Phase 1 T1.7 (EF Core migration runner) |
+| `gateway.fly.toml` | `planora-gateway` | Ocelot edge |
+| `auth.fly.toml` | `planora-auth` | Identity, sessions, friendship, avatar serving |
+| `category.fly.toml` | `planora-category` | Categories and category gRPC |
+| `todo.fly.toml` | `planora-todo` | Tasks and Todo gRPC |
+| `collaboration.fly.toml` | `planora-collaboration` | Comments/replies and timeline |
+| `messaging.fly.toml` | `planora-messaging` | Direct messages |
+| `realtime.fly.toml` | `planora-realtime` | SignalR and optional persistent notifications |
+| `migrator.fly.toml` | `planora-migrator` | Implemented one-shot CLI; Docker build graph currently incomplete |
+| `outbox-worker.fly.toml` | `planora-outbox-worker` | Reserved only; referenced worker project/Dockerfile is absent |
 
-Both placeholder apps reference Dockerfiles that do not yet exist; they are
-checked in so the secret-set conventions and naming are agreed before
-those workstreams land.
+The migrator manifest's old reserved comment is stale: the CLI is now in the
+solution. The outbox worker remains reserved and is not deployed by the CD
+service matrix. HTTP manifests declare port `8080`; verify effective Kestrel
+settings before deployment. Most API manifests declare auto-stop plus
+`min_machines_running=1`; this does not mean zero always-on machines in the
+primary region. Gateway and Realtime auto-stop is off.
 
-## Required secrets
+## Bootstrap scripts
 
-Every Planora app reads these via Fly secrets. Set them once per app:
+`setup.ps1`, `set-secrets.ps1` and the prerequisite checker require
+**PowerShell 7**. Run from the repository root with `pwsh`; the application
+launchers have a separate PowerShell 5.1-compatible contract.
 
 ```powershell
-flyctl secrets set `
-  JwtSettings__Secret=<32-char-random> `
-  GrpcSettings__ServiceKey=<32-char-random> `
-  --app planora-<app>
+$flyOrganization = 'replace-with-your-organization'
+pwsh -File deploy/fly/setup.ps1 -Org $flyOrganization
+Copy-Item deploy/fly/.env.fly.example deploy/fly/.env.fly
+# Fill the ignored file with values for the intended environment.
+pwsh -File deploy/fly/set-secrets.ps1 -DryRun
 ```
 
-App-specific secrets:
+`setup.ps1` creates every app discovered from `*.fly.toml`, including the
+reserved worker. `-DryRun` prints selected key names, not values; it still
+requires `flyctl` and parses the file. Normal `set-secrets.ps1` uses
+`flyctl secrets set --stage`; staged values activate on a subsequent deploy.
+It does not reject missing required values or validate app-specific runtime
+requirements. Do not use it as a completeness check.
 
-| App | Extra secrets |
+## Actual secret selection
+
+The script selects a shared set for API apps: JWT key, gRPC key, Redis
+connection, RabbitMQ host/user/password, optional OTLP and Loki keys. Runtime
+requirements differ: the gateway does not use the broker/Redis, and the
+migrator needs database configuration rather than those shared API secrets.
+
+| App | Additional keys selected by `set-secrets.ps1` |
 |---|---|
-| `planora-auth` | `ConnectionStrings__AuthDatabase`, `Email__Password` (when Gmail SMTP is enabled) |
-| `planora-category` | `ConnectionStrings__CategoryDatabase` |
-| `planora-todo` | `ConnectionStrings__TodoDatabase`, `GrpcServices__AuthApi=https://planora-auth.internal:443`, `GrpcServices__CategoryApi=https://planora-category.internal:443` |
-| `planora-messaging` | `ConnectionStrings__MessagingDatabase`, `GrpcServices__AuthApi=https://planora-auth.internal:443` |
-| `planora-realtime` | (no DB until Phase 2 T2.5) |
-| `planora-gateway` | None beyond the common pair |
+| Auth | `ConnectionStrings__AuthDatabase`, email options, `Frontend__BaseUrl` |
+| Category | `ConnectionStrings__CategoryDatabase` |
+| Todo | `ConnectionStrings__TodoDatabase`, `GrpcServices__AuthApi`, `GrpcServices__CategoryApi` |
+| Messaging | `ConnectionStrings__MessagingDatabase`, `GrpcServices__AuthApi` |
+| Collaboration | `ConnectionStrings__CollaborationDatabase`, `GrpcServices__AuthApi`, `GrpcServices__TodoApi` |
+| Realtime | Shared set only; **RealtimeDatabase is missing from the script** |
+| Gateway | Shared set plus `Frontend__BaseUrl` |
+| Migrator | Auth, Category, Todo, Messaging, Collaboration database strings; **RealtimeDatabase is missing** |
 
-Shared infra secrets that every app needs:
+For durable notifications, both Realtime and the migrator require
+`ConnectionStrings__RealtimeDatabase`; the current script must be corrected
+or the key supplied separately. `GrpcServices__TodoApi` has no injected default
+in the script. Default Auth/Category URLs use `https://<app>.internal:443`:
+these are configured strings, not evidence of working TLS, HTTP/2 or Flycast.
+A `.internal` hostname does not itself prove application-layer mTLS. Verify
+DNS, certificates, listeners and routing in the target network.
 
-```powershell
-flyctl secrets set `
-  ConnectionStrings__Redis=<upstash-redis-uri> `
-  RabbitMq__HostName=<cloudamqp-host> `
-  RabbitMq__UserName=<cloudamqp-user> `
-  RabbitMq__Password=<cloudamqp-pass> `
-  OTEL_EXPORTER_OTLP_ENDPOINT=<grafana-cloud-otlp-url> `
-  OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic <base64-token>" `
-  --app planora-<app>
-```
+Use [Secrets management](../../docs/secrets-management.md) for the complete
+runtime inventory and rotation impact. `Cors__AllowedOrigins__N`, effective
+Kestrel endpoints and production gateway routes also need explicit planning;
+the current staging script is not a universal configuration deployment tool.
 
-## Workflow
+## Delivery workflow and blockers
 
-1. Create the apps once:
-   ```powershell
-   flyctl apps create planora-gateway --org <org>
-   flyctl apps create planora-auth --org <org>
-   # ...one per app
-   ```
+`.github/workflows/cd.yml` exists and triggers on `v*` tags or manual dispatch.
+It validates manifests, invokes the migrator, requests blue/green service
+deployments, deploys gateway after the service matrix, then probes gateway
+health. No frontend deploy step exists.
 
-2. Set the secrets per app (see above).
+Before activation, resolve:
 
-3. Deploy from CI (preferred) or manually:
-   ```powershell
-   flyctl deploy --config deploy/fly/gateway.fly.toml `
-                 --dockerfile Planora.ApiGateway/Dockerfile `
-                 --strategy bluegreen --wait-timeout 300
-   ```
+- incomplete Todo migration baseline and migrator Docker COPY graph;
+- local Ocelot targets selected by `ASPNETCORE_ENVIRONMENT=Production`;
+- effective listener ports/protocols versus manifest port `8080`;
+- missing Realtime DB secret selection and explicit schema initialization;
+- reserved worker manifest included in blanket validation;
+- actual app exposure and Auth avatar volume/write-path alignment.
 
-## Persistent volumes
+The prerequisite checker asks for the same five common secrets on every app,
+including the migrator, rather than this per-app matrix. It misses required DB
+connections, RabbitMQ username, effective ports, production route selection,
+test failures, and Docker build correctness. Its zero exit code is only the
+result of those limited checks. See [Production acceptance](../../docs/production.md).
 
-`planora-auth` mounts a Fly volume at `/data/uploads` for user-uploaded avatars.
-Without it the container filesystem is ephemeral and avatars vanish on every
-`fly deploy`. Bootstrap once per region:
+## Persistent avatars
+
+`auth.fly.toml` declares a `planora_auth_uploads` mount at `/data/uploads`
+and `ASPNETCORE_WEBROOT=/data/uploads`. This is a persistence intention;
+confirm the running host honors that webroot and the profile-picture writer
+uses it. A mounted volume alone does not prove avatar durability.
 
 ```powershell
 flyctl volumes create planora_auth_uploads --app planora-auth --region ams --size 3
 ```
 
-For multi-region replicas, create one volume per region with the same source
-name (`planora_auth_uploads`). Fly auto-binds them per machine. The webroot is
-configured via `ASPNETCORE_WEBROOT=/data/uploads` in `auth.fly.toml` `[env]`
-so Kestrel writes static assets to the volume rather than the container layer.
+The example is an operator provisioning command, not part of the bootstrap
+script. Verify access permissions, machine-to-volume placement and behavior
+after redeploy. Local filesystem volumes do not automatically replicate avatar
+content between independently mounted replicas. No R2 upload implementation
+is present in the audited checkout.
 
-When PR-4 (Cloudflare R2) lands, this volume becomes a development/fallback
-target only — production uploads go directly to R2.
+## PostgreSQL and observability
 
-## Postgres tuning
+Compose configures `idle_in_transaction_session_timeout=30000` and per-service
+connection pools of 10. A managed production provider needs equivalent tuning
+and capacity planning applied through its own configuration; local Compose
+does not configure that provider.
 
-A leaked `DbContext` or a client that crashes mid-transaction can hold a
-Postgres connection open indefinitely. Combined with the per-service pool
-sizing (`Maximum Pool Size=10`, see T4.4), that quickly starves the pool
-and surfaces as cascading `npgsql` timeouts on unrelated requests.
+OTLP uses the exporter protocol configured by the .NET library defaults
+(gRPC here); choose a compatible collector endpoint. Loki is optional.
+[`observability.md`](../../docs/observability.md) explains configuration
+precedence, emitted instruments and collector-dependent query examples.
+`gateway.fly.toml` declares a reserved `/metrics` scrape path, but no
+Prometheus scrape endpoint is registered in gateway startup.
 
-T4.5 applies `idle_in_transaction_session_timeout = 30 s` at the Postgres
-side as the backstop:
+## Related references
 
-- **Local (docker-compose)** — wired into the `postgres` service `command`
-  in `docker-compose.yml`: `-c idle_in_transaction_session_timeout=30000`.
-- **Fly Postgres** — apply once per cluster:
-
-  ```bash
-  flyctl postgres config update \
-    --app planora-postgres \
-    --idle-in-transaction-session-timeout 30000
-  ```
-
-  Confirm with `flyctl postgres config show --app planora-postgres`. The
-  setting persists across machine restarts and rolls automatically across
-  replicas.
-
-30 s leaves plenty of headroom for legitimate long-running batches (the
-nightly outbox cleanup, the avatar re-encode worker) while bounding the
-worst-case starvation window for the synchronous request pool.
-
-## Notes
-
-- **Internal traffic** uses Fly's `<app>.internal:443` `.flycast` hostnames
-  with mTLS terminated by Fly proxy. gRPC service-key validation runs on top
-  of this (defense in depth until SPIFFE/SPIRE lands per Phase 3 T3.1).
-- **Health probes** use the `/health/live` and `/health/ready` endpoints
-  shipped in commit `1bb1df2`. Liveness restarts a wedged machine;
-  readiness holds traffic off while dependencies warm up.
-- **Auto-stop** is enabled for non-edge apps so idle machines spin down.
-  The Gateway has auto-stop disabled (always-on edge).
-- **Region** defaults to `ams` (Amsterdam) as the primary. Add a secondary
-  later with `flyctl regions add <code> --app planora-<app>`.
+- [Deployment](../../docs/deployment.md)
+- [Production baseline](../../docs/production.md)
+- [Operations](../../docs/OPERATIONS.md)
+- [Audit](../../docs/audits/2026-10-06.md)

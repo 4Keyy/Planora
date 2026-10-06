@@ -1,156 +1,128 @@
 # Production Deployment Baseline
 
-This document formalizes the production baseline for Planora. It is a deployment specification and readiness checklist based on confirmed repository artifacts, not evidence that a production environment already exists.
+This is a release specification and acceptance checklist based on repository
+artifacts. It does not assert that the current checkout has been deployed or
+that its configured infrastructure accounts exist. The [2026-10-06 audit](audits/2026-10-06.md)
+records concrete code, migration and workflow gaps that must be resolved first.
 
-Confirmed artifacts:
+## Committed target and missing pieces
 
-- `docker-compose.yml` — local/container topology for backend services and infrastructure.
-- `Services/*/Dockerfile` and `Planora.ApiGateway/Dockerfile` — backend image build contexts.
-- `Planora.ApiGateway/ocelot.Docker.json` — gateway routing by Docker service names.
-- `.github/workflows/ci.yml` — validation CI.
-- `.github/workflows/e2e.yml` — Docker-backed Playwright e2e workflow for auth/todos/sharing/hidden.
-- `.env.production.example` — production secret/config key template.
-
-Not found in the repository:
-
-- Kubernetes manifests, Helm chart, Terraform, Pulumi, CloudFormation, Ansible, or systemd units.
-- Production reverse-proxy config for Nginx, Traefik, Caddy, Envoy, or a cloud load balancer.
-- Automated deployment workflow that pushes images or promotes releases.
-
-## Target Runtime Shape
+The selected backend platform is Fly.io. Nine manifests, app creation and
+secret staging scripts, a migration CLI and `.github/workflows/cd.yml` are
+committed. The CD workflow requests blue/green service deployments after a
+migration step, then gateway deployment and health smoke. There is no committed
+production frontend target, Kubernetes/Helm or Terraform stack, complete
+database restore drill, or separate outbox-worker implementation.
 
 ```mermaid
 flowchart LR
-    browser["Browser / Next.js client"] --> tls["HTTPS edge / reverse proxy"]
-    tls --> gateway["Planora.ApiGateway"]
-    gateway --> auth["Auth API"]
-    gateway --> todo["Todo API"]
-    gateway --> category["Category API"]
-    gateway --> messaging["Messaging API"]
-    gateway --> realtime["Realtime API / SignalR"]
-    todo --> authGrpc["Auth gRPC / friendship lookup"]
-    todo --> categoryGrpc["Category gRPC"]
-    auth --> postgres["PostgreSQL"]
-    todo --> postgres
-    category --> postgres
-    messaging --> postgres
-    auth --> redis["Redis"]
-    todo --> redis
-    category --> redis
-    messaging --> redis
-    realtime --> redis
-    auth --> rabbit["RabbitMQ"]
-    todo --> rabbit
-    category --> rabbit
-    messaging --> rabbit
-    realtime --> rabbit
+    browser[Browser] --> frontend[Next.js hosting: unresolved]
+    browser --> gateway[HTTPS gateway]
+    gateway --> auth[Auth]
+    gateway --> category[Category]
+    gateway --> todo[Todo]
+    gateway --> collaboration[Collaboration]
+    gateway --> messaging[Messaging]
+    gateway --> realtime[Realtime]
+    todo --> auth
+    todo --> category
+    collaboration --> auth
+    collaboration --> todo
+    messaging --> auth
+    auth --> pg[(PostgreSQL)]
+    category --> pg
+    todo --> pg
+    collaboration --> pg
+    messaging --> pg
+    realtime --> pg
 ```
 
-## Required Production Decisions
+The diagram shows logical API/data relationships; actual network exposure,
+TLS, listener protocols, private addressing, Redis and RabbitMQ dependencies
+must be validated from effective deployment configuration.
 
-| Area | Required decision | Repository evidence |
+## Required runtime configuration
+
+| Area | Acceptance requirement | Source |
 |---|---|---|
-| Hosting | Choose the runtime platform for backend containers and frontend Next.js. | Dockerfiles exist for backend/gateway; frontend is not in `docker-compose.yml`. |
-| TLS | Terminate HTTPS before the gateway and frontend. | Auth cookies are issued with `Secure` enabled in every non-development environment (`!IWebHostEnvironment.IsDevelopment()`) in `AuthenticationController.cs`, so HTTPS must actually be terminated upstream for the cookie to be transmitted safely. |
-| Secrets | Store secrets in a managed secret store, not in committed files. | `docker-compose.yml` requires secret interpolation; `.env.example` and `.env.production.example` are templates only. |
-| Network exposure | Keep PostgreSQL, Redis, RabbitMQ AMQP, and internal service ports private. | Compose exposes local infra ports for development convenience. |
-| Database schema | Decide whether production uses generated migrations or the first-run model bootstrap path. | `DatabaseStartup.EnsureReadyAsync` applies migrations when present and falls back to `EnsureCreatedAsync` when none exist. |
-| Backups | Define PostgreSQL backup, restore, and retention policy. | PostgreSQL stores four service databases. |
-| Observability | Define logs/metrics/traces sinks and alerting. | Services use logging/health checks; no production sink config is committed. |
-| Rollback | Version images and define rollback behavior around DB migrations. | CI validates but does not deploy or promote images. |
+| Public origins | Concrete frontend/gateway HTTPS origins; frontend API values fixed at build time | `frontend/next.config.js`, `frontend/src/lib/config.ts` |
+| Cookie transport | HTTPS and Auth `Security:RequireHttps` enabled/default-secure | `AuthenticationController.cs` |
+| Identity | Identical issuer, audience and JWT signing secret at gateway/services | `JwtAuthenticationExtensions.cs`, service startup |
+| Internal RPC | Shared service key; working Auth/Category/Todo HTTP/2 endpoints | `GrpcContracts/Protos`, gRPC clients/interceptors |
+| Listener ports | Effective Kestrel endpoints match Fly internal ports | Service `appsettings.json`, `deploy/fly/*.fly.toml` |
+| Gateway routes | Production Ocelot targets point to actual service hosts | `Planora.ApiGateway/Program.cs`, route files |
+| Databases | Six separately owned schemas/databases when durable Realtime is enabled | `docs/database.md` |
+| Distributed limiting | Configure Redis in services; account for gateway in-memory limiter and middleware order | `docs/auth-security.md` |
+| CORS | Explicit frontend allow-list; no development LAN wildcard assumption | Gateway/service startup |
+| Forwarded headers | Gateway known-proxy array of literal IP addresses; current parser does not accept CIDR | `Planora.ApiGateway/Program.cs` |
+| Email | SMTP provider/credentials/sender and correct `Frontend__BaseUrl` | Auth EmailOptions/EmailService |
+| Uploads | Persistent and writable storage at the path the avatar writer actually uses | Auth profile-picture handlers, `auth.fly.toml` |
+| Monitoring | Compatible OTLP endpoint/protocol and optional Loki; collector access controls | `docs/observability.md` |
 
-## Minimal Production Checklist
+Use [Configuration](configuration.md) and [Secrets](secrets-management.md) for
+key names. Example env files are not secret stores and are not automatically
+applied by Fly. `Start-Planora-Local.ps1 -Prod` is a LAN simulation which disables
+secure-cookie enforcement for plain HTTP; it is not a production deployment recipe.
 
-- Build immutable images for `api-gateway`, `auth-api`, `todo-api`, `category-api`, `messaging-api`, and `realtime-api`.
-- Host the frontend separately or add a production frontend image/process.
-- Inject all required secrets from a secret manager or CI/CD secret store.
-- Use one identical JWT signing secret across gateway and every backend service.
-- Set `ASPNETCORE_ENVIRONMENT=Production`.
-- Set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_API_GATEWAY_URL` to the public gateway origin.
-- Set `Frontend__BaseUrl` to the public frontend origin so email verification links point to the right UI.
-- Configure real email delivery for Auth API if users must receive verification/reset emails. For Gmail SMTP set `Email__Provider=GmailSmtp`, `Email__Username`, and `Email__Password` as secrets; keep `Email__Password` out of committed files.
-- Set CORS using `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, and so on.
-- Expose only the HTTPS edge publicly; keep databases, cache, broker, gRPC, and service-to-service HTTP private.
-- Verify gateway health endpoints after deployment:
+## Database rollout acceptance
 
-```bash
-curl -fsS https://api.example.com/health
-curl -fsS https://api.example.com/auth/health
-curl -fsS https://api.example.com/categories/health
-curl -fsS https://api.example.com/todos/health
-curl -fsS https://api.example.com/messaging/health
-curl -fsS https://api.example.com/realtime/health
-```
+1. Resolve the missing initial Todo migration and validate a clean database.
+2. Establish a tracked migration history for services currently bootstrapped by
+   `EnsureCreatedAsync`; an existing model-created database needs a deliberate
+   baseline strategy. Do not equate model creation with schema upgrades.
+3. Repair and build the migrator Docker image with all six project dependencies.
+4. Provide every selected connection string, including Realtime, to the runner.
+5. Run `--all --list-pending` against the intended environment, inspect migration
+   IDs and SQL artifacts, then apply the reviewed release.
+6. Verify application/schema compatibility before admitting traffic. Startup
+   migrations remain active in five service hosts; CD has not disabled them.
+7. Keep backup/restore evidence and a tested forward-fix or compatible image
+   rollback path. The runner's missing-history guard is not a model drift audit.
 
-## Image Build Order
+See [Deployment blockers](deployment.md#confirmed-rollout-blockers) and
+[Database governance](database.md). The migration artifact job itself currently
+needs tool/build/matrix corrections; its existence is not proof of valid SQL.
 
-The backend Dockerfiles build from the repository root. A deployment pipeline should build from the same root context:
+## Release verification
 
-```bash
-docker build -f Planora.ApiGateway/Dockerfile -t planora/api-gateway:<version> .
-docker build -f Services/AuthApi/Planora.Auth.Api/Dockerfile -t planora/auth-api:<version> .
-docker build -f Services/CategoryApi/Planora.Category.Api/Dockerfile -t planora/category-api:<version> .
-docker build -f Services/TodoApi/Planora.Todo.Api/Dockerfile -t planora/todo-api:<version> .
-docker build -f Services/MessagingApi/Planora.Messaging.Api/Dockerfile -t planora/messaging-api:<version> .
-docker build -f Services/RealtimeApi/Planora.Realtime.Api/Dockerfile -t planora/realtime-api:<version> .
-```
+Before promotion, record image/ref, effective non-secret settings, migration
+IDs, test reports, operator and observation window. Successful health responses
+are necessary but insufficient, particularly for the empty gateway/Realtime
+health-check registrations.
 
-`<version>` should be a release tag or immutable commit SHA. Do not deploy mutable `latest` tags as the rollback target.
+- Probe every host and gateway service alias; inspect service logs.
+- Exercise register, verification link, login, refresh, logout and revocation.
+- Confirm cookies and CSRF behavior on the chosen real origins.
+- Create category/task and validate list/detail/update persistence.
+- Exercise owner, accepted friend, unrelated user, hidden viewer and revoked
+  participant cases using the [authorization audit](security-idor-coverage.md).
+- Validate comments/replies/subtasks, notification REST reads and SignalR push.
+- Validate avatar upload/static serving after restart and after a new deploy.
+- Confirm actual trace/log/metric arrival and inspect collector label names.
+- Confirm database backup restoration in an isolated environment.
 
-## Schema And Migration Policy
+The audit identified access-check gaps and two failing backend password-reset
+tests. Those remain application/test work; documentation changes do not close
+them or establish release readiness.
 
-Today's behavior: Auth, Todo, Category, and Messaging initialize schema during startup. If EF migrations exist in the service assembly, startup applies pending migrations. If no migrations exist, startup creates schema from the current EF model.
+## Rollback and incident handling
 
-The **chosen production migration runner is [`tools/Planora.Migrator/`](../tools/Planora.Migrator/)** — a standalone CLI that applies pending EF Core migrations for the four DB-owning services without running the full service host. On Fly.io the runner is invoked as a one-shot `flyctl machine run --rm planora-migrator -- --all` before each service rollout. The `__EFMigrationsHistory` lookup guard in `dotnet ef migrations script --idempotent` (also produced as a per-PR artifact by [`.github/workflows/migrations.yml`](../.github/workflows/migrations.yml)) makes re-running the same script a no-op.
+Use immutable release references/images. Blue/green service deployment does
+not roll back database changes, secrets, uploads or a frontend deployed
+elsewhere. Document the last compatible schema/image pair, required restore
+procedure, credentials rotation impact and verification steps before promoting.
+CD has no dedicated manual rollback workflow. Dispatching an older ref is a
+new deployment and still runs the migrator unless explicitly skipped; inspect
+schema compatibility before doing so.
 
-| Policy | When to use | Tradeoff |
-|---|---|---|
-| First-run model bootstrap | Local Docker installs and throwaway environments without migration files. | Fast and simple; not an auditable migration history. |
-| Startup migrations (current default) | Today's path until the CD pipeline lands; safe for single-replica rollouts. | Multi-replica rollouts race the migration history. |
-| Pre-deploy migration job via `Planora.Migrator` (target state) | Production / staging with multiple replicas. | Requires the CD workflow to invoke the migrator before each service rollout; covered by [`INV-FLOW-4`](INVARIANTS.md) once cutover happens. |
+## Outstanding production decisions
 
-Code references:
-
-- `Services/AuthApi/Planora.Auth.Api/Program.cs`
-- `Services/TodoApi/Planora.Todo.Api/Program.cs`
-- `Services/CategoryApi/Planora.Category.Api/Program.cs`
-- `Services/MessagingApi/Planora.Messaging.Api/Program.cs`
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs`
-
-## Release Verification
-
-After deployment:
-
-1. Run health checks through the public gateway.
-2. Register a temporary user through the frontend.
-3. Confirm email verification link generation uses the production frontend origin.
-4. Login and confirm the refresh token is stored only as an httpOnly cookie.
-5. Create categories and todos.
-6. Verify shared todo hidden viewer behavior with an accepted friend account.
-7. Check logs for unhandled exceptions, failed gRPC calls, and RabbitMQ connection errors.
-
-The automated CI equivalent for the critical sharing/hidden path is `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts`.
-
-## Rollback Guidance
-
-The repository does not include an automated rollback workflow. A production deployment should define:
-
-- immutable image tags for every service;
-- a compatible database migration plan for each release;
-- backup before irreversible migrations;
-- rollback order for gateway, services, and frontend;
-- smoke/e2e checks after rollback.
-
-Do not roll back application images across incompatible database migrations without a tested restore path.
-
-## Production Gaps To Track
-
-| Gap | Why it matters | Current status |
-|---|---|---|
-| No production frontend deployment target | Users need a defined Next.js hosting strategy. | Still open. Vercel / Fly machines for Next.js are both candidates. |
-| No reverse-proxy/TLS config | Cookies, CORS, WebSocket forwarding, and HTTPS behavior depend on the edge. | Fly.io proxy terminates TLS for every app; cookie `Secure` is set via `!IsDevelopment()`. |
-| No deployment workflow | CI validates but does not publish or promote images. | [`deploy/fly/*.fly.toml`](../deploy/fly/) define the shape; the corresponding `flyctl deploy` CD workflow is the next deliverable. |
-| Migrator not yet invoked by CD | Without it, production multi-replica rollouts can race the migration history. | [`tools/Planora.Migrator/`](../tools/Planora.Migrator/) is committed; cutover happens when the CD workflow lands and disables startup migration. |
-| OTLP exporter inactive | Traces and metrics are produced in-process but not exported. | Set `OTEL_EXPORTER_OTLP_ENDPOINT` (and `OTEL_EXPORTER_OTLP_HEADERS` where required) on every Fly app to activate. |
-| No secret manager integration | Production should not depend on a plaintext `.env` file. | Adopt Fly secrets / Doppler / Vault before the first production deploy; document the choice in [`secrets-management.md`](secrets-management.md). |
-| No backup/restore playbook | PostgreSQL is the durable system of record. | Define snapshot schedule (Neon point-in-time or Fly Postgres volume snapshots), restore drill, and `pg_dump` cadence before going live. |
+| Decision / gap | Evidence needed to close it |
+|---|---|
+| Next.js hosting and deployment | Working build/start, origin config, TLS and deploy rollback |
+| Fly public/private service exposure | Allocated addresses and verified effective networking; manifest comments are insufficient |
+| Avatar persistence path | Upload/redeploy/serve test against the mounted volume |
+| PostgreSQL backup and retention | Provider policy plus successful restore drill |
+| Operational dashboards and SLOs | Exported metric samples, deployed rules and routing of alerts |
+| Worker extraction | Implemented worker project and controlled ownership transfer; current manifest is reserved |
+| Authorization and event reliability gaps | Reviewed code/test changes addressing the audit findings |
