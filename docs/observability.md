@@ -8,7 +8,7 @@ ship with the repository.
 The pipeline is intentionally **safe-by-default**: with no environment
 variables set, every service produces traces and metrics in-process but no
 exporter is registered — there are no background connections, no log noise,
-and no behaviour change. Activation is a single secret set per app.
+and no behaviour change. Configuration is read at process startup; activating an exporter needs a compatible endpoint and a restart/deploy. The gateway and Auth use separate Serilog startup wiring, so the shared Loki extension is not automatically active there.
 
 ## The Three Signals
 
@@ -16,7 +16,7 @@ and no behaviour change. Activation is a single secret set per app.
 |---|---|---|---|
 | Traces | `AddPlanoraTelemetry` registers ASP.NET Core / HttpClient / EF Core / wildcard `Planora.*` `ActivitySource` instrumentation. The frontend axios interceptor emits a W3C `traceparent` on every outbound request. | None (recorded in-process only). | Set `OTEL_EXPORTER_OTLP_ENDPOINT` on every Fly app. |
 | Metrics | Same extension wires ASP.NET Core / HttpClient / Runtime instrumentation plus the `PlanoraMetrics` wildcard meter (`Planora.BuildingBlocks`). | None. | Same secret as traces — OTLP carries both. |
-| Logs | Serilog with correlation / span / operation / service-name enrichers writes to console + per-day rolling files. | Local disk + console. | Set `LOKI_URL` (plus `LOKI_USER` and `LOKI_TOKEN` for Grafana Cloud) on every Fly app. |
+| Logs | Serilog with correlation / span / operation / service-name enrichers writes to console + per-day rolling files. | Local disk + console. | Set Loki configuration on hosts using the shared Serilog setup; verify actual startup wiring before expecting Auth/gateway export. |
 
 ## End-to-end Trace Path
 
@@ -48,37 +48,44 @@ auto-subscribed by `AddPlanoraTelemetry`:
 |---|---|---|---|
 | `planora.csrf.rejections` | Counter | `{rejection}` | `reason ∈ {missing_header, missing_cookie, mismatch}` |
 | `planora.grpc.unauthenticated` | Counter | `{rejection}` | `reason ∈ {missing_key, short_key, mismatch}` |
-| `planora.outbox.messages` | Counter | `{message}` | `outcome ∈ {processed, failed, type_not_found, deserialize_failed, retry_exhausted}`. The four non-`processed` outcomes are also the dead-letter signal — `type_not_found` and `deserialize_failed` are immediate dead-letter (no retry budget consumed); `retry_exhausted` is the transient-failure path that ran out of attempts (RetryCount = 3). `failed` is a still-recoverable transient failure with retries remaining. |
+| `planora.outbox.messages` | Counter | `{message}` | `outcome ∈ {processed, failed, type_not_found, deserialize_failed, retry_exhausted}`. The non-`processed` outcomes distinguish failures — `type_not_found` and `deserialize_failed` are immediate dead-letter (no retry budget consumed); `retry_exhausted` is the transient-failure path that ran out of attempts (RetryCount = 3). `failed` is a still-recoverable transient failure with retries remaining. |
 | `planora.outbox.batch.duration` | Histogram | `s` | (none) |
 | `planora.outbox.message.age` | Histogram | `s` | (none) — the backpressure signal |
-| `planora.avatar.uploads` | Counter | `{upload}` | `outcome ∈ {success, rejected_size, rejected_mime, rejected_content, not_authenticated, user_missing}`. Use the four `rejected_*` outcomes for "is an attacker probing the upload endpoint?" alerting (`rejected_mime` spikes = polyglot attempts; `rejected_size` spikes = DoS attempts). |
+| `planora.avatar.uploads` | Counter | `{upload}` | `outcome ∈ {success, rejected_size, rejected_mime, rejected_content, not_authenticated, user_missing}`. Use the three `rejected_*` outcomes for "is an attacker probing the upload endpoint?" alerting (`rejected_mime` spikes = polyglot attempts; `rejected_size` spikes = DoS attempts). |
 | `planora.avatar.variant.bytes` | Histogram | `By` | `size ∈ {small, medium, large}` — the WebP variant emitted by `ImageSharpImageProcessor`. Use p95 to catch encoder regressions or unexpectedly large variants. |
+| `planora.cache.operations` | Counter | `{operation}` | `prefix`, `outcome ∈ {hit_l1, hit_l2, miss, error}` |
+| `planora.retention.rows_deleted` | Counter | `{row}` | `policy` |
+| `planora.retention.tripwire` | Counter | `{trip}` | `policy` |
+| `planora.retention.errors` | Counter | `{error}` | `policy` |
+| `planora.retention.run.duration` | Histogram | `s` | `policy` |
 
 The cardinality budget is bounded by design: every tag value is from a
 finite enumeration. No user-ids, IP addresses, or raw error strings ever
 become metric labels. This is locked in by [`INVARIANTS.md`](INVARIANTS.md)
 `INV-OBS-6`.
 
-## Activating Traces and Metrics (Grafana Cloud OTLP)
+## Export protocol and collector contract
 
-Grafana Cloud's OTLP gateway accepts traces, metrics, and logs over one
-endpoint with HTTP basic auth. Get the values from
-**Stack → Connections → OTLP** in the Grafana Cloud dashboard.
+`TelemetryConfiguration` chooses `OpenTelemetry:OtlpEndpoint` first and the standard `OTEL_EXPORTER_OTLP_ENDPOINT` only as a fallback. It sets endpoint but does not select HTTP/protobuf: the current OTLP exporter default is gRPC. An arbitrary Grafana HTTP `/otlp` URL is therefore not a verified working configuration. Supply a gRPC-compatible collector/provider endpoint or deliberately configure/test the required exporter protocol. `OTEL_EXPORTER_OTLP_HEADERS` is consumed through exporter options rather than custom parsing in Planora.
+
+PromQL names below are collector-dependent examples. Verify the actual exported metric names, resource-to-label mapping and `http.route` values before installing dashboards/alerts. Ocelot catch-all route labels are not guaranteed to equal the raw request path. No production collector run was performed during this documentation audit.
+
+## Activating Traces and Metrics
+
+Use a compatible collector endpoint; this example assumes a provisioned OTLP gRPC listener:
 
 ```powershell
-# Per-app, repeat for every Planora Fly app:
-flyctl secrets set `
-  OTEL_EXPORTER_OTLP_ENDPOINT="https://otlp-gateway-prod-eu-west-0.grafana.net/otlp" `
-  OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic $base64TenantToken" `
-  --app planora-<name>
+$env:OTEL_EXPORTER_OTLP_ENDPOINT = 'http://otel-collector:4317'
+# Set OTEL_EXPORTER_OTLP_HEADERS through the deployment secret store if required.
 ```
 
-…where `$base64TenantToken = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("$instanceId:$apiToken"))`.
-The Grafana Cloud setup page provides the literal value if you prefer to
-copy it.
+Do not copy credentials into documentation or shell history. If a provider needs
+an encoded basic-auth value, use `${instanceId}:${apiToken}` interpolation when
+building it in PowerShell; `$instanceId:$apiToken` is not a safe variable parse.
+Endpoint changes require process restart and actual collector verification.
 
-When `OTEL_EXPORTER_OTLP_ENDPOINT` is absent, the pipeline silently runs
-without an exporter — there is no fallback, no half-broken state.
+When neither the configuration endpoint nor its environment fallback is set,
+no OTLP exporter is registered. The optional console exporter has its own flag.
 
 ## Activating Centralized Logs (Grafana Cloud Loki)
 
@@ -99,7 +106,7 @@ Emitted labels: `service_name`, `environment`. Per-request labels are
 deliberately absent so a per-stream-billed backend is not blindsided by
 high cardinality.
 
-Configuration keys (also read from `appsettings*.json`):
+Configuration keys are checked first; non-null config values override the plain environment fallback, including an empty string. Standard ASP.NET nested environment overrides such as `Serilog__Loki__Url` enter that configuration layer:
 
 | Key | Env-var fallback | Purpose |
 |---|---|---|
@@ -211,34 +218,16 @@ week of production data.
       bad actor should be capped quickly; sustained noise means either
       many compromised tokens or a misbehaving client.
 
-- alert: PlanoraOutboxDeadLetter
-  expr: |
-    increase(planora_outbox_messages_total{outcome="dead_lettered"}[5m]) > 0
-  for: 1m
-  labels:
-    severity: critical
-  annotations:
-    summary: |
-      An outbox message terminally dead-lettered. Unlike
-      `PlanoraOutboxPoison` (which fires on the four retry-related
-      outcomes), this catches anything that lands in the explicit
-      DeadLettered terminal state from PR-4 of the outbox state-machine
-      fix (commit 4837bb4). Operator action: inspect the row, fix the
-      handler, requeue via the admin endpoint (when it lands).
 ```
 
 ## Sensitive Data Considerations
 
 - **PII in EF Core span attributes** — `OpenTelemetry:Tracing:CaptureDbStatementText`
-  defaults to `true` so SQL text is captured. Parameter values may contain
+  defaults to `false`; SQL text capture must be deliberately enabled. Parameter values may contain
   PII (user emails, login attempts). Restrict the trace backend's reader
-  scope or set the flag to `false` if the backend is not trusted with
-  that data.
-- **Authorization headers in logs** — the Gateway and every service
-  explicitly suppress bearer tokens from Serilog output; passwords and
-  TOTP codes are scrubbed at the validator boundary. The Loki sink
-  inherits this — there is no separate redaction layer for logs.
-- **Probe traffic** — every `/health*` path is filtered out of request
+  scope and leave the flag disabled when collection is unnecessary.
+- **Sensitive log content** — shared logging is not a universal redaction guarantee. Auth `Email__Provider=Log` writes verification/reset links with tokens for development. Inspect event payloads and restrict log readers/retention; do not assume FluentValidation scrubs log data.
+- **Probe traffic** — paths starting with the `/health` segment are filtered out of request
   tracing so liveness/readiness probes do not flood the trace backend.
   Health metrics are still emitted via the standard request-count counter,
   unfiltered, because their cardinality is bounded.
@@ -246,10 +235,9 @@ week of production data.
 ## Common Operational Questions
 
 **Q: I set OTEL_EXPORTER_OTLP_ENDPOINT and still see no traces — why?**
-A: Restart the affected Fly app (`flyctl machine restart --app planora-<name>`).
+A: Restart the affected Fly app (`flyctl machine restart <machine-id> --app planora-<name>`).
 The OpenTelemetry resource is built at startup, so endpoint changes
-require a restart. Verify the URL via
-`flyctl secrets list --app planora-<name>`. If the endpoint requires basic
+require a restart. Confirm the configured key exists with `flyctl secrets list --app planora-<name>`; that command lists names/digests, not endpoint values. Verify effective non-secret configuration separately. If the endpoint requires basic
 auth (Grafana Cloud does), `OTEL_EXPORTER_OTLP_HEADERS` must contain a
 properly base64-encoded `Authorization=Basic` value.
 
@@ -266,10 +254,7 @@ calling the extension with a non-empty, distinct service name and not
 relying on an env-var default.
 
 **Q: How do I correlate logs and traces in Grafana Cloud?**
-A: Every log line carries `TraceId` and `SpanId` properties through the
-Serilog enrichers in `BuildingBlocks/.../Logging`. In Grafana Cloud, the
-"Trace to logs" data-link picks them up automatically when both data
-sources point at the same instance. No code change required.
+A: Inspect actual log fields from the affected host and sink. A request Activity can supply trace/span IDs, but not every background/startup log has a request context, and Auth/gateway logging differs from the shared setup. Configure Grafana derived fields/data links against the emitted fields; correlation is not guaranteed by sharing an account.
 
 ## Code References
 

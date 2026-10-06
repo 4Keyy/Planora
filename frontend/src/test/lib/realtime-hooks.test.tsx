@@ -72,6 +72,16 @@ describe("useFeedSync", () => {
 })
 
 describe("useBranchRoom", () => {
+  // A branch is only ever opened from inside an authenticated session, so the happy
+  // path has to seed one. This test did not, and still passed — which is how the hook
+  // came to be the one realtime entry point with no auth check at all.
+  beforeEach(() => {
+    useAuthStore.setState({ isAuthenticated: true, accessToken: "tok" })
+  })
+  afterEach(() => {
+    useAuthStore.setState({ isAuthenticated: false, accessToken: undefined })
+  })
+
   it("joins the room, forwards only matching-task events, and leaves on unmount", async () => {
     const handler = vi.fn()
     const { unmount } = renderHook(() => useBranchRoom("task-1", handler))
@@ -94,6 +104,51 @@ describe("useBranchRoom", () => {
   it("is a no-op without a task id", () => {
     renderHook(() => useBranchRoom(null, vi.fn()))
     expect(rt.joinTask).not.toHaveBeenCalled()
+  })
+
+  // ── The forever-retry regression ──────────────────────────────────────────
+  //
+  // This hook starts the connection itself rather than waiting for
+  // useRealtimeLifecycle, which made it the only realtime entry point that never
+  // checked for a session. With no token, accessTokenFactory returns "", the
+  // handshake fails, and the client's own backoff retries at 2s/5s/10s/30s FOREVER,
+  // logging a warning each round. Invisible on a guarded route; a permanent
+  // background loop on a public one.
+
+  it("does not touch the socket without an authenticated session", async () => {
+    useAuthStore.setState({ isAuthenticated: false, accessToken: undefined })
+
+    renderHook(() => useBranchRoom("task-1", vi.fn()))
+    await act(async () => { await Promise.resolve() })
+
+    expect(rt.start).not.toHaveBeenCalled()
+    expect(rt.joinTask).not.toHaveBeenCalled()
+  })
+
+  it("does not touch the socket when authenticated but tokenless", async () => {
+    // The window between hydration and a completed silent refresh.
+    useAuthStore.setState({ isAuthenticated: true, accessToken: undefined })
+
+    renderHook(() => useBranchRoom("task-1", vi.fn()))
+    await act(async () => { await Promise.resolve() })
+
+    expect(rt.start).not.toHaveBeenCalled()
+  })
+
+  it("connects once the session arrives", async () => {
+    useAuthStore.setState({ isAuthenticated: false, accessToken: undefined })
+    const { rerender } = renderHook(() => useBranchRoom("task-1", vi.fn()))
+    await act(async () => { await Promise.resolve() })
+    expect(rt.start).not.toHaveBeenCalled()
+
+    await act(async () => {
+      useAuthStore.setState({ isAuthenticated: true, accessToken: "tok" })
+    })
+    rerender()
+    await act(async () => { await Promise.resolve() })
+
+    expect(rt.start).toHaveBeenCalled()
+    expect(rt.joinTask).toHaveBeenCalledWith("task-1")
   })
 })
 

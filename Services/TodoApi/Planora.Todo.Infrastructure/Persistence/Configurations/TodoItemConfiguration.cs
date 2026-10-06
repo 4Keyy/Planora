@@ -80,6 +80,11 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
             builder.HasIndex(x => new { x.UserId, x.Status, x.IsDeleted, x.CreatedAt })
                 .HasDatabaseName("ix_todo_items_user_status_deleted_created");
 
+            // Retention purge scan: "rows soft-deleted before the grace cutoff", across all users
+            // (IsDeleted equality + DeletedAt range). Lets the daily purge seek instead of full-scan.
+            builder.HasIndex(x => new { x.IsDeleted, x.DeletedAt })
+                .HasDatabaseName("ix_todo_items_isdeleted_deletedat");
+
             // Completed-archive date-range search ("find a task by roughly when it was finished")
             // filters by UserId + Status=Done + IsDeleted=false + a CompletedAt window. All three
             // leading columns are equality predicates and CompletedAt is the range bound, so this

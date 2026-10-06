@@ -1,281 +1,180 @@
 # Deployment
 
-Planora has confirmed local/container orchestration, validation CI, Docker-backed e2e, a production baseline, **Fly.io application manifests** for the chosen production hosting target, and a **standalone migration runner** for governed schema rollouts. A concrete continuous-delivery workflow (`flyctl deploy` from CI on tag) is not yet committed; it is the next deliverable in the engineering roadmap.
+Planora ships Docker Compose for local backend orchestration, Windows launchers,
+validation workflows, Fly.io manifests, and a tag-triggered CD workflow. These
+artifacts describe an intended deployment path; the audited checkout has concrete
+rollout blockers and has not been certified by a production deployment.
 
-## Confirmed Deployment Artifacts
+Read [Production readiness](production.md) before a release, [Operations](OPERATIONS.md)
+for routine commands, and the [2026-10-06 audit](audits/2026-10-06.md) for verification results.
 
-| Artifact | Purpose |
+## Deployment artifacts
+
+| Artifact | Actual role |
 |---|---|
-| `docker-compose.yml` | local multi-service backend + infrastructure |
-| `Services/*/Dockerfile` | backend service images |
-| `Planora.ApiGateway/Dockerfile` | gateway image |
-| `tools/Planora.Migrator/` | one-shot EF Core migration runner CLI + Dockerfile |
-| `deploy/fly/*.fly.toml` | Fly.io app manifests (gateway, auth, category, todo, messaging, realtime, outbox-worker, migrator) |
-| `deploy/fly/README.md` | Fly.io deployment template walkthrough |
-| `Start-Planora-Docker.ps1` | local Docker backend launcher |
-| `.github/workflows/ci.yml` | documentation/backend/frontend validation CI |
-| `.github/workflows/e2e.yml` | Docker-backed Playwright e2e workflow |
-| `.github/workflows/security.yml` | security checks + CycloneDX SBOM artifact |
-| `.github/workflows/migrations.yml` | per-PR idempotent SQL migration script artifact |
-| `.github/workflows/perf-smoke.yml` | on-demand k6 perf scenarios against the Docker stack |
-| `.github/workflows/cd.yml` | tag-driven blue/green continuous delivery to Fly.io |
-| `.github/workflows/openapi.yml` | per-PR OpenAPI document extraction for every HTTP service |
-| `.github/dependabot.yml` | dependency update automation |
-| `deploy/fly/setup.ps1` | idempotent `flyctl apps create` for every Planora app |
-| `deploy/fly/set-secrets.ps1` | reads `deploy/fly/.env.fly` and `flyctl secrets set --stage` per app |
-| `deploy/fly/.env.fly.example` | annotated secret template (`.env.fly` itself is gitignored) |
-| `scripts/Verify-Phase1-Prereqs.ps1` | read-only checker: flyctl auth, per-app secrets, repo build, `FLY_API_TOKEN` |
-| `.env.production.example` | production-oriented secret/config template |
-| `docs/production.md` | production deployment baseline |
-| `docs/secrets-management.md` | secret inventory and rotation guidance |
+| [`docker-compose.yml`](../docker-compose.yml) | PostgreSQL, Redis, RabbitMQ, six backend services, gateway; frontend runs separately |
+| [`Start-Planora-Local.ps1`](../Start-Planora-Local.ps1) | Infrastructure in Docker; backend, gateway and frontend as host processes |
+| [`Start-Planora-Docker.ps1`](../Start-Planora-Docker.ps1) | Infrastructure/backend/gateway in Docker; frontend on host |
+| [`tools/Planora.Migrator/`](../tools/Planora.Migrator/) | EF migration CLI, collaboration backfill and reply-column upgrade |
+| [`deploy/fly/`](../deploy/fly/) | Nine manifests: gateway, six services, migrator, reserved outbox worker |
+| [`deploy/fly/setup.ps1`](../deploy/fly/setup.ps1) | Creates apps discovered from manifests; requires PowerShell 7 |
+| [`deploy/fly/set-secrets.ps1`](../deploy/fly/set-secrets.ps1) | Stages a per-app subset from an ignored env file; requires PowerShell 7 |
+| [`scripts/Verify-Phase1-Prereqs.ps1`](../scripts/Verify-Phase1-Prereqs.ps1) | Limited account/secret/build checks, not a production acceptance test |
+| [`.env.production.example`](../.env.production.example) | Example keys; not loaded automatically by Fly |
 
-The CD workflow ([`.github/workflows/cd.yml`](../.github/workflows/cd.yml)) is committed and ready to run; it is gated on a `FLY_API_TOKEN` repository secret. Until that secret is added, the workflow fails fast at the preflight step with an actionable error message and never touches Fly.io. No Kubernetes / Helm manifests, Terraform IaC, Vercel config, or production reverse-proxy config has been committed.
+## Docker Compose topology
 
-## Docker Compose Topology
+All published ports bind to `127.0.0.1`. Container DNS names only work inside
+`planora-network`; host processes use the published ports instead.
 
-| Service | Image/build | Host port(s) |
+| Compose service | Image / Dockerfile | Host → container |
 |---|---|---|
-| `postgres` | `postgres:16-alpine` | `127.0.0.1:5433 -> 5432` |
-| `redis` | `redis:7-alpine` | `127.0.0.1:6379 -> 6379` |
-| `rabbitmq` | `rabbitmq:3.13-management-alpine` | `127.0.0.1:5672 -> 5672`, `127.0.0.1:15672 -> 15672` |
-| `auth-api` | `Services/AuthApi/Planora.Auth.Api/Dockerfile` | `5031 -> 80` |
-| `category-api` | `Services/CategoryApi/Planora.Category.Api/Dockerfile` | `5281 -> 80`, `5282 -> 81` |
-| `todo-api` | `Services/TodoApi/Planora.Todo.Api/Dockerfile` | `5100 -> 80` |
-| `messaging-api` | `Services/MessagingApi/Planora.Messaging.Api/Dockerfile` | `5058 -> 80` |
-| `realtime-api` | `Services/RealtimeApi/Planora.Realtime.Api/Dockerfile` | `5032 -> 80` |
-| `api-gateway` | `Planora.ApiGateway/Dockerfile` | `5132 -> 80` |
+| `postgres` | `postgres:16-alpine` | `5433 → 5432` |
+| `redis` | `redis:7-alpine` | `6379 → 6379` |
+| `rabbitmq` | `rabbitmq:3.13-management-alpine` | `5672 → 5672`, `15672 → 15672` |
+| `api-gateway` | `Planora.ApiGateway/Dockerfile` | `5132 → 80` |
+| `auth-api` | `Services/AuthApi/Planora.Auth.Api/Dockerfile` | `5031 → 80` |
+| `category-api` | `Services/CategoryApi/Planora.Category.Api/Dockerfile` | `5281 → 80`, `5282 → 81` |
+| `todo-api` | `Services/TodoApi/Planora.Todo.Api/Dockerfile` | `5100 → 80`, `5101 → 81` |
+| `collaboration-api` | `Services/CollaborationApi/Planora.Collaboration.Api/Dockerfile` | `5060 → 80` |
+| `messaging-api` | `Services/MessagingApi/Planora.Messaging.Api/Dockerfile` | `5058 → 80` |
+| `realtime-api` | `Services/RealtimeApi/Planora.Realtime.Api/Dockerfile` | `5032 → 80` |
 
-The frontend is not part of `docker-compose.yml`; launcher scripts run it locally through npm.
+The three named data volumes are `postgres_data`, `redis_data`, and
+`rabbitmq_data`. Both launchers preserve them, including in `-Clean` mode.
+Compose has no frontend service or migrator service.
 
-## Docker Startup
+## Local startup
+
+From the repository root:
 
 ```powershell
 Copy-Item .env.example .env
-# edit .env
+# Replace the example values before launching.
 .\Start-Planora-Docker.ps1
 ```
 
-Manual Compose:
+Compose requires `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `RABBITMQ_USER`,
+`RABBITMQ_PASSWORD`, `JWT_SECRET`, and `GRPC_SERVICE_KEY`. Share the same JWT
+and service-key values across the services. See [Configuration](configuration.md)
+for the distinction between Compose variables and ASP.NET configuration keys.
+
+Manual orchestration:
 
 ```powershell
 docker compose --env-file .env up -d --build
-```
-
-Health check:
-
-```powershell
 docker compose ps
-Invoke-WebRequest http://localhost:5132/health
+docker compose logs todo-api --tail=100
+npm --prefix frontend ci
+npm --prefix frontend run dev
 ```
 
-## Secrets
+**Fresh database caveat:** the tracked Todo migration chain starts with an
+alteration of an existing table; its initial schema migration is absent.
+Startup chooses `MigrateAsync` when any migration exists, so a brand-new Todo
+database cannot be promised to start from the tracked checkout. Reconcile a
+complete migration baseline before following the first-user flow. Do not delete
+an existing database to work around this. See [Database](database.md).
 
-Required secrets:
+## Schema initialization and migration runner
 
-- `POSTGRES_PASSWORD`
-- `REDIS_PASSWORD`
-- `RABBITMQ_USER`
-- `RABBITMQ_PASSWORD`
-- `JWT_SECRET`
-
-Do not commit `.env`; `.env.example` and `.env.production.example` are templates only.
-
-## Service Startup Behavior
-
-Auth, Todo, Category, and Messaging wait for PostgreSQL and Redis, then initialize database schema with retry. If user-owned EF migrations exist, startup applies pending migrations; if no migrations exist, startup creates schema from the current EF model. Realtime waits for Redis and RabbitMQ. Todo and Category subscribe to selected integration events during startup.
-
-> **Migration runner status**: the standalone `Planora.Migrator` CLI (in `tools/Planora.Migrator/`) is the chosen runner for governed production rollouts (see [`docs/database.md`](database.md) "Migration Governance" section). Until the CD pipeline lands and explicitly invokes the migrator before each service rollout, services continue to auto-migrate at startup. After cutover, [`docs/INVARIANTS.md`](INVARIANTS.md) `INV-FLOW-4` enforces the new pattern.
-
-Code:
-
-- `Services/AuthApi/Planora.Auth.Api/Program.cs`
-- `Services/TodoApi/Planora.Todo.Api/Program.cs`
-- `Services/CategoryApi/Planora.Category.Api/Program.cs`
-- `Services/MessagingApi/Planora.Messaging.Api/Program.cs`
-- `Services/RealtimeApi/Planora.Realtime.Api/Program.cs`
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs`
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs`
-
-## CI/CD
-
-CI is validation-only. It does not deploy.
-
-`.github/workflows/ci.yml`:
-
-- lint Markdown;
-- check local Markdown links in offline mode;
-- restore/build/test backend;
-- install/lint/type-check/test/build frontend;
-- upload coverage artifacts.
-
-`.github/workflows/e2e.yml`:
-
-- generates temporary Docker secrets in `.env.e2e`;
-- builds and starts the Compose stack;
-- waits for gateway health endpoints;
-- runs `npm run e2e` in `frontend`;
-- uploads Playwright artifacts;
-- tears down the stack.
-
-`.github/workflows/security.yml`:
-
-- Gitleaks secret scan (default ruleset extended by [`.gitleaks.toml`](../.gitleaks.toml) — Planora-specific detectors for JWT/gRPC/Postgres/Redis/RabbitMQ/Email secret patterns, plus an env-var-interpolation allowlist);
-- CodeQL SAST (C# and JavaScript/TypeScript, `security-extended` query suite);
-- Trivy IaC/Dockerfile misconfiguration scan (SARIF upload);
-- NuGet vulnerability check;
-- npm audit (`--audit-level=high`, blocks merge on HIGH or CRITICAL vulnerabilities);
-- CycloneDX SBOM artifact (`dotnet CycloneDX` + `@cyclonedx/cyclonedx-npm`), uploaded with 90-day retention;
-- weekly schedule.
-
-`.github/workflows/migrations.yml`:
-
-- Matrix-fans across the four DB-owning services (auth, category, todo, messaging);
-- Installs `dotnet-ef` 10.0.8;
-- Runs `dotnet ef migrations script --idempotent` against each service's Infrastructure project, using safe placeholder connection strings purely so the design-time host can boot;
-- Uploads one `.sql` artifact per service with 30-day retention so reviewers see exactly what `Planora.Migrator --all` will execute against production;
-- Triggers on PRs touching `Services/**/Migrations/**`, `Services/**/Persistence/**`, `Services/**/Domain/Entities/**`, `BuildingBlocks/.../Persistence/**`, `tools/Planora.Migrator/**`, `Directory.Packages.props`, or this workflow itself.
-
-`.github/workflows/perf-smoke.yml`:
-
-- `workflow_dispatch` only — load runs are not on every PR;
-- Stands up the same Docker stack the e2e workflow uses (with freshly-generated secrets in `.env.perf`);
-- Waits for gateway health;
-- Installs k6 from the official APT repo;
-- Runs the chosen scenario (`login`, `todo-list`, or `all`);
-- Uploads the k6 summary and raw JSON as a 30-day-retention artifact.
-
-`.github/workflows/cd.yml`:
-
-- Triggers on pushed `v*` tags and on manual `workflow_dispatch` (with optional `ref` and `skip_migrations` inputs);
-- Single-flight via `concurrency: cd-fly-prod` with `cancel-in-progress: false` so a queued tag does not interrupt a deploy in progress;
-- `preflight` job verifies the `FLY_API_TOKEN` repository secret is set and validates every `deploy/fly/*.fly.toml` parses;
-- `migrate` job runs `flyctl machine run --rm planora-migrator -- --all` (skippable via the dispatch input);
-- `deploy-services` matrix deploys auth → category → todo → messaging → realtime in strict serial order (`max-parallel: 1`) with `--strategy bluegreen --wait-timeout 300`;
-- `deploy-gateway` runs LAST so the public edge never points at a half-deployed service;
-- `smoke-test` polls `https://planora-gateway.fly.dev/health/ready` for up to two minutes and fails the workflow if readiness never goes green.
-
-## Production Notes
-
-Production deployment is now formalized as a baseline in [`production.md`](production.md), with secret handling in [`secrets-management.md`](secrets-management.md). It is still not automated by a deployment workflow in the repository. Before deploying beyond local development, define:
-
-| Topic | Required decision |
+| Service | Startup behavior |
 |---|---|
-| TLS | terminate HTTPS and ensure cookies are `Secure` |
-| Secret management | inject secrets through a secret store, not `.env` committed to source |
-| Network exposure | keep RabbitMQ/Redis/PostgreSQL and service-to-service ports private |
-| Frontend hosting | define where Next.js runs and what `NEXT_PUBLIC_API_URL` should be |
-| Database migration policy | decide whether services auto-migrate or migrations run as a deployment step |
-| Observability | configure OpenTelemetry/Serilog sinks beyond console/file |
-| Backup/restore | define PostgreSQL backup schedule and restore playbooks |
-| Rollback | define image versioning and DB migration rollback policy |
+| Auth, Category, Messaging, Collaboration | `DatabaseStartup.EnsureReadyAsync`: migrations if present in the assembly, otherwise `EnsureCreatedAsync` |
+| Todo | Same helper; tracked migrations select `MigrateAsync`, but the initial migration is missing |
+| Realtime | Optional DB registration; no startup schema initialization; migration must be applied separately |
 
-Use [`.env.production.example`](../.env.production.example) as a key template only. Real production values must come from a secret manager or deployment platform secret store.
+The helper does not disable migrations in Production. The existence of a
+pre-deploy migrator step in CD therefore does not imply startup migration is
+disabled. `EnsureCreatedAsync` does not maintain an EF migration history or
+upgrade an already existing schema.
 
-## Health Endpoints
-
-Every backend service and the API Gateway expose three probe endpoints, wired by the shared `MapPlanoraHealthEndpoints` extension in `BuildingBlocks.Infrastructure.Extensions.HealthCheckExtensions`:
-
-| Endpoint | Predicate | Use |
-|---|---|---|
-| `/health/live` | matches health checks tagged `live` (vacuously healthy when none registered) | orchestrator liveness — failure restarts the machine |
-| `/health/ready` | matches health checks tagged `ready` (`AddDatabaseHealthCheck` tags Npgsql with `ready`) | orchestrator readiness — failure holds traffic off this instance |
-| `/health` | aggregate of every registered check | retained for backwards-compatible consumers (docker-compose healthchecks, ad-hoc curl) |
-
-The Gateway additionally routes the per-service aggregate `/health` paths via Ocelot:
-
-```text
-GET /health                  -- gateway aggregate
-GET /health/live             -- gateway liveness
-GET /health/ready            -- gateway readiness
-GET /auth/health
-GET /todos/health
-GET /categories/health
-GET /messaging/health
-GET /realtime/health
-```
-
-Source: `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs`, every `Services/*/Program.cs`, `Planora.ApiGateway/ocelot*.json`.
-
-Fly.io machines use `/health/live` and `/health/ready` for their probes (`deploy/fly/*.fly.toml`).
-
-## Bootstrap workflow — zero to deployable in three commands
-
-A fresh Fly.io org goes from zero to first successful deploy in three
-checked-in PowerShell commands plus the GitHub repository secret. Every
-step is idempotent; rerunning is safe.
+The migrator selects six names: `auth`, `category`, `todo`, `messaging`,
+`realtime`, `collaboration`. It reads ASP.NET connection-string configuration;
+there is no `AUTH_DATABASE`-style fallback in the implementation.
 
 ```powershell
-# 1. Create every Planora app (no-op for apps that already exist)
-.\deploy\fly\setup.ps1 -Org <your-org>
-
-# 2. Fill in deploy/fly/.env.fly from the example template, then stage secrets
-Copy-Item deploy/fly/.env.fly.example deploy/fly/.env.fly
-# edit deploy/fly/.env.fly to fill in real values
-.\deploy\fly\set-secrets.ps1                     # --DryRun to preview
-
-# 3. Add FLY_API_TOKEN to the GitHub repository so cd.yml can run
-flyctl auth token | gh secret set FLY_API_TOKEN
-
-# 4. (optional) verify everything is wired before the first deploy
-.\scripts\Verify-Phase1-Prereqs.ps1
-```
-
-The verification script returns exit code = number of failed checks; it
-is safe to use as a CI gate. With `[OK]` across every line, the next
-`git tag v0.0.1 && git push --tags` (or a `workflow_dispatch` from the
-Actions tab) deploys the entire system through `.github/workflows/cd.yml`.
-
-## Fly.io Deployment Topology
-
-The chosen production hosting target is **Fly.io**. Eight app manifests in [`deploy/fly/`](../deploy/fly/) document the shape:
-
-| App (`fly.toml`) | Role | Concurrency model | Auto-stop |
-|---|---|---|---|
-| `planora-gateway` | Public edge (Ocelot) | requests (soft 200 / hard 500) | off — edge stays warm |
-| `planora-auth` | Internal API | requests (100 / 250) | on |
-| `planora-category` | Internal API + gRPC | requests (100 / 250) | on |
-| `planora-todo` | Internal API + gRPC | requests (100 / 250) | on |
-| `planora-messaging` | Internal API + gRPC | requests (100 / 250) | on |
-| `planora-realtime` | SignalR hub | connections (500 / 1000) | off — long-lived sockets |
-| `planora-outbox-worker` | Reserved for future outbox extraction | — | off |
-| `planora-migrator` | One-shot pre-deploy migration runner | — | (run via `flyctl machine run --rm`) |
-
-Internal addressing uses Fly's `<app>.internal:443` `.flycast` hostnames; gRPC service-key validation runs on top (defense in depth until mTLS via SPIFFE/SPIRE lands). Health probes use `/health/live` + `/health/ready`. Primary region defaults to `ams`.
-
-Required secret matrix per app (set via `flyctl secrets set`):
-
-- Every app: `JwtSettings__Secret`, `GrpcSettings__ServiceKey`, `ConnectionStrings__Redis`, `RabbitMq__HostName`, `RabbitMq__UserName`, `RabbitMq__Password`. Set `OTEL_EXPORTER_OTLP_ENDPOINT` (and `OTEL_EXPORTER_OTLP_HEADERS` if your OTLP collector requires auth) to activate trace + metric export.
-- DB-owning apps: their respective `ConnectionStrings__*Database` value (Neon or Fly Postgres).
-- `planora-auth`: `Email__Password` only when Gmail SMTP delivery is enabled.
-- `planora-todo`, `planora-messaging`: `GrpcServices__AuthApi=https://planora-auth.internal:443`. Todo additionally needs `GrpcServices__CategoryApi=https://planora-category.internal:443`.
-
-Full walkthrough: [`deploy/fly/README.md`](../deploy/fly/README.md).
-
-## Migration Governance
-
-`tools/Planora.Migrator/` ships a console CLI that applies pending EF Core migrations for the four DB-owning services without bringing up the full service host:
-
-```powershell
-# List pending migrations against the connection strings in env vars / appsettings:
+# Configure ConnectionStrings__<Service>Database in the process first.
 dotnet run --project tools/Planora.Migrator -- --all --list-pending
-
-# Apply all pending migrations in dependency order:
+dotnet run --project tools/Planora.Migrator -- --service todo
 dotnet run --project tools/Planora.Migrator -- --all
-
-# Apply only one service, with an explicit override:
-dotnet run --project tools/Planora.Migrator -- --service auth --connection-string "Host=..."
 ```
 
-Exit codes: `0` success, `64` bad arguments, `70` one or more services failed. The Dockerfile builds on `mcr.microsoft.com/dotnet/runtime:10.0` — no ASP.NET surface, non-root `appuser`. On Fly.io the intended invocation is `flyctl machine run --rm planora-migrator -- --all` as the pre-deploy step in the eventual CD pipeline.
+`--list-pending` still connects to the DB. It does not create a migration for a
+service with no compiled migrations. Before applying anything, the runner
+rejects a service if its applied migration history contains IDs absent from the
+compiled migration set. This detects missing historical files, not arbitrary
+schema/model drift. Services are processed independently; `--all` is not a
+transaction spanning six databases. Exit codes: `0` success, `64` invalid
+arguments, `70` one or more service operations failed.
 
-For PR review, [`.github/workflows/migrations.yml`](../.github/workflows/migrations.yml) attaches a per-service idempotent SQL artifact so reviewers see exactly what the migrator will execute.
+Additional operations are `--backfill-collaboration` (Todo and Collaboration
+connections required) and `--upgrade-collaboration-replies` (Collaboration
+connection required). Review and back up affected data before executing them.
 
-## Deployment Risks
+## CI/CD workflow inventory
 
-| Risk | Evidence | Mitigation |
+| Workflow | Trigger / current behavior |
+|---|---|
+| [`ci.yml`](../.github/workflows/ci.yml) | Push on configured branches and PR to main/develop: Markdown/offline links; .NET restore/build/test; frontend npm ci/lint/types/coverage/build |
+| [`e2e.yml`](../.github/workflows/e2e.yml) | Path-filtered PR or manual dispatch: Compose stack, production frontend, Playwright API and Chromium UI projects |
+| [`security.yml`](../.github/workflows/security.yml) | Secret/dependency scanning, CodeQL, Trivy, SBOM; frontend SBOM attested on push |
+| [`openapi.yml`](../.github/workflows/openapi.yml) | Path-filtered PR or manual: Swagger + Spectral; matrix covers Auth, Category, Todo, Messaging, Realtime, omits Collaboration |
+| [`migrations.yml`](../.github/workflows/migrations.yml) | Path-filtered PR or manual: intended SQL artifacts for Auth, Category, Todo, Messaging, Collaboration; omits Realtime |
+| [`perf-smoke.yml`](../.github/workflows/perf-smoke.yml) | Manual k6 login/todo-list scenarios; absolute thresholds, no relative-baseline comparison implementation |
+| [`cd.yml`](../.github/workflows/cd.yml) | `v*` tag or manual ref: preflight, migration runner, service matrix, gateway, public health smoke |
+| [`nuget-vuln-pr.yml`](../.github/workflows/nuget-vuln-pr.yml) | Nightly/manual vulnerability tracking PR; report generation, not package upgrades |
+
+`cd.yml` requires `FLY_API_TOKEN` and serializes production runs with
+`cd-fly-prod`. Its service matrix contains Auth, Category, Todo, Messaging,
+Realtime, Collaboration; `max-parallel: 1` bounds concurrency but does not
+express an explicit dependency DAG or guarantee matrix execution order.
+Gateway deployment waits for the matrix. Blue/green deployment and health smoke
+are requested; database rollback is not automated. Pushing `main` alone does
+not trigger CD.
+
+## Confirmed rollout blockers
+
+| Blocker | Evidence | Required correction before release |
 |---|---|---|
-| No production frontend container | frontend absent from Compose | add deployment target for `frontend` or document external hosting |
-| Cookie `Secure` depends on `!IWebHostEnvironment.IsDevelopment()` | `AuthenticationController.cs` | enforce HTTPS at the Fly proxy / front door so the cookie is actually transmitted over TLS |
-| No CD workflow yet | repository scan | author `.github/workflows/cd.yml` once `FLY_API_TOKEN` is available; use `flyctl deploy --strategy bluegreen --wait-timeout 300` per app |
-| Migrator not yet integrated into CD | `tools/Planora.Migrator/`, `deploy/fly/migrator.fly.toml` | add a pre-deploy step that runs `flyctl machine run --rm planora-migrator -- --all` before any service rollout |
-| OTLP exporter inactive without endpoint | `OTEL_EXPORTER_OTLP_ENDPOINT` unset | set the env var on every Fly app to a Grafana Cloud / Tempo / OTel-collector OTLP gRPC URL |
+| Incomplete Todo migration history | Earliest tracked migration alters `todo.user_todo_view_preferences` | Restore/baseline complete schema history and validate against an empty PostgreSQL DB |
+| Migrator container omits project dependencies | Dockerfile copies four service trees; csproj also references Realtime/Collaboration | Align Docker build context with the actual project-reference graph |
+| Migration artifact job is not self-contained | EF CLI 9.0.15 with EF runtime 10; `--no-build` without a preceding build | Align tool version, build assemblies, include Realtime and validate SQL output |
+| Production gateway uses local targets | `Program.cs` selects `ocelot.Docker.json` only for Docker; Production selects tracked `ocelot.json` with loopback targets | Supply verified production routes and service addresses |
+| Listener/proxy port alignment unverified | Fly `internal_port=8080`; committed Kestrel endpoints use local ports | Configure/test effective Kestrel REST and HTTP/2 endpoints, not just `ASPNETCORE_URLS` |
+| Realtime DB secret omitted | `set-secrets.ps1` lacks RealtimeDatabase in Realtime and migrator matrices | Stage the correct connection on both; apply Realtime migrations |
+| Reserved worker included in manifest validation | Outbox worker manifest refers to absent `tools/Planora.Outbox.Worker/Dockerfile` | Separate reserved topology from runnable deployment inputs |
+| Production frontend target absent | No frontend Dockerfile/Fly app/CD step | Choose and document a concrete Next.js hosting/build path |
+
+The bootstrap scripts and prerequisite checker do not validate these blockers.
+An exit code of zero from that checker is not sufficient release evidence.
+
+## Health endpoints and their limits
+
+All seven HTTP hosts map `/health/live`, `/health/ready`, and `/health` through
+[`HealthCheckExtensions.cs`](../BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs).
+
+| Endpoint | Evaluates | Interpretation |
+|---|---|---|
+| `/health/live` | Checks tagged `live` | With no matching checks, returns healthy; proves HTTP host answers |
+| `/health/ready` | Checks tagged `ready` | Only registered/tagged dependencies; not an end-to-end business test |
+| `/health` | All registered health checks | Aggregate status, default plaintext response |
+
+`AddDatabaseHealthCheck` tags Npgsql as ready. Gateway and Realtime register
+empty health-check sets, so their ready response cannot establish downstream,
+Redis, broker, or notification-schema health. Inspect service registrations
+before treating any probe as a dependency check.
+
+Gateway aggregate aliases include `/auth/health`, `/categories/health`,
+`/todos/health`, `/collaboration/health`, `/messaging/health`, `/realtime/health`.
+Compose probes `/health/ready`; launchers and some workflows probe aggregate
+`/health`. Do not infer notification delivery, permissions or migration
+completeness from a successful gateway probe.
+
+## Related references
+
+- [Fly manifests and script limitations](../deploy/fly/README.md)
+- [Production release acceptance](production.md)
+- [Secrets and rotation](secrets-management.md)
+- [Observability](observability.md)
+- [Testing and current results](testing.md)

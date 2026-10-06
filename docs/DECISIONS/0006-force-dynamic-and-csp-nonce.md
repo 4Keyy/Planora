@@ -1,179 +1,102 @@
-# ADR-0006: `force-dynamic` global + per-request CSP nonce stay until hash-based CSP is wired
+# ADR-0006: Per-request CSP nonces require dynamic HTML in the current frontend
 
-- Status: Accepted
-- Date: 2026-05-28
-- Relates to: frontend rendering strategy and CSP design
-- Supersedes / clarifies: the long-standing open question of whether the
-  `force-dynamic` global on the App Router root layout should be removed.
+- Status: Accepted; implementation rechecked on 2026-10-06
+- Original decision date: 2026-05-28
+- Scope: frontend rendering strategy and script CSP
 
 ## Context
 
-`frontend/src/app/layout.tsx` declares `export const dynamic = "force-dynamic"`.
-The comment in-file explains why:
+`frontend/src/app/layout.tsx` exports `dynamic = "force-dynamic"` for the App
+Router tree. `frontend/src/middleware.ts` creates a new base64 nonce from a
+random UUID for each matched request. It places the nonce in `x-nonce` and the
+CSP on the forwarded request headers, and sets that CSP on the response.
+Next.js uses the request CSP when emitting its own inline framework scripts.
+The layout currently does not read `x-nonce` itself.
 
-> Render every route per-request so the CSP middleware's per-request nonce
-> (`src/middleware.ts`) is applied to Next.js inline scripts. A statically
-> prerendered page cannot carry a per-request nonce, which would leave the
-> strict script-src blocking the framework's own bootstrap scripts.
+Production `script-src` is `'self' 'nonce-{nonce}'`. It permits same-origin
+external scripts and inline scripts carrying the matching nonce; it does not
+include script `'unsafe-inline'` or `'unsafe-eval'`. Development adds
+`'unsafe-eval'`. `style-src` retains `'self' 'unsafe-inline'` for current inline
+styles. See [`auth-security.md`](../auth-security.md) for the complete policy
+and its separate connection/image origin rules.
 
-The middleware (`frontend/src/middleware.ts`) generates a fresh nonce on every
-request, sets it both in the **request** CSP header (Next.js reads it to
-stamp into its inline bootstrap scripts) and the **response** CSP header
-(the browser uses it to allow the nonced scripts). Production CSP is
-`script-src 'self' 'nonce-{nonce}'` — *no* `'unsafe-inline'`.
-
-This setup gives strong XSS resistance: any injected inline `<script>` is
-blocked by the browser because it lacks the per-request nonce. The cost is
-that every route is rendered per-request — Next.js's static optimisation is
-disabled across the entire surface, TTFB pays for SSR on routes that have
-no per-request data, and CDN cacheability of HTML is lost.
-
-The audit flagged this as P0 with the recommendation to "remove the global;
-verify every route renders without nonce-bound script; if a route ever does
-need inline script, add `dynamic = 'force-dynamic'` at that segment."
-
-## The fork in the road
-
-Either the nonce stays (force-dynamic stays), or the nonce goes (CSP must
-switch to **hashes** for inline framework scripts, or relax to
-`'unsafe-inline'`). There is no third path within Next.js's current model:
-
-- **Static prerender + per-request nonce**: not possible. Static HTML is
-  baked at build time; the runtime CSP carries a fresh nonce that does not
-  match the baked-in `nonce-XYZ` attribute. The browser blocks every
-  framework script. Site is unusable.
-- **Static prerender + hash-based CSP**: possible in theory. Next.js's inline
-  framework scripts are deterministic per build; computing their SHA-256
-  hash and inserting `'sha256-...'` into the CSP would let static HTML run
-  with a strict CSP. In practice, Next.js does not expose a stable hash
-  manifest (the hashes change on every build, and there is no first-class
-  API to read them post-build); third-party plugins exist but are immature.
-- **Static prerender + `'unsafe-inline'` for scripts**: trivially possible,
-  trivially worse. Any injected `<script>` runs. This is the pre-CSP web.
+A statically cached HTML response cannot safely be combined with a newly issued
+nonce policy unless its script attributes and policy are made consistent. The
+current repository has no build-generated inline-script hash manifest, HTML
+nonce-rewriting layer or static-route CSP exception. Removing the dynamic
+export alone is therefore not a complete migration.
 
 ## Decision
 
-Keep the `force-dynamic` global **for now**, with a clear sunset condition.
+Keep the root dynamic export and middleware's per-request nonce pipeline
+coupled. Preserve the existing script policy until a replacement is implemented
+and verified against an actual production build.
 
-The trade-off is conscious: we are paying TTFB and CDN cacheability to
-preserve a nonce-only `script-src`, which is the strongest browser-side XSS
-defence Next.js's runtime currently allows. The audit's recommendation to
-ship per-route force-dynamic only on the routes that need it is correct in
-spirit, but in this codebase **every** route needs Next.js framework
-bootstrap scripts to run, and those scripts can only carry a nonce if the
-HTML is rendered per-request. There is no static route exempt from the
-constraint.
-
-We will remove the global when **one** of the following ships:
-
-1. **Hash-based CSP.** A build-time step that produces a stable manifest of
-   the SHA-256 hashes of every inline framework script emitted by Next.js,
-   feeds them into the middleware so the production CSP becomes
-   `script-src 'self' 'sha256-...'` for the framework set plus an
-   optional `'nonce-...'` for routes that need per-request inline. With
-   hashes, static prerender works because the hash does not change per
-   request.
-2. **A future Next.js minor that publishes a first-class hash manifest API.**
-   Tracking issue: [vercel/next.js#xxx] (placeholder — this ADR is updated
-   when a concrete issue exists).
-3. **A deliberate weakening to `'unsafe-inline'`** — explicitly rejected
-   below.
-
-Until then:
-
-- `force-dynamic` stays in `layout.tsx`.
-- The per-request nonce middleware stays.
-- The `style-src 'unsafe-inline'` allowance documented in `middleware.ts`
-  stays — Tailwind + Next.js inject critical CSS as inline `<style>` on
-  SSR, and a nonce on `<style>` does not work without the same hash
-  pipeline. The trade-off is documented as accepted in `middleware.ts`.
-- The audit finding **P0-FORCE-DYNAMIC** is reclassified from "fix
-  immediately" to **"open contingent on hash-CSP work"** in
-  `docs/INVARIANTS.md` and the master plan; this ADR is the contingent.
+This is the repository's current trade-off, not a claim that this policy proves
+absence of XSS or is the strongest possible configuration for every Next.js
+version. CSP supplements output encoding, safe rendering and server-side
+validation; it does not replace them.
 
 ## Consequences
 
-### Positive
+### Security and rendering
 
-- Stable, currently-shipping security posture: nonce-only `script-src` with
-  no `'unsafe-inline'` script allowance. The OWASP A07 (Injection) attack
-  surface stays narrow.
-- One CSP policy across the surface; no per-route exceptions to audit.
-- No regression risk from a partial rollout: the alternative path (per-route
-  force-dynamic) would require manually marking every route that uses any
-  inline script generated by Next.js or by libraries — a class of bug that
-  is silent until the CSP blocks production traffic.
+- Inline framework scripts must receive the same nonce allowed by the response.
+- All routes inherit per-request rendering, including the public landing page.
+- Development and production policies differ, so development-only verification
+  does not establish that production bootstrap/hydration is usable.
+- The inline-style allowance remains broader than the inline-script allowance.
+- Dynamic rendering reduces opportunities for static HTML caching. Exact TTFB,
+  cache-hit ratio and bundle-size effects require dated measurements in the
+  deployed environment; no fixed ratio or universal latency cost is asserted here.
 
-### Negative
+### Current verification scope
 
-- Static optimisation is disabled across the entire app. Every route pays
-  SSR cost even when its data is build-time-knowable.
-- CDN HTML caching is unavailable. HTML cache hit ratio = 0.
-- TTFB on cold-start regions includes the SSR latency for every navigation.
-- Frontend bundle-size auditing cannot rely on static HTML for any route.
+[`frontend/src/test/middleware.test.ts`](../../frontend/src/test/middleware.test.ts)
+checks request/response CSP behavior, nonce presence, origin handling and
+production/development differences.
+[`frontend/src/test/app/template.test.tsx`](../../frontend/src/test/app/template.test.tsx)
+and the route tests exercise selected rendering behavior; they do not prove
+all production inline scripts are allowed by the browser.
 
-These costs are accepted in exchange for the nonce-only `script-src`.
+The Playwright UI project uses a production frontend in CI. It covers selected
+auth/profile/task flows, with skip behavior when the frontend is unreachable;
+it is not a dedicated complete CSP conformance test. Before changing this
+trade-off, inspect actual HTML and response headers, verify hydration under
+production CSP, and check the browser console for blocked framework scripts.
 
-### Risk if violated
+## Revisit conditions
 
-A contributor removing `force-dynamic` without first wiring hash-CSP would
-ship a site that immediately fails to load: every Next.js inline bootstrap
-script would be blocked by the production CSP. CI does not catch this
-today because the production CSP is set by middleware at runtime, not
-checked against build artefacts; a deliberate `playwright` smoke test on
-the static-prerender output is the right tripwire and is tracked alongside
-the eventual hash-CSP migration.
+A replacement must be a reviewable implementation with passing production
+browser checks, for example:
+
+1. A build step derives hashes from the actual inline scripts emitted by the
+   selected Next.js build and supplies a matching strict CSP for static HTML.
+2. A rendering/proxy strategy safely applies matching HTML nonces and headers
+   without sharing one request's nonce with another visitor.
+3. Another explicitly reviewed policy/rendering design preserves the intended
+   protection and supports the routes it makes static.
+
+These are options to investigate, not installed capabilities or completed work.
+There is no concrete upstream issue or hash-manifest dependency recorded in
+this repository. Any future dependency/API claim must be verified against its
+then-current implementation and documentation.
 
 ## Alternatives considered
 
-### A. Remove `force-dynamic`; relax `script-src` to include `'unsafe-inline'`
-
-Trivially possible. Trivially worse: any injected `<script>` runs. This
-removes the primary CSP defence for an application whose threat model
-includes XSS via user-generated content (todo titles, comments,
-notification bodies are all rendered into the DOM).
-
-**Rejected** as a regression in security posture.
-
-### B. Per-route `force-dynamic`; mark only routes that need the nonce
-
-The audit's recommendation. Engineering-wise correct, but in this codebase
-the set of "routes that need the nonce" is the full set of routes — every
-route boots the Next.js framework runtime, which emits inline scripts that
-the production CSP only allows via the nonce. Per-route opt-in delivers
-zero static routes, identical performance to the current global, and
-adds a maintenance burden (every new route must be reviewed for "does
-it touch any inline script?").
-
-**Rejected** until the set of nonce-free routes is non-empty, which only
-happens once hash-CSP lands.
-
-### C. Hash-based CSP today, hand-rolled
-
-Compute SHA-256 hashes of every inline script emitted by Next.js as part of
-the build, feed them into the middleware. Possible but tightly coupled to
-Next.js internals: every minor version that changes framework boot scripts
-breaks the production CSP silently. The maintenance cost is real, and the
-breakage mode (white-page on production deploys) is unacceptable for a
-single-maintainer project.
-
-**Rejected** until either Next.js exposes a stable manifest, or a vetted
-community plugin (e.g. `next-safe`, `@next/csp`) reaches a stability level
-the codebase is willing to depend on.
-
-### D. Edge runtime with selective static prerender + middleware-only CSP
-
-Next.js edge runtime can serve static HTML and apply the CSP from the
-middleware. The static HTML still cannot carry a per-request nonce in its
-inline-script attributes. Same blocker as the trivial static case.
-
-**Rejected** for the same reason as A. Edge runtime is orthogonal to the
-nonce problem.
+| Alternative | Current assessment |
+|---|---|
+| Remove root `force-dynamic` alone | Incomplete: does not solve the current HTML/CSP nonce consistency requirement |
+| Segment-level dynamic exports | Useful only once some routes no longer require the current runtime nonce strategy; does not itself create a static-compatible policy |
+| Build-generated script hashes | A possible migration, absent from the current build; must regenerate and verify on every build/update |
+| Relax scripts to `'unsafe-inline'` | Rejected by this decision because it weakens protection against injected inline script |
+| Serve static HTML through middleware/Edge only | Moving execution location alone does not stamp a new nonce into already-built inline-script attributes |
 
 ## References
 
-- `frontend/src/app/layout.tsx` — the `force-dynamic` global.
-- `frontend/src/middleware.ts` — the per-request nonce pipeline.
-- `docs/INVARIANTS.md` — INV-CSP family (if added by a follow-up).
-- ADR-0003 (CSRF double-submit) — different attack surface, same
-  "documented intentional trade-off" pattern.
+- [`frontend/src/app/layout.tsx`](../../frontend/src/app/layout.tsx) — root dynamic export and providers.
+- [`frontend/src/middleware.ts`](../../frontend/src/middleware.ts) — nonce and CSP pipeline.
+- [`frontend/next.config.js`](../../frontend/next.config.js) — static security headers and proxies.
+- [`docs/frontend.md`](../frontend.md) — current rendering and browser boundaries.
+- [`docs/testing.md`](../testing.md) — suite scopes, coverage exclusions and dated checks.
+- [ADR-0003](0003-csrf-double-submit.md) — a separate cookie/request-header protection boundary.

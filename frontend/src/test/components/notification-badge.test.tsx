@@ -17,8 +17,12 @@ describe("NotificationBadge", () => {
   })
 
   it("shows a count bubble when showCount and count > 1", () => {
+    // The count appears twice by design: once for assistive technology in the
+    // roller's sr-only value, once as the visible digit column. Asserting both
+    // separately is the point — a badge that reads "5" to a sighted user and
+    // nothing to a screen reader is the failure this guards.
     render(<NotificationBadge type="comment.added" count={5} showCount />)
-    expect(screen.getByText("5")).toBeInTheDocument()
+    expect(screen.getAllByText("5").length).toBeGreaterThan(0)
     expect(screen.getByRole("status")).toHaveAttribute("aria-label", expect.stringContaining("5 unread"))
   })
 
@@ -58,7 +62,8 @@ describe("NotificationBadge", () => {
       dispatchEvent: vi.fn(),
     }) as unknown as typeof window.matchMedia
     render(<NotificationBadge type="comment.added" count={3} showCount />)
-    expect(screen.getByText("3")).toBeInTheDocument()
+    expect(screen.getAllByText("3").length).toBeGreaterThan(0)
+    expect(screen.getByRole("status")).toHaveAttribute("aria-label", expect.stringContaining("3 unread"))
   })
 
   describe("pill variant", () => {

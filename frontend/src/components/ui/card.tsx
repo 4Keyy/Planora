@@ -8,7 +8,9 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-2xl border text-card-foreground transition-all duration-300 ease-out bg-transparent",
+      // `rounded-lg`: the scale's radius for cards. `rounded-xl` is for dialogs, sheets and
+      // large panels, and a task card drawn at 20px sat beside 16px category cards.
+      "rounded-lg border bg-paper text-ink",
       className
     )}
     {...props}
@@ -35,7 +37,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-semibold leading-none tracking-tight",
+      "text-title font-semibold leading-none tracking-tight",
       className
     )}
     {...props}
@@ -49,7 +51,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-gray-500", className)}
+    className={cn("text-body-sm text-ink-subtle", className)}
     {...props}
   />
 ))
