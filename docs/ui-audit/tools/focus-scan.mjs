@@ -80,17 +80,28 @@ const probe = () => {
   // Text fields draw focus on their own shape (globals.css, "Field focus"): the create
   // panel's left rule, the quick-capture pill's edge, a boxed field's border. Read the
   // colour that shape has NOW, while the field holds focus, so a resting grey edge
-  // (1.26:1) still fails.
+  // (1.26:1) still fails. The rule is ink at rest too — it hides by scaleY(0) — so it
+  // counts only once it is drawn.
   const rule = el.closest('.field-rule')
   const shell = el.closest('.field-shell')
+  const ruleAfter = rule ? getComputedStyle(rule, '::after') : null
+  const ruleDrawn = ruleAfter !== null && ruleAfter.transform !== 'none' && new DOMMatrixReadOnly(ruleAfter.transform).d > 0.95
   const shapeColour = rule
-    ? getComputedStyle(rule, '::after').backgroundColor
+    ? (ruleDrawn ? ruleAfter.backgroundColor : null)
     : shell
       ? getComputedStyle(shell).borderTopColor
       : el.classList.contains('field-box')
         ? s.borderTopColor
         : null
   const shapeVisible = shapeColour !== null && ratioToPaper(shapeColour) >= 3
+
+  // A stop nobody can see is a failure whatever its indicator: focus inside an inert or
+  // aria-hidden subtree, an invisible element, or one clipped to nothing by an ancestor.
+  const box = el.getBoundingClientRect()
+  const hiddenStop =
+    el.closest('[inert], [aria-hidden="true"]') !== null ||
+    (typeof el.checkVisibility === 'function' && !el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) ||
+    box.width < 1 || box.height < 1
 
   const label =
     el.getAttribute('aria-label') ||
@@ -102,7 +113,7 @@ const probe = () => {
   return {
     name: String(label).trim().slice(0, 34),
     tag: el.tagName.toLowerCase(),
-    ok: outlineVisible || shadowVisible || shapeVisible,
+    ok: !hiddenStop && (outlineVisible || shadowVisible || shapeVisible),
   }
 }
 
@@ -115,6 +126,9 @@ for (const route of ['/branch/todo-0', '/dashboard', '/tasks', '/categories', '/
   let stops = 0
   for (let i = 0; i < 45; i++) {
     await page.keyboard.press('Tab')
+    // Let the indicator's own transition finish: a field's border fades to ink over 220ms,
+    // and a probe in the next frame would read it half-way and call it grey.
+    await page.waitForTimeout(350)
     const r = await page.evaluate(probe)
     if (!r) break
     stops++

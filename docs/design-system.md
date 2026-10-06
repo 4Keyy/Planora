@@ -3,8 +3,9 @@
 Every visual value the product ships, where it comes from, and the rule it obeys.
 
 This is not a style guide anyone can ignore. The values live in one TypeScript file,
-the Tailwind theme is derived from it, and the rules below are enforced by tests that
-read the source tree. If something here is wrong, a test fails.
+the Tailwind theme is derived from it, and source-reading tests enforce specific
+contracts. Those tests cover the checks they implement; passing them does not prove
+that every statement in this guide or every rendered state is correct.
 
 | Thing | File |
 |---|---|
@@ -14,9 +15,11 @@ read the source tree. If something here is wrong, a test fails.
 | Motion, derived from the tokens | `frontend/src/lib/animations.ts` |
 | The rules, enforced | `frontend/src/test/quality/design-tokens.contract.test.ts` |
 
-> Contrast figures are computed against `paper` (`#ffffff`) with the WCAG 2.2
-> relative-luminance formula by `docs/ui-audit/tools/contrast-scan.mjs`, and
-> re-measured in a real browser by `docs/ui-audit/tools/live-scan.mjs`.
+> Token values and component contracts were checked against source on 2026-10-06.
+> Contrast ratios against `paper` (`#ffffff`) are palette calculations. Browser
+> counts, bundle sizes, CLS/LCP values and defect totals quoted below belong to the
+> earlier fixture-based UI audit; this documentation pass did not repeat that matrix.
+> Keep the date and environment with a measurement; see [`ui-audit/RESULTS.md`](ui-audit/RESULTS.md).
 
 ---
 
@@ -30,7 +33,7 @@ something measurably went wrong without it.
 | 1 | No colour literal in a component | 441 uses across 98 distinct values, none of them coordinated | `rule 1 — no colour literal in a component` |
 | 2 | No text below 12px | 47% of the product's text sat under the floor: 9px ×57, 10px ×729, 11px ×573 | `rule 2 — no text below 12px` |
 | 3 | Four font weights, and exactly four loaded faces | A weight with no file behind it gets a synthetic, smeared face and no error | `rule 3 — four font weights, and four loaded faces` |
-| 4 | One focus indicator, clearing 3:1 | 8 of 8 failed WCAG 2.4.11; later, six auth routes and every Button variant had none that could be seen | `rule 4 — one focus indicator, clearing 2.4.11` |
+| 4 | Shared focus styles and ≥3:1 indicator contrast | The earlier audit found faint or suppressed indicators; field-specific shapes now share `globals.css` | `rule 4 — one focus indicator, clearing 2.4.11` (legacy test title; corrected criterion mapping below) |
 | 5 | Priority is never encoded by hue alone | Five priority hues collapse under deuteranopia — OKLab distance 0.049 between the two lowest, below the just-noticeable threshold | `rule 5 — priority is never encoded by hue alone` |
 
 ### The `@colour-data` exemption
@@ -260,9 +263,10 @@ scale. The contract test draws the line at 10.
 
 ## 8. Motion
 
-Five durations, three curves, three springs. **Every animated value is a `transform` or
-an `opacity`** — nothing else composites on the GPU, and anything else costs layout or
-paint on every frame.
+Five duration tokens, three curves and three spring presets. Prefer `transform`
+and `opacity` for animation. SVG strokes, layout projection and CSS field-focus
+color/border/shadow transitions are explicit exceptions; compositor behavior still
+depends on the browser, layers and surrounding content.
 
 ### Durations
 
@@ -296,7 +300,9 @@ Three separate mechanisms, because no single one reaches everywhere:
 
 1. `globals.css` collapses CSS transitions and animations under
    `@media (prefers-reduced-motion: reduce)`.
-2. framer-motion's `MotionConfig reducedMotion="user"` covers every `motion.*` element.
+2. framer-motion's root `MotionConfig reducedMotion="user"` supplies the user
+   preference to descendants; it does not stop every opacity, color, SVG or
+   computed MotionValue animation. Components with those paths use explicit guards.
 3. **A `requestAnimationFrame` loop is reached by neither.** The WebGL background reads
    the media query itself, renders one static frame, and subscribes to `change` so a
    preference flipped mid-session takes effect without a reload.
@@ -306,8 +312,9 @@ If you write a rAF loop, it is your job to handle the third case. Nothing else w
 
 ### The four laws
 
-Every animation in the product obeys all four. A preset that cannot be expressed
-under them is a preset that should not exist.
+These are implementation rules for new interaction motion. They are not an
+assertion that a spring's physical settling time is bounded by a duration token
+or that every current animation is a transform/opacity-only tween.
 
 1. **Transform and opacity only.** Plus `pathLength` on an SVG, which is the single
    exception and is a real one: no transform turns an arc into a longer arc. Scaling
@@ -315,7 +322,8 @@ under them is a preset that should not exist.
 2. **A response to a tap finishes within 320ms.** `deliberate` (480ms) is for a number
    roller and a progress ring — things reporting a fact, not answering a press.
 3. **No `transition: all`, no `filter`, no `box-shadow` inside a variant.** A shadow on
-   hover belongs in CSS (`hover:shadow-md`), where it costs nothing.
+   hover belongs in a scoped CSS transition (`hover:shadow-md`); it can still cause
+   paint work, so inspect it in a browser when changing large surfaces.
 4. **One preset per meaning.** An earlier generation of `animations.ts` shipped both
    `VARIANTS_MODAL` and `VARIANTS_MODAL_BOUNCE`, both `TAP_PRESS` and
    `TAP_PRESS_ENHANCED`, and 30 of its 47 exports were used nowhere.
@@ -342,9 +350,9 @@ sideways, a mark that follows the reader. It lives in `app/_landing/scroll-kit.t
 `parallax.tsx` and `audience-spine.tsx`, and it is held to five rules, each learned the
 hard way:
 
-1. **Transform and opacity only, which is also why it is affordable.** A composited
-   property cannot produce a layout shift, so scroll choreography costs nothing against a
-   route's CLS invariant — measured 0 across 45 cells.
+1. **Prefer transform and opacity.** They avoid direct layout animation, but do
+   not guarantee zero rendering cost or zero CLS for a whole route. The earlier
+   fixture audit recorded zero CLS across 45 cells for this choreography.
 2. **Never on an ancestor of `fixed` or `sticky`.** A transformed ancestor silently becomes
    the containing block and re-parents the node: the landing nav is `sticky` and sits outside
    every animated wrapper, and the spine is a sibling of `<main>`.
@@ -688,7 +696,8 @@ viewports: worst LCP 3.9–9 s → under 500 ms.
 
 Icon sizes: `14 · 16 · 20 · 24 · 32`. Avatar diameters: `20 · 24 · 32 · 48`.
 
-The default control is 44px, not 40, because 44 is the WCAG 2.5.8 enhanced target and
+The default control is 44px, not 40, because 44 is the project's touch target
+(aligned with WCAG 2.5.5 Target Size (Enhanced), Level AAA), and
 two thirds of this product's interactive elements once measured under 44×44 at 390px.
 
 **The one exception is a month grid on the narrowest phone.** At 360px the branch page's
@@ -734,11 +743,22 @@ by `docs/ui-audit/tools/live-scan.mjs` (88 cells on the last run), and staticall
 |---|---|
 | 1.4.3 Contrast (text) | 4.5:1, or 3:1 at 18.66px+ bold / 24px+. `ink-subtle` is the floor |
 | 1.4.11 Non-text contrast | 3:1 for control borders, icons that carry meaning, focus indicators |
-| 2.4.7 / 2.4.11 Focus | **One** indicator, declared once in `globals.css`, 19.80:1 on paper, with a light halo for dark surfaces |
-| 2.5.8 Target size | 24×24 minimum (AA), 44×44 target (ours). Inline links in a sentence are exempt |
-| 2.1.1 Keyboard | Everything operable. `tabIndex={-1}` on a real control is a failure |
-| 1.3.1 Info and relationships | One `<h1>` per route, no skipped levels, `<main>` on every route |
-| 4.1.2 Name, role, value | `title` is **not** an accessible name — it is unannounced by several screen readers and never appears on touch |
+| 2.4.7 Focus Visible / 1.4.11 Non-text Contrast | Shared `globals.css` focus styles; the dark token calculates 19.80:1 against paper, with a light halo for dark surfaces |
+| 2.4.11 Focus Not Obscured (Minimum), AA | Focused controls must not be entirely hidden by author-created content, including the fixed navbar and overlays |
+| 2.4.13 Focus Appearance, AAA | A separate area and 3:1 change-of-contrast criterion; a token contrast calculation alone does not establish it |
+| 2.5.8 Target Size (Minimum), AA | 24×24 CSS px or the criterion's spacing/other exceptions; 44×44 is this project's preferred touch target, aligned with 2.5.5 (AAA) |
+| 2.1.1 Keyboard | All functionality operable by keyboard; `tabIndex={-1}` is intentional in a working roving-tabindex composite, not an automatic failure |
+| 1.3.1 Info and relationships | Semantic labels, landmarks and heading hierarchy; one `<h1>` per route is a project convention |
+| 4.1.2 Name, role, value | Prefer visible labels or `aria-label`/`aria-labelledby` for icon controls; `title` alone is an unreliable user-facing labeling strategy |
+
+The criterion mapping follows the W3C explanations for
+[Focus Not Obscured](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html),
+[Focus Appearance](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html) and
+[Target Size (Minimum)](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html).
+Some source comments and the focus contract's test title still use the older
+2.4.11 wording; the table above is the corrected documentation mapping.
+Source scanners and fixture-backed browser runs are partial checks, not a WCAG
+conformance or assistive-technology certification.
 
 ### The focus indicator is declared once, and nothing may suppress it
 
@@ -779,16 +799,20 @@ field's own geometry:
 Every `<input>`/`<textarea>` that takes text must carry `field-box` or `field-naked` — a contract in `design-tokens.contract.test.ts` scans every component and fails on any that does not.
 
 Ink on paper is 17.93:1 and ink against the resting `line` 14.23:1; the halos are
-decoration. No library is involved: react-aria's `useFocusRing` only reports the same
-`:focus-visible` answer the browser gives, and the focus-visible polyfill is obsolete
-on every browser Next 16 targets.
+decoration. The current fields use native `:focus-visible`/`:focus-within`, CSS
+classes and React refs rather than a focus-ring library. Check browser and
+forced-colors behavior when changing these rules.
 
 `docs/ui-audit/tools/focus-scan.mjs` tabs through every focus stop on the
 authenticated routes and measures the indicator's contrast — the colour composited
-over paper, against paper — rather than asking whether one is present. 174 stops,
-all clearing 3:1. For a text field it reads the shape that carries the indicator (the
-`field-rule`'s ink rule, the `field-shell`'s edge, the `field-box`'s border) while the
-field holds focus.
+over paper, against paper — rather than asking whether one is present. The earlier
+audit recorded 174 reached stops, all clearing 3:1. For a text field it reads the shape that carries the indicator (the
+`field-rule`'s ink rule — counted only once its `scaleY` has drawn it, since the rule is
+ink at rest too — the `field-shell`'s edge, the `field-box`'s border) while the field
+holds focus, 350ms after each Tab so a 220ms border transition is not read half-way as
+grey. A stop inside an `inert` or `aria-hidden` subtree, one `checkVisibility()` calls
+invisible, or one clipped to nothing fails whatever its indicator: focus nobody can see
+is not focus.
 
 ### Why the scanners all exist
 
@@ -804,7 +828,11 @@ browser sweep.
 but it cannot see anything that only exists once styles are computed.
 
 `class-audit.mjs` compares the classes in source against the rules in the built
-stylesheet, which is the only way to catch a class that names nothing.
+stylesheet, which is the only way to catch a class that names nothing. It tracks the
+layout utilities too (`grid-rows-*`, `row-start-*`, `min-h-*`, `translate-y-*` …) and
+classes with a `calc()` inside their brackets, whose `)]` used to end the capture
+mid-class — so a typo such as `grid-rows-[1fr_auto_lfr]` in the task card's rail, or a
+broken `-translate-y-[calc(100%+2rem)]` in the droplet's slide, fails the run.
 
 `focus-scan.mjs` drives the keyboard, because a focus indicator only exists in the
 `:focus-visible` state and no static read of the source will tell you what it
@@ -1274,10 +1302,11 @@ The small decisions that are wrong in most products, and where they are made her
 | A count of people | Faces up to four, then `+N` | `PresenceRow` |
 | Nothing | A `StatusPanel`, never an empty container | `StatusPanel` |
 
-**Never call `toLocaleDateString()` without a locale.** The implicit locale differs
-between the server and the browser, so the server renders `9/14/2026`, the client
-renders `14/09/2026`, and React discards the entire server pass as a hydration
-mismatch. This has happened here.
+**Pass an explicit locale for shared formatting.** `lib/datetime.ts` fixes `en-US`;
+an implicit locale can differ between the server and browser and cause a hydration
+mismatch. The helpers still use the runtime timezone, so locale pinning alone
+does not make a timestamp near midnight identical across machines. Date pickers
+and the completed archive intentionally form browser-local calendar windows.
 
 **A `+1` chip is not a collapse.** It is exactly as wide as the face it replaces, so
 hiding a single overflowing person trades a human being for a numeral and reclaims no
@@ -1329,7 +1358,7 @@ Each of these shipped. None produced a build error, a type error, or a failing t
 | An opacity modifier on a non-colour utility (`text-center/30`) | Matches nothing. That empty state was never centred | `class-audit.mjs` |
 | A codemod rewriting tokens inside CSS value strings | `animation: "… ease-out"` became an invalid `ease-emphasized`; the animation silently stopped | Never run a token codemod over string values without re-running the build and `class-audit.mjs` |
 | `outline-none` suppressing the one focus indicator | Tailwind sets `2px solid transparent`, not `none`, so a probe that checks for an outline's presence sees one. Six auth routes had no visible focus at all | `focus-scan.mjs`, which measures the indicator's contrast |
-| A per-component focus ring replacing the global one | Four Button variants at 1.12:1 to 2.10:1, where 2.4.11 asks for 3:1 | The same scan, plus the rule above: only `globals.css` declares the indicator |
+| A per-component focus ring replacing the shared styles | Four historical Button variants at 1.12:1 to 2.10:1, below the project's 3:1 contrast check | The same scan, plus the shared CSS and field-specific focus classes |
 | A `<kbd>` shortcut hint inside a button | It joins the accessible name — "New Category" announced as "New Category c" | `aria-hidden` on the hint, `aria-keyshortcuts` on the button |
 
 ---
@@ -1344,7 +1373,7 @@ the section, and the thirteenth — the one that is wrong — goes in unnoticed.
 | Hatch | Uses | Why it is the only answer |
 |---|---|---|
 | `!important` | **12**, all in `globals.css` | Four outrank a stylesheet the product does not own (`react-remove-scroll-bar` injects `margin-right: …px !important` to compensate for a disappearing scrollbar; ours lives on `<html>` and never disappears, so the compensation only shoves the page sideways). One pins mobile form controls to 16px, because iOS Safari zooms the whole page when a focused control is smaller and the fix has to outrank a Tailwind utility. Four are the reduced-motion kill switch, which by definition must beat every author style. |
-| Inline `style` | **388**, 78% of them in `edit-todo-modal/` | Exact pixel geometry the token scales do not carry — a 6px inset, a 22px avatar. The alternative is an arbitrary Tailwind value, which the design system forbids outright, so this is the lesser of the two. **Every value is token-backed**: 0 hex literals, 0 `"white"`, measured. The branch editor is a subtree built this way end to end; converting working, tested UI wholesale would be churn, not quality. New code outside it uses utilities. |
+| Inline `style` | **388** in the earlier audit, 78% in `edit-todo-modal/` | Runtime geometry and component-specific dimensions not present in the named scales. Semantic colors should use `--pl-*` or tokens; geometry also contains literal dimensions. A source count of zero hex/`"white"` literals does not mean every inline value comes from a token. New code outside the branch editor generally uses utilities. |
 | A non-transform animation | **2 kinds** | `pathLength` on an SVG, because no transform turns an arc into a longer arc — the completion stroke, the weekly ring, the presence ring, the redaction arc. And `stroke-dasharray`/`pathOffset`, which is the same exception wearing a different name. |
 
 Everything else in the rules is absolute. `transition-all`: **0**. `dark:` utilities:
@@ -1378,15 +1407,17 @@ a list held elsewhere — a list goes stale the first time a file moves:
    that holds it.
 5. **Run the gates.**
 
-```bash
-cd frontend && npm run build && npx vitest run
-cd .. && node docs/ui-audit/tools/class-audit.mjs && node docs/ui-audit/tools/a11y-static.mjs
+```powershell
+npm --prefix frontend run build
+npm --prefix frontend run test:coverage
+node docs/ui-audit/tools/class-audit.mjs
+node docs/ui-audit/tools/a11y-static.mjs
 ```
 
 `focus-scan.mjs` and `live-scan.mjs` need a running production server; start one,
 then:
 
-```bash
+```powershell
 node docs/ui-audit/tools/focus-scan.mjs
 ```
 
