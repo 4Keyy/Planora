@@ -4,6 +4,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### build(deps): integrate reviewed GitHub Actions updates (2026-10-06)
+
+Merged the five reviewed action PRs alongside frontend PR #123. CodeQL init,
+analyze and SARIF upload now share the 4.36.3 commit; markdownlint uses 24.0.0
+and all seven setup-dotnet steps use 5.4.0. All actions remain pinned to immutable
+commits. The [integration review](docs/audits/dependabot-2026-10-06.md) records
+merge commits, source preservation, successful checks and the owner's accepted
+development-dependency audit/E2E limitations.
+
 ### chore(deps): update frontend dependencies and security patches (2026-10-06)
 
 Applied the compatible dependency updates in Dependabot PR #123 and advanced

@@ -11,6 +11,10 @@ contributors. Maintained reference pages describe current code and configuration
 
 The [2026-10-06 repository audit](audits/2026-10-06.md) records source coverage, documentation corrections, measured checks and unresolved findings. Read it before treating fresh-install, deployment, authorization or messaging guarantees as established.
 
+The [2026-10-06 Dependabot integration review](audits/dependabot-2026-10-06.md)
+records the six merged requests, preserved source, dependency versions and
+remaining audit/E2E limits.
+
 ## Pick your reading path
 
 | Reader | Start here | Then read |

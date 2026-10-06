@@ -10,9 +10,9 @@ updates resolve sharp to **0.35.5** and source-map-js to **1.2.2**.
 
 React/React DOM remain **18.3.1**, Tailwind remains **3.4.19**, and framer-motion
 remains **11.18.2**. No frontend application source or unit tests were replaced.
-The original scripts and PostCSS override are preserved. The lockfile retains
-Linux Next.js SWC and sharp packages as well as the Windows packages used for
-local validation.
+The npm scripts are unchanged; the reviewed PostCSS override remains in place.
+The lockfile retains Linux Next.js SWC and sharp packages as well as the Windows
+packages used for local validation.
 
 ## Executed checks
 
@@ -43,9 +43,14 @@ upgrades or downgrading ESLint/Next.js is outside a compatible patch update.
 The existing `npm-audit` job retains its full-graph high-severity gate, so it
 continues to fail. The fresh PR E2E run stopped before browser tests because
 `planora_realtime` was absent. PR #106 also exposed pre-existing migration
-artifact and OpenAPI failures. None of these failures is represented as a
-passing check or hidden by an audit exemption.
+artifact and OpenAPI failures; the subsequent baseline correction restored
+both workflows, and all six service jobs in each passed on its final head.
+The npm/E2E failures are not represented as passing checks or hidden by an
+audit exemption.
 
-These updates remain subject to the repository's merge review. Passing unit
-tests and build checks do not substitute for the blocked Docker-backed E2E
-flows or establish that every GitHub check is green.
+PR #123 and the five action updates were merged on 2026-10-06 after the owner
+explicitly accepted these documented limits. The
+[integration review](../../docs/audits/dependabot-2026-10-06.md) records the
+commits and workflow evidence. Passing unit tests and build checks do not
+substitute for the blocked Docker-backed E2E flows or establish that every
+GitHub check is green.
