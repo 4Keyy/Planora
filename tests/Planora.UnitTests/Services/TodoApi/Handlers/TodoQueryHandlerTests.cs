@@ -14,7 +14,15 @@ using Planora.Todo.Domain.Enums;
 using Planora.Todo.Domain.Repositories;
 using Planora.Todo.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using Planora.BuildingBlocks.Infrastructure.Retention;
+using Planora.Todo.Infrastructure.Persistence;
+using Planora.Todo.Infrastructure.Persistence.Repositories;
+using Planora.Todo.Infrastructure.Retention;
+using Planora.UnitTests.BuildingBlocks.Retention.Postgres;
 
 namespace Planora.UnitTests.Services.TodoApi.Handlers;
 
@@ -153,8 +161,10 @@ public class TodoQueryHandlerTests
         Assert.Empty(dto.SharedWithUserIds);
     }
 
-    [Fact]
-    public async Task GetUserTodos_ShouldReturnMinimalHiddenSharedTodo_AndUseCompletedSort()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(null)]
+    public async Task GetUserTodos_ShouldKeepMinimalHiddenSharedTodoInActiveAndMixedLists(bool? isCompleted)
     {
         var userId = Guid.NewGuid();
         var friendId = Guid.NewGuid();
@@ -174,6 +184,9 @@ public class TodoQueryHandlerTests
         fixture.FriendshipService
             .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { friendId });
+        fixture.ViewerPreferences
+            .Setup(x => x.GetHiddenTodoIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Guid> { sharedTodo.Id });
         fixture.ViewerPreferences
             .Setup(x => x.GetByViewerIdForTodosAsync(
                 userId,
@@ -198,13 +211,17 @@ public class TodoQueryHandlerTests
                 It.IsAny<CancellationToken>()))
             .Callback<Expression<Func<TodoItem, bool>>, int, int, bool, CancellationToken>(
                 (_, _, _, sortFlag, _) => sortCompletedByCompletionTime = sortFlag)
-            .ReturnsAsync(((IReadOnlyList<TodoItem>)new[] { sharedTodo }, 1));
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, CancellationToken _) =>
+            {
+                var items = new[] { sharedTodo }.Where(predicate.Compile()).ToList();
+                return (items, items.Count);
+            });
         fixture.CategoryGrpcClient
             .Setup(x => x.GetCategoryInfoAsync(categoryId, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CategoryInfo(categoryId, userId, "Viewer", "#654321", "eye"));
 
         var result = await fixture.CreateGetUserTodosHandler().Handle(
-            new GetUserTodosQuery(userId, PageSize: 20, IsCompleted: true),
+            new GetUserTodosQuery(userId, PageSize: 20, IsCompleted: isCompleted),
             CancellationToken.None);
 
         var dto = Assert.Single(result.Items);
@@ -226,7 +243,250 @@ public class TodoQueryHandlerTests
         Assert.Null(dto.Delay);
         Assert.Equal(categoryId, dto.CategoryId);
         Assert.Equal("Viewer", dto.CategoryName);
-        Assert.True(sortCompletedByCompletionTime);
+        Assert.False(sortCompletedByCompletionTime);
+    }
+
+    [Theory]
+    [InlineData(true, null)]
+    [InlineData(null, "done")]
+    [Trait("TestType", "Regression")]
+    public async Task GetUserTodos_ShouldExcludeMaskedCompletedTodosBeforeCountAndPaging(
+        bool? isCompleted,
+        string? status)
+    {
+        var userId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var fixture = new TodoQueryFixture(userId);
+        var privateHidden = TodoItem.Create(userId, "Private completed task");
+        privateHidden.SetHidden(true, userId);
+        var ownVisible = TodoItem.Create(userId, "Visible completed task");
+        var ownerLegacyPublic = TodoItem.Create(userId, "Legacy hidden public task", isPublic: true);
+        ownerLegacyPublic.SetHidden(true, userId);
+        var ownerLegacyShared = TodoItem.Create(userId, "Legacy hidden shared task", sharedWithUserIds: new[] { friendId });
+        ownerLegacyShared.SetHidden(true, userId);
+        var ownerHiddenPublic = TodoItem.Create(userId, "Viewer-hidden owner public task", isPublic: true);
+        var ownerHiddenShared = TodoItem.Create(userId, "Viewer-hidden owner shared task", sharedWithUserIds: new[] { friendId });
+        var viewerHiddenPublic = TodoItem.Create(friendId, "Viewer-hidden public task", isPublic: true);
+        var viewerHiddenShared = TodoItem.Create(friendId, "Viewer-hidden shared task", sharedWithUserIds: new[] { userId });
+        var friendLegacyPublic = TodoItem.Create(friendId, "Friend hidden only for owner", isPublic: true);
+        friendLegacyPublic.SetHidden(true, friendId);
+        var friendLegacyShared = TodoItem.Create(friendId, "Friend shared hidden only for owner", sharedWithUserIds: new[] { userId });
+        friendLegacyShared.SetHidden(true, friendId);
+        var privateFriend = TodoItem.Create(friendId, "Inaccessible private friend task");
+        var publicStranger = TodoItem.Create(Guid.NewGuid(), "Inaccessible stranger task", isPublic: true);
+        // Put hidden rows first: filtering only after paging would leave a short/empty first page
+        // and report the wrong archive count even if the frontend later discarded masked DTOs.
+        var todos = new[]
+        {
+            ownerLegacyPublic, ownerLegacyShared, ownerHiddenPublic, ownerHiddenShared,
+            viewerHiddenPublic, viewerHiddenShared, privateHidden, ownVisible,
+            friendLegacyPublic, friendLegacyShared, privateFriend, publicStranger,
+        };
+        foreach (var todo in todos)
+            todo.MarkAsDone(todo.UserId);
+
+        var hiddenIds = new List<Guid>
+        {
+            ownerHiddenPublic.Id, ownerHiddenShared.Id, viewerHiddenPublic.Id, viewerHiddenShared.Id,
+            // A stray viewer preference does not hide an owner's private task beyond its own Hidden flag.
+            privateHidden.Id,
+        };
+        fixture.FriendshipService
+            .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { friendId });
+        fixture.ViewerPreferences
+            .Setup(x => x.GetHiddenTodoIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hiddenIds);
+        fixture.ViewerPreferences
+            .Setup(x => x.GetByViewerIdForTodosAsync(userId, It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hiddenIds.ToDictionary(id => id, id => new UserTodoViewPreference
+            {
+                ViewerId = userId,
+                TodoItemId = id,
+                HiddenByViewer = true,
+            }));
+        fixture.Repository
+            .Setup(x => x.GetPagedWithIncludesAsync(
+                It.IsAny<Expression<Func<TodoItem, bool>>>(),
+                It.IsAny<int>(),
+                2,
+                true,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int page, int size, bool _, CancellationToken _) =>
+            {
+                var matches = todos.Where(predicate.Compile()).ToList();
+                var items = matches.Skip((page - 1) * size).Take(size).ToList();
+                return (items, matches.Count);
+            });
+
+        var firstPage = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId, PageSize: 2, Status: status, IsCompleted: isCompleted),
+            CancellationToken.None);
+        var secondPage = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId, PageNumber: 2, PageSize: 2, Status: status, IsCompleted: isCompleted),
+            CancellationToken.None);
+
+        Assert.Equal(4, firstPage.TotalCount);
+        Assert.Equal(4, secondPage.TotalCount);
+        Assert.Equal(new[] { privateHidden.Id, ownVisible.Id }, firstPage.Items.Select(item => item.Id));
+        Assert.Equal(new[] { friendLegacyPublic.Id, friendLegacyShared.Id }, secondPage.Items.Select(item => item.Id));
+        var privateDto = firstPage.Items[0];
+        Assert.True(privateDto.Hidden);
+        Assert.True(privateDto.IsCompleted);
+        Assert.Equal("Private completed task", privateDto.Title);
+        Assert.Equal(userId, privateDto.UserId);
+        Assert.All(secondPage.Items, item => Assert.False(item.Hidden));
+        Assert.DoesNotContain(firstPage.Items.Concat(secondPage.Items), item => item.Title == "Hidden task");
+    }
+
+    [Fact]
+    [Trait("TestType", "Regression")]
+    public async Task GetUserTodos_ShouldKeepExpiredViewerCompletionOutOfCompletedAndActiveLists()
+    {
+        var userId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var fixture = new TodoQueryFixture(userId);
+        var expiredPublic = TodoItem.Create(friendId, "Expired public viewer completion", isPublic: true);
+        var expiredShared = TodoItem.Create(friendId, "Expired shared viewer completion", sharedWithUserIds: new[] { userId });
+        var currentCompletion = TodoItem.Create(friendId, "Visible viewer completion", isPublic: true);
+        var todos = new[] { expiredPublic, expiredShared, currentCompletion };
+        var preferences = todos.ToDictionary(todo => todo.Id, todo => new UserTodoViewPreference
+        {
+            ViewerId = userId,
+            TodoItemId = todo.Id,
+            CompletedByViewer = true,
+            CompletedByViewerAt = DateTime.UtcNow.AddDays(todo == currentCompletion ? -1 : -31),
+            HiddenByViewer = todo != currentCompletion,
+        });
+
+        fixture.FriendshipService
+            .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { friendId });
+        fixture.ViewerPreferences
+            .Setup(x => x.GetCompletedTodoIdsByViewerAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todos.Select(todo => todo.Id).ToList());
+        fixture.ViewerPreferences
+            .Setup(x => x.GetHiddenTodoIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Guid> { expiredPublic.Id, expiredShared.Id });
+        fixture.ViewerPreferences
+            .Setup(x => x.GetByViewerIdForTodosAsync(userId, It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(preferences);
+        fixture.Repository
+            .Setup(x => x.GetPagedWithIncludesAsync(
+                It.IsAny<Expression<Func<TodoItem, bool>>>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int page, int size, bool _, CancellationToken _) =>
+            {
+                var matches = todos.Where(predicate.Compile()).ToList();
+                return (matches.Skip((page - 1) * size).Take(size).ToList(), matches.Count);
+            });
+
+        var completed = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId, IsCompleted: true), CancellationToken.None);
+        var active = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId, IsCompleted: false), CancellationToken.None);
+        var mixed = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId), CancellationToken.None);
+
+        var currentDto = Assert.Single(completed.Items);
+        Assert.Equal(1, completed.TotalCount);
+        Assert.Equal(currentCompletion.Id, currentDto.Id);
+        Assert.True(currentDto.IsCompleted);
+        Assert.True(currentDto.IsCompletedByViewer);
+        Assert.Equal("Done", currentDto.Status);
+        Assert.Empty(active.Items);
+        Assert.Equal(0, active.TotalCount);
+        Assert.Equal(3, mixed.TotalCount);
+        Assert.Equal(2, mixed.Items.Count(item => item.Hidden && item.Title == "Hidden task"));
+        Assert.All(preferences.Values, preference => Assert.True(preference.CompletedByViewer));
+    }
+
+    [PostgresFact]
+    [Trait("TestType", "Integration")]
+    [Trait("TestType", "Regression")]
+    public async Task GetUserTodos_ShouldPageVisibleCompletedTodosAfterViewerRetention_OnPostgres()
+    {
+        await using var database = await TemporaryDatabase.CreateAsync();
+        await using var services = new ServiceCollection()
+            .AddScoped(_ => new TodoDbContext(database.Options<TodoDbContext>()))
+            .AddScoped<DbContext>(provider => provider.GetRequiredService<TodoDbContext>())
+            .BuildServiceProvider();
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+        await db.Database.EnsureCreatedAsync();
+
+        var userId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var expired = TodoItem.Create(friendId, "Expired viewer completion", isPublic: true);
+        var recent = TodoItem.Create(friendId, "Recent viewer completion", sharedWithUserIds: new[] { userId });
+        var privateHidden = TodoItem.Create(userId, "Readable private completion");
+        privateHidden.SetHidden(true, userId);
+        var ownerLegacyHidden = TodoItem.Create(userId, "Hidden owner public completion", isPublic: true);
+        ownerLegacyHidden.SetHidden(true, userId);
+        var friendLegacyHidden = TodoItem.Create(friendId, "Friend completion hidden only for owner", isPublic: true);
+        friendLegacyHidden.SetHidden(true, friendId);
+        var ownVisible = TodoItem.Create(userId, "Visible owner completion");
+        foreach (var todo in new[] { privateHidden, ownerLegacyHidden, friendLegacyHidden, ownVisible })
+            todo.MarkAsDone(todo.UserId);
+        db.TodoItems.AddRange(expired, recent, privateHidden, ownerLegacyHidden, friendLegacyHidden, ownVisible);
+        db.UserTodoViewPreferences.AddRange(
+            new UserTodoViewPreference
+            {
+                ViewerId = userId,
+                TodoItemId = expired.Id,
+                CompletedByViewer = true,
+                CompletedByViewerAt = now.AddDays(-31),
+            },
+            new UserTodoViewPreference
+            {
+                ViewerId = userId,
+                TodoItemId = recent.Id,
+                CompletedByViewer = true,
+                CompletedByViewerAt = now.AddDays(-1),
+            });
+        await db.SaveChangesAsync();
+
+        var policy = new TodoCompletedViewerHidePolicy(
+            new PostgresRetentionLock(), NullLogger<TodoCompletedViewerHidePolicy>.Instance);
+        var retention = await RetentionTestKit.RunAsync(policy, scope.ServiceProvider, RetentionTestKit.Live(), now);
+        Assert.Equal(1, retention.Deleted);
+        db.ChangeTracker.Clear();
+
+        var fixture = new TodoQueryFixture(userId);
+        fixture.FriendshipService
+            .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { friendId });
+        var repository = new TodoRepository(db);
+        var viewerPreferences = new UserTodoViewPreferenceRepository(db);
+        var handler = fixture.CreateGetUserTodosHandler(repository, viewerPreferences);
+
+        var firstPage = await handler.Handle(new GetUserTodosQuery(userId, PageSize: 2, IsCompleted: true), CancellationToken.None);
+        var secondPage = await handler.Handle(new GetUserTodosQuery(userId, PageNumber: 2, PageSize: 2, IsCompleted: true), CancellationToken.None);
+        Assert.Equal(4, firstPage.TotalCount);
+        Assert.Equal(4, secondPage.TotalCount);
+        Assert.Equal(2, firstPage.Items.Count);
+        Assert.Equal(2, secondPage.Items.Count);
+        var completedItems = firstPage.Items.Concat(secondPage.Items).ToList();
+        Assert.Equal(
+            new[] { recent.Id, privateHidden.Id, friendLegacyHidden.Id, ownVisible.Id }.OrderBy(id => id),
+            completedItems.Select(item => item.Id).OrderBy(id => id));
+        Assert.DoesNotContain(completedItems, item => item.Title == "Hidden task");
+        Assert.Equal("Readable private completion", completedItems.Single(item => item.Id == privateHidden.Id).Title);
+        Assert.False(completedItems.Single(item => item.Id == friendLegacyHidden.Id).Hidden);
+
+        var active = await handler.Handle(new GetUserTodosQuery(userId, IsCompleted: false), CancellationToken.None);
+        Assert.Empty(active.Items);
+        Assert.Equal(0, active.TotalCount);
+        var mixed = await handler.Handle(new GetUserTodosQuery(userId), CancellationToken.None);
+        Assert.Equal(6, mixed.TotalCount);
+        Assert.Equal(2, mixed.Items.Count(item => item.Hidden && item.Title == "Hidden task"));
+        var expiredPreference = await viewerPreferences.GetAsync(userId, expired.Id);
+        Assert.True(expiredPreference!.HiddenByViewer);
+        Assert.True(expiredPreference.CompletedByViewer);
     }
 
     [Fact]
@@ -744,17 +1004,25 @@ public class TodoQueryHandlerTests
                     It.IsAny<Guid>(),
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new List<Guid>());
+            ViewerPreferences
+                .Setup(x => x.GetCompletedTodoIdsByViewerAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<Guid>());
+            ViewerPreferences
+                .Setup(x => x.GetHiddenTodoIdsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<Guid>());
         }
 
-        public GetUserTodosQueryHandler CreateGetUserTodosHandler()
+        public GetUserTodosQueryHandler CreateGetUserTodosHandler(
+            ITodoRepository? repository = null,
+            IUserTodoViewPreferenceRepository? viewerPreferences = null)
             => new(
-                Repository.Object,
+                repository ?? Repository.Object,
                 _mapper.Object,
                 Mock.Of<ILogger<GetUserTodosQueryHandler>>(),
                 CurrentUserContext.Object,
                 CategoryGrpcClient.Object,
                 FriendshipService.Object,
-                ViewerPreferences.Object);
+                viewerPreferences ?? ViewerPreferences.Object);
 
         public GetTodoByIdQueryHandler CreateGetTodoByIdHandler()
             => new(

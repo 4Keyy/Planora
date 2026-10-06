@@ -74,6 +74,14 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             var viewerCompletedIds = await _viewerPreferenceRepository.GetCompletedTodoIdsByViewerAsync(
                 userId, cancellationToken);
 
+            var sortCompletedByCompletionTime =
+                request.IsCompleted == true ||
+                (requestedStatuses is { Count: > 0 } && requestedStatuses.All(s => s == TodoStatus.Done));
+
+            var viewerHiddenIds = sortCompletedByCompletionTime
+                ? await _viewerPreferenceRepository.GetHiddenTodoIdsAsync(userId, cancellationToken)
+                : new List<Guid>();
+
             // Build predicate: own todos OR friend-visible todos.
             // Viewer category filters can be pushed into the shared-task branch using
             // the viewer preference IDs, so the database can count/page before enrichment.
@@ -90,12 +98,9 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                 requestedStatuses,
                 viewerCategoryTodoIds,
                 viewerCompletedIds,
+                viewerHiddenIds,
                 completedFrom,
                 completedTo);
-
-            var sortCompletedByCompletionTime =
-                request.IsCompleted == true ||
-                (requestedStatuses is { Count: > 0 } && requestedStatuses.All(s => s == TodoStatus.Done));
 
             var (paginatedItems, totalCount) = await _repository.GetPagedWithIncludesAsync(
                 predicate,
@@ -280,6 +285,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             List<TodoStatus>? requestedStatuses,
             List<Guid> viewerCategoryTodoIds,
             List<Guid> viewerCompletedIds,
+            List<Guid> viewerHiddenIds,
             DateTime? completedFrom,
             DateTime? completedTo)
         {
@@ -306,6 +312,14 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                        // completion date to match against.
                        (!completedFrom.HasValue || (x.CompletedAt.HasValue && x.CompletedAt.Value >= completedFrom.Value)) &&
                        (!completedTo.HasValue || (x.CompletedAt.HasValue && x.CompletedAt.Value <= completedTo.Value)) &&
+
+                       // Masked shared tasks do not belong in the completed archive. Apply this before
+                       // count/page, while keeping viewer completion intact so expired rows stay out of
+                       // active lists. Private owner tasks retain their readable hidden representation;
+                       // a shared task's legacy global Hidden flag only applies to its owner.
+                       (!isAskingForCompleted ||
+                        (!x.IsPublic && !x.SharedWith.Any()) ||
+                        (!viewerHiddenIds.Contains(x.Id) && !(x.UserId == userId && x.Hidden))) &&
 
                        // Filter by viewer completion state:
                        // 1. If asking for completed: show globally Done OR viewer-completed

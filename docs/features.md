@@ -216,6 +216,7 @@ The read handlers do not all apply the same viewer projection:
 | Surface | Current selection/projection |
 |---|---|
 | Main user list | Own tasks plus public/explicit shares from accepted-friend IDs (cached 30 seconds); per-viewer hidden/category/completion projection; top-level only unless `includeSubtasks=true`; open-child counts batch-loaded. |
+| Completed-only main list | Excludes masked shared/public rows using viewer-hidden preferences and the owner's legacy hidden flag before count/page; preserves private-owner hidden completion and the stored viewer completion classification. |
 | Detail | Own task or live friend-visible access; applies hidden/category projection, but does not overlay personal completion onto the mapped status as the main list does. |
 | Public/friend feed | Accepted-friend IDs; excludes hidden preference IDs entirely; explicit DTO projection omits viewer category/completion and `DueDateStart`. |
 | Category route | Own top-level tasks with that stored category; direct mapping rather than the main list's viewer-redaction/collection-enrichment pipeline. |
@@ -746,10 +747,10 @@ The viewer count is the length of that shared list.
   as the estimated-completion date, so a first click picks a single day and a second click turns it
   into a range. **The popover stays open after the first pick** so the day can be extended into a
   range; it closes only when the range completes (the second pick) or the user dismisses it
-  (outside-click / `Escape`). This is why the filter bar is rendered whenever `categories.length > 0`
-  and **not** gated on `!loading`: a date pick triggers a refetch (`setLoading(true)`), and gating the
-  bar on loading unmounted it mid-pick, which destroyed the popover's open state and snapped the
-  calendar shut after the first click. The selected day(s) are sent to the API as an inclusive
+  (outside-click / `Escape`). The filter plate stays mounted during loading and even when categories
+  arrive late, empty, or fail: removing that row used to move the cards up, and unmounting it during
+  a date refetch destroyed the calendar's two-click selection. The selected day(s) are sent to the API
+  as an inclusive
   `completedFrom`/`completedTo` window (local day edges → UTC instants), and the server filters on
   `CompletedAt` — so the search spans the **whole archive**, not just the current page. Picking a
   window resets paging to page 1; an empty result shows a dedicated "nothing finished in this period"
@@ -759,6 +760,12 @@ The viewer count is the length of that shared list.
   (`utils/completion-window.ts`). It is keyboard-accessible: the trigger carries `aria-expanded` +
   `aria-haspopup="dialog"` + `aria-controls`, the popover is a labelled `role="dialog"`, and both the
   trigger and clear controls show `focus-visible` rings.
+- **Completed archive loading:** skeletons are used for the first response or an account change.
+  Subsequent requests retain the current card nodes with `aria-busy` while replacing results;
+  aborted or superseded requests cannot overwrite newer data, including after author enrichment.
+  Categories load separately from date/page changes. A failed refresh of the same criteria keeps
+  the current results and reports a toast; failure to load a different page/date window shows the
+  existing retry panel so old results are never presented as the new selection.
 - **Completed-card title** (`TodoCard`): a resting completed task title renders at `text-base md:text-lg`
   (up from `text-sm`) so it stays readable in the otherwise-sparse completed card. The size is shared
   with the reopening state so it never jumps during the reopen transition, and stays just below the
@@ -1416,7 +1423,9 @@ notifications from June were still in the bell.
   within the hour its window ends — through the same cascade as a manual delete, so its comment timeline
   and notifications go too, and the whole branch (all subtasks, any status) goes with the root.
   Shared/public tasks are deleted for everyone once the owner's completion is ≥30 days old; a task a friend
-  completed only for themselves (owner still active) is instead hidden from that friend after 30 days. The
+  completed only for themselves (owner still active) is instead hidden from that friend after 30 days.
+  Hidden shared/public rows are excluded from the completed archive before counting and paging;
+  the personal completion stays set, so they do not reappear in Active. The
   completed archive shows a small "deletes in N days" badge (`components/todos/task-deletion-badge.tsx`) on
   tasks that are on the delete path, counted in calendar days of the reader's time zone: "deletes today"
   when the window ends today (or has just ended and is waiting for the hourly pass), "deletes tomorrow" for

@@ -35,7 +35,6 @@ import { formatDueRange } from "@/components/todos/edit-todo-modal/utils"
 import { buildCompletionWindow } from "@/utils/completion-window"
 import { StatusPanel } from "@/components/ui/status-panel"
 import { Pagination } from "@/components/ui/pagination"
-import { FilterPlatePlaceholder } from "@/components/todos/plate-placeholder"
 import { PageHeader } from "@/components/layout/page-header"
 
 const PAGE_SIZE = 20
@@ -50,11 +49,8 @@ export default function CompletedTasksPage() {
 
   const [todos, setTodos] = useState<Todo[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  // Until the first answer, the plate's place is held: it used to appear only once the
-  // categories arrived, and when the tasks came back first it dropped in above them and
-  // pushed the whole grid down 114px.
-  const [categoriesSettled, setCategoriesSettled] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [lastFetchedPage, setLastFetchedPage] = useState(1)
@@ -73,6 +69,14 @@ export default function CompletedTasksPage() {
   const [hintDismissed, setHintDismissed] = useState(false)
   const hintDismissedRef = useRef<boolean>(false)
   const friendNameCache = useRef<Map<string, string>>(new Map())
+  const todosRequest = useRef<AbortController | null>(null)
+  const requestEpoch = useRef(0)
+  const queryRef = useRef({ page: currentPage, start: searchStart, end: searchEnd, userId: user?.userId })
+  queryRef.current = { page: currentPage, start: searchStart, end: searchEnd, userId: user?.userId }
+  const loadedUserRef = useRef(loadedUserId)
+  loadedUserRef.current = loadedUserId
+  const loadedCriteria = useRef<{ page: number; start: string; end: string } | null>(null)
+  const hasLoadedTodos = loadedUserId !== null && loadedUserId === user?.userId
 
   // PERF: live mirror for the memoized TodoCard's (possibly stale) handler
   // closures to read from. See the equivalent note on the dashboard.
@@ -127,7 +131,7 @@ export default function CompletedTasksPage() {
   }, [user?.userId])
 
   // Picking a completion-date window restarts paging at 1 so results aren't stranded on an
-  // out-of-range page; the fetch then re-runs because the window is a fetchCompletedTodos dep.
+  // out-of-range page; the request effect observes the window and page together.
   const handleDateRangeChange = useCallback((start: string | null, end: string | null) => {
     setSearchStart(start ?? "")
     setSearchEnd(end ?? "")
@@ -140,14 +144,14 @@ export default function CompletedTasksPage() {
     setCurrentPage(1)
   }, [])
 
-  const fetchCategories = useCallback(async () => {
+  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories")
+      const res = await api.get<ApiResponse<CategoryListResponse>>("/categories/api/v1/categories", { signal })
+      if (signal?.aborted) return
       setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
     } catch (error) {
+      if (signal?.aborted) return
       console.error("Failed to fetch categories:", error)
-    } finally {
-      setCategoriesSettled(true)
     }
   }, [])
 
@@ -180,7 +184,14 @@ export default function CompletedTasksPage() {
     })
   }, [user?.userId])
 
-  const fetchCompletedTodos = useCallback(async (page = currentPage) => {
+  // Read current criteria even when a memoized card retains an older mutation callback.
+  const fetchCompletedTodos = useCallback(async (page = queryRef.current.page) => {
+    const epoch = ++requestEpoch.current
+    todosRequest.current?.abort()
+    const controller = new AbortController()
+    todosRequest.current = controller
+    const { start, end, userId: requestUserId } = queryRef.current
+    const isCurrent = () => !controller.signal.aborted && epoch === requestEpoch.current
     setLoading(true)
     setError(null)
 
@@ -193,24 +204,41 @@ export default function CompletedTasksPage() {
         pageNumber: page,
         pageSize: PAGE_SIZE,
         isCompleted: true,
-        ...buildCompletionWindow(searchStart, searchEnd),
+        ...buildCompletionWindow(start, end),
       }
 
-      const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", { params })
+      const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", { params, signal: controller.signal })
+      if (!isCurrent()) return
 
       const items = res.data.items ?? []
       const enriched = await enrichTodosWithAuthorNames(items)
+      if (!isCurrent()) return
 
       setTodos(enriched)
       setTotalCount(res.data.totalCount ?? 0)
       setLastFetchedPage(page)
+      loadedCriteria.current = { page, start, end }
+      setLoadedUserId(requestUserId ?? null)
     } catch (err) {
+      if (!isCurrent()) return
       console.error("Failed to fetch completed todos:", err)
-      setError(err instanceof Error ? err.message : "Failed to load completed tasks")
+      const message = err instanceof Error ? err.message : "Failed to load completed tasks"
+      const previous = loadedCriteria.current
+      // Keep a failed reconciliation's current results, but never label old results
+      // with a new page or date window that failed to load.
+      if (loadedUserRef.current === requestUserId &&
+        previous?.page === page && previous.start === start && previous.end === end) {
+        addToast({ type: "error", title: "Couldn't refresh completed tasks", description: message })
+      } else {
+        setError(message)
+      }
     } finally {
-      setLoading(false)
+      if (isCurrent()) {
+        setLoading(false)
+        todosRequest.current = null
+      }
     }
-  }, [currentPage, enrichTodosWithAuthorNames, searchStart, searchEnd])
+  }, [enrichTodosWithAuthorNames, addToast])
 
   useEffect(() => {
     if (!hasHydrated) return
@@ -221,9 +249,17 @@ export default function CompletedTasksPage() {
       return
     }
 
-    fetchCompletedTodos()
-    fetchCategories()
-  }, [isAuthenticated, hasHydrated, router, fetchCompletedTodos, fetchCategories, clearAuth])
+    void fetchCompletedTodos()
+    return () => todosRequest.current?.abort()
+  }, [isAuthenticated, hasHydrated, router, fetchCompletedTodos, clearAuth, currentPage, searchStart, searchEnd])
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || !useAuthStore.getState().isTokenValid()) return
+    const controller = new AbortController()
+    setCategories([])
+    void fetchCategories(controller.signal)
+    return () => controller.abort()
+  }, [hasHydrated, isAuthenticated, user?.userId, fetchCategories])
 
   useEffect(() => {
     if (loading) return
@@ -258,7 +294,7 @@ export default function CompletedTasksPage() {
       }
       try {
         await setViewerPreference(todoId, { completedByViewer: false })
-        await fetchCompletedTodos(currentPage)
+        await fetchCompletedTodos()
         addToast({ type: "success", title: "Task reopened!" })
       } catch (error) {
         console.error("Failed to reopen viewer completion:", error)
@@ -273,7 +309,7 @@ export default function CompletedTasksPage() {
 
     try {
       await api.put(`/todos/api/v1/todos/${todoId}`, { status: "todo" })
-      await fetchCompletedTodos(currentPage)
+      await fetchCompletedTodos()
       addToast({ type: "success", title: "Task reopened!" })
     } catch (error) {
       console.error("Failed to reopen todo:", error)
@@ -297,7 +333,7 @@ export default function CompletedTasksPage() {
 
     try {
       await api.delete(`/todos/api/v1/todos/${deletingTodo.id}`)
-      await fetchCompletedTodos(currentPage)
+      await fetchCompletedTodos()
       addToast({ type: "success", title: "Task deleted" })
     } catch (error) {
       console.error("Failed to delete todo:", error)
@@ -397,7 +433,7 @@ export default function CompletedTasksPage() {
     : todos.filter(t => filterCategoryIds.includes(t.categoryId ?? ""))
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" aria-busy={loading}>
       <div>
         <Button asChild variant="ghost" size="sm" className="-ml-3 mb-4">
           <Link href="/tasks">
@@ -427,10 +463,7 @@ export default function CompletedTasksPage() {
           NOT gated on `!loading`: the bar is a control surface, not results. Gating it on loading
           unmounted it on every refetch — including the one a date pick triggers — which destroyed the
           date popover's open state, so the calendar snapped shut after the first pick instead of
-          waiting for the second. Keeping it mounted lets the popover stay open across the refetch (the
-          skeleton below still swaps for the results). */}
-      {!categoriesSettled ? <FilterPlatePlaceholder /> : null}
-      {categories.length > 0 && (
+          waiting for the second. Keep the same plate even when categories arrive late or empty. */}
         <QuickFilterBar
           categories={categories}
           selectedIds={filterCategoryIds}
@@ -447,9 +480,8 @@ export default function CompletedTasksPage() {
             ) : undefined
           }
         />
-      )}
 
-      {loading ? (
+      {!hasLoadedTodos && !error ? (
         <MasonryColumns
           items={[...Array(PAGE_SIZE)].map((_, i) => ({ id: `completed-skeleton-${i}` }))}
           getKey={(item) => item.id}

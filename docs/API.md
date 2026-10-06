@@ -691,6 +691,13 @@ Ordering is newest-first by `createdAt`, except when the query asks only for com
 (`isCompleted=true`, or a `status` list containing nothing but `Done`) — then it is newest-first by
 `completedAt`, falling back to `updatedAt` and `createdAt`.
 
+Completed-only requests exclude masked shared/public tasks before counting and paging:
+viewer-hidden preferences (including expired personal completions) and the owner's legacy
+global hidden flag keep those rows out of the archive. Personal completion stays set, so
+retention-hidden tasks do not return to Active. A private owner's hidden completed task
+remains readable; another owner's legacy global hidden flag does not hide their task from
+a viewer. Active/mixed lists retain the existing hidden-task projection.
+
 ### Which fields are populated on which read
 
 `TodoItemDto` is one record served by nine handlers, and four of its members are explicitly
