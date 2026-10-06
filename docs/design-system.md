@@ -1008,9 +1008,19 @@ matter what the content does with it.
 
 A confirm dialog opened from inside the category editor means two overlays are mounted.
 If the inner one released the lock on close, scrolling would return while the outer
-dialog was still up. The lock lifts only when the last holder releases it, and it
-replaces the scrollbar's width as body padding so the page behind does not jump
-sideways at the exact moment the dialog appears over it.
+dialog was still up. The lock lifts only when the last holder releases it.
+
+The lock sets `overflow: hidden` on `<html>`, the element that actually scrolls (it
+carries `overflow-y: scroll` in `globals.css`); `overflow` on `<body>` froze nothing
+and turned `<body>` into a scroll container under every sticky element. Nothing is
+added to replace the scrollbar: `<html>` also has `scrollbar-gutter: stable`, so the
+scrollbar's lane stays reserved under the lock and the page keeps its width. The hook
+used to pad `<body>` by the scrollbar's width on top of that reserved lane, which slid
+every centred element 5px left while a task was open. Only a browser that cannot
+reserve the lane (`CSS.supports("scrollbar-gutter", "stable")` is false) gets the width
+back as `padding-right` on `<html>`. Support decides it, not a before/after measurement:
+`clientWidth` counts the empty reserved lane as page width, so it reports a freed lane
+even though the layout never moved.
 
 ### `NumberRoll` — why a counter must not swap
 

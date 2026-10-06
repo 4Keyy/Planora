@@ -6,6 +6,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Fixed
 
+- Dialogs: opening a task (or any dialog) no longer slides the page behind it 5px to the left. `useScrollLock` now locks scrolling on `<html>`, the element that scrolls, and no longer pads `<body>` by the scrollbar's width — `scrollbar-gutter: stable` already keeps that lane reserved, so the padding pushed the layout sideways. The lock also stops the wheel from scrolling the page behind a dialog, which the old `<body>` lock never did.
 - Category cards: separate the moving wrapper from the clipped, rounded shadow surface to address reported black flickering dots beneath cards during rapid pointer movement. Cards now follow task-card motion and styling, with category-coloured hover glow, a desktop gradient delete panel, and a neutral mobile delete button.
 
 ### test(ci): await landing branch entry frames (2026-10-06)

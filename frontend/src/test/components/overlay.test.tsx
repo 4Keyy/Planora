@@ -5,12 +5,15 @@ import { Overlay } from "@/components/ui/overlay"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
 
 beforeEach(() => {
+  document.documentElement.style.overflow = ""
+  document.documentElement.style.paddingRight = ""
   document.body.style.overflow = ""
   document.body.style.paddingRight = ""
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe("Overlay", () => {
@@ -99,9 +102,9 @@ describe("Overlay", () => {
 
   it("locks page scroll while open and releases it on close", () => {
     const { rerender } = render(<Overlay open onClose={vi.fn()} title="Edit">body</Overlay>)
-    expect(document.body.style.overflow).toBe("hidden")
+    expect(document.documentElement.style.overflow).toBe("hidden")
     rerender(<Overlay open={false} onClose={vi.fn()} title="Edit">body</Overlay>)
-    expect(document.body.style.overflow).toBe("")
+    expect(document.documentElement.style.overflow).toBe("")
   })
 })
 
@@ -111,41 +114,66 @@ describe("useScrollLock", () => {
     return null
   }
 
+  it("locks the root, which is what scrolls, and leaves <body> alone", () => {
+    // globals.css scrolls the page on <html>. `overflow: hidden` on <body> froze nothing
+    // and made <body> a scroll container under every sticky element.
+    const view = render(<Harness active />)
+    expect(document.documentElement.style.overflow).toBe("hidden")
+    expect(document.body.style.overflow).toBe("")
+    view.unmount()
+    expect(document.documentElement.style.overflow).toBe("")
+  })
+
   it("keeps the lock while a second holder is still open", () => {
     // A confirm dialog inside the category editor: the inner one closing first must
     // not hand scrolling back to the page while the outer dialog is still up.
     const outer = render(<Harness active />)
     const inner = render(<Harness active />)
-    expect(document.body.style.overflow).toBe("hidden")
+    expect(document.documentElement.style.overflow).toBe("hidden")
 
     inner.unmount()
-    expect(document.body.style.overflow).toBe("hidden")
+    expect(document.documentElement.style.overflow).toBe("hidden")
 
     outer.unmount()
-    expect(document.body.style.overflow).toBe("")
+    expect(document.documentElement.style.overflow).toBe("")
   })
 
   it("does nothing while inactive", () => {
     render(<Harness active={false} />)
-    expect(document.body.style.overflow).toBe("")
+    expect(document.documentElement.style.overflow).toBe("")
   })
 
-  it("replaces the scrollbar's width so the page behind does not jump", () => {
-    // innerWidth minus clientWidth is the scrollbar. Removing it without replacing
-    // it widens the viewport and shifts every centred element sideways.
+  it("adds no padding while the scrollbar's lane stays reserved", () => {
+    // The regression: a visible 10px scrollbar (innerWidth 1440, clientWidth 1430) whose
+    // lane `scrollbar-gutter: stable` keeps reserved under the lock. Padding it anyway
+    // pushed every centred element 5px to the left for as long as a task was open.
+    vi.stubGlobal("CSS", { supports: () => true })
+    vi.spyOn(window, "innerWidth", "get").mockReturnValue(1440)
+    vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(1430)
+    const view = render(<Harness active />)
+    expect(document.documentElement.style.paddingRight).toBe("")
+    expect(document.body.style.paddingRight).toBe("")
+    view.unmount()
+  })
+
+  it("replaces the scrollbar's width where the lane cannot be reserved", () => {
+    // A browser without `scrollbar-gutter` gives the lane to the page when the root stops
+    // scrolling; without the padding every centred element would jump right.
+    vi.stubGlobal("CSS", { supports: () => false })
     vi.spyOn(window, "innerWidth", "get").mockReturnValue(1015)
     vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(1000)
     const view = render(<Harness active />)
-    expect(document.body.style.paddingRight).toBe("15px")
+    expect(document.documentElement.style.paddingRight).toBe("15px")
     view.unmount()
-    expect(document.body.style.paddingRight).toBe("")
+    expect(document.documentElement.style.paddingRight).toBe("")
   })
 
   it("adds no padding on a platform with overlay scrollbars", () => {
+    vi.stubGlobal("CSS", { supports: () => false })
     vi.spyOn(window, "innerWidth", "get").mockReturnValue(1000)
     vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(1000)
     const view = render(<Harness active />)
-    expect(document.body.style.paddingRight).toBe("")
+    expect(document.documentElement.style.paddingRight).toBe("")
     view.unmount()
   })
 })

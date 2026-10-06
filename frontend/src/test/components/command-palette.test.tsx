@@ -32,7 +32,7 @@ beforeEach(() => {
 
 afterEach(() => {
   useAuthStore.setState({ isAuthenticated: false })
-  document.body.style.overflow = ""
+  document.documentElement.style.overflow = ""
 })
 
 const openPalette = async () => {
@@ -116,8 +116,8 @@ describe("CommandPalette", () => {
 
   it("locks page scroll while open", async () => {
     await openPalette()
-    expect(document.body.style.overflow).toBe("hidden")
+    expect(document.documentElement.style.overflow).toBe("hidden")
     await userEvent.keyboard("{Escape}")
-    await waitFor(() => expect(document.body.style.overflow).toBe(""))
+    await waitFor(() => expect(document.documentElement.style.overflow).toBe(""))
   })
 })
