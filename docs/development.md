@@ -368,6 +368,8 @@ The repository ignores generated and machine-local state:
 
 `AGENTS.md` is ignored and untracked in this checkout, together with assistant-local state. Shared contributor/documentation rules live in tracked `CONTRIBUTING.md` and this guide. Keep personal instructions in ignored assistant-local files.
 
+The owner-approved [Codex engineering protocol](codex-protocol.md) records the standing rules for parallel work with Claude Code, scoped changes, verification, documentation and commits. Its local loading instructions keep assistant settings out of Git while the protocol itself remains versioned. Reconnect the protocol when cloning the repository or moving the Codex profile.
+
 Do not commit local agent settings, generated build outputs, secrets, database files, or Docker override files.
 
 Label unverified behavior and planned policy explicitly. Cite the implementation or verification that establishes a contract; an architectural rule can have an open implementation gap.

@@ -100,6 +100,7 @@ remaining audit/E2E limits.
 | File | Purpose |
 |---|---|
 | [`development.md`](development.md) | Local workflows for adding features, endpoints, components |
+| [`codex-protocol.md`](codex-protocol.md) | Standing Codex engineering rules, parallel ownership and local instruction loading |
 | [`testing.md`](testing.md) | Suites, commands, coverage, OpenAPI lint |
 | [`plans/`](plans/) | Working plans and research prompts for upcoming work |
 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | contributor checks, documentation rules and repository hygiene |
