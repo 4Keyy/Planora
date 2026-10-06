@@ -4,6 +4,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(a11y): the collapsed create panel is out of the tab order (2026-10-06)
+
+Collapsed, the create panel's form was only `aria-hidden` inside a 0px grid row, so Tab walked about
+eight invisible stops through it — the title, the details, four selector plates, Cancel and Create —
+and a screen reader met focus inside a hidden subtree. The form is now `inert` while collapsed, and
+closing the panel with focus inside it (Escape in the title, Cancel) hands focus back to the header
+instead of dropping it to `<body>`.
+
 ### fix(ui): every text field in the product draws the same focus frame (2026-10-06)
 
 The field-focus system reached only `<Input>`, `<Textarea>`, the create panel and quick capture;

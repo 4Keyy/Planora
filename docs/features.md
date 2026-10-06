@@ -758,7 +758,9 @@ The viewer count is the length of that shared list.
   popover is open) moves focus into the title and lands there. The left rule is the focus indicator:
   an ink rule draws itself over its grey track top-down while either field has focus (`field-rule`
   in `globals.css`), and no outline boxes the fields. On `/tasks` the `F` filter shortcut stands down
-  while the panel is open, so a title can start with F. Then comes a row of four compact
+  while the panel is open, so a title can start with F. Collapsed, the form is `inert` as well as
+  `aria-hidden`, so Tab never walks through its invisible fields; closing it with focus inside (Escape
+  in the title, Cancel) hands focus back to the header. Then comes a row of four compact
   **selector plates** — Priority,
   Due date, Category, Share — each opening an anchored popover (the shared `PriorityPopover`,
   `DatePopover` with its Today/Tomorrow/+3/Next-week quick-picks, `CategoryPopover`, and a

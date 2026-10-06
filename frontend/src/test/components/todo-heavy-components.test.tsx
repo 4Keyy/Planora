@@ -476,6 +476,21 @@ describe("CreateTodoPanel", () => {
     expect(title).toHaveValue("Fix")
   })
 
+  it("hands focus back to the header when the panel closes with focus inside the form", async () => {
+    const user = userEvent.setup()
+    const onToggle = vi.fn()
+    const props = { onToggle, categories, onSubmit: vi.fn(), onCreateCategory: vi.fn(), onDeleteCategory: vi.fn() }
+    const { rerender } = render(<CreateTodoPanel isOpen {...props} />)
+    await user.keyboard("Fix")
+    expect(screen.getByPlaceholderText("What needs to be done?")).toHaveFocus()
+
+    await user.keyboard("{Escape}")
+    expect(onToggle).toHaveBeenCalledOnce()
+    rerender(<CreateTodoPanel isOpen={false} {...props} />)
+    // The collapsed body is inert; focus must not fall to <body>.
+    expect(screen.getByRole("button", { name: "Open create task panel" })).toHaveFocus()
+  })
+
   it("renders collapsed state and opens through the primary action", async () => {
     const user = userEvent.setup()
     const onToggle = vi.fn()

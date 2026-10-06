@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type RefObject } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import {
   ArrowRight,
@@ -370,6 +370,8 @@ export function CreateTodoPanel({
   const friends = useFriends(isOpen)
   const titleRef = useRef<HTMLInputElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   /** What held focus when the panel opened: its header, an empty state's button, or nothing. */
   const openerRef = useRef<Element | null>(null)
 
@@ -415,6 +417,17 @@ export function CreateTodoPanel({
     }
     openerRef.current = null
     setOpenPopover(null)
+  }, [isOpen])
+
+  /*
+   * Closing with focus inside the form (Escape in the title, Cancel) hands focus back to the
+   * header. The collapsed body is `inert`, and a focused element that turns inert drops
+   * focus to <body> — the next Tab would restart from the top of the page. A layout effect
+   * runs before the browser's focus fixup, while the element still holds focus.
+   */
+  useLayoutEffect(() => {
+    if (isOpen) return
+    if (bodyRef.current?.contains(document.activeElement)) toggleRef.current?.focus({ preventScroll: true })
   }, [isOpen])
 
   /*
@@ -565,6 +578,7 @@ export function CreateTodoPanel({
         so the animation plays correctly in both directions.
       */}
       <button
+        ref={toggleRef}
         type="button"
         onClick={onToggle}
         // The same 80px row as the quick filter below it (`plate.ts`), at every width. The
@@ -646,7 +660,11 @@ export function CreateTodoPanel({
         visually-hidden form, and makes queryByPlaceholderText return null when closed.
       */}
       <div
+        ref={bodyRef}
         aria-hidden={!isOpen}
+        // Not only hidden from assistive tech but out of the tab order: collapsed, the form
+        // is a 0px row, and Tab used to walk eight invisible stops through it.
+        inert={!isOpen}
         style={{
           display: "grid",
           gridTemplateRows: isOpen ? "1fr" : "0fr",
