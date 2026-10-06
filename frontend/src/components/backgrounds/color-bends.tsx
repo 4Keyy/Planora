@@ -147,6 +147,12 @@ export interface ColorBendsProps {
   iterations?:     number
   intensity?:      number
   bandWidth?:      number
+  /**
+   * Degrees the bands turn per viewport height scrolled. 0 (the default) leaves scroll
+   * out of it. Read through a ref inside the frame loop and eased like the pointer, so a
+   * scroll never re-renders React and never touches the context-creating effect.
+   */
+  scrollTurn?:     number
   className?:      string
 }
 
@@ -155,9 +161,23 @@ export interface ColorBendsProps {
 /** An RGB triple in 0..1, the form the `uColors` uniform array wants. */
 export type Rgb = [number, number, number]
 
-/** `#abc` or `#aabbcc` (with or without the hash) to a 0..1 RGB triple. */
+/**
+ * `#abc` or `#aabbcc` (with or without the hash) to a 0..1 RGB triple.
+ *
+ * Anything else returns mid-grey rather than NaN. This is not defensiveness for its own
+ * sake: the layer above shipped `var(--pl-line-strong)` here for a while, which parsed
+ * to `[NaN, NaN, NaN]`, uploaded cleanly through `uniform3fv`, and produced a broken
+ * background with no error anywhere. A uniform cannot resolve a CSS custom property —
+ * WebGL never sees the cascade — so the failure has to be visible at the boundary.
+ */
 export function hexToVec3(hex: string): Rgb {
   const h = hex.replace("#", "").trim()
+  if (!/^(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(h)) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`ColorBends: "${hex}" is not a hex colour. A uniform cannot resolve a CSS variable.`)
+    }
+    return [0.5, 0.5, 0.5]
+  }
   const full = h.length === 3
     ? [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)]
     : [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
@@ -226,11 +246,15 @@ export function ColorBends({
   iterations    = 1,
   intensity     = 1.5,
   bandWidth     = 6,
+  scrollTurn    = 0,
   className     = "",
 }: ColorBendsProps) {
   const containerRef  = useRef<HTMLDivElement>(null)
   const rotationRef   = useRef(rotation)
   const autoRotateRef = useRef(autoRotate)
+  const scrollTurnRef = useRef(scrollTurn)
+  // The eased scroll contribution, in degrees.
+  const scrollDegRef  = useRef(0)
   // Pointer in clip space: where it is, and where the render loop has eased to.
   const ptrTargetRef  = useRef<[number, number]>([0, 0])
   const ptrCurrentRef = useRef<[number, number]>([0, 0])
@@ -334,7 +358,13 @@ export function ColorBends({
 
       gl.uniform1f(u.uTime!, elapsed)
 
-      const deg = (rotationRef.current % 360) + autoRotateRef.current * elapsed
+      // Scroll turns the bands a few degrees per screen, eased so a flick reads as a
+      // drift. `scrollY` and `innerHeight` are cheap reads: no layout is forced.
+      const turn = scrollTurnRef.current
+      const scrollTarget = turn ? (window.scrollY / Math.max(1, window.innerHeight)) * turn : 0
+      scrollDegRef.current += (scrollTarget - scrollDegRef.current) * Math.min(1, dt * 4)
+
+      const deg = (rotationRef.current % 360) + autoRotateRef.current * elapsed + scrollDegRef.current
       const rad = (deg * Math.PI) / 180
       gl.uniform2f(u.uRot!, Math.cos(rad), Math.sin(rad))
 
@@ -452,6 +482,7 @@ export function ColorBends({
   useEffect(() => {
     rotationRef.current   = rotation
     autoRotateRef.current = autoRotate
+    scrollTurnRef.current = scrollTurn
 
     const gl = glRef.current
     const prog = progRef.current
@@ -470,7 +501,7 @@ export function ColorBends({
     // Repaint immediately: when the loop is parked (reduced motion) a colour change
     // would otherwise not appear until the next resize.
     drawRef.current?.()
-  }, [rotation, autoRotate, colors])
+  }, [rotation, autoRotate, colors, scrollTurn])
 
   // ── Global pointer tracking (works even with pointer-events-none) ──────────
   useEffect(() => {

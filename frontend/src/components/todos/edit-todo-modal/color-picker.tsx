@@ -235,18 +235,17 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
           flexShrink: 0,
           boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
         }} />
-        {/* Hex input */}
-        <div style={{
-          flex: 1, display: "flex", alignItems: "center",
-          background: "var(--pl-gray-100)", borderRadius: 8, padding: "0 10px",
-          border: "1px solid var(--pl-line)",
-        }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink-subtle)", marginRight: 2 }}>#</span>
+        {/* Hex input. The grey box IS the field: its edge turns ink with a halo while the
+            input inside has focus (globals.css `.field-shell`), and the input draws nothing. */}
+        <div className="field-shell flex flex-1 items-center rounded-sm border border-line bg-gray-100 px-2.5">
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-ink-muted)", marginRight: 2 }}>#</span>
           <input
             value={hexInput.replace("#", "")}
             onChange={(e) => handleHexInput(e.target.value)}
             maxLength={6}
             spellCheck={false}
+            aria-label="Hex colour"
+            className="field-naked"
             style={{
               flex: 1, border: "none", background: "transparent",
               fontSize: 12, fontWeight: 700, color: "var(--pl-ink)", fontFamily: "monospace", letterSpacing: "0.04em",
@@ -259,8 +258,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       {/* ── Preset swatches ── */}
       <div>
         <div style={{
-          fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
-          textTransform: "uppercase", color: "var(--pl-ink-subtle)", marginBottom: 7,
+          fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+          textTransform: "uppercase", color: "var(--pl-ink-muted)", marginBottom: 7,
         }}>
           Presets
         </div>

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 /**
  * Redaction as a shape you watch narrow.
  *
- * "Private", "Shared" and "Public" are three words that differ by a glance. The one
+ * "Private", "Shared" and "All friends" are three phrases that differ by a glance. The one
  * thing this product promises that a list app does not is that a task can be shown
  * to some people and not others — and a promise rendered as a word is a promise the
  * eye skips on its way to the title. So the state is a ring, and changing it moves:
@@ -21,11 +21,12 @@ import { cn } from "@/lib/utils"
  * `ink`, the cut arc is `line`, so the mark survives greyscale and every kind of
  * colour blindness.
  *
- * `private` and `public` are only one narrow gap apart as pure geometry, and at the
- * 14px `sm` size that difference is a couple of pixels. The filled centre — you, the
- * only viewer — is what actually separates them, and the word ships beside the ring
- * in every case. The ring is the thing that *moves*; it was never asked to carry the
- * meaning on its own.
+ * **The ring never closes.** Private is a ring with one narrow cut and a filled centre —
+ * you, the only viewer. Every person you add opens the cut wider. `public` is the share
+ * picker's "All friends", and it is still a circle the owner chose, not the open internet:
+ * there is no public link and no publish button. So it is drawn at the widest cut the mark
+ * allows — the most open a ring gets — and called "All friends". It used to be the one
+ * closed ring, labelled "Public", which said the opposite of what the product does.
  *
  * Animating `stroke-dasharray` is the one exception to "transform and opacity only",
  * and it is a real exception rather than a shortcut: no transform turns an arc into a
@@ -69,9 +70,8 @@ export interface RedactionArc {
 }
 
 /**
- * A sealed ring still needs one break in it, or `private` and `public` are the same
- * drawing. Twelve percent of the circumference is the smallest cut that survives the
- * 14px size once the stroke has thickness.
+ * Private is never a sealed ring either: one break, the smallest that survives the 14px
+ * size once the stroke has thickness — twelve percent of the circumference.
  */
 const PRIVATE_GAP = 0.12
 
@@ -100,7 +100,7 @@ const round = (n: number) => Math.round(n * 1e4) / 1e4
  * markup, and a test that renders SVG to assert on a number is testing jsdom.
  */
 export function redactionArc(audience: Audience, viewerCount?: number): RedactionArc {
-  if (audience === "public") return { dash: 1, gap: 0 }
+  if (audience === "public") return { dash: round(1 - SHARED_MAX_GAP), gap: SHARED_MAX_GAP }
   if (audience === "private") return { dash: round(1 - PRIVATE_GAP), gap: PRIVATE_GAP }
 
   // A negative, fractional or NaN count is a caller bug, and a caller bug should not
@@ -119,7 +119,7 @@ function normaliseCount(value: number | undefined): number | undefined {
 const AUDIENCE_WORD: Record<Audience, string> = {
   private: "Private",
   shared: "Shared",
-  public: "Public",
+  public: "All friends",
 }
 
 /**
@@ -130,7 +130,10 @@ const AUDIENCE_WORD: Record<Audience, string> = {
  */
 function describeAudience(audience: Audience, viewerCount?: number): string {
   if (audience === "private") return "Private. Only you can see this."
-  if (audience === "public") return "Public. Anyone with the link can see this."
+  // `public` is the share picker's "All friends", and the server enforces it
+  // (`IsPublic && isFriend`). It once said "anyone with the link" — a link the product has
+  // never had, on the one sentence whose job is to say exactly who can see a task.
+  if (audience === "public") return "Shared with all your friends."
   const viewers = normaliseCount(viewerCount)
   if (viewers === undefined) return "Shared. Some people can see this."
   return `Shared with ${viewers} ${viewers === 1 ? "person" : "people"}.`
@@ -186,8 +189,8 @@ export function RedactionBadge({
           transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
         />
       </g>
-      {/* You, at the centre, when you are the only one. This is what tells `private`
-          apart from `public` at a size where a 12% gap is two pixels. */}
+      {/* You, at the centre, when you are the only one: the other half of what tells
+          private from shared at a size where a cut is a couple of pixels. */}
       {audience === "private" && <circle cx="12" cy="12" r="3" className="fill-ink" />}
     </svg>
   )

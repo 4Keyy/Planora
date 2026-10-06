@@ -65,6 +65,9 @@ export const SPRING_RESPONSIVE = spring.responsive
 /** Presence and decorative motion. Floats into place. */
 export const SPRING_GENTLE = spring.gentle
 
+/** Long travel and layout moves. Critically damped: lands without overshoot. */
+export const SPRING_LAYOUT = spring.layout
+
 // ─── Tweens ─────────────────────────────────────────────────────────────────
 
 /** The default. Modals, panels, toasts. */

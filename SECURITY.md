@@ -43,14 +43,14 @@ These targets are policy goals, not automated guarantees in the current reposito
 - Access tokens are JWTs and are kept in frontend memory.
 - Refresh tokens are stored as httpOnly `refresh_token` cookies scoped to `/auth/api/v1/auth`.
 - Register/login/refresh responses do not return the raw refresh token in JSON.
-- Browser state-changing requests require a double-submit CSRF token.
+- Auth, Todo, Category, Messaging and Collaboration require a double-submit CSRF token on HTTP mutations, including bearer-authenticated calls; Realtime and the gateway do not register that middleware.
 - Protected services validate JWT issuer, audience, lifetime, and signing key locally.
 - Admin-only endpoints use `[Authorize(Roles = "Admin")]`.
-- Password validation includes length/complexity checks, weak-pattern checks, optional HIBP lookup, and password history checks.
-- All services share a single `SecurityHeadersMiddleware` for consistent, strict security headers.
-- A global rate limiter (100 req/min/IP) covers every endpoint; Auth endpoints have stricter named policies.
+- Registration checks password length/complexity; change/reset additionally check weak patterns and optional HIBP; previous-password history is enforced on change-password only.
+- APIs and gateway use shared `SecurityHeadersMiddleware`; Auth avatar static files run before it and set their own cache/nosniff headers.
+- A global rate limiter defaults to 100/minute/partition; Auth operations have stricter policies and CSRF GET opts out at the service. Pipelines run limiting before authentication, so the normal partition is IP. Gateway adds independent global/auth IP windows.
 - SignalR `NotificationHub` validates subscription topics against a static allowlist before granting group membership.
-- CORS uses explicit origins with credentials.
+- Production CORS uses configured origins with credentials; gateway Development additionally permits loopback/private IPv4 origins.
 - All inter-service gRPC calls are authenticated by a shared `x-service-key` metadata header; the `ServiceKeyServerInterceptor` rejects calls under `Unauthenticated` and emits the `planora.grpc.unauthenticated{reason}` counter with a low-cardinality reason tag (`missing_key`, `short_key`, `mismatch`) so credential-compromise activity is observable in real time.
 - The CSRF middleware emits `planora.csrf.rejections{reason}` (`missing_header`, `missing_cookie`, `mismatch`) so anomalous rejection patterns are dashboardable.
 - Centralized OpenTelemetry pipeline (see [`docs/configuration.md`](docs/configuration.md) "OpenTelemetry (Observability)" section) — traces and metrics are produced in every service via `AddPlanoraTelemetry`; the OTLP gRPC exporter activates only when `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OpenTelemetry:OtlpEndpoint`) is set.
@@ -77,27 +77,28 @@ Never commit `.env`. At minimum, set strong local/production values for:
 - `RABBITMQ_USER`
 - `RABBITMQ_PASSWORD`
 - `JWT_SECRET`
+- `GRPC_SERVICE_KEY` / `GrpcSettings__ServiceKey` on internal gRPC clients/servers
 
 `JWT_SECRET` must be at least 32 characters and identical across the gateway and every backend service.
 
 ## Secret Scanning
 
-`.github/workflows/security.yml` runs Gitleaks on every push and pull request, with the upstream default ruleset extended by [`.gitleaks.toml`](.gitleaks.toml). The Planora-specific rules detect inlined values for `JwtSettings__Secret` / `JWT_SECRET`, `GRPC_SERVICE_KEY` / `GrpcSettings__ServiceKey`, Postgres / Redis connection-string passwords, `RABBITMQ_PASSWORD`, `Email__Password`, and generic high-entropy `SECRET` / `TOKEN` / `KEY` assignments. The allowlist explicitly excludes environment-variable interpolation forms (`${VAR:?...}`, `%VAR%`) so the docker-compose strict-required pattern does not trigger false positives.
+`.github/workflows/security.yml` runs Gitleaks on pushes to `main`, `develop`, `audit/**` and `fix/**`, pull requests targeting `main`/`develop`, and the weekly scheduled run, with the upstream default ruleset extended by [`.gitleaks.toml`](.gitleaks.toml). The Planora-specific rules detect inlined values for `JwtSettings__Secret` / `JWT_SECRET`, `GRPC_SERVICE_KEY` / `GrpcSettings__ServiceKey`, Postgres / Redis connection-string passwords, `RABBITMQ_PASSWORD`, `Email__Password`, and generic high-entropy `SECRET` / `TOKEN` / `KEY` assignments. The allowlist explicitly excludes environment-variable interpolation forms (`${VAR:?...}`, `%VAR%`) so the docker-compose strict-required pattern does not trigger false positives.
 
 ## Software Bill Of Materials (SBOM)
 
-`.github/workflows/security.yml` includes a CycloneDX SBOM job that emits a per-project SBOM for the .NET solution (`dotnet CycloneDX`, excluding test projects) and a single SBOM for the frontend npm tree (`@cyclonedx/cyclonedx-npm`). SBOMs are uploaded as an artifact with 90-day retention so the supply-chain inventory of every commit on `main` is retrievable.
+`.github/workflows/security.yml` includes a CycloneDX SBOM job that emits a per-project SBOM for the .NET solution (`dotnet CycloneDX`, excluding test projects) and a single SBOM for the frontend npm tree (`@cyclonedx/cyclonedx-npm`). SBOMs are uploaded as an artifact with 90-day retention for runs covered by that workflow. They describe dependency inventory, not proof that all vulnerable paths are reachable or absent.
 
 ## Production Security Notes
 
-The repository now includes a production baseline ([`docs/production.md`](docs/production.md)), Fly.io deployment manifests ([`deploy/fly/`](deploy/fly/) and [`deploy/fly/README.md`](deploy/fly/README.md)), and a one-shot migration runner ([`tools/Planora.Migrator/`](tools/Planora.Migrator/)), but the CD workflow that wires them together is not yet committed. Before production use, define:
+The repository now includes a production baseline ([`docs/production.md`](docs/production.md)), Fly.io deployment manifests ([`deploy/fly/`](deploy/fly/) and [`deploy/fly/README.md`](deploy/fly/README.md)), and a one-shot migration runner ([`tools/Planora.Migrator/`](tools/Planora.Migrator/)), and [the CD workflow](.github/workflows/cd.yml) is committed. The audit found routing, listener and secret gaps in the Fly baseline; treat it as configuration to validate, not proof of a successful production deployment. Before production use, define:
 
 - HTTPS termination and forwarded header policy;
 - secure cookie behavior behind the proxy;
 - secret management outside plaintext `.env` files;
 - network isolation for PostgreSQL, Redis, and RabbitMQ;
 - RabbitMQ AMQP binding/firewalling;
-- backup/restore and migration policy (the migrator is the chosen runner; the CD pipeline that invokes it pre-deploy is pending);
+- backup/restore of service databases and Auth Data Protection keys, plus the CD migrator execution/rollback policy;
 - observability sinks (set `OTEL_EXPORTER_OTLP_ENDPOINT` on every Fly app to activate trace + metric export) and alerting.
 
 References:
@@ -106,3 +107,17 @@ References:
 - [`docs/secrets-management.md`](docs/secrets-management.md)
 - [`deploy/fly/README.md`](deploy/fly/README.md)
 - [`.env.production.example`](.env.production.example)
+
+## Audit Findings And Scope
+
+The [2026-10-06 repository audit](docs/audits/2026-10-06.md) and
+[authorization coverage map](docs/security-idor-coverage.md#known-findings-and-missing-regressions)
+record concrete implementation gaps. In particular, public-task join bypasses the normal
+friend gate/redaction, revoked subtask creators retain mutation paths, and comment deletion
+does not recheck current branch access. These are findings, not fixed behavior.
+
+Security-stamp checks fail open on Redis errors and use a fixed 120-minute retention;
+existing SignalR connections are not continuously revalidated. Dependency scans also
+report vulnerable package versions. Scanner results, source inspection and unit tests
+provide different evidence; none is a guarantee of deployment security or a substitute
+for resolving confirmed findings. No application behavior was changed by this documentation audit.

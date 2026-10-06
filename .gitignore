@@ -122,6 +122,8 @@ pids/
 frontend/build/
 frontend/dist/
 frontend/.next/
+# Side builds made with NEXT_DIST_DIR (next.config.js), e.g. .next-verify
+frontend/.next-*/
 frontend/out/
 frontend/.vercel
 build_output.txt

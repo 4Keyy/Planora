@@ -4,6 +4,880 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ci): restore dependency and auth contract checks (2026-10-06)
+
+Pinned XML cryptography to patched 10.0.12 through an explicit Auth Infrastructure
+reference and corrected two reset-link test expectations to `/auth/reset-password`.
+Forced restore, Release build with `-warnaserror` and all 972 backend tests passed;
+NuGet auditing remains enabled. See the [security note](.github/security/cryptography-xml-2026-10.md)
+for the affected advisories and the override removal condition.
+
+### docs: reconcile repository references with source (2026-10-06)
+
+Audited the HTTP/auth contracts, data model, event-processing boundaries,
+frontend, configuration, deployment and verification tooling. Updated the
+maintained references and labeled historical plans/ADRs so implementation
+divergence is explicit. The [dated audit](docs/audits/2026-10-06.md) records
+source-backed findings, executed checks and remaining release blockers;
+documentation corrections do not fix application behavior.
+
+### fix(motion): the branch feed moves as one, and five small snaps are gone (2026-10-06)
+
+- **Branch feed.** Messages, system events and day separators were plain rows with no layout and
+  no exit, so deleting one removed it in a frame while subtasks and threads beside it glided, and a
+  subtask's completion note left its card (and every row below) to snap up once its fade ended. The
+  rail now sits in one `LayoutGroup` — any finished exit re-measures every row — and every row is a
+  position-only layout node with a short fade-rise in and a fade out. A deleted subtask no longer
+  animates `height` (a re-layout of the whole feed per frame), and the reply chip's height runs on a
+  tween instead of a spring that overshot and wobbled the chat column.
+- **Collapse glide.** `useCollapseScroll`'s 650ms rAF glide to the top jumps instead under reduced
+  motion (no CSS block or MotionConfig reaches a rAF loop), stops the moment the reader scrolls —
+  it used to drag the page back against a wheel — and is cancelled on unmount.
+- **Calendar.** The date popover always draws six weeks of 44px rows, so moving between a 5- and a
+  6-week month no longer changes its height by a row in one frame while the days slide.
+- **Presence row.** A leaving face fades where it was (`popLayout`) while the faces to its right
+  close the gap, instead of holding its slot and then snapping them left.
+- **Navbar hover drop.** Leaving the tabs, it fades instead of vanishing in a frame; moving to the
+  next tab it hands over at once, so no fading copy is left behind the one that flows on.
+- **Landing nav.** Both groups in the droplet are `layout="position"`, so the capsule's width spring
+  (when the CTA's label settles after the session is read) no longer stretches the text inside it.
+
+### fix(motion): toasts and categories glide instead of jumping (2026-10-06)
+
+The toast stack ran in `popLayout`, which pins a leaving toast out of the flow at once, but the
+toasts had no `layout`, so every other toast jumped a toast's height plus the gap in a single frame
+whenever one arrived or left. They now carry `layout="position"`: on a bench the toast below a
+dismissed one travels 72px over 13 frames on the 220ms ease-out instead of in one. On the
+categories page the presence wrapped the grid — one child that never left — so a deleted category
+vanished in a frame while its neighbours glided; it now wraps the cards, the grid is the leaving
+card's offset parent, and `CategoryCard` forwards its ref so `popLayout` can pin it (position-only
+layout, so its bordered surface is never stretched). `design-system.md` gains the five presence
+rules every one of these fixes followed.
+
+### fix(motion): the task grid stops reshuffling, and a hidden card no longer stretches (2026-10-06)
+
+The masonry re-dealt every card from scratch on each change, and React cannot move a keyed child
+between two column parents, so creating, completing, hiding or taking one task pushed every later
+card into another column, where it unmounted and replayed its entrance: measured on a 12-card bench,
+removing the first card remounted 11 of 11 others and blinked each to opacity 0, and the removed
+card — whose exit sat under no presence — vanished in a single frame. A card now keeps its column
+for as long as the column count holds; only unplaced cards are dealt, row by row to the shortest
+column. Each column runs its own `popLayout` presence, so a removed card fades while the cards
+below glide up on `SPRING_LAYOUT` (the same bench: 0 remounts, 0 blinks, the neighbour travels
+136px without passing its place). The entrance stagger plays on the first paint only, and the
+wrapper's 8px rise no longer stacks on the card's own. The card root animates position only: a size
+`layout` had played hiding a card (166px → 56px) as a scaleY on content nothing corrected, so the
+collapsed row arrived stretched three times its height.
+
+### fix(motion): long travel lands without bouncing past its target (2026-10-06)
+
+`SPRING_STANDARD` was documented as settling "without overshoot", but its damping ratio is 0.70 —
+about 5% past the target — and `SPRING_RESPONSIVE` is 0.49, 17%. On short moves that is the
+droplet's liquid settle; on long travel it is a visible bounce. A fourth preset, `SPRING_LAYOUT`
+(400 / 40, ratio 1.0), now carries travel: the task editor growing out of the pressed card (a
+660px surface swung about 15px past its size), quick capture's circle-to-pill morph on a phone
+(the pill overshot to ~409px on a 390px screen, and closing pinched the circle to a ~5px sliver),
+the phone menu's drip, and a card moving up its column. The editor's exit now returns on the
+symmetric curve in 220ms instead of re-using the entrance spring. The token comments state the
+real ratios.
+
+### fix(a11y): the collapsed create panel is out of the tab order (2026-10-06)
+
+Collapsed, the create panel's form was only `aria-hidden` inside a 0px grid row, so Tab walked about
+eight invisible stops through it — the title, the details, four selector plates, Cancel and Create —
+and a screen reader met focus inside a hidden subtree. The form is now `inert` while collapsed, and
+closing the panel with focus inside it (Escape in the title, Cancel) hands focus back to the header
+instead of dropping it to `<body>`.
+
+### fix(ui): every text field in the product draws the same focus frame (2026-10-06)
+
+The field-focus system reached only `<Input>`, `<Textarea>`, the create panel and quick capture;
+ten other text fields still drew the global dark outline as a hard box on every click or
+autofocus. The command palette's query (boxed on every Cmd/Ctrl+K), the login 2FA code (a ring round
+all six cells on top of the active cell's own border), the task editor's title, the branch composer
+and its Author's Note, subtask-title and comment editors, the new-category name, the colour picker's
+hex box and the advanced search bar now carry `field-box`, or `field-naked` inside a `field-shell`.
+`field-shell` keeps whatever elevation a shell already has instead of hard-coding quick capture's
+`shadow-xl`, and crossfades its fill. A field in error (`aria-invalid`) keeps a red edge, and an
+over-limit field keeps its pink surface while focused and hovered — it used to turn white at the
+moment of typing, the only moment it crosses its limit. A contract test now fails on any text
+`<input>`/`<textarea>` without a `field-*` class.
+
+### fix(todos): the task card's circle sits on its centre, the eye in its corner (2026-10-05)
+
+The completion / take-it circle was pinned to the title's first line, so it sat 23-86px above the
+card's centre, and the hide toggle floated 17-147px off the bottom depending on how much the card
+held. The rail is now a `1fr auto 1fr` grid stretched to the card: the two `1fr` rows are always
+equal, so the circle is exactly centred at every height, and the eye is pinned 22px from the bottom,
+the same 22px it sits from the left (measured in Chromium on 40 cards at 390px and 1280px: 0px off
+centre, 23px from both outer edges). Mirroring the eye's slot above the circle gives an open card a
+166px floor (a sparse card was 106-108px). Completed cards no longer render an empty chip row,
+which had put their title 6px above the circle. The skeleton, the landing page's reserved card box
+and the card's completion burst follow the new geometry, and the unreachable `task-card--sparse`
+modifier is gone.
+
+### fix(todos): "New task" opens without lighting the title up (2026-10-05)
+
+The create panel focused its title 220ms after every open — including the dashboard's first-run
+auto-open, with no press at all — and that programmatic focus painted the focus indicator before
+the user had done anything (and raised the keyboard on Android). Opening now focuses nothing: focus
+stays on the header, and the title takes focus when it is clicked or when the user starts typing,
+because the first printable key pressed from "nowhere" while the panel is open moves focus into
+the title, where the browser inserts that character. Modifiers, Space, other fields and open
+selector popovers keep their keys. The left rule is the indicator (`field-rule`), so the fields are
+never boxed. On `/tasks` the `F` filter shortcut stands down while the panel is open.
+
+### fix(ui): text fields draw focus on their own shape, and `<Input>` is a bare input again (2026-10-05)
+
+A text field matches `:focus-visible` on every focus, a click included, so the global ring drew a
+hard dark rectangle round fields that were only clicked. Fields now carry a class from the new
+"Field focus" block in `globals.css`: `field-box` (a 1px ink edge and a 3px `ink/8%` halo on the
+field's radius) for `<Input>` and `<Textarea>`, `field-shell` for quick capture's pill (its edge turns
+ink), and `field-rule` for naked fields behind a left rule. Each keeps a transparent outline for
+forced-colors mode instead of removing it. The previous attempt (6457907) had wrapped every
+`<Input>` in a `div.relative` with a framer-motion gradient overlay: the wrapper became the flex item
+and shrank the profile page's password and email rows to their intrinsic width, and a caller's
+`onBlur` (react-hook-form's `register`) replaced the component's own, so the glow stayed on after the
+field was left. Both are fixed by returning a bare `<input>` with no focus state in React.
+`focus-scan.mjs` now reads the indicator on the field's shape.
+
+### fix(frontend): the droplet condenses in one motion (2026-10-05)
+
+Scrolling down on a desktop, the bar's capsule sprang narrower and then snapped about 70px more in
+a single frame at the end of the spring: the "Planora" name kept its room for its 160ms exit and
+was then removed by `AnimatePresence` alone — a layout change framer-motion never measures, since
+no `layout` component re-rendered. The name now leaves through `mode="popLayout"` in the same
+commit as the tucked tabs, so the width morphs once (measured frame by frame in Chromium: the
+largest one-frame step fell from 70.6px to the spring's own 46px peak in its first 70ms, with no
+late jump). On a phone the bar slides away as a whole — a CSS translate on its frame, leaving on
+`ease-standard` and arriving on `ease-emphasized`, 320ms each way — instead of shrinking and fading
+the capsule on expo-out, which had moved two thirds of the way in the first 50ms and switched the
+glass's blur off for the whole slide. The unused `TWEEN_HIDE` preset is gone.
+
+### fix(landing): block 2 says "Protected", never "Public · Not possible" (2026-09-30)
+
+Block 2's last legend row still named the state the owner removed: "Public", with a "Not possible"
+chip under it. The owner's rule is that the word is never shown, not even to deny it — sharing with
+every friend is still a circle the owner chose, and the ring only counts who is in it. The row now
+reads "Protected · Always" with the same shield, and says that nothing in Planora is ever published:
+no link to hand out, no publish button, and a task shared with every friend stays with the people
+chosen. The block's test now fails if any of its text contains the word.
+
+### fix(ui-audit): the live scan reads web vitals before its full-page screenshot (2026-09-30)
+
+Playwright takes a full-page screenshot by resizing the viewport to the page's full height, so
+everything below the fold paints inside the viewport for a moment, and the scan read LCP only after
+that — a text block larger than the real LCP element became a late candidate stamped with the
+screenshot's time. `/profile` at 360px reported 1.6s with a detached element this way, against a
+heading painted at about 280ms. Vitals are now read first. Rescanned: the signed-in app's worst CLS
+is 0.0002 and worst median LCP 916 ms; the landing page's worst median LCP is 244 ms, CLS 0.
+
+### feat(landing): block 5 is one card and five moves (2026-09-30)
+
+The task builder — a title field and some twenty buttons — asked visitors to make a task when the point
+was to see what a card says. Block 5 is now the product's own card on a stage and five moves under it:
+Category (the card takes the category's chip, watermark and coloured hover glow, and the stage picks the
+colour up), Share (the blue frame, the ring for two, the workers chip), Urgency (the red frame, then a
+date two days gone and "Overdue"), Take it (the check in the category's colour, the blue chip counting
+you in) and Finish, which presses the card's own circle so the product's completion — burst, sweep and
+drawn check — is what plays. The card stays live: its eye folds it and its right edge deletes it.
+
+### feat(landing): block 2 is driven by a row of seats, and the ring never closes (2026-09-30)
+
+The browser range input and its minus and plus buttons are replaced by one control drawn in the
+product's own vocabulary: a row of eleven seats — you, then ten people — with a ring you slide along
+them. Everyone up to the ring is a face, the rail is inked up to it and dashed past the eighth seat,
+where the mark stops widening. It is a real `role="slider"` (arrows, Page Up/Down, Home/End), takes
+drags and presses, and previews the seat under the pointer. The "Share with all friends" switch and the
+"closes the ring" copy are gone; the last legend row says public is not possible, with a shield rather
+than a closed ring.
+
+### feat(frontend): the app bar is a droplet again, and the landing page's nav with it (2026-09-30)
+
+The signed-in bar is a floating capsule once more, rebuilt so nothing depends on hover: the three tabs
+are always there when it is whole, the current page is an ink drop that flows between tabs, a lighter
+drop follows the pointer, and every control is a real 44px box. It breathes with the scroll — on a
+desktop it condenses to the mark, the current tab and the buttons while you scroll down; on a phone it
+slides away — and comes back whole on scroll-up, hover, focus or an open menu. The phone menu drips out
+of it over a dimmed, blurred page. The landing page's nav is the same `DropletFrame`.
+
+The capsule floats, so the page keeps its room with `--bar-clearance`; the update pill, toasts, the
+profile rail, anchor scroll-margins and the branch page's height offset by the same variable, and every
+page's first line starts where it did before.
+
+### fix(todos): shared tasks are framed in blue, glow in their colour, and nothing is "Public" (2026-09-30)
+
+A task shared with friends looked exactly like a private one: the frame was alert-or-nothing, and the
+difference that is the whole point of Planora lived in a 14px mark. Shared tasks — named friends or all
+of them — are framed in the accent blue again, urgent, overdue and due-today tasks keep the red frame
+and outrank it, and work in progress stays on the check and the workers chip. The hover shadow glows in
+the category's colour again (the accent while you work on it, alert when it is urgent), now as a class
+and a `--card-glow` custom property instead of a hover state in JavaScript.
+
+"All friends" is still a circle the owner chose — the server grants access on `IsPublic && isFriend`
+and there has never been a public link — so the product no longer says "Public" anywhere and the
+audience ring never closes: all friends is the widest open cut, named "All friends", in the badge, the
+create panel, the editor's mode picker ("Friends") and the branch page, which used to read "Shared · 0".
+
+The editor had no "all friends" state at all and wrote `isPublic: false` on every save, so opening an
+all-friends task and fixing a typo in its title quietly took it away from every friend who could see it.
+It now keeps all friends until the owner names people or makes the task private, and its labels say what
+the save will write ("nobody yet" rather than "all friends" for a friends mode with no one picked).
+
+Security: the audience of an all-friends task is no longer presented as public
+
+### feat(landing): block 6 builds a task's branch, step by step (2026-09-29)
+
+The branch block was a still frame — three lines of text and a sentence admitting it. It now tells the
+branch in six chapters, building the picture as it goes: the author's note, talk on one rail, a reply
+hanging under what it answers, a step forking off, the first press taking it into work (amber,
+anonymous to everyone else) and the second finishing it for everyone (green, with who and when on the
+step's own rail). Every chapter adds at the bottom or changes the step already there, and every row's
+space is reserved, so nothing moves above the reader. The story plays once and stops; the step's
+circle is a real control with the product's cycle; phones step one chapter at a time; reduced motion
+opens on the finished branch.
+
+### feat(landing): block 5 shows every signal a task card can give, and names it (2026-09-29)
+
+Nothing in the task builder could turn the card red, close its ring or put it in progress, so the
+product's most visible signals were exactly the ones the landing page never showed. The builder now has
+"Today", "All friends" and a "Where it stands" choice (not started, in progress, done), and under the
+card a five-row legend — red frame, priority bar, the ring, in progress, done — lights exactly the
+rows this card is showing, by the same rules `TodoCard` draws by (`litSignals`). The card's eye folds
+it, the share picker mirrors the product's, and on a phone the legend follows the controls instead of
+standing between the card and them.
+
+### fix(landing): the first blocks are pressable, centred and say what the product does (2026-09-29)
+
+The hero's empty seats showed a plus that did nothing; pressing a seat now lets that person in, and
+pressing their face lets them out (the chips stay the named, keyboard-reachable control). Each seat's
+circle sits on the point its line aims at — it used to share a centred column with the name, 10px
+higher. Dana is now Victoria everywhere on the page.
+
+Block 2's count is centred in the ring instead of sitting right of an empty column, the slider's
+ticks sit where the thumb stops, and public is reachable: a "Share with all friends" switch closes the
+ring, shows every face, lights the Public row and says that nobody outside your friends can see it.
+The row used to call the closed ring "not possible" while the product drew it on every all-friends
+task. Block 3's signal dot rides its line — framer-motion's `x` had replaced the translate that
+centred it, so it ran half its height low — and a refused tick stops at the wall's edge. The keyboard
+legend is a two-column table, the trust lab's counters sit after their labels, the page spine is a
+compact mark that appears only where the margin can hold it (it covered the content column's right
+edge up to ~1700px), and every section's intro sits at the same distance under its heading.
+
+### fix(ui): a public task says who can see it, and counters sit where they read (2026-09-29)
+
+"Public" in Planora is the share picker's "All friends": the server grants access on
+`IsPublic && isFriend`, and there has never been a public link. `RedactionBadge` nevertheless told
+every screen reader "Public. Anyone with the link can see this." on every all-friends task — the one
+sentence whose job is to say exactly who can see a task. It now says "Public. All your friends can see
+this.", and the glossary's definition, which said "every authenticated user", is corrected with it.
+
+`NumberRoll` gains `align` (`start`, `center`, `end`). A counter with reserved width used to keep its
+value right-aligned in every context, so a single digit read as "_3" wherever the number was not
+already at a right edge: next to the dot in the task list's status pills (now centred), after a label,
+at the centre of a ring. `Switch` is a new primitive for an on/off setting — `role="switch"`,
+`aria-checked`, its words as its name, a knob placed by flex and moved by `x` alone.
+
+Security: the public audience is no longer described as reachable through a link
+
+### fix(frontend): the archive's filter no longer drops in above its tasks (2026-09-29)
+
+A five-pass production scan of the whole signed-in app found one intermittent shift left: on
+`/tasks/completed` the filter plate rendered only once the categories arrived, and when the tasks came
+back first it appeared above an already-painted grid and pushed it down 114px (CLS 0.034 at 1024px in
+one run of three). The plate's place is now held by `FilterPlatePlaceholder` until the categories answer.
+The same scan flagged the Author's Note "Edit" chip at 31px tall; it is a 32px chip with a 44px
+`.touch-target`, its hover a class instead of two handlers writing inline colours.
+
+Every signed-in route now measures CLS ≤ 0.0012 across 46 cells and five passes, with no contrast
+failures, unnamed controls or horizontal scroll; the public set (landing and all auth screens) measures
+CLS 0 with a worst median LCP of 400 ms.
+
+Performance: /tasks/completed worst CLS 0.034 -> 0
+
+### refactor(frontend): the editor's popovers and the list's small controls use the scale (2026-09-29)
+
+The last colour-literal shadows, off-scale radii and hand-written springs lived in the task editor's
+inline styles and in the list's small controls: popovers with their own `0 16px 40px rgba(…)` stack,
+the dialog with `0 30px 80px…`, a delete strip that animated `clip-path`, calendar ranges tinted with
+raw `rgba(82,82,82,…)`, and uppercase labels in bold at `tracking-widest`. `globals.css` now exposes the
+elevation scale and the radii as `--pl-shadow-*` / `--pl-radius-*` so inline styles can use them; the
+editor's popovers, dialog, calendar and branch rows do, the delete strip slides by transform, springs and
+tweens are tokens, uppercase labels are semibold at the eyebrow's tracking, the comment composer's
+24px buttons are full `sm` buttons, and the Author's Note card is a paper surface instead of an accent
+gradient.
+
+### fix(editor): the task editor joins the system — readable labels, a reachable "Leave", a solid pinned note (2026-09-29)
+
+The editor and the branch page are written in inline styles, and they had kept their own dialect: every
+uppercase label tracked at 0.1–0.14em in bold, 12px text in `ink-subtle`, an "In progress" pill that
+turned into "Leave" only under the pointer (a keyboard user could not leave) and pulsed forever, a
+condensed Author's Note floating 6px below the top on a translucent, blurred fill so the rows behind it
+showed through and above it, and a tall empty box that said only "You have no friends yet".
+
+Labels now track at the eyebrow's 0.05em in semibold, 12px text is `ink-muted`, the state is the task
+card's own "In progress" chip with a plain "Leave" button beside it, the pinned note sits on an opaque
+shelf that fades at its lower edge, and the empty sharing panel offers the way to add friends (the
+profile's sections gained ids so the link lands on them).
+
+### fix(profile): changing the password or email says what went wrong, where it went wrong (2026-09-29)
+
+The profile's password card was three placeholder-only inputs: the labels vanished on the first
+keystroke, nothing checked the new password before the round trip, the button could be pressed twice,
+and every refusal — wrong current password, too weak, found in a breach, used before — became one
+"Failed to change password" toast that disappeared before it could be read. The email card was the same.
+
+Both are now forms built from the auth components: labelled fields, Caps Lock warnings, the live password
+checklist, "Passwords match", `NEW_PASSWORD_SCHEMA` (the server runs the reset's extra checks on a change
+too), a blocked button while the request runs, the domain-typo fix on the new address, and each server
+refusal mapped by `getAccountChangeErrorKind` onto the field it concerns.
+
+### refactor(frontend): the rest of the motion speaks the design system's vocabulary (2026-09-29)
+
+Components outside the pages still carried their own motion dialect: numeric durations (0.16, 0.25,
+0.38, 0.42, 0.58…), hand-written ease arrays and a dozen inline springs, none of them on the scale in
+`lib/animations.ts`. Some of it did not do what it said. The task card's completion control handed a
+spring four-step `scale`/`rotate` keyframes, which a spring cannot play, so the wiggle never ran —
+while its colour rode the same spring and repainted the control every frame; the celebration's pulse
+was "centred" with Tailwind translates that the motion element's inline transform overrode, so it
+bloomed from its top-left corner; `FadeIn` accepted a `blur` flag that animated `filter`; and the
+confetti threw warn, accent and alert — the colours the system spends on meaning — over the card that
+had just stopped being overdue.
+
+Every duration, ease and spring in these components is now a token (`TWEEN_FAST/UI/EXIT`,
+`SPRING_STANDARD/RESPONSIVE`, `DURATION_*`); list staggers are the 40ms rhythm; the completion
+control's colour is a CSS `transition-colors` on class swaps; the confetti uses the confirmed state and
+the neutrals; loading indicators share one 1200ms period and the overlay sits on its named layer;
+keyboard hints in the palette are the shared `Kbd`; the capture control presses with `TAP_PRESS` and
+keeps the same bottom edge as the undo and selection bars (`pb-safe-4`).
+
+### fix(frontend): task lists stop jumping when their controls and columns arrive (2026-09-29)
+
+A production scan of the new app shell measured layout shifts well past the 0.0014 invariant:
+`/dashboard` 0.038 at 1280px and 0.015 at 768px, `/tasks` 0.023 at 768px. A frame-by-frame probe
+named two causes. The dashboard loaded its create panel with `next/dynamic` and no placeholder, so the
+task grid was painted and then pushed down 105px when the panel arrived; `/tasks` had a placeholder,
+84px under a panel that was 86px on a desktop and 78px on a phone. And `MasonryColumns` settled its
+column count in an effect, one frame after painting the base count, so at 768px three columns became
+two under the reader.
+
+The two plates above a task list now share `plate.ts` — one surface, one 80px row, one ink disc — and
+their placeholders are built from the same strings. The quick filter reads "Quick filter" in sentence
+case with a "Choose categories" button instead of "Open menu", and on phones keeps its actions on a
+row of their own so its height never depends on data. `MasonryColumns` resolves its count in a layout
+effect, and all task lists share `lib/task-grid.ts`. Every task route now measures at most 0.0012.
+
+Performance: CLS on /dashboard 0.038 → 0.0012 and on /tasks 0.023 → 0.0012 at their worst viewports
+
+### feat(frontend): one app bar, one page header, one card — the signed-in app in one system (2026-09-28)
+
+The signed-in app had drifted into several products. The bar was a floating pill that showed
+its three destinations only while the pointer hovered over it (never for a keyboard user) and
+carried a task field whose placeholder promised date parsing nothing did. Five layouts each
+re-derived a column and none gave `<main>` the `id` the skip link targets, so "Skip to content"
+went nowhere on every signed-in screen. Page titles came in five styles, pagers in two (one
+scaled its active page to 110% under a black gradient), and the task card was transparent, 2px
+bordered, cut its title at 40 characters in JavaScript, pulsed forever when someone was working
+on it, and turned on a `backdrop-blur` under the pointer.
+
+The five routes now live in an `(app)` route group whose layout renders `AppShell` once: a
+sticky bar with the `Wordmark`, always-visible tabs with a sliding underline, search, notifications
+and an account menu (a sheet on phones), `<main id="main">` and one `container-wide` column. The
+router keeps it mounted, so moving between tabs leaves the bar still and fades only the page.
+`PageHeader`, `Pagination` (with a tested `pageWindow`) and `surfaces.ts` replace the hand-built
+copies. The dashboard is one overview card over full-width task columns; the task card is opaque
+with a 1px border, shows full titles up to three lines, aligns its controls to the first line and
+draws every chip in one shape. A sweep moved off-scale radii, tracking, shadows and 12px
+`ink-subtle` text onto the scale, and every animation that ran forever at rest now stops.
+
+Performance: no hover re-rasterises a card; the bar renders before the session restore instead of a blank screen
+
+### feat(auth): sign-in, sign-up and password recovery become one room with a visible path (2026-09-28)
+
+The five `/auth/*` screens were two visual systems — a split screen with a dark panel for sign-in and
+create-account, and a glass card with a colour-literal shadow, `bg-gray-900` buttons and its own
+logo for the other three — and none of them linked home. Recovery was four dead ends: the request
+form ended on a toast, and the reset and verify pages asked people to paste a token nobody has.
+
+Now `app/auth/layout.tsx` renders one frame (`AuthFrame`) that stays mounted across auth routes: a
+top bar whose `Wordmark` links to `/`, one top-aligned column, and on the recovery routes a step
+scale — Email → Inbox → New password → Done — whose marker slides between steps. Every screen is an
+`AuthCard`. A new `/auth/forgot-password/sent` step names the address (masked), explains the link,
+and offers "Send it again" after a 60-second cooldown. The reset and verify pages read the token
+from the link and never show it; a dead link replaces the form with a card that offers a new one.
+
+Help arrives while typing: a checklist of the five server password rules (held equal to
+`PASSWORD_SCHEMA` by a test) replaces the strength score, "Passwords match" confirms the second
+field, Caps Lock is reported under password fields, and a known email-domain typo is offered as a
+one-tap fix. Sign-in's second factor is six code cells that submit on the sixth digit, with a
+recovery-code alternative. A weak or breached new password lands on the password field instead of
+"Check the token", and the reset form mirrors the server's extra checks for a changed password
+(common passwords, runs, repeats). Sign-in and create-account render in the server HTML instead of
+waiting blank for the session restore; buttons keep their label while working (`aria-busy`).
+
+Measured on the production build, five passes over 48 route × viewport cells: worst median LCP
+392 ms, CLS 0 everywhere, 0 contrast failures, 0 unnamed controls, 0 targets under 44×44.
+
+Performance: sign-in and create-account no longer paint blank until the session restore returns.
+
+### fix(auth): an expired password-reset link could sign you out of every tab (2026-09-28)
+
+The Auth API answers a spent or expired reset link with **401** `INVALID_TOKEN`
+(`ResetPasswordCommandHandler.cs`). `lib/api.ts` exempted only login, register, logout and refresh
+from its 401 handling, so that 401 was treated as an expired session: a refresh, then `clearAuth()`
+with a cross-tab logout broadcast. For a visitor already signed in in another tab it was worse — the
+refresh succeeded, the replayed reset 401'd again, and the second-401 branch cleared auth and
+broadcast, signing them out everywhere for opening an old email. Both password-reset endpoints now
+pass their 401 to the page, which knows what an invalid link means. A test pins that a signed-in
+session survives it.
+
+Security: a stale reset link could end a user's sessions in every tab.
+
+### fix(frontend): the text re-wrapped when the font arrived, moving the landing hero 38px (2026-09-28)
+
+Once the route fade stopped hiding the first paint (see "every page arrived blank" below), a shift
+that had always been there became visible: CLS 0.016 at 390 px and 0.0098 at 360 px, against an
+invariant of 0.0014. `lcp-probe.mjs`, extended to print each layout shift's sources, named it —
+the hero paragraph moving 38 px up at 335 ms and back at 388 ms: the `h1` re-wrapping as Plus
+Jakarta Sans swapped in over the system fallback.
+
+The four Latin faces were loaded through `@fontsource` CSS, so the browser discovered them only
+after parsing the stylesheet and they arrived after first paint. A metric-matched fallback was tried
+first and measured: it cut the shift to a rare one-line re-wrap at 360 px, but word by word the two
+faces differ by −11% to +10%, so no single size adjustment can hold line breaks still. The Latin faces
+now load through `next/font/local` from the same files — preloaded in the document head, with a
+fallback built from the font's own metrics for the load where they are late. latin-ext stays on
+`@fontsource`. Re-measured: CLS 0 in all 45 landing cells, worst median LCP 476 ms.
+
+### perf(frontend): the background shader runs only on the landing page, after load, and follows the scroll (2026-09-28)
+
+BLUEPRINT § 12.1 decided the live background belongs to `/` alone, and the owner confirmed it in the
+redesign plan; it had been running on every route. `ColorBendsLayer` now reads the pathname: every
+other route shows the static gradient in the same palette, with no WebGL context and no render loop.
+
+On `/` the shader no longer starts at mount. Its first frame is a long task — 244 ms at 1440 px and
+733 ms at 2560 px in the audit's headless browser — and at mount it landed on top of hydration and
+the first paint. It now waits for `load` and an idle callback. And the plan's "scroll leads the
+background" is built: a new `scrollTurn` prop turns the bands a few degrees per screen, read through
+a ref inside the existing frame loop and eased, so scrolling never re-renders React or touches the
+effect that owns the GL context. The layer's device-heuristic tests used to pass for the wrong reason
+once the route mattered; they now run on `/`, and two tests pin the route scope and the deferral.
+
+### fix(frontend): every page arrived blank until its JavaScript ran (2026-09-28)
+
+Found while measuring the new landing page, where LCP had turned bimodal — the same build
+measured ~500 ms on one run and 3.9–9 s on the next, always on the `h1`, which is not animated.
+`lcp-probe.mjs` (new, in `docs/ui-audit/tools/`) printed every LCP entry, font arrival and long
+task on one timeline, and the slow runs had **no `h1` entry at all**: FCP at ~560 ms, then a
+648 px² button as the "largest" paint at 2.5 s.
+
+The root `app/template.tsx` faded every route in from `initial={{ opacity: 0 }}`, and framer-motion
+writes that into the server HTML as `style="opacity:0"`. Every first visit to every page was a
+blank page until hydration had finished and the fade had played — on a slow device a blank screen,
+with scripts blocked a blank screen forever — and when hydration collided with other main-thread
+work the `h1` painted while invisible and never became an LCP candidate. The template now starts
+visible on the server and on the first client render (`initial={false}`, so hydration agrees), and
+only navigations inside the app fade.
+
+The hero's entrance no longer touches text either: at 430px the paragraph is the largest element
+on screen, and animating it from opacity 0 put LCP at 1976 ms. The words are simply there; the
+buttons and the card arrive after them.
+
+Performance: landing LCP, worst viewport median of five runs, 9,096 ms → under 500 ms.
+
+### feat(frontend): the landing page reads like a person wrote it, and ends on a picture (2026-09-28)
+
+The owner asked for texts that are "not neural" — marketing, but never pushy. The page's copy was
+accurate and written for a code reviewer: "no .dark block and no dark: utility", "access checks over
+gRPC", "the editor writes isPublic: false on every save". Every line is still checkable against the
+code; it is now written for someone choosing a task app. Section 04 says what the keys do in one
+breath; section 06 calls its timeline a still frame and points at the live one; the refusals say
+"no trash, no restore button" and "nothing repeats and nothing pings you".
+
+The hero arrives in reading order — eyebrow, paragraph, buttons, card, 40–240ms apart — through a CSS
+animation rather than framer-motion, so it runs before hydration and a slow script can never leave
+the hero invisible; the `h1`, the LCP element, is never animated. The branch timeline in section 06
+lays its messages down one at a time. The closing section is a card with the product's ring drawn —
+when it scrolls into view, not on mount, so the first draw happens where someone sees it — around
+"You and three others", closing the argument the private ring in the hero opened. The footer gains
+the wordmark and its two links, lifted clear of the fixed audience mark.
+
+### fix(frontend): the landing hero was 2px wider than a phone and cut at the right (2026-09-28)
+
+Measured at 390px: the hero's whole column — eyebrow, heading, buttons, card — ended at x=392. The
+page itself did not scroll sideways (`overflow-x: clip` on the body), so the overflow was silently
+shaved off the right edge. The cause was intrinsic sizing: on phones the grid has no template, so
+its one column is an implicit `auto` track sized by min-content, and the hero card's task title
+(`white-space: nowrap` for truncation) contributed its full width — `min-w-0` on a flex item does
+not reduce its min-content contribution. Every single-column-on-phone grid on the page carried the
+same risk, so each is now `grid-cols-1` (`minmax(0, 1fr)`), which can never grow past its container,
+and the hero title wraps instead of truncating (it was cutting "party" off "surprise party").
+Re-measured: zero elements past either edge across the whole page at 390px.
+
+### fix(frontend): every section label on the landing page had lost its style (2026-09-28)
+
+`FIELD_LABEL_CLASS` was exported from `components/ui/field.tsx`, a `"use client"` module. The
+landing page is a server component, and a server component that imports a constant from a client
+module does not receive the string — it receives a client reference. Passed straight to `className`
+it happened to render; passed through `cn()`, as `SectionHead` has always done, it vanished. So every
+section eyebrow on `/` ("Reading the ring", "What a task holds", …) rendered as plain 16px body text
+instead of the uppercase 12px caption the design system specifies, and nothing reported it.
+
+The constant now lives in `components/ui/field-label.ts`, a plain module, and `field.tsx` re-exports
+it, so client imports are unchanged. Server components import it from the plain module. A test pins
+that both paths yield the same string.
+
+### feat(frontend): "Stays put. Stays yours." — reliability and privacy you can poke (2026-09-28)
+
+The owner called section 07 (a cookie probe about "your session") useless and asked for
+reliability and privacy instead, told plainly, in a beautiful interactive block. The probe also
+proved less than it said: on `/` the refresh cookie is scoped to the auth path and an anonymous
+visitor has none, so "refresh_token is not readable" was true for reasons unrelated to `HttpOnly`.
+
+Two tabs, three proofs each, every claim taken from a code-verified list:
+
+- **Stays put** — *Undo sends nothing*: the product's `useUndoableAction` with a counter of the
+  requests it would send (undo inside five seconds and it stays at zero). *It saves while you type*:
+  the product's `useAutosave` against a pretend server, counting keys against saves. *A change and
+  its notice travel together*: an illustration, captioned as one, of outbox delivery surviving a
+  server restart.
+- **Stays yours** — *We keep a fingerprint, not the key*: a random session key and its SHA-256,
+  computed on the spot. *No trackers on the line*: every origin this page has contacted, read from
+  the browser's own records, plus the cookie names scripts can see. *Every guess costs 210,000
+  rounds*: one PBKDF2-SHA512 guess timed on the visitor's device at the real setting.
+
+Each tab ends with an "Also true" list (session renewal, reconnects, lockout after five wrong
+passwords, reuse detection for stolen session keys, session list, two-step sign-in with a QR code
+drawn on our server). Nothing says "encrypted", "backed up" or "never lost", because none of that is
+true of the code today. Helpers are in `lib/landing-trust.ts` with tests; `session-probe.tsx` is gone.
+
+### feat(frontend): "Make one" — build a real task card in ten seconds (2026-09-28)
+
+The owner called block 5 boring and asked for a much more beautiful, animated, interactive block.
+It was five number buttons, a 14px meter and a bullet list of what a task can hold.
+
+A list of features is a brochure; the card is the product. The block is now a builder: name a task
+(the default title types itself in on first sight), say how much it matters, give it a day or a
+rough week, pick a category, share it with Dana or Tom, add a note — and the shipped `TodoCard`
+assembles itself beside the controls. Its own controls are live: the circle ticks it off and back,
+a press on its body puts you in the title field, delete takes it away and offers "Make another".
+One sentence under the card explains the last change, and a Greyscale switch keeps the old block's
+point — priority is a length, never a colour — as something you can check.
+
+Dates are computed at the moment of the click and always lie in the future (a fixed date would go
+overdue and frame the card in the product's alarm colour); before the clock is known the near
+option reads "In three days" so server and client agree. Category colours come from the palette
+users actually pick from (`CATEGORY_COLOR_SWATCHES`). The mapping lives in
+`lib/landing-task-builder.ts` with tests, including a year rollover. `priority-demo.tsx` is gone.
+
+### feat(frontend): "Reading the ring" — a gauge you drive and a legend you keep (2026-09-28)
+
+The owner asked for block 2 to be more interesting, clearer, more useful and animated. It was a
++/- stepper beside an 18px mark and a column of prose about "the state Planora cannot enter".
+
+The useful thing hiding in it was that the ring on every shared task is a gauge. The block now
+teaches reading it in a few seconds: on the left the ring at 224px with the count rolling in its
+centre and the faces of whoever can see the task; on the right a slider (plus −/+ for anyone who
+prefers buttons) and a legend — Private, Shared, Past eight, and Public, which is set apart as
+"Not possible" and never lit. A marker slides between legend rows, a "Stops widening" tag appears
+over the cut at eight, and one live sentence reads the gauge in words. On first sight, if untouched,
+the count sweeps 0 → 3 so the ring opens three times; any press hands over at once.
+
+The geometry is the product's own `redactionArc` via `AudienceRing`. The reading, the slider's
+`aria-valuetext` ("Only you", "1 person", "9 people") and the noun under the count are pure
+helpers in `lib/landing-audience.ts`, and `ringReading` cannot return `public`.
+
+### feat(frontend): the hero card becomes a surprise party you can spoil (2026-09-28)
+
+The owner asked for the landing page's first card — "the control card" — to be more beautiful,
+clearer, more intuitive and more interesting. It was a small grey panel: a label, an 18px mark,
+three chips and a line reading "0 people can read it", under a paragraph that told visitors to
+"press the ring", which was not pressable.
+
+It is now one concrete task where who sees it obviously matters: **"Plan Mira's surprise
+party"**. Share it with Dana and Tom and the product's ring opens a little wider each time, a
+line is drawn from you to each of them, and one sentence says who can see it. Add Mira — nothing
+stops you — and her seat wobbles and the card says "So much for the surprise." The idea the
+page exists to sell, that a task carries its audience, is learned in one tap.
+
+The ring is `AudienceRing`, a large drawing of the same `redactionArc` the 14px badge on every
+task uses, and the task row carries the shipped `RedactionBadge` itself. Empty seats are dashed
+outlines with a plus rather than dimmed avatars (dimmed initials are text below the contrast
+floor), the sentence is the one live region and is reserved at two lines, the chips' avatars are
+hidden from the accessible name ("Share with Dana", not "DW Share with Dana"), and a bounded hint
+nudges the first chip twice if nobody has pressed anything, then never again.
+
+### fix(frontend): "Tick it off for me" on the landing page did nothing (2026-09-28)
+
+Reported by the owner, and the cause was two lies deep. The block set `isCompletedByViewer` on the
+card's todo — a field `TodoCard` never reads, since it renders "done" from its `variant` prop —
+and handed the card no-op handlers, so the button changed nothing and the card's own check circle
+played its animation and snapped back. The copy under it also claimed a viewer "cannot reopen" a
+shared task they ticked, which the product allows until the owner has finished it for everyone.
+
+The block is now two screens — Dana's list and yours — with every control wired: your card's own
+circle ticks it off for you, its eye hides it, Dana's circle finishes it for everyone, and buttons
+under each list do the same for anyone who would rather not hunt for a circle. The hidden copy is
+the server's real projection (`HiddenTodoDtoFactory`: "Hidden task", no author, no description, no
+audience, none of the owner's category). A dot on the line between the lists shows where each change
+goes — yours stops halfway, Dana's crosses over — and one live sentence says it in words. State is a
+pure reducer, `lib/landing-viewer.ts`, tested against the three product rules.
+
+### fix(frontend): the landing sandbox could sign visitors out of their other tabs (2026-09-28)
+
+Found while checking the sandbox notice's claim that "nothing leaves this tab" — it was false,
+and the reason was worse than a leak. `DemoSandbox` seeded its fake session on mount, racing the
+real `restoreSession()`:
+
+- **Anonymous visitor.** The silent refresh failed a moment after the seed and called
+  `clearAuth()` — wiping the demo session, so the landing keys went dead, and **broadcasting a
+  logout to every other open tab**.
+- **Seed first.** Restore found a token and POSTed the unsigned demo JWT to the real server's
+  `validate-token` (through `lib/auth-public.ts`, which the adapter swap does not cover). The
+  server said invalid; `clearAuth()` broadcast again.
+- **Signed-in visitor.** Restore's refresh overwrote the demo token with the real one, and on
+  leaving `/` the sandbox's teardown erased that real session — the next click to `/dashboard`
+  found them signed out.
+
+The sandbox now waits for `hasRestoredSession` and installs only for a visitor with no real
+session; a signed-in visitor keeps theirs and gets "You're signed in — Open my tasks" instead.
+While installed it restores the page's real `XSRF-TOKEN` on teardown (it used to overwrite it
+for good), removes the persisted demo identity on `pagehide`, and re-seeds silently if a logout
+broadcast from another tab clears it. A skeleton holds the console's footprint while it waits.
+Verified live: the only auth request on `/` is the page's own restore, before the seed exists.
+
+The console now behaves like `/tasks`: completing waits for the server and says "Task
+completed!", failures are toasts rather than silent rollbacks, priority is owner-only and sends
+the whole task, and the list stops listening while the editor is open (Escape in the editor
+used to drop the list's cursor too). The key legend lights the row of the key just pressed.
+
+Security: a page visit could end the visitor's sessions in other tabs.
+
+### fix(frontend): clicking a task no longer draws a ring that will not go away (2026-09-28)
+
+Reported on the landing page's keyboard block — "click a task and a frame appears around it; it
+must only appear when you Tab to it, and go away when you click elsewhere" — and it was the same
+on `/tasks`, because the cause is the shared list hook. A click focused the row (every row has a
+`tabIndex`), focus set the cursor, and the cursor drew its outline. Input modality was never
+consulted, and only `Escape` cleared it.
+
+`useListNavigation` now holds the cursor as a **place** and a **visibility**. A click moves the
+place — roving tabindex remembers the last row touched, so `Tab` and `J` resume from it — but
+any pointer press (captured on `window`, mouse, touch and pen alike) hides the ring; `Tab` into
+the list, a move, `gg`/`G` or `⌘A` show it. Only `Tab` counts as keyboard focus, so a dialog
+opened by a click and closed with `Escape` does not bring the ring back when focus is handed back
+by script.
+
+Three more defects shared the cause and are gone with it: completing a task with the mouse handed
+a ring to the task below it (the reconcile fallback), a click scrolled a half-visible card into
+view under the pointer, and **`Space` after a click completed the clicked task** instead of
+scrolling the page. A hidden cursor is now a place, not a target: the row keys return before any
+`preventDefault`. `aria-current` follows the ring, and `TodoCard`'s memo compares it on its own.
+
+### fix(frontend): one Undo could restore a deleted task twice (2026-09-28)
+
+`useUndoableAction` called `commit()` and `rollback()` from inside `setPending(prev => …)`
+updaters. Updaters must be pure, and React StrictMode (on) runs them twice in development: one
+Undo rolled back twice — on the landing page the deleted task came back as two rows — and a
+superseded action could be committed twice. The pending action now lives in a ref that is
+read-and-cleared exactly once by whoever settles it (the timer, Undo, a superseding `run`, or
+unmount); state only mirrors it for rendering. Tests render the hook under `<StrictMode>` and
+count every call.
+
+### fix(frontend): every rolling number lost the right edge of its digits (2026-09-27)
+
+Reported as "the numbers on the right are slightly cut off, almost everywhere on the site" — and
+measured: `NumberRoll`, which renders every counter, badge count and stat in the product, pinned
+each digit column to `width: 1ch` with `overflow: hidden`. The design system documented this as
+safe because "with tabular figures `1ch` is exactly one digit". It is not. `ch` is the advance of the
+font's *default* zero, which in Plus Jakarta Sans is proportional: **7.00px at 14px bold, against
+8.41px** for the tabular figure actually drawn. Every digit lost ~17% of its width on the right —
+1.2px on a 12px badge, 2.05px on a 24px counter.
+
+The column is now sized by the digit itself (an inline grid cell takes the tabular advance) and
+clipped **vertically only**, with `clip-path: inset(0 -0.25em)` — the roll only ever needed to hide
+the digit sliding in above and below, and `clip-path` also clips the outgoing digit that
+`popLayout` lifts out as `position: absolute` (the column is `relative` so it lands in place).
+
+`minDigits` had the same bug one level up: it reserved `minWidth: Nch`, 24px for two digits that
+draw 28.09px, so 7 → 24 still nudged its neighbours. The reservation is now **drawn rather than
+computed** — an invisible run of N tabular zeros as CSS generated content in the same grid cell, so
+the cell takes the wider of the two, measured by the font itself. Generated content is never read
+aloud and never matches a test query.
+
+Verified in the browser: column width equals glyph width on all seven counters on `/` (overhang
+0.00px), and the two-digit reservation measures 28.09px. The tests that encoded the `1ch` assumption
+were rewritten to assert the real contract.
+
+### build(frontend): verify in a side build directory, beside a running server (2026-09-27)
+
+`next build` rewrites `frontend/.next` in place, and rebuilding under a live `next start` tears it
+into an error page. `next.config.js` now takes `distDir` from `NEXT_DIST_DIR` (default `.next`), and
+`class-audit.mjs` reads the same variable, so a verification build can live in `.next-verify`
+while the launcher keeps serving `.next`. ESLint and Vitest now ignore `.next-*/` — without that,
+one side build produced 101 lint "errors" and 203 warnings, every one of them in generated chunks.
+`.gitignore` covers the side directories. See `docs/development.md`.
+
+### feat(frontend): the landing page stops looking like nine of the same section (2026-09-22)
+
+The owner's verdict on the previous pass was that nothing much had changed to look at, and that
+was fair. The work had gone into defects and the data layer — real, and invisible. The page itself
+was still nine identically centred sections, every heading at `display-sm`, separated by nine
+identical hairlines: **eight type sizes exist and it used three**, with `hero` and `title` spent
+nowhere at all.
+
+**The rhythm varies now.** One `hero` statement at 64px where there had been 32. `display` for the
+three turns in the argument. `title` inside the cards. Numbered sections, so the page reads as an
+argument with parts rather than a stack. One **inverted full-bleed band** in the middle — a
+surface, not a theme, using the reverse ink ramp the design system keeps for exactly this — with
+the branch card floating white on `ink`. And **one section where the reading direction turns
+sideways**, spent on the list of things the product refuses to do, because that is the page's most
+unusual claim and it deserves its most unusual movement.
+
+**Elements arrive individually.** Eight cards appearing together read as one render; eight cards
+50ms apart read as a list being laid down. Capped at eight steps, per § 9.9.
+
+None of this touches colour or the type scale, because the headroom was never there. It was in
+composition, scale contrast and motion, which the system leaves wide open.
+
+**Two regressions caught by the gate, both mine.**
+
+*Ninety contrast failures.* The section numerals were `ink-faint` on the reasoning that
+`aria-hidden` made them decorative strokes. Measured at 2.42:1 and 2.52:1 against a required 3:1 —
+and the design system is flat about it: "`text-ink-faint` is never correct." A 32px numeral a
+sighted reader uses to place themselves in a page is text, whatever the aria attribute says. Now
+`ink-subtle` at 4.74:1.
+
+*LCP moved from ~350ms to ~1770ms on three viewports, consistently.* Not noise — the median of five
+said so. Recomposing had dropped the fade-in from the section headings and the demo blocks, so they
+were `opacity: 1` at first paint and therefore LCP candidates; during progressive load a
+below-the-fold paragraph is briefly inside the viewport, and the ceiling block's prose (49,392px²)
+beat the hero (39,102px²) with a load-time timestamp. `loadMs` was flat throughout — the page was
+never slower, the metric had moved to a later-painting element. Restoring the fade fixed it, and
+the fade was the design intent all along: these sections are revealed on scroll, so at load they
+are genuinely not visible and LCP counting them was the artifact.
+
+Measured after, five runs, nine viewports, signed out: **median LCP 456 ms** worst viewport against
+a 1200 ms ceiling, **CLS 0** across 45 cells against a 0.0014 invariant, 0 contrast failures, 0
+targets under 44×44, 0 unnamed, 0 horizontal scroll, 0 console errors. Clean in all three modes —
+data, reduced-motion and dark-OS.
+
+### feat(frontend): the landing page's argument follows the scroll (2026-09-22)
+
+**One mark, riding the whole page.** The page argues a single thing — a task carries the list of
+people who can see it — and the redaction arc is that argument as a drawing. Rather than appear
+once and scroll away it now tracks the reader: private in the hero, opening as the sharing section
+explains reach, holding at the eight-viewer ceiling, closing again by the time the page is talking
+about the session. One continuous statement instead of a sequence of effects.
+
+**Scroll drives an integer, not a fraction.** You can share a task with three people, never with
+3.7, so a continuously-interpolated arc would depict a state the product cannot hold. Scroll picks
+a whole viewer count and `RedactionBadge` animates between counts on its own shipped 220ms
+`pathLength` transition — which reads as continuous because consecutive steps overlap, while never
+drawing a lie. React stays out of the frame loop: `useMotionValueEvent` writes to a ref and calls
+`setState` only when the integer changes, so the whole page costs about a dozen renders end to end.
+
+**Section headings drift, and it is free.** `transform` and `opacity` composite — they cannot
+produce a layout shift — so scroll choreography costs nothing against this route's CLS invariant.
+Measured: **0** across 45 cells. What transforms do cost is containing blocks, and that is the real
+constraint: a transform on an ancestor silently re-parents a `fixed` or `sticky` descendant. So the
+drift is applied only to headings and prose, never to the nav (`sticky`) and never to a block
+holding a non-portalled fixed control. The nav is still `position: sticky` after the change, checked.
+
+**A leak found by looking at a screenshot.** Seeding a sandbox session made the nav read "Open
+Planora" to a visitor with no account, and following it would land them on a guarded route the real
+API cannot serve — the sandbox answers for the landing page, not for the app. The nav now ignores a
+demo session.
+
+**The measurement protocol earned its keep.** A first pass over three runs reported a median LCP of
+1732 ms at 390 px and failed the 1200 ms ceiling. The five-run median specified in the plan reports
+**324 ms** at that viewport and 652 ms at the worst one. The raw samples show why: outliers of
+1724–2432 ms appear sporadically across viewports and runs on identical code, and a median of three
+is vulnerable to two of them landing together. Median of five, as written down, or the gate reports
+noise as regression.
+
+### feat(frontend): the landing page runs on the product's real data layer (2026-09-22)
+
+**⌘K, ⏎ and E now work on `/`, and the page can finally say so.** The keyboard block's claim was
+downgraded a commit ago because it was false — the palette returns `null` without a session and
+most of the map was dead. Rather than soften the copy permanently, the page now earns it: a demo
+sandbox swaps `api.defaults.adapter` for an in-memory implementation of the product's own HTTP
+contract and seeds a session, so ⌘K opens the real command palette and searches real tasks, ⏎
+opens the real branch editor with its Author's Note, presence line, redaction badge and subtasks,
+and E opens it with the caret in the title.
+
+**What is real, precisely.** The transport is replaced — the layer below everything. Above it, run
+unchanged: the request interceptor (Authorization from the store, the CSRF echo, `traceparent`),
+the response interceptor (401-refresh-retry, 403-CSRF-retry, cancellation, the error-logging
+policy), all sixteen typed functions in `lib/api.ts`, and `parseApiResponse`'s three envelope
+shapes. The previous demos held their own React state, which looked identical and proved far less:
+an optimistic update that is never contradicted by a refetch is not evidence of anything.
+
+**Mutations really mutate.** Completing a task moves it between the active and completed lists;
+deleting one takes its branch with it; a posted comment comes back on the next read; a reply
+carries the quoted author and preview. `useUndoableAction` still defers the DELETE for five
+seconds and drops the timer on undo, so on this page — exactly as in the product — an undone
+delete never reaches the API at all.
+
+**Two shapes the adapter gets right because the audit mock got them wrong.** `/comments` is paged
+and `/subtasks` is bare; `fetchComments` reads `.items` while `branch-feed` spreads the response
+directly. They are not symmetric, and either one backwards fails silently. Matchers are also
+ordered narrow-to-wide, because `/todos` as a substring swallows `/todos/{id}/subtasks`.
+
+**One defect found and fixed while building it.** Seeding a session turned on the global
+`RealtimeManager`, which had only ever been inert on the landing page because nobody was
+authenticated there. It opened a SignalR socket, failed against a gateway that was not there, and
+retried on its own backoff indefinitely: 486 console errors on a single page view. The gate lives
+inside the lifecycle effects rather than in the component's render, because the flag is a plain
+module value and a render-time guard is evaluated once, before the sandbox has seeded anything,
+and never again. Measured after: 0 console errors across 9 viewports.
+
+Measured with the sandbox live, signed out, 9 viewports: CLS **0** everywhere, 36 interactive
+targets, 0 under 44×44, 0 unnamed, 0 contrast failures, 0 horizontal scroll, 0 console errors,
+37 focus stops with 0 missing an indicator, one `h1` and no level skips.
+
+### fix: the password-reset email led to a 404, and the shader ran on NaN (2026-09-21)
+
+**Nobody could reset a password.** `FrontendLinkBuilder.PasswordReset` built its link as
+`/reset-password?token=…`, and that route does not exist — the screen lives at
+`/auth/reset-password`. The line directly beneath it, for email verification, gets the `/auth`
+prefix right, so this was a one-word asymmetry that killed an entire recovery flow. Fixed at the
+source, and `/reset-password` plus `/verify-email` now answer 308 to the real routes, because the
+broken links are already in people's inboxes and stay valid for 24 hours.
+
+**The animated background was rendering with NaN colours.** `ColorBendsLayer` passed
+`["var(--pl-line-strong)", …]` into `hexToVec3`, which strips a leading `#` and then calls
+`parseInt("va", 16)`. All three tones reached the GPU as `[NaN, NaN, NaN]` through a clean
+`uniform3fv` call with `uColorCount = 3` — no error, no warning, a broken background on every
+route. A uniform cannot resolve a CSS custom property; WebGL never sees the cascade. The colours
+now come from `tokens.color` as real hex, and `hexToVec3` returns mid-grey with a dev warning
+instead of NaN for anything that is not a hex triple. Every existing test for it passed a valid
+hex, which is exactly why this shipped.
+
+**The skip link had no target on any auth screen.** `auth/layout.tsx` exists for the sole purpose
+of giving those five screens a `<main>` landmark, and it had no `id` — so the root layout's
+`href="#main"` pointed at nothing on all five. One attribute.
+
+**`useBranchRoom` retried the socket forever for anyone without a session.** It starts the
+connection itself instead of waiting for `useRealtimeLifecycle`, which made it the only realtime
+entry point with no authentication check. With no token `accessTokenFactory` returns `""`, the
+handshake fails, and the client's own backoff retries at 2s/5s/10s/30s indefinitely, logging each
+round. Harmless on a guarded route — which is why it was never noticed — and a permanent
+background loop anywhere public. Its test seeded no session and passed anyway; it now seeds one
+for the happy path and asserts silence for the three ways a session can be absent.
+
+**The audit mock had four wrong response shapes, and the branch has been rendering empty under
+`--mock` for as long as the file has existed.** `fetchComments` reads `{ items, totalCount }`;
+the mock returned a bare array, so `items` was `undefined`, `(res.items ?? [])` collapsed to
+`[]`, and the feed drew nothing. `/viewer-preferences` answered `{ hiddenFields,
+redactedFieldNames }` where the client reads `hiddenByViewer`/`completedByViewer`;
+`/notifications/summary` answered `{ unreadCount, total }` where `SummaryDto` wants
+`{ totalUnread, perTask[] }`, so the bell always read zero; and `/notifications` returned an
+object where `loadList` maps over an array. All four now match what the client actually reads,
+and the branch scan confirms it: the feed renders its Author's Note, its messages and its
+subtasks. Some earlier audit numbers for branch-bearing routes therefore described a partly
+broken mock.
+
 ### fix(frontend): /login and /register stop being 404s (2026-09-21)
 
 Those are the paths people type, bookmark and paste into emails, and every one of them was a
@@ -11,7 +885,6 @@ hard 404: the pages live under `/auth/*`, `next.config.js` had no `redirects()` 
 all, and nothing else mapped them. `/login`, `/register`, `/signin` and `/signup` now answer
 308 to the real routes — permanent because the destination is not going to move, and 308
 rather than 302 because it preserves the method if anything ever POSTs to one by mistake.
-
 
 ### fix(frontend): one refusal, one message, one place — and one password rule (2026-09-21)
 
@@ -51,7 +924,6 @@ Measured signed out over 9 viewports: max CLS 0.0011 on sign-in and 0.0001 on cr
 The `Remember me` checkbox measured 16×16 and now carries `.touch-target`; the only remaining
 sub-44 targets on either screen are links inside a sentence, which WCAG 2.5.8 exempts.
 
-
 ### feat(frontend): the landing page says the one thing, and lets you check it (2026-09-21)
 
 **`/` went from two blocks to nine, five of which you can put your hands on.** The old page
@@ -87,7 +959,6 @@ three modes, against a 0.0007 baseline and a 0.0014 invariant. The shell became 
 so the LCP text ships in the first byte instead of waiting on hydration. The median is not
 decoration: the same code measured 372, 2656, 372, 2708 and 380 ms at 1440 px, so a single run
 cannot tell a regression from noise.
-
 
 ### fix(frontend): finish the map, and let one measurement overrule an argument (2026-09-15)
 
@@ -430,7 +1301,6 @@ because Windows recycles PIDs and a parent chain can loop back on itself. `Get-P
 `Assert-PortsFree` take an optional `-RepoRoot` for this and keep the old name-based guess only as a
 fallback for callers that cannot say where Planora lives. A foreign owner is now reported as a
 conflict to resolve, never terminated.
-
 
 ### feat: data-retention — purge soft-deleted user accounts (2026-07-08)
 

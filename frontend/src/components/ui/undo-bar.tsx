@@ -38,12 +38,32 @@ export interface PendingAction {
 const WINDOW_MS = 5000
 
 export function useUndoableAction() {
+  /**
+   * The pending action lives in a ref, and the ref is the only thing a side
+   * effect ever reads. State merely mirrors it so the bar can render.
+   *
+   * It used to be the other way round: `commit` and `rollback` were called from
+   * inside `setPending(prev => …)`. Updaters must be pure, and StrictMode calls
+   * them twice in development to prove it, so one Undo rolled back twice (the
+   * deleted task came back as two rows) and one superseded action was committed
+   * twice (two DELETEs for one task).
+   */
+  const current = useRef<PendingAction | null>(null)
   const [pending, setPending] = useState<PendingAction | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const clear = useCallback(() => {
+  /**
+   * Read-and-clear, the one way an action leaves the ref. Whoever gets it back
+   * is the only caller that may settle it; every later caller gets null. The
+   * timer goes with it, so a window that has been settled early cannot close a
+   * second time.
+   */
+  const take = useCallback((): PendingAction | null => {
     if (timer.current) clearTimeout(timer.current)
     timer.current = null
+    const action = current.current
+    current.current = null
+    return action
   }, [])
 
   const run = useCallback(
@@ -53,30 +73,29 @@ export function useUndoableAction() {
        * rather than dropping it. Dropping it would lose the deletion silently;
        * queueing would let the user stack five bars they cannot read.
        */
-      setPending((prev) => {
-        if (prev) {
-          clear()
-          void prev.commit()
-        }
-        return action
-      })
+      const superseded = take()
+      if (superseded) void superseded.commit()
+
+      current.current = action
+      setPending(action)
       timer.current = setTimeout(() => {
-        setPending((p) => {
-          if (p === action) void action.commit()
-          return null
-        })
+        // Every early exit clears this timer, so an action that reaches here is
+        // still the pending one.
+        const expired = take()
+        if (!expired) return
+        void expired.commit()
+        setPending(null)
       }, WINDOW_MS)
     },
-    [clear],
+    [take],
   )
 
   const undo = useCallback(() => {
-    clear()
-    setPending((p) => {
-      p?.rollback()
-      return null
-    })
-  }, [clear])
+    const undone = take()
+    if (!undone) return
+    undone.rollback()
+    setPending(null)
+  }, [take])
 
   /**
    * On unmount, COMMIT anything still pending — do not just drop the timer.
@@ -85,18 +104,12 @@ export function useUndoableAction() {
    * clearing the timeout would leave the task on the server while it had already
    * vanished from the list, and it would reappear on the next load.
    */
-  const pendingRef = useRef<PendingAction | null>(null)
-  useEffect(() => {
-    pendingRef.current = pending
-  }, [pending])
-
   useEffect(
     () => () => {
-      if (timer.current) clearTimeout(timer.current)
-      const stillPending = pendingRef.current
+      const stillPending = take()
       if (stillPending) void stillPending.commit()
     },
-    [],
+    [take],
   )
 
   return { pending, run, undo }
@@ -112,7 +125,7 @@ export function UndoBar({ pending, onUndo }: { pending: PendingAction | null; on
           <motion.div
             // `toast`, above the modal layer: an undo the user cannot see is not an
             // undo, and a dialog must never cover it.
-            className="pointer-events-none fixed inset-x-0 bottom-0 z-toast flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-toast flex justify-center px-4 pb-safe-4"
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type RefObject } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
 import {
   ArrowRight,
@@ -9,7 +9,7 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
-  Globe2,
+  UsersRound,
   Lock,
   Plus,
   Sparkles,
@@ -28,8 +28,11 @@ import { CategoryPopover } from "@/components/todos/edit-todo-modal/popovers/cat
 import { DatePopover } from "@/components/todos/edit-todo-modal/popovers/date"
 import { formatDueRange, getPriorityLabel, getPriorityNumber } from "@/components/todos/edit-todo-modal/utils"
 import { useFriends } from "@/hooks/use-friends"
+import { isTextEntry } from "@/hooks/use-list-navigation"
 import { cn } from "@/lib/utils"
-import { TWEEN_FAST, SPRING_RESPONSIVE, EASE_OUT_EXPO } from "@/lib/animations"
+import { DURATION_FAST, DURATION_INSTANT, DURATION_SLOW, DURATION_UI, TWEEN_FAST, TWEEN_UI, SPRING_RESPONSIVE, EASE_OUT_EXPO } from "@/lib/animations"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
+import { PLATE_ICON, PLATE_ROW, PLATE_SURFACE } from "@/components/todos/plate"
 
 interface CreateTodoPanelProps {
   isOpen: boolean
@@ -66,6 +69,12 @@ function friendName(f: FriendDto): string {
   if (full) return full
   return f.email ? f.email.split("@")[0] : f.id
 }
+
+/**
+ * One visible character in any layout ("a", "Ж", "7", "?"). Space is deliberately not one:
+ * with focus on the header or a selector plate, Space presses that button.
+ */
+const PRINTABLE_KEY = /^\S$/u
 
 /**
  * One of the four selector plates under the title area (Priority / Due date /
@@ -118,16 +127,16 @@ function SelectorCard({
         whileTap={{ scale: 0.98 }}
         transition={SPRING_RESPONSIVE}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-xl border bg-paper p-3 text-left shadow-sm",
+          "group flex w-full items-center gap-3 rounded-lg border bg-paper p-3 text-left shadow-sm",
           "transition-[border-color,box-shadow,background-color] duration-base",
           open
             ? "border-line-strong shadow-md"
-            : "border-line/80 hover:border-line-strong hover:shadow-md"
+            : "border-line hover:border-line-strong hover:shadow-md"
         )}
       >
         <span
           className={cn(
-            "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors duration-base",
+            "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md transition-colors duration-base",
             iconClass
           )}
           style={iconStyle}
@@ -135,7 +144,7 @@ function SelectorCard({
           {icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-caption font-bold uppercase tracking-[0.14em] text-ink-subtle">
+          <span className={FIELD_LABEL_CLASS}>
             {label}
           </span>
           {/* Fixed-height value row so the crossfade never resizes the card. */}
@@ -146,7 +155,7 @@ function SelectorCard({
                 initial={{ y: 8, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: -8, opacity: 0 }}
-                transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
+                transition={TWEEN_FAST}
                 className={cn(
                   "block truncate text-body-sm font-bold leading-5 tracking-tight",
                   muted ? "text-ink-subtle" : "text-ink"
@@ -159,9 +168,9 @@ function SelectorCard({
         </span>
         <motion.span
           animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
+          transition={TWEEN_UI}
           className={cn(
-            "flex-shrink-0 text-ink-subtle transition-colors group-hover:text-ink-subtle",
+            "flex-shrink-0 text-ink-muted transition-colors duration-fast group-hover:text-ink",
             // Room for the clear control, which now sits OUTSIDE this button.
             onClear && "mr-8",
           )}
@@ -244,7 +253,7 @@ function SharePopover({
     <Popover open={open} onClose={onClose} width={320} align="right" containerRef={containerRef} portal>
       <PopoverHeader
         label="Share"
-        sub={<span className="text-caption font-semibold text-ink-subtle">{sub}</span>}
+        sub={<span className="text-caption font-semibold text-ink-muted">{sub}</span>}
       />
       <div className="p-1.5">
         <button
@@ -265,7 +274,7 @@ function SharePopover({
               isPublic ? "bg-paper/10 text-paper" : "bg-gray-100 text-ink-subtle"
             )}
           >
-            <Globe2 className="h-4 w-4" />
+            <UsersRound className="h-4 w-4" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-caption font-bold tracking-tight">All friends</span>
@@ -286,7 +295,7 @@ function SharePopover({
         <div className="mx-1.5 my-1.5 h-px bg-gray-100" />
 
         {friends.length === 0 ? (
-          <div className="px-3 py-5 text-center text-caption font-bold text-ink-subtle">
+          <div className="px-3 py-5 text-center text-caption font-bold text-ink-muted">
             No friends yet.
           </div>
         ) : (
@@ -321,7 +330,7 @@ function SharePopover({
                   </span>
                   <span
                     className={cn(
-                      "flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full transition-colors",
+                      "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full transition-colors",
                       selected ? "bg-ink text-paper" : "shadow-[inset_0_0_0_1.5px_var(--pl-line)] text-transparent"
                     )}
                   >
@@ -360,6 +369,11 @@ export function CreateTodoPanel({
   const prefersReducedMotion = useReducedMotion()
   const friends = useFriends(isOpen)
   const titleRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  /** What held focus when the panel opened: its header, an empty state's button, or nothing. */
+  const openerRef = useRef<Element | null>(null)
 
   const priorityCardRef = useRef<HTMLDivElement>(null)
   const dateCardRef = useRef<HTMLDivElement>(null)
@@ -384,13 +398,77 @@ export function CreateTodoPanel({
     setOpenPopover(null)
   }
 
+  /*
+   * Opening the panel focuses NOTHING (owner's ruling, 2026-10-05).
+   *
+   * It used to focus the title 220ms after opening. A text field matches :focus-visible on
+   * every focus, script included, so the field lit up by itself the moment "New task" was
+   * pressed — and on the dashboard's first-run auto-open with no press at all — and on Android
+   * the programmatic focus raised the keyboard over the selector plates. Focus now stays
+   * where the press left it (the header keeps it, as a disclosure button should), and the
+   * field lights up only when the user clicks it or starts typing; the effect below catches
+   * the typing.
+   */
   useEffect(() => {
     if (isOpen) {
-      const t = setTimeout(() => titleRef.current?.focus(), 220)
-      return () => clearTimeout(t)
+      const active = document.activeElement
+      openerRef.current = active && !isTextEntry(active) ? active : null
+      return
     }
+    openerRef.current = null
     setOpenPopover(null)
   }, [isOpen])
+
+  /*
+   * Closing with focus inside the form (Escape in the title, Cancel) hands focus back to the
+   * header. The collapsed body is `inert`, and a focused element that turns inert drops
+   * focus to <body> — the next Tab would restart from the top of the page. A layout effect
+   * runs before the browser's focus fixup, while the element still holds focus.
+   */
+  useLayoutEffect(() => {
+    if (isOpen) return
+    if (bodyRef.current?.contains(document.activeElement)) toggleRef.current?.focus({ preventScroll: true })
+  }, [isOpen])
+
+  /*
+   * Type-to-focus. While the panel is open and nothing editable has focus, the first printable
+   * key moves focus into the title, and the browser then inserts that very character there:
+   * text input goes to whatever is focused once keydown returns.
+   *
+   * - Window, capture phase, then stopPropagation: no later shortcut may also act on a key
+   *   that is now the first letter of a title. The tasks page's `F` is an earlier capture
+   *   listener, so it stands down by itself while the panel is open.
+   * - Only from "nowhere": <body>, the panel's own non-text controls, or the button that
+   *   opened it. Focus in any other field, dialog or menu keeps its keys.
+   * - Never with a modifier (Ctrl/Cmd+K is the palette), except AltGr, which types.
+   * - Not while a selector popover is open: its keys are its own.
+   * - Not while the panel is scrolled out of view: nobody types into a title they cannot see.
+   * - `preventScroll`: the content may still be growing out of a 0px grid row, and a
+   *   scrolling focus would scroll that clipped container and leave the form shifted up.
+   */
+  useEffect(() => {
+    if (!isOpen || openPopover) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.isComposing || !PRINTABLE_KEY.test(e.key)) return
+      if ((e.ctrlKey || e.metaKey || e.altKey) && !e.getModifierState("AltGraph")) return
+      const title = titleRef.current
+      const panel = panelRef.current
+      if (!title || !panel) return
+      const active = document.activeElement
+      const idle =
+        active === null ||
+        active === document.body ||
+        active === openerRef.current ||
+        (panel.contains(active) && !isTextEntry(active))
+      if (!idle) return
+      const box = panel.getBoundingClientRect()
+      if (box.height > 0 && (box.bottom <= 0 || box.top >= window.innerHeight)) return
+      title.focus({ preventScroll: true })
+      e.stopPropagation()
+    }
+    window.addEventListener("keydown", onKeyDown, true)
+    return () => window.removeEventListener("keydown", onKeyDown, true)
+  }, [isOpen, openPopover])
 
   const handleSubmit = async () => {
     if (!title.trim()) {
@@ -447,30 +525,37 @@ export function CreateTodoPanel({
   }, [isOpen, title, description, priority, dueDate, dueDateStart, categoryId, isPublic, selectedFriendIds, creating, openPopover])
 
   const fieldMotion = (delay = 0) => ({
-    initial: { opacity: 0, y: prefersReducedMotion ? 0 : 8, scale: prefersReducedMotion ? 1 : 0.99 },
-    animate: { opacity: 1, y: 0, scale: 1 },
+    initial: { opacity: 0, y: prefersReducedMotion ? 0 : 8 },
+    animate: { opacity: 1, y: 0 },
     transition: {
-      duration: prefersReducedMotion ? 0.01 : 0.25,
+      duration: prefersReducedMotion ? 0 : DURATION_UI,
       delay: prefersReducedMotion ? 0 : delay,
       ease: EASE_OUT_EXPO,
     },
   })
 
-  // CSS timing for the grid-row height transition
+  /*
+   * The panel opens by growing its grid row, the one height animation on the page. It
+   * answers a press and pushes the list down, so it is kept on the scale's `slow` (320ms,
+   * the ceiling for a response) with the product's emphasized curve rather than its own
+   * 380ms; the contents fade in behind the opening and out before the closing.
+   */
   const rowTransition = prefersReducedMotion
     ? "grid-template-rows 0.01s linear"
-    : "grid-template-rows 0.38s var(--pl-ease-emphasized)"
+    : `grid-template-rows ${DURATION_SLOW}s var(--pl-ease-emphasized)`
   const contentOpacityTransition = prefersReducedMotion
     ? "opacity 0.01s linear"
-    : `opacity ${isOpen ? "0.18s 0.12s" : "0.10s 0s"} var(--pl-ease-emphasized)`
+    : `opacity ${isOpen ? `${DURATION_FAST}s ${DURATION_FAST}s` : `${DURATION_INSTANT}s 0s`} var(--pl-ease-emphasized)`
 
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
 
   const selectedCategory = categoryId ? categories.find(c => c.id === categoryId) : undefined
   const SelectedCatIcon = selectedCategory?.icon ? (ICON_MAP[selectedCategory.icon] ?? Folder) : Folder
 
+  // "All friends", never "Public": every accepted friend is still a circle the owner
+  // chose, and there is no public link.
   const shareValue = isPublic
-    ? "Public"
+    ? "All friends"
     : selectedFriendIds.length > 0
       ? `${selectedFriendIds.length} ${selectedFriendIds.length === 1 ? "friend" : "friends"}`
       : "Private"
@@ -486,43 +571,38 @@ export function CreateTodoPanel({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-line/80 bg-paper shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)]">
+    <div ref={panelRef} className={PLATE_SURFACE}>
       {/*
         Always-visible header — clicking opens/closes the panel.
         The + button is ONE persistent element that rotates 0° ↔ 45°,
         so the animation plays correctly in both directions.
       */}
       <button
+        ref={toggleRef}
         type="button"
         onClick={onToggle}
+        // The same 80px row as the quick filter below it (`plate.ts`), at every width. The
+        // ring is drawn inside the edge: the plate clips its overflow.
         className={cn(
-          "group flex w-full items-center justify-between gap-4 rounded-t-md p-4 text-left transition-colors duration-base hover:bg-paper-sunken/60 sm:p-5",
-          !isOpen && "rounded-b-md"
+          PLATE_ROW,
+          "group h-20 items-center text-left transition-colors duration-fast hover:bg-paper-sunken focus-visible:-outline-offset-2",
         )}
         aria-label={isOpen ? "Close create task panel" : "Open create task panel"}
         aria-expanded={isOpen}
       >
-        <div className="flex min-w-0 items-center gap-3.5">
+        <div className="flex min-w-0 items-center gap-4">
           {/* The single + icon that rotates between open/closed — never unmounts */}
           {/* Decorative: framer-motion makes an element with whileTap focusable,
               which put an unnamed 44x44 target inside an already-labelled button. */}
-          <motion.div
-            aria-hidden="true"
-            tabIndex={-1}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.94 }}
-            transition={SPRING_RESPONSIVE}
-            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-ink text-paper shadow-md shadow-black/15"
-          >
+          <span aria-hidden="true" className={PLATE_ICON}>
             <motion.span
-              aria-hidden
               animate={{ rotate: isOpen ? 45 : 0 }}
-              transition={{ type: "spring", stiffness: 420, damping: 24 }}
+              transition={SPRING_RESPONSIVE}
               className="flex"
             >
               <Plus className="h-5 w-5" strokeWidth={2.5} />
             </motion.span>
-          </motion.div>
+          </span>
 
           {/* Title area swaps between two states */}
           <div className="min-w-0">
@@ -533,7 +613,7 @@ export function CreateTodoPanel({
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
+                  transition={TWEEN_FAST}
                 >
                   <h2 className="text-body-sm font-bold tracking-tight text-ink">New task</h2>
                   {/*
@@ -543,7 +623,7 @@ export function CreateTodoPanel({
                     the user learns the wrong binding and finds out later, from a
                     surface that disagrees with this one.
                   */}
-                  <p className="truncate text-caption font-semibold text-ink-subtle">
+                  <p className="mt-0.5 truncate text-caption font-semibold text-ink-muted">
                     Date, category, audience
                   </p>
                 </motion.div>
@@ -553,10 +633,10 @@ export function CreateTodoPanel({
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 4 }}
-                  transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
+                  transition={TWEEN_FAST}
                 >
-                  <p className="text-body-sm font-bold leading-none tracking-tight text-ink">New task</p>
-                  <p className="mt-0.5 text-caption font-semibold text-ink-subtle">Title is all you need</p>
+                  <p className="text-body-sm font-bold tracking-tight text-ink">New task</p>
+                  <p className="mt-0.5 truncate text-caption font-semibold text-ink-muted">Title is all you need</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -565,11 +645,12 @@ export function CreateTodoPanel({
 
         {/* Chevron — fades out when open */}
         <motion.div
+          aria-hidden="true"
           animate={{ opacity: isOpen ? 0 : 1, x: isOpen ? 4 : 0 }}
-          transition={{ duration: 0.16, ease: EASE_OUT_EXPO }}
+          transition={TWEEN_FAST}
           className="flex flex-shrink-0 items-center"
         >
-          <ChevronRight className="h-4 w-4 text-ink-subtle transition-colors group-hover:text-ink-muted" />
+          <ChevronRight className="h-4 w-4 text-ink-muted transition-colors duration-fast group-hover:text-ink" />
         </motion.div>
       </button>
 
@@ -579,7 +660,11 @@ export function CreateTodoPanel({
         visually-hidden form, and makes queryByPlaceholderText return null when closed.
       */}
       <div
+        ref={bodyRef}
         aria-hidden={!isOpen}
+        // Not only hidden from assistive tech but out of the tab order: collapsed, the form
+        // is a 0px row, and Tab used to walk eight invisible stops through it.
+        inert={!isOpen}
         style={{
           display: "grid",
           gridTemplateRows: isOpen ? "1fr" : "0fr",
@@ -597,11 +682,13 @@ export function CreateTodoPanel({
 
             <div className="space-y-6 p-5 sm:p-6">
               {/* Title + details behind a single left rule, exactly like the
-                  mock: naked oversized inputs, no boxed fields. The rule warms
-                  up while either field has focus. */}
+                  mock: naked oversized inputs, no boxed fields. The rule IS the
+                  focus indicator: while either field has focus an ink rule draws
+                  itself over it top-down (globals.css `.field-rule`), and
+                  `field-naked` keeps the global ring from boxing the fields. */}
               <motion.div
-                {...fieldMotion(0.06)}
-                className="border-l-2 border-line pl-4 transition-colors duration-slow focus-within:border-ink sm:pl-6"
+                {...fieldMotion(0.04)}
+                className="field-rule pl-4 sm:pl-6"
               >
                 <div className="flex items-start gap-3">
                   <input
@@ -611,7 +698,7 @@ export function CreateTodoPanel({
                     placeholder="What needs to be done?"
                     maxLength={TITLE_MAX_LENGTH}
                     className={cn(
-                      "min-h-control w-full border-none bg-transparent p-0 text-title font-bold tracking-tight sm:text-display-sm sm:leading-tight",
+                      "field-naked min-h-control w-full border-none bg-transparent p-0 text-title font-bold tracking-tight sm:text-display-sm sm:leading-tight",
                       "placeholder:text-ink-subtle",
                       titleNearLimit ? "text-alert" : "text-ink"
                     )}
@@ -627,7 +714,7 @@ export function CreateTodoPanel({
                     placeholder="Add details — optional."
                     rows={2}
                     maxLength={DESCRIPTION_MAX_LENGTH}
-                    className="min-h-control max-h-40 w-full resize-none border-none bg-transparent p-0 text-body-sm font-medium text-ink-muted placeholder:text-ink-subtle"
+                    className="field-naked min-h-control max-h-40 w-full resize-none border-none bg-transparent p-0 text-body-sm font-medium text-ink-muted placeholder:text-ink-subtle"
                   />
                   <span className="flex-shrink-0">
                     <LimitCounter value={description.length} max={DESCRIPTION_MAX_LENGTH} />
@@ -638,13 +725,13 @@ export function CreateTodoPanel({
               {/* Selector plates — auto-fit so the row is 4-up on the wide
                   tasks page and stacks gracefully in the dashboard sidebar. */}
               <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3">
-                <motion.div {...fieldMotion(0.1)}>
+                <motion.div {...fieldMotion(0.08)}>
                   <SelectorCard
                     containerRef={priorityCardRef}
                     label="Priority"
                     value={getPriorityLabel(priority)}
                     valueKey={priority}
-                    icon={<Sparkles className="h-[18px] w-[18px]" strokeWidth={2.2} />}
+                    icon={<Sparkles className="h-4 w-4" strokeWidth={2.2} />}
                     iconClass="bg-ink text-paper shadow-md shadow-black/15"
                     open={openPopover === "priority"}
                     onToggle={() => togglePopover("priority")}
@@ -660,14 +747,14 @@ export function CreateTodoPanel({
                   </SelectorCard>
                 </motion.div>
 
-                <motion.div {...fieldMotion(0.13)}>
+                <motion.div {...fieldMotion(0.12)}>
                   <SelectorCard
                     containerRef={dateCardRef}
                     label="Due date"
                     value={dueDate ? formatDueRange(dueDateStart, dueDate) : "No date"}
                     valueKey={`${dueDateStart}|${dueDate}`}
                     muted={!dueDate}
-                    icon={<Calendar className="h-[18px] w-[18px]" strokeWidth={2.2} />}
+                    icon={<Calendar className="h-4 w-4" strokeWidth={2.2} />}
                     iconClass={dueDate ? "bg-ink text-paper shadow-md shadow-black/15" : "bg-gray-100 text-ink-subtle"}
                     open={openPopover === "date"}
                     onToggle={() => togglePopover("date")}
@@ -698,8 +785,8 @@ export function CreateTodoPanel({
                     muted={!selectedCategory}
                     icon={
                       selectedCategory
-                        ? <SelectedCatIcon className="h-[18px] w-[18px]" style={{ color: selectedCategory.color ?? "var(--pl-ink-muted)" }} />
-                        : <Folder className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                        ? <SelectedCatIcon className="h-4 w-4" style={{ color: selectedCategory.color ?? "var(--pl-ink-muted)" }} />
+                        : <Folder className="h-4 w-4" strokeWidth={2.2} />
                     }
                     iconClass={selectedCategory ? "" : "bg-gray-100 text-ink-subtle"}
                     iconStyle={selectedCategory ? { background: `${selectedCategory.color ?? "var(--pl-ink-muted)"}1A` } : undefined}
@@ -723,7 +810,7 @@ export function CreateTodoPanel({
                   </SelectorCard>
                 </motion.div>
 
-                <motion.div {...fieldMotion(0.19)}>
+                <motion.div {...fieldMotion(0.2)}>
                   <SelectorCard
                     containerRef={shareCardRef}
                     label="Share"
@@ -733,10 +820,10 @@ export function CreateTodoPanel({
                     muted={!isPublic && selectedFriendIds.length === 0}
                     icon={
                       isPublic
-                        ? <Globe2 className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                        ? <UsersRound className="h-4 w-4" strokeWidth={2.2} />
                         : selectedFriendIds.length > 0
-                          ? <Users className="h-[18px] w-[18px]" strokeWidth={2.2} />
-                          : <Lock className="h-[18px] w-[18px]" strokeWidth={2.2} />
+                          ? <Users className="h-4 w-4" strokeWidth={2.2} />
+                          : <Lock className="h-4 w-4" strokeWidth={2.2} />
                     }
                     iconClass={
                       isPublic || selectedFriendIds.length > 0
@@ -776,17 +863,17 @@ export function CreateTodoPanel({
             </div>
 
             <motion.div
-              {...fieldMotion(0.22)}
+              {...fieldMotion(0.24)}
               className="flex flex-col gap-3 rounded-b-md border-t border-line bg-paper-sunken/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
             >
               <div className="hidden items-center gap-1.5 sm:flex">
-                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-subtle shadow-sm">
+                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted shadow-sm">
                   {isMac ? "⌘" : "Ctrl"}
                 </kbd>
-                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-subtle shadow-sm">
+                <kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-caption font-bold text-ink-muted shadow-sm">
                   ↵
                 </kbd>
-                <span className="ml-1 text-caption font-bold text-ink-subtle">to create</span>
+                <span className="ml-1 text-caption font-bold text-ink-muted">to create</span>
               </div>
               <div className="flex gap-2">
                 <Button

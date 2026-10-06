@@ -31,8 +31,7 @@ Next.js frontend as host processes (health-gated; Ctrl+C for graceful shutdown):
 .\Start-Planora-Local.ps1 -Help          # all flags (Get-Help … -Full for annotated docs)
 ```
 
-Each service ensures its own schema on first start, so the local launcher needs no separate
-migration step. Both scripts preserve data volumes by default.
+Auth/Category/Todo/Collaboration/Messaging call schema initialization at startup. The tracked Todo chain lacks its initial baseline, while Realtime needs an explicit migration. See [Database](database.md) before starting a clean database. Both scripts preserve data volumes by default.
 
 ## Health Checks
 
@@ -43,7 +42,7 @@ Every service exposes three probes ([`docs/deployment.md`](deployment.md)
 # Liveness (process is up; restart on failure)
 Invoke-WebRequest http://localhost:5132/health/live
 
-# Readiness (dependencies reachable; hold traffic off on failure)
+# Gateway readiness is shallow; inspect the service-specific checks separately
 Invoke-WebRequest http://localhost:5132/health/ready
 
 # Aggregate (backwards-compatible; used by docker-compose healthchecks)
@@ -51,21 +50,20 @@ Invoke-WebRequest http://localhost:5132/health
 Invoke-WebRequest http://localhost:5132/auth/health
 Invoke-WebRequest http://localhost:5132/todos/health
 Invoke-WebRequest http://localhost:5132/categories/health
+Invoke-WebRequest http://localhost:5132/collaboration/health
 Invoke-WebRequest http://localhost:5132/messaging/health
 Invoke-WebRequest http://localhost:5132/realtime/health
 ```
 
-A `503` on `/health/ready` while `/health/live` returns `200` is an
-**intentional traffic hold** — Postgres / Redis / RabbitMQ is unreachable
-or warming up. See "Incident Pointers" below for the matching playbook.
+A `503` on `/health/ready` indicates a registered ready-tagged check failed. Gateway and Realtime have empty check sets, so their `200` says nothing about broker/cache/database readiness. See "Incident Pointers" below for the matching playbook.
 
 ## Logs
 
 Launcher transcripts are written under `logs/` by the PowerShell scripts.
-Backend services use the Serilog pipeline configured by
-`BuildingBlocks.Infrastructure.Logging.SerilogConfiguration`. In production
-the same pipeline ships every log line to Grafana Loki via the optional
-`TryAddLokiSink` extension when `LOKI_URL` is set
+Five services use the shared Serilog pipeline; Auth and gateway have their own startup wiring. The shared setup is configured by
+`BuildingBlocks.Infrastructure.Logging.SerilogConfiguration`. The shared pipeline can ship logs to Grafana Loki via optional
+`TryAddLokiSink`, using `Loki:Url` before `LOKI_URL`. Auth/gateway do not use
+that shared sink registration
 ([`observability.md`](observability.md) "Activating Centralized Logs").
 
 Useful local commands:
@@ -93,28 +91,27 @@ rotation playbook, is in [`secrets-management.md`](secrets-management.md).
 ## Deployment
 
 The chosen production hosting target is Fly.io. The full deployment shape
-is committed: eight manifests under `deploy/fly/`, the bootstrap scripts
+is committed: nine manifests under `deploy/fly/`, the bootstrap scripts
 under the same directory, and the CD workflow at
-`.github/workflows/cd.yml`. See [`deployment.md`](deployment.md) "Bootstrap
-workflow — zero to deployable in three commands" for the end-to-end
-sequence.
+`.github/workflows/cd.yml`. See [`deployment.md`](deployment.md) for the actual rollout steps, omitted inputs and current blockers.
 
-A standard release:
+After resolving [deployment blockers](deployment.md#confirmed-rollout-blockers), an operator-authorized release tag triggers CD. Push only the intended tag:
 
 ```powershell
 git tag v0.2.0
-git push --tags
+git push origin v0.2.0
 # .github/workflows/cd.yml runs:
 #   preflight (FLY_API_TOKEN + fly.toml validation)
 #   migrate   (flyctl machine run --rm planora-migrator -- --all)
-#   deploy    (services in order, then gateway last, bluegreen)
+#   deploy    (service matrix with max-parallel=1; gateway after matrix, bluegreen)
 #   smoke     (poll /health/ready)
 ```
 
 To redeploy without a new tag (hotfix, rollback to a previous commit):
 
 ```powershell
-gh workflow run cd.yml --ref <sha-or-branch>
+$releaseRef = 'main' # choose the reviewed commit/ref
+gh workflow run cd.yml --ref main -f ref=$releaseRef
 ```
 
 ## Migration Operations
@@ -146,8 +143,7 @@ flyctl machine run --rm `
 Exit codes: `0` success, `64` bad args, `70` one or more services failed.
 
 For PR review, the `migrations` workflow attaches a per-service idempotent
-SQL artifact whenever a schema-relevant path changes; the SQL is exactly
-what the migrator will execute against production.
+SQL artifact whenever a schema-relevant path changes; the intended SQL artifacts need the workflow fixes documented in [Deployment](deployment.md#confirmed-rollout-blockers). The runner applies EF migrations; artifact availability has not been established by this audit.
 
 ## Observability Operations
 
@@ -158,11 +154,15 @@ and Loki walkthroughs.
 Verification:
 
 ```powershell
-# Read what is set on a given app
+# List configured key names on a given app
 flyctl secrets list --app planora-<name>
 
 # Restart so the OTel resource picks up new endpoints
-flyctl machine restart --app planora-<name>
+$flyApp = 'planora-auth' # choose the actual application
+flyctl machine list --app $flyApp
+# Restart a selected machine after an operator-authorized config change:
+$machineId = 'replace-with-selected-machine-id'
+flyctl machine restart $machineId --app $flyApp
 ```
 
 Custom dashboards / alert rules are listed in

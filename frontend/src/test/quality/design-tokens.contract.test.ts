@@ -175,6 +175,41 @@ describe("rule 4 — one focus indicator, clearing 2.4.11", () => {
     expect(blocks.length).toBeGreaterThan(0)
     expect(css).toContain("outline-offset")
   })
+
+  it("gives every text field a shape-borne focus class, so none falls back to the global rectangle", () => {
+    // A text field matches :focus-visible on every click, so a raw <input>/<textarea> without
+    // field-box or field-naked draws the global outline as a hard box round itself — the
+    // "grey rectangle" the owner rejected. Comments are blanked first: docblocks quote tags.
+    const strip = (s: string) =>
+      s
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+        .replace(/(^|[^:"'])\/\/.*$/gm, (m, a: string) => a + " ".repeat(m.length - a.length))
+    const offenders: string[] = []
+    for (const f of FILES) {
+      if (!f.rel.endsWith(".tsx")) continue
+      const text = strip(f.text)
+      for (const m of text.matchAll(/<(input|textarea)\b[\s\S]*?\/>/g)) {
+        const tag = m[0]
+        if (/type=["'](checkbox|radio|file|range|hidden|color)["']/.test(tag)) continue
+        // <Input>/<Textarea> build their class list in `baseClasses`, which carries field-box.
+        if (/field-(box|naked)/.test(tag) || /className=\{baseClasses\}/.test(tag)) continue
+        offenders.push(`${f.rel}:${text.slice(0, m.index).split("\n").length}`)
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it("lets text fields draw focus on their own shape without deleting the forced-colors outline", () => {
+    const css = fs.readFileSync(path.join(SRC, "app", "globals.css"), "utf8")
+    for (const selector of [".field-naked:focus-visible", ".field-box:focus-visible:not(:disabled)"]) {
+      const start = css.indexOf(selector)
+      expect(start).toBeGreaterThan(-1)
+      const block = css.slice(start, css.indexOf("}", start))
+      // Transparent, never removed: High Contrast repaints outline-color and drops the rest.
+      expect(block).toContain("outline-color: transparent")
+      expect(block).not.toMatch(/outline:\s*none/)
+    }
+  })
 })
 
 describe("rule 5 — priority is never encoded by hue alone", () => {

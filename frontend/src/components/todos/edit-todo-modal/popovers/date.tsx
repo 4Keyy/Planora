@@ -3,6 +3,7 @@
 import { RefObject, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { SPRING_STANDARD, TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
 import { Popover, PopoverHeader } from "../popover"
 import { EN_MONTHS_LONG, EN_DAYS_SHORT, computeNextDueRange, type DueRange } from "../utils"
 
@@ -140,7 +141,10 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
     ...Array(startOffset).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
-  while (cells.length % 7 !== 0) cells.push(null)
+  // Always six weeks. A 5-week month after a 6-week one changed the grid by a row (44px) in
+  // one frame, so the hint and buttons below, and the popover's own edge, jumped while the
+  // days were still sliding. Six rows of 44px never change height.
+  while (cells.length < 42) cells.push(null)
 
   // The live preview interval: only while a single date is set and another day is hovered.
   const previewing = !!endN && !startN && !!hoverDay && hoverDay !== endN && !readOnly
@@ -155,7 +159,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
         background: "none", border: "none", cursor: "pointer",
         display: "inline-flex", alignItems: "center", minHeight: 36, padding: "0 8px",
         borderRadius: 8,
-        fontSize: 12, fontWeight: 700, letterSpacing: "0.1em",
+        fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
         textTransform: "uppercase", color: "var(--pl-ink-muted)",
       }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink)" }}
@@ -232,7 +236,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                   initial={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * 14 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * -14 }}
-                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  transition={TWEEN_UI}
                   style={{
                     position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 12, fontWeight: 700, color: "var(--pl-ink)",
@@ -259,15 +263,17 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: CELL_GAP, marginBottom: 4 }}>
             {EN_DAYS_SHORT.map((d) => (
               <div key={d} style={{
-                textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
-                textTransform: "uppercase", color: "var(--pl-ink-subtle)", padding: "2px 0",
+                textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+                textTransform: "uppercase", color: "var(--pl-ink-muted)", padding: "2px 0",
               }}>
                 {d}
               </div>
             ))}
           </div>
 
-          {/* Day grid — keyed on the month so it cross-fades/slides on navigation. */}
+          {/* Day grid — keyed on the month so it cross-fades/slides on navigation. The
+              relative wrapper is the leaving grid's offset parent while it slides out. */}
+          <div style={{ position: "relative" }}>
           <AnimatePresence initial={false} mode="popLayout" custom={navDir}>
             <motion.div
               key={`${viewYear}-${viewMonth}`}
@@ -275,9 +281,9 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
               initial={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * 18 }}
               animate={{ opacity: 1, x: 0 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, x: navDir * -18 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              transition={TWEEN_UI}
               onMouseLeave={() => setHoverDay(null)}
-              style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: CELL_GAP }}
+              style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: 44, gap: CELL_GAP }}
             >
               {cells.map((day, idx) => {
                 if (!day) return <div key={`e-${idx}`} />
@@ -323,7 +329,7 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                         aria-hidden
                         initial={reduce ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 0.16, ease: "easeOut" }}
+                        transition={TWEEN_FAST}
                         style={{
                           position: "absolute", top: 3, bottom: 3,
                           left:  roundLeft  ? CELL_GAP : -CELL_GAP,
@@ -332,8 +338,8 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                           borderBottomLeftRadius: roundLeft  ? 8 : 0,
                           borderTopRightRadius:    roundRight ? 8 : 0,
                           borderBottomRightRadius: roundRight ? 8 : 0,
-                          background: inSolid ? "var(--pl-gray-100)" : "rgba(82,82,82,0.10)",
-                          border: inPreview && !inSolid ? "1px dashed rgba(82,82,82,0.40)" : "none",
+                          background: inSolid ? "var(--pl-gray-100)" : "color-mix(in srgb, var(--pl-ink-muted) 10%, transparent)",
+                          border: inPreview && !inSolid ? "1px dashed color-mix(in srgb, var(--pl-ink-muted) 40%, transparent)" : "none",
                           borderLeft:  inPreview && !inSolid && !roundLeft  ? "none" : undefined,
                           borderRight: inPreview && !inSolid && !roundRight ? "none" : undefined,
                         }}
@@ -355,10 +361,10 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                         layout
                         initial={reduce ? false : { scale: 0.7, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: "spring", stiffness: 520, damping: 30 }}
+                        transition={SPRING_STANDARD}
                         style={{
                           position: "absolute", inset: 2, borderRadius: 8, background: "var(--pl-ink)",
-                          boxShadow: "0 2px 6px rgba(10,10,10,0.22)",
+                          boxShadow: "var(--pl-shadow-md)",
                         }}
                       />
                     )}
@@ -367,8 +373,8 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
                     {isPreviewCap && !isCap && (
                       <span aria-hidden style={{
                         position: "absolute", inset: 2, borderRadius: 8,
-                        border: "1.5px solid rgba(82,82,82,0.55)",
-                        background: "rgba(82,82,82,0.06)",
+                        border: "1px solid var(--pl-line-strong)",
+                        background: "var(--pl-paper-sunken)",
                       }} />
                     )}
 
@@ -386,12 +392,13 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
               })}
             </motion.div>
           </AnimatePresence>
+          </div>
 
           {/* Hint line — explains the second click turns the date into an interval. */}
           {!readOnly && (
             <div style={{
               marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--pl-gray-100)",
-              fontSize: 12, fontWeight: 600, letterSpacing: "0.01em", color: "var(--pl-ink-subtle)", textAlign: "center",
+              fontSize: 12, fontWeight: 600, letterSpacing: "0.01em", color: "var(--pl-ink-muted)", textAlign: "center",
             }}>
               {hasRange
                 ? "Click any day to start a new date"

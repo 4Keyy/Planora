@@ -227,11 +227,20 @@ api.interceptors.response.use(
         // login or refresh endpoint itself. A 401 from /auth/login just means
         // wrong credentials — the form should handle it, not the interceptor.
         const requestUrl = url ?? ""
+        //
+        // The two password-reset endpoints are anonymous by design and answer a spent or
+        // expired reset link with 401 INVALID_TOKEN. Treated as an expired session, that
+        // 401 started a refresh, cleared auth WITH a cross-tab logout broadcast — and when
+        // the visitor was signed in elsewhere, the refresh succeeded, the retry 401'd again,
+        // and the second branch below signed them out of every tab. The page reading the
+        // 401 is the reset form, and it knows what an invalid link means.
         const isAuthEndpoint =
           requestUrl.includes("/auth/login") ||
           requestUrl.includes("/auth/register") ||
           requestUrl.includes("/auth/logout") ||
-          requestUrl.includes("/auth/refresh")
+          requestUrl.includes("/auth/refresh") ||
+          requestUrl.includes("/auth/reset-password") ||
+          requestUrl.includes("/auth/request-password-reset")
         if (isAuthEndpoint) {
           return Promise.reject(error)
         }

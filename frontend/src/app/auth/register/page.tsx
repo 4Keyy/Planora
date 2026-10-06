@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
-import { motion, useReducedMotion } from "framer-motion"
+import { UserPlus } from "lucide-react"
 import { api, parseApiResponse } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
@@ -16,23 +16,39 @@ import { Field } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { PasswordInput } from "@/components/auth/password-input"
-import { AuthBanner, AuthBrand, AuthPanel } from "@/components/auth/auth-chrome"
-import { PASSWORD_SCHEMA, passwordStrength } from "@/lib/password-policy"
-import { DURATION_FAST, EASE_OUT_EXPO } from "@/lib/animations"
+import { PasswordChecklist } from "@/components/auth/password-checklist"
+import { PasswordsMatch } from "@/components/auth/passwords-match"
+import { EmailSuggestion } from "@/components/auth/email-suggestion"
+import { AUTH_LINK_CLASS, AuthBanner, AuthCard, AuthMark } from "@/components/auth/auth-chrome"
+import { PASSWORD_SCHEMA } from "@/lib/password-policy"
 
+/**
+ * Create an account.
+ *
+ * One card in the shared auth frame. The strength bar is gone: it scored the password
+ * into four words the server does not accept, so it could read "Good" over a password
+ * about to be refused. In its place the checklist names the five rules the server
+ * checks and ticks each one as it is met, and a "Passwords match" line confirms the
+ * second field the moment it agrees with the first — the two places people get stuck,
+ * answered while they are typing rather than after they press the button.
+ *
+ * The card renders at once, in the server HTML, for the reason the sign-in page gives.
+ */
 const schema = z
   .object({
-    firstName: z.string().min(2, "At least 2 characters"),
-    lastName: z.string().min(2, "At least 2 characters"),
-    email: z.string().email("Invalid email"),
+    firstName: z.string().trim().min(2, "At least 2 characters"),
+    lastName: z.string().trim().min(2, "At least 2 characters"),
+    email: z.string().trim().email("Enter a valid email address"),
     password: PASSWORD_SCHEMA,
     confirmPassword: z.string().min(1, "Repeat your password"),
   })
   .refine((d) => d.password === d.confirmPassword, {
-    message: "Passwords don't match",
+    message: "The two passwords don't match.",
     path: ["confirmPassword"],
   })
 type FormData = z.infer<typeof schema>
+
+const CHECKLIST_ID = "register-password-rules"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -43,11 +59,8 @@ export default function RegisterPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const reduce = useReducedMotion() ?? false
+  const [blurredEmail, setBlurredEmail] = useState("")
 
-  // Sign-in has had both of these since it was written; this screen had neither, so a
-  // signed-in visitor could sit on "Create account" indefinitely and the form rendered
-  // before the session restore had even been attempted.
   useEffect(() => {
     if (hasHydrated && hasRestoredSession && isAuthenticated) {
       router.replace("/dashboard")
@@ -58,12 +71,13 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     watch,
+    setValue,
     setError: setFieldError,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   const password = watch("password") ?? ""
-  const strength = useMemo(() => passwordStrength(password), [password])
+  const confirmPassword = watch("confirmPassword") ?? ""
 
   const onSubmit = async (data: FormData) => {
     setSubmitting(true)
@@ -116,111 +130,82 @@ export default function RegisterPage() {
     }
   }
 
-  if (!hasHydrated || !hasRestoredSession) {
-    return <div className="min-h-screen bg-transparent" />
-  }
-
   return (
-    <div className="flex min-h-screen bg-transparent">
-      <AuthPanel>
-        <p className="text-display-sm font-bold leading-tight text-paper">
-          Decide who sees what.
-        </p>
-      </AuthPanel>
-
-      <div className="flex flex-1 items-center justify-center px-5 py-10 sm:px-6 lg:px-8 lg:py-12">
-        <div className="w-full max-w-sm space-y-7">
-          <div>
-            <AuthBrand tagline="Real coordination for real life." />
-            <h1 className="text-title font-bold tracking-tight text-ink">Create account</h1>
-            <p className="mt-1.5 text-body-sm text-ink-subtle">
-              Free, forever. No credit card required.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="First name" error={errors.firstName?.message}>
-                {(field) => (
-                  <Input {...register("firstName")} {...field} placeholder="Jane" autoComplete="given-name" />
-                )}
-              </Field>
-              <Field label="Last name" error={errors.lastName?.message}>
-                {(field) => (
-                  <Input {...register("lastName")} {...field} placeholder="Doe" autoComplete="family-name" />
-                )}
-              </Field>
-            </div>
-
-            <Field label="Email" error={errors.email?.message}>
-              {(field) => (
-                <Input
-                  {...register("email")}
-                  {...field}
-                  type="email"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                />
-              )}
-            </Field>
-
-            <Field label="Password" error={errors.password?.message}>
-              {(field) => (
-                <PasswordInput
-                  {...register("password")}
-                  {...field}
-                  placeholder="Create a strong password"
-                  autoComplete="new-password"
-                />
-              )}
-            </Field>
-
-            {/* The strength meter.
-                It animates `transform: scaleX`, not `width`. Width is a layout property,
-                so the old version ran layout on every keystroke — and it did so over
-                `deliberate` 480ms, a duration the scale reserves for a number roller and
-                a progress ring, four times the 320ms ceiling for a response to input.
-                The track is always full width, so nothing here can shift. */}
-            <div aria-hidden="true">
-              <div className="h-1 w-full overflow-hidden rounded-full bg-line">
-                <motion.div
-                  className="h-full w-full origin-left rounded-full bg-ink"
-                  animate={{ scaleX: strength.pct / 100 }}
-                  initial={false}
-                  transition={reduce ? { duration: 0 } : { duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
-                />
-              </div>
-              <p className="mt-1.5 text-caption font-semibold text-ink-subtle">
-                {password.length > 0 ? strength.label : " "}
-              </p>
-            </div>
-
-            <Field label="Confirm password" error={errors.confirmPassword?.message}>
-              {(field) => (
-                <PasswordInput
-                  {...register("confirmPassword")}
-                  {...field}
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                />
-              )}
-            </Field>
-
-            <AuthBanner message={error} />
-
-            <Button type="submit" size="lg" loading={submitting} className="w-full">
-              Create account
-            </Button>
-          </form>
-
-          <p className="text-center text-body-sm text-ink-subtle">
-            Already have an account?{" "}
-            <Link href="/auth/login" className="font-semibold text-ink hover:underline">
-              Sign in
-            </Link>
-          </p>
+    <AuthCard
+      mark={<AuthMark icon={UserPlus} />}
+      title="Create your account"
+      lead="Free, and no card needed. Your tasks stay private until you share them."
+      footer={
+        <>
+          Have an account?{" "}
+          <Link href="/auth/login" className={AUTH_LINK_CLASS}>
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="First name" error={errors.firstName?.message}>
+            {(field) => <Input {...register("firstName")} {...field} autoComplete="given-name" />}
+          </Field>
+          <Field label="Last name" error={errors.lastName?.message}>
+            {(field) => <Input {...register("lastName")} {...field} autoComplete="family-name" />}
+          </Field>
         </div>
-      </div>
-    </div>
+
+        <Field label="Email" error={errors.email?.message}>
+          {(field) => (
+            <div>
+              <Input
+                {...register("email", { onBlur: (e) => setBlurredEmail(e.target.value) })}
+                {...field}
+                type="email"
+                inputMode="email"
+                placeholder="you@example.com"
+                autoComplete="email"
+              />
+              <EmailSuggestion
+                email={blurredEmail}
+                onAccept={(s) => {
+                  setValue("email", s, { shouldValidate: true })
+                  setBlurredEmail(s)
+                }}
+              />
+            </div>
+          )}
+        </Field>
+
+        <Field label="Password" error={errors.password?.message}>
+          {(field) => (
+            <div className="space-y-3">
+              <PasswordInput
+                {...register("password")}
+                {...field}
+                aria-describedby={[field["aria-describedby"], CHECKLIST_ID].filter(Boolean).join(" ")}
+                capsLockHint
+                autoComplete="new-password"
+              />
+              <PasswordChecklist id={CHECKLIST_ID} value={password} />
+            </div>
+          )}
+        </Field>
+
+        <Field label="Confirm password" error={errors.confirmPassword?.message}>
+          {(field) => (
+            <div>
+              <PasswordInput {...register("confirmPassword")} {...field} capsLockHint autoComplete="new-password" />
+              <PasswordsMatch password={password} confirm={confirmPassword} />
+            </div>
+          )}
+        </Field>
+
+        <AuthBanner message={error} />
+
+        <Button type="submit" size="lg" loading={submitting} className="w-full">
+          Create account
+        </Button>
+      </form>
+    </AuthCard>
   )
 }

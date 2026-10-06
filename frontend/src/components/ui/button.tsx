@@ -13,7 +13,13 @@ const buttonVariants = cva(
    * asks for 3:1. `focus-visible:outline-none` also suppressed the one indicator
    * that does clear it. globals.css now paints every button, at 19.80:1.
    */
-  "touch-target inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group",
+  /*
+   * No `overflow-hidden`. It was here, and it clipped `.touch-target`'s 44px pseudo-element
+   * for hit testing too — so every `size="sm"` button in the product (36px: the pager, "All
+   * tasks", "Back to tasks") was a 36px target that measured 44 to anyone reading the class
+   * list. Nothing inside a button needs clipping: the loading spinner is centred in the box.
+   */
+  "touch-target relative inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-[color,background-color,border-color,opacity,transform,box-shadow] duration-base ease-emphasized disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed group",
   {
     variants: {
       variant: {

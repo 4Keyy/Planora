@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 
 import { motion } from "framer-motion"
 import { Plus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { SPRING_RESPONSIVE, TWEEN_FAST } from "@/lib/animations"
+import { SPRING_LAYOUT, TAP_PRESS, TWEEN_FAST } from "@/lib/animations"
 import { haptic } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 
@@ -204,7 +204,9 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
       className={cn(
         // `sticky` and not `toast`: an undo bar or a toast must be able to cover
         // this, never the other way round.
-        "pointer-events-none fixed inset-x-0 bottom-0 z-sticky pb-safe",
+        // `pb-safe-4`, the same edge the undo and selection bars keep: 16px of air, or the
+        // home indicator where that is larger — never the two stacked.
+        "pointer-events-none fixed inset-x-0 bottom-0 z-sticky pb-safe-4",
         className,
       )}
     >
@@ -218,7 +220,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
         {status}
       </span>
 
-      <div className={cn("flex flex-col gap-2 px-4 pb-4", align)}>
+      <div className={cn("flex flex-col gap-2 px-4", align)}>
         {/*
           `role="alert"` announces it once when it appears. The `id` is what makes
           it survivable after that: a live region is heard and then gone, so a user
@@ -241,7 +243,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
         {expanded ? (
           <motion.form
             layoutId={surfaceId}
-            transition={SPRING_RESPONSIVE}
+            transition={SPRING_LAYOUT}
             onSubmit={handleSubmit}
             aria-label="Quick capture"
             onKeyDown={(event) => {
@@ -262,7 +264,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
             // The pill carries the circle's 56px content box (p-1.5 + a 44px
             // control), so the morph reads as the circle stretching sideways
             // rather than growing.
-            className="pointer-events-auto flex w-full max-w-md items-center gap-1.5 rounded-full border border-line bg-paper-raised p-1.5 shadow-xl"
+            className="field-shell pointer-events-auto flex w-full max-w-md items-center gap-1.5 rounded-full border border-line bg-paper-raised p-1.5 shadow-xl"
           >
             <motion.div
               className="flex w-full items-center gap-1.5"
@@ -301,13 +303,13 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}
                 /*
-                 * `rounded-md px-2` exists for the focus ring, not for decoration.
-                 * The global indicator is an outline, and an outline traces the
-                 * element's own `border-radius` — on a square-cornered input inside
-                 * a fully rounded pill that drew a hard rectangle across the middle
-                 * of the bar. The padding keeps the ring off the glyphs.
+                 * `field-naked`: the input draws no ring of its own. The pill IS the
+                 * field — the bubble morphs into it — so its edge turns ink while
+                 * anything inside it has focus (globals.css, `.field-shell`), and no
+                 * rectangle can appear round the text inside a fully rounded bar.
+                 * `px-2` keeps the caret off the cancel button.
                  */
-                className="min-w-0 flex-1 rounded-md bg-transparent px-2 text-body font-medium text-ink placeholder:font-normal placeholder:text-ink-subtle"
+                className="field-naked min-w-0 flex-1 bg-transparent px-2 text-body font-medium text-ink placeholder:font-normal placeholder:text-ink-subtle"
               />
 
               <Button
@@ -316,7 +318,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
                 loading={pending}
                 disabled={!value.trim()}
                 aria-label="Add task"
-                className="h-11 w-11 flex-shrink-0 rounded-full bg-accent text-accent-ink hover:bg-accent"
+                className="h-11 w-11 flex-shrink-0 rounded-full"
               >
                 <Plus className="h-5 w-5" aria-hidden="true" />
               </Button>
@@ -326,7 +328,11 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
           <motion.button
             type="button"
             layoutId={surfaceId}
-            transition={SPRING_RESPONSIVE}
+            transition={SPRING_LAYOUT}
+            // The press is framer's, like the morph. A CSS `transition-transform` here
+            // re-eased every frame the layout projection wrote, and `active:scale-95`
+            // lost to the inline transform whenever one was set.
+            whileTap={TAP_PRESS}
             onClick={open}
             aria-label="New task"
             /*
@@ -356,7 +362,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
             // comfortable arc at y 560-844 of 844, and this is the only corner a
             // right-handed grip reaches without the phone moving in the hand.
             className={cn(
-              "pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-ink shadow-lg transition-transform duration-fast active:scale-[0.94]",
+              "pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-ink text-paper shadow-lg",
               placement === "responsive" && "sm:hidden",
             )}
           >

@@ -1,7 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
+import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
+import { cn } from "@/lib/utils"
 import { Pencil, Trash2, Send, Plus, FileText, X, ChevronUp, Zap, LogOut, CheckCircle2, Loader2, Check, Play, Circle, ListTree, Reply, RotateCcw, Copy, type LucideIcon } from "lucide-react"
 import {
   fetchComments, addComment, updateComment, deleteComment,
@@ -10,7 +12,7 @@ import {
   getApiErrorMessage,
 } from "@/lib/api"
 import { sameUserId, type TodoComment, type Todo, type TodoWorker, type ReplyTargetType } from "@/types/todo"
-import { SPRING_STANDARD } from "@/lib/animations"
+import { SPRING_LAYOUT, SPRING_RESPONSIVE, SPRING_STANDARD, TWEEN_EXIT, TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import { useBranchRoom, useTyping } from "@/lib/realtime/hooks"
@@ -38,7 +40,7 @@ function formatTyping(names: string[]): string {
 }
 
 // Snappy spring for subtask micro-interactions (toggle pop, card enter/exit).
-const SPRING_SNAP = { type: "spring" as const, stiffness: 460, damping: 32 }
+const SPRING_SNAP = SPRING_STANDARD
 
 // Activity-rail geometry. The rail line is centred at RAIL_CENTER within a wrapper that pads its
 // content by RAIL_GUTTER, and every marker is centred on that same x so avatars and system-event
@@ -1051,74 +1053,48 @@ export function BranchFeed({
       {/* ── Feed area (relative anchor for the condensed sticky note) ── */}
       <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
 
-        {/* Condensed Author's Note — slides in once the full card scrolls away */}
+        {/*
+          Condensed Author's Note — slides in once the full card scrolls away.
+
+          It sits on an opaque paper shelf that spans the feed's width, with the shelf's last
+          12px fading out. The pill used to float 6px below the top edge on a translucent,
+          blurred fill, so the rows scrolling underneath showed through it and in the strip
+          above it — a reply's name and "REPLY" peeking out over the note.
+        */}
         <AnimatePresence>
           {genesis && genesisOutOfView && !editingGenesis && (
-            <motion.button
-              type="button"
-              onClick={scrollToGenesis}
-              initial={{ opacity: 0, y: -14 }}
+            <motion.div
+              key="pinned-note"
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -14 }}
+              exit={{ opacity: 0, y: -8, transition: TWEEN_EXIT }}
               transition={SPRING_STANDARD}
-              aria-label="Scroll up to the author's note"
-              style={{
-                // Floating rounded pill (all corners), inset slightly from the edges so it reads
-                // as a tidy chip rather than a flush header with sharp bottom corners.
-                position: "absolute",
-                top: 6,
-                left: 6,
-                right: 6,
-                zIndex: 6,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                textAlign: "left",
-                cursor: "pointer",
-                padding: "10px 14px",
-                border: "1px solid var(--pl-gray-150)",
-                borderRadius: 14,
-                background: "rgba(250,250,250,0.85)",
-                backdropFilter: "blur(10px)",
-                WebkitBackdropFilter: "blur(10px)",
-                boxShadow: "0 10px 24px -12px rgba(0,0,0,0.30)",
-                fontFamily: "inherit",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(245,243,255,0.9)" }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(250,250,250,0.82)" }}
+              className="absolute inset-x-0 top-0 z-10 bg-paper px-1.5 pb-3 pt-1.5 [mask-image:linear-gradient(to_bottom,black_calc(100%-0.75rem),transparent)]"
             >
-              <FriendAvatar
-                friend={{
-                  id: genesis.authorId,
-                  firstName: genesis.authorName?.split(" ")[0],
-                  lastName: genesis.authorName?.split(" ")[1],
-                  profilePictureUrl: genesis.authorAvatarUrl,
-                }}
-                size={22}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1.2 }}>
-                  Author&apos;s Note
-                </div>
-                <div style={{
-                  fontSize: 12, fontWeight: 600, color: "var(--pl-ink)", lineHeight: 1.3,
-                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1,
-                }}>
-                  {genesis.content}
-                </div>
-              </div>
-              <motion.div
-                animate={{ y: [0, -2, 0] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-                style={{
-                  flexShrink: 0, width: 22, height: 22, borderRadius: 7,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: "var(--pl-gray-100)", color: "var(--pl-accent)",
-                }}
+              <button
+                type="button"
+                onClick={scrollToGenesis}
+                aria-label="Scroll up to the author's note"
+                className="flex w-full items-center gap-3 rounded-lg border border-line bg-paper px-4 py-2.5 text-left shadow-md transition-colors duration-fast hover:bg-paper-sunken"
               >
-                <ChevronUp size={13} strokeWidth={2.4} />
-              </motion.div>
-            </motion.button>
+                <FriendAvatar
+                  friend={{
+                    id: genesis.authorId,
+                    firstName: genesis.authorName?.split(" ")[0],
+                    lastName: genesis.authorName?.split(" ")[1],
+                    profilePictureUrl: genesis.authorAvatarUrl,
+                  }}
+                  size={24}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className={FIELD_LABEL_CLASS}>Author&apos;s note</span>
+                  <span className="mt-0.5 block truncate text-caption font-semibold text-ink">{genesis.content}</span>
+                </span>
+                <span aria-hidden="true" className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-paper-sunken text-ink-muted">
+                  <ChevronUp size={14} strokeWidth={2.4} />
+                </span>
+              </button>
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -1168,14 +1144,14 @@ export function BranchFeed({
                 size={32}
               />
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1.2 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1.2 }}>
                   Author&apos;s Note
                 </div>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 2 }}>
                   <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "-0.015em", color: "var(--pl-ink)" }}>
                     {genesis.authorName}
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
                     {formatTimeHHMM(genesis.createdAt)}
                   </span>
                 </div>
@@ -1184,19 +1160,14 @@ export function BranchFeed({
 
             {/* Edit button — owner only */}
             {isOwner && !editingGenesis && (
+              // `.touch-target` lifts the 32px chip to a 44px hit area; the hover is a class, not
+              // two handlers writing inline background colours.
               <button
+                type="button"
                 onClick={() => { setEditingGenesis(true); setGenesisEditContent(genesis.content) }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  background: "var(--pl-paper)", border: "1px solid var(--pl-line)",
-                  borderRadius: 8, padding: "5px 10px", cursor: "pointer",
-                  fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
-                  textTransform: "uppercase", color: "var(--pl-ink-muted)",
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-gray-100)" }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper)" }}
+                className="touch-target inline-flex h-8 items-center gap-1.5 rounded-sm border border-line bg-paper px-3 text-caption font-semibold uppercase tracking-wider text-ink-muted transition-colors duration-fast hover:bg-paper-sunken hover:text-ink"
               >
-                <Pencil size={10} />
+                <Pencil size={12} aria-hidden="true" />
                 Edit
               </button>
             )}
@@ -1219,8 +1190,10 @@ export function BranchFeed({
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenesisSave() }
                   if (e.key === "Escape") setEditingGenesis(false)
                 }}
+                // A boxed field: ink edge and halo on focus (globals.css "Field focus").
+                className="field-box border border-line hover:border-line-strong transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
                 style={{
-                  width: "100%", background: "var(--pl-paper)", border: "1px solid var(--pl-line)", borderRadius: 12,
+                  width: "100%", background: "var(--pl-paper)", borderRadius: 12,
                   padding: 12, fontSize: 14, lineHeight: 1.6, resize: "none",
                   fontFamily: "inherit", color: "var(--pl-ink)", boxSizing: "border-box",
                   minHeight: 60, overflowY: "hidden",
@@ -1242,7 +1215,7 @@ export function BranchFeed({
                   style={{
                     background: "var(--pl-ink)", border: "none", borderRadius: 9,
                     padding: "6px 12px", cursor: "pointer",
-                    fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+                    fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                     textTransform: "uppercase", color: "var(--pl-paper)",
                   }}
                 >
@@ -1278,7 +1251,7 @@ export function BranchFeed({
             style={{
               display: "block", marginBottom: 10,
               background: "none", border: "none", cursor: "pointer",
-              fontSize: 12, fontWeight: 700, letterSpacing: "0.04em",
+              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
               textTransform: "uppercase", color: "var(--pl-ink)",
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.textDecoration = "underline" }}
@@ -1289,11 +1262,11 @@ export function BranchFeed({
         )}
 
         {loading && (
-          <p style={{ fontSize: 12, color: "var(--pl-ink-subtle)" }}>Loading…</p>
+          <p style={{ fontSize: 12, color: "var(--pl-ink-muted)" }}>Loading…</p>
         )}
 
         {!loading && feed.length === 0 && (
-          <p style={{ fontSize: 12, color: "var(--pl-ink-subtle)", fontStyle: "italic" }}>
+          <p style={{ fontSize: 12, color: "var(--pl-ink-muted)", fontStyle: "italic" }}>
             No messages yet
           </p>
         )}
@@ -1314,6 +1287,12 @@ export function BranchFeed({
               pointerEvents: "none",
             }} />
 
+            {/* One LayoutGroup round the rail: when any presence inside it finishes an exit
+                (a message, a subtask, a completion note, a footer chip) it re-renders the whole
+                group, so every row is measured in the commit that removes the child and glides
+                to its new place. Without it the rows below snapped up once the exit ended —
+                the same unmeasured change the navbar's name once caused. */}
+            <LayoutGroup id="branch-feed">
             <AnimatePresence initial={false}>
               {feed.map((item) => {
                 if (item.type === "separator") {
@@ -1417,6 +1396,7 @@ export function BranchFeed({
                 ]
               })}
             </AnimatePresence>
+            </LayoutGroup>
           </div>
         )}
         </div>
@@ -1430,7 +1410,8 @@ export function BranchFeed({
       <div style={{ position: "relative", marginTop: 8 }}>
 
         {/* Reply chip — the quoted target the next message will answer. Animates its height so
-            the composer grows/settles smoothly instead of jumping. */}
+            the composer grows/settles smoothly instead of jumping — on a tween: a spring on
+            `height` overshot by a couple of pixels and wobbled the whole chat column above. */}
         <AnimatePresence initial={false}>
           {replyDraft && composeMode === "text" && (
             <motion.div
@@ -1438,7 +1419,7 @@ export function BranchFeed({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={SPRING_SNAP}
+              transition={{ height: TWEEN_UI, opacity: TWEEN_FAST }}
               style={{ overflow: "hidden" }}
             >
               <div style={{
@@ -1462,8 +1443,8 @@ export function BranchFeed({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span style={{
-                      fontSize: 12, fontWeight: 700, letterSpacing: "0.12em",
-                      textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1.2,
+                      fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+                      textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1.2,
                     }}>
                       Replying to
                     </span>
@@ -1477,7 +1458,7 @@ export function BranchFeed({
                     {replyDraft.type === "subtask" && (
                       <span style={{
                         display: "inline-flex", alignItems: "center", gap: 3,
-                        fontSize: 12, fontWeight: 700, letterSpacing: "0.1em",
+                        fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                         textTransform: "uppercase", color: "var(--pl-warn)",
                         background: "var(--pl-warn-surface)", border: "1px solid var(--pl-warn-surface)",
                         padding: "1px 6px", borderRadius: 5, flexShrink: 0,
@@ -1488,7 +1469,7 @@ export function BranchFeed({
                     )}
                   </div>
                   <div style={{
-                    fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", lineHeight: 1.35,
+                    fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", lineHeight: 1.35,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     marginTop: 1,
                   }}>
@@ -1538,7 +1519,7 @@ export function BranchFeed({
                 ? <FileText size={11} color="var(--pl-accent)" strokeWidth={2.2} />
                 : <ListTree size={11} color="var(--pl-accent)" strokeWidth={2.2} />}
               <span style={{
-                fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
+                fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                 textTransform: "uppercase", color: "var(--pl-accent)",
               }}>
                 {composeMode === "description" ? "Description" : "Subtask"}
@@ -1560,7 +1541,7 @@ export function BranchFeed({
                 <X size={10} strokeWidth={2.5} />
               </button>
             </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-subtle)" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pl-ink-muted)" }}>
               {composeMode === "description" ? "task description · ↵ to save · ⇧↵ new line" : "a step in this task · ↵ to add"}
             </span>
           </div>
@@ -1581,7 +1562,7 @@ export function BranchFeed({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 4 }}
-                transition={{ duration: 0.16 }}
+                transition={TWEEN_FAST}
                 style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 12, fontWeight: 600, color: "var(--pl-accent)" }}
               >
                 <span style={{ display: "inline-flex", gap: 2 }}>
@@ -1607,7 +1588,7 @@ export function BranchFeed({
                 transition={SPRING_SNAP}
                 style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: "auto" }}
               >
-                <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
                   {branchUnread.count} new
                 </span>
                 <NotificationBadge type={branchUnread.latestType} count={branchUnread.count} showCount size={22} />
@@ -1616,18 +1597,16 @@ export function BranchFeed({
           </AnimatePresence>
         </div>
 
-        {/* Compose box — position:relative anchors the floating menu */}
-        <div style={{
-          position: "relative",
-          background: composeMode !== "text" ? "var(--pl-accent-surface)" : "var(--pl-paper-sunken)",
-          border: composeMode !== "text" ? "1.5px solid var(--pl-accent-surface)" : "1px solid var(--pl-line)",
-          borderRadius: 14,
-          padding: 4,
-          display: "flex",
-          alignItems: "center",
-          gap: 4,
-          transition: "border-color 200ms, background 200ms",
-        }}>
+        {/* Compose box — position:relative anchors the floating menu. The box IS the field:
+            while the textarea inside has focus its edge turns ink with a soft halo
+            (globals.css `.field-shell`), and the mode change still crossfades its fill. */}
+        <div
+          className={cn(
+            "field-shell",
+            composeMode !== "text" ? "border-[1.5px] border-accent-surface bg-accent-surface" : "border border-line bg-paper-sunken",
+          )}
+          style={{ position: "relative", borderRadius: 14, padding: 4, display: "flex", alignItems: "center", gap: 4 }}
+        >
 
           {/* Attach menu — absolutely above the compose box (empty/closed on a completed task) */}
           {plusMenuOpen && hasMenuItems && (
@@ -1640,7 +1619,7 @@ export function BranchFeed({
                 background: "var(--pl-paper)",
                 border: "1px solid var(--pl-gray-150)",
                 borderRadius: 14,
-                boxShadow: "0 8px 30px -4px rgba(0,0,0,0.12), 0 2px 8px -2px rgba(0,0,0,0.06)",
+                boxShadow: "var(--pl-shadow-lg)",
                 padding: 6,
                 minWidth: 200,
                 zIndex: tokens.layer.popover,
@@ -1680,14 +1659,14 @@ export function BranchFeed({
                       <div style={{ fontSize: 14, fontWeight: 700, color: genesis ? "var(--pl-ink-subtle)" : "var(--pl-ink)", letterSpacing: "-0.01em" }}>
                         Description
                       </div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", marginTop: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", marginTop: 1 }}>
                         {genesis ? "Already added" : "Task description"}
                       </div>
                     </div>
                     {genesis && (
                       <div style={{
                         marginLeft: "auto", fontSize: 12, fontWeight: 700,
-                        letterSpacing: "0.1em", textTransform: "uppercase",
+                        letterSpacing: "0.05em", textTransform: "uppercase",
                         color: "var(--pl-accent)", background: "var(--pl-accent-surface)",
                         padding: "2px 7px", borderRadius: 6,
                       }}>
@@ -1722,7 +1701,7 @@ export function BranchFeed({
                       <div style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", letterSpacing: "-0.01em" }}>
                         Subtask
                       </div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", marginTop: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", marginTop: 1 }}>
                         Add a step to this task
                       </div>
                     </div>
@@ -1879,6 +1858,7 @@ export function BranchFeed({
                   : COMMENT_MAX
             }
             disabled={submitting}
+            className="field-naked"
             style={{
               flex: 1, background: "transparent", border: "none",
               minHeight: 44, padding: "11px 10px", fontSize: 14, fontWeight: 500, lineHeight: 1.5,
@@ -1930,8 +1910,8 @@ export function BranchFeed({
 function MenuSectionLabel({ children }: { children: ReactNode }) {
   return (
     <div style={{
-      fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
-      textTransform: "uppercase", color: "var(--pl-ink-subtle)",
+      fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+      textTransform: "uppercase", color: "var(--pl-ink-muted)",
       padding: "4px 10px 8px",
     }}>
       {children}
@@ -1977,7 +1957,7 @@ function MenuActionItem({ icon, iconBg, title, subtitle, pending, disabled, onCl
         <div style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", letterSpacing: "-0.01em" }}>
           {title}
         </div>
-        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", marginTop: 1 }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", marginTop: 1 }}>
           {subtitle}
         </div>
       </div>
@@ -1991,7 +1971,7 @@ function MenuActionItem({ icon, iconBg, title, subtitle, pending, disabled, onCl
 /* ── Day separator ── */
 function DaySeparator({ label }: { label: string }) {
   return (
-    <div style={{ position: "relative", display: "flex", alignItems: "center", padding: "10px 0 6px", marginLeft: -RAIL_GUTTER, zIndex: 1 }}>
+    <motion.div layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: TWEEN_FAST }} transition={FEED_ROW_TRANSITION} style={{ position: "relative", display: "flex", alignItems: "center", padding: "10px 0 6px", marginLeft: -RAIL_GUTTER, zIndex: 1 }}>
       <span style={{
         background: "var(--pl-paper)",
         border: "1px solid var(--pl-line)",
@@ -1999,7 +1979,7 @@ function DaySeparator({ label }: { label: string }) {
         padding: "2px 10px",
         fontSize: 12,
         fontWeight: 700,
-        letterSpacing: "0.14em",
+        letterSpacing: "0.05em",
         textTransform: "uppercase",
         color: "var(--pl-ink-muted)",
         whiteSpace: "nowrap",
@@ -2010,12 +1990,14 @@ function DaySeparator({ label }: { label: string }) {
         {label}
       </span>
       <div style={{ flex: 1, height: 1, background: "var(--pl-gray-100)", marginLeft: 8 }} />
-    </div>
+    </motion.div>
   )
 }
 
 /* ── System event ── */
 const SYSTEM_MARKER = 22
+/** A plain feed row: a short fade-rise in, a fade out, and a critically damped glide when rows around it change. */
+const FEED_ROW_TRANSITION = { ...TWEEN_FAST, layout: SPRING_LAYOUT }
 function SystemEvent({ comment }: { comment: TodoComment }) {
   const Icon = getSystemEventIcon(comment.content)
   // System comments carry no stored author name (the name is inline in the sentence), so render
@@ -2026,7 +2008,7 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
     : comment.content
 
   return (
-    <div style={{ position: "relative", padding: "6px 0", minHeight: SYSTEM_MARKER + 8 }}>
+    <motion.div layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: TWEEN_FAST }} transition={FEED_ROW_TRANSITION} style={{ position: "relative", padding: "6px 0", minHeight: SYSTEM_MARKER + 8 }}>
       {/* Marker — centred on the rail, tinted to the event type */}
       <div style={{
         position: "absolute",
@@ -2053,11 +2035,11 @@ function SystemEvent({ comment }: { comment: TodoComment }) {
           )}
           {body}
         </p>
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pl-ink-subtle)", flexShrink: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)", flexShrink: 0 }}>
           {formatTimeHHMM(comment.createdAt)}
         </span>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -2118,7 +2100,7 @@ function SubtaskWorkPresence({
       initial={{ opacity: 0, scale: 0.7 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.7 }}
-      transition={{ type: "spring", stiffness: 480, damping: 26 }}
+      transition={SPRING_RESPONSIVE}
       onMouseEnter={() => { if (canLeave) onHoverChange(true) }}
       onMouseLeave={() => onHoverChange(false)}
       onClick={(e) => { if (canLeave) { e.stopPropagation(); onLeave() } }}
@@ -2128,7 +2110,7 @@ function SubtaskWorkPresence({
         background: leaving ? "linear-gradient(180deg,var(--pl-alert-surface),var(--pl-alert-surface))" : "linear-gradient(180deg,var(--pl-warn-surface),var(--pl-warn-surface))",
         border: `1px solid ${leaving ? "var(--pl-alert-surface)" : "var(--pl-warn-surface)"}`,
         padding: "2px 9px 2px 4px", borderRadius: 999,
-        boxShadow: "0 1px 3px -1px rgba(245,158,11,0.3)",
+        boxShadow: "var(--pl-shadow-sm)",
         cursor: canLeave ? "pointer" : "default",
         transition: "background 200ms ease, border-color 200ms ease",
       }}
@@ -2167,7 +2149,7 @@ function SubtaskWorkPresence({
       <span style={{ position: "relative", display: "inline-block", minWidth: 0 }}>
         <span style={{
           display: "block",
-          fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase",
+          fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 116,
           color: "var(--pl-warn)", opacity: leaving ? 0 : 1, transition: "opacity 160ms ease", userSelect: "none",
         }}>
@@ -2278,13 +2260,16 @@ function SubtaskCard({
 
   return (
     <motion.div
-      layout
+      // Position only, and no height in the exit: a size `layout` stretched the card's text
+      // while a completion note grew under it, and `height: 0` re-laid out the whole feed on
+      // every frame. The feed's LayoutGroup closes the gap with a glide once the exit ends.
+      layout="position"
       ref={nodeRef}
       className={flash ? "reply-flash" : undefined}
       initial={{ opacity: 0, y: 8, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.96, height: 0, marginTop: -2, marginBottom: 0 }}
-      transition={SPRING_SNAP}
+      exit={{ opacity: 0, scale: 0.96, transition: TWEEN_FAST }}
+      transition={{ ...SPRING_SNAP, layout: SPRING_LAYOUT }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setDeleteHovered(false) }}
       style={{
@@ -2332,7 +2317,7 @@ function SubtaskCard({
             border: done ? "none" : `2px solid ${markerBorderColor}`,
             background: done ? "var(--pl-positive)" : "var(--pl-paper)",
             boxShadow: done
-              ? "0 0 0 3px var(--pl-paper), 0 2px 6px -1px rgba(16,185,129,0.5)"
+              ? "0 0 0 3px var(--pl-paper), var(--pl-shadow-md)"
               : "0 0 0 3px var(--pl-paper)",
             display: "flex", alignItems: "center", justifyContent: "center",
             cursor: pending ? "default" : "pointer", padding: 0, zIndex: 3,
@@ -2342,7 +2327,7 @@ function SubtaskCard({
         >
           <AnimatePresence mode="wait" initial={false}>
             {done ? (
-              <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 18 }}>
+              <motion.span key="done" initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={SPRING_RESPONSIVE}>
                 <Check size={15} color="var(--pl-paper)" strokeWidth={3} />
               </motion.span>
             ) : viewerWorking && hovered ? (
@@ -2351,9 +2336,9 @@ function SubtaskCard({
                 <Check size={14} color="var(--pl-positive)" strokeWidth={3} />
               </motion.span>
             ) : someoneWorking ? (
-              // In work (you and/or others) → calm amber pulse.
+              // In work (you and/or others) → a still amber dot.
               <motion.span key="work" initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: "flex" }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--pl-warn)" }} className="animate-pulse" />
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--pl-warn)" }} />
               </motion.span>
             ) : hovered ? (
               // Idle + hovering → hint that a click takes it into work (a small amber dot, no bolt).
@@ -2397,7 +2382,8 @@ function SubtaskCard({
               onBlur={commitEdit}
               maxLength={SUBTASK_MAX}
               rows={1}
-              style={{ ...SUBTASK_TITLE_BOX, background: "var(--pl-paper)", border: "1.5px solid var(--pl-accent-surface)", color: "var(--pl-ink)", resize: "none", maxHeight: 160, overflowY: "auto" }}
+              className="field-box border-[1.5px] border-accent-surface transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
+              style={{ ...SUBTASK_TITLE_BOX, background: "var(--pl-paper)", color: "var(--pl-ink)", resize: "none", maxHeight: 160, overflowY: "auto" }}
             />
           ) : (
             <span
@@ -2458,7 +2444,7 @@ function SubtaskCard({
                     size={16}
                   />
                   <span style={{
-                    fontSize: 12, fontWeight: 700, color: "var(--pl-ink-subtle)", lineHeight: 1.3,
+                    fontSize: 12, fontWeight: 700, color: "var(--pl-ink-muted)", lineHeight: 1.3,
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     transition: "color 200ms",
                   }}>
@@ -2479,12 +2465,12 @@ function SubtaskCard({
                   minHeight: 36, padding: "0 10px", borderRadius: 10, border: "none",
                   background: "transparent", cursor: "pointer",
                   fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
-                  textTransform: "uppercase", color: "var(--pl-ink-subtle)", lineHeight: 1,
+                  textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1,
                   transition: "color 140ms, background 140ms",
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-muted)"
-                  ;(e.currentTarget as HTMLButtonElement).style.background = "rgba(0,0,0,0.045)"
+                  ;(e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)"
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.color = "var(--pl-ink-subtle)"
@@ -2524,7 +2510,7 @@ function SubtaskCard({
                     initial={{ opacity: 0, scale: 0.85 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.85 }}
-                    transition={{ type: "spring", stiffness: 480, damping: 26 }}
+                    transition={SPRING_RESPONSIVE}
                     onClick={(e) => { e.stopPropagation(); if (!pending) onToggleWork() }}
                     disabled={pending}
                     aria-label="Take subtask into work"
@@ -2535,10 +2521,10 @@ function SubtaskCard({
                       minHeight: 36, padding: "0 12px", borderRadius: 999,
                       border: "1px solid var(--pl-gray-150)", background: "var(--pl-paper)",
                       cursor: pending ? "default" : "pointer",
-                      fontSize: 12, fontWeight: 700, letterSpacing: "0.06em",
+                      fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
                       textTransform: "uppercase", color: "var(--pl-ink-muted)", lineHeight: 1,
                       whiteSpace: "nowrap",
-                      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                      boxShadow: "var(--pl-shadow-sm)",
                       transition: "background 160ms, color 160ms, border-color 160ms",
                       fontFamily: "inherit",
                     }}
@@ -2583,8 +2569,8 @@ function SubtaskCard({
                     disabled={pending}
                     aria-label="Delete subtask"
                     variants={{
-                      hidden: { clipPath: "inset(0 0 0 100%)", transition: { duration: 0.16, ease: [0.4, 0, 1, 1] } },
-                      visible: { clipPath: "inset(0 0 0 0%)", transition: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } },
+                      hidden: { x: "100%", transition: TWEEN_EXIT },
+                      visible: { x: 0, transition: TWEEN_UI },
                     }}
                     initial="hidden"
                     animate="visible"
@@ -2594,14 +2580,14 @@ function SubtaskCard({
                       position: "absolute", inset: 0, border: "none", padding: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       color: "var(--pl-paper)", cursor: pending ? "default" : "pointer",
-                      background: "linear-gradient(to right, rgba(239,68,68,0) 0%, rgba(239,68,68,0.85) 38%, var(--pl-alert) 100%)",
-                      boxShadow: "-6px 0 18px rgba(239,68,68,0.18)",
+                      background: "linear-gradient(to right, color-mix(in srgb, var(--pl-alert) 0%, transparent) 0%, color-mix(in srgb, var(--pl-alert) 85%, transparent) 38%, var(--pl-alert) 100%)",
+                      
                     }}
                   >
                     <motion.div
                       variants={{
                         hidden: { scale: 0.5, opacity: 0, y: 6 },
-                        visible: { scale: 1, opacity: 1, y: 0, transition: { delay: 0.06, type: "spring", stiffness: 420, damping: 22 } },
+                        visible: { scale: 1, opacity: 1, y: 0, transition: { ...SPRING_RESPONSIVE, delay: 0.06 } },
                       }}
                       style={{ display: "flex" }}
                     >
@@ -2637,10 +2623,11 @@ const REPLY_ROW = 26
 function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
   return (
     <motion.div
+      layout="position"
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
-      transition={SPRING_SNAP}
+      transition={{ ...SPRING_SNAP, layout: SPRING_LAYOUT }}
       style={{ position: "relative", paddingLeft: SUBTASK_OFFSET, minHeight: REPLY_ROW }}
     >
       {/* "└" elbow — continues the sub-branch down from the card, then curves into the note.
@@ -2654,13 +2641,13 @@ function SubtaskCompletionReply({ name, at }: { name?: string; at?: string }) {
 
       {/* Note (icon-less) */}
       <div style={{ display: "flex", alignItems: "center", gap: 7, minHeight: REPLY_ROW }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-subtle)", lineHeight: 1.3 }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: "var(--pl-ink-muted)", lineHeight: 1.3 }}>
           {name
             ? <><strong style={{ color: "var(--pl-ink)", fontWeight: 700 }}>{name}</strong> completed sub task</>
             : <strong style={{ color: "var(--pl-positive)", fontWeight: 700 }}>Sub task completed</strong>}
         </span>
         {at && (
-          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "var(--pl-ink-subtle)" }}>
+          <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "var(--pl-ink-muted)" }}>
             {formatTimeHHMM(at)}
           </span>
         )}
@@ -2780,8 +2767,8 @@ function ReplyQuote({
       </span>
       {deleted && (
         <span style={{
-          fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase",
-          color: "var(--pl-ink-subtle)", background: "var(--pl-gray-100)", padding: "1px 6px", borderRadius: 5,
+          fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
+          color: "var(--pl-ink-muted)", background: "var(--pl-gray-100)", padding: "1px 6px", borderRadius: 5,
           flexShrink: 0,
         }}>
           Deleted
@@ -2843,7 +2830,7 @@ function ReplyThread({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.16 }}
+      transition={TWEEN_FAST}
       style={{ position: "relative", paddingLeft: contentPad, marginTop: -6, marginBottom: 8 }}
     >
       {/* Parent connector — joins the thread to whatever sits directly above it, ending exactly at
@@ -2966,8 +2953,9 @@ function MessageItem({
   const quoteVisible = showQuote ?? !!c.replyToType
 
   return (
-    <div
+    <motion.div
       ref={nodeRef}
+      layout="position" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: TWEEN_FAST }} transition={FEED_ROW_TRANSITION}
       className={flash ? "reply-flash" : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -3008,16 +2996,16 @@ function MessageItem({
           <span style={{
             background: "var(--pl-gray-150)", color: "var(--pl-ink-muted)",
             padding: "1px 6px", borderRadius: 5,
-            fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+            fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
           }}>
             YOU
           </span>
         )}
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
           {formatTimeHHMM(c.createdAt)}
         </span>
         {c.isEdited && (
-          <span style={{ fontSize: 12, color: "var(--pl-ink-subtle)", fontStyle: "italic" }}>edited</span>
+          <span style={{ fontSize: 12, color: "var(--pl-ink-muted)", fontStyle: "italic" }}>edited</span>
         )}
 
         {/* Hover actions — reply is available to everyone with branch access; edit/delete
@@ -3094,8 +3082,9 @@ function MessageItem({
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onEditSave(c.id) }
               if (e.key === "Escape") onEditCancel()
             }}
+            className="field-box border border-line hover:border-line-strong transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
             style={{
-              width: "100%", border: "1px solid var(--pl-line)", borderRadius: 10,
+              width: "100%", borderRadius: 10,
               padding: "8px 10px", fontSize: 14, lineHeight: 1.55, fontFamily: "inherit",
               resize: "none", background: "var(--pl-paper)", color: "var(--pl-ink)", boxSizing: "border-box",
             }}
@@ -3120,6 +3109,6 @@ function MessageItem({
           {c.content}
         </p>
       )}
-    </div>
+    </motion.div>
   )
 }

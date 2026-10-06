@@ -111,3 +111,15 @@ describe("Field", () => {
     }
   })
 })
+
+describe("FIELD_LABEL_CLASS", () => {
+  it("is one plain string, the same from both modules", async () => {
+    // Server components import it from field-label.ts: from the "use client" field.tsx
+    // they would receive a client reference instead of the string, which cn() drops.
+    const fromLabel = (await import("@/components/ui/field-label")).FIELD_LABEL_CLASS
+    const fromField = (await import("@/components/ui/field")).FIELD_LABEL_CLASS
+    expect(typeof fromLabel).toBe("string")
+    expect(fromField).toBe(fromLabel)
+    expect(fromLabel).toContain("uppercase")
+  })
+})

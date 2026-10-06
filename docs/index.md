@@ -1,12 +1,15 @@
 # Planora Documentation
 
 The project knowledge base for users, developers, operators, and
-contributors. Every page documents behaviour that is observable in code,
-configuration, tests, scripts, CI, or shipped artefacts.
+contributors. Maintained reference pages describe current code and configuration; plans, ADRs and research retain their historical context. A declared policy is not automatically an implemented guarantee.
 
 > If a behaviour is not confirmed by project files, the docs mark it as
 > "not confirmed by code" or "requires owner clarification" instead of
 > inventing a contract.
+
+## Current audit and verification
+
+The [2026-10-06 repository audit](audits/2026-10-06.md) records source coverage, documentation corrections, measured checks and unresolved findings. Read it before treating fresh-install, deployment, authorization or messaging guarantees as established.
 
 ## Pick your reading path
 
@@ -42,7 +45,7 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | [`codebase-map.md`](codebase-map.md) | Directory and critical-file map |
 | [`frontend.md`](frontend.md) | Next.js architecture, rendering model, data access, state, realtime, component conventions, the pre-commit checklist |
 | [`design-system.md`](design-system.md) | Every design token with its measured contrast, the five enforced rules, primitives, and the failure modes the system is built against |
-| [`INVARIANTS.md`](INVARIANTS.md) | Closed-form rules enforced across the codebase |
+| [`INVARIANTS.md`](INVARIANTS.md) | Declared rules with implementation status and known gaps |
 | [`API.md`](API.md) | Gateway route map and endpoint reference |
 | [`database.md`](database.md) | EF Core contexts, tables, schema bootstrap |
 | [`caching.md`](caching.md) | Cache layers, naming, TTL, invalidation |
@@ -59,7 +62,7 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | [`ui-audit/BLUEPRINT.md`](ui-audit/BLUEPRINT.md) | The design blueprint: product thesis, the two-device behavioural model, tokens, primitives, the task card, presence and redaction, the motion system, and twelve signature moments |
 | [`ui-audit/EXECUTION.md`](ui-audit/EXECUTION.md) | The execution plan, phase by phase, with verification commands |
 | [`ui-audit/RESULTS.md`](ui-audit/RESULTS.md) | What was actually changed, measured before and after — including the audit's own errors, where the implementation departs from the blueprint and why, and what is still not built. Written in Russian |
-| [`ui-audit/tools/`](ui-audit/tools/) | The measurement harness. Every one exits non-zero on a finding, so any of them can gate a commit: `static-scan` (scales, colour literals, rule violations), `contrast-scan` (WCAG ratios from the tokens), `live-scan` (the browser matrix — routes x viewports x modes), `focus-scan` (every focus stop, measured against 2.4.11), `class-audit` (Tailwind classes that emit no CSS), `a11y-static` (unnamed controls, div-with-onClick), `link-check` (every relative markdown link and anchor in the repo), `mock-api` (deterministic fixtures, so the authenticated routes are measurable without the backend) |
+| [`ui-audit/tools/`](ui-audit/tools/) | The measurement harness. Every one exits non-zero on a finding, so any of them can gate a commit: `static-scan` (scales, colour literals, rule violations), `contrast-scan` (WCAG ratios from the tokens), `live-scan` (the browser matrix — routes x viewports x modes), `focus-scan` (every focus stop and contrast/geometry measurements; WCAG criteria interpreted in the design guide), `class-audit` (Tailwind classes that emit no CSS), `a11y-static` (unnamed controls, div-with-onClick), `link-check` (every relative markdown link and anchor in the repo), `mock-api` (deterministic fixtures, so the authenticated routes are measurable without the backend) |
 
 ### Research (pre-implementation)
 
@@ -73,7 +76,7 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | File | Purpose |
 |---|---|
 | [`auth-security.md`](auth-security.md) | Auth model, CSRF, JWT, sessions, security stamp |
-| [`security-idor-coverage.md`](security-idor-coverage.md) | IDOR-resistant endpoints and the tests that pin them |
+| [`security-idor-coverage.md`](security-idor-coverage.md) | Authorization coverage, per-endpoint evidence and open access-check gaps |
 | [`secrets-management.md`](secrets-management.md) | Secret inventory, storage, rotation |
 | [`../SECURITY.md`](../SECURITY.md) | Vulnerability disclosure policy |
 
@@ -95,7 +98,7 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | [`development.md`](development.md) | Local workflows for adding features, endpoints, components |
 | [`testing.md`](testing.md) | Suites, commands, coverage, OpenAPI lint |
 | [`plans/`](plans/) | Working plans and research prompts for upcoming work |
-| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | PR checklist, branch hygiene, CODEOWNERS |
+| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | contributor checks, documentation rules and repository hygiene |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Released changes, conventional-commit log |
 
 ## Key code references
@@ -114,7 +117,7 @@ configuration, tests, scripts, CI, or shipped artefacts.
 | Card → dialog transition | `frontend/src/lib/shared-origin.ts`, consumed in `frontend/src/components/todos/edit-todo-modal/modal.tsx` |
 | Frontend hooks | `frontend/src/hooks/` — `use-list-navigation`, `use-focus-trap`, `use-scroll-lock`, `use-autosave`, `use-collapse-scroll`, `use-friends` |
 | Design-system enforcement | `frontend/src/test/quality/design-tokens.contract.test.ts`, `docs/ui-audit/tools/class-audit.mjs`, `docs/ui-audit/tools/a11y-static.mjs`, `docs/ui-audit/tools/focus-scan.mjs` |
-| Documentation enforcement | `docs/ui-audit/tools/link-check.mjs` — 375 relative links across 67 files, checked file and anchor |
+| Documentation enforcement | `docs/ui-audit/tools/link-check.mjs` — relative file/anchor checker; counts depend on the checkout, and its traversal includes ignored local Markdown |
 | Auth endpoints | `Services/AuthApi/Planora.Auth.Api/Controllers` |
 | Todo endpoints & sharing | `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`, `Services/TodoApi/Planora.Todo.Application/Features/Todos` |
 | Category endpoints | `Services/CategoryApi/Planora.Category.Api/Controllers/CategoriesController.cs` |

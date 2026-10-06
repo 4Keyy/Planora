@@ -1,6 +1,6 @@
-## What does this PR do?
+## Problem and resulting behavior
 
-<!-- One or two sentences. Focus on the "why", not the "what". -->
+<!-- Describe the concrete trigger, the previous behavior and the resulting behavior. -->
 
 ## Type of change
 
@@ -9,24 +9,34 @@
 - [ ] Refactor / code quality
 - [ ] Documentation
 - [ ] CI / infrastructure
-- [ ] Other: <!-- describe -->
 
 ## Related issue
 
-Closes #<!-- issue number -->
+<!-- Link an actual issue when one exists. Use Closes #N only when this change closes it. -->
 
-## Testing
+## Verification
 
-<!-- Describe how you tested this change. -->
+<!-- Record the commands, source revision, results and unexecuted checks.
+Do not check an item when it was skipped or failed. Remove inapplicable items. -->
 
-- [ ] Backend unit tests pass (`dotnet test Planora.sln`)
-- [ ] Frontend lint/type-check pass (`npm run lint && npm run type-check`)
-- [ ] Frontend tests pass (`npm run test`)
-- [ ] Manually tested the affected flow end-to-end
+- [ ] Applicable backend/frontend build passes
+- [ ] Backend suite passes (`dotnet test Planora.sln`)
+- [ ] Frontend lint and types pass (`npm --prefix frontend run lint`, `npm --prefix frontend run type-check`)
+- [ ] Frontend coverage passes (`npm --prefix frontend run test:coverage`, all configured thresholds >=85%)
+- [ ] Affected behavior has meaningful regression coverage
+- [ ] Applicable integration/e2e flows were exercised; limitations are recorded
+- [ ] Changed documentation passes Markdown and local-link checks
 
-## Checklist
+## Documentation and change hygiene
 
-- [ ] No secrets, personal data, or local-only config committed
-- [ ] `.env.example` updated if new env vars were added
-- [ ] Documentation updated if behavior changed
-- [ ] CHANGELOG.md updated under `## Unreleased`
+- [ ] Topic references and actual API/DTO examples match the implementation
+- [ ] Schema/key/constraint and migration documentation is updated when relevant
+- [ ] CHANGELOG entry is included for a user-visible, breaking or performance change
+- [ ] `.env.example` is updated when configuration keys change
+- [ ] Diff contains no credentials, personal data or local assistant configuration
+- [ ] Every selected path was checked against `.gitignore`; no forced staging
+
+## Risks and rollout
+
+<!-- Document actual compatibility/migration/deployment implications and remaining findings.
+For a docs-only change, describe the limits of the verified claims. -->

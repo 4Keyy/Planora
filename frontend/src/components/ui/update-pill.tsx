@@ -103,7 +103,8 @@ export function UpdatePill({ count, onShow, noun = "update", className }: Update
   const label = pluralise(noun, Math.max(count, 1))
 
   return (
-    <div className={cn("sticky top-0 z-sticky flex h-0 items-start justify-center", className)}>
+    // Under the droplet bar, not behind it: it floats over the top of the page.
+    <div className={cn("sticky top-[var(--bar-clearance)] z-dropdown flex h-0 items-start justify-center", className)}>
       {/* `items-start` is load-bearing: a stretch alignment would flatten the
           button to the strip's zero height. */}
       <AnimatePresence>

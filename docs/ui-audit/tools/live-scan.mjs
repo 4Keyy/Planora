@@ -76,6 +76,11 @@ const PUBLIC_ROUTES = [
   { path: '/auth/forgot-password', name: 'auth-forgot-password', full: false },
   { path: '/auth/reset-password?token=demo', name: 'auth-reset-password', full: false },
   { path: '/auth/verify-email?token=demo', name: 'auth-verify-email', full: false },
+  // The recovery path's second step, and the two token screens reached without a token:
+  // each is a state a real visitor lands in, and none of them existed as a screen before.
+  { path: '/auth/forgot-password/sent', name: 'auth-forgot-sent', full: false },
+  { path: '/auth/reset-password', name: 'auth-reset-no-token', full: false },
+  { path: '/auth/verify-email', name: 'auth-verify-no-token', full: false },
 ]
 
 const PRIVATE_ROUTES = [
@@ -554,11 +559,19 @@ for (const mode of ['data', 'reduced-motion', 'dark-os']) {
       const dsTag = MOCK && DATASET !== 'rich' ? `-${DATASET}` : ''
       const suffix = (mode === 'data' ? '' : `-${mode}`) + dsTag
       const file = path.join(OUT_SHOTS, `${route.name}-${vp.w}${suffix}.png`)
+      /*
+       * Web vitals are read BEFORE the full-page screenshot. Playwright takes that shot by
+       * resizing the viewport to the page's full height, so everything below the fold paints
+       * "in the viewport" for a moment — and a text block larger than the real LCP element then
+       * becomes a new LCP candidate, stamped with the screenshot's time. /profile at 360px read
+       * 1.6s that way (its heading had painted at ~280ms), with the element already detached
+       * when the entry arrived. Nothing a visitor sees; everything the report said.
+       */
+      const vitals = await page.evaluate(() => window.__vitals).catch(() => null)
       await page.screenshot({ path: file, fullPage: true }).catch(() => null)
 
       let probe = null
       try { probe = await page.evaluate(PROBE) } catch (e) { probe = { probeError: String(e).slice(0, 300) } }
-      const vitals = await page.evaluate(() => window.__vitals).catch(() => null)
 
       // tab order — only worth measuring once per route, at the desktop width
       let tabOrder = null

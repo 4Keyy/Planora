@@ -1,5 +1,7 @@
 # Промт: полная переработка публичных страниц Planora
 
+> Historical planning/research snapshot. Dates, counts, proposed policies and line references below describe the original work, not a current implementation contract. For current verified behavior and open gaps, use [the repository audit](../audits/2026-10-06.md) and the maintained reference guides.
+>
 > Скопируй всё ниже разделителя в новую сессию Claude Code, открытую в `F:\Projects\Planora`.
 > Промт рассчитан на то, что модель сначала **читает**, потом **думает**, и только потом
 > пишет план. Он намеренно не содержит слов «красиво» и «современно» — вместо них стоят
@@ -34,6 +36,7 @@
 и запретил. Читай целиком, не по диагонали:
 
 **Обязательно:**
+
 - `docs/design-system.md` — 1140 строк. Пять правил, токены с измеренным контрастом,
   раздел 9 «Choreography» (каждый сигнатурный момент со спецификацией), раздел 13
   «The two devices», раздел 14 «Words», раздел 17 «Failure modes».
@@ -46,6 +49,7 @@
 - Сами три файла страниц + `frontend/src/app/auth/layout.tsx`.
 
 **Полезно:**
+
 - `docs/ui-audit/RESULTS.md` — что мерили, что чинили и где ошибались.
 - `frontend/src/components/ui/` — примитивы, которые уже есть.
 - `docs/ui-audit/tools/` — инструменты, которыми твой результат будут судить.

@@ -3,8 +3,9 @@
 Every visual value the product ships, where it comes from, and the rule it obeys.
 
 This is not a style guide anyone can ignore. The values live in one TypeScript file,
-the Tailwind theme is derived from it, and the rules below are enforced by tests that
-read the source tree. If something here is wrong, a test fails.
+the Tailwind theme is derived from it, and source-reading tests enforce specific
+contracts. Those tests cover the checks they implement; passing them does not prove
+that every statement in this guide or every rendered state is correct.
 
 | Thing | File |
 |---|---|
@@ -14,9 +15,11 @@ read the source tree. If something here is wrong, a test fails.
 | Motion, derived from the tokens | `frontend/src/lib/animations.ts` |
 | The rules, enforced | `frontend/src/test/quality/design-tokens.contract.test.ts` |
 
-> Contrast figures are computed against `paper` (`#ffffff`) with the WCAG 2.2
-> relative-luminance formula by `docs/ui-audit/tools/contrast-scan.mjs`, and
-> re-measured in a real browser by `docs/ui-audit/tools/live-scan.mjs`.
+> Token values and component contracts were checked against source on 2026-10-06.
+> Contrast ratios against `paper` (`#ffffff`) are palette calculations. Browser
+> counts, bundle sizes, CLS/LCP values and defect totals quoted below belong to the
+> earlier fixture-based UI audit; this documentation pass did not repeat that matrix.
+> Keep the date and environment with a measurement; see [`ui-audit/RESULTS.md`](ui-audit/RESULTS.md).
 
 ---
 
@@ -30,7 +33,7 @@ something measurably went wrong without it.
 | 1 | No colour literal in a component | 441 uses across 98 distinct values, none of them coordinated | `rule 1 — no colour literal in a component` |
 | 2 | No text below 12px | 47% of the product's text sat under the floor: 9px ×57, 10px ×729, 11px ×573 | `rule 2 — no text below 12px` |
 | 3 | Four font weights, and exactly four loaded faces | A weight with no file behind it gets a synthetic, smeared face and no error | `rule 3 — four font weights, and four loaded faces` |
-| 4 | One focus indicator, clearing 3:1 | 8 of 8 failed WCAG 2.4.11; later, six auth routes and every Button variant had none that could be seen | `rule 4 — one focus indicator, clearing 2.4.11` |
+| 4 | Shared focus styles and ≥3:1 indicator contrast | The earlier audit found faint or suppressed indicators; field-specific shapes now share `globals.css` | `rule 4 — one focus indicator, clearing 2.4.11` (legacy test title; corrected criterion mapping below) |
 | 5 | Priority is never encoded by hue alone | Five priority hues collapse under deuteranopia — OKLab distance 0.049 between the two lowest, below the just-noticeable threshold | `rule 5 — priority is never encoded by hue alone` |
 
 ### The `@colour-data` exemption
@@ -99,7 +102,7 @@ Reusing `ink-muted` on `#171717` measured 2.29:1, which is why `paper-muted` and
 
 | Token | Value | Contrast | Means exactly |
 |---|---|---|---|
-| `accent` | `#0369a1` | 5.93:1 | Links, active tab, selection. The previous `#0ea5e9` measured 2.77:1 and could not carry text |
+| `accent` | `#0369a1` | 5.93:1 | Links, active tab, selection, and the frame of a shared task. The previous `#0ea5e9` measured 2.77:1 and could not carry text |
 | `accent-surface` | `#e0f2fe` | — | A **background fill**. Eight places used it as a text colour at ~1.2:1 |
 | `alert` | `#b91c1c` | 6.47:1 | Overdue, or a destructive action being confirmed. Nothing else |
 | `alert-surface` | `#fef2f2` | — | Background behind alert content |
@@ -118,7 +121,7 @@ mechanical: if a token's name ends in `-surface`, `text-*` and icon `color` are 
 semantic tokens are drawn from it. **Use the semantic names in components.** A
 `gray-*` class in a component is a value that has lost its reason.
 
-```
+```text
 50  #fafafa   150 #eeeeee   300 #d4d4d4   500 #737373   700 #404040   900 #171717
 100 #f5f5f5   200 #e5e5e5   400 #a3a3a3   600 #525252   800 #262626
 ```
@@ -160,11 +163,21 @@ These four are loaded and no others. Asking for a weight outside the scale costs
 One `font-weight: 900` in the colour picker asked for a face that has never existed in
 this product.
 
+**How they load.** The Latin faces go through `next/font/local` (`app/layout.tsx`), pointed at
+the same `@fontsource` files: that preloads them in the document head and builds a fallback
+from the font file's own metrics (`adjustFontFallback`). Loaded through the stylesheet alone,
+they arrived a beat after first paint, the text drew in the system font, and the swap
+re-wrapped the landing hero from four lines to three at 390 px — everything under it jumped
+38 px up and back, CLS 0.016. A size-adjusted fallback could not have fixed it by itself: word
+by word the two faces differ by −11% to +10%, so line breaks move whatever the average says.
+The latin-ext faces still come from `@fontsource` under the plain family name, second in
+`--font-sans`, and download only when an accented character appears.
+
 ### The eyebrow label
 
 There is one, exported as `FIELD_LABEL_CLASS` from `components/ui/field.tsx`:
 
-```
+```text
 text-caption font-semibold uppercase tracking-wider text-ink-muted
 ```
 
@@ -214,6 +227,12 @@ Tailwind's own `shadow-sm/md/lg/xl/2xl` are **removed** in the config rather tha
 extended. They used to win 98 uses to 19 against this scale, simply by being the name
 people reach for first.
 
+The task editor builds its surfaces in inline style objects, where a class cannot reach, so
+`globals.css` also exposes the scale as `--pl-shadow-sm/md/lg/xl` and the radii as
+`--pl-radius-sm/md/lg/xl/full`. Its popovers, dialog and pinned note use those variables; they
+used to re-type their own rgba stacks (`0 16px 40px rgba(0,0,0,0.12)…`, `0 30px 80px…`) and a
+16px radius by number.
+
 ---
 
 ## 7. Layers
@@ -244,9 +263,10 @@ scale. The contract test draws the line at 10.
 
 ## 8. Motion
 
-Five durations, three curves, three springs. **Every animated value is a `transform` or
-an `opacity`** — nothing else composites on the GPU, and anything else costs layout or
-paint on every frame.
+Five duration tokens, three curves and four spring presets. Prefer `transform`
+and `opacity` for animation. SVG strokes, layout projection and CSS field-focus
+color/border/shadow transitions are explicit exceptions; compositor behavior still
+depends on the browser, layers and surrounding content.
 
 ### Durations
 
@@ -270,9 +290,10 @@ paint on every frame.
 
 | Token | Stiffness / damping | Use for |
 |---|---|---|
-| `SPRING_STANDARD` | 400 / 28 | Modals, cards. Settles without overshoot |
-| `SPRING_RESPONSIVE` | 416 / 20 | Chips, buttons. Matches a finger tap |
-| `SPRING_GENTLE` | 260 / 24 | Presence, decorative. Floats into place |
+| `SPRING_STANDARD` | 400 / 28 | Modals, cards, the droplet's width. Damping ratio 0.70: about 5% overshoot, the droplet's liquid settle |
+| `SPRING_RESPONSIVE` | 416 / 20 | Chips, buttons. Matches a finger tap. Ratio 0.49 (17% overshoot): small travel only |
+| `SPRING_GENTLE` | 260 / 24 | Presence, decorative. Floats into place. Ratio 0.74 (3%) |
+| `SPRING_LAYOUT` | 400 / 40 | Travel — a surface growing out of a card, a pill becoming a circle, a list closing a gap. Critically damped (ratio 1.0): lands without passing its target, settles in about 0.3s |
 
 ### Reduced motion
 
@@ -280,18 +301,22 @@ Three separate mechanisms, because no single one reaches everywhere:
 
 1. `globals.css` collapses CSS transitions and animations under
    `@media (prefers-reduced-motion: reduce)`.
-2. framer-motion's `MotionConfig reducedMotion="user"` covers every `motion.*` element.
+2. framer-motion's root `MotionConfig reducedMotion="user"` supplies the user
+   preference to descendants; it does not stop every opacity, color, SVG or
+   computed MotionValue animation. Components with those paths use explicit guards.
 3. **A `requestAnimationFrame` loop is reached by neither.** The WebGL background reads
    the media query itself, renders one static frame, and subscribes to `change` so a
    preference flipped mid-session takes effect without a reload.
 
-If you write a rAF loop, it is your job to handle the third case. Nothing else will.
-
+If you write a rAF loop, it is your job to handle the third case. Nothing else will. `hooks/use-collapse-scroll.ts` does: its 650ms glide to the top jumps instead under
+reduced motion, stops the moment the reader scrolls (wheel, touch, key, pointer), and is
+cancelled on unmount so no frame writes to a page that has moved on.
 
 ### The four laws
 
-Every animation in the product obeys all four. A preset that cannot be expressed
-under them is a preset that should not exist.
+These are implementation rules for new interaction motion. They are not an
+assertion that a spring's physical settling time is bounded by a duration token
+or that every current animation is a transform/opacity-only tween.
 
 1. **Transform and opacity only.** Plus `pathLength` on an SVG, which is the single
    exception and is a real one: no transform turns an arc into a longer arc. Scaling
@@ -299,10 +324,37 @@ under them is a preset that should not exist.
 2. **A response to a tap finishes within 320ms.** `deliberate` (480ms) is for a number
    roller and a progress ring — things reporting a fact, not answering a press.
 3. **No `transition: all`, no `filter`, no `box-shadow` inside a variant.** A shadow on
-   hover belongs in CSS (`hover:shadow-md`), where it costs nothing.
+   hover belongs in a scoped CSS transition (`hover:shadow-md`); it can still cause
+   paint work, so inspect it in a browser when changing large surfaces.
 4. **One preset per meaning.** An earlier generation of `animations.ts` shipped both
    `VARIANTS_MODAL` and `VARIANTS_MODAL_BOUNCE`, both `TAP_PRESS` and
    `TAP_PRESS_ENHANCED`, and 30 of its 47 exports were used nowhere.
+
+### Presence: what leaves must be measured
+
+Every "smooth, then it snaps" in this product has had the same cause: a layout change
+framer-motion never measured. Framer measures a layout change only when a component with
+`layout` re-renders, and a child that `AnimatePresence` removes after its exit re-renders
+none of them. Five rules follow.
+
+1. **The presence wraps the leaving items, never their container.** Wrapped round the
+   categories grid it had one child that never left, so a deleted category vanished in a
+   frame while its neighbours glided.
+2. **Leave in the same commit as everything else moves.** Either `mode="popLayout"` (the
+   leaving child is pinned out of the flow at once and fades in place) or no exit at all
+   (`sr-only`, unmount). A child that holds its room for an exit and is then removed alone
+   snapped the droplet ~70px narrower at the end of its spring.
+3. **`popLayout` needs a positioned parent and a ref.** The parent is the leaving child's
+   offset parent (`relative`). `motion.*` elements take the ref; a function component must
+   `forwardRef` to its root, or the pop is silently skipped.
+4. **Siblings that close a gap carry `layout="position"`.** Size `layout` only goes on an
+   element whose children are layout nodes too — on a card it played a 166px → 56px hide as
+   a scaleY that stretched everything inside three times over. Long glides use
+   `SPRING_LAYOUT`.
+5. **A keyed child cannot move between parents.** React unmounts it from one and mounts a
+   new one in the other. A list split into columns keeps each item in its column
+   (`components/ui/masonry-columns.tsx`) instead of re-dealing — re-dealing remounted every
+   card after the one that changed and replayed its entrance.
 
 ### Direction carries meaning
 
@@ -317,6 +369,46 @@ under them is a preset that should not exist.
 
 A thing that *fades* in announces that a render happened. A thing that is *drawn*
 announces that a person did something. Spend the second one rarely.
+
+### Scroll-linked motion — a third class, public pages only
+
+Everything above answers an event: a press, an arrival, a change. The landing page adds
+motion driven by **scroll position** — a heading drifting a few pixels, a band travelling
+sideways, a mark that follows the reader. It lives in `app/_landing/scroll-kit.tsx`,
+`parallax.tsx` and `audience-spine.tsx`, and it is held to five rules, each learned the
+hard way:
+
+1. **Prefer transform and opacity.** They avoid direct layout animation, but do
+   not guarantee zero rendering cost or zero CLS for a whole route. The earlier
+   fixture audit recorded zero CLS across 45 cells for this choreography.
+2. **Never on an ancestor of `fixed` or `sticky`.** A transformed ancestor silently becomes
+   the containing block and re-parents the node: the landing nav is `sticky` and sits outside
+   every animated wrapper, and the spine is a sibling of `<main>`.
+3. **`MotionConfig` does not reach a computed MotionValue.** `useScroll` → `useTransform` →
+   `useSpring` is invisible to `reducedMotion="user"`, so every scroll component carries its
+   own `useReducedMotion()` branch that renders the final state (the horizontal band becomes a
+   grid, the pinned stage stops pinning).
+4. **Scroll does not render React.** `useMotionValueEvent` writes to a ref and calls
+   `setState` only when a derived *integer* changes — the spine re-renders about a dozen times
+   over the whole page, not once a frame.
+5. **Anything revealed by scroll fades in, and that is not decoration.** A below-the-fold block
+   painted at `opacity: 1` is an LCP candidate during progressive load; dropping the fade once
+   moved LCP from the hero at ~350 ms to a section heading at ~1770 ms, on three viewports, over
+   five runs. `Parallax` and `StaggerItem` both fade.
+
+Units matter: `useSpring` given a string such as `"8%"` parses the number and drops the unit, so
+the band travelled 8px instead of a third of its width. Spring the number, then template the
+unit on with `useMotionTemplate`.
+
+**Centring and moving are two nodes, never one.** framer-motion writes the whole `transform`
+of anything it animates, so a `-translate-x-1/2 -translate-y-1/2` on the same node is gone on
+the first frame of an `x`, a `y` or a `scale`. The landing page had it three times: the viewer
+block's signal dot ran half its own height below its line, and the hero's seats and the branch
+story's step circle would have jumped off centre on their first hover. A static wrapper does the
+centring; the node inside it does the moving.
+
+The app routes do not use this class. A list you work in should not move because you scrolled
+it (§ 9.12).
 
 ---
 
@@ -352,9 +444,27 @@ line height over `deliberate` 480ms on `emphasized`, staggered **30ms from the r
 
 Two details that are not optional:
 
-- **`tabular-nums`, columns sized `1ch`.** In a proportional face a `1` is narrower
-  than a `7`, so a rolling counter changes width mid-animation and shoves its own
-  label sideways.
+- **`tabular-nums`, and the column sized by the digit.** In a proportional face a `1`
+  is narrower than a `7`, so a rolling counter changes width mid-animation and shoves
+  its own label sideways. The column is *not* told a width: it was once pinned to
+  `1ch` with `overflow: hidden`, on the belief that tabular figures are exactly `1ch`
+  wide. They are not — `ch` is the advance of the font's default zero, which in Plus
+  Jakarta Sans is proportional: 7.00px against 8.41px for the tabular figure actually
+  drawn at 14px bold. Every digit in every counter lost its right edge. The grid cell now
+  takes the tabular advance itself, and the roll is clipped vertically only
+  (`clip-path: inset(0 -0.25em)`), which also clips the outgoing digit that
+  `popLayout` lifts out.
+- **Reserved width is drawn, not computed.** `minDigits` puts an invisible run of that
+  many tabular zeros (CSS generated content, so never read aloud and never matched by a
+  query) in the same grid cell as the digits; the cell takes the wider of the two. A
+  `minWidth` in `ch` repeated the bug above and reserved 24px for two digits that
+  draw 28px wide.
+- **The caller decides where the spare room goes.** `align` is `end` by default (a number
+  at a right edge or in a column of numbers), `start` for a number read right after its
+  label ("Keys 3"), and `center` for a number between two things or at the centre of
+  something — the count inside the landing ring, the count between a status pill's dot and
+  its word. A lone digit right-aligned in a two-digit box read as "_3", with a hole on its
+  left, everywhere the number was not already at a right edge.
 - **The value appears once for assistive technology.** The columns are `aria-hidden`
   and an `sr-only` node carries the number, or a screen reader reads every intermediate
   digit of every roll. This is why `getByText` on a rolled digit throws in tests and
@@ -376,16 +486,17 @@ reader has to re-find their place in the list when it closes.
 |---|---|---|
 | 1 | The pressed card's rect is recorded, on the press | — |
 | 2 | The dialog mounts at that rect: uniform `scale`, `x`/`y` centre-to-centre, `opacity 0` | — |
-| 3 | It grows to its own geometry | `SPRING_STANDARD` |
-| 4 | Closing returns along the same path | `SPRING_STANDARD` |
+| 3 | It grows to its own geometry | `SPRING_LAYOUT` — critically damped, so a 660px surface never swings past its size or the centre |
+| 4 | Closing returns along the same path | `base` 220, `standard` (no fade-into-a-snap ease-in: the eye follows it back to the card) |
 
 Three decisions inside it:
 
-- **Not a framer-motion `layoutId`.** That is the documented technique and it would
-  make every card in the list a layout-animated node. The tasks page renders up to 200
-  memoised `TodoCard`s inside a masonry; giving each a projection node costs a measure
-  on every list change — filtering, completing, an undo window closing — for an effect
-  used on one card at a time.
+- **An explicit rect, without a shared `layoutId`.** The editor records its source
+  card's rect and derives an entrance transform. Cards and masonry wrappers already
+  use position-only layout projection for list movement; the editor's origin does
+  not depend on a shared projection identity. The tasks page progressively mounts
+  cards from paged results, so 200 is a fetch page size, not a mounted-card ceiling.
+  This audit did not measure a comparative layout/projection cost.
 - **Uniform scale, from the width ratio.** Scaling x and y independently would match
   the card's rectangle exactly and shear every glyph in the dialog on the way. Text
   stretched vertically for 220ms reads as a rendering fault, not as motion.
@@ -437,13 +548,16 @@ user takes in at a glance, and a decorative ring would announce on every join.
 does not is that a task can be shown to some people and not others. Rendered as a word
 it is a promise the eye skips on its way to the title.
 
-The audience is an arc. `private` is a nearly closed ring with a filled centre —
-you, the only viewer. `shared` is cut open by a wedge that widens with the count, from
-a 16% base by 4.5% per viewer, saturating at 50% (eight viewers) because past half the
-circumference the mark stops reading as a ring and starts reading as a bracket.
-`public` is complete. Changing audience animates `pathLength`/`pathOffset` over `base`
-220ms on `emphasized`, so the user watches the circle open or close — legible in
-peripheral vision before any of the three words has been read.
+The audience is an arc, and **the ring never closes**. `private` is a ring with one
+narrow cut and a filled centre — you, the only viewer. `shared` is cut open by a wedge that
+widens with the count, from a 16% base by 4.5% per viewer, saturating at 50% (eight viewers)
+because past half the circumference the mark stops reading as a ring and starts reading as a
+bracket. `public` — the share picker's "All friends" — is drawn at that widest cut and named
+"All friends": every accepted friend is still a circle the owner chose, and there is no public
+link. It used to be the one closed ring, labelled "Public", which told the user the opposite of
+what the server does. Changing audience animates `pathLength`/`pathOffset` over `base` 220ms on
+`emphasized`, so the user watches the circle open wider or narrow — legible in peripheral vision
+before any of the words has been read.
 
 Geometry, not hue. A privacy scale painted green/amber/red would compete with `alert`
 for the product's one saturated colour and collapse under dichromacy the way the old
@@ -458,7 +572,7 @@ against the few that were not, and it trains people to click through dialogs unr
 | Step | What | Spec |
 |---|---|---|
 | 1 | The card leaves | `opacity → 0`, `exit` |
-| 2 | Its neighbours close the gap | `layout`, `SPRING_STANDARD` |
+| 2 | Its neighbours close the gap | `layout="position"`, `SPRING_LAYOUT` — the card stays in its masonry column, so only the cards below it move |
 | 3 | The bar arrives from below | `y 100% → 0`, `base` 220, `emphasized` |
 | 4 | The countdown bar drains over 5s | `scaleX 1 → 0`, linear |
 
@@ -481,7 +595,7 @@ session. Five seconds is not consent.
 
 `components/todos/quick-capture.tsx`. A 56×56 control in the phone's easy thumb arc
 (blueprint 10.1: y 560–844 of 844) that **becomes** the input bar — both surfaces share
-one `layoutId`, projected by `SPRING_RESPONSIVE`. A crossfade between two separate
+one `layoutId`, projected by `SPRING_LAYOUT` (critically damped: the 56px circle and the 358px pill meet their size without bouncing past it). A crossfade between two separate
 elements would read as "one thing vanished, another appeared", which is the wrong
 story: the user pressed a button and it opened.
 
@@ -571,13 +685,24 @@ transform is cleared. The transform could be bought back by portalling every fix
 control out of the page tree — three components, and a new set of stacking and
 focus-order questions. It is not worth eight pixels.
 
-The navbar's active-tab indicator carries the continuity between routes instead,
+The droplet bar's ink drop carries the continuity between routes instead,
 moving by `layoutId`. That half of moment 9 is built.
 
 The blueprint's other half — the outgoing content leaving at `y: -8` — cannot be
 built here at all. A `template.tsx` is destroyed and recreated by the router, and
 no `AnimatePresence` spans the old route and the new one, so there is no moment at
 which the outgoing content still exists to animate.
+
+**The first page of a visit is not faded at all.** The fade used to start every page
+from `initial={{ opacity: 0 }}`, which framer-motion writes into the server HTML as
+`style="opacity:0"` — so every first visit was a blank page until hydration had
+finished and the fade had played, and with scripts blocked it stayed blank. It also made
+LCP bimodal on `/`: the `h1` reported at ~540 ms when hydration was early and not at
+all when hydration collided with other main-thread work, leaving a 648 px² button as the
+"largest" paint at 2.5 s. The template now starts visible on the server and on the first
+client render (`initial={false}`, so hydration agrees), and only navigations inside the
+app fade — the transition this was for. Measured on `/`, median of five, nine
+viewports: worst LCP 3.9–9 s → under 500 ms.
 
 ### 9.12 What is deliberately not animated
 
@@ -600,8 +725,14 @@ which the outgoing content still exists to animate.
 
 Icon sizes: `14 · 16 · 20 · 24 · 32`. Avatar diameters: `20 · 24 · 32 · 48`.
 
-The default control is 44px, not 40, because 44 is the WCAG 2.5.8 enhanced target and
+The default control is 44px, not 40, because 44 is the project's touch target
+(aligned with WCAG 2.5.5 Target Size (Enhanced), Level AAA), and
 two thirds of this product's interactive elements once measured under 44×44 at 390px.
+
+**The one exception is a month grid on the narrowest phone.** At 360px the branch page's
+calendar has about 290px for seven day cells, so each is 40px wide (and 44px tall) with 2px
+between them. `.touch-target` cannot help — the enlarged areas would overlap the next day's —
+and the cells stay well above WCAG 2.5.8's 24px minimum. From 390px every day is 44px or wider.
 
 ### The `.touch-target` utility
 
@@ -641,11 +772,22 @@ by `docs/ui-audit/tools/live-scan.mjs` (88 cells on the last run), and staticall
 |---|---|
 | 1.4.3 Contrast (text) | 4.5:1, or 3:1 at 18.66px+ bold / 24px+. `ink-subtle` is the floor |
 | 1.4.11 Non-text contrast | 3:1 for control borders, icons that carry meaning, focus indicators |
-| 2.4.7 / 2.4.11 Focus | **One** indicator, declared once in `globals.css`, 19.80:1 on paper, with a light halo for dark surfaces |
-| 2.5.8 Target size | 24×24 minimum (AA), 44×44 target (ours). Inline links in a sentence are exempt |
-| 2.1.1 Keyboard | Everything operable. `tabIndex={-1}` on a real control is a failure |
-| 1.3.1 Info and relationships | One `<h1>` per route, no skipped levels, `<main>` on every route |
-| 4.1.2 Name, role, value | `title` is **not** an accessible name — it is unannounced by several screen readers and never appears on touch |
+| 2.4.7 Focus Visible / 1.4.11 Non-text Contrast | Shared `globals.css` focus styles; the dark token calculates 19.80:1 against paper, with a light halo for dark surfaces |
+| 2.4.11 Focus Not Obscured (Minimum), AA | Focused controls must not be entirely hidden by author-created content, including the fixed navbar and overlays |
+| 2.4.13 Focus Appearance, AAA | A separate area and 3:1 change-of-contrast criterion; a token contrast calculation alone does not establish it |
+| 2.5.8 Target Size (Minimum), AA | 24×24 CSS px or the criterion's spacing/other exceptions; 44×44 is this project's preferred touch target, aligned with 2.5.5 (AAA) |
+| 2.1.1 Keyboard | All functionality operable by keyboard; `tabIndex={-1}` is intentional in a working roving-tabindex composite, not an automatic failure |
+| 1.3.1 Info and relationships | Semantic labels, landmarks and heading hierarchy; one `<h1>` per route is a project convention |
+| 4.1.2 Name, role, value | Prefer visible labels or `aria-label`/`aria-labelledby` for icon controls; `title` alone is an unreliable user-facing labeling strategy |
+
+The criterion mapping follows the W3C explanations for
+[Focus Not Obscured](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html),
+[Focus Appearance](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html) and
+[Target Size (Minimum)](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html).
+Some source comments and the focus contract's test title still use the older
+2.4.11 wording; the table above is the corrected documentation mapping.
+Source scanners and fixture-backed browser runs are partial checks, not a WCAG
+conformance or assistive-technology certification.
 
 ### The focus indicator is declared once, and nothing may suppress it
 
@@ -667,10 +809,39 @@ Neither is visible while reading the component, and both shipped. Never write
 exception is a dialog *panel* that holds `tabIndex={-1}` to receive focus as a
 container: it is not a control and should not be outlined.
 
+**Text fields draw focus on their own shape.** An `<input>` or `<textarea>` matches
+`:focus-visible` on every focus — a click, a tap, a script — in every engine, so the
+global ring boxed the create panel's naked title in a hard dark rectangle the moment
+anything focused it. Fields therefore carry one of three classes from the "Field focus"
+block in `globals.css`, each of which turns the outline *transparent* (never `none`:
+forced-colors mode repaints outline-color and drops shadows, so that transparent
+outline is what still draws a ring in High Contrast) and draws the indicator on the
+field's own geometry:
+
+| Class | Where | Indicator |
+|---|---|---|
+| `field-rule` (container) + `field-naked` (fields) | the create panel's title and details | the 2px left rule: an ink rule draws itself over the `line` track top-down on focus (`duration-slow`, `ease-emphasized`, a `scaleY` transform) and retracts on `ease-exit` |
+| `field-box` | `<Input>`, `<Textarea>`, the task editor's title while it is edited, the branch's Author's Note, subtask-title and comment editors, the new-category name, the (unused) advanced search bar | a 1px ink edge and a 3px `ink/8%` halo on the field's radius, through the field's own colour/shadow transition; a field with `data-over-limit` or `aria-invalid` keeps a red edge (and the over-limit pink surface) while focused |
+| `field-shell` (container) + `field-naked` (field) | quick capture's pill, the branch composer, the colour picker's hex box, the command palette's query row | the shell's edge turns ink with the same halo over whatever elevation it already carries (`--tw-shadow`: quick capture keeps its `shadow-xl`); the palette's row adds `focus-within:shadow-none`, so it shows an ink underline only, since a halo would be clipped by the dialog |
+| `field-naked` + its own cells | the one-time-code input (login 2FA) | one transparent input over six cells; the cell where the next digit lands draws the `field-box` look (1px ink edge, 3px `ink/8%` ring), so the row is never boxed |
+
+Every `<input>`/`<textarea>` that takes text must carry `field-box` or `field-naked` — a contract in `design-tokens.contract.test.ts` scans every component and fails on any that does not.
+
+Ink on paper is 17.93:1 and ink against the resting `line` 14.23:1; the halos are
+decoration. The current fields use native `:focus-visible`/`:focus-within`, CSS
+classes and React refs rather than a focus-ring library. Check browser and
+forced-colors behavior when changing these rules.
+
 `docs/ui-audit/tools/focus-scan.mjs` tabs through every focus stop on the
 authenticated routes and measures the indicator's contrast — the colour composited
-over paper, against paper — rather than asking whether one is present. 174 stops,
-all clearing 3:1.
+over paper, against paper — rather than asking whether one is present. The earlier
+audit recorded 174 reached stops, all clearing 3:1. For a text field it reads the shape that carries the indicator (the
+`field-rule`'s ink rule — counted only once its `scaleY` has drawn it, since the rule is
+ink at rest too — the `field-shell`'s edge, the `field-box`'s border) while the field
+holds focus, 350ms after each Tab so a 220ms border transition is not read half-way as
+grey. A stop inside an `inert` or `aria-hidden` subtree, one `checkVisibility()` calls
+invisible, or one clipped to nothing fails whatever its indicator: focus nobody can see
+is not focus.
 
 ### Why the scanners all exist
 
@@ -686,7 +857,11 @@ browser sweep.
 but it cannot see anything that only exists once styles are computed.
 
 `class-audit.mjs` compares the classes in source against the rules in the built
-stylesheet, which is the only way to catch a class that names nothing.
+stylesheet, which is the only way to catch a class that names nothing. It tracks the
+layout utilities too (`grid-rows-*`, `row-start-*`, `min-h-*`, `translate-y-*` …) and
+classes with a `calc()` inside their brackets, whose `)]` used to end the capture
+mid-class — so a typo such as `grid-rows-[1fr_auto_lfr]` in the task card's rail, or a
+broken `-translate-y-[calc(100%+2rem)]` in the droplet's slide, fails the run.
 
 `focus-scan.mjs` drives the keyboard, because a focus indicator only exists in the
 `:focus-visible` state and no static read of the source will tell you what it
@@ -704,8 +879,12 @@ type has stopped being a primitive.
 | Component | Owns |
 |---|---|
 | `Button` | Variants, the three control sizes, the `loading` state that blocks re-entry without resizing |
-| `Field` | Label↔control association, `aria-describedby`, `aria-invalid`, `role="alert"` on the error |
+| `Field` | Label↔control association, `aria-describedby`, `aria-invalid`, `role="alert"` on the error; `labelAside` for a text-height link on the label's line ("Forgot password?") that stays out of the accessible name |
+| `Wordmark` | The product's name and mark — the private ring from `RedactionBadge`, drawn statically — in two sizes. Every place that names the product uses it |
 | `StatusPanel` | Every empty and error state. Two tones, three sizes |
+| `Pagination` + `lib/pagination` | The pager: ghost Previous/Next, 36px page buttons with `.touch-target`, the current page in ink. `pageWindow` decides which numbers show (the ends, the current page and its neighbours, a gap marker only where it hides two or more). Nothing in it scales on hover |
+| `components/todos/plate.ts` + `plate-placeholder.tsx` | The control plates above a task list: `PLATE_SURFACE` (a large panel), `PLATE_ROW` (80px from `sm`), `PLATE_ICON` (a 44px ink disc). The placeholders are built from the same strings, so a plate always lands on the space held for it |
+| `surfaces.ts` | `POPOVER_SURFACE` (`rounded-lg border-line bg-paper shadow-lg`), `MENU_ITEM` (a 40px row), `ICON_BUTTON` (a 40px icon button with `.touch-target`). A plain module, so a server component can import the strings |
 | `Overlay` | Portal, dialog semantics, focus trap, Escape, backdrop dismissal, scroll lock |
 | `ConfirmDialog` | Destructive confirmation, with an optional "don't ask again" |
 | `Avatar` | Image, initials fallback, the optimizer's `sizes` |
@@ -720,7 +899,7 @@ type has stopped being a primitive.
 | `WeekBars` | Seven days of completions, as one accessible sentence and seven bars |
 | `StatRow` | Live facts about the workspace, each one a filter you can press |
 | `PresenceRow` | Who is in a task, as faces — and an arrival as an event |
-| `RedactionBadge` | Who can see it, as an arc you watch open or close |
+| `RedactionBadge` | Who can see it, as an arc that opens wider per person and never closes |
 
 ### Flow
 
@@ -739,6 +918,63 @@ type has stopped being a primitive.
 | Module | Owns |
 |---|---|
 | `lib/shared-origin` | The card-to-dialog transition: the rect a dialog grows out of, and the geometry that gets it there |
+| `lib/route-transition` | Whether this is the first page of a visit. Both route templates read it: the first page is in the server HTML fully visible, only in-app navigation animates |
+
+### The app shell
+
+Every signed-in route renders inside `app/(app)/layout.tsx` → `AppShell`
+(`components/layout/app-shell.tsx`): the droplet bar, `<main id="main">`, and one column,
+`.container-app` — the same `max-w-6xl` column as the landing page and the auth frame. The
+route group exists so the router keeps the bar mounted across the five routes — it stays
+still, its ink drop flows to the new tab, and only the page fades (`app/(app)/template.tsx`,
+opacity only because these pages have fixed controls).
+
+Every page starts with `PageHeader` (`components/layout/page-header.tsx`): the eyebrow in
+`FIELD_LABEL_CLASS`, one `h1` at `title` on phones and `display-sm` from `sm`, an optional
+sentence, and the page's own actions at the far end. The dashboard's overview card is the
+one exception, because its title is a live number; it uses the same eyebrow, the same `h1`
+scale and the same card rules.
+
+**The bar is a droplet** (`components/layout/droplet.tsx`, `components/layout/navbar.tsx`,
+`lib/droplet.ts`): a 56px capsule floating 12px (16px from `sm`) under the top edge, centred,
+its glass — `bg-paper/85`, a hairline, `shadow-lg`, `backdrop-blur-xl` — on a layer of its
+own at `z -1` inside an `isolate` capsule, so the blur never becomes the menus' containing
+block and the glass is always behind the contents. The landing page's nav is the same
+`DropletFrame`.
+
+| Part | Rule |
+|---|---|
+| The current page | An ink drop (`bg-ink`, paper text) that flows between tabs by `layoutId` |
+| Hover | A lighter drop (`bg-ink/5`) follows the pointer across the tabs |
+| Every control | A real 44px box (`h-11`), so no two expanded hit areas overlap inside the capsule |
+| Whole | The resting state at the top of every page; tabs always present, search shows its ⌘K hint from `lg` |
+| Condensed (desktop) | While scrolling down past 96px: the mark, the current tab and the buttons. The capsule's width springs (`layout`) in ONE measured change: the tucked tabs go `sr-only` and the name leaves through `AnimatePresence mode="popLayout"` in the same commit, so nothing reflows after the spring starts (a child removed after its exit is a layout change framer never measures — the capsule used to snap ~70px narrower at the end). Pointing at it, focus inside it, scrolling up or an open menu make it whole |
+| Hidden (phone) | While scrolling down the whole frame slides up by its own height plus 2rem — a CSS translate on the plain wrapper, `duration-slow`, leaving on `ease-standard` and arriving on `ease-emphasized`. No fade and nothing on the capsule: its transform belongs to the layout projection, and opacity on an ancestor of the glass would switch its blur off. Scrolling up or focus brings it back |
+| Phone menu | Drips out of the droplet (`scaleX`/`scaleY` from the top), the page dimmed and blurred behind it by a backdrop that is a sibling of the capsule |
+| Popovers | Account menu and notifications hang 8px under the capsule's edge; one open at a time |
+| Room | The capsule is `fixed` and takes none. `--bar-clearance` (globals.css: safe-area inset + 5.5rem) is the room `<main>` starts after, and what the update pill, toasts, the profile rail and anchor scroll-margins offset by |
+| Reduced motion | Never condenses or hides; every change instant |
+
+The droplet it replaced showed its tabs only while the pointer hovered over it, which hid the
+three destinations from keyboard users and from touch. Here nothing is reachable only by hover.
+
+### The auth room
+
+`components/auth/` is the one place outside `components/ui/` with its own primitives, because five
+routes share them and nothing else does:
+
+| Component | Owns |
+|---|---|
+| `AuthFrame` + `RecoverySteps` | The frame every `/auth/*` route renders in (from the layout, so it survives navigation), and the recovery step scale whose halo slides by `layoutId` |
+| `AuthCard`, `AuthMark`, `AuthBanner` | The card (centred header, left-aligned form, one `h1`), the 56px mark that arrives by CSS so it is visible in the server HTML, and the form-level message in an alert and an info tone |
+| `PasswordInput`, `PasswordChecklist`, `PasswordsMatch` | The reveal toggle and Caps Lock warning; the five rules ticking as they are met (`pathLength` draws a check only when a rule becomes met); the match confirmation — `positive`, because it is a confirmed state |
+| `OneTimeCodeInput` | One real `<input autocomplete="one-time-code">` drawn as six cells, so paste, SMS autofill and password managers work |
+| `EmailSuggestion` | A known domain typo, offered on blur as a one-tap fix |
+
+The column is top-aligned and nothing sits below the card: a centred column, or a footer under it,
+moves every time the card changes height, and each move is a layout shift. A state change that
+replaces a card's content (checking → failed) renders a new card (`key`) rather than re-filling the
+old one, for the same reason.
 
 ---
 
@@ -789,8 +1025,9 @@ propagates.
 Two details that are not optional:
 
 - **`tabular-nums`.** In a proportional face a `1` is narrower than a `7`, so a rolling
-  counter changes width mid-animation and shoves its own label sideways. Columns are
-  sized `1ch`, which with tabular figures is exactly one digit.
+  counter changes width mid-animation and shoves its own label sideways. Each column
+  is sized by its own digit and clipped vertically only — never pinned to `1ch`, which
+  in this face is narrower than a tabular figure (§9.2).
 - **The value appears once for assistive tech.** The animated columns are `aria-hidden`
   and an `sr-only` node carries the number; otherwise a screen reader reads every
   intermediate digit of every roll.
@@ -868,6 +1105,12 @@ index-based cursor then points at a different task than the one the user was rea
 When the active id genuinely disappears the cursor falls back to the nearest surviving
 position rather than to nothing: losing your place entirely is what makes keyboard
 navigation feel broken, and it is the most common way a hook like this is wrong.
+
+The ring belongs to the keyboard. A click still moves the cursor's place — roving tabindex
+remembers the last row anyone touched — but a pointer press is not a request to see a
+keyboard cursor, so it hides the ring until `Tab`, a move or a jump shows it again, and a
+hidden cursor's action keys do nothing. Before this, clicking a card drew an outline around
+it that only `Escape` removed.
 
 Three guards that are the difference between a working list and a demo:
 
@@ -1080,7 +1323,7 @@ The small decisions that are wrong in most products, and where they are made her
 | Kind | Rule | Where |
 |---|---|---|
 | Dates | One locale, `UI_LOCALE = "en-US"`, always explicit | `lib/datetime.ts` |
-| Numbers that change | Rolled, `tabular-nums`, sized `1ch` | `NumberRoll` |
+| Numbers that change | Rolled, `tabular-nums`, sized by the digit, reserved with `minDigits` | `NumberRoll` |
 | Numbers at rest | `tabular-nums` wherever a column of them can line up | — |
 | A quantity with a target | "3 of 5", with the first number rolled | `PresenceRow` |
 | A magnitude | Filled length, never hue | `PriorityMeter` |
@@ -1088,10 +1331,11 @@ The small decisions that are wrong in most products, and where they are made her
 | A count of people | Faces up to four, then `+N` | `PresenceRow` |
 | Nothing | A `StatusPanel`, never an empty container | `StatusPanel` |
 
-**Never call `toLocaleDateString()` without a locale.** The implicit locale differs
-between the server and the browser, so the server renders `9/14/2026`, the client
-renders `14/09/2026`, and React discards the entire server pass as a hydration
-mismatch. This has happened here.
+**Pass an explicit locale for shared formatting.** `lib/datetime.ts` fixes `en-US`;
+an implicit locale can differ between the server and browser and cause a hydration
+mismatch. The helpers still use the runtime timezone, so locale pinning alone
+does not make a timestamp near midnight identical across machines. Date pickers
+and the completed archive intentionally form browser-local calendar windows.
 
 **A `+1` chip is not a collapse.** It is exactly as wide as the face it replaces, so
 hiding a single overflowing person trades a human being for a numeral and reclaims no
@@ -1106,14 +1350,17 @@ once. It is worth reading as a worked example.
 
 | Element | Token | Rule it obeys |
 |---|---|---|
-| Title | `title-sm` / `font-bold` / `ink` | Truncated at 40 characters; the full title is on the dialog it opens |
+| Surface | `bg-paper`, `border` (1px), `rounded-lg` via `Card`, `shadow-sm`, lift `y: -2` on hover. The hover shadow glows in the task's own colour — the category's, the accent while you work on it, alert when it is urgent — and is plain `shadow-lg` without one | Opaque: the page's background never shows through a task. The glow is the category colour at 20% in the two-layer card shadow, carried by a `--card-glow` custom property so the hover stays a class and CSS runs the transition; it used to be computed in JavaScript from a hover state, beside a `backdrop-blur` that re-rasterised the card under the pointer |
+| Title | `body` on phones, `title-sm` from `sm`, `font-semibold`, `ink`, `line-clamp-3` | Shown in full up to three lines. It used to be cut at 40 characters in JavaScript whatever the card's width, so a wide card still read "battery for the smok…" |
+| Controls | the completion mark and the hide toggle in a 32px rail: a `1fr auto 1fr` grid stretched to the card (`self-stretch`), the check in the middle row, the eye `row-start-3 mt-4 mb-0.5 self-end`; the row is `items-center` and every open card pads `p-5` | Owner's ruling (2026-10-05), replacing "aligned with the title's first line": the circle sits exactly on the card's vertical centre at every height, and the eye sits in the bottom-left corner, 22px from the bottom and 22px from the left. The two `1fr` rows are always equal, which is what centres the check; mirroring the eye's 46px slot gives an open card a 166px floor. 16px between the two keeps their 44px hit areas apart. A completed card has no eye and centres the check on its title |
+| Chips | one shape: `h-6 rounded-sm border-line bg-paper-sunken px-2 text-caption font-semibold text-ink-muted` | Category, audience, workers, expected date and delay. There were five chip styles on one card; "in work" is the only tinted one (`accent-surface`), and delay the only warn one |
 | Completion control | `InkCheck`, 44 × 44 | The one multi-step entrance in the product |
 | Priority | `PriorityMeter` | Magnitude as filled length — never hue (rule 5) |
 | Category | `caption`, the user's own colour | `@colour-data`: their choice, stored against their data |
-| Due date | `caption`, `alert` only when overdue | The product's one saturated colour, spent on the one thing that earns it |
-| The border | `border-alert` when overdue, `border-line` otherwise | **One fact, and only one.** It used to return `border-accent` for "in progress", for "shared", and for both — so a task somebody had taken into work and a task merely visible to a friend were drawn identically. The other two facts have their own marks a few pixels away, and `accent` belongs to selection |
+| Due date | `caption`, `tabular-nums`, one unbreakable line; the word "Overdue" in `alert` beside it | The product's one saturated colour, spent on the one thing that earns it. A range reads "Sep 24 – Sep 26" as one string, so it can no longer wrap between its dates |
+| The frame | `border-alert` when urgent, due today or overdue; `border-accent` when shared (named friends or all friends); `border-line` for a private task | **One meaning per colour.** Alert asks for action today and outranks everything; accent says other people can see it, so a list reads at a glance as "mine" and "ours". Work in progress is never the frame — it is the check and the workers chip. A multi-selection is an accent *outline* offset outside the card, so it never sits on the frame |
 | Presence | `PresenceRow` | One `sr-only` sentence, never a label per face |
-| Keyboard cursor | `outline-2 outline-offset-2 outline-ink` | An outline, not a ring: it follows `border-radius` without being told, and it is **not** the focus indicator — focus may legitimately be elsewhere while the list still has a cursor |
+| Keyboard cursor | `outline-2 outline-offset-2 outline-ink` | An outline, not a ring: it follows `border-radius` without being told, and it is **not** the focus indicator — focus may legitimately be elsewhere while the list still has a cursor. Drawn only for the keyboard: a pointer press hides it |
 | Selection | `outline-accent` | `data-selected`, because `aria-selected` is not legal on a row that contains buttons |
 | The whole surface | — | Press records its rect for the dialog to grow from |
 
@@ -1140,7 +1387,7 @@ Each of these shipped. None produced a build error, a type error, or a failing t
 | An opacity modifier on a non-colour utility (`text-center/30`) | Matches nothing. That empty state was never centred | `class-audit.mjs` |
 | A codemod rewriting tokens inside CSS value strings | `animation: "… ease-out"` became an invalid `ease-emphasized`; the animation silently stopped | Never run a token codemod over string values without re-running the build and `class-audit.mjs` |
 | `outline-none` suppressing the one focus indicator | Tailwind sets `2px solid transparent`, not `none`, so a probe that checks for an outline's presence sees one. Six auth routes had no visible focus at all | `focus-scan.mjs`, which measures the indicator's contrast |
-| A per-component focus ring replacing the global one | Four Button variants at 1.12:1 to 2.10:1, where 2.4.11 asks for 3:1 | The same scan, plus the rule above: only `globals.css` declares the indicator |
+| A per-component focus ring replacing the shared styles | Four historical Button variants at 1.12:1 to 2.10:1, below the project's 3:1 contrast check | The same scan, plus the shared CSS and field-specific focus classes |
 | A `<kbd>` shortcut hint inside a button | It joins the accessible name — "New Category" announced as "New Category c" | `aria-hidden` on the hint, `aria-keyshortcuts` on the button |
 
 ---
@@ -1155,7 +1402,7 @@ the section, and the thirteenth — the one that is wrong — goes in unnoticed.
 | Hatch | Uses | Why it is the only answer |
 |---|---|---|
 | `!important` | **12**, all in `globals.css` | Four outrank a stylesheet the product does not own (`react-remove-scroll-bar` injects `margin-right: …px !important` to compensate for a disappearing scrollbar; ours lives on `<html>` and never disappears, so the compensation only shoves the page sideways). One pins mobile form controls to 16px, because iOS Safari zooms the whole page when a focused control is smaller and the fix has to outrank a Tailwind utility. Four are the reduced-motion kill switch, which by definition must beat every author style. |
-| Inline `style` | **388**, 78% of them in `edit-todo-modal/` | Exact pixel geometry the token scales do not carry — a 6px inset, a 22px avatar. The alternative is an arbitrary Tailwind value, which the design system forbids outright, so this is the lesser of the two. **Every value is token-backed**: 0 hex literals, 0 `"white"`, measured. The branch editor is a subtree built this way end to end; converting working, tested UI wholesale would be churn, not quality. New code outside it uses utilities. |
+| Inline `style` | **388** in the earlier audit, 78% in `edit-todo-modal/` | Runtime geometry and component-specific dimensions not present in the named scales. Semantic colors should use `--pl-*` or tokens; geometry also contains literal dimensions. A source count of zero hex/`"white"` literals does not mean every inline value comes from a token. New code outside the branch editor generally uses utilities. |
 | A non-transform animation | **2 kinds** | `pathLength` on an SVG, because no transform turns an arc into a longer arc — the completion stroke, the weekly ring, the presence ring, the redaction arc. And `stroke-dasharray`/`pathOffset`, which is the same exception wearing a different name. |
 
 Everything else in the rules is absolute. `transition-all`: **0**. `dark:` utilities:
@@ -1189,15 +1436,17 @@ a list held elsewhere — a list goes stale the first time a file moves:
    that holds it.
 5. **Run the gates.**
 
-```bash
-cd frontend && npm run build && npx vitest run
-cd .. && node docs/ui-audit/tools/class-audit.mjs && node docs/ui-audit/tools/a11y-static.mjs
+```powershell
+npm --prefix frontend run build
+npm --prefix frontend run test:coverage
+node docs/ui-audit/tools/class-audit.mjs
+node docs/ui-audit/tools/a11y-static.mjs
 ```
 
 `focus-scan.mjs` and `live-scan.mjs` need a running production server; start one,
 then:
 
-```bash
+```powershell
 node docs/ui-audit/tools/focus-scan.mjs
 ```
 

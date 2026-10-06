@@ -1,10 +1,13 @@
-import { ReactNode } from "react"
+import type { ReactNode } from "react"
+import { AuthFrame } from "@/components/auth/auth-frame"
 
 /**
- * The auth routes render their own full-page composition, so this layout adds
- * only the landmark. Without it a screen reader had no main region to jump to
- * on any of the five screens.
+ * Every `/auth/*` route shares one frame — the top bar, the column and the footer — and
+ * it lives here, in the layout, because the router keeps a layout mounted across the
+ * routes below it. The recovery step scale inside the frame therefore survives the move
+ * from one recovery step to the next and can slide its marker, which it could not do from
+ * inside a page (or from `template.tsx`, which the router remounts on every navigation).
  */
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return <main className="min-h-screen bg-transparent">{children}</main>
+  return <AuthFrame>{children}</AuthFrame>
 }

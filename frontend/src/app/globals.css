@@ -102,7 +102,9 @@
      Components must NOT set `focus:outline-none`: Tailwind compiles that to a
      *transparent* outline (for forced-colors mode), which overrides the colour
      here and leaves two pixels of nothing. That is exactly how the login form's
-     two fields ended up with no visible focus at all. */
+     two fields ended up with no visible focus at all. Text fields are the one
+     exception, and they do not use that class: see "Field focus" in the
+     components layer, where the field's own shape carries the indicator. */
   :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
     outline: 2px solid theme("colors.focus");
     outline-offset: 2px;
@@ -126,7 +128,15 @@
      which cancels exactly this much to run the month grid to the card edges. */
   --pl-editor-gutter: 16px;
 
-    --font-sans: "Plus Jakarta Sans";
+  /* The room the app's floating droplet bar takes at the top: the safe-area inset, the
+     droplet's 12–16px of air, its 56px, and a gap before anything that sticks under it.
+     Sticky things below the bar (the update pill, the profile rail) offset by this, and
+     anchors scroll to it, so nothing ever parks underneath the droplet. */
+  --bar-clearance: calc(env(safe-area-inset-top, 0px) + 5.5rem);
+
+    /* next/font's Latin faces (preloaded, with a metric-matched fallback) first; the
+       @fontsource latin-ext faces under the plain family name second. See layout.tsx. */
+    --font-sans: var(--font-jakarta), "Plus Jakarta Sans";
     /* Every token, exposed as a CSS variable. The branch surface builds almost
        all of its styling through inline style objects where a Tailwind class
        cannot reach, so it consumes these instead of carrying hex literals —
@@ -160,6 +170,15 @@
     --pl-ease-exit: cubic-bezier(0.4, 0, 1, 1);
     --pl-radius-full: theme("borderRadius.full");
     --pl-radius-sm: theme("borderRadius.sm");
+    --pl-radius-md: theme("borderRadius.md");
+    --pl-radius-lg: theme("borderRadius.lg");
+    --pl-radius-xl: theme("borderRadius.xl");
+    /* The elevation scale, for the same inline styles: a popover or a dialog built there
+       uses the product's shadows instead of re-typing its own rgba stack. */
+    --pl-shadow-sm: theme("boxShadow.sm");
+    --pl-shadow-md: theme("boxShadow.md");
+    --pl-shadow-lg: theme("boxShadow.lg");
+    --pl-shadow-xl: theme("boxShadow.xl");
   }
 
   /* Dark theme is FROZEN, not supported. The product pins `color-scheme: light`
@@ -177,6 +196,9 @@
 
 @layer components {
   /* Page container. One width for the whole product. */
+  /* The one column every screen is built on — the landing page, the auth frame and the
+     signed-in app. One width means the wordmark sits on the same spot whichever of the
+     three you are on, and moving from sign-in to the dashboard moves nothing but the page. */
   .container-app {
     @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
   }
@@ -209,6 +231,107 @@
          on screen, and exactly the kind of drift a scale exists to prevent. */
       border-radius: var(--pl-radius-md);
     }
+  }
+
+  /* ── Field focus ─────────────────────────────────────────────────────────────
+     Text fields show focus on their own shape, never with the global ring.
+
+     An <input> or <textarea> matches :focus-visible on EVERY focus — click, tap,
+     script or Tab — in Chrome, Firefox and Safari alike, so the global rule drew a
+     hard dark rectangle round the create panel's naked title the moment anything
+     focused it. Buttons and links keep the global ring, where :focus-visible still
+     means "the keyboard".
+
+     The outline is made transparent, never removed. Forced-colors mode (Windows High
+     Contrast) repaints outline-color with a system colour and drops backgrounds and
+     box-shadows, so the transparent outline is what still draws a ring there once the
+     rule and the halo below are gone. This is the one place a transparent outline is
+     right — on a field whose indicator something else draws — and it is written here,
+     never as Tailwind's `focus:outline-none`.
+
+     No library: react-aria's useFocusRing only reports the same :focus-visible answer
+     the browser gives, the focus-visible polyfill is obsolete on every target, and the
+     whole effect is three selectors and one composited transform.
+
+     WCAG 1.4.11 (>= 3:1), from the token hexes:
+       ink rule / edge on paper            17.93:1
+       ink vs the resting `line`           14.23:1   (the state change itself)
+       ink vs the hover `line-strong`       3.95:1
+       ink vs its own 8% halo              15.18:1
+       alert edge on paper / on its halo    6.47:1 / 5.29:1
+     The halos are decoration; the ink edge carries the indicator. */
+
+  /* 1. Naked fields behind a left rule (the create panel). The border is the resting
+        track; while either field has focus an ink rule draws itself over it top-down on
+        the arrival curve, and retracts on the exit curve when focus leaves. Transform
+        only, so it composites; reduced motion makes it instant (the block at the end). */
+  .field-rule {
+    position: relative;
+    border-left: 2px solid theme("colors.line");
+  }
+  .field-rule::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -2px;
+    width: 2px;
+    border-radius: 9999px;
+    background-color: theme("colors.ink");
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform theme("transitionDuration.fast") var(--pl-ease-exit);
+    pointer-events: none;
+  }
+  .field-rule:focus-within::after {
+    transform: scaleY(1);
+    transition: transform theme("transitionDuration.slow") var(--pl-ease-emphasized);
+  }
+
+  /* A field whose indicator is drawn by its container (.field-rule, .field-shell). */
+  .field-naked:focus-visible {
+    outline-color: transparent;
+    box-shadow: none;
+  }
+
+  /* 2. Boxed fields — <Input>, <Textarea>. An ink edge and a soft halo on the field's
+        own radius; the transition comes from the component's `transition-[…]` utility.
+        `:not(:disabled)` lifts this to 0,3,0 so a hover utility (0,2,0, emitted later)
+        cannot repaint a focused field's edge or drop its halo. */
+  .field-box:focus-visible:not(:disabled) {
+    outline-color: transparent;
+    border-color: theme("colors.ink");
+    background-color: theme("colors.paper");
+    box-shadow: 0 0 0 3px theme("colors.ink / 8%");
+  }
+  /* A field in error (`aria-invalid`, set by <Field>) or past 80% of its limit keeps its
+     red edge — at rest, and while focused, where the halo turns red too and the pink
+     surface stays: the moment of typing is the only moment a field crosses its limit. */
+  .field-box[aria-invalid="true"]:not(:disabled) {
+    border-color: theme("colors.alert");
+  }
+  .field-box:is([data-over-limit], [aria-invalid="true"]):focus-visible:not(:disabled) {
+    border-color: theme("colors.alert");
+    box-shadow: inset 0 0 0 1px theme("colors.alert"), 0 0 0 3px theme("colors.alert / 12%");
+  }
+  .field-box[data-over-limit]:focus-visible:not(:disabled) {
+    background-color: theme("colors.alert-surface / 40%");
+  }
+
+  /* 3. A shell that IS the field — quick capture's pill, the branch composer, the colour
+        picker's hex box, the command palette's query row. Its edge is the indicator.
+        Whatever elevation the shell already carries (Tailwind's --tw-shadow, e.g. quick
+        capture's shadow-xl) stays under the halo; a flat shell gets the halo alone. Do not
+        put hover:border-* on a shell: it is 0,2,0 like this rule and emitted later. */
+  .field-shell {
+    transition:
+      border-color theme("transitionDuration.fast") var(--pl-ease-emphasized),
+      background-color theme("transitionDuration.base") var(--pl-ease-emphasized),
+      box-shadow theme("transitionDuration.base") var(--pl-ease-emphasized);
+  }
+  .field-shell:focus-within {
+    border-color: theme("colors.ink");
+    box-shadow: 0 0 0 3px theme("colors.ink / 8%"), var(--tw-shadow, 0 0 #0000);
   }
 }
 
@@ -296,10 +419,8 @@
   .stagger-list > *:nth-child(n+8) { animation-delay: 280ms; }
 }
 
-/* Task card density modifiers */
-.task-card--sparse {
-  min-height: 3rem;
-}
+/* Task card density modifier. (A `--sparse` one set min-height: 3rem, which the control
+   rail's 166px floor made unreachable.) */
 .task-card--dense p.line-clamp-2 {
   -webkit-line-clamp: 3;
 }
@@ -442,6 +563,9 @@ a, button, [role="button"], label, summary {
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 .pl-safe { padding-left: env(safe-area-inset-left, 0px); }
 .pr-safe { padding-right: env(safe-area-inset-right, 0px); }
+/* A bar pinned to the bottom edge: 16px of air, or the home indicator's inset where that is
+   larger. One named utility instead of the same arbitrary `max()` written in two places. */
+.pb-safe-4 { padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px)); }
 
 /* Honour prefers-reduced-motion for the CSS keyframe animations in this file.
    framer-motion is covered globally by MotionConfig reducedMotion="user", and

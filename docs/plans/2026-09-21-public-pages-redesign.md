@@ -1,5 +1,7 @@
 # Переработка публичных страниц: `/`, `/auth/login`, `/auth/register`
 
+> Historical planning/research snapshot. Dates, counts, proposed policies and line references below describe the original work, not a current implementation contract. For current verified behavior and open gaps, use [the repository audit](../audits/2026-10-06.md) and the maintained reference guides.
+
 Бриф: [`2026-09-16-public-pages-redesign-prompt.md`](2026-09-16-public-pages-redesign-prompt.md).
 Заказчик сформулировал цель как «в 6 раз больше и в 40 раз информативнее»; бриф просит перевести
 это в проверяемые величины и спорить там, где заказчик неправ. Ниже — перевод, спор и план.
@@ -117,7 +119,7 @@
 состояние всех артефактов в репозитории. В `scan-live-final-v5.json` **каждая** ячейка
 `auth-login@*`:
 
-```
+```text
 route: /auth/login   finalUrl: http://127.0.0.1:3200/dashboard   redirected: true
 title: "Dashboard · Planora"   targets: 65   h1: "You have 11 tasks."
 ```
@@ -734,7 +736,7 @@ for i in 1 2 3 4 5; do node docs/ui-audit/tools/live-scan.mjs --base http://127.
 `features.md`: раздел про лендинг. `CHANGELOG.md`: метрики до и после. Без этого коммит неполон
 по правилам репозитория.
 
-*Готовность:* `link-check.mjs` зелёный; ни одного «TODO»/«TBD»; цифры в документе совпадают с
+*Готовность:* `link-check.mjs` зелёный; ни одной незавершённой пометки; цифры в документе совпадают с
 JSON замеров.
 
 ---

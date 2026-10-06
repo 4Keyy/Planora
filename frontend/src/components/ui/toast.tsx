@@ -29,6 +29,9 @@ const Toast = React.forwardRef<
   return (
     <motion.div
       ref={ref}
+      // The stack runs in `popLayout`: a leaving toast is pinned out of the flow at once, and
+      // without `layout` the others jumped a toast's height in one frame. They glide instead.
+      layout="position"
       // Errors interrupt (assertive); everything else is announced politely. role implies the
       // matching aria-live, so a screen reader speaks the toast even though it is purely visual.
       role={type === "error" ? "alert" : "status"}
@@ -74,7 +77,7 @@ export function Toaster() {
       aria-label="Notifications"
       aria-live="polite"
       aria-relevant="additions"
-      className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top,0px)+72px)] z-toast flex max-h-[calc(100vh-72px)] flex-col-reverse gap-2.5 px-4 pb-4 sm:inset-x-auto sm:right-6 sm:top-[72px] sm:w-full sm:max-w-[360px] sm:flex-col"
+      className="pointer-events-none fixed inset-x-0 top-[var(--bar-clearance)] z-toast flex max-h-[calc(100vh-var(--bar-clearance))] flex-col-reverse gap-2.5 px-4 pb-4 sm:inset-x-auto sm:right-6 sm:w-full sm:max-w-[360px] sm:flex-col"
     >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (

@@ -18,8 +18,13 @@ beforeEach(() => {
 // ─── redactionArc ───────────────────────────────────────────────────────────
 
 describe("redactionArc", () => {
-  it("draws the whole circle for public", () => {
-    expect(redactionArc("public")).toEqual({ dash: 1, gap: 0 })
+  it("never closes the ring, and opens it widest for all friends", () => {
+    // Sharing with every friend is still a circle the owner chose: the most open ring
+    // the mark draws, never a closed one.
+    expect(redactionArc("public")).toEqual(redactionArc("shared", 99))
+    for (const audience of ["private", "shared", "public"] as const) {
+      expect(redactionArc(audience).gap).toBeGreaterThan(0)
+    }
   })
 
   it("leaves exactly one narrow gap for private", () => {
@@ -116,7 +121,13 @@ describe("RedactionBadge", () => {
   it("is not a button when there is nothing to change", () => {
     render(<RedactionBadge audience="public" />)
     expect(screen.queryByRole("button")).toBeNull()
-    expect(screen.getByText("Public")).toBeInTheDocument()
+    expect(screen.getByText("All friends")).toBeInTheDocument()
+  })
+
+  it("says all friends, never public", () => {
+    render(<RedactionBadge audience="public" />)
+    expect(screen.getByRole("img")).toHaveAccessibleName("Shared with all your friends.")
+    expect(screen.queryByText(/public/i)).toBeNull()
   })
 
   it("becomes a real button when it can cycle the audience", async () => {
@@ -165,8 +176,7 @@ describe("RedactionBadge", () => {
   })
 
   it("marks you at the centre only while you are the only viewer", () => {
-    // The filled centre is what separates private from public at 14px, where the two
-    // rings differ by about two pixels of gap.
+    // The filled centre is you, alone; the moment anyone else can see the task it goes.
     const { container, rerender } = render(<RedactionBadge audience="private" size="sm" />)
     expect(container.querySelector(".fill-ink")).not.toBeNull()
 

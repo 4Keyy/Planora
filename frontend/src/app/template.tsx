@@ -1,7 +1,9 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
+import { isFirstPageOfVisit, markPageShown } from "@/lib/route-transition"
 
 /**
  * Route transition. A `template.tsx` re-mounts on every navigation (unlike
@@ -46,10 +48,29 @@ import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
  * animations, and the global `MotionConfig` still collapses it under
  * `prefers-reduced-motion`.
  */
+/*
+ * ## The first page of a visit is not faded in — it is simply there
+ *
+ * This fade used to start every page from `initial={{ opacity: 0 }}`, and framer-motion
+ * writes that into the server's HTML as `style="opacity:0"`. So every route — the
+ * landing page first of all — arrived as a blank page and stayed blank until the
+ * JavaScript had hydrated and played the fade. On a slow device that is a blank screen;
+ * with scripts blocked it was a blank screen forever. And it made LCP bimodal: measured
+ * on `/`, the `h1` reported at ~540 ms when hydration finished early and not at all
+ * when hydration collided with other main-thread work, leaving a 648 px² button as the
+ * page's "largest" paint at 2.5 s.
+ *
+ * Now the server and the first client render both start visible (`initial={false}`, so
+ * hydration agrees byte for byte), and only a navigation inside the app fades — which is
+ * the transition this was ever for.
+ */
 export default function Template({ children }: { children: React.ReactNode }) {
+  const [initial] = useState(() => (isFirstPageOfVisit() ? false : { opacity: 0 }))
+  useEffect(markPageShown, [])
+
   return (
     <motion.div
-      initial={{ opacity: 0 }}
+      initial={initial}
       animate={{ opacity: 1 }}
       transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
     >

@@ -1,13 +1,13 @@
 # Getting Started
 
-This guide takes a clean local checkout to a running Planora app.
+This guide explains the supported local launch commands and first-user flow. The audited checkout has an incomplete Todo migration baseline: a fresh database needs that corrected before this can be a successful clean-install walkthrough. See [the audit](audits/2026-10-06.md) and [database initialization](database.md#startup-and-schema-initialization).
 
 ## Prerequisites
 
 | Requirement | Recommended version | Used by |
 |---|---:|---|
 | .NET SDK | 10.x | backend services and xUnit tests |
-| Node.js | current LTS compatible with Next.js 16 | frontend |
+| Node.js | 20.9+ compatible with Next.js 16; CI requests 20 | frontend |
 | npm | bundled with Node | frontend dependencies/scripts |
 | Docker Desktop | recent stable | PostgreSQL, Redis, RabbitMQ, optional backend containers |
 | PowerShell | 7.x recommended; Windows PowerShell can run the scripts when launcher/helper files remain ASCII-compatible | launch scripts |
@@ -33,6 +33,7 @@ REDIS_PASSWORD=<strong-password>
 RABBITMQ_USER=<user>
 RABBITMQ_PASSWORD=<strong-password>
 JWT_SECRET=<at-least-32-characters>
+GRPC_SERVICE_KEY=<at-least-16-characters>
 ```
 
 `JWT_SECRET` must be shared by every backend service. If it differs between services, login can succeed but downstream calls return `401`.
@@ -112,8 +113,7 @@ front door. The first production frontend build adds about a minute to startup.
 
 ### Schema Bootstrap On First Start
 
-On a first clean database start every DB-owning service initializes its own schema — there is no
-separate migration step. `DatabaseStartup.EnsureReadyAsync` looks at what the assembly ships: if it
+Auth, Category, Todo, Collaboration and Messaging call the startup schema helper. Realtime does not; its optional persistent schema needs an explicit migration step. `DatabaseStartup.EnsureReadyAsync` looks at what the assembly ships: if it
 carries EF migrations it applies the pending ones with `MigrateAsync`, and if it carries none it
 creates the schema from the current EF model with `EnsureCreatedAsync` and logs a warning saying so.
 
@@ -121,8 +121,8 @@ Which path each service takes today:
 
 | Service | Migrations in the repository | Startup path |
 |---|---|---|
-| Todo | yes — 7 files under `Services/TodoApi/Planora.Todo.Infrastructure/Migrations/` | `MigrateAsync` |
-| Realtime | yes — `20260615211750_InitialRealtimeNotifications` | `MigrateAsync` |
+| Todo | tracked alteration migrations, missing initial baseline | `MigrateAsync`; fails to bootstrap a fresh database until the baseline is reconciled |
+| Realtime | yes — `20260615211750_InitialRealtimeNotifications` | No startup helper; apply explicitly with `Planora.Migrator --service realtime` |
 | Auth, Category, Messaging, Collaboration | no | `EnsureCreatedAsync` |
 
 `.gitignore` carries `**/Migrations/**`, so a migration you generate locally stays yours by default;
@@ -149,16 +149,14 @@ Expected local URLs:
 | Realtime aggregate health via gateway | `http://localhost:5132/realtime/health` |
 | RabbitMQ UI | `http://localhost:15672` |
 
-A `503` on `/health/ready` is an intentional traffic hold while a
-dependency (Postgres / Redis / RabbitMQ) is warming up — `/health/live`
-will still return `200` because the process itself is alive. See
+A `503` on `/health/ready` means a registered ready-tagged check failed. The gateway and Realtime have empty probe registrations, so their `200` cannot prove dependency/schema readiness. Probe the relevant service and exercise a real API flow. See
 [`docs/architecture.md`](architecture.md) "Health Probe Architecture".
 
 The frontend calls the gateway through `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:5132` in `frontend/next.config.js`.
 
 ## 4. First Successful User Flow
 
-1. Open `http://localhost:3000`.
+1. Confirm the Todo schema/migration baseline is ready, then open `http://localhost:3000`.
 2. Register a new user.
 3. Create a category.
 4. Create a todo assigned to that category — press `C` for quick capture, or use the create panel.
@@ -168,7 +166,7 @@ The frontend calls the gateway through `NEXT_PUBLIC_API_URL`, defaulting to `htt
 
 Relevant implementation:
 
-- frontend routes: `frontend/src/app/auth/register/page.tsx`, `frontend/src/app/tasks/page.tsx`, `frontend/src/app/categories/page.tsx`, `frontend/src/app/profile/page.tsx`
+- frontend routes: `frontend/src/app/auth/register/page.tsx`, `frontend/src/app/(app)/tasks/page.tsx`, `frontend/src/app/(app)/categories/page.tsx`, `frontend/src/app/(app)/profile/page.tsx`
 - API client: `frontend/src/lib/api.ts`
 - auth store: `frontend/src/store/auth.ts`
 - backend controllers: `AuthenticationController.cs`, `TodosController.cs`, `CategoriesController.cs`, `UsersController.cs`
@@ -185,7 +183,7 @@ dotnet test Planora.sln --settings coverage.runsettings
 
 ```powershell
 Push-Location frontend
-npm install
+npm ci
 Pop-Location
 npm --prefix frontend run dev
 npm --prefix frontend run lint

@@ -5,11 +5,10 @@ import type { Audience } from "@/components/ui/redaction-badge"
  * part that can be wrong in an interesting way is testable. `src/app/**` is excluded
  * from the coverage gate (`vitest.config.ts`); `src/lib/**` is not.
  *
- * The product can never reach `public`: the editor writes `isPublic: false` on every
- * save (`components/todos/edit-todo-modal/utils.ts`), and no route serves a task to an
- * anonymous reader. So this function's range is deliberately `private | shared` — and
- * over that range the redaction arc is monotone, which is the whole point of showing it.
- * Returning `public` here would be the landing page's one outright lie.
+ * The range is deliberately `private | shared`. Nothing in Planora is public — there is no
+ * public link and no publish button, and even a task shared with every friend is a circle
+ * the owner chose — so the ring the landing page draws never closes. Over this range the
+ * redaction arc is monotone, which is the whole point of showing it.
  */
 export function deriveAudience(viewerCount: number): Audience {
   return normalizeViewerCount(viewerCount) === 0 ? "private" : "shared"
@@ -41,13 +40,58 @@ export function isAtSharingCeiling(viewerCount: number): boolean {
   return normalizeViewerCount(viewerCount) >= SHARING_CEILING
 }
 
-/** The sentence under the stepper. Two readings, so the ceiling is stated rather than implied. */
+/**
+ * The block's one live sentence: the gauge's current reading, said once, in words.
+ *
+ * Past the ceiling the sentence has two jobs, which is why it has two clauses. The count
+ * is still true and still moving, and the ring is not — a visitor watching a still arc
+ * while the number climbs needs to be told that the stillness is the design.
+ *
+ * "eight" is spelled out rather than interpolated from `SHARING_CEILING`: a number in the
+ * middle of a sentence reads as a count, and this one is a threshold. The ceiling's own
+ * test pins the constant at 8, so the word cannot drift from it unnoticed.
+ */
 export function ceilingCaption(viewerCount: number): string {
   const count = normalizeViewerCount(viewerCount)
-  if (count === 0) return "Private — you are the only person who can open this."
-  if (count === 1) return "One person can read it. The cut is as narrow as sharing gets."
+  if (count === 0) return "Only you can open this task."
+  if (count === 1) return "One person can open it, and the ring opens a crack."
   if (isAtSharingCeiling(count)) {
-    return `${count} people can read it. The mark stopped widening at ${SHARING_CEILING}; only the number is still moving.`
+    return `${count} people can open it. The ring stopped widening at eight.`
   }
-  return `${count} people can read it, and the cut widens with each one.`
+  return `${count} people can open it, and the ring widens with each one.`
+}
+
+/**
+ * Which way of reading the ring applies at this count — the legend row that is lit.
+ *
+ * The range is three states, not four. The legend's last row, public, says it is not
+ * possible, and the type says so here, where a slip would otherwise light it.
+ */
+export type RingReading = "private" | "shared" | "ceiling"
+
+export function ringReading(viewerCount: number): RingReading {
+  const count = normalizeViewerCount(viewerCount)
+  if (count === 0) return "private"
+  return isAtSharingCeiling(count) ? "ceiling" : "shared"
+}
+
+/**
+ * The slider's `aria-valuetext`. A bare "0" is what a screen reader says for a range
+ * input without one, and zero people is not how anybody describes a private task.
+ */
+export function viewerValueText(viewerCount: number): string {
+  const count = normalizeViewerCount(viewerCount)
+  if (count === 0) return "Only you"
+  return count === 1 ? "1 person" : `${count} people`
+}
+
+/** The word under the count in the ring's centre. At zero there is no count, only you. */
+export const RING_COUNT_NOUNS = ["just you", "person", "people"] as const
+
+export type RingCountNoun = (typeof RING_COUNT_NOUNS)[number]
+
+export function ringCountNoun(viewerCount: number): RingCountNoun {
+  const count = normalizeViewerCount(viewerCount)
+  if (count === 0) return "just you"
+  return count === 1 ? "person" : "people"
 }

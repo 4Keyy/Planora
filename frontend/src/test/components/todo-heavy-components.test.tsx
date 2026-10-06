@@ -107,6 +107,34 @@ describe("TodoCard", () => {
     vi.useRealTimers()
   })
 
+  it("centres the check in a 1fr auto 1fr rail and pins the eye to the bottom-left corner", () => {
+    // Owner's ruling: the circle sits on the card's vertical centre at every height and the
+    // eye 22px from the bottom, as far as it sits from the left. jsdom cannot measure layout,
+    // so this guards the structure that produces it (measured in Chromium at 375 and 1280px).
+    render(<TodoCard todo={baseTodo()} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
+    const check = screen.getByRole("button", { name: "Mark as complete" })
+    const eye = screen.getByRole("button", { name: "Collapse task card" })
+    const rail = check.parentElement!
+    expect(rail).toHaveClass("grid", "grid-rows-[1fr_auto_1fr]", "self-stretch")
+    expect(rail.parentElement).toHaveClass("items-center")
+    expect(eye.parentElement).toBe(rail)
+    expect(check).toHaveClass("row-start-2")
+    expect(eye).toHaveClass("row-start-3", "self-end", "mt-4", "mb-0.5")
+    // One padding for every open card, so the eye's bottom inset never changes.
+    expect(rail.closest(".p-5")).not.toBeNull()
+  })
+
+  it("renders a completed card without an empty chip row or an eye", () => {
+    render(
+      <TodoCard todo={baseTodo()} variant="completed" onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />,
+    )
+    expect(screen.queryByRole("button", { name: "Collapse task card" })).toBeNull()
+    // The title's column holds the title alone: an empty chip row used to take a 12px gap
+    // and put the title 6px above the centred check.
+    const column = screen.getByRole("heading", { level: 3 }).closest(".flex-col")!
+    expect(column.children).toHaveLength(1)
+  })
+
   it("renders owner metadata, completes, collapses, expands, edits, and deletes", async () => {
     const onComplete = vi.fn()
     const onDelete = vi.fn()
@@ -128,14 +156,13 @@ describe("TodoCard", () => {
 
     // The owner of a shared task gets the redaction arc, not a generic share icon:
     // the useful fact is who can see it, which they already know they shared.
-    // This fixture is `isPublic: true`, which outranks the shared list: public is
-    // the broader reach, and the arc closes completely to say so.
-    expect(screen.getByRole("img", { name: /Public\. Anyone with the link/ })).toBeInTheDocument()
+    // This fixture is `isPublic: true` — every friend — which outranks the shared list:
+    // the widest reach, drawn as the most open ring and never called "public".
+    expect(screen.getByRole("img", { name: "Shared with all your friends." })).toBeInTheDocument()
     expect(container.querySelector(".lucide-share2")).toBeNull()
 
-    // The border says ONE thing, and overdue outranks everything else. It used to
-    // return `border-accent` for "shared" too, so a shared task and a task somebody
-    // had taken into work were drawn identically and the border said nothing.
+    // Overdue outranks everything else: this task is shared (which would be the accent
+    // blue frame) and overdue, and the frame is alert. Work in progress is never the frame.
     const card = container.querySelector(".border-alert")
     expect(card).not.toBeNull()
     expect(card).not.toHaveClass("border-accent")
@@ -143,7 +170,7 @@ describe("TodoCard", () => {
     expect((card as HTMLElement).style.borderLeftColor).toBe("")
     expect(card!.className).not.toMatch(/bg-alert/)
     expect(screen.getByText(/Overdue/i)).toBeInTheDocument()
-    expect(screen.getByText(/EXP:/)).toBeInTheDocument()
+    expect(screen.getByText(/^Expected /)).toBeInTheDocument()
     expect(screen.getByText("2d delay")).toBeInTheDocument()
 
     const completeButton = screen.getByRole("button", { name: "Mark as complete" })
@@ -160,6 +187,8 @@ describe("TodoCard", () => {
     expect(onToggleHidden).toHaveBeenCalledOnce()
     expect(screen.getByRole("button", { name: "Expand task card" })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole("button", { name: "Expand task card" })).not.toBeDisabled())
+    // The pressed toggle unmounted; focus moved to its counterpart instead of <body>.
+    expect(screen.getByRole("button", { name: "Expand task card" })).toHaveFocus()
 
     rerender(
       <TodoCard
@@ -269,7 +298,7 @@ describe("TodoCard", () => {
     fireEvent.mouseEnter(cardRoot)
     fireEvent.mouseLeave(cardRoot)
 
-    const desktopDeleteZone = container.querySelector('div[class*="w-[68px]"]') as HTMLElement
+    const desktopDeleteZone = screen.getAllByRole("button", { name: /Delete task/ })[0]
     fireEvent.mouseEnter(desktopDeleteZone)
     await waitFor(() =>
       expect(container.querySelector('div[class*="text-paper"][class*="cursor-pointer"]')).not.toBeNull(),
@@ -324,8 +353,11 @@ describe("TodoCard", () => {
       />,
     )
 
-    expect(screen.getByText("No category")).toBeInTheDocument()
-    expect(screen.getByText("No category")).toHaveClass("blur-[3px]")
+    // Two copies crossfade: the blurred one is decorative, the clear one carries the name.
+    const [blurred, clear] = screen.getAllByText("No category")
+    expect(blurred).toHaveClass("blur-[3px]")
+    expect(blurred).toHaveAttribute("aria-hidden", "true")
+    expect(clear).not.toHaveAttribute("aria-hidden")
     expect(container.querySelector(".border-alert")).not.toBeNull()
     expect(screen.queryByText("Write coverage tests")).not.toBeInTheDocument()
 
@@ -363,7 +395,37 @@ describe("TodoCard", () => {
     const card = container.querySelector(".border-alert")
     expect(card).not.toBeNull()
     expect(card).not.toHaveClass("border-accent")
-    expect(screen.getByText("Focus")).toHaveClass("blur-[3px]")
+    expect(screen.getAllByText("Focus")[0]).toHaveClass("blur-[3px]")
+  })
+
+  it("re-renders when only aria-current changes on its row props", () => {
+    // The memo compares rowProps field by field; a field it forgot would leave the
+    // card announcing a cursor it no longer has, or missing one it just gained.
+    const handles = { ref: vi.fn(), onFocus: vi.fn() }
+    const rowProps = (ariaCurrent: "true" | undefined) => ({
+      ...handles,
+      tabIndex: 0 as const,
+      "data-active": undefined,
+      "aria-current": ariaCurrent,
+      "data-selected": undefined,
+    })
+    const todo = baseTodo()
+    const card = (ariaCurrent: "true" | undefined) => (
+      <TodoCard
+        todo={todo}
+        onComplete={vi.fn()}
+        onDelete={vi.fn()}
+        onEdit={vi.fn()}
+        rowProps={rowProps(ariaCurrent)}
+      />
+    )
+
+    const { container, rerender } = render(card(undefined))
+    const root = container.querySelector(".group\\/card")
+    expect(root).not.toHaveAttribute("aria-current")
+
+    rerender(card("true"))
+    expect(container.querySelector(".group\\/card")).toHaveAttribute("aria-current", "true")
   })
 })
 
@@ -375,6 +437,58 @@ describe("CreateTodoPanel", () => {
     Element.prototype.setPointerCapture ??= vi.fn()
     Element.prototype.releasePointerCapture ??= vi.fn()
     HTMLElement.prototype.scrollIntoView ??= vi.fn()
+  })
+
+  it("types into the title from nowhere, but leaves modifiers, Space, other fields and open popovers alone", async () => {
+    const user = userEvent.setup()
+    render(
+      <CreateTodoPanel
+        isOpen
+        onToggle={vi.fn()}
+        categories={categories}
+        onSubmit={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+    const title = screen.getByPlaceholderText("What needs to be done?")
+    const details = screen.getByPlaceholderText("Add details — optional.")
+    // Opening focuses nothing: the field must not light up by itself.
+    expect(title).not.toHaveFocus()
+
+    await user.keyboard("{Control>}k{/Control}")
+    await user.keyboard(" ")
+    expect(title).not.toHaveFocus()
+
+    await user.keyboard("Fix")
+    expect(title).toHaveFocus()
+    expect(title).toHaveValue("Fix")
+
+    // A key typed into another field belongs to that field.
+    await user.click(details)
+    await user.keyboard("x")
+    expect(details).toHaveValue("x")
+    expect(title).toHaveValue("Fix")
+
+    // An open selector popover owns its keys.
+    await user.click(screen.getByRole("button", { name: "Priority" }))
+    await user.keyboard("z")
+    expect(title).toHaveValue("Fix")
+  })
+
+  it("hands focus back to the header when the panel closes with focus inside the form", async () => {
+    const user = userEvent.setup()
+    const onToggle = vi.fn()
+    const props = { onToggle, categories, onSubmit: vi.fn(), onCreateCategory: vi.fn(), onDeleteCategory: vi.fn() }
+    const { rerender } = render(<CreateTodoPanel isOpen {...props} />)
+    await user.keyboard("Fix")
+    expect(screen.getByPlaceholderText("What needs to be done?")).toHaveFocus()
+
+    await user.keyboard("{Escape}")
+    expect(onToggle).toHaveBeenCalledOnce()
+    rerender(<CreateTodoPanel isOpen={false} {...props} />)
+    // The collapsed body is inert; focus must not fall to <body>.
+    expect(screen.getByRole("button", { name: "Open create task panel" })).toHaveFocus()
   })
 
   it("renders collapsed state and opens through the primary action", async () => {
@@ -880,16 +994,47 @@ describe("EditTodoModal", () => {
       dueDateStart: null,
       clearDueDate: false,
       categoryId: "cat-1",
-      isPublic: false,
+      // The fixture is shared with all friends (`isPublic: true`), and renaming it must not
+      // change who can see it. This assertion used to pin `isPublic: false` with a capacity
+      // of one — the editor quietly taking a task away from every friend on any edit.
+      isPublic: true,
       sharedWithUserIds: [],
-      requiredWorkers: 1,
-      clearRequiredWorkers: false,
+      requiredWorkers: null,
+      clearRequiredWorkers: true,
     })
 
     // Autosave keeps the modal open; closing is a separate, explicit action
     expect(onClose).not.toHaveBeenCalled()
     await user.keyboard("{Escape}")
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it("turns an all-friends task into a share with just the friend the owner picks", async () => {
+    const user = userEvent.setup()
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    render(
+      <EditTodoModal
+        todo={baseTodo({ isPublic: true, sharedWithUserIds: [] })}
+        categories={categories}
+        onClose={vi.fn()}
+        onSave={onSave}
+        onSaveViewerPreference={vi.fn()}
+        onCreateCategory={vi.fn()}
+        onDeleteCategory={vi.fn()}
+      />,
+    )
+    // The token says what the save will write: all friends, never "public".
+    await user.click(screen.getByRole("button", { name: /all friends/i }))
+    await user.click(await screen.findByRole("checkbox", { name: "Ada Lovelace" }))
+    await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2000 })
+    expect(onSave).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        isPublic: false,
+        sharedWithUserIds: ["friend-1"],
+        requiredWorkers: 2,
+        clearRequiredWorkers: false,
+      }),
+    )
   })
 
   it("autosaves only a shared viewer's private category preference", async () => {

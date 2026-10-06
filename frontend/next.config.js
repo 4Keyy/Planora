@@ -116,6 +116,10 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  // A second build directory, so a verification build never rewrites the `.next` a running
+  // `next start` is serving — rebuilding under a live server tears it into an error page.
+  // Unset in every normal run; see docs/development.md.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   compress: true,
   // Trust the host's own LAN IPs in dev so a teammate opening the shared `next dev -H 0.0.0.0`
   // URL gets the internal `/_next/*` resources (incl. the HMR websocket) instead of cross-origin
@@ -203,6 +207,12 @@ const nextConfig = {
       { source: '/register', destination: '/auth/register', permanent: true },
       { source: '/signin', destination: '/auth/login', permanent: true },
       { source: '/signup', destination: '/auth/register', permanent: true },
+      // Password-reset emails sent before FrontendLinkBuilder was corrected point at
+      // /reset-password, which never existed. Those links are already in people's
+      // inboxes and stay valid for 24 hours, so the alias has to outlive the fix.
+      // The query string rides along automatically.
+      { source: '/reset-password', destination: '/auth/reset-password', permanent: true },
+      { source: '/verify-email', destination: '/auth/verify-email', permanent: true },
     ]
   },
   async rewrites() {
@@ -216,7 +226,7 @@ const nextConfig = {
     // directly with an absolute URL and never hit these frontend paths).
     //
     // `/friendships` is the one gateway route the frontend calls WITHOUT a service
-    // prefix (src/hooks/use-friends.ts, src/app/profile/page.tsx call api.get('/friendships')),
+    // prefix (src/hooks/use-friends.ts, src/app/(app)/profile/page.tsx call api.get('/friendships')),
     // so it needs its own entries — the bare path and its sub-paths — or every friends
     // request 404s against Next instead of reaching the gateway. There is no frontend
     // page at /friendships, so nothing is shadowed.

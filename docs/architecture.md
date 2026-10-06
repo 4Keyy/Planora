@@ -34,7 +34,10 @@ flowchart LR
   Category --> Rabbit
   Collaboration --> Rabbit
   Messaging --> Rabbit
-  Realtime --> Rabbit
+  Rabbit --> Todo
+  Rabbit --> Category
+  Rabbit --> Collaboration
+  Rabbit --> Realtime
 
   Auth --> Redis["Redis"]
   Todo --> Redis
@@ -58,7 +61,7 @@ sets neither `ConnectionStrings__Redis` nor `RabbitMq__*` on it.
 | Todo API | todos, sharing, hidden state, viewer categories | `Services/TodoApi/Planora.Todo.Api/Program.cs`, `Controllers/TodosController.cs` |
 | Category API | category CRUD and category gRPC | `Services/CategoryApi/Planora.Category.Api/Program.cs` |
 | Messaging API | direct message HTTP/gRPC | `Services/MessagingApi/Planora.Messaging.Api/Program.cs` |
-| Collaboration API | task comment timeline: user/genesis/system comments + comment notifications | `Services/CollaborationApi/Planora.Collaboration.Api/Program.cs`, `Controllers/CommentsController.cs` |
+| Collaboration API | user/system/reply timeline, synthesized Author's Note and comment notifications | `Services/CollaborationApi/Planora.Collaboration.Api/Program.cs`, `Controllers/CommentsController.cs` |
 | Realtime API | SignalR notification hub and notification controllers | `Services/RealtimeApi/Planora.Realtime.Api/Program.cs` |
 
 ## Service Boundaries
@@ -69,8 +72,8 @@ sets neither `ConnectionStrings__Redis` nor `RabbitMq__*` on it.
 | Todo | todo items, tags, todo shares, viewer preferences, task-lifecycle outbox | user profiles, category definitions, friendship source of truth, comment timeline |
 | Category | categories | todo assignments beyond category id references |
 | Messaging | messages and messaging outbox/inbox | friendship ownership |
-| Collaboration | task comment timeline (user/genesis/system comments), comment notifications outbox | task aggregate, task access rules (delegated to Todo via gRPC), friendship source of truth |
-| Realtime | SignalR connections, notification fan-out, Redis backplane, the durable notification read-model (`planora_realtime`) | task/comment content — payloads are id+action signals, and the client refetches through the owning service |
+| Collaboration | stored user/system/reply comments, synthesized task description, notification/sync outbox and active inbox | task aggregate, task access rules (delegated to Todo via gRPC), friendship source of truth |
+| Realtime | SignalR connections, notification fan-out, Redis backplane, conditional durable notification read-model (`planora_realtime`) | task/comment aggregates; sync signals carry IDs/actions, while notification payloads carry title/message previews |
 | Gateway | public route mapping and ingress concerns | domain rules |
 
 ## Backend Layering
@@ -162,9 +165,9 @@ bootstrap, the shared in-flight fetch, the single `403` retry — is in
 [`frontend.md`](frontend.md) § 4 and `lib/csrf.ts`.
 
 `app.UseCsrfProtection()` is currently registered in **Auth, Category, Todo, Collaboration and
-Messaging**. Realtime and the gateway do not register it. ADR-0005 records an earlier, narrower
-decision (Auth API only) and is out of date on this point; the invariant it protects —
-no cookie credential outside Auth's `/auth/api/v1/auth` path scope — still holds.
+Messaging**. Realtime and the gateway do not register it. [ADR-0005](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md)
+preserves the earlier narrower decision and records the current implementation separately.
+The refresh-cookie path remains scoped to Auth's `/auth/api/v1/auth` path.
 
 ### CSP and per-request rendering
 
@@ -213,7 +216,7 @@ sequenceDiagram
 
 Code:
 
-- `frontend/src/app/tasks/page.tsx`
+- `frontend/src/app/(app)/tasks/page.tsx`
 - `frontend/src/lib/api.ts`
 - `Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs`
 - `Services/TodoApi/Planora.Todo.Application/Features/Todos/Queries/GetUserTodos/GetUserTodosQueryHandler.cs`
@@ -258,7 +261,8 @@ Code:
 
 gRPC contracts are in `GrpcContracts/Protos`.
 
-All five services map a gRPC server (`app.MapGrpcService<…>`), but only four of the contracts
+Auth, Todo, Category, Messaging and Realtime map a gRPC server (`app.MapGrpcService<…>`);
+Collaboration does not. Only three of the contracts
 have an in-repo caller. `messaging.proto` and `realtime.proto` are served and never dialled —
 the notification path to Realtime runs over RabbitMQ, not gRPC.
 
@@ -280,7 +284,7 @@ Confirmed cross-service checks:
 - Todo asks Category for category metadata and category ownership.
 - Collaboration authorises every comment read/write through `TodoService.CheckTaskCommentAccess` (owner / shared / public + friendship), so it never reads Todo's database (INV-OWN-1) and never duplicates the sharing rules.
 - Collaboration validates **subtask reply targets** through `TodoService.GetSubtaskBrief` (exists / not deleted / child of exactly this task) and snapshots the returned title + author on the reply — the parent/child check stays where the task aggregate lives (INV-OWN-1), and the client can never forge a quote.
-- Collaboration batch-fetches current user avatar URLs from Auth (`GetUserAvatarsBatch` gRPC) when serving comment threads. Live enrichment is wrapped by `CachingUserService` (in-memory, 60 s TTL) so paged comment reads stay cheap while bounding staleness after a user changes their avatar.
+- Collaboration batch-fetches current names/avatar URLs from Auth (`GetUserProfilesBatch` gRPC) when serving comment threads. Live enrichment is wrapped by `CachingUserService` (in-memory, 60 s TTL), bounding profile staleness.
 - Todo batch-fetches subtask author identity (name + avatar) from Auth (`GetUserProfilesBatch`) when listing subtasks, so the branch's subtask cards show a live byline; the lookup is failure-tolerant (labels go empty, the read never fails).
 - Realtime authorises every branch-room join through the same `TodoService.CheckTaskCommentAccess`
   before adding the connection to the `task:{id}` group, and fails closed on an unknown or
@@ -325,26 +329,58 @@ Publishers via outbox:
 
 ### Outbox delivery semantics
 
-Each service writes integration events to its own `outbox` table inside the same transaction as the
-domain change (transactional outbox), and a background `OutboxProcessor` polls that table and publishes
-to RabbitMQ. The guarantee is **at-least-once**: a process can crash after the broker publish but before
-the row is marked `Processed`, so the event is re-published on the next pass. Consumers therefore **must
-be idempotent** — the persistent inbox de-duplicates by event id (Auth, Messaging and Collaboration keep
-an `inbox` table; Realtime instead de-dups against its own read-model, in
-`NotificationEventHandler`, which persists before it pushes and returns early when the row already
-exists, so a redelivery never produces a second toast).
+Every service has an `OutboxMessages` table, and Auth, Todo, Category, Messaging and
+Collaboration run the shared `OutboxProcessor`. Realtime currently consumes and persists
+notifications; its outbox schema has no runtime producer/drainer registration.
 
-Because delivery is at-least-once, the processor also runs a **crash-recovery sweep** at the start of
-every pass: a worker that dies between `MarkAsProcessing` and `MarkAsProcessed` strands a row in
-`Processing`, which the main query never re-selects. `ReclaimStuckProcessingAsync` returns any row that
-has been `Processing` longer than a 5-minute lease back to `Pending` (consuming the retry budget, so a
-message that crashes the worker on every attempt is eventually dead-lettered rather than looping). Without
-this sweep a single crash silently drops the event.
+The processor reads up to 20 rows per pass, publishes persistent messages with publisher
+confirms and `mandatory: true`, then marks the row Processed. Todo additionally wakes the
+processor with `OutboxSignal`; otherwise the idle polling cadence is five seconds. An
+accepted broker publish followed by a crash before the processed save can be repeated:
+delivery is **at least once**, subject to the finite retry/dead-letter policy.
+
+Transaction boundaries differ by workflow:
+
+| Producer | Actual persistence boundary |
+|---|---|
+| Todo / Collaboration | `OutboxRepository.AddAsync` immediately calls `SaveChangesAsync`; tracked business changes and the first enqueued event can commit together, but later events/recipient fan-out commit separately. A whole handler is not automatically one transaction. |
+| Messaging send | Message is tracked before the outbox add; that add saves the message and its notification row together. |
+| Category deletion | `CategoryDbContext.SaveChangesAsync` commits deletion before dispatching the domain event; the event handler writes the outbox with a second save. A crash in between can lose the cleanup event. |
+| Auth | Context dispatch is also after its business save; individual command handlers explicitly add integration events. Atomicity must be checked at each handler's save boundary. |
+
+Only Collaboration registers `IInboxRepository` for bus deduplication. Auth/Messaging have
+inbox tables but no active subscribers, and Todo/Category/Realtime do not register the bus
+inbox. `RabbitMqEventBus` derives a GUID from SHA-256 of `(event ID, handler full name)`,
+checks for that key, invokes the handler, then records it. Inbox check/insert failures are
+logged and processing continues without deduplication. Effects and inbox recording are
+separate commits, so concurrent deliveries and crashes can repeat side effects; this is
+not an exactly-once guarantee. Handler replay safety remains necessary.
+
+Realtime `NotificationStore` enforces unique `SourceEventId` and persists before pushing.
+A duplicate skips the push. This prevents duplicate notification rows, but a failed push
+after persistence is not retried by a redelivery of that same event. `NotificationDeliveries`
+is a domain/schema scaffold with no current writer; hub reconnect does not replay stored
+notifications. Clients recover durable state through the authorized notification read API.
+
+`OutboxMessage.MarkAsFailed` budgets three failures. The first two set retry timestamps
+one/five minutes ahead but return the row to Pending; the processor selects all Pending
+rows regardless of `NextRetryUtc`, so those timestamps currently do not enforce backoff.
+An unresolved event type or null deserialization result is dead-lettered immediately.
+Broker consumer failures requeue once and then route to `planora-eventbus-dlx`; malformed
+JSON is dead-lettered immediately. Replay of terminal rows is an operator action.
+
+The processor runs a recovery sweep at the start of each pass. Its predicate
+selects Processing rows whose `UpdatedAt ?? CreatedAt` is older than five minutes
+and calls `ReclaimForRetry`, consuming the retry budget. These transitions do not
+update the timestamp, so this is **not five minutes measured from the claim**.
+An old row can qualify immediately after entering Processing, while a recently
+created row is measured from creation. Combined with the lack of an atomic claim,
+the configured lease does not establish safe multi-instance recovery.
 
 The processor's `SELECT` of pending/failed rows is **claim-free**, which assumes **one active
 `OutboxProcessor` instance per service** — the default deployment. Running two instances of the same
-service would have both drain the same `Pending` rows and double-publish (still safe for consumers
-because of idempotency, but wasteful). To scale a service horizontally while keeping a single logical
+service would have both drain the same `Pending` rows and double-publish; consumers without
+transactional deduplication can repeat side effects. To scale a service horizontally while keeping a single logical
 drainer, claim each batch atomically before processing — e.g. `SELECT … FOR UPDATE SKIP LOCKED` or a
 guarded `UPDATE … SET Status = Processing … RETURNING` — so every row is owned by exactly one worker.
 This is called out in `OutboxProcessor.ProcessOutboxMessagesAsync`.
@@ -365,13 +401,14 @@ four streams over that one socket:
 | Branch sync | `BranchChanged` | per-task `task:{id}` room, from `RealtimeSyncIntegrationEvent` (branch scope) |
 | Typing | `UserTyping` / `UserStoppedTyping` | per-task room, ephemeral (never persisted) |
 
-The Notifications stream is **durable**: RealtimeApi persists each `NotificationEvent` to its
-read-model (`RealtimeDbContext`, idempotent on the event id) before pushing, so an offline recipient
-is caught up on reconnect and the UI can query unread counts (`/notifications/summary`) for per-card
+The notification read-model is **durable when `RealtimeDatabase` is configured**: RealtimeApi
+persists each `NotificationEvent` before pushing. The UI can query unread counts (`/notifications/summary`) for per-card
 dots, per-branch badges and the header bell. The actor who triggered an event is always excluded by
 the producer (`NotificationFanout`), and the author-only review milestones (`task.review` /
 `task.participants_done`) fire when every collaborator has finished. See `docs/features.md` →
-Realtime Notifications.
+Realtime Notifications. The hub does not replay missed toasts on reconnect; durable
+read recovery and live push delivery are distinct. Without a database the service uses
+`NullNotificationStore` and an empty read store, with ephemeral push and no deduplication.
 
 `RealtimeSyncIntegrationEvent` carries the feed audience (resolved by the producing service: owner +
 shared-with + the owner's accepted friends when public) and/or a branch task id. RealtimeApi only
@@ -449,7 +486,7 @@ Detailed security documentation: [`auth-security.md`](auth-security.md).
 
 ## Observability Architecture
 
-Observability is a first-class, cross-cutting concern wired identically in every service through a single shared extension. The pipeline is **safe-by-default**: if no OTLP endpoint is configured, the spans and metrics are still produced in-process but no exporter is registered, so there are no background connections, no log noise, and no need to reconfigure environments before merging telemetry-related changes.
+Services use the shared telemetry extension for OTel registration. Shared Serilog wiring is used by five domain services; Auth and gateway configure logging separately. The pipeline is **safe-by-default**: if no OTLP endpoint is configured, the spans and metrics are still produced in-process but no exporter is registered, so there are no background connections, no log noise, and no need to reconfigure environments before merging telemetry-related changes.
 
 - **Tracing pipeline** — `BuildingBlocks.Infrastructure.Logging.TelemetryConfiguration.AddPlanoraTelemetry(IConfiguration, defaultServiceName)` registers ASP.NET Core request tracing (with a `/health*` filter that suppresses probe noise), HttpClient tracing (covers gRPC-over-HTTP/2 transport), and Entity Framework Core tracing. The wildcard `Planora.*` subscription auto-discovers any service-defined `ActivitySource`.
 - **Metrics pipeline** — same extension wires ASP.NET Core request metrics, HttpClient metrics, and .NET runtime metrics (GC, threadpool, exceptions, working set). Custom counters and histograms published through `BuildingBlocks.Infrastructure.Observability.PlanoraMetrics` (Meter name `Planora.BuildingBlocks`) are auto-discovered through the same wildcard.
@@ -476,7 +513,7 @@ Every service and the Gateway publish three health-probe endpoints through a sin
 
 Liveness and readiness are deliberately distinct: an aggregate `/health` cannot distinguish "process dead — restart me" from "process alive but Postgres is slow — do not route to me yet". Fly.io's `[[http_service.checks]]` blocks point at the two split endpoints (`deploy/fly/*.fly.toml`).
 
-The shared RabbitMQ broker probe (`BuildingBlocks.Infrastructure.HealthChecks.RabbitMqHealthCheck`, registered once for every service in `AddBuildingBlocksInfrastructure`, plus manually in Realtime which wires messaging by hand) is tagged `messaging` and reports **`Degraded`** rather than `Unhealthy` on an outage: outgoing events buffer durably in the outbox while the broker is down, so a broker blip must surface on the aggregate `/health` for dashboards without pulling the instance out of rotation via `/health/ready`. The probe reuses the application's own `IRabbitMqConnectionManager` (the connection the event bus already holds) instead of opening a throwaway connection.
+The shared RabbitMQ broker probe (`BuildingBlocks.Infrastructure.HealthChecks.RabbitMqHealthCheck`, registered by `AddBuildingBlocksInfrastructure` in Auth, Todo, Category, Messaging and Collaboration; Realtime currently has an empty health-check registration) is tagged `messaging` and reports **`Degraded`** rather than `Unhealthy` on an outage: outgoing events buffer durably in the outbox while the broker is down, so a broker blip must surface on the aggregate `/health` for dashboards without pulling the instance out of rotation via `/health/ready`. The probe reuses the application's own `IRabbitMqConnectionManager` (the connection the event bus already holds) instead of opening a throwaway connection.
 
 ## Architecture Decisions
 
@@ -486,7 +523,7 @@ ADRs are stored in [`DECISIONS/`](DECISIONS/):
 - [`0002-http-only-refresh-cookies.md`](DECISIONS/0002-http-only-refresh-cookies.md) - refresh token storage.
 - [`0003-csrf-double-submit.md`](DECISIONS/0003-csrf-double-submit.md) - CSRF model.
 - [`0004-viewer-specific-todo-visibility.md`](DECISIONS/0004-viewer-specific-todo-visibility.md) - hidden shared task privacy.
-- [`0005-csrf-coverage-bounded-to-auth-api.md`](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md) - CSRF middleware scope. **Stale**: the code now registers it on five services, not one — see [CSRF](#csrf) above.
+- [`0005-csrf-coverage-bounded-to-auth-api.md`](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md) - CSRF middleware scope. **Historical decision with a current divergence note**: five services register it; see [CSRF](#csrf).
 - [`0006-force-dynamic-and-csp-nonce.md`](DECISIONS/0006-force-dynamic-and-csp-nonce.md) - why the whole App Router renders per request.
 
 ## Known Architectural Risks
@@ -496,7 +533,7 @@ ADRs are stored in [`DECISIONS/`](DECISIONS/):
 | Multiple response shapes | Frontend consumers must handle raw DTOs, `Result<T>`, and paged wrappers. | `parseApiResponse` handles common wrappers. |
 | Configuration drift between launch profiles and Compose | Port/connection examples can become stale. | Prefer Compose/appsettings/Ocelot as source of truth; see `configuration.md`. |
 | Realtime's Todo gRPC address is unset under Compose | `docker-compose.yml` sets `GrpcServices__TodoApi` for Collaboration but not for Realtime, so Realtime falls back to the `http://localhost:5101` default — which inside the container is the container itself. `JoinTask` then fails closed and branch rooms are never joined under Compose. | Not yet fixed. Set `GrpcServices__TodoApi: "http://todo-api:81"` on the `realtime-api` service, mirroring `collaboration-api`. |
-| ADR-0005 no longer matches the code | The ADR says CSRF middleware is registered only on Auth API; five services register it today. A reader trusting the ADR will mis-model the middleware pipeline. | The behaviour is the safe direction (more coverage, not less). ADR-0005 needs a superseding entry. |
+| ADR-0005 no longer matches the code | The ADR says CSRF middleware is registered only on Auth API; five services register it today. A reader trusting the ADR will mis-model the middleware pipeline. | The ADR now records the divergence. Scope must be explicitly reconciled as an architecture change; wider middleware coverage alone does not prove a stronger overall policy. |
 | Compose service ports are local-development bindings | Compose is a local topology, not a production edge design. | Keep databases, broker, cache, gRPC, and backend service ports private in production. |
 
 ## Data Retention subsystem

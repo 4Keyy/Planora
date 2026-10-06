@@ -37,7 +37,9 @@ describe("design token contract", () => {
       ["shadow", Object.keys(tokens.shadow).length, 5],
       ["duration", Object.keys(tokens.motion.duration).length, 5],
       ["easing", Object.keys(tokens.motion.ease).length, 3],
-      ["spring", Object.keys(tokens.motion.spring).length, 3],
+      // Four meanings: standard (the droplet's liquid settle), responsive (a tap), gentle
+      // (presence) and layout (travel that must land without passing its target).
+      ["spring", Object.keys(tokens.motion.spring).length, 4],
       ["font size", Object.keys(tokens.fontSize).length, 8],
       ["font weight", Object.keys(tokens.fontWeight).length, 4],
       ["layer", Object.keys(tokens.layer).length, 8],
@@ -175,6 +177,9 @@ describe("animation tokens", () => {
     expect(animations.EASE_OUT_EXPO).toEqual([0.16, 1, 0.3, 1])
     expect(animations.TWEEN_UI.duration).toBe(animations.DURATION_UI)
     expect(animations.SPRING_STANDARD.type).toBe("spring")
+    // Travel lands without passing its target: damping ratio d / (2 * sqrt(k)) is 1.
+    const { stiffness, damping } = animations.SPRING_LAYOUT
+    expect(damping / (2 * Math.sqrt(stiffness))).toBeGreaterThanOrEqual(1)
     expect(animations.VARIANTS_MODAL.visible).toEqual({ opacity: 1, scale: 1, y: 0 })
     expect(animations.SCROLL_BEHAVIOR).toEqual({
       behavior: "smooth",

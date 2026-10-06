@@ -2,106 +2,138 @@
 
 import type { ReactNode } from "react"
 import { motion, useReducedMotion } from "framer-motion"
+import type { LucideIcon } from "lucide-react"
+import { InkCheck } from "@/components/ui/ink-check"
 import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
+import { cn } from "@/lib/utils"
 
 /**
- * The furniture shared by the sign-in and create-account screens.
+ * The furniture every auth screen is built from: one card, one mark, one banner.
  *
- * Both screens carried their own copy of every piece below — the same panel, the same
- * lockup, the same banner, differing by a token here and there for no reason anybody
- * chose. Extracting them also pulls them under the 85% coverage gate, which
- * `src/app/**` is excluded from.
+ * Five screens used to carry their own copies — two of them a split screen with a dark
+ * marketing panel, three of them a glass card with a colour-literal shadow and grey
+ * buttons — differing by a token here and there for no reason anybody chose. Living in
+ * `components/` also pulls them under the 85% coverage gate, which `src/app/**` is
+ * excluded from.
  */
 
 /**
- * The dark panel.
+ * The card a screen's one task happens in.
  *
- * It is a SURFACE, not a theme: the product ships one light palette, and the reverse
- * ramp (`paper-muted` / `paper-subtle` on `ink`) exists precisely so text on a dark
- * surface keeps its contrast without a `dark:` utility.
- *
- * Three decisions, none of them cosmetic:
- *
- *   - It is `aria-hidden`. It carries no action and no information the form lacks, and
- *     without this a screen-reader user on a desktop walks the entire marketing column
- *     before reaching the email field. The wordmark moved into the form column so
- *     hiding this costs no orientation.
- *   - It is 2/5 of the viewport, not half. The one job of this screen is the form, and
- *     the form should not be the smaller half of its own page.
- *   - It holds ONE sentence. A person on the sign-in page has already chosen the
- *     product; every additional claim here is a tax on the one control that matters,
- *     and six of them is what makes a sign-in page read as a second landing page.
+ * The header (mark, title, lead) is centred and the form below it is left-aligned:
+ * a centred heading tells you which room you are in, and left-aligned labels are what
+ * an eye scanning down a form can follow. The title is the page's `h1` — every auth
+ * screen has exactly one.
  */
-export function AuthPanel({ children }: { children: ReactNode }) {
+export function AuthCard({
+  mark,
+  title,
+  lead,
+  children,
+  footer,
+  className,
+}: {
+  mark?: ReactNode
+  title: string
+  lead?: ReactNode
+  children?: ReactNode
+  footer?: ReactNode
+  className?: string
+}) {
   return (
-    <div
-      aria-hidden="true"
-      className="relative hidden flex-col justify-between overflow-hidden bg-ink p-12 lg:flex lg:w-2/5"
+    <section
+      className={cn("rounded-xl border border-line bg-paper px-6 py-8 shadow-lg sm:px-10 sm:py-10", className)}
     >
-      <div
-        className="absolute inset-0 opacity-5"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 1px 1px, var(--pl-paper) 1px, transparent 0)",
-          backgroundSize: "40px 40px",
-        }}
-      />
-      <div className="relative z-10">
-        <span className="text-title-sm font-bold tracking-tight text-paper">Planora</span>
+      <div className="flex flex-col items-center text-center">
+        {mark}
+        {/* Balanced wrapping: a centred two-line heading that ends on one word ("email",
+            "its way.") reads as a mistake, and these strings are short enough for the
+            browser to even out. */}
+        <h1
+          className={cn(
+            "text-balance text-title font-bold tracking-tight text-ink sm:text-display-sm",
+            mark ? "mt-5" : null,
+          )}
+        >
+          {title}
+        </h1>
+        {lead ? <p className="mt-2 max-w-sm text-balance text-body text-ink-muted">{lead}</p> : null}
       </div>
-      <div className="relative z-10">{children}</div>
-      <div className="relative z-10">
-        <p className="text-caption text-paper-subtle">Private coordination for people you trust.</p>
-      </div>
-    </div>
+      {children ? <div className="mt-8">{children}</div> : null}
+      {footer ? (
+        <div className="mt-8 border-t border-line pt-6 text-center text-body-sm text-ink-muted">{footer}</div>
+      ) : null}
+    </section>
   )
 }
 
 /**
- * The wordmark, in the form column, at every breakpoint.
+ * The symbol at the top of a card: a lucide icon in a quiet disc, or — for a finished
+ * task — the product's drawn check, which is the one "you did this" gesture it has.
  *
- * It used to be `lg:hidden` — present only on phones, because the desktop got it from
- * the panel. Now that the panel is `aria-hidden`, that arrangement would leave a
- * screen-reader user on a desktop with nothing at all saying where they are.
+ * Arrives by CSS rather than by framer-motion: a CSS animation runs from the first
+ * paint, where a motion component would sit invisible in the server HTML until the
+ * page hydrated and then pop in late.
  */
-export function AuthBrand({ tagline }: { tagline: string }) {
-  return (
-    <div className="mb-7 flex flex-col items-center gap-2 text-center">
-      <span className="flex items-center gap-2">
-        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-ink" />
-        <span className="text-title-sm font-bold tracking-tight text-ink">Planora</span>
+export function AuthMark({ icon }: { icon: LucideIcon | "check" }) {
+  if (icon === "check") {
+    return (
+      <span
+        aria-hidden="true"
+        className="flex h-14 w-14 animate-scale-in items-center justify-center rounded-full border border-line bg-paper-sunken"
+      >
+        <InkCheck size={24} />
       </span>
-      <p className="text-caption font-medium text-ink-subtle">{tagline}</p>
-    </div>
+    )
+  }
+  const Icon = icon
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-14 w-14 animate-scale-in items-center justify-center rounded-full border border-line bg-paper-sunken text-ink"
+    >
+      <Icon className="h-6 w-6" strokeWidth={1.75} />
+    </span>
   )
 }
 
 /**
- * The submit-time failure.
+ * A form-level message.
  *
- * It carries `role="alert"` so it is actually announced. Before this the banner was a
- * bare `motion.div` and the message reached a screen reader only through the toast that
- * fired alongside it — so a sighted user read the same sentence twice while a blind
- * user heard it once and had nothing left beside the field to return to. The toast on
- * this path is gone; the message lives where the mistake is.
+ * `tone="alert"` — the submit was refused and the reason belongs to no single field. It
+ * carries `role="alert"` so it is actually announced: before this the refusal reached a
+ * screen reader only through a toast that then disappeared, leaving nothing beside the
+ * form to come back to.
  *
- * It arrives from BELOW. The previous version came in at `y: -4`, travelling the
- * vocabulary's "dismissed, withdrawn" vector backwards — and 4 is not one of the
- * system's distances.
+ * `tone="info"` — something the person asked for happened ("Sent again."), announced
+ * politely.
+ *
+ * It arrives from BELOW, the vocabulary's "new thing arriving" vector.
  */
-export function AuthBanner({ message }: { message: string | null }) {
+export function AuthBanner({ message, tone = "alert" }: { message: string | null; tone?: "alert" | "info" }) {
   const reduce = useReducedMotion() ?? false
   if (!message) return null
 
   return (
     <motion.p
-      role="alert"
+      role={tone === "alert" ? "alert" : "status"}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
-      className="rounded-md border border-alert/25 bg-alert-surface px-4 py-3 text-body-sm text-alert"
+      className={cn(
+        "rounded-md border px-4 py-3 text-body-sm",
+        tone === "alert" ? "border-alert/25 bg-alert-surface text-alert" : "border-line bg-paper-sunken text-ink-muted",
+      )}
     >
       {message}
     </motion.p>
   )
 }
+
+/**
+ * An inline link inside a card's footer sentence. `.touch-target` paints a 44px hit area
+ * around the 18px line of text without moving anything: the footer holds one link on its
+ * own line, so the enlarged area cannot overlap a neighbour's.
+ */
+export const AUTH_LINK_CLASS =
+  "touch-target rounded-sm font-semibold text-ink underline decoration-line-strong underline-offset-4 transition-colors duration-fast hover:decoration-ink"

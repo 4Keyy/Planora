@@ -67,7 +67,7 @@ describe("TodoCard notification mark", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument()
   })
 
-  it("renders an estimated-completion interval as a start → deadline range", () => {
+  it("renders an estimated-completion interval as a start – deadline range", () => {
     const rangeTodo = {
       ...todo,
       id: "todo-range",
@@ -75,27 +75,27 @@ describe("TodoCard notification mark", () => {
       dueDate: "2026-12-25T00:00:00.000Z",
     } as unknown as Todo
     render(<TodoCard todo={rangeTodo} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
-    // The arrow separator is unique to the range branch — a single date renders without it.
-    expect(screen.getByText("→")).toBeInTheDocument()
+    // The en dash is unique to the range branch — a single date renders without it. It is
+    // one line of text, so the range can never wrap between its two dates.
+    expect(screen.getByText(/^\S+ \d+ – \S+ \d+$/)).toBeInTheDocument()
   })
 
-  it("renders a single due date without a range arrow", () => {
+  it("renders a single due date without a range", () => {
     const singleTodo = {
       ...todo,
       id: "todo-single",
       dueDate: "2026-12-25T00:00:00.000Z",
     } as unknown as Todo
     render(<TodoCard todo={singleTodo} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
-    expect(screen.queryByText("→")).not.toBeInTheDocument()
+    expect(screen.queryByText(/ – /)).not.toBeInTheDocument()
   })
 })
 
-describe("TodoCard — the border says one thing", () => {
+describe("TodoCard — the frame says who a task concerns", () => {
   /**
-   * Three states used to compete for the card's border, and `accent` was returned
-   * for two of them. The design system spends `accent` on links, the active tab and
-   * SELECTION — so an accent border on an unselected card is the one thing on screen
-   * most likely to be misread while a multi-selection is up.
+   * Two colours, one meaning each: `alert` for "needs answering today", `accent` for
+   * "other people can see this", and the plain line for a private task. Work in progress
+   * is the check and the workers chip, never the frame.
    */
   const withBorder = (overrides: Partial<Todo>) => {
     const { container } = render(
@@ -106,35 +106,47 @@ describe("TodoCard — the border says one thing", () => {
         onEdit={vi.fn()}
       />,
     )
-    const card = container.querySelector(".border-2") as HTMLElement
-    return card.className
+    const card = container.querySelector("[data-task-card]") as HTMLElement
+    return card
   }
 
-  it("marks a card that needs answering today, and nothing else", () => {
-    expect(withBorder({ isVisuallyUrgent: true })).toContain("border-alert")
+  const PRIVATE = { isPublic: false, sharedWithUserIds: [], hasSharedAudience: false }
+
+  it("marks a card that needs answering today in alert", () => {
+    expect(withBorder({ isVisuallyUrgent: true }).className).toContain("border-alert")
   })
 
-  it("leaves an in-progress card on the plain line", () => {
-    // In progress is already said twice a few pixels away — the accent chip and the
-    // accent ring on the completion control. A third copy costs the accent its meaning.
-    const cls = withBorder({ isVisuallyUrgent: false, status: "In Progress", isWorking: true })
-    expect(cls).toContain("border-line")
-    expect(cls).not.toContain("border-accent")
+  it("frames a shared task in the accent blue", () => {
+    const cls = withBorder({ isVisuallyUrgent: false, isPublic: true, hasSharedAudience: true }).className
+    expect(cls).toContain("border-accent")
+    expect(cls).not.toContain("border-line")
   })
 
-  it("leaves a merely shared card on the plain line", () => {
-    // Sharing is a property, not a state, and the redaction arc says how wide the
-    // audience is — which a border colour cannot.
-    const cls = withBorder({ isVisuallyUrgent: false, isPublic: true, hasSharedAudience: true })
-    expect(cls).toContain("border-line")
-    expect(cls).not.toContain("border-accent")
+  it("frames a task shared with named friends the same way as one shared with all", () => {
+    const cls = withBorder({ isVisuallyUrgent: false, isPublic: false, hasSharedAudience: true }).className
+    expect(cls).toContain("border-accent")
   })
 
-  it("keeps the alert border when a task is both overdue and in progress", () => {
-    // Precedence, not a blend. The previous version painted three sides an indigo
-    // that exists in no token and no other file in the product.
-    const cls = withBorder({ isVisuallyUrgent: true, status: "In Progress", isWorking: true })
+  it("leaves a private task on the plain line, in progress or not", () => {
+    expect(withBorder({ ...PRIVATE, isVisuallyUrgent: false }).className).toContain("border-line")
+    const working = withBorder({ ...PRIVATE, isVisuallyUrgent: false, status: "In Progress" }).className
+    expect(working).toContain("border-line")
+    expect(working).not.toContain("border-accent")
+  })
+
+  it("keeps alert when a shared task is also due today", () => {
+    // Precedence, not a blend: the thing that asks for action wins.
+    const cls = withBorder({ isVisuallyUrgent: true, hasSharedAudience: true }).className
     expect(cls).toContain("border-alert")
     expect(cls).not.toContain("border-accent")
+  })
+
+  it("glows in the category's colour on hover, and plain grey without one", () => {
+    const tinted = withBorder({ isVisuallyUrgent: false, categoryColor: "#10b981" })
+    expect(tinted.style.getPropertyValue("--card-glow")).toContain("#10b981")
+    expect(tinted.className).toContain("group-hover/card:shadow-[0_8px_32px_-4px_var(--card-glow)")
+    const plain = withBorder({ ...PRIVATE, isVisuallyUrgent: false, categoryColor: null })
+    expect(plain.style.getPropertyValue("--card-glow")).toBe("")
+    expect(plain.className).toContain("group-hover/card:shadow-lg")
   })
 })

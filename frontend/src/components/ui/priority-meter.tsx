@@ -52,7 +52,7 @@ export function PriorityMeter({ value, showValue = true, size = "md", className 
         ))}
       </span>
       {showValue && (
-        <span aria-hidden="true" className="text-caption font-semibold tabular-nums text-ink-subtle">
+        <span aria-hidden="true" className="text-caption font-semibold tabular-nums text-ink-muted">
           {level}/{LEVELS}
         </span>
       )}

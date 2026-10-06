@@ -95,7 +95,7 @@ export function AdvancedSearchBar({
           onChange={(e) => handleSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && handleClearSearch()}
           placeholder="Search tasks... (Cmd+K for advanced)"
-          className="w-full pl-10 pr-10 py-3 bg-paper border border-line rounded-xl placeholder:text-ink-subtle focus:border-ink transition-[color,background-color,border-color,opacity,transform,box-shadow]"
+          className="field-box w-full rounded-xl border border-line bg-paper py-3 pl-10 pr-10 placeholder:text-ink-subtle hover:border-line-strong transition-[color,background-color,border-color,box-shadow] duration-base ease-emphasized"
         />
         <AnimatePresence>
           {value && (
@@ -157,7 +157,7 @@ export function AdvancedSearchBar({
           >
             {/* Priority Filter */}
             <div>
-              <label className="text-caption font-bold text-ink-muted uppercase tracking-widest">Priority</label>
+              <label className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Priority</label>
               <div className="flex flex-wrap gap-2 mt-2">
                 {PRIORITY_OPTIONS.map((priority) => (
                   <motion.button
@@ -180,7 +180,7 @@ export function AdvancedSearchBar({
             {/* Category Filter */}
             {categories.length > 0 && (
               <div>
-                <label className="text-caption font-bold text-ink-muted uppercase tracking-widest">Category</label>
+                <label className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Category</label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -215,7 +215,7 @@ export function AdvancedSearchBar({
             )}
 
             {/* Search Stats */}
-            <div className="flex items-center justify-between pt-2 text-caption text-ink-subtle">
+            <div className="flex items-center justify-between pt-2 text-caption text-ink-muted">
               <span>{matchedTodos.length} tasks found</span>
               {value && (
                 <Button

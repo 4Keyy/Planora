@@ -17,9 +17,12 @@ export const FIXTURE_OWNER_ID = "fixture-owner"
 
 export type LandingFriend = PresenceMember & { name: string }
 
-/** Eight, because the sharing cut saturates at eight viewers and block 2 walks into it. */
+/**
+ * Ten. The sharing cut saturates at eight viewers, and block 2 walks past it: the two
+ * beyond the ceiling are what show the ring holding still while the count carries on.
+ */
 export const FIXTURE_FRIENDS: LandingFriend[] = [
-  { id: "fx-1", name: "Dana Whitfield", avatarUrl: null },
+  { id: "fx-1", name: "Victoria Whitfield", avatarUrl: null },
   { id: "fx-2", name: "Mira Sandoval", avatarUrl: null },
   { id: "fx-3", name: "Tom Achebe", avatarUrl: null },
   { id: "fx-4", name: "Priya Raman", avatarUrl: null },
@@ -27,6 +30,8 @@ export const FIXTURE_FRIENDS: LandingFriend[] = [
   { id: "fx-6", name: "Nora Lindqvist", avatarUrl: null },
   { id: "fx-7", name: "Kaito Mori", avatarUrl: null },
   { id: "fx-8", name: "Ada Okonkwo", avatarUrl: null },
+  { id: "fx-9", name: "Sam Keller", avatarUrl: null },
+  { id: "fx-10", name: "Iris Novak", avatarUrl: null },
 ]
 
 /** The three friends the hero console starts with — enough to open the cut, few enough to read. */
@@ -88,7 +93,7 @@ export const SHARED_TASK: Todo = task({
   title: "Plan the weekend menu and grocery run",
   priority: "Medium",
   categoryName: "Home",
-  authorName: "Dana Whitfield",
+  authorName: "Victoria Whitfield",
   sharedWithUserIds: ["fx-viewer"],
   hasSharedAudience: true,
 })

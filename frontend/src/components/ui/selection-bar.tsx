@@ -73,7 +73,7 @@ export function SelectionBar({ count, actions, onClear, noun = "task", className
            * later one would win by source order, which is not a decision anyone made.
            */
           className={cn(
-            "pointer-events-none fixed inset-x-0 bottom-0 z-sticky flex justify-center px-4 pb-4 pb-safe",
+            "pointer-events-none fixed inset-x-0 bottom-0 z-sticky flex justify-center px-4 pb-safe-4",
             className,
           )}
         >

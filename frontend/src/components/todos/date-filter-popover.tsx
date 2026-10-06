@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react"
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion"
+import { TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
 import { CalendarSearch, ChevronDown, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DateCalendar } from "./edit-todo-modal/popovers/date"
@@ -89,7 +90,7 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
               initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
-              transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+              transition={TWEEN_FAST}
               className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-ink-subtle transition-colors hover:bg-paper hover:text-ink cursor-pointer"
             >
               <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden="true" />
@@ -108,17 +109,17 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.96 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            transition={TWEEN_UI}
             style={{ transformOrigin: "top right" }}
             className="absolute right-0 top-full z-50 mt-2 w-[320px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-line bg-paper shadow-xl shadow-black/10"
           >
             <div className="flex items-center justify-between border-b border-line px-3.5 py-2.5">
-              <span className="text-caption font-bold uppercase tracking-wider text-ink-subtle">Completed on</span>
+              <span className="text-caption font-semibold uppercase tracking-wider text-ink-muted">Completed on</span>
               {hasFilter && (
                 <button
                   type="button"
                   onClick={onClear}
-                  className="text-caption font-bold uppercase tracking-wider text-ink-subtle transition-colors hover:text-ink rounded cursor-pointer"
+                  className="text-caption font-semibold uppercase tracking-wider text-ink-muted transition-colors hover:text-ink rounded cursor-pointer"
                 >
                   Clear
                 </button>

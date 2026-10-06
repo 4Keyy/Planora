@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useCallback } from "react"
-import { Check, Globe2, Lock, UserRound, Users } from "lucide-react"
+import { Check, Lock, UserRound, Users, UsersRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { FriendDto } from "@/types/auth"
 import { Avatar } from "@/components/ui/avatar"
@@ -97,7 +97,7 @@ export function FriendMultiSelect({
           <span className="flex min-w-0 items-center gap-3">
             <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-line bg-paper-sunken text-ink-muted transition-colors group-hover:bg-paper">
               {publicSelected ? (
-                <Globe2 className="h-4 w-4" />
+                <UsersRound className="h-4 w-4" />
               ) : selectedIds.length > 0 ? (
                 <Users className="h-4 w-4" />
               ) : (
@@ -106,7 +106,7 @@ export function FriendMultiSelect({
             </span>
             <span className="min-w-0">
               <span className="block truncate text-body-sm font-bold text-ink">{label}</span>
-              <span className="block truncate text-caption font-semibold text-ink-subtle">{scopeLabel}</span>
+              <span className="block truncate text-caption font-semibold text-ink-muted">{scopeLabel}</span>
             </span>
           </span>
           <span className="flex flex-shrink-0 items-center gap-1.5">
@@ -126,7 +126,7 @@ export function FriendMultiSelect({
               </span>
             ))}
             {publicSelected && (
-              <span className="rounded-full border border-line bg-paper-sunken px-2 py-1 text-caption font-bold uppercase tracking-[0.06em] text-ink-muted">
+              <span className="rounded-full border border-line bg-paper-sunken px-2 py-1 text-caption font-semibold uppercase tracking-wider text-ink-muted">
                 All
               </span>
             )}
@@ -142,7 +142,7 @@ export function FriendMultiSelect({
           )}
         >
           <div className="px-2 pb-2 pt-1">
-            <div className="flex items-center gap-2 rounded-lg border border-line bg-paper-sunken px-3 py-2 text-caption font-bold text-ink-subtle">
+            <div className="flex items-center gap-2 rounded-lg border border-line bg-paper-sunken px-3 py-2 text-caption font-bold text-ink-muted">
               <Users className="h-3.5 w-3.5" />
               Share scope
             </div>
@@ -176,13 +176,13 @@ export function FriendMultiSelect({
                     All accepted friends
                   </span>
                 </span>
-                <Globe2 className={cn("h-4 w-4 flex-shrink-0", publicSelected ? "text-paper/70" : "text-ink-subtle")} />
+                <UsersRound className={cn("h-4 w-4 flex-shrink-0", publicSelected ? "text-paper/70" : "text-ink-subtle")} />
               </DropdownMenuItem>
               <div className="my-2 h-px bg-gray-100" />
             </>
           )}
           {friends.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-line px-3 py-4 text-center text-caption font-bold text-ink-subtle">
+            <div className="rounded-lg border border-dashed border-line px-3 py-4 text-center text-caption font-bold text-ink-muted">
               No friends yet.
             </div>
           ) : (
@@ -214,7 +214,7 @@ export function FriendMultiSelect({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-bold">{formatFriendName(friend)}</span>
                       {friend.email && (
-                        <span className="block truncate text-caption font-semibold text-ink-subtle">{friend.email}</span>
+                        <span className="block truncate text-caption font-semibold text-ink-muted">{friend.email}</span>
                       )}
                     </span>
                     <span
@@ -230,7 +230,7 @@ export function FriendMultiSelect({
               })}
             </div>
           )}
-          <div className="mt-2 flex items-center gap-2 rounded-lg bg-paper-sunken px-3 py-2 text-caption font-semibold text-ink-subtle">
+          <div className="mt-2 flex items-center gap-2 rounded-lg bg-paper-sunken px-3 py-2 text-caption font-semibold text-ink-muted">
             <UserRound className="h-3.5 w-3.5" />
             {publicSelected
               ? "All friends"

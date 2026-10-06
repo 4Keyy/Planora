@@ -9,7 +9,7 @@ import { useAutosave }      from "@/hooks/use-autosave"
 import { useFocusTrap }     from "@/hooks/use-focus-trap"
 import { useAuthStore }     from "@/store/auth"
 import { useFriends }       from "@/hooks/use-friends"
-import { SPRING_STANDARD }  from "@/lib/animations"
+import { DURATION_FAST, DURATION_UI, EASE_STANDARD, SPRING_LAYOUT, TWEEN_FAST } from "@/lib/animations"
 import { editorDialogRect, originTransform, takeOrigin } from "@/lib/shared-origin"
 import { Todo, type UpdateTodoPayload, isTodoOwner } from "@/types/todo"
 import { Category }         from "@/types/category"
@@ -18,6 +18,7 @@ import { InlineTokenStrip } from "./inline-token-strip"
 import { PageMetaPanel }    from "./page-meta-panel"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
 import { PresenceRow } from "@/components/ui/presence-row"
+import { Button } from "@/components/ui/button"
 import {
   getPriorityNumber,
   getPriorityString,
@@ -143,6 +144,22 @@ export function TodoEditor({
   const [sharedIds, setSharedIds] = useState<string[]>(
     todo.isPublic ? [] : (todo.sharedWithUserIds ?? [])
   )
+  /*
+   * "All friends" — the server's `IsPublic` — is its own state, not "friends mode with nobody
+   * picked". The editor used to have no such state and wrote `isPublic: false` on every save,
+   * so opening an all-friends task and fixing a typo in its title quietly took it away from
+   * every friend who could see it. It stays all-friends until the owner names people (a
+   * direct share, as in the create panel) or makes it private.
+   */
+  const [allFriends, setAllFriends] = useState(!!todo.isPublic)
+  const changeVisMode = useCallback((mode: "private" | "friends") => {
+    setVisMode(mode)
+    if (mode === "private") setAllFriends(false)
+  }, [])
+  const changeSharedIds = useCallback((ids: string[]) => {
+    setSharedIds(ids)
+    setAllFriends(false)
+  }, [])
 
   const inProgress = isOwner
     ? String(todo.status ?? "").toLowerCase().replace(/\s/g, "") === "inprogress"
@@ -159,7 +176,6 @@ export function TodoEditor({
   useEffect(() => { setWorkOverride(null) }, [todo.id])
   const effectiveInProgress = workOverride ?? inProgress
 
-  const [pillHovered, setPillHovered] = useState(false)
 
   /**
    * Who is actually in this task, with faces.
@@ -209,6 +225,7 @@ export function TodoEditor({
     setCategoryId(todo.categoryId ?? null)
     setVisMode((todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) ? "friends" : "private")
     setSharedIds(todo.isPublic ? [] : (todo.sharedWithUserIds ?? []))
+    setAllFriends(!!todo.isPublic)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todo.id])
 
@@ -231,7 +248,8 @@ export function TodoEditor({
     if (editingTitle && titleTextareaRef.current) {
       const el = titleTextareaRef.current
       el.style.height = "auto"
-      el.style.height = el.scrollHeight + "px"
+      // The field's 1px border sits outside scrollHeight; border-box height must carry it.
+      el.style.height = el.scrollHeight + el.offsetHeight - el.clientHeight + "px"
     }
   }, [editingTitle])
 
@@ -270,11 +288,13 @@ export function TodoEditor({
     // "unchanged" server-side). When an end is present this is false and the interval is set.
     clearDueDate: !dueDate,
     categoryId: categoryId || null,
-    isPublic: false,
-    sharedWithUserIds: visMode === "private" ? [] : sharedIds,
-    requiredWorkers: visMode === "private" ? null : 1 + sharedIds.length,
-    clearRequiredWorkers: visMode === "private",
-  }), [title, description, priority, dueDate, dueDateStart, categoryId, visMode, sharedIds])
+    // All friends keeps its reach and its unlimited capacity, exactly as the create panel
+    // writes it; a named share counts its people; private clears both.
+    isPublic: visMode === "friends" && allFriends,
+    sharedWithUserIds: visMode === "private" || allFriends ? [] : sharedIds,
+    requiredWorkers: visMode === "private" || allFriends ? null : 1 + sharedIds.length,
+    clearRequiredWorkers: visMode === "private" || allFriends,
+  }), [title, description, priority, dueDate, dueDateStart, categoryId, visMode, sharedIds, allFriends])
 
   const ownerPayload = useMemo(() => buildOwnerPayload(), [buildOwnerPayload])
 
@@ -337,7 +357,7 @@ export function TodoEditor({
         onChange={(e) => {
           setTitleDraft(e.target.value)
           e.target.style.height = "auto"
-          e.target.style.height = e.target.scrollHeight + "px"
+          e.target.style.height = e.target.scrollHeight + e.target.offsetHeight - e.target.clientHeight + "px"
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitTitle() }
@@ -346,12 +366,11 @@ export function TodoEditor({
         onBlur={commitTitle}
         maxLength={200}
         rows={1}
-        style={{
-          ...box,
-          resize: "none", border: "none",
-          background: "var(--pl-paper-sunken)", fontFamily: "inherit", overflow: "hidden",
-          transition: "background 140ms",
-        }}
+        // A boxed field while it is being edited: the hover tint it grew out of turns to
+        // paper with an ink edge and a soft halo (globals.css "Field focus"), the same frame
+        // every other field in the product draws — never the global outline rectangle.
+        className="field-box border border-transparent bg-paper-sunken transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
+        style={{ ...box, resize: "none", fontFamily: "inherit", overflow: "hidden" }}
       />
     ) : (
       <h1
@@ -359,6 +378,8 @@ export function TodoEditor({
         onClick={() => isOwner && setEditingTitle(true)}
         style={{
           ...box,
+          // The same 1px edge as the field it turns into, so swapping them moves nothing.
+          border: "1px solid transparent",
           marginTop: 0, marginRight: 0, marginBottom: 0,
           cursor: isOwner ? "text" : "default",
           background: "transparent", transition: "background 140ms", wordBreak: "break-word",
@@ -371,43 +392,32 @@ export function TodoEditor({
     )
   }
 
-  // The In Progress pill (with hover → Leave). Shown when the viewer has the task in progress.
+  /*
+   * "In progress", and the way out of it. The pill used to swap its own label for a
+   * "Leave" button on hover — invisible and unreachable from a keyboard (the button sat at
+   * opacity 0 on top of the label), turning red under the pointer, and pulsing forever at
+   * rest. Now the state is the same chip the task card shows ("· you" in accent-surface),
+   * and leaving is a plain button beside it.
+   */
   const pillNode = effectiveInProgress && onLeave ? (
-    <div
-      onMouseEnter={() => setPillHovered(true)}
-      onMouseLeave={() => setPillHovered(false)}
-      style={{
-        display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
-        background: pillHovered ? "var(--pl-alert-surface)" : "var(--pl-accent-surface)",
-        border: `1px solid ${pillHovered ? "var(--pl-alert-surface)" : "var(--pl-accent-surface)"}`,
-        borderRadius: 100, padding: "5px 10px 5px 8px", cursor: "default",
-        transition: "background 240ms ease, border-color 240ms ease",
-      }}
-    >
-      <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
-        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", transition: "background 240ms ease" }} />
-        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: pillHovered ? "var(--pl-alert)" : "var(--pl-accent)", animation: "pl_pulse 1.6s var(--pl-ease-standard) infinite", transition: "background 240ms ease" }} />
-      </div>
-      <div style={{ position: "relative", display: "inline-block" }}>
-        <span style={{ display: "block", fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", whiteSpace: "nowrap", color: "var(--pl-accent)", opacity: pillHovered ? 0 : 1, transition: "opacity 180ms ease", userSelect: "none" }}>
-          In Progress
-        </span>
-        <button
-          onClick={async (e) => { e.stopPropagation(); setWorkOverride(false); await onLeave() }}
-          style={{
-            position: "absolute", inset: "-3px -6px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            background: "transparent", border: "1px solid var(--pl-alert-surface)", borderRadius: 6, cursor: "pointer",
-            fontSize: 12, fontWeight: 700, color: "var(--pl-alert)", whiteSpace: "nowrap", fontFamily: "inherit",
-            opacity: pillHovered ? 1 : 0, pointerEvents: pillHovered ? "auto" : "none",
-            transition: "opacity 180ms ease, background 120ms ease",
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-alert-surface)" }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "transparent" }}
-        >
-          Leave
-        </button>
-      </div>
+    <div className="flex flex-shrink-0 items-center gap-1">
+      <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-accent/30 bg-accent-surface px-3 text-caption font-semibold text-accent">
+        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent" />
+        In progress
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="px-3"
+        onClick={async (e) => {
+          e.stopPropagation()
+          setWorkOverride(false)
+          await onLeave()
+        }}
+      >
+        Leave
+      </Button>
     </div>
   ) : null
 
@@ -443,8 +453,9 @@ export function TodoEditor({
     authorCategoryColor: todo.authorCategoryColor,
     authorCategoryIcon: todo.authorCategoryIcon,
     isOwner,
-    visMode, onVisModeChange: setVisMode,
-    sharedIds, onSharedIdsChange: setSharedIds,
+    visMode, onVisModeChange: changeVisMode,
+    sharedIds, onSharedIdsChange: changeSharedIds,
+    allFriends,
     friends, openPopover, setOpenPopover,
   }
 
@@ -468,8 +479,8 @@ export function TodoEditor({
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6, marginTop: 6,
                 minHeight: 36, paddingRight: 8, borderRadius: 8,
-                fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase",
-                color: "var(--pl-ink-subtle)", textDecoration: "none",
+                fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
+                color: "var(--pl-ink-muted)", textDecoration: "none",
               }}
             >
               <ArrowLeft size={13} strokeWidth={2.4} /> Task Branch
@@ -493,7 +504,7 @@ export function TodoEditor({
              this value to run the month grid edge to edge, so the two must stay
              in step — hence the shared custom property rather than two numbers. */
           style={{ flex: 1, minHeight: 0, paddingInline: "var(--pl-editor-gutter)" }}
-          className="flex flex-col gap-4 pb-[22px] pt-[14px] lg:flex-row lg:gap-0 lg:px-[26px]"
+          className="flex flex-col gap-4 pb-6 pt-3.5 lg:flex-row lg:gap-0 lg:px-6"
         >
           <div className="branch-scroll w-full flex-shrink-0 lg:w-[389px] lg:overflow-y-auto lg:pr-6">
             <PageMetaPanel {...metaProps} />
@@ -514,8 +525,8 @@ export function TodoEditor({
       className="branch-scroll"
     >
       {/* ── (1) Top chrome bar ── (tighter side padding on phones for more content width) */}
-      <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-[26px]">
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pl-ink-subtle)" }}>
+      <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-6">
+        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--pl-ink-muted)" }}>
           Task Branch
         </span>
 
@@ -529,7 +540,7 @@ export function TodoEditor({
               background: "transparent", border: "none", cursor: "pointer",
               padding: "5px 6px", borderRadius: 8,
               fontSize: 12, fontWeight: 700, letterSpacing: "0.02em",
-              color: "var(--pl-ink-subtle)", fontFamily: "inherit",
+              color: "var(--pl-ink-muted)", fontFamily: "inherit",
               transition: "color 120ms, background 120ms",
             }}
             onMouseEnter={(e) => {
@@ -566,7 +577,7 @@ export function TodoEditor({
       </div>
 
       {/* ── (2) Title heading ── */}
-      <div className="px-4 pt-[22px] pb-3 sm:px-[26px]">
+      <div className="px-4 pt-6 pb-3 sm:px-6">
         {renderTitle(22, 12, 8)}
       </div>
 
@@ -578,21 +589,21 @@ export function TodoEditor({
         fact, disagreeing with each other on screen at the same time.
       */}
       {presentMembers.length > 0 && (
-        <div className="px-4 pb-3 sm:px-[26px]">
+        <div className="px-4 pb-3 sm:px-6">
           <PresenceRow members={presentMembers} required={todo.requiredWorkers} size="sm" />
         </div>
       )}
 
       {/* ── (4) Inline token meta strip ── */}
-      <div className="px-4 pb-[18px] sm:px-[22px]">
+      <div className="px-4 pb-4 sm:px-5">
         <InlineTokenStrip {...metaProps} />
       </div>
 
       {/* Divider */}
-      <div className="mx-4 sm:mx-[26px]" style={{ height: 1, background: "var(--pl-gray-100)" }} />
+      <div className="mx-4 sm:mx-6" style={{ height: 1, background: "var(--pl-gray-100)" }} />
 
       {/* ── (4) Branch panel ── (flex-fills the container; scrolls internally) */}
-      <div className="flex flex-1 flex-col px-4 pb-5 pt-[18px] sm:px-[26px]" style={{ minHeight: 0 }}>
+      <div className="flex flex-1 flex-col px-4 pb-5 pt-4 sm:px-6" style={{ minHeight: 0 }}>
         {branchNode}
       </div>
     </div>
@@ -653,7 +664,9 @@ export function EditTodoModal(props: EditTodoModalProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-ink/60 backdrop-blur-md"
+          transition={TWEEN_FAST}
+          // The same scrim as every other dialog (`Overlay`).
+          className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
         />
 
         {/* Modal card — fixed size; the branch in the middle flex-fills and scrolls internally. */}
@@ -672,14 +685,18 @@ export function EditTodoModal(props: EditTodoModalProps) {
           /*
            * It leaves the way it came, so closing returns the reader's eye to the row
            * they opened. Faster than the entrance on purpose: an exit that takes as
-           * long as an entrance reads as the app being slow to let go.
+           * long as an entrance reads as the app being slow to let go. On the symmetric
+           * curve, not an ease-in: the eye follows this travel back to the card, and an
+           * accelerating exit would end in a snap.
            */
           exit={
             entrance
-              ? { opacity: 0, scale: entrance.scale, x: entrance.x, y: entrance.y }
-              : { opacity: 0, scale: 0.95, y: 20 }
+              ? { opacity: 0, scale: entrance.scale, x: entrance.x, y: entrance.y, transition: { duration: DURATION_UI, ease: EASE_STANDARD } }
+              : { opacity: 0, scale: 0.95, y: 20, transition: { duration: DURATION_FAST, ease: EASE_STANDARD } }
           }
-          transition={SPRING_STANDARD}
+          // Critically damped: a 660px surface growing out of a card must not swing past
+          // its size and the centre on the way in.
+          transition={SPRING_LAYOUT}
           onClick={(e) => e.stopPropagation()}
           style={{
             position: "relative",
@@ -693,7 +710,7 @@ export function EditTodoModal(props: EditTodoModalProps) {
             overflow: "hidden",
             borderRadius: 28,
             background: "var(--pl-paper)",
-            boxShadow: "0 30px 80px rgba(0,0,0,0.14), 0 8px 24px rgba(0,0,0,0.05)",
+            boxShadow: "var(--pl-shadow-xl)",
             /* Local stacking, not a global tier: the card and its backdrop are
                siblings inside one z-modal container, so 1 is the whole claim being
                made. The previous value was a hand-computed 1301, which only stayed

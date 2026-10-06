@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { CreateTodoPanel } from "@/components/todos/create-todo-panel"
 import type { Category } from "@/types/category"
@@ -58,7 +58,7 @@ describe("frontend usability contract", () => {
     expect(screen.queryByText(/press/i)).toBeNull()
   })
 
-  it("autofocuses task creation and exposes core controls through accessible roles", () => {
+  it("opens without focusing the title, lets the first keystroke in, and exposes core controls by role", () => {
     render(
       <CreateTodoPanel
         isOpen
@@ -71,10 +71,16 @@ describe("frontend usability contract", () => {
     )
 
     act(() => {
-      vi.advanceTimersByTime(220)
+      vi.advanceTimersByTime(400)
     })
 
-    expect(screen.getByPlaceholderText("What needs to be done?")).toHaveFocus()
+    // Owner's ruling: nothing lights up by itself. A field shows focus only after the user
+    // clicks it or starts typing — and typing from nowhere lands in the title.
+    const title = screen.getByPlaceholderText("What needs to be done?")
+    expect(title).not.toHaveFocus()
+    fireEvent.keyDown(document.body, { key: "B" })
+    expect(title).toHaveFocus()
+
     expect(screen.getByRole("button", { name: "Close create task panel" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Create task" })).toBeDisabled()

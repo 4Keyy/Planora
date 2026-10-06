@@ -26,7 +26,7 @@ This map is organized by ownership boundary. It intentionally avoids generated a
 | `.githooks/pre-commit` | repo-local git hook | installed by `scripts/install-hooks.sh` |
 | `.github/workflows` | CI/security/e2e/SBOM/migrations/perf/CD/OpenAPI automation | `ci.yml`, `e2e.yml`, `security.yml`, `migrations.yml`, `perf-smoke.yml`, `cd.yml`, `openapi.yml`, `nuget-vuln-pr.yml` |
 | `scripts` | local PowerShell helpers (launcher + Phase-1 verification) | `HealthChecker.psm1`, `PidManager.psm1`, `PortChecker.psm1`, `Verify-Phase1-Prereqs.ps1`, `install-hooks.sh` |
-| `graphify-out` | generated knowledge graph (gitignored) | `GRAPH_REPORT.md`, `wiki/index.md`, `graph.json` |
+| `graphify-out` | optional generated knowledge graph (gitignored; absent at this audit) | `GRAPH_REPORT.md`, `wiki/index.md`, `graph.json` when generated |
 | `tools/Planora.Migrator` | one-shot EF Core migration runner CLI | `Program.cs`, `CollaborationBackfill.cs`, `CollaborationRepliesUpgrade.cs`, `Dockerfile` |
 | `deploy/fly` | Fly.io app manifests + bootstrap scripts | nine `*.fly.toml`, `setup.ps1`, `set-secrets.ps1`, `.env.fly.example`, `README.md` |
 | `perf` | k6 load-test scenarios and baseline | `k6/lib/api.js`, `k6/scenarios/{login,todo-list}.js`, `README.md` |
@@ -51,13 +51,16 @@ Important files:
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/EnhancedGlobalExceptionMiddleware.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/JwtAuthenticationExtensions.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Extensions/HealthCheckExtensions.cs` (`MapPlanoraHealthEndpoints`, `/health/live` + `/health/ready` + aggregate `/health`)
-- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs` — schema bootstrap: applies migrations when present, creates from the EF model when absent
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Persistence/DatabaseStartup.cs` — migration-or-EnsureCreated startup branch; the tracked Todo chain lacks its initial migration (see database.md)
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/ConfigurationValidator.cs` — rejects weak JWT secrets and missing gRPC keys before the host binds a port
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Logging/TelemetryConfiguration.cs` (`AddPlanoraTelemetry` — single OpenTelemetry surface for every service)
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Observability/PlanoraMetrics.cs` (shared `Meter("Planora.BuildingBlocks")` exposing `planora.csrf.rejections`, `planora.grpc.unauthenticated`, `planora.outbox.*`)
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Security/SecurityStampValidator.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Grpc/ServiceKeyServerInterceptor.cs` / `ServiceKeyClientInterceptor.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Outbox/OutboxProcessor.cs`
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Messaging/RabbitMqEventBus.cs` — publisher confirms, per-handler optional inbox key, ACK/NACK/DLX handling
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Caching/CacheService.cs` — generic L1/L2 cache primitive; concrete domain decorators are separate
+- `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Retention/RetentionOptions.cs` — disabled/dry-run defaults and policy windows
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Resilience/DependencyWaiter.cs`
 - `BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs`
 
@@ -123,7 +126,7 @@ Critical files:
 - `Features/Todos/Commands/DeleteTodo/DeleteTodoCommandHandler.cs` — publishes `TaskDeletedIntegrationEvent` (task) or `SubtaskDeletedIntegrationEvent` (subtask)
 - `Features/Todos/Commands/SetTodoHidden/SetTodoHiddenCommandHandler.cs`
 - `Features/Todos/Commands/SetViewerPreference/SetViewerPreferenceCommandHandler.cs`
-- `Common/OutboxExtensions.cs` — helper to enqueue integration events in the unit of work
+- `Common/OutboxExtensions.cs` — integration-event serialization helper; repository add saves immediately, so one handler can span several commits
 - `Features/Todos/TodoViewerStateResolver.cs`
 - `Features/Todos/HiddenTodoDtoFactory.cs`
 - `Api/Grpc/TodoGrpcService.cs` — includes `CheckTaskCommentAccess` (authorises Collaboration)
@@ -133,6 +136,9 @@ Critical files:
 - `Persistence/TodoDbContext.cs`
 - `Persistence/Configurations/TodoItemWorkerConfiguration.cs`
 - `Persistence/Configurations/OutboxMessageConfiguration.cs`
+- `Infrastructure/Services/CachingFriendshipService.cs` — 30-second friend-ID list cache; `AreFriendsAsync` remains live
+- `Application/Features/IntegrationEvents/FriendshipRemovedEventConsumer.cs` — removes explicit shares; does not remove workers
+- `Infrastructure/Retention/CompletedTodoRetentionPolicies.cs` — completed-root deletion and old viewer-completion hiding
 
 > The comment timeline is no longer in Todo — it lives in the **Collaboration Service** below.
 
@@ -151,12 +157,12 @@ Critical files:
 - `Api/Program.cs` — subscribes to `TaskCreated`/`TaskActivity`/`TaskDeleted`/`SubtaskDeleted`/`UserDeleted`
 - `Application/Features/Comments/Commands/*` — handlers + FluentValidation validators
 - `Application/Features/Comments/Queries/GetComments/GetCommentsQueryHandler.cs`
-- `Application/Features/IntegrationEvents/*EventConsumer.cs` — Inbox materialisation (idempotent)
+- `Application/Features/IntegrationEvents/*EventConsumer.cs` — lifecycle materialization and cleanup; replay suppression depends on best-effort post-handler inbox recording
 - `Application/Services/ITaskAccessService.cs` / `IUserService.cs` — outward ports
-- `Domain/Entities/Comment.cs` — `Create` / `CreateSystem` / `CreateGenesis` / `Update*`
+- `Domain/Entities/Comment.cs` — `Create`, `CreateReply`, `CreateSystem`, `UpdateContent` and quote-deletion flag; no `CreateGenesis` method
 - `Domain/Repositories/ICommentRepository.cs`
 - `Infrastructure/Grpc/TaskAccessGrpcClient.cs` — wraps `TodoService.CheckTaskCommentAccess`
-- `Infrastructure/Grpc/{UserGrpcService,CachingUserService}.cs` — avatar enrichment (60 s cache)
+- `Infrastructure/Grpc/{UserGrpcService,CachingUserService}.cs` — positive name/avatar profile enrichment (60-second cache)
 - `Infrastructure/Persistence/CollaborationDbContext.cs`
 - `Infrastructure/Persistence/Configurations/CommentConfiguration.cs`
 
@@ -212,18 +218,29 @@ Critical files:
 - `Infrastructure/Hubs/NotificationHub.cs` — the only SignalR hub in the product
 - `Infrastructure/Grpc/TaskBranchAuthorizer.cs` — gates branch topic subscription against Todo
 - `Infrastructure/Services/ConnectionManager.cs`, `RealtimeBroadcaster.cs`, `NotificationService.cs`, `NotificationStore.cs`, `NotificationReadStore.cs`
-- `Infrastructure/Persistence/RealtimeDbContext.cs` — notifications and deliveries, with its own outbox table
+- `Infrastructure/Persistence/RealtimeDbContext.cs` — active conditional notification persistence; delivery/outbox schemas exist without current runtime writers
 - `Infrastructure/Retention/NotificationRetentionPolicies.cs`
 
 ## gRPC Contracts
 
 | Path | Purpose |
 |---|---|
-| `GrpcContracts/Protos/auth.proto` | Auth service contract: token/user/friend checks, avatar batch |
+| `GrpcContracts/Protos/auth.proto` | Auth contract: token/user/friend checks, avatar and name/avatar profile batches |
 | `GrpcContracts/Protos/category.proto` | Category contract used by Todo |
 | `GrpcContracts/Protos/todo.proto` | Todo contract, including `CheckTaskCommentAccess` |
 | `GrpcContracts/Protos/messaging.proto` | Messaging contract |
 | `GrpcContracts/Protos/realtime.proto` | Realtime notification contract |
+
+## Trace A Backend Feature
+
+| Question | Follow this path |
+|---|---|
+| Who may read/edit a task? | `TodosController` → Application handler → `TodoViewerStateResolver` / live `IFriendshipService` → repository; compare list, detail, join and subtask-creator paths separately. |
+| What becomes a branch entry? | Todo handler → `Common/OutboxExtensions` → outbox save → `OutboxProcessor`/RabbitMQ → Collaboration consumer → `CommentRepository`; Author's Note instead comes live from Todo during `GetComments`. |
+| Why did a card/badge change? | Producer `RealtimeAudience`/`NotificationFanout` → integration event → Realtime handler → broadcaster/notification service → frontend realtime hooks/read-store. |
+| What is persisted? | Domain property → EF configuration/DbContext → tracked migration or startup DDL; [database.md](database.md) distinguishes model schema from a reproducible migration chain. |
+| What happens after deletion? | Delete command / retention policy → cleanup event → subscription in `Program.cs` → cleanup handler; account/task deletion currently have different cascade coverage. |
+| Is a delivery reliable? | Outbox save boundary → processor claim/retry → broker confirms → consumer handler → optional inbox record; [architecture.md](architecture.md#outbox-delivery-semantics) records each gap. |
 
 ## Frontend
 
@@ -233,7 +250,7 @@ Critical files:
 | `frontend/src/middleware.ts` | mints the per-request CSP nonce and forwards it as `x-nonce` |
 | `frontend/src/components/ui` | the primitives. Nothing here knows what a task is |
 | `frontend/src/components/todos` | the task domain: cards, the create panel, the editor, the branch feed |
-| `frontend/src/components/layout` | `navbar.tsx` — the shell and the phone bottom bar |
+| `frontend/src/components/layout` | `app-shell.tsx` — the signed-in frame (the bar, `<main id="main">`, the column); `droplet.tsx` — `DropletFrame`, the floating capsule every bar is drawn as, with `useDropletScroll` and `useIsPhone`; `navbar.tsx` — the app's droplet bar (tabs, search, notifications, account, the phone menu); `page-header.tsx` — every page's title row |
 | `frontend/src/components/notifications` | the bell, its badge, and the badge cluster |
 | `frontend/src/components/backgrounds` | the raw-WebGL ribbon gradient and its static fallback |
 | `frontend/src/components/animated` | `celebration.tsx` (confetti), `fade-in.tsx`, `loading.tsx` |
@@ -260,12 +277,15 @@ Critical files:
 | `app/template.tsx` | per-navigation transition wrapper |
 | `app/globals.css` | the focus indicator, `.touch-target`, reduced-motion collapse, `--pl-*` variables |
 | `app/page.tsx` | landing |
-| `app/dashboard/page.tsx` | overview: `StatRow`, `WeekBars`, the `pathLength` progress ring, quick capture, undo-window delete |
-| `app/tasks/page.tsx` | the working list: masonry cards, `useListNavigation`, `SelectionBar`, `UpdatePill`, quick capture, undo-window delete |
-| `app/tasks/completed/page.tsx` | the archive, with the completion-date filter inside the QuickFilter plate |
-| `app/branch/[id]/page.tsx` | the same full task editor the modal shows, on its own URL so a card can be opened in a new tab |
-| `app/categories/page.tsx` | category management |
-| `app/profile/page.tsx` | identity, security, sessions, history, circle |
+| `app/(app)/layout.tsx` | the signed-in route group: renders `AppShell` (the sticky app bar, `<main id="main">`, the `container-app` column, the `AuthGuard`) once for all five signed-in routes, so the bar persists across them |
+| `app/(app)/template.tsx` | the page fade between signed-in routes (opacity only; nothing on the first page of a visit) |
+| `app/auth/layout.tsx` + `app/auth/template.tsx` | the auth frame and the card's entrance between auth routes |
+| `app/(app)/dashboard/page.tsx` | overview: `StatRow`, `WeekBars`, the `pathLength` progress ring, quick capture, undo-window delete |
+| `app/(app)/tasks/page.tsx` | the working list: masonry cards, `useListNavigation`, `SelectionBar`, `UpdatePill`, quick capture, undo-window delete |
+| `app/(app)/tasks/completed/page.tsx` | the archive, with the completion-date filter inside the QuickFilter plate |
+| `app/(app)/branch/[id]/page.tsx` | the same full task editor the modal shows, on its own URL so a card can be opened in a new tab |
+| `app/(app)/categories/page.tsx` | category management |
+| `app/(app)/profile/page.tsx` | identity, security, sessions, history, circle |
 | `app/auth/*/page.tsx` | login, register, verify-email, forgot-password, reset-password |
 
 `dashboard`, `tasks`, `categories` and `profile` each ship an `error.tsx` (rendering `SegmentError`)
@@ -353,7 +373,6 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `datetime.ts` | all date formatting, with the locale pinned so SSR and hydration agree |
 | `design-tokens.ts` | the single source of truth for every visual value; `tailwind.config.ts` derives from it |
 | `errors.ts` | failure classification and the copy for refusals a user cannot act their way out of |
-| `events.ts` | the custom window events (`planora:task-created`, the create-panel open event) |
 | `friend-names.ts` | id → display name, resolved from the shared friend cache |
 | `haptics.ts` | tiny vibration patterns for completion and creation only |
 | `icon-map.ts` | `@colour-data` — default icon and colour for a new category |

@@ -34,3 +34,22 @@ Tradeoffs:
 - The CSRF token endpoint must be reachable before auth POSTs.
 - XSS is not solved by CSRF; CSP and avoiding token storage remain necessary.
 - Tests must cover both missing and matching cookie/header behavior.
+
+## Current Implementation Audit (2026-10-06)
+
+The double-submit mechanism remains implemented, but its current scope is wider
+than the original refresh-cookie rationale: Auth, Todo, Category, Messaging and
+Collaboration call `UseCsrfProtection()`. Realtime and the gateway do not. Bearer-only
+mutations on the five protected services still require the cookie/header pair.
+`application/grpc*` content types are exempt; safe HTTP methods bypass comparison.
+
+The readable cookie uses path `/`, Strict, a one-hour expiry and the same configurable
+Secure policy as the refresh cookie. Rejection returns `403` JSON with error
+`CSRF_VALIDATION_FAILED`; there is no login/register path exemption. CSRF GET disables
+service rate limiting, although gateway rate limiting remains active.
+
+The frontend helper deduplicates fetches within a runtime. A public-auth 403 is retried
+once with a new token; this is not proof that every 403 originated in CSRF middleware.
+See [ADR 0005's implementation divergence](0005-csrf-coverage-bounded-to-auth-api.md#current-implementation-audit-2026-10-06),
+[the middleware](../../BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/CsrfProtectionMiddleware.cs),
+and [the current API contract](../API.md#auth).
