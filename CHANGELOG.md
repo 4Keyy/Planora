@@ -4,6 +4,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### fix(ci): restore dependency and auth contract checks (2026-10-06)
+
+Pinned XML cryptography to patched 10.0.12 through an explicit Auth Infrastructure
+reference and corrected two reset-link test expectations to `/auth/reset-password`.
+Forced restore, Release build with `-warnaserror` and all 972 backend tests passed;
+NuGet auditing remains enabled. See the [security note](.github/security/cryptography-xml-2026-10.md)
+for the affected advisories and the override removal condition.
+
+
 ### fix(motion): the branch feed moves as one, and five small snaps are gone (2026-10-06)
 
 - **Branch feed.** Messages, system events and day separators were plain rows with no layout and

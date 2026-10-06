@@ -446,3 +446,12 @@ The repository has a root [`SECURITY.md`](../SECURITY.md) policy. The documented
 | RabbitMQ AMQP binding | Compose binds AMQP to `127.0.0.1:5672`. | Keep broker traffic private in non-local environments. |
 | CSRF coverage | CSRF middleware is registered in Auth API, not in Todo/Category/Messaging/Realtime pipelines. | Confirm intended scope; add middleware to other cookie-sensitive services only if they accept cookie auth. |
 | Security contact ownership | GitHub Private Vulnerability Reporting is documented, but repository settings cannot be verified from code. | Owner must enable it or add a real security email/contact before public release. |
+
+## XML cryptography dependency correction
+
+Auth Infrastructure explicitly references `System.Security.Cryptography.Xml`
+10.0.12 through central package management. This overrides Data Protection's
+vulnerable transitive version without suppressing NuGet auditing. Remove the
+override only after the upstream dependency graph resolves a patched version
+throughout the solution. See the [dated security note](../.github/security/cryptography-xml-2026-10.md)
+for advisory references and verification commands.
