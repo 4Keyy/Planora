@@ -22,8 +22,8 @@ The sections below distinguish configured gates, observed results and test gaps.
 | Markdown link check | `.lychee.toml`, `.github/workflows/ci.yml` | lychee offline mode |
 | Load / perf scenarios | `perf/k6/scenarios`, `perf/k6/lib`, `perf/README.md` | k6 (JavaScript) |
 | Perf CI dispatch | `.github/workflows/perf-smoke.yml` | workflow_dispatch only |
-| Migration script artifacts | `.github/workflows/migrations.yml` | `dotnet ef migrations script --idempotent`, five DB-owning services |
-| OpenAPI artifacts | `.github/workflows/openapi.yml` | `dotnet swagger tofile`, five configured services; Collaboration is not in this matrix |
+| Migration script artifacts | `.github/workflows/migrations.yml` | `dotnet ef migrations script --idempotent`, six DB-owning services; EF CLI 10.0.8 after restore/Release build |
+| OpenAPI artifacts | `.github/workflows/openapi.yml` | `dotnet swagger tofile`, all six HTTP services; Testing skips Todo/Collaboration startup migrations |
 
 ## Verification Snapshot — 2026-10-06
 
@@ -265,18 +265,26 @@ k6 run --out json=perf/results/todo-list.json `
 
 When schema-relevant paths or the workflow change,
 [`.github/workflows/migrations.yml`](../.github/workflows/migrations.yml) builds
-the solution and runs `dotnet ef migrations script --idempotent` for Auth,
-Category, Todo, Messaging and Collaboration. It uploads `.sql` files with
+the startup projects in Release after solution restore and runs EF CLI 10.0.8
+with `migrations script --idempotent` for Auth, Category, Todo, Messaging,
+Collaboration and Realtime. It uploads `.sql` files with
 30-day retention and checks non-empty scripts for idempotence markers.
-These scripts are review artifacts generated from the current migration sets;
+These scripts are review artifacts generated from the current migration sets.
+Realtime's API startup project includes a private EF design-time reference so
+the tool can load its context factory, matching the other API projects.
 `Planora.Migrator --all` applies those sets through EF rather than reading the
 uploaded SQL files. Artifact generation is not proof of a successful production migration.
 
 ## OpenAPI Artifacts (per PR)
 
-When a PR changes anything in `BuildingBlocks/**`, `Services/**`, `GrpcContracts/**`, `.config/dotnet-tools.json`, `Directory.Packages.props`, or the workflow itself, [`.github/workflows/openapi.yml`](../.github/workflows/openapi.yml) extracts a fresh `swagger.json` for each of its five configured services (auth, category, todo, messaging, realtime) via the `Swashbuckle.AspNetCore.Cli` local tool (`dotnet swagger tofile`). Each artifact is uploaded with 30-day retention. **Collaboration has HTTP controllers but is absent from this workflow matrix**, so the artifacts are not a complete API inventory.
+When a PR changes anything in `BuildingBlocks/**`, `Services/**`, `GrpcContracts/**`, `.config/dotnet-tools.json`, `Directory.Packages.props`, or the workflow itself, [`.github/workflows/openapi.yml`](../.github/workflows/openapi.yml) extracts a fresh `swagger.json` for all six HTTP services (auth, category, todo, messaging, realtime, collaboration) via the `Swashbuckle.AspNetCore.Cli` local tool (`dotnet swagger tofile`). Each artifact is uploaded with 30-day retention.
 
-The workflow stands up Postgres + Redis + RabbitMQ as GitHub Actions services so the boot path completes; Redis and RabbitMQ failures degrade gracefully through the existing service `Program.cs` waiters, but providing all three keeps the boot deterministic. The JSON is validated post-extraction with `jq -e '.openapi and .info.title and .paths'` so a malformed document fails the job rather than slipping through as a zero-byte artifact.
+The workflow uses the existing `Testing` environment guard to skip Todo and
+Collaboration startup migrations during metadata collection. It provides
+Postgres, Redis and RabbitMQ for other startup dependencies; extracting a
+document does not prove database startup or schema correctness. The JSON is
+validated post-extraction with `jq -e '.openapi and .info.title and .paths'` so
+a malformed document fails the job rather than passing as a zero-byte artifact.
 
 After extraction every artifact is linted by **Spectral** (`@stoplight/spectral-cli`) against the ruleset declared in [`.spectral.yaml`](../.spectral.yaml). The CI step runs with `--fail-severity=error` so contract-stability rules (`oas3-schema`, `operation-success-response`, `path-keys-no-trailing-slash`, `oas3-valid-media-example`, `oas3-valid-schema-example`, `operation-operationId-unique`, `operation-operationId-valid-in-url`) gate the merge. Documentation-friendliness rules (`info-description`, `operation-description`, `tag-description`, `oas3-parameter-description`) are downgraded to `hint`: they surface in the job log so reviewers see the gaps, but do not block the merge while controller XML doc coverage is incomplete.
 
