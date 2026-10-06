@@ -4,6 +4,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Fixed
+
+- Category cards: separate the moving wrapper from the clipped, rounded shadow surface to address reported black flickering dots beneath cards during rapid pointer movement. Cards now follow task-card motion and styling, with category-coloured hover glow, a desktop gradient delete panel, and a neutral mobile delete button.
+
 ### test(ci): await landing branch entry frames (2026-10-06)
 
 The branch-circle regression now waits for newly revealed accessible controls

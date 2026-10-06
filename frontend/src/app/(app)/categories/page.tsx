@@ -1,10 +1,10 @@
 "use client"
 
-import { forwardRef, useEffect, useMemo, useRef, useState, useCallback, useId } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback, useId } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO, TWEEN_UI } from "@/lib/animations"
-import { Plus, Folder, Trash2, X } from "lucide-react"
+import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO } from "@/lib/animations"
+import { Plus, Folder, X } from "lucide-react"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import { FIELD_LABEL_CLASS } from "@/components/ui/field"
 import { Overlay } from "@/components/ui/overlay"
 import { StatusPanel } from "@/components/ui/status-panel"
 import { PageHeader } from "@/components/layout/page-header"
+import { CategoryCard } from "@/components/categories/category-card"
 import { CategoryCardSkeleton } from "@/components/categories/category-card-skeleton"
 
 type CategoryFormData = {
@@ -30,110 +31,6 @@ type CategoryFormData = {
   color: string
   icon: string | null
 }
-
-/**
- * Loading skeleton for category card
- */
-/**
- * One category, in the same shell as a task card: an opaque paper card with a hairline
- * border that lifts 2px and deepens its shadow under the pointer, and a delete strip that
- * slides in from the right edge on a desktop.
- *
- * It used to be a transparent card with a grey 2px border, a hover glow computed from
- * the category's colour, a `backdrop-blur` switched on under the pointer, and the colour's
- * hex code printed as the card's second line ("#0EA5E9") — a value nobody chose by name
- * and nobody reads. The colour is still there, as the icon's tint.
- *
- * Every action is a real control. The card used to be a clickable `div` with a delete
- * strip that mounted only on mouse-enter, so from a keyboard a category could be neither
- * edited nor (on a desktop) deleted. The card's body is now a button, and the desktop
- * strip is a button that slides in on hover and on keyboard focus alike.
- */
-/*
- * A forwardRef because the grid's presence runs in `popLayout` mode: it pins a leaving card
- * where it stood through this ref, and a component that drops the ref is silently not popped.
- */
-const CategoryCard = forwardRef<HTMLDivElement, {
-  category: Category
-  onEdit: () => void
-  onDelete: () => void
-}>(function CategoryCard({ category, onEdit, onDelete }, ref) {
-  const CategoryIcon = category.icon ? (ICON_MAP[category.icon] ?? Folder) : Folder
-  const accentColor = category.color || "var(--pl-accent)"
-  const [isControlHover, setIsControlHover] = useState(false)
-
-  return (
-    <motion.div
-      ref={ref}
-      // Position only: a size `layout` would stretch the bordered, rounded surface.
-      layout="position"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: DURATION_FAST, ease: EASE_EXIT } }}
-      whileHover={isControlHover ? undefined : { y: -2 }}
-      transition={TWEEN_UI}
-      className="group/card relative overflow-hidden rounded-lg border border-line bg-paper shadow-sm transition-shadow duration-base ease-emphasized hover:shadow-lg"
-    >
-      {/* Delete strip (desktop): always mounted, parked past the card's right edge, and
-          slid in by a CSS transform when its zone is hovered or the button is focused. */}
-      <div
-        className="group/delete absolute inset-y-0 right-0 z-30 hidden w-16 overflow-hidden md:block"
-        onMouseEnter={() => setIsControlHover(true)}
-        onMouseLeave={() => setIsControlHover(false)}
-      >
-        <button
-          type="button"
-          aria-label={`Delete category ${category.name}`}
-          className={cn(
-            "flex h-full w-full translate-x-full items-center justify-center bg-alert text-paper focus-visible:-outline-offset-2",
-            "transition-transform duration-base ease-emphasized group-hover/delete:translate-x-0 focus-visible:translate-x-0",
-          )}
-          onClick={onDelete}
-        >
-          <Trash2 className="h-5 w-5" aria-hidden="true" />
-        </button>
-      </div>
-
-      {/* Delete (phones): neutral until pressed — the saturated colour belongs to the
-          confirmation, not to the invitation. */}
-      <button
-        type="button"
-        onClick={onDelete}
-        className="absolute right-2 top-2 z-30 flex h-11 w-11 items-center justify-center rounded-full text-ink-muted transition-colors duration-fast active:bg-alert-surface active:text-alert md:hidden"
-        aria-label={`Delete category ${category.name}`}
-      >
-        <Trash2 className="h-4 w-4" aria-hidden="true" />
-      </button>
-
-      <div aria-hidden="true" className="pointer-events-none absolute -bottom-6 -right-6 opacity-5 transition-opacity duration-slow group-hover/card:opacity-10">
-        <CategoryIcon className="h-28 w-28 text-ink" strokeWidth={1} />
-      </div>
-
-      <button
-        type="button"
-        onClick={onEdit}
-        aria-label={`Edit category ${category.name}`}
-        // The focus ring is drawn inside the edge: the card clips its overflow, and an
-        // outline offset outwards would be cut away entirely.
-        className="relative z-10 flex w-full items-center gap-4 rounded-lg p-5 pr-14 text-left focus-visible:-outline-offset-2 md:pr-5"
-      >
-        <span
-          aria-hidden="true"
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md"
-          style={{ backgroundColor: `color-mix(in srgb, ${accentColor} 12%, transparent)` }}
-        >
-          <CategoryIcon className="h-5 w-5" style={{ color: accentColor }} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-body font-semibold tracking-tight text-ink">{category.name}</h2>
-          <p className="mt-0.5 line-clamp-1 text-body-sm text-ink-muted">
-            {category.description?.trim() || "No description"}
-          </p>
-        </div>
-      </button>
-    </motion.div>
-  )
-})
 
 /**
  * Category creation/editing modal

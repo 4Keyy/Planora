@@ -145,6 +145,7 @@ Organize todos with user-owned labels that carry color, icon, and display order.
 - `Services/CategoryApi/Planora.Category.Domain/Entities/Category.cs`
 - `Services/CategoryApi/Planora.Category.Domain/Enums/CategoryColors.cs`
 - `frontend/src/app/(app)/categories/page.tsx`
+- `frontend/src/components/categories/category-card.tsx`
 
 ### Key Rules
 
@@ -164,6 +165,8 @@ Organize todos with user-owned labels that carry color, icon, and display order.
 
 ### Frontend Behavior
 
+- Category cards use the task card's paper surface, hairline border, rounded corners, icon watermark, and entrance, hover, press, and exit animations. Hover glow uses the category colour through `--card-glow` (the app accent when no colour is set); motion stays on an outer wrapper, with clipping and shadows on the inner surface to avoid hover rendering artefacts.
+- The card body is an edit button showing the coloured icon, name, and description (`No description` when empty). On desktop, the delete zone reveals a gradient panel and animated trash icon on hover or keyboard focus; its button supports Enter/Space. Phones use a neutral 44×44 delete button. Both open the existing confirmation dialog before deletion; reduced motion follows the app's `MotionConfig`.
 - Editing an existing category is **quick-save**: there are no Save/Cancel buttons. Changing the name, description, color (color picker), or icon persists automatically. The debounced `useAutosave` hook (`frontend/src/hooks/use-autosave.ts`) coalesces bursts (e.g. dragging the color picker) into a single `PUT`, updates the grid optimistically, and a `AutosaveIndicator` reports `Saving… / All changes saved / Couldn’t save`.
 - An empty name is never persisted (a category's only required field); the modal shows an inline "Enter a name to save your changes" hint and skips the save until a name is present.
 - Pending edits are flushed when the modal closes (X / `Escape` / backdrop / `Done`), so a change made inside the debounce window is never lost.
