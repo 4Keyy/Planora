@@ -564,3 +564,12 @@ vulnerable transitive version without suppressing NuGet auditing. Remove the
 override only after the upstream dependency graph resolves a patched version
 throughout the solution. See the [dated security note](../.github/security/cryptography-xml-2026-10.md)
 for advisory references and verification commands.
+
+## Frontend dependency review
+
+The compatible frontend updates include Next.js 16.3.8, sharp 0.35.5 and
+source-map-js 1.2.2. The production dependency scan (`npm audit --omit=dev`)
+reports no vulnerable packages against the current registry metadata. The full
+scan still reports development-tool vulnerabilities; this is not a claim that
+the entire package graph is clean. The [dated review](../.github/security/frontend-dependencies-2026-10.md)
+lists the remaining advisories and verification boundaries.

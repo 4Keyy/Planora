@@ -8,13 +8,13 @@ For every visual value — colour, type, space, motion, elevation — see
 
 | | |
 |---|---|
-| Framework | Next.js 16.2.9 (App Router; lockfile version) |
+| Framework | Next.js 16.3.8 (App Router; lockfile version) |
 | React | React / React DOM 18.3.1 |
 | Language | TypeScript 5.9.3, `strict`, `@/*` → `src/*` |
 | Styling | Tailwind 3.4.19; semantic scales derived from `lib/design-tokens.ts` |
 | Motion | framer-motion 11.18.2 |
 | Primitives | Radix Slot, Dropdown Menu and Popover; custom modal/focus-management components |
-| State | Zustand 5.0.14 |
+| State | Zustand 5.0.15 |
 | Realtime | SignalR over the gateway |
 | Tests | Vitest + Testing Library; Playwright for e2e and the audit harness |
 

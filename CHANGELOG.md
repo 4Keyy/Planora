@@ -4,6 +4,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### chore(deps): update frontend dependencies and security patches (2026-10-06)
+
+Applied the compatible dependency updates in Dependabot PR #123 and advanced
+Next.js / its ESLint configuration to 16.3.8, Vitest / V8 coverage to 4.1.11,
+and the undici override to 7.30.0. Refreshed compatible transitive dependencies,
+including sharp 0.35.5 and source-map-js 1.2.2; React 18, Tailwind 3 and motion
+library versions are preserved. Lint, types, all 1,231 tests, coverage gates and
+the production build pass. The production dependency scan is clean; the full
+scan still reports development-tool advisories. See the [security review](.github/security/frontend-dependencies-2026-10.md)
+for the remaining findings and CI limits.
+
 ### fix(ci): make contract artifacts reproducible (2026-10-06)
 
 The migration artifact workflow now restores and builds Release assemblies
