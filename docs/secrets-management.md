@@ -123,6 +123,15 @@ and does not fully configure all production gRPC URLs. Check the per-app matrix 
 route/listener limitations in [the Fly guide](../deploy/fly/README.md) before running it.
 Do not infer mTLS or private transport authorization from a `.internal` hostname alone.
 
+## Scanner Interpretation Of Configuration References
+
+The Email password rule captures a complete Compose variable expression, including
+required-variable messages with spaces, before applying the existing interpolation
+allowlist. For example, `${E2E_SMTP_PASSWORD:?Set a disposable E2E_SMTP_PASSWORD}`
+is a configuration reference, not an embedded credential. Literal email passwords
+remain findings. This behavior is verified with gitleaks 8.24.3 against both synthetic
+configuration cases and the reviewed PR commit range; no scan gate or rule is disabled.
+
 ## Leak Response
 
 1. Revoke/rotate the credential in its backing system immediately.

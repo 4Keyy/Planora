@@ -37,6 +37,8 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 - Cold session restoration now preserves CSRF HTTP status and waits one bounded `Retry-After` window before retrying a limited silent refresh, preventing reloads from redirecting to login over a transient gateway limit.
 
+- Secret scanning now recognizes complete required SMTP variable references with spaced error messages; the active Email password rule still detects literal passwords.
+
 ### Performance
 
 - Switching between Dashboard, Tasks and Categories no longer holds a loading screen for a third of a second. The tabs prefetched only each route's `loading.tsx`, so every press showed it, and React keeps a boundary's fallback up for at least 300ms before revealing what replaces it, however fast the server was. The tabs (and the profile, as its menu opens) now prefetch their whole route — the pages fetch their data in the browser, so that is only their shell and code — and a press renders the page at once. Production build, Dashboard → Tasks: the page's heading appeared 342ms after the press before, 64ms after.
