@@ -210,9 +210,8 @@ function SelectorCard({
 }
 
 /**
- * Share picker mirroring the FriendMultiSelect semantics the panel used before
- * the redesign: "All friends" toggles the public flag (clearing direct shares),
- * picking a friend while public switches to a direct share with just them.
+ * Covering every current friend selects "All friends" and clears direct shares.
+ * Picking a friend while public deliberately switches to a direct share with just them.
  */
 function SharePopover({
   open,
@@ -239,9 +238,15 @@ function SharePopover({
       onChange([id])
       return
     }
-    onChange(
-      selectedIds.includes(id) ? selectedIds.filter(fid => fid !== id) : [...selectedIds, id]
-    )
+    const nextIds = selectedIds.includes(id)
+      ? selectedIds.filter(fid => fid !== id)
+      : [...selectedIds, id]
+    if (friends.length > 0 && friends.every(friend => nextIds.includes(friend.id))) {
+      onPublicChange(true)
+      onChange([])
+    } else {
+      onChange(nextIds)
+    }
   }
 
   const sub = isPublic
@@ -280,7 +285,7 @@ function SharePopover({
           <span className="min-w-0 flex-1">
             <span className="block text-caption font-bold tracking-tight">All friends</span>
             <span className={cn("block text-caption font-semibold", isPublic ? "text-paper/55" : "text-ink-subtle")}>
-              Every accepted friend can see it
+              Every friend you have right now
             </span>
           </span>
           <span

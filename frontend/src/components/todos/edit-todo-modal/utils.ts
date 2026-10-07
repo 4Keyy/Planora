@@ -228,9 +228,9 @@ export function todoToOwnerPayload(todo: {
     dueDateStart,
     clearDueDate: !todo.dueDate,
     categoryId: todo.categoryId || null,
-    isPublic: false,
+    isPublic: todo.isPublic,
     sharedWithUserIds: visFriends ? shared : [],
-    requiredWorkers: visFriends ? 1 + shared.length : null,
-    clearRequiredWorkers: !visFriends,
+    requiredWorkers: visFriends && !todo.isPublic ? 1 + shared.length : null,
+    clearRequiredWorkers: !visFriends || todo.isPublic,
   }
 }

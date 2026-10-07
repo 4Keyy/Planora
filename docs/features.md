@@ -749,9 +749,16 @@ sanctioned exception to "transform and opacity only" — no transform turns an a
 arc. The whole mark, word and count collapse into a single node with one name
 (`role="img"`), so the audience is not announced twice.
 
-The editor never produces `public` from this control: it writes `isPublic: false` on every save
-and expresses reach through the shared list, so the badge reports `private` or `shared` only.
-The viewer count is the length of that shared list.
+Picking every current friend in a nonempty loaded list switches the create picker and editor
+to All friends, including the editor's ALL action and the branch's inline access panel. Stale
+selected IDs do not affect coverage. Clicking a friend while All friends is enabled explicitly
+switches to a direct share with that friend, even if they are the only friend.
+
+An unchanged All friends task keeps `isPublic: true`, sends an empty client share list and has
+unlimited workers. The same owner payload seeds autosave and preserves the audience during
+priority shortcuts; opening an unchanged task does not cause an unnecessary save. Direct and
+private tasks retain their existing payloads. The direct-share viewer count is the length of
+that shared list.
 
 ### Frontend Behavior
 
