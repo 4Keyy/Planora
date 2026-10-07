@@ -158,9 +158,12 @@ export function TodoEditor({
     if (mode === "private") setAllFriends(false)
   }, [])
   const changeSharedIds = useCallback((ids: string[]) => {
-    setSharedIds(ids)
-    setAllFriends(false)
-  }, [])
+    // A click from All friends is an explicit direct share, even with a single friend.
+    const coversCurrentFriends = !allFriends && friends.length > 0
+      && friends.every(friend => ids.includes(friend.id))
+    setAllFriends(coversCurrentFriends)
+    setSharedIds(coversCurrentFriends ? [] : ids)
+  }, [allFriends, friends])
 
   const inProgress = isOwner
     ? String(todo.status ?? "").toLowerCase().replace(/\s/g, "") === "inprogress"

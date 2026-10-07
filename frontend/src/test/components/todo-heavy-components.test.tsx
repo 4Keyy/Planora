@@ -775,7 +775,7 @@ describe("CreateTodoPanel", () => {
     expect(await screen.findByText("Failed to create task. Please try again.")).toBeInTheDocument()
   })
 
-  it("shares directly with a friend, then switches to all-friends and back", async () => {
+  it("auto-selects All friends for the only friend and permits a direct override", async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
 
@@ -790,13 +790,9 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    // Direct share: pick the friend from the share popover
+    // Picking the sole current friend covers the whole audience.
     await user.click(screen.getByRole("button", { name: "Private task" }))
     await user.click(await screen.findByRole("checkbox", { name: "Ada Lovelace" }))
-    expect(screen.getByRole("button", { name: "Shared with 1 friend" })).toBeInTheDocument()
-
-    // Switching to all-friends clears the direct selection
-    await user.click(screen.getByText("All friends"))
     expect(screen.getByRole("button", { name: "Shared with all friends" })).toBeInTheDocument()
 
     // Picking a friend while public flips back to a direct share with just them
@@ -807,7 +803,9 @@ describe("CreateTodoPanel", () => {
     await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
     expect(screen.getByRole("button", { name: "Private task" })).toBeInTheDocument()
 
-    // Re-select and submit: capacity = author + 1 friend
+    // Cover the whole audience, then deliberately pick the friend as a direct share.
+    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    expect(screen.getByRole("button", { name: "Shared with all friends" })).toBeInTheDocument()
     await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Pair task" },

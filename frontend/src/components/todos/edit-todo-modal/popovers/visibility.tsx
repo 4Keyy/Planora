@@ -77,7 +77,7 @@ export function VisibilityPanel({
     )
   }
 
-  const allSelected  = friends.length > 0 && friends.every((f) => sharedIds.includes(f.id))
+  const allSelected  = allFriends || (friends.length > 0 && friends.every((f) => sharedIds.includes(f.id)))
   const toggleAll    = () => {
     if (readOnly) return
     if (allSelected) onSharedIdsChange([])
