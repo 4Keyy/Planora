@@ -43,6 +43,18 @@ The current public-task join path returns a full mapped DTO and omits the live f
 check; this known inconsistency is documented in [auth-security.md](../auth-security.md).
 Do not interpret this ADR as proof that every mutation response is redacted.
 
+### Implementation Note — 2026-10-07
+
+By the owner's decision, hidden tasks can be found in the command palette. Only the palette
+requests `GET /todos/api/v1/todos?revealHidden=true`, which returns the normal DTO while
+retaining `hidden: true` and all ordinary access, category and audience-redaction rules. The
+palette keeps those rows blurred until the user hovers over them or selects them with the
+keyboard. This option changes the projection only: filters, paging and archive exclusions
+stay the same.
+
+Task lists and the task detail page retain their existing redacted presentation and the
+no eager hydration rule. This backend contract does not implement or change the palette UI.
+
 ### Original Tradeoffs
 
 Positive:

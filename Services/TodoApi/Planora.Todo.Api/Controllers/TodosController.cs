@@ -48,10 +48,11 @@ namespace Planora.Todo.Api.Controllers
             // Inclusive completion-date window for the completed archive's date-range search.
             [FromQuery] DateTime? completedFrom = null,
             [FromQuery] DateTime? completedTo = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            [FromQuery] bool revealHidden = false)
         {
             var query = new GetUserTodosQuery(
-                null, pageNumber, pageSize, status, categoryId, isCompleted, includeSubtasks, completedFrom, completedTo);
+                null, pageNumber, pageSize, status, categoryId, isCompleted, includeSubtasks, completedFrom, completedTo, revealHidden);
             var result = await _mediator.Send(query, cancellationToken);
 
             return Ok(result);

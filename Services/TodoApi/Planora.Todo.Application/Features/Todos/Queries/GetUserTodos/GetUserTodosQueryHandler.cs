@@ -201,7 +201,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                 var isViewerOwner = item.UserId == userId;
                 var completedByViewer = !isViewerOwner && (preference?.CompletedByViewer == true);
 
-                if (effectiveHidden)
+                if (effectiveHidden && !request.RevealHidden)
                 {
                     // Return minimal DTO for hidden tasks — no sensitive data
                     CategoryInfo? hiddenCat = null;

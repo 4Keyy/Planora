@@ -21,5 +21,6 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
         // it was finished" date-range search. Either bound may stand alone (open-ended on the
         // missing side).
         DateTime? CompletedFrom = null,
-        DateTime? CompletedTo = null) : IQuery<PagedResult<TodoItemDto>>;
+        DateTime? CompletedTo = null,
+        bool RevealHidden = false) : IQuery<PagedResult<TodoItemDto>>;
 }

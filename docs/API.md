@@ -674,6 +674,14 @@ from the middleware, not from those branches.
 case-insensitively with spaces stripped, and an unparseable entry is dropped rather than rejected —
 `status=nonsense` is the same request as no filter at all.
 
+`revealHidden` (default `false`) changes only the projection of hidden rows in
+`GET /todos/api/v1/todos`. With `revealHidden=true`, the command palette receives the normal
+`TodoItemDto` with `hidden: true`: real title, description, dates, tags, viewer category and worker
+metadata, subject to the ordinary sharing and viewer-specific DTO rules. Access checks, filters,
+ordering, totals, paging and completed-archive exclusions are unchanged; the flag cannot add an
+otherwise inaccessible task. Other task lists omit the flag, and detail reads retain their usual
+redaction behavior.
+
 `includeSubtasks` (default `false`) is the only way to see subtasks in a task list: every list query
 filters to `parentTodoId == null` unless it is set. The dashboard statistics fetch opts in so
 completed subtasks still count toward the weekly numbers, then filters them out of the displayed grid
@@ -1109,7 +1117,8 @@ Hidden shared/public todos may return a redacted `TodoItemDto`; see [`features.m
 
 When a task is hidden and either the viewer is not its owner or the task has an audience, the read
 handlers return a **masked** `TodoItemDto` instead of the real one
-(`Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs`). The mask is not
+(`Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs`). The list-only `revealHidden=true` option explicitly bypasses this
+projection for the command palette; it does not change access or detail reads. The mask is not
 a flag the client should interpret — the data is genuinely not in the response:
 
 | Field | Masked value |
