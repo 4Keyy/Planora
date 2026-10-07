@@ -374,6 +374,23 @@ tokens for repeated design values without treating every inline value as a token
 An inline style is **never** the right place for a colour literal, a font size below
 12px, or a global z-index.
 
+### Page entrances
+
+A block on a signed-in page arrives through `components/animated/entrance.tsx`, never
+with its own `initial={{ opacity: 0 }}`: `useEnter(tier, { at, index, ready })` (or
+`<Enter>`) on the element itself, `useEnterEach`/`<EnterEach>` on a container whose
+children arrive one by one, `<EnterInView>` for what sits below the first screen, and
+`SkeletonSwap` around content that has a placeholder. `at` is ms on the page's timeline
+(started by `(app)/template.tsx`), the tier is the element's size (`tokens.motion.entrance`).
+Pass `ready={false}` while a figure is still on its way, and key a `NumberRoll` or ring
+by readiness so it arrives with its value instead of rolling up from 0. Outside the
+`(app)` template there is no timeline and these return nothing, so a component used on
+the landing page or in a test renders as before. Three things to keep: a plain inline
+element does not move (the rise needs a block, an inline-block or a flex item); never put
+an entrance on an ancestor of a `position: fixed` control (design-system § 9.11); and a
+component that animates its own arrival must stand down inside one that does
+(`useArrivalHandled`). The choreography is design-system § 9.13.
+
 ### Icons
 
 `lucide-react`. A decorative icon takes `aria-hidden="true"`. An icon that is the only

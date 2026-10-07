@@ -13,6 +13,7 @@ import { useToastStore } from "@/store/toast"
 import { Todo, type UpdateTodoPayload, isTodoOwner, toApiTodoStatus } from "@/types/todo"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
 import { TodoEditor } from "@/components/todos/edit-todo-modal"
+import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 
 /**
  * Standalone branch page — the same full task editor the modal shows (title, the inline meta strip
@@ -154,24 +155,48 @@ export default function BranchPage() {
     } catch (e) { addToast({ type: "error", title: getApiErrorMessage(e, "Could not duplicate task") }) }
   }, [todo, router, addToast])
 
-  if (loading) {
-    return <p style={{ fontSize: 14, color: "var(--pl-ink-subtle)", padding: "8px 2px" }}>Loading branch…</p>
-  }
-
-  if (notFound || !todo) {
-    return (
-      <div style={{ padding: "8px 2px" }}>
-        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", marginBottom: 8 }}>Task not found</p>
-        <p style={{ fontSize: 14, color: "var(--pl-ink-subtle)", marginBottom: 16 }}>
-          It may have been deleted, or you don&apos;t have access to it.
-        </p>
-        <Link href="/tasks" style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-accent)" }}>← Back to tasks</Link>
-      </div>
-    )
-  }
-
+  // The line that says it is loading is only shown if the wait is long enough to notice,
+  // and steps aside under the card rather than vanishing (`SkeletonSwap`); the card — the
+  // whole page — then arrives as the page's one large surface.
   return (
-    <div
+    <SkeletonSwap
+      loading={loading}
+      skeleton={<p style={{ fontSize: 14, color: "var(--pl-ink-subtle)", padding: "8px 2px" }}>Loading branch…</p>}
+    >
+      {notFound || !todo ? (
+        <Enter tier="panel" style={{ padding: "8px 2px" }}>
+          <p style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", marginBottom: 8 }}>Task not found</p>
+          <p style={{ fontSize: 14, color: "var(--pl-ink-subtle)", marginBottom: 16 }}>
+            It may have been deleted, or you don&apos;t have access to it.
+          </p>
+          <Link href="/tasks" style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-accent)" }}>← Back to tasks</Link>
+        </Enter>
+      ) : (
+        <BranchCard>
+          <TodoEditor
+            variant="page"
+            todo={todo}
+            categories={categories}
+            onSave={handleSave}
+            onSaveViewerPreference={handleSaveViewerPreference}
+            onCreateCategory={fetchCategories}
+            commentsRefreshKey={refreshKey}
+            onLeave={handleStopWork}
+            onStartWork={handleStartWork}
+            onCompleteTask={handleComplete}
+            onDuplicate={handleDuplicate}
+            onDescriptionChange={(desc: string) => setTodo((p) => (p ? { ...p, description: desc } : p))}
+          />
+        </BranchCard>
+      )}
+    </SkeletonSwap>
+  )
+}
+
+function BranchCard({ children }: { children: React.ReactNode }) {
+  return (
+    <Enter
+      tier="hero"
       style={{
         // Full-width card matching the page's left/right gutters; the branch flex-fills and
         // scrolls internally so the title/meta stay put.
@@ -185,20 +210,7 @@ export default function BranchPage() {
         overflow: "hidden",
       }}
     >
-      <TodoEditor
-        variant="page"
-        todo={todo}
-        categories={categories}
-        onSave={handleSave}
-        onSaveViewerPreference={handleSaveViewerPreference}
-        onCreateCategory={fetchCategories}
-        commentsRefreshKey={refreshKey}
-        onLeave={handleStopWork}
-        onStartWork={handleStartWork}
-        onCompleteTask={handleComplete}
-        onDuplicate={handleDuplicate}
-        onDescriptionChange={(desc: string) => setTodo((p) => (p ? { ...p, description: desc } : p))}
-      />
-    </div>
+      {children}
+    </Enter>
   )
 }

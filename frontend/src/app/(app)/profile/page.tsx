@@ -56,6 +56,7 @@ import { TWEEN_FAST } from "@/lib/animations"
 import { formatDateTime as formatDate, formatDate as formatDateShort } from "@/lib/datetime"
 import { StatusPanel } from "@/components/ui/status-panel"
 import { Field, FIELD_LABEL_CLASS, type FieldControlProps } from "@/components/ui/field"
+import { Enter, EnterEach, EnterInView, SkeletonSwap, useEnter, useEnterEach } from "@/components/animated/entrance"
 import type {
   UserDto,
   UserSecurityDto,
@@ -167,6 +168,18 @@ function StatusPill({
   )
 }
 
+/**
+ * When the content inside a card arrives, after the card itself: its header has landed and
+ * the eye has moved on to the body.
+ */
+const CARD_BODY_AT = 120
+
+/**
+ * A card of a section. It arrives when it scrolls into view, so a long page is not played
+ * off-screen: in view when its section appears, at `at` on the section's timeline (after
+ * the heading); further down, as the reader reaches it. `index` staggers cards revealed
+ * side by side.
+ */
 function SectionCard({
   icon: Icon,
   title,
@@ -175,6 +188,8 @@ function SectionCard({
   children,
   className,
   bodyClassName,
+  at = 150,
+  index,
 }: {
   icon?: LucideIcon
   title: string
@@ -183,9 +198,17 @@ function SectionCard({
   children: ReactNode
   className?: string
   bodyClassName?: string
+  at?: number
+  index?: number
 }) {
   return (
-    <section className={cn(CARD, "flex flex-col overflow-hidden", className)}>
+    <EnterInView
+      as="section"
+      tier="panel"
+      at={at}
+      index={index}
+      className={cn(CARD, "flex flex-col overflow-hidden", className)}
+    >
       <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div className="flex min-w-0 items-center gap-3">
           {Icon && (
@@ -207,7 +230,7 @@ function SectionCard({
         {action && <div className="flex flex-shrink-0 items-center gap-2">{action}</div>}
       </div>
       <div className={cn("flex flex-1 flex-col p-5", bodyClassName)}>{children}</div>
-    </section>
+    </EnterInView>
   )
 }
 
@@ -215,23 +238,37 @@ function SectionCard({
  * A single hairline data cell. Rendered inside a `<dl>` grid so a group of
  * MetricTiles forms an even spec-grid with 1px dividers and no colored fills.
  * `tone` is preserved for API compatibility but only drives the small status dot.
+ *
+ * Its words arrive, not the cell: the cells are white over the grid's grey hairlines, so
+ * a cell fading in would flash grey. The grid lands with its card; label then value pour
+ * in across it, `index` cells from the left.
  */
 function MetricTile({
   label,
   value,
   detail,
   active,
+  index = 0,
+  at = CARD_BODY_AT,
+  ready,
 }: {
   icon?: LucideIcon
   label: string
   value: ReactNode
   detail?: ReactNode
   active?: boolean
+  index?: number
+  at?: number
+  /** False while its value is still on its way; the words wait rather than arrive as "—". */
+  ready?: boolean
 }) {
+  const labelIn = useEnter("text", { at, index, ready })
+  const valueIn = useEnter("text", { at: at + 40, index, ready })
+  const detailIn = useEnter("text", { at: at + 80, index, ready })
   return (
     <div className="bg-paper p-4">
-      <dt className={LABEL}>{label}</dt>
-      <dd className="mt-2 flex items-baseline gap-2">
+      <dt className={cn(LABEL, labelIn.className)} style={labelIn.style}>{label}</dt>
+      <dd className={cn("mt-2 flex items-baseline gap-2", valueIn.className)} style={valueIn.style}>
         <span className="min-w-0 truncate text-title-sm font-bold tabular-nums tracking-tight text-ink">
           {value}
         </span>
@@ -246,7 +283,9 @@ function MetricTile({
         )}
       </dd>
       {detail && (
-        <p className="mt-1 truncate text-caption font-semibold text-ink-muted">{detail}</p>
+        <p className={cn("mt-1 truncate text-caption font-semibold text-ink-muted", detailIn.className)} style={detailIn.style}>
+          {detail}
+        </p>
       )}
     </div>
   )
@@ -270,7 +309,11 @@ function InfoTile({ label, value, icon: Icon }: { label: string; value: ReactNod
  * heading here would put a phantom level in the page outline.
  */
 function EmptyState({ icon, title, description }: { icon: LucideIcon; title: string; description?: string }) {
-  return <StatusPanel size="compact" as="p" icon={icon} title={title} description={description} />
+  return (
+    <Enter tier="row" at={CARD_BODY_AT}>
+      <StatusPanel size="compact" as="p" icon={icon} title={title} description={description} />
+    </Enter>
+  )
 }
 
 /**
@@ -289,15 +332,22 @@ function Pager({
   onPrevious,
   onNext,
   label,
+  order = 0,
 }: {
   previousDisabled?: boolean
   nextDisabled?: boolean
   onPrevious: () => void
   onNext: () => void
   label?: string
+  /** How many rows arrive above it: it comes in after the last of them. */
+  order?: number
 }) {
+  const entrance = useEnter("row", { at: CARD_BODY_AT, index: order })
   return (
-    <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className={cn("mt-4 flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between", entrance.className)}
+      style={entrance.style}
+    >
       <span className="text-caption font-semibold text-ink-muted">{label ?? "Page controls"}</span>
       <div className="flex gap-2">
         <Button size="sm" variant="secondary" disabled={previousDisabled} onClick={onPrevious}>
@@ -326,14 +376,29 @@ function LoadingRows({ count = 3 }: { count?: number }) {
   )
 }
 
-function SectionHeading({ index, title, description }: { index: string; title: string; description: string }) {
+/**
+ * A section's heading, read top to bottom as it arrives: the eyebrow, the title a beat
+ * later, the sentence after it. The `id` is the one the section's `aria-labelledby` names.
+ */
+function SectionHeading({ id, index, title, description }: { id: string; index: string; title: string; description: string }) {
+  const eyebrowIn = useEnter("text", { at: 0 })
+  const titleIn = useEnter("text", { at: 60 })
+  const descriptionIn = useEnter("text", { at: 120 })
   return (
     <div className="mb-4">
-      <span className={LABEL}>{title} · {index}</span>
-      <h2 className="mt-1.5 text-title-sm font-bold tracking-tight text-ink md:text-title">
+      <span className={cn(LABEL, eyebrowIn.className)} style={eyebrowIn.style}>
+        {title} · {index}
+      </span>
+      <h2
+        id={id}
+        className={cn("mt-1.5 text-title-sm font-bold tracking-tight text-ink md:text-title", titleIn.className)}
+        style={titleIn.style}
+      >
         {title}
       </h2>
-      <p className="mt-1 text-caption font-semibold text-ink-muted">{description}</p>
+      <p className={cn("mt-1 text-caption font-semibold text-ink-muted", descriptionIn.className)} style={descriptionIn.style}>
+        {description}
+      </p>
     </div>
   )
 }
@@ -377,6 +442,17 @@ export default function ProfilePage() {
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [loadingFriends, setLoadingFriends] = useState(false)
   const [loadingAdmin, setLoadingAdmin] = useState(false)
+  /**
+   * The sections whose first load has finished, well or badly. Until then a section shows
+   * its placeholder, not its empty state: "No active sessions" for the moment before the
+   * sessions arrive was a claim, and the swap to the real list a jump.
+   */
+  const [loaded, setLoaded] = useState<ReadonlySet<SectionId>>(() => new Set())
+  const markLoaded = (id: SectionId): void =>
+    setLoaded((current) => (current.has(id) ? current : new Set(current).add(id)))
+  const profileReady = loaded.has("profile")
+  const securityReady = loaded.has("security")
+  const friendsReady = loaded.has("friends")
 
   const [profileForm, setProfileForm] = useState({ firstName: "", lastName: "" })
 
@@ -526,6 +602,7 @@ export default function ProfilePage() {
       addToast({ type: "error", title: "Failed to load profile" })
     } finally {
       setLoadingProfile(false)
+      markLoaded("profile")
     }
   }
 
@@ -539,6 +616,7 @@ export default function ProfilePage() {
       addToast({ type: "error", title: "Failed to load security info" })
     } finally {
       setLoadingSecurity(false)
+      markLoaded("security")
     }
   }
 
@@ -552,6 +630,7 @@ export default function ProfilePage() {
       addToast({ type: "error", title: "Failed to load sessions" })
     } finally {
       setLoadingSessions(false)
+      markLoaded("sessions")
     }
   }
 
@@ -567,6 +646,7 @@ export default function ProfilePage() {
       addToast({ type: "error", title: "Failed to load history" })
     } finally {
       setLoadingHistory(false)
+      markLoaded("history")
     }
   }
 
@@ -587,6 +667,7 @@ export default function ProfilePage() {
       addToast({ type: "error", title: "Failed to load friends" })
     } finally {
       setLoadingFriends(false)
+      markLoaded("friends")
     }
   }
 
@@ -612,6 +693,7 @@ export default function ProfilePage() {
       addToast({ type: "error", title: "Failed to load admin data" })
     } finally {
       setLoadingAdmin(false)
+      markLoaded("admin")
     }
   }
 
@@ -624,20 +706,55 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasHydrated, isAuthenticated])
 
-  // Lazy per-section loading preserved: each section fetches once, the first time
-  // it scrolls into view (was: on tab switch). Manual "Refresh" buttons re-fetch.
+  // Lazy per-section loading: each section fetches once, the first time it comes within a
+  // screen of the viewport — far enough ahead that it has usually arrived by the time the
+  // reader scrolls to it, so the section appears with its content rather than with a
+  // placeholder that is then replaced. It used to wait until the section was the active
+  // one, its top 150px from the top of the window: by then it had already scrolled into
+  // view showing its empty state, and a last section too short to reach that line never
+  // loaded at all. Becoming active still loads it. Manual "Refresh" buttons re-fetch.
+  const [nearSections, setNearSections] = useState<ReadonlySet<SectionId>>(() => new Set())
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated) return
+    const lazy: SectionId[] = ["sessions", "history", "friends", "admin"]
+    const reach = (id: SectionId): void =>
+      setNearSections((current) => (current.has(id) ? current : new Set(current).add(id)))
+    if (typeof IntersectionObserver === "undefined") {
+      lazy.forEach(reach)
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          observer.unobserve(entry.target)
+          const id = lazy.find((candidate) => sectionRefs.current[candidate] === entry.target)
+          if (id) reach(id)
+        }
+      },
+      { rootMargin: "0px 0px 100% 0px" },
+    )
+    for (const id of lazy) {
+      const el = sectionRefs.current[id]
+      if (el) observer.observe(el)
+    }
+    return () => observer.disconnect()
+  }, [hasHydrated, isAuthenticated, isAdmin])
+
   const loadedSections = useRef<Set<SectionId>>(new Set())
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated) return
-    if (loadedSections.current.has(activeSection)) return
-    loadedSections.current.add(activeSection)
-    if (activeSection === "sessions") loadSessions()
-    else if (activeSection === "history") loadHistory()
-    else if (activeSection === "friends") loadFriends()
-    else if (activeSection === "admin") loadAdmin()
+    for (const id of [activeSection, ...nearSections]) {
+      if (loadedSections.current.has(id)) continue
+      loadedSections.current.add(id)
+      if (id === "sessions") loadSessions()
+      else if (id === "history") loadHistory()
+      else if (id === "friends") loadFriends()
+      else if (id === "admin") loadAdmin()
+    }
     // load* are plain async functions guarded by their loading flags.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection, hasHydrated, isAuthenticated])
+  }, [activeSection, nearSections, hasHydrated, isAuthenticated])
 
   /* ---------------- Handlers (contracts unchanged) ---------------- */
 
@@ -920,12 +1037,28 @@ export default function ProfilePage() {
       : `data:image/png;base64,${twoFactorSetup.qrCodeUrl}`
     : ""
 
+  /* ---------------- Arrival ---------------- */
+
+  // The identity card lands first and its contents follow it in reading order — the
+  // photo, the name, the address, the pills, then the figures. Each part that shows the
+  // account waits for it: arriving as "Your profile", "U" and "2FA off" and then changing
+  // would be a second, unasked-for entrance. The rail comes in beside the card, and the
+  // sections below arrive as they scroll into view.
+  const heroReady = profileReady && securityReady
+  const avatarIn = useEnter("chip", { at: 90, ready: profileReady })
+  const nameIn = useEnter("text", { at: 140, ready: profileReady })
+  const emailIn = useEnter("text", { at: 190, ready: profileReady })
+  const pillsIn = useEnterEach("chip", { at: 240, ready: heroReady })
+  const railItemsIn = useEnterEach("row", { at: 200 })
+
   /* ---------------- Render ---------------- */
 
   return (
     <div className="min-w-0 overflow-x-clip pb-24">
       {/* ============ IDENTITY HEADER ============ */}
-      <section
+      <Enter
+        as="section"
+        tier="hero"
         ref={setSectionRef("profile")}
         id="profile-header"
         className={cn(CARD, "overflow-hidden")}
@@ -933,7 +1066,8 @@ export default function ProfilePage() {
         <div className="p-6 sm:p-7">
           <div className="flex flex-wrap items-center gap-5 sm:gap-6">
             <div
-              className="relative flex-shrink-0"
+              className={cn("relative flex-shrink-0", avatarIn.className)}
+              style={avatarIn.style}
               onDragOver={(e) => {
                 e.preventDefault()
                 setAvatarDragOver(true)
@@ -990,13 +1124,16 @@ export default function ProfilePage() {
             </div>
 
             <div className="min-w-0 flex-1 basis-64">
-              <h1 className="truncate text-title font-bold leading-tight tracking-tight text-ink md:text-display-sm">
+              <h1
+                className={cn("truncate text-title font-bold leading-tight tracking-tight text-ink md:text-display-sm", nameIn.className)}
+                style={nameIn.style}
+              >
                 {displayName}
               </h1>
-              <p className="mt-1.5 truncate text-body-sm font-semibold text-ink-subtle">
+              <p className={cn("mt-1.5 truncate text-body-sm font-semibold text-ink-subtle", emailIn.className)} style={emailIn.style}>
                 {user?.email || "—"}
               </p>
-              <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className={cn("mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-2", pillsIn.className)} style={pillsIn.style}>
                 <StatusPill active={isEmailVerified}>
                   {isEmailVerified ? "Verified email" : "Email pending"}
                 </StatusPill>
@@ -1009,22 +1146,30 @@ export default function ProfilePage() {
           </div>
 
           <dl className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-gray-200 sm:grid-cols-4">
-            <MetricTile label="Active sessions" value={security?.activeSessionsCount ?? sessions.length ?? "—"} />
-            <MetricTile label="Member since" value={formatDateShort(user?.createdAt)} />
-            <MetricTile label="Last login" value={formatDateShort(user?.lastLoginAt)} />
-            <MetricTile label="Role" value={roles.length ? roles.join(", ") : "User"} />
+            <MetricTile at={300} index={0} ready={heroReady} label="Active sessions" value={security?.activeSessionsCount ?? sessions.length ?? "—"} />
+            <MetricTile at={300} index={1} ready={heroReady} label="Member since" value={formatDateShort(user?.createdAt)} />
+            <MetricTile at={300} index={2} ready={heroReady} label="Last login" value={formatDateShort(user?.lastLoginAt)} />
+            <MetricTile at={300} index={3} ready={heroReady} label="Role" value={roles.length ? roles.join(", ") : "User"} />
           </dl>
         </div>
-      </section>
+      </Enter>
 
       <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[268px_minmax(0,1fr)] lg:gap-8">
         {/* ============ RAIL ============ */}
         <div className="lg:sticky lg:top-[var(--bar-clearance)] lg:self-start">
-          <nav
+          <Enter
+            as="nav"
+            tier="panel"
+            at={150}
             aria-label="Profile sections"
             className={cn(CARD, "p-1.5")}
           >
-            <ul className="flex gap-1 overflow-x-auto p-0.5 lg:flex-col lg:overflow-visible">
+            {/* `overflow-y-hidden`: on phones this row scrolls sideways, and an item rising
+                into place would otherwise make it scroll downwards for a moment too. */}
+            <ul
+              className={cn("flex gap-1 overflow-x-auto overflow-y-hidden p-0.5 lg:flex-col lg:overflow-visible", railItemsIn.className)}
+              style={railItemsIn.style}
+            >
               {availableSections.map((section) => {
                 const Icon = section.icon
                 const badge = sectionBadges[section.id]
@@ -1078,7 +1223,12 @@ export default function ProfilePage() {
                         </span>
                       </span>
                       {badge !== undefined && badge !== null && (
-                        <span
+                        // A count arrives when its section's data does, usually after
+                        // the rail: it pops in as a chip, never just appears.
+                        <Enter
+                          as="span"
+                          tier="chip"
+                          at={420}
                           className={cn(
                             "relative z-10 flex-shrink-0 rounded-full px-2 py-1 text-caption font-bold tabular-nums",
                             isActive
@@ -1087,16 +1237,16 @@ export default function ProfilePage() {
                           )}
                         >
                           {badge}
-                        </span>
+                        </Enter>
                       )}
                     </motion.button>
                   </li>
                 )
               })}
             </ul>
-          </nav>
+          </Enter>
 
-          <div className={cn(CARD, "mt-3.5 hidden p-5 lg:block")}>
+          <Enter tier="panel" at={290} ready={heroReady} className={cn(CARD, "mt-3.5 hidden p-5 lg:block")}>
             <p className={LABEL}>Account health</p>
             <div className="mt-3 flex items-baseline gap-1.5">
               <span className="text-display-sm font-bold leading-none tracking-tight text-ink">
@@ -1104,7 +1254,7 @@ export default function ProfilePage() {
               </span>
               <span className="text-body-sm font-bold text-ink-subtle">/ 100</span>
             </div>
-            <ul className="mt-4 space-y-2.5">
+            <EnterEach as="ul" tier="text" at={400} ready={heroReady} className="mt-4 space-y-2.5">
               <li className="flex items-center gap-2.5 text-caption font-bold text-ink-muted">
                 <Check className="h-4 w-4 text-ink" aria-hidden />
                 Email {isEmailVerified ? "verified" : "pending"}
@@ -1123,15 +1273,18 @@ export default function ProfilePage() {
                 <Monitor className="h-4 w-4 text-ink-subtle" aria-hidden />
                 {security?.activeSessionsCount ?? sessions.length ?? 0} active sessions
               </li>
-            </ul>
-          </div>
+            </EnterEach>
+          </Enter>
         </div>
 
         {/* ============ CONTENT ============ */}
+        {/* Each section arrives as it scrolls into view: its heading line by line, then
+            each card as the reader reaches it (`SectionCard`). The ones on the first
+            screen arrive on the page's timeline, after the identity card. */}
         <div className="flex min-w-0 flex-col gap-11">
           {/* ---------- PROFILE ---------- */}
-          <section id="profile" aria-labelledby="section-profile" className="scroll-mt-[var(--bar-clearance)]">
-            <SectionHeading index="01" title="Profile" description="Your name, avatar and account details." />
+          <EnterInView as="section" at={260} id="profile" aria-labelledby="section-profile" className="scroll-mt-[var(--bar-clearance)]">
+            <SectionHeading id="section-profile" index="01" title="Profile" description="Your name, avatar and account details." />
             <div className="flex flex-col gap-4">
               <SectionCard
                 icon={IdCard}
@@ -1144,10 +1297,8 @@ export default function ProfilePage() {
                   </Button>
                 }
               >
-                {loadingProfile ? (
-                  <LoadingRows count={2} />
-                ) : (
-                  <>
+                <SkeletonSwap loading={loadingProfile || !profileReady} skeleton={<LoadingRows count={2} />}>
+                  <Enter tier="row" at={CARD_BODY_AT}>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <FieldGroup label="First name">
                         {(field) => (
@@ -1260,18 +1411,23 @@ export default function ProfilePage() {
                         Save changes
                       </Button>
                     </div>
-                  </>
-                )}
+                  </Enter>
+                </SkeletonSwap>
               </SectionCard>
 
-              <SectionCard icon={BadgeCheck} title="Account" description="Read-only account metadata.">
+              <SectionCard icon={BadgeCheck} title="Account" description="Read-only account metadata." at={220}>
                 <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-gray-200 xl:grid-cols-4">
-                  <MetricTile label="Email" value={user?.email || "—"} />
-                  <MetricTile label="Verified" value={isEmailVerified ? "Yes" : "No"} />
-                  <MetricTile label="Last login" value={formatDate(user?.lastLoginAt)} />
-                  <MetricTile label="Roles" value={roles.length ? roles.join(", ") : "User"} />
+                  <MetricTile index={0} ready={profileReady} label="Email" value={user?.email || "—"} />
+                  <MetricTile index={1} ready={profileReady} label="Verified" value={isEmailVerified ? "Yes" : "No"} />
+                  <MetricTile index={2} ready={profileReady} label="Last login" value={formatDate(user?.lastLoginAt)} />
+                  <MetricTile index={3} ready={profileReady} label="Roles" value={roles.length ? roles.join(", ") : "User"} />
                 </dl>
-                <div className="mt-3.5 flex items-center justify-between gap-4 rounded-lg border border-line bg-paper-sunken/80 px-4 py-3/40">
+                <Enter
+                  tier="row"
+                  at={CARD_BODY_AT + 160}
+                  ready={profileReady}
+                  className="mt-3.5 flex items-center justify-between gap-4 rounded-lg border border-line bg-paper-sunken/80 px-4 py-3/40"
+                >
                   <div className="min-w-0">
                     <span className={LABEL}>User ID</span>
                     <span className="mt-1.5 block truncate font-mono text-caption font-bold text-ink-muted">
@@ -1282,14 +1438,14 @@ export default function ProfilePage() {
                     <Copy className="h-4 w-4" aria-hidden />
                     Copy
                   </Button>
-                </div>
+                </Enter>
               </SectionCard>
             </div>
-          </section>
+          </EnterInView>
 
           {/* ---------- SECURITY ---------- */}
-          <section id="security" ref={setSectionRef("security")} aria-labelledby="section-security" className="scroll-mt-[var(--bar-clearance)]">
-            <SectionHeading index="02" title="Security" description="Password, two-factor, sessions and account removal." />
+          <EnterInView as="section" at={400} id="security" ref={setSectionRef("security")} aria-labelledby="section-security" className="scroll-mt-[var(--bar-clearance)]">
+            <SectionHeading id="section-security" index="02" title="Security" description="Password, two-factor, sessions and account removal." />
             <div className="flex flex-col gap-4">
               <SectionCard
                 icon={ShieldCheck}
@@ -1302,47 +1458,53 @@ export default function ProfilePage() {
                   </Button>
                 }
               >
-                {loadingSecurity ? (
-                  <LoadingRows count={2} />
-                ) : (
+                <SkeletonSwap loading={loadingSecurity || !securityReady} skeleton={<LoadingRows count={2} />}>
                   <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-gray-200 xl:grid-cols-3">
                     <MetricTile
+                      index={0}
                       label="Two-factor"
                       value={security?.twoFactorEnabled ? "Enabled" : "Disabled"}
                       active={!!security?.twoFactorEnabled}
                     />
-                    <MetricTile label="Active sessions" value={security?.activeSessionsCount ?? "—"} />
+                    <MetricTile index={1} label="Active sessions" value={security?.activeSessionsCount ?? "—"} />
                     <MetricTile
+                      index={2}
                       label="Failed attempts"
                       value={security?.failedLoginAttempts ?? "—"}
                       active={!security?.failedLoginAttempts}
                     />
-                    <MetricTile label="Locked until" value={formatDate(security?.lockedUntil)} />
-                    <MetricTile label="Password changed" value={formatDateShort(security?.lastPasswordChange)} />
-                    <MetricTile label="Email changed" value={formatDateShort(security?.lastEmailChange)} />
+                    <MetricTile index={3} label="Locked until" value={formatDate(security?.lockedUntil)} />
+                    <MetricTile index={4} label="Password changed" value={formatDateShort(security?.lastPasswordChange)} />
+                    <MetricTile index={5} label="Email changed" value={formatDateShort(security?.lastEmailChange)} />
                   </dl>
-                )}
+                </SkeletonSwap>
               </SectionCard>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <SectionCard icon={KeyRound} title="Password" description="Change the password you sign in with.">
-                  <ChangePasswordForm onChanged={handlePasswordChanged} />
+                <SectionCard icon={KeyRound} title="Password" description="Change the password you sign in with." at={220} index={0}>
+                  <Enter tier="row" at={CARD_BODY_AT} className="flex flex-1 flex-col">
+                    <ChangePasswordForm onChanged={handlePasswordChanged} />
+                  </Enter>
                 </SectionCard>
 
-                <SectionCard icon={Mail} title="Email" description="Change the address, or verify the one you have.">
-                  <ChangeEmailForm
-                    currentEmail={user?.email}
-                    verified={isEmailVerified}
-                    onChanged={handleEmailChanged}
-                    onResend={handleVerifyEmail}
-                    resending={verifyingEmail}
-                  />
+                <SectionCard icon={Mail} title="Email" description="Change the address, or verify the one you have." at={220} index={1}>
+                  <Enter tier="row" at={CARD_BODY_AT} className="flex flex-1 flex-col">
+                    <ChangeEmailForm
+                      currentEmail={user?.email}
+                      verified={isEmailVerified}
+                      onChanged={handleEmailChanged}
+                      onResend={handleVerifyEmail}
+                      resending={verifyingEmail}
+                    />
+                  </Enter>
                 </SectionCard>
               </div>
 
-              <SectionCard icon={Fingerprint} title="Two-factor authentication" description="Authenticator-based login protection.">
+              <SectionCard icon={Fingerprint} title="Two-factor authentication" description="Authenticator-based login protection." at={290}>
+                {/* Keyed by state: turning two-factor on or off brings the new controls
+                    in, instead of swapping them under the reader in one frame. */}
                 {security?.twoFactorEnabled ? (
-                  <div className="flex flex-wrap items-center justify-between gap-4">
+                  <Enter key="on" tier="row" at={CARD_BODY_AT} className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <span className="flex h-10 w-10 items-center justify-center rounded-md border border-line bg-paper-sunken text-ink-muted">
                         <Check className="h-4 w-4" aria-hidden />
@@ -1367,9 +1529,14 @@ export default function ProfilePage() {
                         Disable
                       </Button>
                     </div>
-                  </div>
+                  </Enter>
                 ) : twoFactorSetup ? (
-                  <div className="mx-auto grid max-w-3xl items-center gap-6 sm:grid-cols-[auto_minmax(220px,1fr)]">
+                  <Enter
+                    key="setup"
+                    tier="row"
+                    at={CARD_BODY_AT}
+                    className="mx-auto grid max-w-3xl items-center gap-6 sm:grid-cols-[auto_minmax(220px,1fr)]"
+                  >
                     <div className="flex items-center gap-4">
                       <div className="h-32 w-32 flex-shrink-0 overflow-hidden rounded-md border border-line bg-paper p-2">
                         {twoFactorQrSrc && (
@@ -1411,9 +1578,9 @@ export default function ProfilePage() {
                         </Button>
                       </div>
                     </div>
-                  </div>
+                  </Enter>
                 ) : (
-                  <div className="flex flex-wrap items-center justify-between gap-4">
+                  <Enter key="off" tier="row" at={CARD_BODY_AT} className="flex flex-wrap items-center justify-between gap-4">
                     <p className="min-w-0 flex-1 basis-64 text-body-sm font-semibold leading-relaxed text-ink-subtle">
                       Add a second step at sign-in with any authenticator app for stronger protection.
                     </p>
@@ -1421,13 +1588,13 @@ export default function ProfilePage() {
                       <ShieldCheck className="h-4 w-4" aria-hidden />
                       Enable two-factor
                     </Button>
-                  </div>
+                  </Enter>
                 )}
               </SectionCard>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <SectionCard icon={LogOut} title="Session control" description="End all other signed-in sessions.">
-                  <div className="flex flex-1 flex-col">
+                <SectionCard icon={LogOut} title="Session control" description="End all other signed-in sessions." at={360} index={0}>
+                  <Enter tier="row" at={CARD_BODY_AT} className="flex flex-1 flex-col">
                     <p className="text-caption font-semibold leading-relaxed text-ink-muted">
                       Keeps this device signed in and revokes every other active session.
                     </p>
@@ -1444,11 +1611,11 @@ export default function ProfilePage() {
                         Revoke all
                       </Button>
                     </div>
-                  </div>
+                  </Enter>
                 </SectionCard>
 
-                <SectionCard icon={Trash2} title="Delete account" description="Permanent and irreversible.">
-                  <div className="flex flex-1 flex-col">
+                <SectionCard icon={Trash2} title="Delete account" description="Permanent and irreversible." at={360} index={1}>
+                  <Enter tier="row" at={CARD_BODY_AT} className="flex flex-1 flex-col">
                     <p className="text-caption font-semibold leading-relaxed text-ink-muted">
                       Erases your profile, tasks and shares. This cannot be undone.
                     </p>
@@ -1465,15 +1632,15 @@ export default function ProfilePage() {
                         Delete
                       </Button>
                     </div>
-                  </div>
+                  </Enter>
                 </SectionCard>
               </div>
             </div>
-          </section>
+          </EnterInView>
 
           {/* ---------- SESSIONS ---------- */}
-          <section id="sessions" ref={setSectionRef("sessions")} aria-labelledby="section-sessions" className="scroll-mt-[var(--bar-clearance)]">
-            <SectionHeading index="03" title="Sessions" description="Devices currently signed in to your account." />
+          <EnterInView as="section" at={540} id="sessions" ref={setSectionRef("sessions")} aria-labelledby="section-sessions" className="scroll-mt-[var(--bar-clearance)]">
+            <SectionHeading id="section-sessions" index="03" title="Sessions" description="Devices currently signed in to your account." />
             <SectionCard
               icon={Monitor}
               title="Active sessions"
@@ -1485,68 +1652,68 @@ export default function ProfilePage() {
                 </Button>
               }
             >
-              {loadingSessions ? (
-                <LoadingRows count={3} />
-              ) : sessions.length ? (
-                <ul className="space-y-2.5">
-                  {sessions.map((session) => {
-                    const mobile = /iphone|android|mobile|ios/i.test(`${session.deviceName} ${session.browser}`)
-                    const DeviceIcon = mobile ? Smartphone : Monitor
-                    return (
-                      <li
-                        key={session.id}
-                        className={cn(
-                          "flex items-center gap-4 rounded-lg border p-4",
-                          session.isCurrent
-                            ? "border-line border-l-[3px] border-l-ink bg-paper-sunken"
-                            : "border-line"
-                        )}
-                      >
-                        <span
+              <SkeletonSwap loading={loadingSessions || !loaded.has("sessions")} skeleton={<LoadingRows count={3} />}>
+                {sessions.length ? (
+                  <EnterEach as="ul" tier="row" at={CARD_BODY_AT} className="space-y-2.5">
+                    {sessions.map((session) => {
+                      const mobile = /iphone|android|mobile|ios/i.test(`${session.deviceName} ${session.browser}`)
+                      const DeviceIcon = mobile ? Smartphone : Monitor
+                      return (
+                        <li
+                          key={session.id}
                           className={cn(
-                            "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md",
+                            "flex items-center gap-4 rounded-lg border p-4",
                             session.isCurrent
-                              ? "bg-ink text-paper"
-                              : "bg-gray-100 text-ink-subtle"
+                              ? "border-line border-l-[3px] border-l-ink bg-paper-sunken"
+                              : "border-line"
                           )}
                         >
-                          <DeviceIcon className="h-4 w-4" aria-hidden />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-body-sm font-bold text-ink">
-                              {session.deviceName || "Device"} · {session.browser || "Browser"}
-                            </span>
-                            {session.isCurrent && (
-                              <span className="text-caption font-bold uppercase tracking-wider text-ink-muted">
-                                This device
-                              </span>
+                          <span
+                            className={cn(
+                              "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md",
+                              session.isCurrent
+                                ? "bg-ink text-paper"
+                                : "bg-gray-100 text-ink-subtle"
                             )}
+                          >
+                            <DeviceIcon className="h-4 w-4" aria-hidden />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-body-sm font-bold text-ink">
+                                {session.deviceName || "Device"} · {session.browser || "Browser"}
+                              </span>
+                              {session.isCurrent && (
+                                <span className="text-caption font-bold uppercase tracking-wider text-ink-muted">
+                                  This device
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 truncate font-mono text-caption font-semibold text-ink-muted">
+                              {session.ipAddress || "—"} · {session.location || "Unknown"} · {formatDate(session.lastActivityAt || session.createdAt)}
+                            </p>
                           </div>
-                          <p className="mt-1 truncate font-mono text-caption font-semibold text-ink-muted">
-                            {session.ipAddress || "—"} · {session.location || "Unknown"} · {formatDate(session.lastActivityAt || session.createdAt)}
-                          </p>
-                        </div>
-                        {session.isCurrent ? (
-                          <span className="flex-shrink-0 text-caption font-bold text-ink-muted">Active</span>
-                        ) : (
-                          <Button size="sm" variant="secondary" loading={revokingSessionId === session.id} onClick={() => handleRevokeSession(session.id)}>
-                            Revoke
-                          </Button>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <EmptyState icon={Monitor} title="No active sessions" description="New sessions will appear here after sign-in." />
-              )}
+                          {session.isCurrent ? (
+                            <span className="flex-shrink-0 text-caption font-bold text-ink-muted">Active</span>
+                          ) : (
+                            <Button size="sm" variant="secondary" loading={revokingSessionId === session.id} onClick={() => handleRevokeSession(session.id)}>
+                              Revoke
+                            </Button>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </EnterEach>
+                ) : (
+                  <EmptyState icon={Monitor} title="No active sessions" description="New sessions will appear here after sign-in." />
+                )}
+              </SkeletonSwap>
             </SectionCard>
-          </section>
+          </EnterInView>
 
           {/* ---------- HISTORY ---------- */}
-          <section id="history" ref={setSectionRef("history")} aria-labelledby="section-history" className="scroll-mt-[var(--bar-clearance)]">
-            <SectionHeading index="04" title="History" description="Recent authentication activity." />
+          <EnterInView as="section" at={680} id="history" ref={setSectionRef("history")} aria-labelledby="section-history" className="scroll-mt-[var(--bar-clearance)]">
+            <SectionHeading id="section-history" index="04" title="History" description="Recent authentication activity." />
             <SectionCard
               icon={HistoryIcon}
               title="Sign-in events"
@@ -1558,77 +1725,78 @@ export default function ProfilePage() {
                 </Button>
               }
             >
-              {loadingHistory ? (
-                <LoadingRows count={4} />
-              ) : history?.items.length ? (
-                <>
-                  <ul className="space-y-2">
-                    {history.items.map((entry) => (
-                      <li
-                        key={entry.id}
-                        className="flex items-center gap-4 rounded-lg border border-line p-3.5"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="text-caption font-bold text-ink">
-                            {formatDate(entry.loginAt)}
-                          </div>
-                          <p className="mt-0.5 truncate text-caption font-semibold text-ink-muted">
-                            {[entry.browser, entry.device].filter(Boolean).join(" · ") || entry.userAgent} · {entry.location || "Unknown"} · {entry.ipAddress}
-                          </p>
-                          {!entry.isSuccessful && entry.failureReason && (
-                            <p className="mt-1 text-caption font-bold text-ink-muted">
-                              Reason: {entry.failureReason}
-                            </p>
-                          )}
-                        </div>
-                        <span
-                          aria-hidden
-                          className={cn(
-                            "h-2 w-2 flex-shrink-0 rounded-full",
-                            entry.isSuccessful ? "bg-gray-300" : "bg-ink"
-                          )}
-                        />
-                        <span
-                          className={cn(
-                            "w-14 flex-shrink-0 text-right text-caption font-bold",
-                            entry.isSuccessful ? "text-ink-subtle" : "text-ink"
-                          )}
+              <SkeletonSwap loading={loadingHistory || !loaded.has("history")} skeleton={<LoadingRows count={4} />}>
+                {history?.items.length ? (
+                  <>
+                    <EnterEach as="ul" tier="row" at={CARD_BODY_AT} className="space-y-2">
+                      {history.items.map((entry) => (
+                        <li
+                          key={entry.id}
+                          className="flex items-center gap-4 rounded-lg border border-line p-3.5"
                         >
-                          {entry.isSuccessful ? "Success" : "Failed"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Pager
-                    previousDisabled={!history?.hasPreviousPage}
-                    nextDisabled={!history?.hasNextPage}
-                    onPrevious={() => {
-                      if (!history?.hasPreviousPage) return
-                      const p = historyPage - 1
-                      setHistoryPage(p)
-                      loadHistory(p)
-                    }}
-                    onNext={() => {
-                      if (!history?.hasNextPage) return
-                      const p = historyPage + 1
-                      setHistoryPage(p)
-                      loadHistory(p)
-                    }}
-                    label={`Page ${history.pageNumber} of ${history.totalPages || 1} · ${history.totalCount} events`}
-                  />
-                </>
-              ) : (
-                <EmptyState icon={HistoryIcon} title="No login history" description="Authentication events will appear here." />
-              )}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-caption font-bold text-ink">
+                              {formatDate(entry.loginAt)}
+                            </div>
+                            <p className="mt-0.5 truncate text-caption font-semibold text-ink-muted">
+                              {[entry.browser, entry.device].filter(Boolean).join(" · ") || entry.userAgent} · {entry.location || "Unknown"} · {entry.ipAddress}
+                            </p>
+                            {!entry.isSuccessful && entry.failureReason && (
+                              <p className="mt-1 text-caption font-bold text-ink-muted">
+                                Reason: {entry.failureReason}
+                              </p>
+                            )}
+                          </div>
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "h-2 w-2 flex-shrink-0 rounded-full",
+                              entry.isSuccessful ? "bg-gray-300" : "bg-ink"
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "w-14 flex-shrink-0 text-right text-caption font-bold",
+                              entry.isSuccessful ? "text-ink-subtle" : "text-ink"
+                            )}
+                          >
+                            {entry.isSuccessful ? "Success" : "Failed"}
+                          </span>
+                        </li>
+                      ))}
+                    </EnterEach>
+                    <Pager
+                      order={history.items.length}
+                      previousDisabled={!history?.hasPreviousPage}
+                      nextDisabled={!history?.hasNextPage}
+                      onPrevious={() => {
+                        if (!history?.hasPreviousPage) return
+                        const p = historyPage - 1
+                        setHistoryPage(p)
+                        loadHistory(p)
+                      }}
+                      onNext={() => {
+                        if (!history?.hasNextPage) return
+                        const p = historyPage + 1
+                        setHistoryPage(p)
+                        loadHistory(p)
+                      }}
+                      label={`Page ${history.pageNumber} of ${history.totalPages || 1} · ${history.totalCount} events`}
+                    />
+                  </>
+                ) : (
+                  <EmptyState icon={HistoryIcon} title="No login history" description="Authentication events will appear here." />
+                )}
+              </SkeletonSwap>
             </SectionCard>
-          </section>
+          </EnterInView>
 
           {/* ---------- FRIENDS ---------- */}
-          <section id="friends" ref={setSectionRef("friends")} aria-labelledby="section-friends" className="scroll-mt-[var(--bar-clearance)]">
-            <SectionHeading index="05" title="Friends" description="People you can share tasks with." />
+          <EnterInView as="section" at={820} id="friends" ref={setSectionRef("friends")} aria-labelledby="section-friends" className="scroll-mt-[var(--bar-clearance)]">
+            <SectionHeading id="section-friends" index="05" title="Friends" description="People you can share tasks with." />
             <div className="flex flex-col gap-4">
               <SectionCard icon={UserPlus} title="Add a friend" description="By account email, or by their User ID.">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <Enter tier="row" at={CARD_BODY_AT} className="grid gap-4 sm:grid-cols-2">
                   <FieldGroup label="By email">
                     {(field) => (
                     <div className="flex gap-2">
@@ -1670,7 +1838,7 @@ export default function ProfilePage() {
                     </div>
                     )}
                   </FieldGroup>
-                </div>
+                </Enter>
               </SectionCard>
 
               <div className="grid items-start gap-4 md:grid-cols-2">
@@ -1678,92 +1846,112 @@ export default function ProfilePage() {
                   icon={ArrowLeft}
                   title="Incoming"
                   description="Awaiting your decision."
+                  at={220}
+                  index={0}
                   action={
-                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-muted">
+                    <Enter
+                      as="span"
+                      tier="chip"
+                      at={CARD_BODY_AT}
+                      ready={friendsReady}
+                      className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-muted"
+                    >
                       {incomingRequests.length}
-                    </span>
+                    </Enter>
                   }
                 >
-                  {incomingRequests.length ? (
-                    <ul className="space-y-2.5">
-                      {incomingRequests.map((request) => (
-                        <li
-                          key={request.friendshipId}
-                          className="flex items-center gap-3 rounded-lg border border-line p-2.5"
-                        >
-                          <Avatar
-                            src={request.profilePictureUrl}
-                            firstName={request.firstName}
-                            lastName={request.lastName}
-                            email={request.email}
-                            size={38}
-                            className="flex-shrink-0 rounded-full"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-caption font-bold text-ink">
-                              {personName(request)}
-                            </p>
-                            <p className="truncate text-caption font-semibold text-ink-muted">{request.email}</p>
-                          </div>
-                          <Button size="sm" loading={respondingRequestId === request.friendshipId} onClick={() => handleAcceptFriendRequest(request.friendshipId)}>
-                            <Check className="h-4 w-4" aria-hidden />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            aria-label={`Reject request from ${personName(request)}`}
-                            onClick={() => handleRejectFriendRequest(request.friendshipId)}
+                  <SkeletonSwap loading={!friendsReady} skeleton={<LoadingRows count={1} />}>
+                    {incomingRequests.length ? (
+                      <EnterEach as="ul" tier="row" at={CARD_BODY_AT} className="space-y-2.5">
+                        {incomingRequests.map((request) => (
+                          <li
+                            key={request.friendshipId}
+                            className="flex items-center gap-3 rounded-lg border border-line p-2.5"
                           >
-                            <X className="h-4 w-4" aria-hidden />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <EmptyState icon={UserPlus} title="No incoming requests" />
-                  )}
+                            <Avatar
+                              src={request.profilePictureUrl}
+                              firstName={request.firstName}
+                              lastName={request.lastName}
+                              email={request.email}
+                              size={38}
+                              className="flex-shrink-0 rounded-full"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-caption font-bold text-ink">
+                                {personName(request)}
+                              </p>
+                              <p className="truncate text-caption font-semibold text-ink-muted">{request.email}</p>
+                            </div>
+                            <Button size="sm" loading={respondingRequestId === request.friendshipId} onClick={() => handleAcceptFriendRequest(request.friendshipId)}>
+                              <Check className="h-4 w-4" aria-hidden />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              aria-label={`Reject request from ${personName(request)}`}
+                              onClick={() => handleRejectFriendRequest(request.friendshipId)}
+                            >
+                              <X className="h-4 w-4" aria-hidden />
+                            </Button>
+                          </li>
+                        ))}
+                      </EnterEach>
+                    ) : (
+                      <EmptyState icon={UserPlus} title="No incoming requests" />
+                    )}
+                  </SkeletonSwap>
                 </SectionCard>
 
                 <SectionCard
                   icon={ArrowRight}
                   title="Outgoing"
                   description="Waiting for a response."
+                  at={220}
+                  index={1}
                   action={
-                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-muted">
+                    <Enter
+                      as="span"
+                      tier="chip"
+                      at={CARD_BODY_AT}
+                      ready={friendsReady}
+                      className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-muted"
+                    >
                       {outgoingRequests.length}
-                    </span>
+                    </Enter>
                   }
                 >
-                  {outgoingRequests.length ? (
-                    <ul className="space-y-2.5">
-                      {outgoingRequests.map((request) => (
-                        <li
-                          key={request.friendshipId}
-                          className="flex items-center gap-3 rounded-lg border border-line p-2.5"
-                        >
-                          <Avatar
-                            src={request.profilePictureUrl}
-                            firstName={request.firstName}
-                            lastName={request.lastName}
-                            email={request.email}
-                            size={38}
-                            className="flex-shrink-0 rounded-full opacity-70"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-caption font-bold text-ink">
-                              {personName(request)}
-                            </p>
-                            <p className="truncate text-caption font-semibold text-ink-muted">{request.email}</p>
-                          </div>
-                          <span className="text-caption font-bold uppercase tracking-wider text-ink-muted">
-                            Pending
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <EmptyState icon={Send} title="No outgoing requests" />
-                  )}
+                  <SkeletonSwap loading={!friendsReady} skeleton={<LoadingRows count={1} />}>
+                    {outgoingRequests.length ? (
+                      <EnterEach as="ul" tier="row" at={CARD_BODY_AT} className="space-y-2.5">
+                        {outgoingRequests.map((request) => (
+                          <li
+                            key={request.friendshipId}
+                            className="flex items-center gap-3 rounded-lg border border-line p-2.5"
+                          >
+                            <Avatar
+                              src={request.profilePictureUrl}
+                              firstName={request.firstName}
+                              lastName={request.lastName}
+                              email={request.email}
+                              size={38}
+                              className="flex-shrink-0 rounded-full opacity-70"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-caption font-bold text-ink">
+                                {personName(request)}
+                              </p>
+                              <p className="truncate text-caption font-semibold text-ink-muted">{request.email}</p>
+                            </div>
+                            <span className="text-caption font-bold uppercase tracking-wider text-ink-muted">
+                              Pending
+                            </span>
+                          </li>
+                        ))}
+                      </EnterEach>
+                    ) : (
+                      <EmptyState icon={Send} title="No outgoing requests" />
+                    )}
+                  </SkeletonSwap>
                 </SectionCard>
               </div>
 
@@ -1771,78 +1959,86 @@ export default function ProfilePage() {
                 icon={UsersIcon}
                 title="Friends"
                 description="Accepted connections."
+                at={290}
                 action={
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-muted">
+                  <Enter
+                    as="span"
+                    tier="chip"
+                    at={CARD_BODY_AT}
+                    ready={friendsReady}
+                    className="rounded-full bg-gray-100 px-2.5 py-1 text-caption font-bold text-ink-muted"
+                  >
                     {friends?.totalCount ?? 0}
-                  </span>
+                  </Enter>
                 }
               >
-                {loadingFriends ? (
-                  <LoadingRows count={3} />
-                ) : friends?.items.length ? (
-                  <>
-                    <ul className="grid gap-2.5 sm:grid-cols-2">
-                      {friends.items.map((friend) => (
-                        <li
-                          key={friend.id}
-                          className="flex items-center gap-3 rounded-lg border border-line p-3 transition-[transform,border-color,box-shadow] duration-base hover:-translate-y-0.5 hover:border-line-strong hover:shadow-sm"
-                        >
-                          <Avatar
-                            src={friend.profilePictureUrl}
-                            firstName={friend.firstName}
-                            lastName={friend.lastName}
-                            email={friend.email}
-                            size={40}
-                            className="flex-shrink-0 rounded-full"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-caption font-bold text-ink">
-                              {personName(friend)}
-                            </p>
-                            <p className="truncate text-caption font-semibold text-ink-muted">
-                              Friends since {formatDateShort(friend.friendsSince)}
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            aria-label={`Remove ${personName(friend)}`}
-                            onClick={() => handleRemoveFriend(friend.id)}
+                <SkeletonSwap loading={loadingFriends || !friendsReady} skeleton={<LoadingRows count={3} />}>
+                  {friends?.items.length ? (
+                    <>
+                      <EnterEach as="ul" tier="row" at={CARD_BODY_AT} className="grid gap-2.5 sm:grid-cols-2">
+                        {friends.items.map((friend) => (
+                          <li
+                            key={friend.id}
+                            className="flex items-center gap-3 rounded-lg border border-line p-3 transition-[transform,border-color,box-shadow] duration-base hover:-translate-y-0.5 hover:border-line-strong hover:shadow-sm"
                           >
-                            <UserX className="h-4 w-4" aria-hidden />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                    <Pager
-                      previousDisabled={!friends?.hasPreviousPage}
-                      nextDisabled={!friends?.hasNextPage}
-                      onPrevious={() => {
-                        if (!friends?.hasPreviousPage) return
-                        const p = friendsPage - 1
-                        setFriendsPage(p)
-                        loadFriends(p)
-                      }}
-                      onNext={() => {
-                        if (!friends?.hasNextPage) return
-                        const p = friendsPage + 1
-                        setFriendsPage(p)
-                        loadFriends(p)
-                      }}
-                      label={`Page ${friends.pageNumber} of ${friends.totalPages || 1} · ${friends.totalCount} friends`}
-                    />
-                  </>
-                ) : (
-                  <EmptyState icon={UsersIcon} title="No friends yet" description="Accepted friends will appear here." />
-                )}
+                            <Avatar
+                              src={friend.profilePictureUrl}
+                              firstName={friend.firstName}
+                              lastName={friend.lastName}
+                              email={friend.email}
+                              size={40}
+                              className="flex-shrink-0 rounded-full"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-caption font-bold text-ink">
+                                {personName(friend)}
+                              </p>
+                              <p className="truncate text-caption font-semibold text-ink-muted">
+                                Friends since {formatDateShort(friend.friendsSince)}
+                              </p>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              aria-label={`Remove ${personName(friend)}`}
+                              onClick={() => handleRemoveFriend(friend.id)}
+                            >
+                              <UserX className="h-4 w-4" aria-hidden />
+                            </Button>
+                          </li>
+                        ))}
+                      </EnterEach>
+                      <Pager
+                        order={friends.items.length}
+                        previousDisabled={!friends?.hasPreviousPage}
+                        nextDisabled={!friends?.hasNextPage}
+                        onPrevious={() => {
+                          if (!friends?.hasPreviousPage) return
+                          const p = friendsPage - 1
+                          setFriendsPage(p)
+                          loadFriends(p)
+                        }}
+                        onNext={() => {
+                          if (!friends?.hasNextPage) return
+                          const p = friendsPage + 1
+                          setFriendsPage(p)
+                          loadFriends(p)
+                        }}
+                        label={`Page ${friends.pageNumber} of ${friends.totalPages || 1} · ${friends.totalCount} friends`}
+                      />
+                    </>
+                  ) : (
+                    <EmptyState icon={UsersIcon} title="No friends yet" description="Accepted friends will appear here." />
+                  )}
+                </SkeletonSwap>
               </SectionCard>
             </div>
-          </section>
+          </EnterInView>
 
           {/* ---------- ADMIN (role-gated) ---------- */}
           {isAdmin && (
-            <section id="admin" ref={setSectionRef("admin")} aria-labelledby="section-admin" className="scroll-mt-[var(--bar-clearance)]">
-              <SectionHeading index="06" title="Admin" description="Platform statistics and user operations." />
+            <EnterInView as="section" at={960} id="admin" ref={setSectionRef("admin")} aria-labelledby="section-admin" className="scroll-mt-[var(--bar-clearance)]">
+              <SectionHeading id="section-admin" index="06" title="Admin" description="Platform statistics and user operations." />
               <div className="flex flex-col gap-4">
                 <SectionCard
                   icon={Activity}
@@ -1855,25 +2051,25 @@ export default function ProfilePage() {
                     </Button>
                   }
                 >
-                  {adminStats ? (
-                    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-gray-200 sm:grid-cols-4">
-                      <MetricTile label="Total users" value={adminStats.totalUsers} />
-                      <MetricTile label="Active users" value={adminStats.activeUsers} />
-                      <MetricTile label="Locked users" value={adminStats.lockedUsers} active={!adminStats.lockedUsers} />
-                      <MetricTile label="2FA users" value={adminStats.usersWithTwoFactor} />
-                      <MetricTile label="New today" value={adminStats.newUsersToday} />
-                      <MetricTile label="This week" value={adminStats.newUsersThisWeek} />
-                      <MetricTile label="This month" value={adminStats.newUsersThisMonth} />
-                      <MetricTile label="Updated" value={formatDateShort(adminStats.lastUpdated)} />
-                    </dl>
-                  ) : (
-                    <LoadingRows count={2} />
-                  )}
+                  <SkeletonSwap loading={!adminStats} skeleton={<LoadingRows count={2} />}>
+                    {adminStats ? (
+                      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-gray-200 sm:grid-cols-4">
+                        <MetricTile index={0} label="Total users" value={adminStats.totalUsers} />
+                        <MetricTile index={1} label="Active users" value={adminStats.activeUsers} />
+                        <MetricTile index={2} label="Locked users" value={adminStats.lockedUsers} active={!adminStats.lockedUsers} />
+                        <MetricTile index={3} label="2FA users" value={adminStats.usersWithTwoFactor} />
+                        <MetricTile index={4} label="New today" value={adminStats.newUsersToday} />
+                        <MetricTile index={5} label="This week" value={adminStats.newUsersThisWeek} />
+                        <MetricTile index={6} label="This month" value={adminStats.newUsersThisMonth} />
+                        <MetricTile index={7} label="Updated" value={formatDateShort(adminStats.lastUpdated)} />
+                      </dl>
+                    ) : null}
+                  </SkeletonSwap>
                 </SectionCard>
 
                 <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(300px,1fr)]">
-                  <SectionCard icon={Search} title="User management" description="Search and filter accounts.">
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <SectionCard icon={Search} title="User management" description="Search and filter accounts." at={220} index={0}>
+                    <Enter tier="row" at={CARD_BODY_AT} className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                       <Input
                         placeholder="Search name or email"
                         aria-label="Search users by name or email"
@@ -1899,8 +2095,8 @@ export default function ProfilePage() {
                         value={adminCreatedTo}
                         onChange={(e) => setAdminCreatedTo(e.target.value)}
                       />
-                    </div>
-                    <div className="mt-3">
+                    </Enter>
+                    <Enter tier="row" at={CARD_BODY_AT + 60} className="mt-3">
                       <Button
                         variant="secondary"
                         onClick={() => {
@@ -1911,14 +2107,12 @@ export default function ProfilePage() {
                         <Search className="h-4 w-4" aria-hidden />
                         Apply filters
                       </Button>
-                    </div>
+                    </Enter>
 
-                    <div className="mt-4">
-                      {loadingAdmin ? (
-                        <LoadingRows count={4} />
-                      ) : adminUsers?.items?.length ? (
+                    <SkeletonSwap className="mt-4" loading={loadingAdmin || !loaded.has("admin")} skeleton={<LoadingRows count={4} />}>
+                      {adminUsers?.items?.length ? (
                         <>
-                          <ul className="space-y-2">
+                          <EnterEach as="ul" tier="row" at={CARD_BODY_AT + 120} className="space-y-2">
                             {adminUsers.items.map((adminUser) => (
                               <li
                                 key={adminUser.id}
@@ -1944,8 +2138,9 @@ export default function ProfilePage() {
                                 </Button>
                               </li>
                             ))}
-                          </ul>
+                          </EnterEach>
                           <Pager
+                            order={adminUsers.items.length}
                             previousDisabled={!adminUsers.hasPreviousPage}
                             nextDisabled={!adminUsers.hasNextPage}
                             onPrevious={() => {
@@ -1966,12 +2161,13 @@ export default function ProfilePage() {
                       ) : (
                         <EmptyState icon={Search} title="No users found" />
                       )}
-                    </div>
+                    </SkeletonSwap>
                   </SectionCard>
 
-                  <SectionCard icon={User} title="User detail" description="Selected account.">
+                  <SectionCard icon={User} title="User detail" description="Selected account." at={220} index={1}>
+                    {/* Keyed by the account: choosing another one brings its details in. */}
                     {selectedUser ? (
-                      <div className="space-y-4">
+                      <Enter key={selectedUser.id} tier="row" at={CARD_BODY_AT} className="space-y-4">
                         <div className="flex items-center gap-3">
                           <Avatar
                             src={selectedUser.profilePictureUrl}
@@ -1990,7 +2186,7 @@ export default function ProfilePage() {
                             </p>
                           </div>
                         </div>
-                        <div className="grid gap-2.5">
+                        <EnterEach tier="row" at={CARD_BODY_AT + 60} className="grid gap-2.5">
                           <InfoTile label="Status" value={selectedUser.status} icon={Activity} />
                           <InfoTile
                             label="2FA"
@@ -1999,15 +2195,15 @@ export default function ProfilePage() {
                           />
                           <InfoTile label="Locked until" value={formatDate(selectedUser.lockedUntil)} icon={Lock} />
                           <InfoTile label="Member since" value={formatDateShort(selectedUser.createdAt)} icon={CalendarDays} />
-                        </div>
-                      </div>
+                        </EnterEach>
+                      </Enter>
                     ) : (
                       <EmptyState icon={User} title="No user selected" description="Choose a user from the management list." />
                     )}
                   </SectionCard>
                 </div>
               </div>
-            </section>
+            </EnterInView>
           )}
         </div>
       </div>

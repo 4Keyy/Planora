@@ -76,6 +76,24 @@ const NAV_TABS = [
   { label: "Categories", href: "/categories" },
 ] as const
 
+/**
+ * The tabs prefetch their whole route, not just its loading state. Every route here is
+ * dynamic, so by default a tab prefetched only down to its `loading.tsx`: a press showed
+ * that skeleton, and React then holds a boundary's fallback on screen for at least 300ms
+ * before revealing what replaces it — every switch between tabs cost a third of a second
+ * of placeholder, however fast the server answered. These pages fetch their data in the
+ * browser, so the full route is only the page's shell and code; with it in hand a press
+ * renders the page at once and its entrance starts on the press.
+ */
+const TAB_PREFETCH = true
+
+/**
+ * The same full prefetch for the profile, which is reached from a menu button rather than a
+ * link. `router.prefetch` takes the kind as Next's own enum, which is not exported; its
+ * value is this string.
+ */
+const FULL_PREFETCH = { kind: "full" } as unknown as Parameters<ReturnType<typeof useRouter>["prefetch"]>[1]
+
 export function Navbar() {
   const router = useRouter()
   const pathname = usePathname() ?? ""
@@ -107,6 +125,12 @@ export function Navbar() {
   const sheetToggleRef = useRef<HTMLButtonElement>(null)
   useDismissHiddenAnchor(menuOpen, menuTriggerRef, () => setOpen(null))
   useDismissHiddenAnchor(sheetOpen, sheetToggleRef, () => setOpen(null))
+
+  // A menu with "Profile" in it is open: fetch the route now, so the press that follows
+  // renders the page at once (see TAB_PREFETCH).
+  useEffect(() => {
+    if (menuOpen || sheetOpen) router.prefetch("/profile", FULL_PREFETCH)
+  }, [menuOpen, sheetOpen, router])
   const dwell = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Hover expands only after a short dwell, so a pointer crossing the bar on its way to the
@@ -247,6 +271,7 @@ export function Navbar() {
         >
           <Link
             href="/dashboard"
+            prefetch={TAB_PREFETCH}
             aria-label="Planora, go to dashboard"
             className="flex h-11 items-center gap-2 rounded-full px-3 transition-colors duration-fast hover:bg-ink/5"
           >
@@ -302,6 +327,7 @@ export function Navbar() {
                   >
                     <Link
                       href={tab.href}
+                      prefetch={TAB_PREFETCH}
                       aria-current={active ? "page" : undefined}
                       onPointerEnter={() => setHoverTab(tab.href)}
                       className={cn(
@@ -497,6 +523,7 @@ export function Navbar() {
                     <Link
                       key={tab.href}
                       href={tab.href}
+                      prefetch={TAB_PREFETCH}
                       onClick={() => setOpen(null)}
                       aria-current={active ? "page" : undefined}
                       className={cn(

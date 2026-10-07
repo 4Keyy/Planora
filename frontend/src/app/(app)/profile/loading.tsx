@@ -1,6 +1,6 @@
 export default function ProfileLoading() {
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div aria-busy="true" className="skeleton-defer mx-auto max-w-3xl space-y-6">
       <div className="flex items-center gap-4">
         <div className="h-20 w-20 animate-pulse rounded-full bg-gray-100" />
         <div className="flex-1 space-y-2">

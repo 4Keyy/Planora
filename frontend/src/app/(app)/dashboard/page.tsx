@@ -33,6 +33,7 @@ const CreateTodoPanel = dynamic(
   { ssr: false, loading: () => <CreatePlatePlaceholder /> },
 )
 import { MasonryColumns } from "@/components/ui/masonry-columns"
+import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { CreatePlatePlaceholder } from "@/components/todos/plate-placeholder"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
@@ -51,6 +52,28 @@ import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 const STATS_COMPLETED_PREVIEW_SIZE = 100
 const STATS_REQUEST_TIMEOUT_MS = 30000
 const FIRST_RUN_STORAGE_KEY = "planora-first-run"
+
+/**
+ * When each part of the dashboard arrives, in ms after the page starts — top to bottom,
+ * the order the eye reads it. The cards' moment is when they may start: data that comes
+ * later starts them on arrival, never later than that.
+ */
+const DASH = {
+  overview: 0,
+  label: 90,
+  headline: 150,
+  ring: 190,
+  stats: 230,
+  weekLabel: 250,
+  weekCount: 300,
+  week: 340,
+  listHeading: 210,
+  listCount: 260,
+  allTasks: 270,
+  newTask: 280,
+  cards: 360,
+  pager: 440,
+} as const
 type CategoryResponse = Category[] | { items?: Category[]; value?: Category[] | { items?: Category[] } }
 
 const normalizeCategoryResponse = (response: CategoryResponse): Category[] => {
@@ -104,6 +127,10 @@ export default function DashboardPage() {
 
   const [todos, setTodos] = useState<Todo[]>([])
   const [statsTodos, setStatsTodos] = useState<Todo[]>([])
+  /** The week's numbers have been read once (or failed to be): the ring and bars may arrive. */
+  const [statsLoaded, setStatsLoaded] = useState(false)
+  /** The active list has been read once: the counts may arrive, already right. */
+  const [todosLoaded, setTodosLoaded] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -196,6 +223,8 @@ export default function DashboardPage() {
     } catch (err) {
       if (axios.isCancel(err) || signal?.aborted) return
       console.error("Failed to fetch stats:", err)
+    } finally {
+      if (!signal?.aborted) setStatsLoaded(true)
     }
   }, [enrichTodosWithAuthorNames])
 
@@ -230,6 +259,7 @@ export default function DashboardPage() {
       if (!silent) setError(err instanceof Error ? err.message : "Failed to load todos")
     } finally {
       if (!silent && !signal?.aborted) setLoading(false)
+      if (!signal?.aborted) setTodosLoaded(true)
     }
   }, [pageSize, enrichTodosWithAuthorNames])
 
@@ -740,26 +770,46 @@ export default function DashboardPage() {
         glass card nested inside it for the ring; each piece arrived on its own delay.
         Now it is one paper card, and the only things that move are the numbers.
       */}
-      <section
+      {/*
+        The page arrives top to bottom on one timeline (components/animated/entrance.tsx):
+        the overview card first, as the largest thing on the page, and its contents a beat
+        behind it, label, headline, the stats one by one; the ring and the week on the right;
+        then the heading of the list, the New task plate, and the cards in reading order as
+        soon as they are here. Numbers keep rolling and the ring keeps drawing on their own.
+      */}
+      <Enter
+        as="section"
+        tier="hero"
+        at={DASH.overview}
         aria-label="Overview"
         className="rounded-xl border border-line bg-paper p-6 shadow-sm sm:p-8"
       >
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className={FIELD_LABEL_CLASS}>Overview</p>
-            <h1 className="mt-2 text-title font-bold tracking-tight text-ink sm:text-display-sm">
+            <Enter as="p" tier="text" at={DASH.label} className={FIELD_LABEL_CLASS}>Overview</Enter>
+            <Enter
+              as="h1"
+              tier="text"
+              at={DASH.headline}
+              ready={todosLoaded}
+              className="mt-2 text-title font-bold tracking-tight text-ink sm:text-display-sm"
+            >
               You have{" "}
               {/* The headline number rolls rather than re-mounting: "one fewer task", not
                   "this component rendered". */}
               <span className="tabular-nums">
-                <NumberRoll value={activeStatsCount} announce />
+                {/* Remounted when the count is first known, so it arrives reading the real
+                    number instead of rolling up from the 0 it held while loading. */}
+                <NumberRoll key={todosLoaded ? "known" : "loading"} value={activeStatsCount} announce />
               </span>{" "}
               {activeStatsCount === 1 ? "open task." : "open tasks."}
-            </h1>
+            </Enter>
             {/* Each of these is a filter, not a label: the number is half an answer and
                 pressing it should show the tasks it counted. */}
             <StatRow
               className="mt-6"
+              entranceAt={DASH.stats}
+              ready={todosLoaded}
               stats={[
                 { id: "overdue", label: "overdue", value: heroStats.overdue, icon: AlertTriangle, tone: "alert", onSelect: () => router.push("/tasks") },
                 { id: "today", label: "due today", value: heroStats.dueToday, icon: CalendarClock, onSelect: () => router.push("/tasks") },
@@ -769,142 +819,168 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-6 border-t border-line pt-6 lg:w-96 lg:flex-shrink-0 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
-            <ProgressCircle value={completedCountForStats} total={totalCountForStats} />
+            <Enter tier="chip" at={DASH.ring} ready={statsLoaded} className="flex-shrink-0">
+              <ProgressCircle key={statsLoaded ? "known" : "loading"} value={completedCountForStats} total={totalCountForStats} />
+            </Enter>
             <div className="min-w-0 flex-1">
-              <p className={FIELD_LABEL_CLASS}>This week</p>
-              <p className="mt-1 flex items-baseline gap-1.5">
+              <Enter as="p" tier="text" at={DASH.weekLabel} className={FIELD_LABEL_CLASS}>This week</Enter>
+              <Enter as="p" tier="text" at={DASH.weekCount} ready={statsLoaded} className="mt-1 flex items-baseline gap-1.5">
                 <span className="text-title font-bold tabular-nums text-ink">
-                  <NumberRoll value={completedCountForStats} />
+                  <NumberRoll key={statsLoaded ? "known" : "loading"} value={completedCountForStats} />
                 </span>
                 <span className="text-body-sm font-medium text-ink-muted">completed</span>
-              </p>
+              </Enter>
               {/* The shape of the week, not just its total. Built from the completion
                   timestamps already loaded for the ring, so it costs no request and
                   cannot disagree with the number above it. */}
               <WeekBars
                 className="mt-3"
+                entranceAt={DASH.week}
+                ready={statsLoaded}
                 completions={recentCompletedStatsTodos.map((t) => t.completedAt ?? t.updatedAt)}
               />
             </div>
           </div>
         </div>
-      </section>
+      </Enter>
 
       <section aria-labelledby="active-tasks-heading" className="space-y-6">
         <div className="flex items-center justify-between gap-4">
-          <h2 id="active-tasks-heading" className="flex items-center gap-3 text-title-sm font-bold tracking-tight text-ink">
+          <Enter
+            as="h2"
+            tier="text"
+            at={DASH.listHeading}
+            id="active-tasks-heading"
+            className="flex items-center gap-3 text-title-sm font-bold tracking-tight text-ink"
+          >
             Active tasks
-            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-paper-sunken px-2 text-caption font-semibold tabular-nums text-ink-muted ring-1 ring-inset ring-line">
+            <Enter
+              as="span"
+              tier="chip"
+              at={DASH.listCount}
+              ready={todosLoaded}
+              className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-paper-sunken px-2 text-caption font-semibold tabular-nums text-ink-muted ring-1 ring-inset ring-line"
+            >
               {totalCount}
-            </span>
-          </h2>
-          <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")} className="-mr-3">
-            All tasks
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Button>
+            </Enter>
+          </Enter>
+          <Enter tier="chip" at={DASH.allTasks} className="-mr-3">
+            <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")}>
+              All tasks
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </Enter>
         </div>
 
         {/* The create panel spans the column. It sat alone in a sidebar a third of the
             page wide, which squeezed the task cards into three narrow columns beside a
             mostly empty one. */}
-        <CreateTodoPanel
-          isOpen={isCreateOpen}
-          onToggle={() => setIsCreateOpen(!isCreateOpen)}
-          categories={categories}
-          onSubmit={handleCreate}
-          onCreateCategory={fetchCategories}
-          onDeleteCategory={handleDeleteCategory}
-        />
-
-        {loading && (
-          <MasonryColumns
-            items={[...Array(pageSize)].map((_, i) => ({ id: `skeleton-${i}` }))}
-            getKey={(item) => item.id}
-            renderItem={() => <TodoSkeleton />}
-            columns={TASK_GRID_COLUMNS}
-            breakpoints={TASK_GRID_BREAKPOINTS}
+        <Enter tier="panel" at={DASH.newTask}>
+          <CreateTodoPanel
+            isOpen={isCreateOpen}
+            onToggle={() => setIsCreateOpen(!isCreateOpen)}
+            categories={categories}
+            onSubmit={handleCreate}
+            onCreateCategory={fetchCategories}
+            onDeleteCategory={handleDeleteCategory}
           />
-        )}
+        </Enter>
 
-        {error && !loading && (
-          <StatusPanel
-            tone="alert"
-            icon={AlertTriangle}
-            title="Couldn't load your tasks"
-            description={error}
-            action={{ label: "Try again", onClick: () => void fetchTodos() }}
-          />
-        )}
-
-        {!loading && !error && (
-          <>
-            {activeTodos.length === 0 ? (
-              firstRun ? (
-                <div className="rounded-xl border border-dashed border-line bg-paper px-6 py-12 text-center sm:px-12">
-                  <h3 className="text-title font-bold tracking-tight text-ink">Welcome to Planora</h3>
-                  <p className="mx-auto mt-2 max-w-md text-body text-ink-muted">
-                    Start with one task, then invite the person you want to coordinate with.
-                  </p>
-                  <ol className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
-                    {[
-                      ["1", "Create a task", "Write down one concrete thing."],
-                      ["2", "Make a category", "Group tasks the way you think about them."],
-                      ["3", "Invite a friend", "Send a request by email from your profile."],
-                      ["4", "Share a task", "Choose that friend when you edit the task."],
-                    ].map(([step, title, body]) => (
-                      <li key={step} className="rounded-lg border border-line bg-paper-sunken p-4">
-                        <p className={FIELD_LABEL_CLASS}>Step {step}</p>
-                        <p className="mt-2 text-body-sm font-bold text-ink">{title}</p>
-                        <p className="mt-1 text-caption text-ink-muted">{body}</p>
-                      </li>
-                    ))}
-                  </ol>
-                  <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                    <Button size="lg" onClick={() => setIsCreateOpen(true)}>
-                      <Plus className="h-5 w-5" aria-hidden="true" />
-                      Create your first task
-                    </Button>
-                    <Button size="lg" variant="outline" onClick={() => router.push("/profile")}>
-                      Invite a friend
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <StatusPanel
-                  icon={CheckCircle2}
-                  title="Nothing open right now"
-                  description="Everything you had is done. Add the next thing when it comes up."
-                  action={{ label: "New task", onClick: () => setIsCreateOpen(true) }}
-                />
-              )
-            ) : (
-              <MasonryColumns
-                items={activeTodos}
-                getKey={(todo) => todo.id}
-                getItemWeight={getTaskWeight}
-                columns={TASK_GRID_COLUMNS}
-                breakpoints={TASK_GRID_BREAKPOINTS}
-                renderItem={(todo) => (
-                  <TodoCard
-                    todo={todo}
-                    variant="default"
-                    onComplete={() => handleComplete(todo.id)}
-                    onDelete={() => requestDelete(todo)}
-                    onEdit={() => setEditingTodo(todo)}
-                    onToggleHidden={() => handleToggleHidden(todo.id)}
-                    onJoin={async () => handleJoin(todo.id)}
-                  />
-                )}
+        <SkeletonSwap
+          loading={loading}
+          skeleton={
+            <MasonryColumns
+              items={[...Array(pageSize)].map((_, i) => ({ id: `skeleton-${i}` }))}
+              getKey={(item) => item.id}
+              renderItem={() => <TodoSkeleton />}
+              columns={TASK_GRID_COLUMNS}
+              breakpoints={TASK_GRID_BREAKPOINTS}
+            />
+          }
+        >
+          {error ? (
+            <Enter tier="panel" at={DASH.cards}>
+              <StatusPanel
+                tone="alert"
+                icon={AlertTriangle}
+                title="Couldn't load your tasks"
+                description={error}
+                action={{ label: "Try again", onClick: () => void fetchTodos() }}
               />
-            )}
+            </Enter>
+          ) : (
+            <>
+              {activeTodos.length === 0 ? (
+                firstRun ? (
+                  <Enter tier="panel" at={DASH.cards} className="rounded-xl border border-dashed border-line bg-paper px-6 py-12 text-center sm:px-12">
+                    <h3 className="text-title font-bold tracking-tight text-ink">Welcome to Planora</h3>
+                    <p className="mx-auto mt-2 max-w-md text-body text-ink-muted">
+                      Start with one task, then invite the person you want to coordinate with.
+                    </p>
+                    <ol className="mx-auto mt-8 grid max-w-3xl gap-3 text-left sm:grid-cols-2 lg:grid-cols-4">
+                      {[
+                        ["1", "Create a task", "Write down one concrete thing."],
+                        ["2", "Make a category", "Group tasks the way you think about them."],
+                        ["3", "Invite a friend", "Send a request by email from your profile."],
+                        ["4", "Share a task", "Choose that friend when you edit the task."],
+                      ].map(([step, title, body]) => (
+                        <li key={step} className="rounded-lg border border-line bg-paper-sunken p-4">
+                          <p className={FIELD_LABEL_CLASS}>Step {step}</p>
+                          <p className="mt-2 text-body-sm font-bold text-ink">{title}</p>
+                          <p className="mt-1 text-caption text-ink-muted">{body}</p>
+                        </li>
+                      ))}
+                    </ol>
+                    <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                      <Button size="lg" onClick={() => setIsCreateOpen(true)}>
+                        <Plus className="h-5 w-5" aria-hidden="true" />
+                        Create your first task
+                      </Button>
+                      <Button size="lg" variant="outline" onClick={() => router.push("/profile")}>
+                        Invite a friend
+                      </Button>
+                    </div>
+                  </Enter>
+                ) : (
+                  <Enter tier="panel" at={DASH.cards}>
+                    <StatusPanel
+                      icon={CheckCircle2}
+                      title="Nothing open right now"
+                      description="Everything you had is done. Add the next thing when it comes up."
+                      action={{ label: "New task", onClick: () => setIsCreateOpen(true) }}
+                    />
+                  </Enter>
+                )
+              ) : (
+                <MasonryColumns
+                  items={activeTodos}
+                  getKey={(todo) => todo.id}
+                  getItemWeight={getTaskWeight}
+                  columns={TASK_GRID_COLUMNS}
+                  breakpoints={TASK_GRID_BREAKPOINTS}
+                  entranceAt={DASH.cards}
+                  renderItem={(todo) => (
+                    <TodoCard
+                      todo={todo}
+                      variant="default"
+                      onComplete={() => handleComplete(todo.id)}
+                      onDelete={() => requestDelete(todo)}
+                      onEdit={() => setEditingTodo(todo)}
+                      onToggleHidden={() => handleToggleHidden(todo.id)}
+                      onJoin={async () => handleJoin(todo.id)}
+                    />
+                  )}
+                />
+              )}
 
-          </>
-        )}
+            </>
+          )}
+        </SkeletonSwap>
 
         {/* Outside the loading branch: the pager stays mounted while the next page loads,
             so the button just pressed keeps keyboard focus instead of unmounting under it. */}
         {!error ? (
-          <Pagination className="pt-4" page={currentPage} totalPages={totalPages} onChange={handlePageChange} />
+          <Pagination className="pt-4" page={currentPage} totalPages={totalPages} onChange={handlePageChange} entranceAt={DASH.pager} />
         ) : null}
       </section>
 

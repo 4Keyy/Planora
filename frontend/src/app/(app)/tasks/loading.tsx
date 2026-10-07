@@ -9,7 +9,7 @@ import { CreatePlatePlaceholder, FilterPlatePlaceholder } from "@/components/tod
  */
 export default function TasksLoading() {
   return (
-    <div aria-busy="true" className="space-y-6">
+    <div aria-busy="true" className="skeleton-defer space-y-6">
       <PageHeaderSkeleton withSentence={false} actions="pills" />
       <CreatePlatePlaceholder />
       <FilterPlatePlaceholder />
