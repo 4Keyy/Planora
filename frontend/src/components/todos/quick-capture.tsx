@@ -40,6 +40,34 @@ import { cn } from "@/lib/utils"
 /** The palette asks for capture through this rather than importing the component. */
 export const OPEN_CAPTURE_EVENT = "planora:open-capture"
 
+/** What a capture request carries: the title to start from, when the caller has one. */
+export interface CaptureRequest {
+  title?: string
+}
+
+/**
+ * A request nobody has answered yet. The palette can ask for capture from a screen
+ * that does not mount it — the categories page, a branch, the profile — and then
+ * navigates to one that does; the event fires before that screen exists, so the
+ * request waits here and the capture that mounts next takes it. It expires quickly:
+ * a request the user did not follow through on must not open a bar minutes later.
+ */
+let pendingRequest: { request: CaptureRequest; at: number } | null = null
+const PENDING_MAX_AGE_MS = 5000
+
+/** Opens quick capture: at once if one is mounted, or as soon as one mounts. */
+export function requestCapture(request: CaptureRequest = {}): void {
+  pendingRequest = { request, at: Date.now() }
+  window.dispatchEvent(new CustomEvent<CaptureRequest>(OPEN_CAPTURE_EVENT, { detail: request }))
+}
+
+function takePendingRequest(): CaptureRequest | null {
+  const held = pendingRequest
+  pendingRequest = null
+  if (!held || Date.now() - held.at > PENDING_MAX_AGE_MS) return null
+  return held.request
+}
+
 /** Matches the create panel's own title limit, so capture cannot produce a task the editor would reject. */
 const TITLE_MAX_LENGTH = 200
 
@@ -111,8 +139,11 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
     setStatus("")
   }, [])
 
-  const open = useCallback(() => {
+  const open = useCallback((title?: string) => {
     haptic("tap")
+    // A title handed over by the palette ("Create task “…”") is the draft; the bar
+    // opens with it typed, so Enter alone creates the task.
+    if (title?.trim()) setValue(title.trim().slice(0, TITLE_MAX_LENGTH))
     setExpanded(true)
     setStatus("Quick capture open. Type a task, then press Enter.")
   }, [])
@@ -149,17 +180,24 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
   }, [hidden, open])
 
   /**
-   * The command palette's "Capture a task" lands here.
+   * The command palette's "Capture a task" and "Create task “…”" land here.
    *
    * An event rather than an import, for the same reason the create panel uses one:
    * the palette is mounted in the root layout and has no idea which screen is
    * showing or where this component sits in it. On a route that does not mount
-   * capture, nothing listens — and the palette navigates to Tasks first, so there
-   * is always something listening by the time the event fires.
+   * capture, nothing listens — so the palette navigates to Tasks, and the request
+   * waits in `requestCapture`'s slot until this mounts there and takes it.
    */
   useEffect(() => {
     if (hidden) return
-    const onOpen = () => open()
+    // A request made before this screen mounted — the palette navigated here to answer it.
+    const waiting = takePendingRequest()
+    if (waiting) open(waiting.title)
+    const onOpen = (event: Event) => {
+      // Answered here, so no capture mounted later takes it a second time.
+      takePendingRequest()
+      open((event as CustomEvent<CaptureRequest | null>).detail?.title)
+    }
     window.addEventListener(OPEN_CAPTURE_EVENT, onOpen)
     return () => window.removeEventListener(OPEN_CAPTURE_EVENT, onOpen)
   }, [hidden, open])
@@ -333,7 +371,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
             // re-eased every frame the layout projection wrote, and `active:scale-95`
             // lost to the inline transform whenever one was set.
             whileTap={TAP_PRESS}
-            onClick={open}
+            onClick={() => open()}
             aria-label="New task"
             /*
              * The collapsed bubble is a PHONE affordance, and it hides above `sm`.

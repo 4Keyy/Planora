@@ -872,7 +872,8 @@ field's own geometry:
 |---|---|---|
 | `field-rule` (container) + `field-naked` (fields) | the create panel's title and details | the 2px left rule: an ink rule draws itself over the `line` track top-down on focus (`duration-slow`, `ease-emphasized`, a `scaleY` transform) and retracts on `ease-exit` |
 | `field-box` | `<Input>`, `<Textarea>`, the task editor's title while it is edited, the branch's Author's Note, subtask-title and comment editors, the new-category name, the (unused) advanced search bar | a 1px ink edge and a 3px `ink/8%` halo on the field's radius, through the field's own colour/shadow transition; a field with `data-over-limit` or `aria-invalid` keeps a red edge (and the over-limit pink surface) while focused |
-| `field-shell` (container) + `field-naked` (field) | quick capture's pill, the branch composer, the colour picker's hex box, the command palette's query row | the shell's edge turns ink with the same halo over whatever elevation it already carries (`--tw-shadow`: quick capture keeps its `shadow-xl`); the palette's row adds `focus-within:shadow-none`, so it shows an ink underline only, since a halo would be clipped by the dialog |
+| `field-shell` (container) + `field-naked` (field) | quick capture's pill, the branch composer, the colour picker's hex box | the shell's edge turns ink with the same halo over whatever elevation it already carries (`--tw-shadow`: quick capture keeps its `shadow-xl`) |
+| `field-naked` alone | the command palette's query | none: the palette opens with the caret in its only field and keeps it there, so the whole dialog is the focused surface — a ring would only box the caret |
 | `field-naked` + its own cells | the one-time-code input (login 2FA) | one transparent input over six cells; the cell where the next digit lands draws the `field-box` look (1px ink edge, 3px `ink/8%` ring), so the row is never boxed |
 
 Every `<input>`/`<textarea>` that takes text must carry `field-box` or `field-naked` — a contract in `design-tokens.contract.test.ts` scans every component and fails on any that does not.
@@ -955,7 +956,7 @@ type has stopped being a primitive.
 
 | Component | Owns |
 |---|---|
-| `CommandPalette` | ⌘K / Ctrl+K: search tasks, jump anywhere, create |
+| `CommandPalette` | ⌘K / Ctrl+K and the search button: search tasks, categories, people and commands, narrow into one, create from a query |
 | `ShortcutsOverlay` + `SHORTCUT_GROUPS` | The `?` map, and the single list every other surface reads its key spellings from |
 | `useListNavigation` | The list cursor, the selection, and every bare-letter binding over a list of ids |
 | `SelectionBar` | What to do with a gathered selection, with the count stated before the verb |
@@ -1141,21 +1142,46 @@ session are irreversible on the server, and five seconds is not consent.
 
 ### `CommandPalette` — the keyboard is a first-class interface
 
-⌘K on a Mac, Ctrl+K everywhere else. It searches the user's real tasks by subsequence —
-`bfl` finds "**B**ook the **FL**ights" — and lands on that task's branch from anywhere.
+⌘K on a Mac, Ctrl+K everywhere else, or the app bar's search button. One field reaches
+the user's tasks, categories, friends, the smart views, every screen and the global
+actions; `docs/features.md` § Command palette has the behaviour. The design decisions:
 
-Two decisions worth keeping:
-
-- **Score, then regroup.** Ranking and grouping pull in opposite directions: a purely
-  score-ordered list interleaves the groups so the headings read "TASKS / ACTIONS /
-  TASKS". Scoring first keeps the best match at the top of its own group; regrouping
-  after keeps each heading appearing exactly once.
+- **It grows out of the button that opened it.** The same shared-origin move as the task
+  editor (`originTransform`, critically damped `SPRING_LAYOUT`): a uniform scale from the
+  search button's rect, landing without passing its size, and folding back into the
+  button on close. From the keyboard it drops in 12px from above. The scrim is the
+  dialogs' `.backdrop-surface`.
+- **The droplet's language.** The selected tab is the app bar's ink drop (`layoutId`,
+  `SPRING_STANDARD`); the highlighted row is a lighter drop, `ink/5`, that glides from
+  row to row instead of switching, and glows in the task's category colour the way a
+  task card does under the pointer. The preview column carries the same colour as a soft
+  blur behind its corner, cross-fading between tasks on one mounted element.
+- **Matched letters are marked**, on a `warn/20` highlighter with `rounded-[3px]`, so a
+  fuzzy match reads as deliberate rather than random. `warn-surface` was too pale to see
+  on the highlighted row.
+- **Nothing typed is still an answer**: view chips that double as a status line, Recent,
+  Up next. **No query is a dead end**: the last row offers to create the task.
+- **The empty field teaches the operators.** Its hint reads "Search tasks", and the last
+  word rolls through categories `#`, people `@` and commands `>` like a counter — a
+  column of words moving up one row, with a copy of the first at the end so the loop
+  never runs backwards. Still under reduced motion.
+- **The footer is contextual.** It shows only the keys that act on the highlighted row —
+  Enter's verb changes with it ("open", "narrow", "go", "create"), Tab appears only where
+  it narrows, Escape says whether it will clear, step back or close — and its key caps go
+  down when the real keys do.
+- **The panel never changes size while typing.** From `md` the results area has a fixed
+  height (`min(27rem, 58vh)`), so the field and the footer stay put under the eye.
+- **Best group first, then grouped.** Ranking and grouping pull in opposite directions; a
+  purely score-ordered list interleaves kinds. Each kind is ranked inside its group, and
+  the group holding the single best match comes first, so each heading appears once and
+  `Enter` on a fresh query lands on the obvious result.
 - **The ARIA combobox pattern, not a focus walk.** Focus stays in the input and
-  `aria-activedescendant` moves, so arrow keys never interrupt typing and the
-  highlighted row is still announced.
+  `aria-activedescendant` moves, so the arrows never interrupt typing and the highlighted
+  row is still announced. Rows follow the pointer on `pointermove`, not `pointerenter`: a
+  list scrolled by the keyboard slides rows under a resting pointer.
 
-Tasks load once per opening rather than per keystroke, and a failed fetch still leaves a
-palette that navigates.
+The data is read once per opening, not per keystroke, and kept per account for the next
+one; a failed read still leaves a palette that navigates.
 
 ### `useListNavigation` — the cursor is an id
 

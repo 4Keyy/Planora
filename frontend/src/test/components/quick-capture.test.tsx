@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { QuickCapture } from "@/components/todos/quick-capture"
+import { QuickCapture, requestCapture } from "@/components/todos/quick-capture"
 
 type Capture = (title: string) => Promise<void>
 
@@ -323,6 +323,52 @@ describe("QuickCapture, the c shortcut", () => {
 
     expect(queryField()).toBeNull()
     expect(screen.queryByRole("button")).toBeNull()
+  })
+})
+
+// ─── Asked by the palette ───────────────────────────────────────────────────
+
+describe("QuickCapture, asked by the command palette", () => {
+  it("opens with the palette's text already typed", async () => {
+    const onCapture = vi.fn<Capture>().mockResolvedValue()
+    const user = userEvent.setup()
+    render(<QuickCapture onCapture={onCapture} />)
+
+    act(() => requestCapture({ title: "  Call the plumber  " }))
+
+    const input = await screen.findByRole("textbox", { name: "New task" })
+    expect(input).toHaveValue("Call the plumber")
+    await user.keyboard("{Enter}")
+    expect(onCapture).toHaveBeenCalledWith("Call the plumber")
+  })
+
+  it("opens empty when the palette has no text", async () => {
+    render(<QuickCapture onCapture={vi.fn<Capture>()} />)
+    act(() => requestCapture())
+    expect(await screen.findByRole("textbox", { name: "New task" })).toHaveValue("")
+  })
+
+  it("answers a request made before it mounted — the palette navigated here for it", async () => {
+    requestCapture({ title: "From another screen" })
+    render(<QuickCapture onCapture={vi.fn<Capture>()} />)
+    expect(await screen.findByRole("textbox", { name: "New task" })).toHaveValue("From another screen")
+  })
+
+  it("answers a request once, and never a stale one", async () => {
+    requestCapture({ title: "Once" })
+    const first = render(<QuickCapture onCapture={vi.fn<Capture>()} />)
+    expect(await screen.findByRole("textbox", { name: "New task" })).toHaveValue("Once")
+    first.unmount()
+    render(<QuickCapture onCapture={vi.fn<Capture>()} />)
+    expect(queryField()).toBeNull()
+  })
+
+  it("lets a request expire", () => {
+    vi.useFakeTimers()
+    requestCapture({ title: "Too late" })
+    vi.advanceTimersByTime(6000)
+    render(<QuickCapture onCapture={vi.fn<Capture>()} />)
+    expect(queryField()).toBeNull()
   })
 })
 

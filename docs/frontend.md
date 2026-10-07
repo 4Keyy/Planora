@@ -270,7 +270,7 @@ desktop this is where an experienced user lives.
 
 | Key | Does | Where |
 |---|---|---|
-| `Cmd/Ctrl + K` | Command palette — search tasks, jump anywhere, create | Anywhere, signed in |
+| `Cmd/Ctrl + K` | Command palette — search tasks, categories, people and commands; `#` `@` `>` narrow the search, `Tab` narrows into a row, a query that matches nothing becomes a task | Anywhere, signed in |
 | `?` | The keyboard map itself | Anywhere |
 | `C` | Capture a task — one field, no selectors | Dashboard, Tasks |
 | `F` | Open the category filter | Tasks |
@@ -315,7 +315,8 @@ Four rules keep this coherent:
    tasks because an `x` scrolled out of view is not one anybody can take back.
 
 The command palette shows the shortcut for every command it lists, so it teaches the
-rest of the keyboard rather than replacing it, and `?` shows the whole map.
+rest of the keyboard rather than replacing it; its footer shows the keys for the row under
+the highlight, and `?` shows the whole map, the palette's own keys included.
 
 ### The list cursor is an id, not an index
 

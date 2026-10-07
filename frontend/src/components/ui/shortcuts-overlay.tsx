@@ -62,6 +62,9 @@ const SPOKEN: Record<string, string> = {
   Esc: "Escape",
   "?": "Question mark",
   "1–5": "1 to 5",
+  "#": "Hash",
+  "@": "At sign",
+  ">": "Greater than",
 }
 
 export interface Shortcut {
@@ -84,6 +87,19 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["C"], description: "Capture a new task" },
       { keys: ["?"], description: "Show this list" },
       { keys: ["Esc"], description: "Close whatever is open" },
+    ],
+  },
+  {
+    // The palette's own keys. Its footer shows the everyday four; these are the
+    // ones a reader would never guess, so they are written down here.
+    title: "Search",
+    shortcuts: [
+      { keys: ["#"], description: "Search only categories" },
+      { keys: ["@"], description: "Search only people" },
+      { keys: [">"], description: "Search only commands" },
+      { keys: ["Tab"], description: "Narrow to the highlighted category, person or view" },
+      { keys: ["Backspace"], description: "Widen back out, from an empty field" },
+      { keys: [MOD, "⏎"], description: "Open the highlighted task in a new tab" },
     ],
   },
   {
@@ -288,6 +304,9 @@ export function ShortcutsOverlay({ open, onClose }: ShortcutsOverlayProps) {
 
 // ─── The `?` listener ───────────────────────────────────────────────────────
 
+/** Opens the map from a control rather than the key — the palette's "Keyboard shortcuts". */
+export const OPEN_SHORTCUTS_EVENT = "planora:open-shortcuts"
+
 export interface ShortcutsOverlayState {
   open: boolean
   setOpen: (value: boolean) => void
@@ -337,8 +356,13 @@ export function useShortcutsOverlay(): ShortcutsOverlayState {
       e.preventDefault()
       setOpen((previous) => !previous)
     }
+    const onRequest = () => setOpen(true)
     window.addEventListener("keydown", handler, true)
-    return () => window.removeEventListener("keydown", handler, true)
+    window.addEventListener(OPEN_SHORTCUTS_EVENT, onRequest)
+    return () => {
+      window.removeEventListener("keydown", handler, true)
+      window.removeEventListener(OPEN_SHORTCUTS_EVENT, onRequest)
+    }
   }, [])
 
   return { open, setOpen }

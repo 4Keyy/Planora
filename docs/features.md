@@ -581,7 +581,34 @@ returns the user to their place.
 
 The `?` overlay (`frontend/src/components/ui/shortcuts-overlay.tsx`) is the on-screen copy of
 this map, and `SHORTCUT_GROUPS` there is exported so the command palette prints the same
-strings. See `docs/frontend.md` §7 for the cross-page keyboard model.
+strings. Its **Search** group lists the palette's own keys; the palette's "Keyboard shortcuts"
+row opens it through `OPEN_SHORTCUTS_EVENT`. See `docs/frontend.md` §7 for the cross-page keyboard model.
+
+### Command palette
+
+`frontend/src/components/command-palette/` — one field that reaches everything the product
+holds: the viewer's tasks (open, and the 30 most recently finished), their categories, their
+friends, six smart views, every screen and the two global actions. `index.tsx` owns state, the
+reads, the keys and the motion; `search.ts` (folding, fuzzy matching, the operators, the views,
+the deadline wording) and `sections.ts` (what the list holds for a query, a tab and a scope) are
+pure and unit-tested; `rows.tsx`, `preview.tsx` and `chrome.tsx` render; `recent.ts` keeps the
+history.
+
+| Aspect | Behaviour |
+|---|---|
+| Opening | `⌘K` / `Ctrl+K` toggles it from anywhere signed in — also on a Cyrillic layout, where the physical K types "л" (`code` decides only when `key` is not a Latin letter, so Dvorak keeps its own K). The app bar's search button calls `requestPalette(button)`, which sends `OPEN_PALETTE_EVENT` with the button's rect as `detail.origin`: the palette grows out of the button and folds back into it (`originTransform`, the task editor's critically damped `SPRING_LAYOUT`); opened from the keyboard it drops in from just above. Every opening starts with an empty field, the All tab and no scope |
+| Reads | On every opening, three requests in parallel, settled independently: open tasks (`pageSize=100`, `isCompleted=false`), recently finished ones (`pageSize=30`, `isCompleted=true`) and categories; friends come from the shared `useFriends` cache. Tasks are deduplicated by id, open first, and a task that carries only its category's id takes the name, colour and icon from the category list. The last read is kept in memory per account, so from the second opening on the list is there at once and refreshes underneath. If the open tasks cannot be read the palette says so with **Try again** and still navigates; a failed refresh keeps the tasks an earlier read found |
+| Nothing typed | The views with an answer as chips (`Overdue 3`, `Due today 1`, `This week`, `In progress`, `Shared`, `Urgent` — only non-zero ones; one swipeable line on a phone); **Recent** — up to four of the last eight things opened from the palette, per account and device (`localStorage` key `planora:palette-recent:<userId>`, guarded, so a blocked store means no history); **Up next** — five open tasks, late first, then by deadline, then by priority; **Actions** (Capture a task `C`, Keyboard shortcuts `?`); **Go to** (Dashboard, Tasks, Completed tasks, Categories, Profile) |
+| Matching | Case- and accent-insensitive. A contiguous run wins, one at the start of a word first (`fl` lands on "**Fl**ights", not "con**fl**ict"); failing that the letters may be scattered (`bfl` → "**B**ook the **fl**ights"). The matched letters are marked. A task also matches by its description, category and people — and a command by its hint — but only as whole fragments there, never as scattered letters, since a sentence holds almost any subsequence. Finished tasks rank below open ones |
+| Results | Grouped as Tasks, Categories, People, Commands — six, three, three and four of each in All, up to 50 in a tab — and the group holding the single best match comes first, so `Enter` on a fresh query lands on the obvious result. Every tab says how many results it holds while something is typed; a truncated group offers **Show all N**. The last row, in All, Tasks and inside a scope, is **Create task “…”** |
+| Operators | `#` searches only categories, `@` only people, `>` only commands; the tab follows. Choosing a tab by hand drops the operator, so the tab decides |
+| Narrowing | `Tab` (or `Enter`) on a category, a person or a view narrows to it: a chip sits in the field, the list shows that scope's open tasks by deadline and then its finished ones, and typing searches inside it. Rows inside a category do not repeat its name. `Backspace` in the empty field, the chip's ✕ or **All results** widens it again |
+| Escape | Peels one layer at a time: the query, then the scope, then the palette. It is claimed in the capture phase, so nothing behind the palette sees it — except a dialog opened on top of it (the shortcut map), which keeps its own Escape |
+| Running a row | A task opens `/branch/{id}`; `⌘/Ctrl+Enter` or a middle click sends a task or a screen to a new tab and leaves the palette open. A screen navigates. **Capture a task** and **Create task “…”** open quick capture — in place on `/dashboard` and `/tasks`, a frame after the palette hands focus back; anywhere else through `requestCapture`, whose request waits for the capture that mounts on `/tasks` (see Quick capture). **Keyboard shortcuts** opens the `?` map through `OPEN_SHORTCUTS_EVENT`. Opened tasks and screens, and narrowed-to categories and people, are remembered for Recent |
+| Preview | From `md`: the highlighted task's category, title, description, deadline (date and distance), priority meter, people, who is working on it and open steps, behind a soft glow in its category colour; a category, person or view previews the open tasks it would narrow to; a command shows what it does and its global key |
+| Keyboard and assistive tech | The ARIA combobox-with-listbox pattern: focus never leaves the field, `aria-activedescendant` moves, sections are labelled groups, and a polite live region announces the result count. `↑`/`↓` wrap, `PageUp`/`PageDown` jump five. Keys pressed inside the palette do not reach the page behind it (the list's bare-letter keys would otherwise act while a tab or chip has focus). The footer shows only the keys that apply to the highlighted row and presses its caps as the keys go down; the `?` map has a **Search** group for the operators, `Tab`, `Backspace` and `⌘/Ctrl+Enter` |
+| Phones | A sheet pinned under the top safe area with an 8px gutter; tabs and view chips swipe sideways; no preview and no footer |
+| Reduced motion | No growing or dropping in, a still hint ("Search tasks, categories, people and commands…"), and the highlight and tab drop jump instead of gliding |
 
 ### Quick capture
 
@@ -602,6 +629,7 @@ swapped for it.
 | Title limit | 200 characters (`TITLE_MAX_LENGTH`), matching the create panel, so capture cannot produce a task the editor would reject |
 | Collapsing | `Escape`, the ✕, or `hidden` flipping on **discards** the draft. Blurring does not, while there is text in the field — a tap landing just outside the pill on a 390px screen would otherwise throw away a half-typed sentence |
 | Hidden | while a dialog, the create panel or the filter modal owns the screen, so it cannot float over a backdrop or be reached by `Tab` from behind one |
+| Asked by the palette | `requestCapture({ title })` opens it with the title already typed (trimmed, cut to the limit), so `Enter` alone creates the task. The palette can ask from a screen that has no capture and then navigate to `/tasks`: the request waits in a module slot for five seconds, the first capture that mounts takes it, and it is answered at most once |
 
 The page's handler (`handleQuickCapture`) deliberately does **not** reuse `handleCreate`:
 `handleCreate` catches its own failure and raises a toast, and swallowing the error here would
@@ -617,8 +645,8 @@ their own capture-phase listener on `window`, so `c` never reached this componen
 did the opposite of what the keyboard map promised: it opened the surface that asks for
 priority, due date, category and audience before it will accept a task. One key now means one
 thing. The full panel is still on both screens — its collapsed header **is** the "new task"
-affordance — and it is opened by pressing that header, or from the command palette's "Create
-task", which dispatches `OPEN_CREATE_EVENT`.
+affordance — and it is opened by pressing that header. The command palette's two creation
+rows, "Capture a task" and "Create task “…”", open quick capture, never the full panel.
 
 ### Deleting a task, and deleting a selection
 

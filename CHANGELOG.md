@@ -4,6 +4,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Changed
+
+- Command palette (⌘K / Ctrl+K, and the app bar's search button): rebuilt. It grows out of the search button and folds back into it, and searches tasks — open and recently finished — categories, friends, six smart views (Overdue, Due today, This week, In progress, Shared, Urgent), every screen and the global actions. Nothing typed, it shows the views that have an answer as chips, what was opened last and the five most urgent open tasks. Typing ranks fuzzily and marks the matched letters; tasks also match by description, category and people; `#`, `@` and `>` limit the search to categories, people or commands, and each tab counts its results. Tab narrows into a category, a person or a view; Backspace and Escape step back out. A query that matches nothing becomes a task — quick capture opens with the text typed, also from screens without capture, which now wait for it on Tasks instead of losing the request. On a desktop a preview column describes the highlighted task in its category's colour; the footer shows only the keys that apply and presses them as they are pressed, and the `?` map gained a Search group. The palette also opens on a Cyrillic keyboard layout, and keys typed in it no longer reach the task list behind it.
+
 ### Fixed
 
 - Categories: initial card entrances, position-only rearrangement, and editor opening/closing now follow the task motion presets. The full card opens its editor from the card's static geometry; New Category uses the task editor's centered fallback. Interrupted entrances and rapid reopening retain a continuous pose without changing dialog sizes or form behavior.

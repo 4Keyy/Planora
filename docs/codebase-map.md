@@ -254,7 +254,8 @@ Critical files:
 | `frontend/src/components/notifications` | the bell, its badge, and the badge cluster |
 | `frontend/src/components/backgrounds` | the raw-WebGL ribbon gradient and its static fallback |
 | `frontend/src/components/animated` | `celebration.tsx` (confetti), `fade-in.tsx`, `loading.tsx` |
-| `frontend/src/components/*.tsx` | the headless singletons mounted near the root: `auth-guard`, `command-palette`, `error-boundary`, `motion-preferences-provider`, `realtime-manager`, `security-initializer` |
+| `frontend/src/components/*.tsx` | the headless singletons mounted near the root: `auth-guard`, `error-boundary`, `motion-preferences-provider`, `realtime-manager`, `security-initializer` |
+| `frontend/src/components/command-palette/` | the ⌘K palette, mounted in the root layout: `index.tsx` (state, reads, keys, motion), `search.ts` and `sections.ts` (pure matching and list building), `rows.tsx`, `preview.tsx`, `chrome.tsx`, `recent.ts` |
 | `frontend/src/hooks` | cross-cutting behaviour: list navigation, focus trap, scroll lock, autosave, friends, collapse-on-scroll |
 | `frontend/src/lib` | non-React: api client, tokens, animations, realtime, formatting, geometry |
 | `frontend/src/store` | Zustand stores (`auth`, `notifications`, `toast`) |

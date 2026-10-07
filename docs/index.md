@@ -117,7 +117,7 @@ remaining audit/E2E limits.
 | Motion primitives | `frontend/src/components/ui/number-roll.tsx`, `ink-check.tsx`, `week-bars.tsx`, `undo-bar.tsx` |
 | Collaboration primitives | `frontend/src/components/ui/presence-row.tsx` (who is in a task, and arrival as an event), `redaction-badge.tsx` (audience as an arc that opens and closes) |
 | Realtime display policy | `frontend/src/components/ui/update-pill.tsx` — `UpdatePill` and `useDeferredUpdates`: apply live only at the top of the list with nothing open, queue everywhere else |
-| Keyboard model | `frontend/src/hooks/use-list-navigation.ts` (cursor, multi-select), `frontend/src/components/ui/shortcuts-overlay.tsx` (`SHORTCUT_GROUPS` — the single source of truth for every key), `frontend/src/components/command-palette.tsx` |
+| Keyboard model | `frontend/src/hooks/use-list-navigation.ts` (cursor, multi-select), `frontend/src/components/ui/shortcuts-overlay.tsx` (`SHORTCUT_GROUPS` — the single source of truth for every key), `frontend/src/components/command-palette/` |
 | Selection and capture | `frontend/src/components/ui/selection-bar.tsx`, `frontend/src/components/todos/quick-capture.tsx` |
 | Card → dialog transition | `frontend/src/lib/shared-origin.ts`, consumed in `frontend/src/components/todos/edit-todo-modal/modal.tsx` |
 | Frontend hooks | `frontend/src/hooks/` — `use-list-navigation`, `use-focus-trap`, `use-scroll-lock`, `use-exit-presence`, `use-autosave`, `use-collapse-scroll`, `use-friends` |

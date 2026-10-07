@@ -28,7 +28,7 @@ The core workflow is:
 | Direct messages | implemented | `Services/MessagingApi/Planora.Messaging.Api/Controllers/MessagesController.cs` |
 | Realtime notifications and branch/feed sync | implemented | `Services/RealtimeApi/Planora.Realtime.Api/Controllers`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Hubs/NotificationHub.cs` |
 | Durable notification list/unread counts | implemented, conditional on `ConnectionStrings__RealtimeDatabase`; no server-side toast replay on reconnect | `Services/RealtimeApi/Planora.Realtime.Application/Handlers/NotificationEventHandler.cs`, `Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationReadStore.cs` |
-| Keyboard-driven task list, command palette, quick capture | implemented | `frontend/src/components/command-palette.tsx`, `frontend/src/components/ui/shortcuts-overlay.tsx`, `frontend/src/components/todos/quick-capture.tsx` |
+| Keyboard-driven task list, command palette, quick capture | implemented | `frontend/src/components/command-palette/`, `frontend/src/components/ui/shortcuts-overlay.tsx`, `frontend/src/components/todos/quick-capture.tsx` |
 | Undo window in place of a delete confirmation | implemented | `frontend/src/components/ui/undo-bar.tsx` (`UNDO_WINDOW_MS` = 5000), `frontend/src/app/(app)/tasks/page.tsx`, `frontend/src/app/(app)/dashboard/page.tsx` |
 | Product analytics event intake | implemented as structured business logging, not third-party analytics | `Services/AuthApi/Planora.Auth.Api/Controllers/AnalyticsController.cs`, `BuildingBlocks/Planora.BuildingBlocks.Application/Services/IBusinessEventLogger.cs` |
 

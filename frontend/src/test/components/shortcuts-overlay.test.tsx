@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
@@ -6,6 +6,8 @@ import {
   KeyCombo,
   MOD,
   SHORTCUT_GROUPS,
+  OPEN_SHORTCUTS_EVENT,
+  ShortcutsHelp,
   ShortcutsOverlay,
   formatKey,
   useShortcutsOverlay,
@@ -30,7 +32,7 @@ describe("SHORTCUT_GROUPS", () => {
   it("is the only list, so nothing can print a key the app does not answer to", () => {
     // Exported for the command palette and the row menus. If this shrinks to a
     // private const, three hand-written copies grow back.
-    expect(SHORTCUT_GROUPS.map((g) => g.title)).toEqual(["Anywhere", "The list", "A branch"])
+    expect(SHORTCUT_GROUPS.map((g) => g.title)).toEqual(["Anywhere", "Search", "The list", "A branch"])
     for (const group of SHORTCUT_GROUPS) {
       expect(group.shortcuts.length).toBeGreaterThan(0)
       for (const shortcut of group.shortcuts) {
@@ -250,6 +252,24 @@ describe("useShortcutsOverlay", () => {
     render(<Harness />)
     await userEvent.keyboard("{Control>}?{/Control}")
     expect(screen.getByTestId("state")).toHaveTextContent("closed")
+  })
+
+  it("opens when a control asks — the palette's Keyboard shortcuts", async () => {
+    render(<Harness />)
+    act(() => {
+      window.dispatchEvent(new CustomEvent(OPEN_SHORTCUTS_EVENT))
+    })
+    expect(screen.getByTestId("state")).toHaveTextContent("open")
+  })
+
+  it("is mounted as one element that renders nothing until asked", async () => {
+    render(<ShortcutsHelp />)
+    expect(screen.queryByRole("dialog")).toBeNull()
+    act(() => {
+      window.dispatchEvent(new CustomEvent(OPEN_SHORTCUTS_EVENT))
+    })
+    expect(await screen.findByRole("dialog", { name: "Keyboard shortcuts" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { level: 3, name: "Search" })).toBeInTheDocument()
   })
 
   it("stops listening once it unmounts", async () => {

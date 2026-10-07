@@ -12,7 +12,7 @@ import { Wordmark } from "@/components/ui/wordmark"
 import { MENU_ITEM, POPOVER_SURFACE } from "@/components/ui/surfaces"
 import { useIsApplePlatform } from "@/components/ui/shortcuts-overlay"
 import { NotificationBell } from "@/components/notifications/notification-bell"
-import { OPEN_PALETTE_EVENT } from "@/components/command-palette"
+import { requestPalette } from "@/components/command-palette"
 import { useAuthStore } from "@/store/auth"
 import { useToastStore } from "@/store/toast"
 import { api } from "@/lib/api"
@@ -194,8 +194,6 @@ export function Navbar() {
     }
   }
 
-  const openPalette = () => window.dispatchEvent(new CustomEvent(OPEN_PALETTE_EVENT))
-
   // Whole unless the reader is scrolling down into the page and not reaching for the bar.
   const condensed = !reduce && !phone && scroll.condensed && !hovered && !focused && open === null
   const hidden = !reduce && phone && scroll.hidden && open === null && !focused
@@ -365,7 +363,8 @@ export function Navbar() {
             {/* Search: the ⌘K palette, which also creates tasks. Labelled from lg while whole. */}
             <motion.button
               type="button"
-              onClick={openPalette}
+              // The palette grows out of this button and folds back into it.
+              onClick={(event) => requestPalette(event.currentTarget)}
               whileTap={reduce ? undefined : TAP_PRESS}
               aria-label="Search"
               aria-keyshortcuts={isApple ? "Meta+K" : "Control+K"}

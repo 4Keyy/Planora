@@ -163,7 +163,29 @@ Frontend Vitest coverage in `frontend/src/test/app/todos-page.test.tsx` also ver
 
 Component coverage in `frontend/src/test/components/todo-heavy-components.test.tsx` verifies both task completion and reopening triggers from `TodoCard`, including the delayed local animation handoff before the parent status update callback. It also covers the hidden-card category blur, shared+urgent blue frame with red left border, redacted hidden refresh metadata, and create/edit payloads that keep all-friends visibility inside `Share With`. Create panel tests cover normalized submission for title, description, due date, priority, inline category creation, text-limit warning counters, Escape collapse back to the collapsed state, the expanded morphing close action, and all-friends visibility without exposing a tags field. `frontend/src/test/components/ui-wrappers.test.tsx` covers toast store behavior, shared input limit warning styling, and the toast container layer/offset above the fixed navbar. `frontend/src/test/components/todo-small-components.test.tsx` covers the mutually exclusive all-friends/direct-friends selector behavior in `FriendMultiSelect`. `frontend/src/test/components/animated.test.tsx` covers the card-scoped completion celebration variant.
 
-`frontend/src/test/components/navbar.test.tsx` covers the app bar: the three destinations visible without hover and the current one marked with `aria-current`, the account disclosure (attributes, profile navigation, sign-out with and without a reachable API, outside-click and Escape with focus returned to the trigger), the search button opening the command palette, the phone sheet (its links, Escape returning focus to the toggle) and the one-popover-at-a-time rule between the sheet and the notifications.
+`frontend/src/test/components/navbar.test.tsx` covers the app bar: the three destinations visible without hover and the current one marked with `aria-current`, the account disclosure (attributes, profile navigation, sign-out with and without a reachable API, outside-click and Escape with focus returned to the trigger), the search button opening the command palette with its own rect as the palette's origin, the phone sheet (its links, Escape returning focus to the toggle) and the one-popover-at-a-time rule between the sheet and the notifications.
+
+The command palette is covered in five files. `command-palette-search.test.ts` and
+`command-palette-sections.test.ts` test the pure rules: accent folding, fuzzy matching and
+the positions it marks, the `#` `@` `>` operators, keyword matching that never accepts
+scattered letters (in a task's description or a command's hint), the deadline wording and
+the six smart views, `byUrgency`, the task mapping (the API's "In Progress", worker ids,
+"You"), what the list holds with nothing typed, per tab, while searching (best group first,
+per-kind limits, totals, the create row) and inside a scope, and the per-tab counts.
+`command-palette-recent.test.ts` covers the per-account history (order, limit, foreign or
+broken storage, a refused write). `command-palette.test.tsx` drives the mounted palette
+against a URL-routed API mock with a fresh account per test: Ctrl+K (also on a Cyrillic
+layout), the app bar's request and its origin, the backdrop, layered Escape, scroll lock,
+keys kept from the page behind, closing on sign-out, the empty state's sections and view
+chips, the combobox pattern (wrapping arrows, PageUp/PageDown, pointer), Recent, the
+preview, marked letters, tab counts and the live region, Enter, Ctrl+Enter and middle click,
+create-from-query in place and through `/tasks`, the shortcut map, Show all, deduplication,
+a failed read with Try again, and narrowing by category, person and view.
+`command-palette-chrome.test.tsx` covers the rolling hint (with fake timers, including a
+lost `transitionend`), the contextual footer, the chips, the scope bar, the rows and every
+preview. `quick-capture.test.tsx` covers a capture asked for by the palette — prefilled,
+waiting for a later mount, answered once, expiring — and `shortcuts-overlay.test.tsx` the
+**Search** group and `OPEN_SHORTCUTS_EVENT`.
 
 `frontend/src/test/quality/usability-contract.test.tsx` also verifies the create panel: collapsed, it shows "New task" with "Date, category, audience" and advertises no key (`C` belongs to quick capture); open, its title is NOT focused — a field lights up only after a click or a keystroke — and the first printable key pressed from nowhere moves focus into the title. `todo-heavy-components.test.tsx` covers the edges of that type-to-focus rule (Ctrl/Cmd chords, Space, another field, an open selector popover) and locks the task card's control rail: the circle in the middle row of a `1fr auto 1fr` grid, the eye pinned to the bottom-left corner, and a completed card with no empty chip row.
 
