@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import axios, { AxiosError } from "axios"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => {
   const post = vi.fn()
@@ -8,11 +9,10 @@ const mocks = vi.hoisted(() => {
   return { post, create, getCsrfToken, clearCsrfToken }
 })
 
-vi.mock("axios", () => ({
-  default: {
-    create: mocks.create,
-  },
-}))
+vi.mock("axios", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("axios")>()
+  return { ...actual, default: { ...actual.default, create: mocks.create } }
+})
 
 vi.mock("@/lib/csrf", () => ({
   CSRF_HEADER_NAME: "X-CSRF-Token",
@@ -20,9 +20,16 @@ vi.mock("@/lib/csrf", () => ({
   getCsrfToken: mocks.getCsrfToken,
 }))
 
-import { refreshAccessToken, validateAccessToken } from "@/lib/auth-public"
+import { getAuthRetryAfterMs, refreshAccessToken, validateAccessToken } from "@/lib/auth-public"
+import { useAuthStore } from "@/store/auth"
+
+const limited = (header?: string) => new AxiosError("rate limited", undefined, undefined, undefined, {
+  status: 429, statusText: "Too Many Requests", headers: header ? { "retry-after": header } : {},
+  config: { headers: new axios.AxiosHeaders() }, data: undefined,
+})
 
 describe("auth public client", () => {
+  afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
     mocks.post.mockReset()
     mocks.getCsrfToken.mockReset()
@@ -144,6 +151,75 @@ describe("auth public client", () => {
     await expect(refreshAccessToken()).rejects.toThrow(
       "Unable to prepare CSRF token for auth request: unknown error",
     )
+  })
+
+  it.each(["csrf", "refresh"])("waits before one shared refresh retry after a %s 429", async (surface) => {
+    vi.useFakeTimers()
+    const error = limited("2")
+    if (surface === "csrf") mocks.getCsrfToken.mockRejectedValueOnce(error)
+    else mocks.post.mockRejectedValueOnce(error)
+    mocks.post.mockResolvedValue({ status: 200, data: { accessToken: "after-cooldown" } })
+    const first = refreshAccessToken()
+    const second = refreshAccessToken()
+    const result = Promise.all([first, second]).catch(value => value)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(mocks.post).toHaveBeenCalledTimes(surface === "csrf" ? 0 : 1)
+    await vi.advanceTimersByTimeAsync(100)
+    await expect(result).resolves.toEqual([
+      { accessToken: "after-cooldown" }, { accessToken: "after-cooldown" },
+    ])
+    expect(mocks.post).toHaveBeenCalledTimes(surface === "csrf" ? 1 : 2)
+  })
+
+  it.each(["csrf", "refresh"])("keeps a cold session pending until a %s cooldown finishes", async (surface) => {
+    vi.useFakeTimers()
+    useAuthStore.setState({ user: { userId: "restored", email: "user@example.test", firstName: "Test", lastName: "User" },
+      accessToken: undefined, isAuthenticated: false, hasHydrated: true, hasRestoredSession: false })
+    const error = limited("2")
+    if (surface === "csrf") mocks.getCsrfToken.mockRejectedValueOnce(error)
+    else mocks.post.mockRejectedValueOnce(error)
+    const jwtPart = (value: unknown) => btoa(JSON.stringify(value)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/," ").trim()
+    const token = jwtPart({ alg: "none" }) + "." + jwtPart({ sub: "restored", exp: Math.floor(Date.now()/1000)+3600 }) + ".signature"
+    mocks.post.mockResolvedValue({ status: 200, data: { accessToken: token } })
+    const restored = useAuthStore.getState().restoreSession()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(useAuthStore.getState().hasRestoredSession).toBe(false)
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    await vi.advanceTimersByTimeAsync(100)
+    await restored
+    expect(useAuthStore.getState().hasRestoredSession).toBe(true)
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(useAuthStore.getState().accessToken).toBe(token)
+  })
+
+  it("surfaces a repeated 429 after one retry without an unbounded loop", async () => {
+    vi.useFakeTimers()
+    const error = limited("1")
+    mocks.post.mockRejectedValue(error)
+    const result = refreshAccessToken().catch(value => value)
+    await vi.advanceTimersByTimeAsync(1100)
+    expect(await result).toBe(error)
+    expect(mocks.post).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([401, 503])("does not retry refresh after HTTP %s", async (status) => {
+    const error = limited("1")
+    error.response!.status = status
+    mocks.post.mockRejectedValue(error)
+    await expect(refreshAccessToken()).rejects.toBe(error)
+    expect(mocks.post).toHaveBeenCalledOnce()
+  })
+
+  it("reads seconds and HTTP dates and bounds invalid Retry-After values", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-10-07T19:00:00Z"))
+    expect(getAuthRetryAfterMs(limited("2"))).toBe(2000)
+    expect(getAuthRetryAfterMs(limited("Wed, 07 Oct 2026 19:00:03 GMT"))).toBe(3000)
+    expect(getAuthRetryAfterMs(limited("0"))).toBe(1000)
+    expect(getAuthRetryAfterMs(limited("9000"))).toBe(300000)
+    expect(getAuthRetryAfterMs(limited("garbage"))).toBe(60000)
+    expect(getAuthRetryAfterMs(limited())).toBe(60000)
+    expect(getAuthRetryAfterMs(null)).toBe(60000)
   })
 
   it("rethrows non-CSRF errors without retrying", async () => {

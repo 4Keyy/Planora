@@ -39,6 +39,7 @@ const csrfHeaders = async (headers: Record<string, string> = {}) => {
       [CSRF_HEADER_NAME]: await getCsrfToken(),
     }
   } catch (error) {
+    if (axios.isAxiosError(error)) throw error
     const message = error instanceof Error ? error.message : "unknown error"
     throw new Error(`Unable to prepare CSRF token for auth request: ${message}`)
   }
@@ -71,8 +72,27 @@ const postWithCsrfRetry = async <T,>(
   }
 }
 
+/** Respect the gateway window while bounding malformed or excessive Retry-After values. */
+export const getAuthRetryAfterMs = (error: unknown): number => {
+  const header = (error as { response?: { headers?: Record<string, unknown> } } | null)?.response?.headers?.["retry-after"]
+  const raw = typeof header === "string" ? header : ""
+  const seconds = /^\d+(?:\.\d+)?$/.test(raw)
+    ? Number(raw)
+    : (Date.parse(raw) - Date.now()) / 1000
+  return (Number.isFinite(seconds) ? Math.min(Math.max(seconds, 1), 300) : 60) * 1000
+}
+
 const requestAccessTokenRefresh = async (): Promise<AuthTokenDto> => {
-  const res = await postWithCsrfRetry("/auth/api/v1/auth/refresh", {})
+  let res
+  try {
+    res = await postWithCsrfRetry("/auth/api/v1/auth/refresh", {})
+  } catch (error) {
+    if (!axios.isAxiosError(error) || error.response?.status !== 429) throw error
+    // The shared refresh remains pending, so a cold AuthGuard cannot redirect before a token
+    // is obtained. Retry once; repeated limits and genuine auth failures remain visible.
+    await new Promise<void>((resolve) => setTimeout(resolve, getAuthRetryAfterMs(error) + 100))
+    res = await postWithCsrfRetry("/auth/api/v1/auth/refresh", {})
+  }
   if (res.status === 204) {
     throw new Error("No refresh session is available")
   }

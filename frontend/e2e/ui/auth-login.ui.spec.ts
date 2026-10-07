@@ -15,10 +15,7 @@ import {
  *   2. Type credentials, submit.
  *   3. Verify the post-login route loads and shows the authenticated user.
  *
- * If the frontend is not reachable (no `npm run start` and the workflow does
- * not provide E2E_FRONTEND_URL), the whole file is skipped via the
- * beforeAll hook — keeping API-only CI matrices green while UI coverage
- * rolls out.
+ * The reachability hook fails if the frontend is missing. CI starts the full stack.
  */
 test.describe('auth login (browser)', () => {
   test.beforeAll(async () => {
@@ -30,16 +27,14 @@ test.describe('auth login (browser)', () => {
 
     await submitLoginForm(page, user.email, UI_PASSWORD);
 
-    // The router redirects to /tasks on a successful login. We assert on the
+    // The router redirects to /dashboard on a successful login. We assert on the
     // URL transition (with a generous timeout for cold-start hydration) rather
     // than a specific selector — the page itself is covered by other specs
     // and we want this test to pin the *transition*, not the page contents.
-    await expect(page).toHaveURL(/\/tasks(\/|$|\?)/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/dashboard(\/|$|\?)/, { timeout: 20_000 });
 
-    // Defence-in-depth: the auth UI flashes the user's full name in the
-    // navbar when authenticated, so an empty body would imply a broken render
-    // even if the URL routed correctly.
-    await expect(page.locator('body')).toContainText(/E2E login User|Sign out|Tasks/i);
+    // Authenticated navigation content must render after the URL transition.
+    await expect(page.locator('body')).toContainText(/Test login User|Sign out|Tasks/i);
   });
 
   test('an incorrect password leaves the user on the login page with an error', async ({ page }) => {
@@ -50,10 +45,8 @@ test.describe('auth login (browser)', () => {
     // Should still be on /auth/login.
     await expect(page).toHaveURL(/\/auth\/login/, { timeout: 10_000 });
 
-    // The form renders the error banner with the API's failure message; we
-    // accept any non-empty error containing "credential" or "invalid" so
-    // small copy tweaks do not break the test.
-    const error = page.locator('[class*="text-red-600"], [class*="text-red-500"]').first();
+    // The invalid-credentials response keeps an accessible alert visible.
+    const error = page.locator('form').getByRole('alert');
     await expect(error).toBeVisible({ timeout: 10_000 });
   });
 });

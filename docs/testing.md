@@ -129,14 +129,17 @@ the command should not have a hardcoded expected number of files or tests.
 
 The `api` project exercises the gateway and real backend services. The `ui`
 project drives a real Chromium browser against Next.js; helpers create/verify
-accounts through the gateway. This is separate from the UI-audit scripts, which
-route API calls to fixtures and cannot establish backend integration correctness.
+accounts through the gateway and SMTP mail delivered to a disposable Mailpit sink.
+This is separate from the UI-audit scripts, which route API calls to fixtures and
+cannot establish backend integration correctness. The suite uses one worker, a
+180-second test timeout and two retries on CI; auth setup respects one
+`Retry-After` cooldown without changing the application's rate limits.
 
-Confirmed flow in `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts`:
+API flow exercised by `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts`:
 
 - fetch CSRF token from `GET /auth/api/v1/auth/csrf-token`;
 - register two users through `/auth/api/v1/auth/register`;
-- read the email verification token from Auth API Docker logs emitted by the default `Email__Provider=Log` email service;
+- read the delivered verification link from Mailpit through `frontend/e2e/_email.ts`, matching the fixture recipient and message subject;
 - verify both users through public `GET /auth/api/v1/users/verify-email?token=...`;
 - send and accept a friend request through `/auth/api/v1/friendships`;
 - create owner/viewer categories through `/categories/api/v1/categories`;
@@ -193,10 +196,9 @@ waiting for a later mount, answered once, expiring — and `shortcuts-overlay.te
 
 Layout and motion that jsdom cannot measure are covered in a real browser by `frontend/e2e/ui/motion-geometry.ui.spec.ts`: it seeds nine tasks through the create panel, then asserts that "New task" opens with an unfocused title and that typing (starting with the page's `F` shortcut letter) lands in it; that every open card's circle is within 0.5px of the card's vertical centre and its eye as far from the bottom as from the left, at 390px and 1280px; and that the droplet bar condenses in one motion — sampled every animation frame, the width's fastest frame must come within the first eight (one spring is a single early bell), and no frame may move more than 1.6× the frame before it plus 2px (at most 6px after a near-still frame). Checked against the recorded series: the old bug — a 70.6px frame after an 11.7px one, nine frames in — fails both rules; the fixed bar passes. The suite seeds through the create panel, which `/tasks` closes after every create, and signs in once for the whole file because the Auth API allows three registrations and five sign-ins a minute per address. Run it against a production build (`next start`), not `next dev`.
 
-At the audit snapshot, `motion-geometry.ui.spec.ts` is a local untracked suite.
-Its assertions and previously recorded browser series above are preserved as
-development evidence; a clean checkout and CI do not include that file unless
-it is separately added. This documentation audit did not execute the suite.
+`motion-geometry.ui.spec.ts` is tracked and discovered by the UI project in a
+clean checkout and CI. Previously recorded browser series remain development
+evidence; discovery or a skipped run does not establish current browser correctness.
 
 `frontend/src/test/utils/todo-utils.test.ts` covers `applyCategoryPatch` — the helper that zeros all four category fields (`categoryId`, `categoryName`, `categoryColor`, `categoryIcon`) locally when a user removes a task's category. The backend ignores `null` category IDs on PUT, so this test establishes the local projection, not durable removal after reload.
 
@@ -216,19 +218,23 @@ with a stubbed WebGL context. It does not exercise a real GPU or three.js:
 - `ColorBendsLayer` — lazy/static behavior, landing-route scope, low-resource
   device heuristics and cleanup.
 
-Run locally after the Docker backend stack is healthy:
+Prepare a fresh disposable stack and production frontend using the
+[E2E setup guide](../frontend/e2e/README.md). Do not point these tests at a user's
+running stack or reuse their `.env`: they create persistent accounts and tasks.
+The base Compose file's fixed ports and container names require a dedicated
+machine/runner or coordinated owner-provided overrides; `-p` alone does not isolate it.
+The HTTP/SMTP overlay pins Mailpit by image digest, exposes its API only on
+loopback, leaves SMTP unpublished and requires a fresh random `E2E_SMTP_PASSWORD`.
+Production cookie defaults, CSRF checks and rate limits remain unchanged.
+
+Run locally only after the isolated backend, frontend and SMTP sink are healthy:
 
 ```powershell
-if (-not (Test-Path -LiteralPath .env)) {
-    Copy-Item -LiteralPath .env.example -Destination .env
-}
-# Configure the local file; preserve existing values.
-docker compose --env-file .env up -d --build
-
 Push-Location frontend
 npm ci
 $env:E2E_API_URL = "http://127.0.0.1:5132"
-$env:E2E_AUTH_LOG_CONTAINER = "planora-auth-api"
+$env:E2E_FRONTEND_URL = "http://127.0.0.1:3000"
+$env:E2E_MAILPIT_URL = "http://127.0.0.1:8025"
 npm run e2e
 Pop-Location
 ```
@@ -241,7 +247,18 @@ npm --prefix frontend run e2e:debug
 npm --prefix frontend run e2e:report
 ```
 
-`E2E_VERIFY_EMAIL_FROM_LOGS=false` exists as a skip switch for environments that cannot expose Docker logs, but the full auth/sharing flow requires email verification because friendship requests require verified active users.
+Verification/reset tokens come from delivered mail, not application logs or stored
+hashes. The full auth/sharing flow requires successful email verification because
+friendship requests require verified active users. An unavailable frontend or a
+response >=500 fails the reachability hook; required services cannot silently skip
+the browser suite. Inspect test totals and the process exit code before claiming success.
+
+CI invokes `node e2e/run-ci.cjs` from `frontend/`. It buffers child stdout/stderr
+in memory and redacts query tokens, JWTs and secret JSON fields before printing
+diagnostics. CI uploads only failure PNGs; HTML reports, traces, video, mail bodies
+and sink data are not published. Local HTML reports are private and may contain
+disposable credentials or action links, so do not upload them. The workflow cleans
+up the disposable stack and `.env.e2e` after the run.
 
 ## Frontend Test Traps
 
@@ -440,9 +457,10 @@ Pull requests target `main` or `develop`.
 `.github/workflows/e2e.yml` runs both Playwright projects on relevant pull
 requests and manual dispatch. It starts the Docker stack using temporary
 environment secrets, waits for gateway health, installs Chromium, builds and
-starts Next.js, runs `npm run e2e`, uploads reports and stops frontend/containers.
-The config itself has no `webServer` launcher. A local UI file skips when the
-helper cannot reach the frontend; inspect skipped totals before calling a run complete.
+starts Next.js, runs `node e2e/run-ci.cjs`, publishes redacted diagnostics and
+only failure PNGs, and cleans up frontend/containers and `.env.e2e`.
+The config itself has no `webServer` launcher. The reachability hook fails when
+the required frontend cannot be reached; inspect test totals before calling a run complete.
 See [`frontend/e2e/README.md`](../frontend/e2e/README.md) for full local setup.
 
 ## Mutation Testing

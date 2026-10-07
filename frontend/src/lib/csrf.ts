@@ -19,6 +19,7 @@
  * by storing the auth token in an httpOnly cookie (not readable by JS).
  */
 
+import { AxiosError, AxiosHeaders } from "axios"
 import { getApiBaseUrl } from "@/lib/config"
 
 export const CSRF_HEADER_NAME = 'X-CSRF-Token'
@@ -56,7 +57,15 @@ export async function fetchCsrfToken(): Promise<string> {
     })
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch CSRF token: ${response.status}`)
+      // Keep the HTTP classification through the auth client's existing Axios error paths.
+      // Store only retry metadata, never the endpoint body or cookie/token values.
+      throw new AxiosError(`Failed to fetch CSRF token: ${response.status}`, undefined, undefined, undefined, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: { "retry-after": response.headers?.get("Retry-After") ?? undefined },
+        config: { headers: new AxiosHeaders() },
+        data: undefined,
+      })
     }
 
     // After the response, the browser has set the XSRF-TOKEN cookie. Read it.

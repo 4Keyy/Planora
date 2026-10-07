@@ -196,6 +196,10 @@ services:
       <<: *retention-environment
       ASPNETCORE_ENVIRONMENT: Docker
       ASPNETCORE_URLS: "http://+:80"
+      # Plain HTTP cannot negotiate mixed HTTP/1+HTTP/2 for gRPC; use its own listener.
+      Kestrel__Endpoints__Http__Protocols: "Http1"
+      Kestrel__Endpoints__HTTP2__Url: "http://+:81"
+      Kestrel__Endpoints__HTTP2__Protocols: "Http2"
       ConnectionStrings__AuthDatabase: "Host=postgres;Port=5432;Database=planora_auth_db;Username=postgres;Password=${POSTGRES_PASSWORD};Maximum Pool Size=10;Connection Idle Lifetime=60;"
       RateLimiting__Backend: Redis
       ConnectionStrings__Redis: "redis:6379,password=${REDIS_PASSWORD:?REDIS_PASSWORD env var must be set}"
@@ -286,7 +290,7 @@ services:
       JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
       JwtSettings__Issuer: "Planora.Auth"
       JwtSettings__Audience: "Planora.Clients"
-      GrpcServices__AuthApi: "http://auth-api:80"
+      GrpcServices__AuthApi: "http://auth-api:81"
       GrpcServices__CategoryApi: "http://category-api:81"
       GrpcSettings__ServiceKey: ${GRPC_SERVICE_KEY:?GRPC_SERVICE_KEY env var must be set}
     depends_on:
@@ -329,7 +333,7 @@ services:
       JwtSettings__Secret: ${JWT_SECRET:?JWT_SECRET env var must be set}
       JwtSettings__Issuer: "Planora.Auth"
       JwtSettings__Audience: "Planora.Clients"
-      GrpcServices__AuthApi: "http://auth-api:80"
+      GrpcServices__AuthApi: "http://auth-api:81"
       GrpcServices__TodoApi: "http://todo-api:81"
       GrpcSettings__ServiceKey: ${GRPC_SERVICE_KEY:?GRPC_SERVICE_KEY env var must be set}
     depends_on:
@@ -417,7 +421,7 @@ services:
       JwtSettings__Issuer: "Planora.Auth"
       JwtSettings__Audience: "Planora.Clients"
       GrpcSettings__ServiceKey: ${GRPC_SERVICE_KEY:?GRPC_SERVICE_KEY env var must be set}
-      GrpcServices__AuthApi: "http://auth-api:80"
+      GrpcServices__AuthApi: "http://auth-api:81"
     depends_on:
       postgres:
         condition: service_healthy

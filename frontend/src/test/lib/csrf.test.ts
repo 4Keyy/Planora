@@ -112,6 +112,13 @@ describe("csrf helpers", () => {
     await expect(fetchCsrfToken()).rejects.toThrow("Failed to fetch CSRF token: 503")
   })
 
+  it("preserves the CSRF endpoint HTTP status and Retry-After for session recovery", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 429, headers: new Headers({ "Retry-After": "2" }) }) as Response))
+    await expect(fetchCsrfToken()).rejects.toMatchObject({
+      isAxiosError: true, response: { status: 429, headers: { "retry-after": "2" } },
+    })
+  })
+
   it("fails when the endpoint does not set the XSRF-TOKEN cookie", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200 }) as Response))
 

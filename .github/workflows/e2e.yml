@@ -44,11 +44,12 @@ jobs:
             echo "RABBITMQ_PASSWORD=$(openssl rand -hex 24)"
             echo "JWT_SECRET=$(openssl rand -hex 64)"
             echo "GRPC_SERVICE_KEY=$(openssl rand -hex 32)"
+            echo "E2E_SMTP_PASSWORD=$(openssl rand -hex 32)"
             echo "NEXT_PUBLIC_API_URL=http://127.0.0.1:5132"
           } > .env.e2e
 
       - name: Start Docker stack
-        run: docker compose --env-file .env.e2e up -d --build
+        run: docker compose --env-file .env.e2e -f docker-compose.yml -f frontend/e2e/docker-compose.http.yml up -d --build
 
       - name: Wait for gateway health checks
         shell: bash
@@ -60,6 +61,7 @@ jobs:
             "http://127.0.0.1:5132/todos/health"
             "http://127.0.0.1:5132/messaging/health"
             "http://127.0.0.1:5132/realtime/health"
+            "http://127.0.0.1:8025/livez"
           )
 
           for endpoint in "${endpoints[@]}"; do
@@ -70,8 +72,8 @@ jobs:
               fi
 
               if [ "${attempt}" -eq 90 ]; then
-                docker compose --env-file .env.e2e ps
-                docker compose --env-file .env.e2e logs --tail=200
+                docker compose --env-file .env.e2e -f docker-compose.yml -f frontend/e2e/docker-compose.http.yml ps
+                docker compose --env-file .env.e2e -f docker-compose.yml -f frontend/e2e/docker-compose.http.yml logs --tail=200
                 exit 1
               fi
 
@@ -83,9 +85,7 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      # T2.6 — install Chromium for browser-rendered UI specs. The chromium
-      # binary is cached by setup-node along with the npm cache; first run
-      # downloads it (~150 MB), subsequent runs hit the cache.
+      # Install Chromium explicitly; setup-node caches npm, not browser binaries.
       - name: Install Playwright browsers (chromium)
         run: npx playwright install --with-deps chromium
         working-directory: frontend
@@ -119,12 +119,12 @@ jobs:
           exit 1
 
       - name: Run Playwright e2e (api + ui projects)
-        run: npm run e2e
+        run: node e2e/run-ci.cjs
         working-directory: frontend
         env:
           E2E_API_URL: http://127.0.0.1:5132
           E2E_FRONTEND_URL: http://127.0.0.1:3000
-          E2E_AUTH_LOG_CONTAINER: planora-auth-api
+          E2E_MAILPIT_URL: http://127.0.0.1:8025
 
       - name: Stop frontend
         if: always()
@@ -135,15 +135,19 @@ jobs:
             kill "$pid" 2>/dev/null || true
           fi
 
-      - name: Upload Playwright report
+      # Secret-bearing HTML steps/traces are not published. Only UI failure images.
+      - name: Upload Playwright failure screenshots
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-report
-          path: |
-            frontend/playwright-report
-            frontend/test-results/playwright
+          name: playwright-failure-screenshots
+          path: frontend/test-results/playwright/**/*.png
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Stop Docker stack
         if: always()
-        run: docker compose --env-file .env.e2e down --remove-orphans
+        shell: bash
+        run: |
+          trap 'rm -f .env.e2e' EXIT
+          docker compose --env-file .env.e2e -f docker-compose.yml -f frontend/e2e/docker-compose.http.yml down --remove-orphans

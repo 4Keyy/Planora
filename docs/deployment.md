@@ -117,7 +117,7 @@ connection required). Review and back up affected data before executing them.
 | Workflow | Trigger / current behavior |
 |---|---|
 | [`ci.yml`](../.github/workflows/ci.yml) | Push on configured branches and PR to main/develop: Markdown/offline links; .NET restore/build/test; frontend npm ci/lint/types/coverage/build |
-| [`e2e.yml`](../.github/workflows/e2e.yml) | Path-filtered PR or manual dispatch: Compose stack, production frontend, Playwright API and Chromium UI projects |
+| [`e2e.yml`](../.github/workflows/e2e.yml) | Path-filtered PR or manual dispatch: Compose stack, production frontend, Playwright API and Chromium UI projects, isolated Mailpit SMTP; redacted output and failure PNGs only |
 | [`security.yml`](../.github/workflows/security.yml) | Secret/dependency scanning, CodeQL, Trivy, SBOM; frontend SBOM attested on push |
 | [`openapi.yml`](../.github/workflows/openapi.yml) | Path-filtered PR or manual: Swagger + Spectral for all six HTTP services; Testing skips Todo/Collaboration startup migrations |
 | [`migrations.yml`](../.github/workflows/migrations.yml) | Path-filtered PR or manual: SQL artifacts for all six DB-owning services; EF CLI 10.0.8 after restore/Release build |
