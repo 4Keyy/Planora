@@ -117,12 +117,6 @@ interface Snapshot {
   tasksFailed: boolean
 }
 
-/**
- * The last read, per account, for the life of the page. The palette opens on it
- * at once and refreshes underneath, so from the second opening on there is no
- * loading state at all — just the list, then the same list a moment fresher.
- */
-const snapshots = new Map<string, Snapshot>()
 
 type QuietConfig = NonNullable<Parameters<typeof api.get>[1]> & { suppressErrorLog?: boolean }
 const quiet = (params?: Record<string, unknown>) => ({ params, suppressErrorLog: true }) as QuietConfig
@@ -328,7 +322,7 @@ export function CommandPalette() {
   /**
    * Every opening starts clean: a palette that remembers the last query makes the
    * user delete their previous search before they can start the next one. The
-   * last read of their data, on the other hand, is kept — see `snapshots`.
+   * task read must be fresh too: its hidden preference may have changed elsewhere.
    */
   const show = useCallback((origin: OriginRect | null) => {
     originRef.current = origin
@@ -338,7 +332,7 @@ export function CommandPalette() {
     setHighlight(TOP)
     setNow(new Date())
     setRecent(readRecent(viewerId))
-    setSnapshot(snapshots.get(viewerId ?? "") ?? null)
+    setSnapshot(null)
     setOpen(true)
   }, [viewerId])
 
@@ -373,16 +367,9 @@ export function CommandPalette() {
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    const key = viewerId ?? ""
     void readSnapshot().then((fresh) => {
       if (cancelled) return
-      // A failed read keeps the tasks an earlier one found: stale beats empty.
-      const previous = snapshots.get(key)
-      const next = fresh.tasksFailed && previous && !previous.tasksFailed
-        ? { ...fresh, todos: previous.todos, tasksFailed: false }
-        : fresh
-      snapshots.set(key, next)
-      setSnapshot(next)
+      setSnapshot(fresh)
     })
     return () => {
       cancelled = true

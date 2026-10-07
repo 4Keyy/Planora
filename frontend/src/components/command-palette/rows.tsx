@@ -150,8 +150,8 @@ const VEIL_LAYER =
  * A hidden task, blurred until it is revealed — the task card's redaction, at the size
  * of a row. Two copies share one grid cell and cross-fade, the blurred one fading out as
  * the clear one fades in: animating `filter` would repaint the row on every frame, and
- * opacity is composited. The blurred copy is decorative; the clear one, transparent
- * until revealed, is what assistive technology reads.
+ * opacity is composited. Both copies stay outside the accessibility tree until
+ * revealed; the row supplies a generic label in their place.
  */
 export function Veil({ revealed, className, layerClassName, children }: {
   revealed: boolean
@@ -165,7 +165,7 @@ export function Veil({ revealed, className, layerClassName, children }: {
       <span aria-hidden="true" className={cn(VEIL_LAYER, VEIL_BLUR, layerClassName, revealed ? "opacity-0" : "opacity-100")}>
         {children}
       </span>
-      <span className={cn(VEIL_LAYER, layerClassName, revealed ? "opacity-100" : "opacity-0")}>
+      <span aria-hidden={!revealed} className={cn(VEIL_LAYER, layerClassName, revealed ? "opacity-100" : "opacity-0")}>
         {children}
       </span>
     </span>
@@ -315,6 +315,7 @@ export function RowContent({ item, active, now, names, highlight, hideCategory =
   return (
     <>
       {highlight}
+      {veiled && !revealed ? <span className="sr-only">Hidden task. Use the arrow keys to reveal.</span> : null}
       {/* Positioned without a z-index: painted after the highlight, so above it. */}
       {veiled ? (
         <Veil revealed={revealed} className="relative flex-1" layerClassName="gap-3">

@@ -1252,6 +1252,9 @@ actions; `docs/features.md` § Command palette has the behaviour. The design dec
   swap opacity, so the reveal is a composited cross-fade and never an animated `filter`.
   The top row of a fresh result list is highlighted without being chosen, so it stays
   blurred; its preview shows the title under the same blur and how to reveal it.
+  The veiled copies are hidden from assistive technology too: only the generic hidden-task
+  label is available until explicit pointer or keyboard reveal, then the real row becomes
+  accessible. Each opening reads tasks afresh instead of replaying stale visibility from cache.
 - **A row marks its audience the way its card does**: the open redaction ring and "All
   friends" for an all-friends task, the ring opened by the count beside named friends,
   the share glyph beside "from …" on a friend's task. Private stays unmarked, and no row

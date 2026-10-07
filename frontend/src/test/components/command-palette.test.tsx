@@ -23,7 +23,7 @@ vi.mock("@/lib/api", () => ({
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
-/** A fresh account per test: the palette caches its last read per user. */
+/** A fresh account per test: recent items belong to their account. */
 let me = ""
 let accounts = 0
 
@@ -453,6 +453,98 @@ describe("CommandPalette — hidden tasks", () => {
   })
 })
 
+describe("CommandPalette — hidden task privacy", () => {
+  it("announces only a generic hidden option until the reader reveals its title and details", async () => {
+    const title = "Surprise party for Ada"
+    serve({ open: [todo({ id: "secret", title, categoryName: "Private plans", hidden: true, dueDate: at(-5) })], done: [] })
+    const user = await openPalette()
+    await user.type(field(), "surprise")
+
+    const row = screen.getByRole("option", { name: "Hidden task. Use the arrow keys to reveal." })
+    expect(activeOption()).toBe(row)
+    expect(row).toHaveAccessibleName("Hidden task. Use the arrow keys to reveal.")
+    expect(screen.queryByRole("option", { name: /Surprise party|Private plans|5 days late/ })).toBeNull()
+    expect(within(screen.getByRole("complementary", { name: "Details" })).queryByRole("heading", { name: title })).toBeNull()
+
+    fireEvent.pointerMove(row)
+    expect(screen.getByRole("option", { name: /Surprise party for Ada.*Private plans.*5 days late/ })).toBe(row)
+    expect(within(screen.getByRole("complementary", { name: "Details" })).getByRole("heading", { name: title })).toBeInTheDocument()
+
+    await user.type(field(), " party")
+    expect(screen.getByRole("option", { name: "Hidden task. Use the arrow keys to reveal." })).toBe(row)
+    expect(screen.queryByRole("option", { name: /Surprise party|Private plans|5 days late/ })).toBeNull()
+  })
+
+  it("reveals the accessible title with the arrows and hides it when the selection moves away", async () => {
+    serve({ open: [todo({ id: "a", title: "Surprise party", hidden: true }), todo({ id: "b", title: "Surprise visit" })], done: [] })
+    const user = await openPalette()
+    await user.type(field(), "surprise")
+    const row = screen.getByRole("option", { name: "Hidden task. Use the arrow keys to reveal." })
+
+    await user.keyboard("{ArrowDown}{ArrowUp}")
+    expect(activeOption()).toBe(row)
+    expect(screen.getByRole("option", { name: /Surprise party/ })).toBe(row)
+    await user.keyboard("{ArrowDown}")
+    expect(screen.getByRole("option", { name: "Hidden task. Use the arrow keys to reveal." })).toBe(row)
+    expect(screen.queryByRole("option", { name: /Surprise party/ })).toBeNull()
+  })
+
+  it("withholds previously visible tasks on reopening until a fresh hidden read arrives", async () => {
+    const title = "Surprise party for Ada"
+    const task = todo({ id: "secret", title, dueDate: at(-5) })
+    serve({ open: [task], done: [] })
+    const user = await openPalette()
+    expect(screen.getByRole("option", { name: /Surprise party for Ada/ })).toBeInTheDocument()
+    await user.keyboard("{Control>}k{/Control}")
+    await waitFor(() => expect(dialog()).toBeNull())
+
+    let finishRead!: (response: { data: { items: Todo[] } }) => void
+    const pending = new Promise<{ data: { items: Todo[] } }>((resolve) => { finishRead = resolve })
+    const serveOther = get.getMockImplementation()!
+    get.mockImplementation((url: string, config?: { params?: { isCompleted?: boolean } }) =>
+      url === "/todos/api/v1/todos" && !config?.params?.isCompleted ? pending : serveOther(url, config),
+    )
+
+    await user.keyboard("{Control>}k{/Control}")
+    await screen.findByRole("dialog", { name: "Command palette" })
+    expect(screen.queryByRole("option", { name: /Surprise party for Ada/ })).toBeNull()
+    expect(screen.queryByRole("heading", { name: title })).toBeNull()
+    expect(screen.getByRole("status")).toHaveTextContent("Loading tasks")
+    await user.type(field(), "surprise")
+    expect(screen.queryByRole("option", { name: /Surprise party for Ada/ })).toBeNull()
+
+    await act(async () => finishRead({ data: { items: [{ ...task, hidden: true }] } }))
+    const row = await screen.findByRole("option", { name: "Hidden task. Use the arrow keys to reveal." })
+    expect(screen.queryByRole("option", { name: /Surprise party for Ada/ })).toBeNull()
+    expect(row.querySelector("[data-veil]")).toHaveAttribute("data-veil", "veiled")
+    expect(screen.queryByRole("heading", { name: title })).toBeNull()
+  })
+
+  it("does not restore stale tasks after a failed reopen and keeps retry available", async () => {
+    const title = "Surprise party for Ada"
+    const task = todo({ id: "secret", title, dueDate: at(-5) })
+    serve({ open: [task], done: [] })
+    const user = await openPalette()
+    expect(screen.getByRole("option", { name: /Surprise party for Ada/ })).toBeInTheDocument()
+    await user.keyboard("{Control>}k{/Control}")
+    await waitFor(() => expect(dialog()).toBeNull())
+
+    serve({ failTasks: true, done: [] })
+    await user.keyboard("{Control>}k{/Control}")
+    await screen.findByRole("dialog", { name: "Command palette" })
+    await waitFor(() => expect(screen.queryByText("Loading tasks")).toBeNull())
+    expect(screen.queryByRole("option", { name: /Surprise party for Ada/ })).toBeNull()
+    expect(screen.queryByRole("heading", { name: title })).toBeNull()
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument()
+
+    serve({ open: [{ ...task, hidden: true }], done: [] })
+    await user.click(screen.getByRole("button", { name: "Try again" }))
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Try again" })).toBeNull())
+    await user.type(field(), "surprise")
+    expect(screen.getByRole("option", { name: "Hidden task. Use the arrow keys to reveal." })).toBeInTheDocument()
+    expect(screen.queryByRole("option", { name: /Surprise party for Ada/ })).toBeNull()
+  })
+})
 // ─── Narrowing ──────────────────────────────────────────────────────────────
 
 describe("CommandPalette — narrowing", () => {

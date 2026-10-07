@@ -242,7 +242,7 @@ describe("rows", () => {
 
   it("blurs a hidden task until it is reached for, then cross-fades it in", () => {
     const hidden = taskItem(task({ title: "Surprise party", hidden: true, dueDate: day(1) }))
-    const { container, rerender } = render(<RowContent item={hidden} active now={NOW} names={NAMES} />)
+    const { container, rerender } = render(<div role="option"><RowContent item={hidden} active now={NOW} names={NAMES} /></div>)
     const veils = () => Array.from(container.querySelectorAll<HTMLElement>("[data-veil]"))
     // The row's text and its deadline, each veiled.
     expect(veils().map((v) => v.dataset.veil)).toEqual(["veiled", "veiled"])
@@ -251,17 +251,27 @@ describe("rows", () => {
     expect(blurred.className).toMatch(/blur-/)
     expect(blurred.className).toMatch(/opacity-100/)
     expect(clear.className).toMatch(/opacity-0/)
-    // What a screen reader hears says it is hidden, and is the title.
+    // Both real text copies stay outside the accessibility tree until reveal.
+    for (const veil of veils()) {
+      for (const layer of Array.from(veil.children)) expect(layer).toHaveAttribute("aria-hidden", "true")
+    }
+    expect(screen.getByRole("option", { name: "Hidden task. Use the arrow keys to reveal." })).toBeInTheDocument()
+    expect(screen.queryByRole("option", { name: /Surprise party|Tomorrow/ })).toBeNull()
     expect(clear).toHaveTextContent("Hidden task: Surprise party")
 
-    rerender(<RowContent item={hidden} active revealed now={NOW} names={NAMES} />)
+    rerender(<div role="option"><RowContent item={hidden} active revealed now={NOW} names={NAMES} /></div>)
     expect(veils().map((v) => v.dataset.veil)).toEqual(["revealed", "revealed"])
     const [blurredNow, clearNow] = Array.from(veils()[0].children) as HTMLElement[]
     expect(blurredNow.className).toMatch(/opacity-0/)
     expect(clearNow.className).toMatch(/opacity-100/)
+    for (const veil of veils()) {
+      expect(veil.children[0]).toHaveAttribute("aria-hidden", "true")
+      expect(veil.children[1]).toHaveAttribute("aria-hidden", "false")
+    }
+    expect(screen.getByRole("option", { name: /Surprise party.*Tomorrow/ })).toBeInTheDocument()
 
     // An ordinary task is never veiled.
-    rerender(<RowContent item={taskItem(task())} active revealed now={NOW} names={NAMES} />)
+    rerender(<div role="option"><RowContent item={taskItem(task())} active revealed now={NOW} names={NAMES} /></div>)
     expect(veils()).toHaveLength(0)
   })
 
