@@ -956,7 +956,7 @@ type has stopped being a primitive.
 
 | Component | Owns |
 |---|---|
-| `CommandPalette` | ⌘K / Ctrl+K and the search button: search tasks, categories, people and commands, narrow into one, create from a query |
+| `CommandPalette` | ⌘K / Ctrl+K and the search button: search tasks, categories, people and shortcuts, narrow into one, create from a query |
 | `ShortcutsOverlay` + `SHORTCUT_GROUPS` | The `?` map, and the single list every other surface reads its key spellings from |
 | `useListNavigation` | The list cursor, the selection, and every bare-letter binding over a list of ids |
 | `SelectionBar` | What to do with a gathered selection, with the count stated before the verb |
@@ -1161,8 +1161,18 @@ actions; `docs/features.md` § Command palette has the behaviour. The design dec
   on the highlighted row.
 - **Nothing typed is still an answer**: view chips that double as a status line, Recent,
   Up next. **No query is a dead end**: the last row offers to create the task.
+- **A hidden task is found, never offered.** Up next leaves it out; a search finds it
+  blurred (`blur-[4px]`, the task card's redaction at row size) until it is reached for —
+  pointed at, or moved to with the arrows. Two copies of the row share one grid cell and
+  swap opacity, so the reveal is a composited cross-fade and never an animated `filter`.
+  The top row of a fresh result list is highlighted without being chosen, so it stays
+  blurred; its preview shows the title under the same blur and how to reveal it.
+- **A row marks its audience the way its card does**: the open redaction ring and "All
+  friends" for an all-friends task, the ring opened by the count beside named friends,
+  the share glyph beside "from …" on a friend's task. Private stays unmarked, and no row
+  shows urgency.
 - **The empty field teaches the operators.** Its hint reads "Search tasks", and the last
-  word rolls through categories `#`, people `@` and commands `>` like a counter — a
+  word rolls through categories `#`, people `@` and shortcuts `>` like a counter — a
   column of words moving up one row, with a copy of the first at the end so the loop
   never runs backwards. Still under reduced motion.
 - **The footer is contextual.** It shows only the keys that act on the highlighted row —

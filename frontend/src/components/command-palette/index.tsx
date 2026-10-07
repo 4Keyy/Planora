@@ -66,7 +66,7 @@ import {
  * - **Typing ranks across kinds.** Fuzzy, accent-insensitive matching marks the
  *   letters it matched; the group holding the best match comes first, every tab
  *   says how many results it holds, and `#` `@` `>` limit the search to categories,
- *   people or commands. The hint in the empty field rolls through exactly those.
+ *   people or shortcuts. The hint in the empty field rolls through exactly those.
  * - **Narrowing, not navigating.** Tab (or Enter) on a category, a person or a
  *   view narrows the search to it, shown as a chip in the field; Backspace in the
  *   empty field widens it again, and Escape steps back one level at a time.
@@ -113,7 +113,7 @@ const PAGE = 5
 interface Snapshot {
   todos: Todo[]
   categories: Category[]
-  /** The open tasks could not be read. The palette still navigates and runs commands. */
+  /** The open tasks could not be read. The palette still navigates and runs its shortcuts. */
   tasksFailed: boolean
 }
 
@@ -130,13 +130,19 @@ const quiet = (params?: Record<string, unknown>) => ({ params, suppressErrorLog:
 /**
  * Three reads, settled independently: a palette whose category read failed still
  * searches tasks, and one that cannot reach the tasks at all is still a palette
- * of screens and commands. One page of each is plenty — a task that is not among
+ * of screens and shortcuts. One page of each is plenty — a task that is not among
  * the hundred most recent open ones wants the task list, not a longer dropdown.
+ *
+ * `revealHidden`: the lists send a hidden task redacted ("Hidden task", nothing else)
+ * so that a list never holds what its owner hid. The palette is the one place a hidden
+ * task can be looked for by name (owner's ruling, 2026-10-07; ADR 0004), so it asks
+ * for the real rows — and keeps every one of them blurred until it is pointed at.
+ * A server without the flag ignores it and the rows simply stay redacted.
  */
 async function readSnapshot(): Promise<Snapshot> {
   const [open, done, categories] = await Promise.allSettled([
-    api.get<PagedTodosResponse>(TODOS_URL, quiet({ pageNumber: 1, pageSize: 100, isCompleted: false })),
-    api.get<PagedTodosResponse>(TODOS_URL, quiet({ pageNumber: 1, pageSize: 30, isCompleted: true })),
+    api.get<PagedTodosResponse>(TODOS_URL, quiet({ pageNumber: 1, pageSize: 100, isCompleted: false, revealHidden: true })),
+    api.get<PagedTodosResponse>(TODOS_URL, quiet({ pageNumber: 1, pageSize: 30, isCompleted: true, revealHidden: true })),
     api.get<ApiResponse<CategoryListResponse>>(CATEGORIES_URL, quiet()),
   ])
 
@@ -180,6 +186,14 @@ function isPaletteKey(event: KeyboardEvent): boolean {
 /** What Enter does to the highlighted row, in the footer's one word. */
 type FooterVerb = "open" | "go" | "narrow" | "create" | "capture" | "show"
 
+/** The highlighted row, and the key of the row the user reached for, if they did. */
+interface Highlighted {
+  index: number
+  reached: string | null
+}
+
+const TOP: Highlighted = { index: 0, reached: null }
+
 // ─── A row ──────────────────────────────────────────────────────────────────
 
 interface OptionProps {
@@ -187,10 +201,12 @@ interface OptionProps {
   index: number
   id: string
   active: boolean
+  /** A hidden task's row was reached for, so it shows itself. */
+  revealed: boolean
   now: Date
   names: Map<string, string>
   hideCategory: boolean
-  onPoint: (index: number) => void
+  onPoint: (index: number, key: string) => void
   onRun: (item: PaletteItem, options?: { newTab?: boolean }) => void
 }
 
@@ -204,10 +220,16 @@ const keepFocus = (event: ReactMouseEvent) => event.preventDefault()
  * the way a task card does under the pointer. Rows follow the pointer on
  * `pointermove`, not `pointerenter`: a list scrolled by the keyboard slides rows
  * under a resting pointer, and those must not steal the highlight.
+ *
+ * A hidden task's row is blurred until it is reached for. The first row of a fresh
+ * list is highlighted without anyone choosing it, so pointing at that row has to
+ * count too: the move reveals it even though the highlight is already there.
  */
-const Option = memo(function Option({ item, index, id, active, now, names, hideCategory, onPoint, onRun }: OptionProps) {
+const Option = memo(function Option({ item, index, id, active, revealed, now, names, hideCategory, onPoint, onRun }: OptionProps) {
   const reduce = useReducedMotion() ?? false
-  const color = item.task && !item.task.completed ? item.task.categoryColor : null
+  const veiled = Boolean(item.task?.hidden)
+  // A veiled row does not glow in its category's colour either: the colour is the task's.
+  const color = item.task && !item.task.completed && (!veiled || revealed) ? item.task.categoryColor : null
   const glow = color ? ({ "--row-glow": `color-mix(in srgb, ${color} 34%, transparent)` } as CSSProperties) : undefined
   const opensElsewhere = item.action.type === "open-task" || item.action.type === "navigate"
 
@@ -218,7 +240,7 @@ const Option = memo(function Option({ item, index, id, active, now, names, hideC
       aria-selected={active}
       data-index={index}
       onPointerMove={() => {
-        if (!active) onPoint(index)
+        if (!active || (veiled && !revealed)) onPoint(index, item.key)
       }}
       onMouseDown={keepFocus}
       onClick={(event) => onRun(item, { newTab: event.metaKey || event.ctrlKey })}
@@ -232,6 +254,7 @@ const Option = memo(function Option({ item, index, id, active, now, names, hideC
       <RowContent
         item={item}
         active={active}
+        revealed={revealed}
         now={now}
         names={names}
         hideCategory={hideCategory}
@@ -274,7 +297,14 @@ export function CommandPalette() {
   const [query, setQuery] = useState("")
   const [tab, setTab] = useState<Tab>("all")
   const [scope, setScope] = useState<Scope | null>(null)
-  const [active, setActive] = useState(0)
+  /*
+   * The highlighted row, and the row the user reached for — by pointing at it or by moving
+   * to it with the keys. Only a hidden task cares about the second: its row stays blurred
+   * until it is reached for. One state, so every reset of the highlight (a new query, tab
+   * or scope) also veils again whatever was revealed: a reveal answers one gesture.
+   */
+  const [highlight, setHighlight] = useState<Highlighted>(TOP)
+  const active = highlight.index
   const [recent, setRecent] = useState<RecentEntry[]>([])
   const [now, setNow] = useState(() => new Date())
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null)
@@ -305,7 +335,7 @@ export function CommandPalette() {
     setQuery("")
     setTab("all")
     setScope(null)
-    setActive(0)
+    setHighlight(TOP)
     setNow(new Date())
     setRecent(readRecent(viewerId))
     setSnapshot(snapshots.get(viewerId ?? "") ?? null)
@@ -455,6 +485,8 @@ export function CommandPalette() {
   // The selection survives the list changing under it, clamped to what is there.
   const current = Math.min(active, Math.max(items.length - 1, 0))
   const activeItem = items[current] ?? null
+  // Reached for, and still the row the highlight is on.
+  const revealed = activeItem !== null && highlight.reached === activeItem.key
 
   // ── keys ──────────────────────────────────────────────────────────────────
 
@@ -465,20 +497,20 @@ export function CommandPalette() {
   }, [])
   useEffect(() => () => window.clearTimeout(pressTimer.current), [])
 
-  const move = useCallback((index: number) => {
+  const move = useCallback((index: number, key: string | undefined) => {
     keyboardMove.current = true
-    setActive(index)
+    setHighlight({ index, reached: key ?? null })
   }, [])
 
-  const point = useCallback((index: number) => {
+  const point = useCallback((index: number, key: string) => {
     keyboardMove.current = false
-    setActive(index)
+    setHighlight({ index, reached: key })
   }, [])
 
   const narrowTo = useCallback((next: Scope | null) => {
     setScope(next)
     setQuery("")
-    setActive(0)
+    setHighlight(TOP)
     inputRef.current?.focus()
   }, [])
 
@@ -525,7 +557,7 @@ export function CommandPalette() {
       const current = parseQuery(value)
       return current.narrow ? current.text : value
     })
-    setActive(0)
+    setHighlight(TOP)
     inputRef.current?.focus()
   }, [])
 
@@ -543,10 +575,10 @@ export function CommandPalette() {
   stepBack.current = () => {
     if (query) {
       setQuery("")
-      setActive(0)
+      setHighlight(TOP)
     } else if (scope) {
       setScope(null)
-      setActive(0)
+      setHighlight(TOP)
     } else {
       setOpen(false)
     }
@@ -572,24 +604,25 @@ export function CommandPalette() {
   const onInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing) return
     const count = items.length
+    const moveTo = (index: number) => move(index, items[index]?.key)
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault()
         press("down")
-        if (count) move((current + 1) % count)
+        if (count) moveTo((current + 1) % count)
         return
       case "ArrowUp":
         event.preventDefault()
         press("up")
-        if (count) move((current - 1 + count) % count)
+        if (count) moveTo((current - 1 + count) % count)
         return
       case "PageDown":
         event.preventDefault()
-        if (count) move(Math.min(count - 1, current + PAGE))
+        if (count) moveTo(Math.min(count - 1, current + PAGE))
         return
       case "PageUp":
         event.preventDefault()
-        if (count) move(Math.max(0, current - PAGE))
+        if (count) moveTo(Math.max(0, current - PAGE))
         return
       case "Enter": {
         event.preventDefault()
@@ -611,7 +644,7 @@ export function CommandPalette() {
         if (query !== "" || !scope) return
         event.preventDefault()
         setScope(null)
-        setActive(0)
+        setHighlight(TOP)
         return
     }
   }
@@ -776,11 +809,11 @@ export function CommandPalette() {
                     value={query}
                     onChange={(event) => {
                       setQuery(event.target.value)
-                      setActive(0)
+                      setHighlight(TOP)
                     }}
                     onKeyDown={onInputKeyDown}
-                    placeholder={scope ? `Search in ${scope.label}` : "Search tasks, categories, people and commands"}
-                    aria-label={scope ? `Search in ${scope.label}` : "Search tasks and commands"}
+                    placeholder={scope ? `Search in ${scope.label}` : "Search tasks, categories, people and shortcuts"}
+                    aria-label={scope ? `Search in ${scope.label}` : "Search tasks and shortcuts"}
                     role="combobox"
                     aria-expanded="true"
                     aria-controls={listboxId}
@@ -809,7 +842,7 @@ export function CommandPalette() {
                     onMouseDown={keepFocus}
                     onClick={() => {
                       setQuery("")
-                      setActive(0)
+                      setHighlight(TOP)
                       inputRef.current?.focus()
                     }}
                     aria-label="Clear search"
@@ -842,7 +875,7 @@ export function CommandPalette() {
                   {snapshot?.tasksFailed ? (
                     <div className="mx-1 mt-3 flex items-center gap-3 rounded-md bg-paper-sunken px-3 py-2.5 text-caption font-medium text-ink-muted">
                       <CloudOff className="h-4 w-4 flex-shrink-0 text-ink-subtle" aria-hidden="true" />
-                      <span className="min-w-0 flex-1">Your tasks didn’t load. Screens and commands still work.</span>
+                      <span className="min-w-0 flex-1">Your tasks didn’t load. Screens and shortcuts still work.</span>
                       <button
                         type="button"
                         onMouseDown={keepFocus}
@@ -893,6 +926,7 @@ export function CommandPalette() {
                                 index={index}
                                 id={optionId(item.key)}
                                 active={index === current}
+                                revealed={index === current && revealed}
                                 now={now}
                                 names={names}
                                 hideCategory={scope?.kind === "category"}
@@ -911,7 +945,7 @@ export function CommandPalette() {
                   aria-label="Details"
                   className="relative hidden w-72 flex-shrink-0 flex-col overflow-hidden border-l border-line bg-paper-sunken p-5 md:flex"
                 >
-                  <Preview item={activeItem} scope={scope} tasks={tasks} now={now} names={names} />
+                  <Preview item={activeItem} scope={scope} tasks={tasks} now={now} names={names} revealed={revealed} />
                 </aside>
               </div>
 

@@ -47,6 +47,7 @@ function task(over: Partial<PaletteTask> = {}): PaletteTask {
     workers: [],
     openSubtasks: 0,
     urgent: false,
+    hidden: false,
     keywords: "",
     ...over,
   }
@@ -98,7 +99,7 @@ describe("RollingHint", () => {
     expect(screen.getByText("Search in Travel…")).toBeInTheDocument()
     reduce = true
     rerender(<RollingHint />)
-    expect(screen.getByText("Search tasks, categories, people and commands…")).toBeInTheDocument()
+    expect(screen.getByText("Search tasks, categories, people and shortcuts…")).toBeInTheDocument()
   })
 })
 
@@ -163,7 +164,7 @@ describe("scope controls", () => {
 
   it("dims an empty tab and names the counts", () => {
     const onSelect = vi.fn()
-    render(<TabBar tab="all" counts={{ tasks: 1, categories: 0, people: 2, commands: 0 }} onSelect={onSelect} />)
+    render(<TabBar tab="all" counts={{ tasks: 1, categories: 0, people: 2, shortcuts: 0 }} onSelect={onSelect} />)
     expect(screen.getByRole("button", { name: "Categories, 0 results" })).toHaveClass("text-ink-subtle")
     fireEvent.click(screen.getByRole("button", { name: "People, 2 results" }))
     expect(onSelect).toHaveBeenCalledWith("people")
@@ -215,6 +216,53 @@ describe("rows", () => {
     expect(container).toHaveTextContent("in progress")
     expect(container).toHaveTextContent("2 steps open")
     expect(container).toHaveTextContent("Yesterday")
+  })
+
+  it("marks who can see a task the way its card does", () => {
+    const { container, rerender } = render(<RowContent item={taskItem(task({ sharedWithAll: true }))} active={false} now={NOW} names={NAMES} />)
+    // The card's open ring and its words, not plain text.
+    expect(screen.getByRole("img", { name: /all your friends/i })).toBeInTheDocument()
+    expect(container).toHaveTextContent("All friends")
+
+    // The redaction ring, opened by one viewer.
+    const ring = () => container.querySelector('g[transform="rotate(-90 12 12)"]')
+    rerender(<RowContent item={taskItem(task({ sharedWith: ["ada"] }))} active={false} now={NOW} names={NAMES} />)
+    expect(ring()).not.toBeNull()
+    expect(container).toHaveTextContent("with Ada Lovelace")
+
+    rerender(<RowContent item={taskItem(task({ mine: false, ownerName: "Ada" }))} active={false} now={NOW} names={NAMES} />)
+    expect(container).toHaveTextContent("from Ada")
+    expect(container.querySelector("svg")).not.toBeNull()
+
+    // A private task is an ordinary one: no ring, and no urgency either.
+    rerender(<RowContent item={taskItem(task({ priority: 5, urgent: true }))} active={false} now={NOW} names={NAMES} />)
+    expect(ring()).toBeNull()
+    expect(container).not.toHaveTextContent(/urgent/i)
+  })
+
+  it("blurs a hidden task until it is reached for, then cross-fades it in", () => {
+    const hidden = taskItem(task({ title: "Surprise party", hidden: true, dueDate: day(1) }))
+    const { container, rerender } = render(<RowContent item={hidden} active now={NOW} names={NAMES} />)
+    const veils = () => Array.from(container.querySelectorAll<HTMLElement>("[data-veil]"))
+    // The row's text and its deadline, each veiled.
+    expect(veils().map((v) => v.dataset.veil)).toEqual(["veiled", "veiled"])
+    const [blurred, clear] = Array.from(veils()[0].children) as HTMLElement[]
+    expect(blurred).toHaveAttribute("aria-hidden", "true")
+    expect(blurred.className).toMatch(/blur-/)
+    expect(blurred.className).toMatch(/opacity-100/)
+    expect(clear.className).toMatch(/opacity-0/)
+    // What a screen reader hears says it is hidden, and is the title.
+    expect(clear).toHaveTextContent("Hidden task: Surprise party")
+
+    rerender(<RowContent item={hidden} active revealed now={NOW} names={NAMES} />)
+    expect(veils().map((v) => v.dataset.veil)).toEqual(["revealed", "revealed"])
+    const [blurredNow, clearNow] = Array.from(veils()[0].children) as HTMLElement[]
+    expect(blurredNow.className).toMatch(/opacity-0/)
+    expect(clearNow.className).toMatch(/opacity-100/)
+
+    // An ordinary task is never veiled.
+    rerender(<RowContent item={taskItem(task())} active revealed now={NOW} names={NAMES} />)
+    expect(veils()).toHaveLength(0)
   })
 
   it("draws a finished task, a category, a person, a view and a command", () => {
@@ -274,6 +322,35 @@ describe("Preview", () => {
     expect(container).toHaveTextContent("No deadline")
     expect(container).toHaveTextContent("No details yet.")
     expect(container).toHaveTextContent("Only you")
+  })
+
+  it("keeps a hidden task's details back until its row is reached for", () => {
+    const hidden = taskItem(task({ title: "Surprise party", description: "Saturday at eight", hidden: true }))
+    const { container, rerender } = render(<Preview item={hidden} scope={null} tasks={[]} now={NOW} names={NAMES} />)
+    expect(container).toHaveTextContent("Hidden task")
+    expect(container).toHaveTextContent("Point at it")
+    expect(container).not.toHaveTextContent("Saturday at eight")
+    expect(screen.getByText("Surprise party")).toHaveAttribute("aria-hidden", "true")
+
+    rerender(<Preview item={hidden} scope={null} tasks={[]} now={NOW} names={NAMES} revealed />)
+    expect(container).toHaveTextContent("Saturday at eight")
+    // Revealed here, still hidden on the lists — and it says so.
+    expect(container).toHaveTextContent("Hidden")
+  })
+
+  it("names everyone who can see a task", () => {
+    const { container, rerender } = render(<Preview item={taskItem(task({ sharedWithAll: true }))} scope={null} tasks={[]} now={NOW} names={NAMES} />)
+    expect(screen.getByRole("img", { name: /all your friends/i })).toBeInTheDocument()
+    rerender(<Preview item={taskItem(task({ sharedWith: ["ada"] }))} scope={null} tasks={[]} now={NOW} names={NAMES} />)
+    expect(container).toHaveTextContent("With Ada Lovelace")
+  })
+
+  it("never lists a hidden task's title in a scope's sample", () => {
+    const tasks = [task({ id: "a", title: "Surprise party", categoryId: "c", hidden: true }), task({ id: "b", title: "Pack", categoryId: "c" })]
+    render(<Preview item={null} scope={{ kind: "category", id: "c", label: "Home", color: null, icon: null }} tasks={tasks} now={NOW} names={NAMES} />)
+    expect(screen.getByText("Surprise party")).toHaveAttribute("aria-hidden", "true")
+    expect(screen.getByText("Surprise party").className).toMatch(/blur-/)
+    expect(screen.getByText("Pack")).not.toHaveAttribute("aria-hidden")
   })
 
   it("shows when a finished task was done", () => {

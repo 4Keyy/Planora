@@ -1,14 +1,14 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { Folder, Search } from "lucide-react"
+import { EyeOff, Folder, Search } from "lucide-react"
 import { Avatar } from "@/components/ui/avatar"
 import { Kbd } from "@/components/ui/shortcuts-overlay"
 import { PriorityMeter } from "@/components/ui/priority-meter"
 import { formatDateLong } from "@/lib/datetime"
 import { ICON_MAP } from "@/lib/icon-map"
 import { cn } from "@/lib/utils"
-import { DUE_TONE, TONE_GLYPH, TaskGlyph, VIEW_GLYPH, audience, tint } from "./rows"
+import { AudienceMark, DUE_TONE, TONE_GLYPH, TaskGlyph, VEIL_BLUR, VIEW_GLYPH, tint } from "./rows"
 import { SMART_VIEWS, byUrgency, daysFromToday, describeDue, type PaletteTask } from "./search"
 import { inScope, type PaletteItem, type Scope } from "./sections"
 
@@ -65,14 +65,20 @@ function dueSentence(task: PaletteTask, now: Date): ReactNode {
 }
 
 function TaskPreview({ task, now, names }: { task: PaletteTask; now: Date; names: Map<string, string> }) {
-  const who = audience(task, names)
   const workers = task.workers.map((w) => w.name).filter(Boolean)
   return (
     <div className="relative flex h-full flex-col">
       <Glow color={task.completed ? null : task.categoryColor} />
-      <div className="relative flex items-center gap-2">
+      <div className="relative flex min-w-0 items-center gap-2">
         <TaskGlyph task={task} className="h-7 w-7" />
         <span className="truncate text-caption font-semibold text-ink-muted">{task.categoryName ?? "No category"}</span>
+        {task.hidden ? (
+          // Revealed here, but still hidden on the lists — the reader should know which.
+          <span className="ml-auto inline-flex flex-shrink-0 items-center gap-1 text-caption font-semibold text-ink-subtle">
+            <EyeOff aria-hidden="true" className="h-3 w-3" />
+            Hidden
+          </span>
+        ) : null}
       </div>
       <h3 className={cn("relative mt-3 line-clamp-3 text-body font-bold leading-snug tracking-tight", task.completed ? "text-ink-muted line-through decoration-line-strong" : "text-ink")}>
         {task.title}
@@ -89,11 +95,35 @@ function TaskPreview({ task, now, names }: { task: PaletteTask; now: Date; names
         )}
         <Fact label="Priority"><PriorityMeter value={task.priority} size="sm" /></Fact>
         <Fact label="People">
-          {who ? <span className="text-accent">{who.charAt(0).toUpperCase() + who.slice(1)}</span> : <span className="text-ink-muted">Only you</span>}
+          <AudienceMark task={task} names={names} sentence />
         </Fact>
         {workers.length > 0 ? <Fact label="Working">{workers.join(", ")}</Fact> : null}
         {task.openSubtasks > 0 ? <Fact label="Steps">{task.openSubtasks} open</Fact> : null}
       </dl>
+    </div>
+  )
+}
+
+/**
+ * A hidden task, highlighted but not yet reached for: a fresh search can land on it
+ * first, and that alone must not unveil it. The title keeps its shape under the blur,
+ * so the reader still recognises the row they were after.
+ */
+function HiddenPreview({ task }: { task: PaletteTask }) {
+  return (
+    <div className="relative flex h-full flex-col">
+      <div className="relative flex items-center gap-2">
+        <span aria-hidden="true" className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-line bg-paper text-ink-muted">
+          <EyeOff className="h-3.5 w-3.5" />
+        </span>
+        <span className="truncate text-caption font-semibold text-ink-muted">Hidden task</span>
+      </div>
+      <p aria-hidden="true" className={cn("relative mt-3 line-clamp-3 select-none text-body font-bold leading-snug tracking-tight text-ink", VEIL_BLUR)}>
+        {task.title}
+      </p>
+      <p className="relative mt-3 text-caption font-medium leading-relaxed text-ink-muted">
+        Point at it, or reach it with ↑ ↓, to see it.
+      </p>
     </div>
   )
 }
@@ -105,7 +135,15 @@ function TaskSample({ tasks, empty }: { tasks: PaletteTask[]; empty: string }) {
       {tasks.map((task) => (
         <li key={task.id} className="flex items-center gap-2 text-caption font-medium text-ink">
           <span aria-hidden="true" className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-ink-subtle" style={task.categoryColor ? { backgroundColor: task.categoryColor } : undefined} />
-          <span className="truncate">{task.title}</span>
+          {task.hidden ? (
+            // Nothing here can be pointed at, so a hidden task stays blurred in the sample.
+            <>
+              <span aria-hidden="true" className={cn("truncate select-none", VEIL_BLUR)}>{task.title}</span>
+              <span className="sr-only">Hidden task</span>
+            </>
+          ) : (
+            <span className="truncate">{task.title}</span>
+          )}
         </li>
       ))}
     </ul>
@@ -165,13 +203,15 @@ function ScopePreview({ scope, description, email, tasks, now }: {
   )
 }
 
-export function Preview({ item, scope, tasks, now, names }: {
+export function Preview({ item, scope, tasks, now, names, revealed = false }: {
   item: PaletteItem | null
   /** What the search is narrowed to: described when nothing in it is highlighted. */
   scope: Scope | null
   tasks: PaletteTask[]
   now: Date
   names: Map<string, string>
+  /** The highlighted row was reached for — a hidden task's details may show. */
+  revealed?: boolean
 }) {
   if (!item) {
     if (scope) return <ScopePreview scope={scope} tasks={tasks} now={now} />
@@ -183,7 +223,10 @@ export function Preview({ item, scope, tasks, now, names }: {
     )
   }
 
-  if (item.task) return <TaskPreview task={item.task} now={now} names={names} />
+  if (item.task) {
+    if (item.task.hidden && !revealed) return <HiddenPreview task={item.task} />
+    return <TaskPreview task={item.task} now={now} names={names} />
+  }
 
   if (item.action.type === "scope") {
     return (

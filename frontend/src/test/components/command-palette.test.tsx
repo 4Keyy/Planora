@@ -406,6 +406,53 @@ describe("CommandPalette — searching", () => {
   })
 })
 
+// ─── Hidden tasks ───────────────────────────────────────────────────────────
+
+describe("CommandPalette — hidden tasks", () => {
+  const veil = (row: HTMLElement) => row.querySelector("[data-veil]")?.getAttribute("data-veil")
+  const details = () => screen.getByRole("complementary", { name: "Details" })
+
+  it("reads hidden tasks in full, never recommends one, and finds it blurred", async () => {
+    serve({ open: [...openTasks(), todo({ id: "h1", title: "Surprise party for Ada", description: "Saturday at eight", hidden: true, dueDate: at(-5) })] })
+    const user = await openPalette()
+    // The palette is the one reader that asks for hidden rows unredacted.
+    const reads = get.mock.calls.filter(([url]) => url === "/todos/api/v1/todos")
+    expect(reads.length).toBeGreaterThan(0)
+    for (const [, config] of reads) expect(config.params.revealHidden).toBe(true)
+    // The most overdue open task, and still not in Up next.
+    expect(optionTexts().some((text) => text.includes("Surprise party"))).toBe(false)
+
+    await user.type(field(), "surprise")
+    const row = options()[0]
+    expect(row).toHaveAttribute("aria-selected", "true")
+    // First in a fresh list is not reaching for it: still blurred, details held back.
+    expect(veil(row)).toBe("veiled")
+    expect(details()).toHaveTextContent("Hidden task")
+    expect(details()).not.toHaveTextContent("Saturday at eight")
+
+    fireEvent.pointerMove(row)
+    expect(veil(row)).toBe("revealed")
+    expect(details()).toHaveTextContent("Saturday at eight")
+
+    // A new question veils it again.
+    await user.type(field(), " party")
+    expect(veil(options()[0])).toBe("veiled")
+  })
+
+  it("reveals a hidden task reached with the arrows, and veils it when the highlight moves on", async () => {
+    serve({ open: [todo({ id: "a", title: "Surprise party", hidden: true }), todo({ id: "b", title: "Surprise visit" })] })
+    const user = await openPalette()
+    await user.type(field(), "surprise")
+    const hidden = options()[0]
+    expect(veil(hidden)).toBe("veiled")
+    await user.keyboard("{ArrowDown}{ArrowUp}")
+    expect(activeOption()).toBe(hidden)
+    expect(veil(hidden)).toBe("revealed")
+    await user.keyboard("{ArrowDown}")
+    expect(veil(hidden)).toBe("veiled")
+  })
+})
+
 // ─── Narrowing ──────────────────────────────────────────────────────────────
 
 describe("CommandPalette — narrowing", () => {

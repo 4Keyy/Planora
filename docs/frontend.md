@@ -270,7 +270,7 @@ desktop this is where an experienced user lives.
 
 | Key | Does | Where |
 |---|---|---|
-| `Cmd/Ctrl + K` | Command palette — search tasks, categories, people and commands; `#` `@` `>` narrow the search, `Tab` narrows into a row, a query that matches nothing becomes a task | Anywhere, signed in |
+| `Cmd/Ctrl + K` | Command palette — search tasks, categories, people and shortcuts; `#` `@` `>` narrow the search, `Tab` narrows into a row, a query that matches nothing becomes a task | Anywhere, signed in |
 | `?` | The keyboard map itself | Anywhere |
 | `C` | Capture a task — one field, no selectors | Dashboard, Tasks |
 | `F` | Open the category filter | Tasks |
