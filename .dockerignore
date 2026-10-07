@@ -28,11 +28,18 @@
 !AGENTS.md
 **/azds.yaml
 **/bin
+**/.build-out
 **/charts
 ## Keep docker-compose and Dockerfile in build context
 **/coverage
 **/graphify-out
 **/Migrations
+# Keep the reviewed Realtime chain in images that initialize the durable log.
+!Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations
+Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/**
+!Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.cs
+!Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/20260615211750_InitialRealtimeNotifications.Designer.cs
+!Services/RealtimeApi/Planora.Realtime.Infrastructure/Migrations/RealtimeDbContextModelSnapshot.cs
 **/node_modules
 **/npm-debug.log
 **/obj

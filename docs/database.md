@@ -357,8 +357,21 @@ UI can query unread counts.
 | `OutboxMessages` | Shared outbox schema, currently unused as a producer | PK `Id`; shared contract and active partial polling index. |
 
 Migration: `20260615211750_InitialRealtimeNotifications` is tracked and creates all three tables.
-Apply with `Planora.Migrator --service realtime` after configuring its connection string.
-New generated migration files remain ignored until explicitly approved for tracking.
+A configured non-`Testing` host waits for PostgreSQL and creates the database before Redis/RabbitMQ
+subscriptions can consume notifications. Empty databases and databases with known EF history use
+`DatabaseStartup.EnsureReadyAsync`: migrations when compiled, otherwise the current-model fallback.
+Docker explicitly includes the three tracked Realtime migration files; other migration directories
+remain excluded until their chains are reviewed. Builds intentionally compiled without migrations
+retain the current-model fallback.
+`Planora.Migrator --service realtime` remains available for a deliberate migration rollout.
+
+An existing model-created database with no applied history is verified against the current mapped
+tables, column types/nullability, primary keys and unique keys. Compatible data is preserved without
+creating or stamping migration history; a future upgrade still needs an explicit migration plan.
+Missing tables/columns, incompatible definitions or unknown applied migration IDs fail startup
+instead of recreating tables or adopting history. Transient PostgreSQL failures are retried with
+cancellation support. `Testing` hosts skip external startup; an unconfigured durable log remains
+optional. New generated migration files remain ignored until explicitly approved for tracking.
 
 `NotificationDelivery` is a schema/domain scaffold: the current notification consumer and
 SignalR service do not create or update delivery records. There is no server-side replay on

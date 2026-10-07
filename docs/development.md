@@ -310,7 +310,7 @@ What happens at boot differs per service, and it matters when you add the first 
 |---|---|---|
 | Auth, Category, Collaboration, Messaging | `DatabaseStartup.EnsureReadyAsync` finds no tracked migrations and calls `EnsureCreatedAsync` | Adding the first migration changes the startup path; reconcile a deliberate baseline for existing model-created databases. Recreate only explicitly disposable development data. |
 | Todo | same helper, but migrations exist, so pending ones are applied (with retry) | Complete the missing initial baseline and verify the chain before relying on a fresh install |
-| Realtime | no `DatabaseStartup` call at all | Apply by hand: `dotnet run --project tools/Planora.Migrator -- --service realtime` |
+| Realtime | Configured non-`Testing` hosts prepare PostgreSQL before event subscriptions; fresh/managed schemas use `DatabaseStartup`, compatible model-created schemas are verified without adopting history | Unknown history or incompatible existing schemas fail closed. Model-created databases still require an explicit migration plan before a schema upgrade; see `database.md` |
 
 The CD workflow includes a pre-deploy `Planora.Migrator` step, but service startup still applies migrations in five hosts and the runner image/workflow have unresolved build/configuration gaps. Production migration serialization is therefore a target policy, not an established guarantee; see [Deployment](deployment.md#confirmed-rollout-blockers). Full ownership and table-by-table
 detail: [`database.md`](database.md).

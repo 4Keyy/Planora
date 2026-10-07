@@ -219,6 +219,7 @@ Critical files:
 - `Infrastructure/Grpc/TaskBranchAuthorizer.cs` — gates branch topic subscription against Todo
 - `Infrastructure/Services/ConnectionManager.cs`, `RealtimeBroadcaster.cs`, `NotificationService.cs`, `NotificationStore.cs`, `NotificationReadStore.cs`
 - `Infrastructure/Persistence/RealtimeDbContext.cs` — active conditional notification persistence; delivery/outbox schemas exist without current runtime writers
+- `Infrastructure/Persistence/RealtimeDatabaseStartup.cs` — configured PostgreSQL bootstrap before event subscriptions; verifies compatible model-created schemas without adopting history and rejects schema/history drift
 - `Infrastructure/Retention/NotificationRetentionPolicies.cs`
 
 ## gRPC Contracts

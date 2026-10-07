@@ -130,9 +130,15 @@ public class Program
             var app = builder.Build();
 
             // ✅ GRACEFUL STARTUP
-            using (var scope = app.Services.CreateScope())
+            if (!builder.Environment.IsEnvironment("Testing"))
             {
+                using var scope = app.Services.CreateScope();
                 var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+                // Prepare the optional durable log before subscriptions can consume events.
+                var realtimeDb = scope.ServiceProvider.GetService<RealtimeDbContext>();
+                await RealtimeDatabaseStartup.EnsureReadyAsync(
+                    realtimeDb, logger, app.Lifetime.ApplicationStopping);
 
                 // Wait for Redis
                 await DependencyWaiter.WaitForRedisAsync(
@@ -172,7 +178,6 @@ public class Program
                 // by (IsRead, ReadAtUtc), unread by (IsRead, OccurredOnUtc) and delivered rows by
                 // DeliveredAtUtc. Additive, idempotent (IF NOT EXISTS); only runs when a database is
                 // configured (the durable log is conditional on a connection string).
-                var realtimeDb = scope.ServiceProvider.GetService<RealtimeDbContext>();
                 if (realtimeDb is not null)
                 {
                     try
