@@ -91,6 +91,13 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             var completedFrom = request.CompletedFrom?.ToUniversalTime();
             var completedTo = request.CompletedTo?.ToUniversalTime();
 
+            // A friend's task this viewer completed only for themselves has no CompletedAt until its
+            // owner closes it; the date filter matches it by the viewer's own completion time.
+            var viewerCompletedInWindowIds = completedFrom.HasValue || completedTo.HasValue
+                ? await _viewerPreferenceRepository.GetCompletedTodoIdsByViewerInWindowAsync(
+                    userId, completedFrom, completedTo, cancellationToken)
+                : new List<Guid>();
+
             var predicate = BuildPredicateWithFriends(
                 userId,
                 friendIds,
@@ -99,6 +106,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                 viewerCategoryTodoIds,
                 viewerCompletedIds,
                 viewerHiddenIds,
+                viewerCompletedInWindowIds,
                 completedFrom,
                 completedTo);
 
@@ -107,6 +115,8 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                 request.PageNumber,
                 request.PageSize,
                 sortCompletedByCompletionTime,
+                // The archive orders a viewer-only completion by when THIS viewer completed it.
+                sortCompletedByCompletionTime ? userId : null,
                 cancellationToken);
 
             var pageTodoIds = paginatedItems.Select(item => item.Id).ToList();
@@ -246,6 +256,10 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                     IsCompletedByViewer = !isViewerOwner ? completedByViewer : null,
                     Status = completedByViewer ? "Done" : item.Status.Display(),
                     IsCompleted = completedByViewer || item.IsCompleted,
+                    // While the owner has not closed it, a task the viewer completed for themselves is
+                    // completed — for this reader — at the moment they completed it. The archive's
+                    // deletion countdown and the retention pass both count from that moment.
+                    CompletedAt = item.CompletedAt ?? (completedByViewer ? preference?.CompletedByViewerAt : null),
                     OpenSubtaskCount = openSubtaskCounts.GetValueOrDefault(item.Id),
                 };
 
@@ -286,10 +300,12 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
             List<Guid> viewerCategoryTodoIds,
             List<Guid> viewerCompletedIds,
             List<Guid> viewerHiddenIds,
+            List<Guid> viewerCompletedInWindowIds,
             DateTime? completedFrom,
             DateTime? completedTo)
         {
             var hasCategoryFilter = request.CategoryId.HasValue;
+            var hasCompletionWindow = completedFrom.HasValue || completedTo.HasValue;
             var categoryId = request.CategoryId.GetValueOrDefault();
 
             // Determine if the query is effectively asking for active or completed tasks
@@ -307,11 +323,15 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                        (includeSubtasks || x.ParentTodoId == null) &&
                        (requestedStatuses == null || requestedStatuses.Contains(x.Status)) &&
 
-                       // Completion-date window (inclusive). A task with no CompletedAt is excluded
-                       // the moment either bound is set, which is correct — an unfinished task has no
-                       // completion date to match against.
-                       (!completedFrom.HasValue || (x.CompletedAt.HasValue && x.CompletedAt.Value >= completedFrom.Value)) &&
-                       (!completedTo.HasValue || (x.CompletedAt.HasValue && x.CompletedAt.Value <= completedTo.Value)) &&
+                       // Completion-date window (inclusive). A task matches by its CompletedAt; a
+                       // friend's task the viewer completed only for themselves has none yet and matches
+                       // by the viewer's own completion time. An unfinished task has no completion date
+                       // to match against, so either bound excludes it.
+                       (!hasCompletionWindow ||
+                        (x.CompletedAt.HasValue &&
+                         (!completedFrom.HasValue || x.CompletedAt.Value >= completedFrom.Value) &&
+                         (!completedTo.HasValue || x.CompletedAt.Value <= completedTo.Value)) ||
+                        (!x.CompletedAt.HasValue && x.UserId != userId && viewerCompletedInWindowIds.Contains(x.Id))) &&
 
                        // Masked shared tasks do not belong in the completed archive. Apply this before
                        // count/page, while keeping viewer completion intact so expired rows stay out of

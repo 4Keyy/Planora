@@ -64,7 +64,8 @@ namespace Planora.Todo.Infrastructure
                 .AddRetentionPolicy<ProcessedMessagePurgePolicy>()
                 .AddRetentionPolicy<Retention.TodoSoftDeletePurgePolicy>()
                 .AddRetentionPolicy<Retention.CompletedTodoPolicy>()
-                .AddRetentionPolicy<Retention.TodoCompletedViewerHidePolicy>();
+                .AddRetentionPolicy<Retention.TodoCompletedViewerHidePolicy>()
+                .AddRetentionPolicy<Retention.TodoCompletedViewerReleasePolicy>();
 
             // Services
             services.AddHttpContextAccessor();

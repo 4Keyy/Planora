@@ -533,10 +533,13 @@ export default function CompletedTasksPage() {
                   onEdit={() => setEditingTodo(todo)}
                   onToggleHidden={() => handleToggleHidden(todo.id)}
                 />
-                {/* Gentle auto-deletion countdown. Renders only for globally-completed tasks
-                    (those actually on the delete path); viewer-only completions have no
-                    completedAt and show nothing. */}
-                <TaskDeletionBadge completedAt={todo.completedAt} className="mt-2 ml-1" />
+                {/* Gentle auto-deletion countdown. A friend's task completed only by this reader
+                    counts from their own completion and leaves only their lists. */}
+                <TaskDeletionBadge
+                  completedAt={todo.completedAt}
+                  personal={todo.isCompletedByViewer === true && !todo.ownerCompleted}
+                  className="mt-2 ml-1"
+                />
               </div>
             )}
           />

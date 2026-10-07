@@ -44,6 +44,7 @@ public class TodoQueryHandlerTests
                 It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -87,10 +88,11 @@ public class TodoQueryHandlerTests
                 2,
                 10,
                 It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Expression<Func<TodoItem, bool>>, int, int, bool, CancellationToken>(
-                (_, _, _, sortFlag, _) => sortCompletedByCompletionTime = sortFlag)
-            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, CancellationToken _) =>
+            .Callback<Expression<Func<TodoItem, bool>>, int, int, bool, Guid?, CancellationToken>(
+                (_, _, _, sortFlag, _, _) => sortCompletedByCompletionTime = sortFlag)
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, Guid? _, CancellationToken _) =>
             {
                 var matches = new[] { ownTodo, sharedTodo, strangerTodo }
                     .Where(predicate.Compile())
@@ -142,8 +144,9 @@ public class TodoQueryHandlerTests
                 1,
                 10,
                 It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, CancellationToken _) =>
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, Guid? _, CancellationToken _) =>
             {
                 var matches = new[] { publicFriendTodo, privateFriendTodo, publicStrangerTodo }
                     .Where(predicate.Compile())
@@ -208,10 +211,11 @@ public class TodoQueryHandlerTests
                 1,
                 20,
                 It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Expression<Func<TodoItem, bool>>, int, int, bool, CancellationToken>(
-                (_, _, _, sortFlag, _) => sortCompletedByCompletionTime = sortFlag)
-            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, CancellationToken _) =>
+            .Callback<Expression<Func<TodoItem, bool>>, int, int, bool, Guid?, CancellationToken>(
+                (_, _, _, sortFlag, _, _) => sortCompletedByCompletionTime = sortFlag)
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, Guid? _, CancellationToken _) =>
             {
                 var items = new[] { sharedTodo }.Where(predicate.Compile()).ToList();
                 return (items, items.Count);
@@ -311,8 +315,9 @@ public class TodoQueryHandlerTests
                 It.IsAny<int>(),
                 2,
                 true,
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int page, int size, bool _, CancellationToken _) =>
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int page, int size, bool _, Guid? _, CancellationToken _) =>
             {
                 var matches = todos.Where(predicate.Compile()).ToList();
                 var items = matches.Skip((page - 1) * size).Take(size).ToList();
@@ -377,8 +382,9 @@ public class TodoQueryHandlerTests
                 It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int page, int size, bool _, CancellationToken _) =>
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int page, int size, bool _, Guid? _, CancellationToken _) =>
             {
                 var matches = todos.Where(predicate.Compile()).ToList();
                 return (matches.Skip((page - 1) * size).Take(size).ToList(), matches.Count);
@@ -397,12 +403,84 @@ public class TodoQueryHandlerTests
         Assert.True(currentDto.IsCompleted);
         Assert.True(currentDto.IsCompletedByViewer);
         Assert.Equal("Done", currentDto.Status);
+        // Completed for this reader when they completed it: the archive's deletion countdown
+        // starts there, the same moment the retention pass measures.
+        Assert.Equal(preferences[currentCompletion.Id].CompletedByViewerAt, currentDto.CompletedAt);
         Assert.Empty(active.Items);
         Assert.Equal(0, active.TotalCount);
         Assert.Equal(3, mixed.TotalCount);
         Assert.Equal(2, mixed.Items.Count(item => item.Hidden && item.Title == "Hidden task"));
         Assert.All(preferences.Values, preference => Assert.True(preference.CompletedByViewer));
     }
+
+    [Fact]
+    [Trait("TestType", "Regression")]
+    public async Task GetUserTodos_OrdersAndFiltersTheArchiveByWhenTheViewerCompleted()
+    {
+        // A friend's task the viewer completed only for themselves has no CompletedAt until its owner
+        // closes it. The archive orders it, and its date filter matches it, by the viewer's own time.
+        var userId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var fixture = new TodoQueryFixture(userId);
+        var windowFrom = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        var windowTo = new DateTime(2026, 10, 7, 23, 59, 59, DateTimeKind.Utc);
+
+        var ownInWindow = TodoItem.Create(userId, "Own, done in the window");
+        ownInWindow.MarkAsDone(userId);
+        var ownBefore = TodoItem.Create(userId, "Own, done before the window");
+        ownBefore.MarkAsDone(userId);
+        SetCompletedAt(ownInWindow, windowFrom.AddDays(2));
+        SetCompletedAt(ownBefore, windowFrom.AddDays(-20));
+        var friendInWindow = TodoItem.Create(friendId, "Friend's, I finished it in the window", sharedWithUserIds: new[] { userId });
+        var friendBefore = TodoItem.Create(friendId, "Friend's, I finished it before", sharedWithUserIds: new[] { userId });
+        var todos = new[] { ownInWindow, ownBefore, friendInWindow, friendBefore };
+        var completionViewers = new List<Guid?>();
+
+        fixture.FriendshipService
+            .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { friendId });
+        fixture.ViewerPreferences
+            .Setup(x => x.GetCompletedTodoIdsByViewerAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Guid> { friendInWindow.Id, friendBefore.Id });
+        fixture.ViewerPreferences
+            .Setup(x => x.GetCompletedTodoIdsByViewerInWindowAsync(userId, windowFrom, windowTo, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Guid> { friendInWindow.Id });
+        fixture.Repository
+            .Setup(x => x.GetPagedWithIncludesAsync(
+                It.IsAny<Expression<Func<TodoItem, bool>>>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
+                It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Expression<Func<TodoItem, bool>>, int, int, bool, Guid?, CancellationToken>(
+                (_, _, _, _, viewer, _) => completionViewers.Add(viewer))
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, Guid? _, CancellationToken _) =>
+            {
+                var matches = todos.Where(predicate.Compile()).ToList();
+                return (matches, matches.Count);
+            });
+
+        var windowed = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId, IsCompleted: true, CompletedFrom: windowFrom, CompletedTo: windowTo),
+            CancellationToken.None);
+        var active = await fixture.CreateGetUserTodosHandler().Handle(
+            new GetUserTodosQuery(userId, IsCompleted: false), CancellationToken.None);
+
+        Assert.Equal(
+            new[] { ownInWindow.Id, friendInWindow.Id }.OrderBy(id => id),
+            windowed.Items.Select(item => item.Id).OrderBy(id => id));
+        // The archive is ordered for this viewer; an active list has no completion order at all.
+        Assert.Equal(new Guid?[] { userId, null }, completionViewers);
+        fixture.ViewerPreferences.Verify(
+            x => x.GetCompletedTodoIdsByViewerInWindowAsync(It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        Assert.Empty(active.Items);
+    }
+
+    private static void SetCompletedAt(TodoItem todo, DateTime value) =>
+        typeof(TodoItem).GetProperty(nameof(TodoItem.CompletedAt))!
+            .GetSetMethod(nonPublic: true)!.Invoke(todo, new object?[] { value });
 
     [PostgresFact]
     [Trait("TestType", "Integration")]
@@ -506,6 +584,7 @@ public class TodoQueryHandlerTests
                 1,
                 10,
                 It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(((IReadOnlyList<TodoItem>)new[] { todo }, 1));
         fixture.CategoryGrpcClient
@@ -545,10 +624,11 @@ public class TodoQueryHandlerTests
                 1,
                 10,
                 It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Expression<Func<TodoItem, bool>>, int, int, bool, CancellationToken>(
-                (_, _, _, sortFlag, _) => sortCompletedByCompletionTime = sortFlag)
-            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, CancellationToken _) =>
+            .Callback<Expression<Func<TodoItem, bool>>, int, int, bool, Guid?, CancellationToken>(
+                (_, _, _, sortFlag, _, _) => sortCompletedByCompletionTime = sortFlag)
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, Guid? _, CancellationToken _) =>
             {
                 var items = new[] { hiddenTodo, completedTodo }
                     .Where(predicate.Compile())
@@ -599,8 +679,9 @@ public class TodoQueryHandlerTests
                 It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, CancellationToken _) =>
+            .ReturnsAsync((Expression<Func<TodoItem, bool>> predicate, int _, int _, bool _, Guid? _, CancellationToken _) =>
             {
                 var items = new[] { completed, active }.Where(predicate.Compile()).ToList();
                 return (items, items.Count);
@@ -682,6 +763,7 @@ public class TodoQueryHandlerTests
                 It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<bool>(),
+                It.IsAny<Guid?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((new[] { withOpen, allDone }, 2));
         // Only the first task has open subtasks; the second is absent from the map → reads as 0.

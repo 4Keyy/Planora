@@ -202,6 +202,111 @@ public sealed class TodoRetentionPostgresTests
     }
 
     [PostgresFact]
+    public async Task ViewerHide_TreatsAPersonalCompletionWithNoTimeAsExpired()
+    {
+        // A completion with no timestamp has no age to measure. Kept forever it would sit in the
+        // friend's archive with no countdown; treated as expired it leaves on the next pass.
+        var (database, provider) = await CreateAsync();
+        await using var _ = database;
+        await using var __ = provider;
+        var now = DateTime.UtcNow;
+
+        Guid undatedId;
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+            var undated = TodoItem.Create(Owner, "completed before completion times were recorded", sharedWithUserIds: new[] { Friend });
+            var recent = TodoItem.Create(Owner, "completed yesterday", sharedWithUserIds: new[] { Friend });
+            db.AddRange(undated, recent);
+            await db.SaveChangesAsync();
+            db.UserTodoViewPreferences.AddRange(
+                new UserTodoViewPreference { ViewerId = Friend, TodoItemId = undated.Id, CompletedByViewer = true, CompletedByViewerAt = null },
+                new UserTodoViewPreference { ViewerId = Friend, TodoItemId = recent.Id, CompletedByViewer = true, CompletedByViewerAt = now.AddDays(-1) });
+            await db.SaveChangesAsync();
+            undatedId = undated.Id;
+        }
+
+        RetentionResult result;
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var policy = new TodoCompletedViewerHidePolicy(new PostgresRetentionLock(), NullLogger<TodoCompletedViewerHidePolicy>.Instance);
+            result = await RunAsync(policy, scope.ServiceProvider, Live(), now);
+        }
+
+        Assert.Equal(1, result.Deleted);
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+            var hidden = await db.UserTodoViewPreferences.Where(p => p.HiddenByViewer).Select(p => p.TodoItemId).ToListAsync();
+            Assert.Equal(new[] { undatedId }, hidden);
+        }
+    }
+
+    [PostgresFact]
+    public async Task ViewerRelease_EndsTheWorkOfFriendsWhoFinishedTheirPart()
+    {
+        // The case behind the October 2026 report: a friend joined a shared task, completed it for
+        // themselves through the viewer-preference path (which left their worker row), and stayed
+        // listed as working on it for months — even after the task had left their own lists.
+        var (database, provider) = await CreateAsync();
+        await using var _ = database;
+        await using var __ = provider;
+        var now = DateTime.UtcNow;
+        var stillWorking = Guid.NewGuid();
+
+        Guid finishedId, workingId, deletedId;
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+            var finished = TodoItem.Create(Owner, "friend finished their part", sharedWithUserIds: new[] { Friend, stillWorking });
+            finished.AddWorker(Friend);
+            finished.AddWorker(stillWorking);
+            var working = TodoItem.Create(Owner, "friend still working", sharedWithUserIds: new[] { Friend });
+            working.AddWorker(Friend);
+            var deleted = TodoItem.Create(Owner, "deleted task keeps its rows for the purge", sharedWithUserIds: new[] { Friend });
+            deleted.AddWorker(Friend);
+            db.AddRange(finished, working, deleted);
+            await db.SaveChangesAsync();
+
+            db.UserTodoViewPreferences.AddRange(
+                // Finished long ago and already hidden by an earlier pass — still released.
+                new UserTodoViewPreference { ViewerId = Friend, TodoItemId = finished.Id, CompletedByViewer = true, CompletedByViewerAt = now.AddDays(-110), HiddenByViewer = true },
+                // A preference that is not a completion releases nothing.
+                new UserTodoViewPreference { ViewerId = Friend, TodoItemId = working.Id, HiddenByViewer = true },
+                new UserTodoViewPreference { ViewerId = Friend, TodoItemId = deleted.Id, CompletedByViewer = true, CompletedByViewerAt = now.AddDays(-1) });
+            Delete(deleted, now.AddDays(-1));
+            await db.SaveChangesAsync();
+            (finishedId, workingId, deletedId) = (finished.Id, working.Id, deleted.Id);
+        }
+
+        RetentionResult result;
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var policy = new TodoCompletedViewerReleasePolicy(new PostgresRetentionLock(), NullLogger<TodoCompletedViewerReleasePolicy>.Instance);
+            result = await RunAsync(policy, scope.ServiceProvider, Live(), now);
+        }
+
+        Assert.False(result.DryRun);
+        Assert.Equal(1, result.Scanned);
+        Assert.Equal(1, result.Deleted);
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<TodoDbContext>();
+            var workers = await db.Set<TodoItemWorker>()
+                .Select(w => new { w.TodoItemId, w.UserId })
+                .ToListAsync();
+            Assert.DoesNotContain(workers, w => w.TodoItemId == finishedId && w.UserId == Friend);
+            Assert.Contains(workers, w => w.TodoItemId == finishedId && w.UserId == stillWorking);
+            Assert.Contains(workers, w => w.TodoItemId == workingId && w.UserId == Friend);
+            Assert.Contains(workers, w => w.TodoItemId == deletedId && w.UserId == Friend);
+            // The completion itself, and the owner's task, are untouched.
+            Assert.True(await db.UserTodoViewPreferences.AnyAsync(p => p.TodoItemId == finishedId && p.CompletedByViewer));
+            Assert.True(await db.TodoItems.AnyAsync(t => t.Id == finishedId && !t.IsDeleted));
+        }
+    }
+
+    [PostgresFact]
     public async Task ProcessedMessagePurge_RemovesOnlySpentOutboxRows()
     {
         var (database, provider) = await CreateAsync();

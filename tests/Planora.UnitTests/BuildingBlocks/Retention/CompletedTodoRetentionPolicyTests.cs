@@ -36,6 +36,7 @@ public sealed class CompletedTodoRetentionPolicyTests
                 b.Ignore(t => t.Workers);
             });
             modelBuilder.Entity<UserTodoViewPreference>().HasKey(p => new { p.ViewerId, p.TodoItemId });
+            modelBuilder.Entity<TodoItemWorker>().HasKey(w => new { w.TodoItemId, w.UserId });
         }
     }
 
@@ -132,5 +133,69 @@ public sealed class CompletedTodoRetentionPolicyTests
         });
 
         Assert.Equal(1, result.Scanned);
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    public async Task ViewerHidePolicy_TreatsAnUndatedPersonalCompletionAsExpired()
+    {
+        await using var db = NewDb();
+        var activeTask = TodoItem.Create(Owner, "shared, owner still active");
+        db.Add(activeTask);
+        await db.SaveChangesAsync();
+        db.Add(new UserTodoViewPreference { ViewerId = Guid.NewGuid(), TodoItemId = activeTask.Id, CompletedByViewer = true, CompletedByViewerAt = null });
+        await db.SaveChangesAsync();
+
+        var policy = new TodoCompletedViewerHidePolicy(new AlwaysGrantLock(), NullLogger<TodoCompletedViewerHidePolicy>.Instance);
+        var result = await RunAsync(policy, db, new RetentionOptions
+        {
+            DryRun = true, PurgeCompletedTasks = true, CompletedTaskDays = 30, MaxDeletionsPerRun = 1000
+        });
+
+        Assert.Equal(1, result.Scanned);
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
+    public async Task ViewerReleasePolicy_SelectsWorkersWhoCompletedTheTaskForThemselves()
+    {
+        await using var db = NewDb();
+        var finisher = Guid.NewGuid();
+        var worker = Guid.NewGuid();
+
+        var active = TodoItem.Create(Owner, "shared, owner still active");
+        var deleted = TodoItem.Create(Owner, "deleted");
+        deleted.MarkAsDeleted(Owner);
+        var parent = TodoItem.Create(Owner, "branch");
+        var subtask = TodoItem.CreateSubtask(parent, Owner, "step", null);
+        db.AddRange(active, deleted, parent, subtask);
+        await db.SaveChangesAsync();
+
+        var joined = Now.AddDays(-50);
+        db.AddRange(
+            new TodoItemWorker { TodoItemId = active.Id, UserId = finisher, JoinedAt = joined },   // completed → eligible
+            new TodoItemWorker { TodoItemId = active.Id, UserId = worker, JoinedAt = joined },     // still working → kept
+            new TodoItemWorker { TodoItemId = deleted.Id, UserId = finisher, JoinedAt = joined },  // task deleted → kept for the purge
+            new TodoItemWorker { TodoItemId = subtask.Id, UserId = finisher, JoinedAt = joined }); // subtask in-work is its own thing
+        db.AddRange(
+            new UserTodoViewPreference { ViewerId = finisher, TodoItemId = active.Id, CompletedByViewer = true, CompletedByViewerAt = Now.AddDays(-2) },
+            new UserTodoViewPreference { ViewerId = worker, TodoItemId = active.Id, HiddenByViewer = true },
+            new UserTodoViewPreference { ViewerId = finisher, TodoItemId = deleted.Id, CompletedByViewer = true, CompletedByViewerAt = Now.AddDays(-2) },
+            new UserTodoViewPreference { ViewerId = finisher, TodoItemId = subtask.Id, CompletedByViewer = true, CompletedByViewerAt = Now.AddDays(-2) });
+        await db.SaveChangesAsync();
+
+        var policy = new TodoCompletedViewerReleasePolicy(new AlwaysGrantLock(), NullLogger<TodoCompletedViewerReleasePolicy>.Instance);
+        var disabled = new TodoCompletedViewerReleasePolicy(new AlwaysGrantLock(), NullLogger<TodoCompletedViewerReleasePolicy>.Instance)
+            .IsEnabled(new RetentionOptions { PurgeCompletedTasks = false });
+        var result = await RunAsync(policy, db, new RetentionOptions
+        {
+            DryRun = true, PurgeCompletedTasks = true, CompletedTaskDays = 30, MaxDeletionsPerRun = 1000
+        });
+
+        Assert.Equal("completed-todo-viewer-release", policy.Name);
+        Assert.False(disabled);
+        Assert.True(result.DryRun);
+        Assert.Equal(1, result.Scanned);
+        Assert.Equal(0, result.Deleted);
     }
 }

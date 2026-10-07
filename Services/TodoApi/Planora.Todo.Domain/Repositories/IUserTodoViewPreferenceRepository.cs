@@ -6,6 +6,17 @@ namespace Planora.Todo.Domain.Repositories
     {
         Task<List<Guid>> GetHiddenTodoIdsAsync(Guid viewerId, CancellationToken cancellationToken = default);
         Task<List<Guid>> GetCompletedTodoIdsByViewerAsync(Guid viewerId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// The tasks this viewer completed for themselves inside the window (inclusive bounds, either
+        /// optional). The completed archive's date filter matches a friend's task by this while its
+        /// owner has not closed it, because until then the task has no <c>CompletedAt</c>.
+        /// </summary>
+        Task<List<Guid>> GetCompletedTodoIdsByViewerInWindowAsync(
+            Guid viewerId,
+            DateTime? completedFrom,
+            DateTime? completedTo,
+            CancellationToken cancellationToken = default);
         Task<IReadOnlyDictionary<Guid, UserTodoViewPreference>> GetByViewerIdAsync(Guid viewerId, CancellationToken cancellationToken = default);
         Task<IReadOnlyDictionary<Guid, UserTodoViewPreference>> GetByViewerIdForTodosAsync(
             Guid viewerId,

@@ -24,10 +24,12 @@ export interface DeletionCountdown {
 }
 
 /**
- * Given a task's global completion timestamp, return when it will be auto-deleted and
- * how many days remain. Returns `null` when there is nothing to show:
- *  - no `completedAt` (task not globally completed — e.g. a viewer-only completion, which
- *    is *hidden* rather than deleted, so no deletion countdown applies), or
+ * Given when a task became completed for the reader, return when it will be auto-deleted and
+ * how many days remain. For a friend's task the reader completed only for themselves that is
+ * their own completion time (the API reports it as `completedAt`): retention removes such a
+ * task from the reader's lists after the same window. Returns `null` when there is nothing to
+ * show:
+ *  - no `completedAt` (the task is not completed for this reader), or
  *  - an unparseable timestamp.
  */
 export function getDeletionCountdown(

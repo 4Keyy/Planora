@@ -109,12 +109,19 @@ namespace Planora.Todo.Infrastructure.Retention
 
     /// <summary>
     /// The per-holder half of the shared-task rule (decision #2): when a task's owner has <b>not</b> closed
-    /// it globally but a viewer marked it done for themselves, hide it from that viewer's list once their
-    /// personal completion is older than <see cref="RetentionOptions.CompletedTaskDays"/>. The task stays
-    /// alive for the owner; if the owner later completes it globally, <see cref="CompletedTodoPolicy"/>
-    /// deletes it for everyone. Reuses the existing per-viewer hide flag, so the read pipeline already
-    /// honours it.
+    /// it globally but a viewer marked it done for themselves, it leaves that viewer's lists once their
+    /// personal completion is older than <see cref="RetentionOptions.CompletedTaskDays"/> — the same window,
+    /// counted from the same moment, as the "deletes in N days" badge the archive shows them (the list read
+    /// reports that moment as the task's <c>completedAt</c> for this viewer). The task stays alive for the
+    /// owner; if the owner later completes it globally, <see cref="CompletedTodoPolicy"/> deletes it for
+    /// everyone.
     /// </summary>
+    /// <remarks>
+    /// The marker is the per-viewer hide flag. A hidden shared task is excluded from the completed archive
+    /// before counting and paging, and a viewer-completed one never appears among active tasks, so the
+    /// task is gone from every list of this viewer — never shown as a "Hidden task" placeholder. A personal
+    /// completion with no timestamp has no age to measure; it is treated as expired rather than kept forever.
+    /// </remarks>
     public sealed class TodoCompletedViewerHidePolicy : IRetentionPolicy
     {
         private readonly IRetentionLock _lock;
@@ -138,12 +145,13 @@ namespace Planora.Todo.Infrastructure.Retention
             var db = scopedServices.GetRequiredService<DbContext>();
             var cutoff = context.UtcNow.AddDays(-context.Options.CompletedTaskDays);
 
-            // A preference row is hide-eligible when the viewer personally completed the task ≥ cutoff ago,
-            // hasn't already hidden it, and the underlying task is still alive and NOT globally completed
-            // (a globally-completed task is handled by CompletedTodoPolicy, which deletes it for all).
+            // A preference row is hide-eligible when the viewer personally completed the task ≥ cutoff ago
+            // (or at an unknown time), hasn't already hidden it, and the underlying task is still alive and
+            // NOT globally completed (a globally-completed task is handled by CompletedTodoPolicy, which
+            // deletes it for all).
             System.Linq.Expressions.Expression<Func<UserTodoViewPreference, bool>> eligible =
                 p => p.CompletedByViewer
-                     && p.CompletedByViewerAt < cutoff
+                     && (p.CompletedByViewerAt == null || p.CompletedByViewerAt < cutoff)
                      && !p.HiddenByViewer
                      && db.Set<TodoItem>().Any(t => t.Id == p.TodoItemId && !t.IsDeleted && t.Status != TodoStatus.Done);
 
@@ -154,6 +162,54 @@ namespace Planora.Todo.Infrastructure.Retention
                 // nothing because HiddenByViewer is now true, so the executor's loop terminates.
                 (batch, ct) => db.Set<UserTodoViewPreference>().Where(eligible)
                     .ExecuteUpdateAsync(s => s.SetProperty(p => p.HiddenByViewer, true), ct),
+                _logger, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Ends the participation of a friend who has finished their part. A viewer who marks a friend's task
+    /// done for themselves is no longer working on it (the status path always removed their worker row;
+    /// the viewer-preference path the UI uses did not, until October 2026). Such a row left them listed as
+    /// working on the owner's task indefinitely — and once their completion expired and the task left their
+    /// lists, they had no way left to leave it. This removes the worker row of every viewer whose personal
+    /// completion is recorded on a live top-level task, whatever its age; new completions remove it at once.
+    /// </summary>
+    public sealed class TodoCompletedViewerReleasePolicy : IRetentionPolicy
+    {
+        private readonly IRetentionLock _lock;
+        private readonly ILogger<TodoCompletedViewerReleasePolicy> _logger;
+
+        public TodoCompletedViewerReleasePolicy(IRetentionLock retentionLock, ILogger<TodoCompletedViewerReleasePolicy> logger)
+        {
+            _lock = retentionLock;
+            _logger = logger;
+        }
+
+        public string Name => "completed-todo-viewer-release";
+
+        public bool IsEnabled(RetentionOptions options) => options.PurgeCompletedTasks;
+
+        public Task<RetentionResult> ExecuteAsync(
+            IServiceProvider scopedServices,
+            RetentionContext context,
+            CancellationToken cancellationToken)
+        {
+            var db = scopedServices.GetRequiredService<DbContext>();
+
+            // The worker belongs to a viewer who completed the task for themselves, and the task is a
+            // live branch root (subtask completion is global and has no per-viewer state).
+            System.Linq.Expressions.Expression<Func<TodoItemWorker, bool>> eligible =
+                w => db.Set<UserTodoViewPreference>().Any(p =>
+                         p.ViewerId == w.UserId && p.TodoItemId == w.TodoItemId && p.CompletedByViewer)
+                     && db.Set<TodoItem>().Any(t =>
+                         t.Id == w.TodoItemId && !t.IsDeleted && t.ParentTodoId == null && t.UserId != w.UserId);
+
+            return RetentionExecutor.RunAsync(
+                Name, db, _lock, context,
+                ct => db.Set<TodoItemWorker>().CountAsync(eligible, ct),
+                // Set-based delete in one statement (bounded by the tripwire); the second pass matches
+                // nothing, so the executor's loop terminates.
+                (batch, ct) => db.Set<TodoItemWorker>().Where(eligible).ExecuteDeleteAsync(ct),
                 _logger, cancellationToken);
         }
     }

@@ -49,6 +49,15 @@ describe("TaskDeletionBadge", () => {
     expect(badge.className).toContain("text-warn")
   })
 
+  it("counts a friend's task the reader completed for themselves, and says it stays with its author", () => {
+    // The API reports the reader's own completion time as completedAt for such a task.
+    const completed = new Date(Date.now() - 25 * DAY).toISOString() // 5 days left
+    render(<TaskDeletionBadge completedAt={completed} personal />)
+    const badge = screen.getByText("deletes in 5 days")
+    expect(badge.getAttribute("title")).toMatch(/Leaves your completed tasks automatically on .+\. It stays with its author\./)
+    expect(screen.getByLabelText(/^Leaves your completed tasks on /)).toBe(badge)
+  })
+
   it("keeps reading 'deletes today' once the window has ended, until the hourly pass removes it", () => {
     const completed = new Date(Date.now() - 35 * DAY).toISOString() // past the window
     render(<TaskDeletionBadge completedAt={completed} />)

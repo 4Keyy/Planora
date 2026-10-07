@@ -285,6 +285,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                             Status = completedByViewer ? "Done" : todoItem.Status.Display(),
                             IsCompleted = completedByViewer,
                             IsCompletedByViewer = completedByViewer,
+                            // As in the lists: completed for this viewer at the moment they completed it.
+                            CompletedAt = todoItem.CompletedAt ?? (completedByViewer ? preference.CompletedByViewerAt : null),
                             WorkerCount = todoItem.Workers.Count,
                             WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
                             RequiredWorkers = todoItem.RequiredWorkers,

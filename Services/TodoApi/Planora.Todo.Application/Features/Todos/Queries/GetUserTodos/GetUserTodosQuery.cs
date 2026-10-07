@@ -15,9 +15,11 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
         // the client filters them out of the displayed grid by ParentTodoId.
         bool IncludeSubtasks = false,
         // Inclusive completion-date window (UTC instants). When set, only tasks whose CompletedAt
-        // falls within [CompletedFrom, CompletedTo] are returned — powers the completed archive's
-        // "find a task by roughly when it was finished" date-range search. Either bound may stand
-        // alone (open-ended on the missing side).
+        // falls within [CompletedFrom, CompletedTo] are returned — or, for a friend's task the
+        // viewer completed only for themselves (no CompletedAt until its owner closes it), whose
+        // viewer completion time does. Powers the completed archive's "find a task by roughly when
+        // it was finished" date-range search. Either bound may stand alone (open-ended on the
+        // missing side).
         DateTime? CompletedFrom = null,
         DateTime? CompletedTo = null) : IQuery<PagedResult<TodoItemDto>>;
 }

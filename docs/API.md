@@ -682,18 +682,26 @@ by `parentTodoId`. `GET /public` has no such switch — it always excludes subta
 `completedFrom` / `completedTo` are an **optional, inclusive completion-date window** (ISO 8601
 instants) used by the completed archive's "find a task by roughly when it was finished" search. Each
 bound is normalized to UTC server-side and compared against `CompletedAt`; either may stand alone
-(open-ended on the missing side). A task with no `CompletedAt` is excluded the moment either bound is
-set. The bounds combine with `isCompleted=true` and the other filters. The frontend sends the local
+(open-ended on the missing side). A friend's task the caller completed only for themselves has no
+`CompletedAt` until its owner closes it and is compared by the caller's own completion time instead; any
+other task with no completion time is excluded the moment either bound is set. The bounds combine with `isCompleted=true` and the other filters. The frontend sends the local
 day edges (start-of-day → end-of-day) so a single calendar day matches every task finished that day
 regardless of the stored time-of-day.
 
 Ordering is newest-first by `createdAt`, except when the query asks only for completed tasks
 (`isCompleted=true`, or a `status` list containing nothing but `Done`) — then it is newest-first by
-`completedAt`, falling back to `updatedAt` and `createdAt`.
+`completedAt` (for a friend's task the caller completed only for themselves, the caller's own completion
+time), falling back to `updatedAt` and `createdAt`.
+
+`completedAt` in a list row is when the task became completed **for the caller**: the owner's global
+completion, or — while the owner has not closed it — the moment the caller completed it for themselves
+(`isCompletedByViewer: true`, `ownerCompleted: false`). The completed archive's deletion countdown and the
+retention pass both count from it. The `PUT /{id}` viewer-completion response reports it the same way.
 
 Completed-only requests exclude masked shared/public tasks before counting and paging:
-viewer-hidden preferences (including expired personal completions) and the owner's legacy
-global hidden flag keep those rows out of the archive. Personal completion stays set, so
+viewer-hidden preferences (including personal completions past the retention window) and the owner's
+legacy global hidden flag keep those rows out of the archive, so they never appear as "Hidden task"
+placeholders there. Personal completion stays set, so
 retention-hidden tasks do not return to Active. A private owner's hidden completed task
 remains readable; another owner's legacy global hidden flag does not hide their task from
 a viewer. Active/mixed lists retain the existing hidden-task projection.
@@ -915,7 +923,9 @@ Viewer preference body (non-owner only; the owner gets `OWNER_MUST_USE_HIDDEN_EN
 ```
 
 - `completedByViewer: true` marks the shared/public task done **for this viewer only** (writes
-  `UserTodoViewPreference.CompletedByViewer`; never touches the owner's `TodoItem`).
+  `UserTodoViewPreference.CompletedByViewer` and `CompletedByViewerAt`; never touches the owner's task
+  fields) and ends the viewer's participation: their worker row is removed in the same save, as on the
+  `PUT /{id}` status path.
 - `completedByViewer: false` (reopen) is **allowed** — a viewer may return *their own* completion to
   active — **unless the author has completed the whole task globally** (`Status == Done`). In that
   case the task is closed for everyone and the request fails with

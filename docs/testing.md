@@ -76,7 +76,9 @@ The suites in `tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres` run ev
 dry-run off, the real advisory lock — on each service's own `DbContext` model, because the SQL that deletes
 data (`ExecuteDelete`, `ExecuteUpdate`, `pg_try_advisory_lock`) is PostgreSQL-only and EF InMemory stops
 before it. They cover completed-task deletion with its outbox cascade, the soft-delete purges (children
-before parents, viewer rows, shares and owned tags with them), the per-viewer hide, the notification and
+before parents, viewer rows, shares and owned tags with them), the per-viewer hide (including a completion
+with no timestamp), the release of workers who completed a task for themselves, the completed archive's
+order and date window for such tasks (`TodoArchivePostgresTests`), the notification and
 delivery windows, deleted-account purge with every dependent row and the avatar sweep, token and recovery
 code housekeeping, the opt-in vectors, the outbox/inbox purge, what a deleted account leaves on other
 people's tasks, and the lock itself. Each test creates and drops its own database; without the variable

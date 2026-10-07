@@ -928,7 +928,7 @@ Allow friends to claim participation slots on public or shared tasks. The task o
 | Capacity check | `IsCapacityFull` when `RequiredWorkers.HasValue && Workers.Count >= RequiredWorkers - 1` |
 | Join guards | Requires authentication and public/shared visibility; non-public joins require accepted friendship, while the current public join path skips this check and returns a full DTO. This is an authorization inconsistency, not a guarantee of friend-only access. Capacity and duplicate membership are checked. |
 | Leave guard | A top-level owner cannot leave; a subtask owner can. Missing membership throws `EntityNotFoundException`; removing one's existing membership does not require a fresh friendship check. |
-| Auto-removal on completion | When a viewer marks a shared/public task as Done via `UpdateTodoCommandHandler`, their worker row is automatically removed (guarded by `Workers.Any(w => w.UserId == userId)` to be a no-op when not a worker). Owner completion does not trigger removal because owners are never stored as workers. |
+| Auto-removal on completion | When a viewer marks a shared/public task done for themselves, their worker row is removed in the same save — on the viewer-preference path the UI uses (`SetViewerPreferenceCommandHandler`, which loads the task tracked when completing) and on the `PUT /{id}` status path (`UpdateTodoCommandHandler`); both are no-ops when the viewer is not a worker. Until October 2026 only the status path did it, so a friend who completed a task from the UI stayed listed as working on it; `TodoCompletedViewerReleasePolicy` removes those rows on its next pass. Reopening does not re-add the worker. Owner completion does not trigger removal because owners are never stored as workers. |
 | Active worker task count | `ITodoRepository.GetActiveWorkerTaskCountAsync(userId)` returns the number of non-deleted, non-done tasks the user is currently working on. Called in `JoinTodoCommandHandler` and `LeaveTodoCommandHandler` after `SaveChangesAsync`; the result is stored in a local variable and logged at `Information` level — not returned to the client. |
 | Eviction on access change | Domain share replacement removes workers outside explicit shares plus owner, including on public tasks; making private runs the same cleanup; capacity reduction uses newest-joined-first eviction. The friendship-removal consumer currently removes shares only, leaving worker rows until another cleanup path. |
 | EF Core persistence | Join/Leave handlers use `GetByIdWithIncludesTrackedAsync` (tracked query, no `AsNoTracking`). Change tracking correctly marks new workers as `Added` → `INSERT` and removed workers as orphaned `Deleted` → `DELETE` via `OnDelete(Cascade)`. No explicit `DbSet.Update()` call needed or made. |
@@ -1084,7 +1084,12 @@ The frontend offers Duplicate to non-owners on completed task cards.
 | Participant | Completion stored in | Affects other participants? |
 |---|---|---|
 | Owner | `TodoItem.Status` / `CompletedAt`; `IsCompleted` is derived | Global completion closes the task for everyone; shared/public reopening clears viewer completion |
-| Non-owner viewer | `UserTodoViewPreference.CompletedByViewer` | No |
+| Non-owner viewer | `UserTodoViewPreference.CompletedByViewer` / `CompletedByViewerAt` | No — except that it ends the viewer's own participation (their worker row goes) |
+
+For the viewer, a task they completed only for themselves is completed at `CompletedByViewerAt`: list
+reads report it as the row's `completedAt` while the owner has not closed the task (the owner's own
+`CompletedAt` wins once they do), the completed archive orders and date-filters by it, and the
+retention window is counted from it.
 
 `UserTodoViewPreference` is upserted via `UserTodoViewPreferenceRepository.UpsertAsync`, which checks the EF Core change-tracker for an already-tracked instance before falling back to an `AsNoTracking` read, avoiding the double-query identity-map bug where the same object reference would cause all property assignments to be no-ops.
 
@@ -1458,12 +1463,22 @@ notifications from June were still in the bell.
 - **Completed tasks auto-delete.** A task left completed for `CompletedTaskDays` (default 30) is deleted
   within the hour its window ends — through the same cascade as a manual delete, so its comment timeline
   and notifications go too, and the whole branch (all subtasks, any status) goes with the root.
-  Shared/public tasks are deleted for everyone once the owner's completion is ≥30 days old; a task a friend
-  completed only for themselves (owner still active) is instead hidden from that friend after 30 days.
-  Hidden shared/public rows are excluded from the completed archive before counting and paging;
-  the personal completion stays set, so they do not reappear in Active. The
+  Shared/public tasks are deleted for everyone once the owner's completion is ≥30 days old. A friend's task
+  you completed only for yourself (its owner still working on it) leaves **your** lists 30 days after *you*
+  completed it, and stays with its owner: the archive shows it with the same countdown, counted from your
+  completion — the list reports that moment as the task's `completedAt` for you, and orders and
+  date-filters the archive by it — and then the hourly pass marks it hidden for you
+  (`TodoCompletedViewerHidePolicy`). Hidden shared/public rows are excluded from the completed archive
+  before counting and paging, and the personal completion stays set, so the task does not reappear in
+  Active either — it is gone, never shown as a "Hidden task" placeholder. A personal completion with no
+  recorded time counts as expired. Until October 2026 such tasks showed no countdown at all, sorted by
+  their owner's last edit, and — on a server older than the archive exclusion — sat in the archive as
+  "Hidden task" cards for good. Finishing your part also ends your participation: completing a friend's
+  task removes your worker row, and `TodoCompletedViewerReleasePolicy` removes the ones older completions
+  left behind, so the owner no longer sees a friend "in work" who finished months ago. The
   completed archive shows a small "deletes in N days" badge (`components/todos/task-deletion-badge.tsx`) on
-  tasks that are on the delete path, counted in calendar days of the reader's time zone: "deletes today"
+  tasks that are on the delete path — on a task you completed only for yourself its tooltip says it leaves
+  your completed tasks and stays with its author — counted in calendar days of the reader's time zone: "deletes today"
   when the window ends today (or has just ended and is waiting for the hourly pass), "deletes tomorrow" for
   any time tomorrow. It used to round the remaining hours up, which said "tomorrow" for a task leaving
   that evening and "today" only once its window had passed.

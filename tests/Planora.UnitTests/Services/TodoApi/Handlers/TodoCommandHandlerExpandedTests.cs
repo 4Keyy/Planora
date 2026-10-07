@@ -775,6 +775,46 @@ public class TodoCommandHandlerExpandedTests
     }
 
     [Fact]
+    [Trait("TestType", "Regression")]
+    public async Task SetViewerPreference_CompletingEndsTheViewersWorkOnTheTask()
+    {
+        // The UI completes a friend's task through this path. It used to leave the viewer's worker row,
+        // so the owner kept seeing them "in work" for good — the status path always removed it.
+        var ownerId = Guid.NewGuid();
+        var viewerId = Guid.NewGuid();
+        var otherWorker = Guid.NewGuid();
+        var todo = TodoItem.Create(ownerId, "Shared task", sharedWithUserIds: new[] { viewerId, otherWorker });
+        todo.AddWorker(viewerId);
+        todo.AddWorker(otherWorker);
+        var fixture = new TodoCommandFixture(viewerId);
+        UserTodoViewPreference? upserted = null;
+
+        fixture.TodoRepository
+            .Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(todo);
+        fixture.FriendshipService
+            .Setup(x => x.AreFriendsAsync(viewerId, ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        fixture.ViewerPreferences
+            .Setup(x => x.UpsertAsync(It.IsAny<UserTodoViewPreference>(), It.IsAny<CancellationToken>()))
+            .Callback<UserTodoViewPreference, CancellationToken>((preference, _) => upserted = preference)
+            .Returns(Task.CompletedTask);
+
+        var result = await fixture.CreateSetViewerPreferenceHandler().Handle(
+            new SetViewerPreferenceCommand(todo.Id, CompletedByViewer: true),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value!.CompletedByViewer);
+        Assert.NotNull(upserted?.CompletedByViewerAt);
+        Assert.DoesNotContain(todo.Workers, w => w.UserId == viewerId);
+        Assert.Contains(todo.Workers, w => w.UserId == otherWorker);
+        // Loaded tracked so the worker removal saves with the completion, in one unit.
+        fixture.TodoRepository.Verify(x => x.GetByIdWithIncludesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        fixture.UnitOfWork.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     [Trait("TestType", "Security")]
     public async Task SetViewerPreference_ViewerMayReopenOwnCompletion_UnlessAuthorCompletedGlobally()
     {

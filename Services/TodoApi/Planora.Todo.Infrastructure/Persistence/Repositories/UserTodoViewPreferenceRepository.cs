@@ -29,6 +29,22 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<List<Guid>> GetCompletedTodoIdsByViewerInWindowAsync(
+            Guid viewerId,
+            DateTime? completedFrom,
+            DateTime? completedTo,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.UserTodoViewPreferences
+                .Where(p => p.ViewerId == viewerId
+                            && p.CompletedByViewer
+                            && p.CompletedByViewerAt.HasValue
+                            && (!completedFrom.HasValue || p.CompletedByViewerAt.Value >= completedFrom.Value)
+                            && (!completedTo.HasValue || p.CompletedByViewerAt.Value <= completedTo.Value))
+                .Select(p => p.TodoItemId)
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<IReadOnlyDictionary<Guid, UserTodoViewPreference>> GetByViewerIdAsync(Guid viewerId, CancellationToken cancellationToken = default)
         {
             return await _context.UserTodoViewPreferences

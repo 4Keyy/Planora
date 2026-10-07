@@ -163,6 +163,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
             int pageNumber,
             int pageSize,
             bool sortCompletedByCompletionTime,
+            Guid? completionViewerId,
             CancellationToken cancellationToken = default)
         {
             var (safePageNumber, safePageSize) = PaginationParameters.Normalize(pageNumber, pageSize);
@@ -173,12 +174,34 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
 
             var totalCount = await query.CountAsync(cancellationToken);
 
-            query = sortCompletedByCompletionTime
-                ? query
+            if (!sortCompletedByCompletionTime)
+            {
+                query = query.OrderByDescending(x => x.CreatedAt);
+            }
+            else if (completionViewerId is Guid viewerId)
+            {
+                // A friend's task the viewer completed only for themselves has no CompletedAt (its
+                // owner has not closed it), so it sorts by the viewer's own completion time: a
+                // correlated scalar subquery inside one COALESCE, still ordered and paged in SQL.
+                var preferences = Context.Set<UserTodoViewPreference>();
+                query = query
+                    .OrderByDescending(x => x.CompletedAt
+                        ?? preferences
+                            .Where(p => p.ViewerId == viewerId && p.TodoItemId == x.Id && p.CompletedByViewer)
+                            .Select(p => p.CompletedByViewerAt)
+                            .FirstOrDefault()
+                        ?? x.UpdatedAt
+                        ?? x.CreatedAt)
+                    .ThenByDescending(x => x.UpdatedAt ?? x.CreatedAt)
+                    .ThenByDescending(x => x.CreatedAt);
+            }
+            else
+            {
+                query = query
                     .OrderByDescending(x => x.CompletedAt ?? x.UpdatedAt ?? x.CreatedAt)
                     .ThenByDescending(x => x.UpdatedAt ?? x.CreatedAt)
-                    .ThenByDescending(x => x.CreatedAt)
-                : query.OrderByDescending(x => x.CreatedAt);
+                    .ThenByDescending(x => x.CreatedAt);
+            }
 
             var items = await query
                 .Skip((safePageNumber - 1) * safePageSize)

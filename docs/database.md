@@ -441,7 +441,8 @@ lock + tripwire. Every policy below is run live on PostgreSQL by the `Retention/
 |---|---|---|---|
 | any soft-deleted row (`TodoItems`, `Categories`, `comments`, …) | owning service | `IsDeleted` and `DeletedAt` older than `SoftDeleteGraceDays` (7) | `(IsDeleted, DeletedAt)` |
 | `TodoItems` (completed) | Todo | `Status=Done` and `CompletedAt` older than `CompletedTaskDays` (30) → soft-deleted via cascade, then purged after grace | `(UserId, Status, IsDeleted, CompletedAt)` |
-| `user_todo_view_preferences` | Todo | deleted alongside their task (no FK/cascade, so purged explicitly); hidden per-viewer after 30 days for viewer-only completions | `(TodoItemId, ViewerId)` |
+| `user_todo_view_preferences` | Todo | deleted alongside their task (no FK/cascade, so purged explicitly); a viewer-only completion is hidden for that viewer `CompletedTaskDays` (30) after `CompletedByViewerAt` — or at once when it has no timestamp — which removes the task from all of that viewer's lists | `(TodoItemId, ViewerId)` |
+| `todo_item_workers` (a viewer who completed the task) | Todo | removed whenever the same viewer's preference row records a personal completion on a live top-level task (`TodoCompletedViewerReleasePolicy`) — finishing your part ends your work on it | PK `(TodoItemId, UserId)` |
 | `Notifications` (read) | Realtime | `IsRead` and `ReadAtUtc` older than `ReadNotificationDays` (3) | `(IsRead, ReadAtUtc)` |
 | `Notifications` (unread) | Realtime | `!IsRead` and `OccurredOnUtc` older than `UnreadNotificationDays` (90) | `(IsRead, OccurredOnUtc)` |
 | `Notifications` / `NotificationDeliveries` | Realtime | cascade-deleted when their task or user is deleted; deliveries also purged after `NotificationDeliveryDays` (30) | `(DeliveredAtUtc)` |

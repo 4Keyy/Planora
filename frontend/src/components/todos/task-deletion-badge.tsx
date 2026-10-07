@@ -4,18 +4,25 @@ import { getDeletionCountdown } from "@/utils/deletion-countdown"
 import { formatDateLong } from "@/lib/datetime"
 
 interface TaskDeletionBadgeProps {
-  /** The task's global completion timestamp (`todo.completedAt`). */
+  /** When the task became completed for the reader (`todo.completedAt`). */
   completedAt?: string | null
+  /**
+   * The reader completed a friend's task only for themselves. When the window ends it leaves the
+   * reader's lists, not the author's, and the tooltip says so.
+   */
+  personal?: boolean
   className?: string
 }
 
 /**
  * Small, non-intrusive pill on a completed task that tells the user it will be auto-deleted, and when.
- * Renders nothing unless the task is actually on the deletion path (a global completion timestamp is
- * present); a viewer-only completion has no `completedAt` and is hidden rather than deleted, so no badge
- * appears. The colour warms up in the final three days. The exact date lives in the tooltip / aria-label.
+ * Renders nothing without a completion time. A friend's task the reader completed only for themselves
+ * carries the reader's own completion time as `completedAt`, because retention counts their 30 days
+ * from that moment and then removes the task from their lists — so it shows the same countdown, with a
+ * tooltip saying it stays with its author. The colour warms up in the final three days. The exact date
+ * lives in the tooltip / aria-label.
  */
-export function TaskDeletionBadge({ completedAt, className }: TaskDeletionBadgeProps) {
+export function TaskDeletionBadge({ completedAt, personal = false, className }: TaskDeletionBadgeProps) {
   const info = getDeletionCountdown(completedAt)
   if (!info) return null
 
@@ -28,11 +35,17 @@ export function TaskDeletionBadge({ completedAt, className }: TaskDeletionBadgeP
     : `deletes in ${daysLeft} days`
 
   const exactDate = formatDateLong(deleteAt.toISOString())
+  const title = personal
+    ? `Leaves your completed tasks automatically on ${exactDate}. It stays with its author.`
+    : `This task is deleted automatically on ${exactDate}`
+  const spoken = personal
+    ? `Leaves your completed tasks on ${exactDate}`
+    : `This task is deleted on ${exactDate}`
 
   return (
     <span
-      title={`This task is deleted automatically on ${exactDate}`}
-      aria-label={`This task is deleted on ${exactDate}`}
+      title={title}
+      aria-label={spoken}
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-caption font-medium leading-none select-none",
         urgent

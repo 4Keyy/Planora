@@ -50,7 +50,12 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
         {
             var viewerId = _currentUserContext.UserId;
 
-            var todoItem = await _repository.GetByIdWithIncludesAsync(request.TodoId, cancellationToken)
+            // Completing loads the aggregate tracked: finishing your part also ends your work on the
+            // task (below), and that must be saved in the same unit as the completion itself.
+            var completing = request.CompletedByViewer == true;
+            var todoItem = await (completing
+                    ? _repository.GetByIdWithIncludesTrackedAsync(request.TodoId, cancellationToken)
+                    : _repository.GetByIdWithIncludesAsync(request.TodoId, cancellationToken))
                 ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
             if (todoItem.UserId == viewerId)
@@ -118,6 +123,13 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
 
                 preference.CompletedByViewer = request.CompletedByViewer.Value;
                 preference.CompletedByViewerAt = request.CompletedByViewer.Value ? DateTime.UtcNow : (DateTime?)null;
+
+                // A friend who has finished their part is no longer working on the task — the same
+                // rule as the status path (UpdateTodo). Without it the owner kept seeing them "in
+                // work" for good, and once the completion expired and the task left the friend's
+                // lists, the friend had no way left to leave it.
+                if (completing && todoItem.Workers.Any(w => w.UserId == viewerId))
+                    todoItem.RemoveWorker(viewerId);
             }
 
             await _viewerPreferenceRepository.UpsertAsync(preference, cancellationToken);

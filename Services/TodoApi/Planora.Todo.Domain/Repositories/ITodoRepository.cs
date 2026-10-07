@@ -30,11 +30,19 @@ namespace Planora.Todo.Domain.Repositories
         Task<IReadOnlyList<TodoItem>> FindWithIncludesAsync(
             Expression<Func<TodoItem, bool>> predicate,
             CancellationToken cancellationToken = default);
+        /// <summary>
+        /// One page of <paramref name="predicate"/>'s matches with tags, shares and workers loaded.
+        /// <paramref name="sortCompletedByCompletionTime"/> orders the page newest-completed first; with a
+        /// <paramref name="completionViewerId"/> a task that viewer completed only for themselves sorts by
+        /// <em>their</em> completion time, because the owner's <c>CompletedAt</c> stays empty until the
+        /// owner closes the task.
+        /// </summary>
         Task<(IReadOnlyList<TodoItem> Items, int TotalCount)> GetPagedWithIncludesAsync(
             Expression<Func<TodoItem, bool>> predicate,
             int pageNumber,
             int pageSize,
             bool sortCompletedByCompletionTime,
+            Guid? completionViewerId,
             CancellationToken cancellationToken = default);
 
         /// <summary>
