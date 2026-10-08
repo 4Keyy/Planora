@@ -63,7 +63,7 @@ export function KeyboardConsole() {
   const [failed, setFailed] = useState(false)
   const [editing, setEditing] = useState<Todo | null>(null)
   const [openInTitleEdit, setOpenInTitleEdit] = useState(false)
-  const { pending, run, undo } = useUndoableAction()
+  const { pending, run, undo, hold, release } = useUndoableAction()
   const addToast = useToastStore((s) => s.addToast)
 
   const load = useCallback(async () => {
@@ -235,7 +235,7 @@ export function KeyboardConsole() {
         </div>
       </div>
 
-      <UndoBar pending={pending} onUndo={undo} />
+      <UndoBar pending={pending} onUndo={undo} onHold={hold} onRelease={release} />
 
       {editing && (
         <EditTodoModal

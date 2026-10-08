@@ -6,6 +6,8 @@ import { AlertTriangle, Users } from "lucide-react"
 import { StatRow } from "@/components/ui/stat-row"
 import { WeekBars } from "@/components/ui/week-bars"
 import { UndoBar, useUndoableAction, UNDO_WINDOW_MS } from "@/components/ui/undo-bar"
+import { Toaster } from "@/components/ui/toast"
+import { useToastStore } from "@/store/toast"
 
 beforeEach(() => {
   window.matchMedia = vi.fn().mockReturnValue({
@@ -105,6 +107,7 @@ describe("WeekBars", () => {
 
 // ─── UndoBar ────────────────────────────────────────────────────────────────
 
+// The offer is a notice: the bar puts it into the stack, and the `Toaster` draws it.
 function UndoHarness({ onCommit, onRollback }: { onCommit: () => void; onRollback: () => void }) {
   const undoable = useUndoableAction()
   return (
@@ -112,12 +115,15 @@ function UndoHarness({ onCommit, onRollback }: { onCommit: () => void; onRollbac
       <button onClick={() => undoable.run({ label: "Task deleted", commit: onCommit, rollback: onRollback })}>
         delete
       </button>
-      <UndoBar pending={undoable.pending} onUndo={undoable.undo} />
+      <UndoBar pending={undoable.pending} onUndo={undoable.undo} onHold={undoable.hold} onRelease={undoable.release} />
+      <Toaster />
     </>
   )
 }
 
 describe("UndoBar", () => {
+  afterEach(() => act(() => useToastStore.getState().clear()))
+
   it("shows nothing until something is pending", () => {
     render(<UndoBar pending={null} onUndo={vi.fn()} />)
     expect(screen.queryByRole("status")).toBeNull()
@@ -182,6 +188,25 @@ describe("UndoBar", () => {
     render(<UndoHarness onCommit={vi.fn()} onRollback={vi.fn()} />)
     await userEvent.click(screen.getByText("delete"))
     expect(await screen.findByRole("status")).toHaveAttribute("aria-live", "polite")
+  })
+
+  it("holds the window open while the notice stack is being read", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const commit = vi.fn()
+    render(<UndoHarness onCommit={commit} onRollback={vi.fn()} />)
+    await userEvent.click(screen.getByText("delete"))
+    const notice = await screen.findByRole("status")
+
+    // Reading it (focus inside the stack) stops the clock: nothing is sent, however long.
+    act(() => screen.getByRole("button", { name: /Undo/ }).focus())
+    act(() => vi.advanceTimersByTime(UNDO_WINDOW_MS * 2))
+    expect(commit).not.toHaveBeenCalled()
+    expect(notice).toBeInTheDocument()
+
+    // Leaving it starts the clock again from where it stopped.
+    act(() => (document.activeElement as HTMLElement).blur())
+    act(() => vi.advanceTimersByTime(UNDO_WINDOW_MS + 50))
+    await waitFor(() => expect(commit).toHaveBeenCalledTimes(1))
   })
 })
 

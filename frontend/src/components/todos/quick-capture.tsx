@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type R
 import { motion } from "@/components/ui/motion"
 import { Plus, X } from "lucide-react"
 import { useEnter } from "@/components/animated/entrance"
+import { useDockClearance } from "@/hooks/use-dock-clearance"
 import { Button } from "@/components/ui/button"
 import { SPRING_LAYOUT, TAP_PRESS, TWEEN_FAST } from "@/lib/animations"
 import { haptic } from "@/lib/haptics"
@@ -415,8 +416,12 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
  */
 function Dock({ className, children }: { className?: string; children: ReactNode }) {
   const entrance = useEnter("row", { at: 480 })
+  // Notices rise above whatever this holds (the bubble on phones, the open bar anywhere).
+  const strip = useRef<HTMLDivElement>(null)
+  useDockClearance(strip)
   return (
     <div
+      ref={strip}
       className={cn(
         // `sticky` and not `toast`: an undo bar or a toast must be able to cover
         // this, never the other way round.

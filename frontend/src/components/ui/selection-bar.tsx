@@ -1,11 +1,13 @@
 "use client"
 
+import { useRef } from "react"
 import { AnimatePresence } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import { X, type LucideIcon } from "lucide-react"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { EASE_OUT_EXPO, DURATION_UI, SPRING_STANDARD } from "@/lib/animations"
 import { cn } from "@/lib/utils"
+import { useDockClearance } from "@/hooks/use-dock-clearance"
 
 /**
  * What to do with the rows you have gathered.
@@ -58,20 +60,23 @@ export interface SelectionBarProps {
 
 export function SelectionBar({ count, actions, onClear, noun = "task", className }: SelectionBarProps) {
   const ordered = [...actions].sort((a, b) => Number(a.destructive ?? false) - Number(b.destructive ?? false))
+  // Notices rise above the bar while it is up, instead of covering it.
+  const strip = useRef<HTMLDivElement>(null)
+  useDockClearance(strip, count > 0)
 
   return (
     <AnimatePresence>
       {count > 0 && (
         <motion.div
+          ref={strip}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 12 }}
           transition={{ ...SPRING_STANDARD, opacity: { duration: DURATION_UI, ease: EASE_OUT_EXPO } }}
           /*
-           * `sticky`, not `toast`: a message about something that just happened has
-           * to be able to appear over this bar, including the undo bar that a bulk
-           * delete raises. The two would otherwise stack at the same height and the
-           * later one would win by source order, which is not a decision anyone made.
+           * `sticky`, not `toast`: notices sit above this layer. They also rise above
+           * the bar itself (`useDockClearance`), so the undo a bulk delete raises
+           * appears over the bar rather than on top of it.
            */
           className={cn(
             "pointer-events-none fixed inset-x-0 bottom-0 z-sticky flex justify-center px-4 pb-safe-4",

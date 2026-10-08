@@ -35,7 +35,7 @@ const initial = {
 describe("notifications store", () => {
   beforeEach(() => {
     useNotificationStore.setState({ ...initial, seen: new Set<string>() })
-    vi.spyOn(useToastStore.getState(), "addToast").mockImplementation(() => {})
+    vi.spyOn(useToastStore.getState(), "addToast").mockImplementation(() => "toast")
   })
   afterEach(() => vi.restoreAllMocks())
 

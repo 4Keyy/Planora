@@ -463,6 +463,18 @@
     opacity: 0;
     transition: opacity theme("transitionDuration.slow") var(--pl-ease-exit);
   }
+
+  /* A notice's time to act, draining round its mark (`components/ui/toast.tsx`). Linear: an
+     eased countdown misrepresents what is left. Its duration and play state come inline —
+     the clock stops while the stack is being read. */
+  .toast-countdown {
+    stroke-dashoffset: 0;
+    animation: toast-drain linear forwards;
+  }
+}
+
+@keyframes toast-drain {
+  to { stroke-dashoffset: var(--toast-ring); }
 }
 
 @keyframes enter-fade {

@@ -1018,7 +1018,7 @@ export default function DashboardPage() {
       */}
       <QuickCapture onCapture={handleQuickCapture} hidden={!!editingTodo || isCreateOpen} />
 
-      <UndoBar pending={undoable.pending} onUndo={undoable.undo} />
+      <UndoBar pending={undoable.pending} onUndo={undoable.undo} onHold={undoable.hold} onRelease={undoable.release} />
 
     </div>
   )

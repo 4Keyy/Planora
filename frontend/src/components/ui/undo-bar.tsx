@@ -1,11 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { AnimatePresence, useReducedMotion } from "framer-motion"
-import { motion } from "@/components/ui/motion"
-import { Undo2 } from "lucide-react"
-import { ModalPortal } from "@/components/ui/modal-portal"
-import { SPRING_STANDARD } from "@/lib/animations"
+import { useCallback, useEffect, useId, useRef, useState } from "react"
+import { useToastStore } from "@/store/toast"
 
 /**
  * Undo instead of confirm.
@@ -24,6 +20,11 @@ import { SPRING_STANDARD } from "@/lib/animations"
  * A confirmation still belongs on anything this cannot cover: deleting an account,
  * revoking every session. Those are irreversible on the server, and a five-second
  * window is not consent.
+ *
+ * The offer itself is a notice like any other (`components/ui/toast.tsx`): it used to be
+ * a black bar of its own at the bottom of the screen, which looked and moved nothing like
+ * the notices in the top corner. The window pauses while the notice stack is being read,
+ * and the ring round its mark is the window draining.
  */
 
 export interface PendingAction {
@@ -52,6 +53,9 @@ export function useUndoableAction() {
   const current = useRef<PendingAction | null>(null)
   const [pending, setPending] = useState<PendingAction | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** The window's clock: what is left of it, and when it last started running. */
+  const remaining = useRef(WINDOW_MS)
+  const startedAt = useRef(0)
 
   /**
    * Read-and-clear, the one way an action leaves the ref. Whoever gets it back
@@ -67,6 +71,21 @@ export function useUndoableAction() {
     return action
   }, [])
 
+  const schedule = useCallback(
+    (ms: number) => {
+      startedAt.current = Date.now()
+      timer.current = setTimeout(() => {
+        // Every early exit clears this timer, so an action that reaches here is
+        // still the pending one.
+        const expired = take()
+        if (!expired) return
+        void expired.commit()
+        setPending(null)
+      }, ms)
+    },
+    [take],
+  )
+
   const run = useCallback(
     (action: PendingAction) => {
       /**
@@ -79,17 +98,24 @@ export function useUndoableAction() {
 
       current.current = action
       setPending(action)
-      timer.current = setTimeout(() => {
-        // Every early exit clears this timer, so an action that reaches here is
-        // still the pending one.
-        const expired = take()
-        if (!expired) return
-        void expired.commit()
-        setPending(null)
-      }, WINDOW_MS)
+      remaining.current = WINDOW_MS
+      schedule(WINDOW_MS)
     },
-    [take],
+    [take, schedule],
   )
+
+  /** The user is reading the offer: the window stops closing until they leave it. */
+  const hold = useCallback(() => {
+    if (!current.current || !timer.current) return
+    clearTimeout(timer.current)
+    timer.current = null
+    remaining.current = Math.max(0, remaining.current - (Date.now() - startedAt.current))
+  }, [])
+
+  const release = useCallback(() => {
+    if (!current.current || timer.current) return
+    schedule(remaining.current)
+  }, [schedule])
 
   const undo = useCallback(() => {
     const undone = take()
@@ -113,59 +139,50 @@ export function useUndoableAction() {
     [take],
   )
 
-  return { pending, run, undo }
+  return { pending, run, undo, hold, release }
 }
 
-export function UndoBar({ pending, onUndo }: { pending: PendingAction | null; onUndo: () => void }) {
-  const reduce = useReducedMotion() ?? false
+/**
+ * Puts the pending action's offer into the notice stack, and takes it out again when the
+ * window closes or the action is taken back. Renders nothing itself: the `Toaster` in the
+ * root layout draws every notice. `onHold` / `onRelease` pause the window while the stack
+ * is being read — pass the hook's `hold` and `release`.
+ */
+export function UndoBar({
+  pending,
+  onUndo,
+  onHold,
+  onRelease,
+}: {
+  pending: PendingAction | null
+  onUndo: () => void
+  onHold?: () => void
+  onRelease?: () => void
+}) {
+  const id = `undo-${useId()}`
+  const addToast = useToastStore((state) => state.addToast)
+  const removeToast = useToastStore((state) => state.removeToast)
+  // The latest handlers, read when they fire: the notice outlives the render that made it.
+  const handlers = useRef({ onUndo, onHold, onRelease })
+  handlers.current = { onUndo, onHold, onRelease }
 
-  return (
-    <ModalPortal>
-      <AnimatePresence>
-        {pending && (
-          <motion.div
-            // `toast`, above the modal layer: an undo the user cannot see is not an
-            // undo, and a dialog must never cover it.
-            className="pointer-events-none fixed inset-x-0 bottom-0 z-toast flex justify-center px-4 pb-safe-4"
-            initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? { opacity: 0 } : { opacity: 0, y: 12 }}
-            transition={SPRING_STANDARD}
-          >
-            <div
-              role="status"
-              aria-live="polite"
-              className="pointer-events-auto relative flex w-full max-w-md items-center gap-4 overflow-hidden rounded-xl bg-ink px-5 py-3 shadow-xl"
-            >
-              <span className="min-w-0 flex-1 truncate text-body-sm font-semibold text-paper">
-                {pending.label}
-              </span>
-              <button
-                type="button"
-                onClick={onUndo}
-                className="touch-target flex flex-shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-body-sm font-bold text-paper transition-colors hover:bg-paper/15"
-              >
-                <Undo2 className="h-4 w-4" aria-hidden="true" />
-                Undo
-              </button>
+  useEffect(() => {
+    if (!pending) return
+    addToast({
+      id,
+      type: "info",
+      icon: "undo",
+      title: pending.label,
+      action: { label: "Undo", onClick: () => handlers.current.onUndo() },
+      duration: WINDOW_MS,
+      countdown: true,
+      onPause: () => handlers.current.onHold?.(),
+      onResume: () => handlers.current.onRelease?.(),
+    })
+    return () => removeToast(id)
+  }, [pending, id, addToast, removeToast])
 
-              {/* The window, draining. Linear on purpose: an eased countdown
-                  misrepresents how much time is actually left. */}
-              {!reduce && (
-                <motion.span
-                  aria-hidden="true"
-                  className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-paper/40"
-                  initial={{ scaleX: 1 }}
-                  animate={{ scaleX: 0 }}
-                  transition={{ duration: WINDOW_MS / 1000, ease: "linear" }}
-                />
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </ModalPortal>
-  )
+  return null
 }
 
 export { WINDOW_MS as UNDO_WINDOW_MS }
