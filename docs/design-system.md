@@ -847,6 +847,50 @@ timeline — on the landing page, in a test — renders exactly as it did.
 **Reduced motion:** no delays and no travel; everything is simply there, including
 what was waiting to scroll into view.
 
+### 9.14 A card changing shape
+
+Hiding a task folds its card down to one row; showing it opens it back out. The card's
+real height glides between the two (`hooks/use-height-transition.ts`): a FLIP on `height`
+through the Web Animations API, from the height it had to the height its new content
+gives it, decided before the frame is painted. Because the height itself moves, everything
+below it reflows each frame — the cards under it in its column, the grid's height, the
+pager under the grid, the end of the page — so all of it moves as one, on one curve, with
+nothing to coordinate. The pager used to snap: it was not part of any animation.
+
+The curve is `SPRING_LAYOUT` sampled into a CSS `linear()` easing (`springEasing`), the
+spring a card already glides up its column on: critically damped, so it gathers speed
+from rest instead of lurching, and lands without passing its height (settled in ~430ms;
+a bezier stands in where `linear()` is unsupported). Inside, the two shapes cross-fade:
+the leaving one is lifted out of the flow (`popLayout`) and fades under the card's edge on
+`fast`, the arriving one fades in a beat later. No React render runs during the glide,
+and it leaves nothing behind. Height is not a compositor property — that is the point,
+it is what carries everything below — and at one element for under half a second it is
+cheap. Reduced motion: the height changes in one step.
+
+### 9.15 Error pages
+
+A page that cannot be shown is still a Planora page (`components/errors/`). On the left,
+an illustration in the completion circle's ink — "4◯4" whose zero is the circle (tick it
+and it inks, draws the check and takes you home); a ring that will not close for a crash;
+a ring circling for a connection; a dashed ghost of a card for a task that is not there —
+then what happened, and the evidence (the address asked for, a reference to quote, with
+Copy). On the right, where to go next, as a small pile of task cards: fanned and leaning
+towards the pointer on a wide screen with a fine pointer, a plain column on a phone. Each
+can be picked up and tossed back, and ticked like a task — its circle inks, the check
+draws, and the page moves on 420ms later. Underneath it all they are ordinary links and
+buttons in reading order; reduced motion gets them with nothing to wait for.
+
+| Where | What it says | Ways out |
+|---|---|---|
+| `app/not-found.tsx` | "This page isn't on any list." + the path | Go back · Dashboard (or Planora home) · Find it — the palette (or Sign in) |
+| `app/error.tsx`, `app/global-error.tsx` | "This screen hit a snag." + reference | Retry · Dashboard (or home) · Go back |
+| Each `(app)` segment's `error.tsx` (`SegmentError`) — dashboard, tasks, the archive, categories, profile, a branch | "Something went wrong while loading tasks." inside the app's frame, the bar still in place | Retry · Back to dashboard |
+| Any of those while offline | "You're offline." — and it tries again by itself the moment the connection returns ("Back online.") | Retry · Go back |
+| `/branch/[id]` for a task that is gone or not shared | "This task isn't here." | Your tasks · Dashboard · Go back |
+
+The raw error message is never shown — it can carry a stack trace or another person's
+data — but it is reported through `console.error`.
+
 ## 10. Control sizing
 
 | Token | Value | Use for |
@@ -1088,7 +1132,7 @@ block and the glass is always behind the contents. The landing page's nav is the
 | Hidden (phone) | While scrolling down the whole frame slides up by its own height plus 2rem — a CSS translate on the plain wrapper, `duration-slow`, leaving on `ease-standard` and arriving on `ease-emphasized`. No fade and nothing on the capsule: its transform belongs to the layout projection, and opacity on an ancestor of the glass would switch its blur off. Scrolling up or focus brings it back |
 | Phone menu | Drips out of the droplet — the shared `.dropdown-surface` unfold from `scale(0.86, 0.6)`, 12px up, from the top — the page dimmed and blurred behind it by a backdrop that is a sibling of the capsule |
 | Popovers | Account menu and notifications hang 8px under the capsule's edge; one open at a time |
-| Room | The capsule is `fixed` and takes none. `--bar-clearance` (globals.css: safe-area inset + 5.5rem) is the room `<main>` starts after, and what the update pill, toasts, the profile rail and anchor scroll-margins offset by |
+| Room | The capsule is `fixed` and takes none. `--bar-clearance` (globals.css: safe-area inset + 5.5rem) is the room `<main>` starts after, and what the update pill, the profile rail and anchor scroll-margins offset by |
 | Reduced motion | Never condenses or hides; every change instant |
 
 The droplet it replaced showed its tabs only while the pointer hovered over it, which hid the
@@ -1202,6 +1246,32 @@ stroke and the mark vanished at exactly the moment it mattered.
 The **exit** is a plain fade. Un-completing is an undo, not an achievement, and should
 not be drawn in reverse.
 
+### Notices — one stack for everything said in passing
+
+Everything the interface says in passing — a task completed, a request that failed, a
+deletion that can still be taken back — is one kind of thing: a notice
+(`store/toast.ts`, drawn by `Toaster` in `components/ui/toast.tsx`). They used to be two:
+tinted glass cards in the top-right corner for toasts and a black bar at the bottom for
+undo, which looked, moved and stacked nothing alike.
+
+| Aspect | Rule |
+|---|---|
+| Surface | A drop of ink — `bg-ink text-paper rounded-xl shadow-xl`, the material of the bar's active tab — at most 420px wide |
+| Kind | A 24px mark on the left: a check on `positive`, a warning on `alert` or `warn`, an "i" on `accent`, the undo arrow on `paper/15` |
+| Words | Title in `body-sm` semibold; an optional `caption` line under it at `paper/70` |
+| Action | At most one ("Undo", "Retry"); pressing it runs it and dismisses the notice |
+| Place | One stack, bottom-centre on every screen, above the safe area — and above anything docked there (quick capture, the selection bar), which publish `--pl-dock-clearance` (`useDockClearance`) |
+| Stack | A deck: the newest in front, the two before it peeking 10px above, scaled back 5% each, their words hidden. Pointing at it or tabbing into it fans it out into a list (8px gaps); at most five are kept |
+| Time | success 4s · info 5s · warning 6s · error 7s, +1.5s with a description. Every clock stops while the stack is read (pointer, focus) or the tab is hidden, and resumes where it stopped |
+| Countdown | A window you can act within (undo) shows its time as a ring draining round the mark — linear, like the window |
+| Repeats | The same notice said again is counted (`×2`) and its clock restarts, instead of stacking a copy |
+| Leaving | Close, Escape while inside it, or a flick sideways (72px or 500px/s); the flicked one leaves the way it was thrown |
+| Motion | Enters 28px up from 94% on `SPRING_STANDARD`; the deck moves on `SPRING_LAYOUT`; exits on `fast` + `exit`. Reduced motion: opacity only |
+| Speech | Errors `role="alert"` (assertive), the rest `role="status"` (polite), inside a labelled region |
+
+`addToast({ type, title, description })` is unchanged for its 120 callers; `action`,
+`duration`, `countdown`, `icon`, `updateToast(id, …)` and the pause hooks are additions.
+
 ### `UndoBar` — undo instead of confirm
 
 A confirmation asks a question the user already answered. It stops every deletion —
@@ -1221,6 +1291,10 @@ Three cases the hook handles deliberately:
 | A second action starts while one is pending | The first commits immediately | Dropping it loses a deletion silently; queueing stacks bars nobody can read |
 | The component unmounts | Anything pending commits | Navigating away is not taking it back |
 | The server refuses after the window closed | The card comes back | Better than leaving the user believing a task is gone when it is not |
+
+The offer is a notice (above): `UndoBar` puts it into the stack and takes it out again,
+and renders nothing itself. Its ring is the window, and the window holds while the stack
+is being read — `useUndoableAction` exposes `hold` / `release` for that.
 
 **Confirmation still guards what this cannot.** Deleting an account and revoking every
 session are irreversible on the server, and five seconds is not consent.
@@ -1370,9 +1444,9 @@ reading cannot be missed.
 **No shortcut triggers a bulk action.** A destructive keystroke acting on an invisible
 set is the one keyboard affordance that cannot be taken back.
 
-It sits on the `sticky` tier, not `toast`: the undo bar a bulk delete raises has to be
-able to appear over it. Two elements on the same tier at the same height are decided by
-source order, which is not a decision anyone made.
+It sits on the `sticky` tier, not `toast`, and while it is up it publishes its height as
+`--pl-dock-clearance`: the undo a bulk delete raises appears above the bar, not on top of
+it.
 
 ### `QuickCapture` — the circle becomes the bar
 
@@ -1536,7 +1610,7 @@ once. It is worth reading as a worked example.
 |---|---|---|
 | Surface | `bg-paper`, `border` (1px), `rounded-lg` via `Card`, `shadow-sm`, lift `y: -2` on hover. The hover shadow glows in the task's own colour — the category's, the accent while you work on it, alert when it is urgent — and is plain `shadow-lg` without one | Opaque: the page's background never shows through a task. The glow is the category colour at 20% in the two-layer card shadow, carried by a `--card-glow` custom property so the hover stays a class and CSS runs the transition; it used to be computed in JavaScript from a hover state, beside a `backdrop-blur` that re-rasterised the card under the pointer |
 | Title | `body` on phones, `title-sm` from `sm`, `font-semibold`, `ink`, `line-clamp-3` | Shown in full up to three lines. It used to be cut at 40 characters in JavaScript whatever the card's width, so a wide card still read "battery for the smok…" |
-| Controls | the completion mark and the hide toggle in a 32px rail: a `1fr auto 1fr` grid stretched to the card (`self-stretch min-h-[146px]`), the check in the middle row, the eye `row-start-3 mt-4 mb-px ml-px self-end`; every open card pads `p-5` | The circle is on the card's vertical centre (error ≤0.5 CSSpx); the eye has exact 22px left/bottom insets. Stationary 44px semantic hit areas retain a minimum 14px gap; the visible completion circle alone keeps its 1.06 spring and tap motion. Mirrored rows plus padding/borders require a minimal 188px short open card. Natural taller cards keep their height. Completed cards have no eye and centre the mark on the title |
+| Controls | the completion mark in a 32px rail — a `1fr auto 1fr` grid stretched to the card, the check in the middle row — and the hide toggle (the eye) where the card has room for it: `row-start-3 mt-4 mb-px ml-px self-end` in the rail's bottom-left corner when the body is at least 122px tall, otherwise first in the chip row at chip height (`h-6`); every open card pads `p-5` | The circle is on the card's vertical centre at every height (error ≤0.5 CSSpx). The rail has **no height of its own**: a card is as tall as its content — a title and a priority make a 106px card, not the 188px the old rail floor held every open card to. 122px is the rail's own minimum with the eye in the corner (its 45px row mirrored above the 32px circle), so the corner is used only where it costs nothing; there the eye keeps its exact 22px left/bottom insets. Measured before paint, again on resize, with hysteresis so a chip row the eye made wrap cannot flip it back. The two 44px hit areas never overlap in either place; the visible circle alone keeps its 1.06 spring and tap. Completed cards have no eye and centre the mark on the title |
 | Chips | one shape: `h-6 rounded-sm border-line bg-paper-sunken px-2 text-caption font-semibold text-ink-muted` | Category, audience, workers, expected date and delay. There were five chip styles on one card; "in work" is the only tinted one (`accent-surface`), and delay the only warn one |
 | Completion control | `InkCheck`, 44 × 44 | The one multi-step entrance in the product |
 | Priority | `PriorityMeter` | Magnitude as filled length — never hue (rule 5) |
