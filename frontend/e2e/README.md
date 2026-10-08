@@ -136,8 +136,37 @@ Tracked UI specs cover login, registration, password recovery, email verificatio
 profile rename and task-page entry/create-panel reachability. They do not cover
 every branch reply, ownership, realtime reconnect, accessibility or responsive state.
 
+`frozen-audience.api.spec.ts` creates four real verified users and covers frozen All friends snapshots, explicit refresh, child inheritance, direct/gRPC comment access, immediate revocation, cleanup and re-friending, plus retained SignalR sockets and durable notification boundaries. `avatar-native-upload.api.spec.ts` uploads a real PNG through the Linux gateway and verifies all three stored WebP variants with browser decoding and a spoofed MIME rejection. These flows require the real disposable services and never mock API access decisions.
+
 `ui/motion-geometry.ui.spec.ts` is included in the UI project and covers
 create-panel focus, task-card controls and navbar geometry in a real browser.
+Its rail matrix uses two fresh verified accounts and real friendship, task, worker,
+viewer-preference, comment and notification APIs. It measures `/tasks` (including
+its completed preview), `/dashboard` and `/tasks/completed` at widths 390, 768,
+1280 and 1600 with DPR 1, 1.25, 1.5 and 2, on first/repeated mounts and settled,
+card-hover, completion-hover and eye-hover states. Hidden cards are revealed
+through the UI before their open rail is measured. Only page-filtered states
+are marked N/A: completed cards on Dashboard and active cards in the archive.
+
+The assertions measure the circle border-box, the actual 44px pseudo-element
+hit targets, the 22px eye insets, a minimum 14px hit gap, preserved circle spring,
+minimal 188px short open cards, unchanged hover/repeat heights and zero layout
+shift during each settled control-hover window, after programmatic scrolling and
+the fixed-bar morph have finished. They do not assert zero CLS for
+initial document loading, navigation or explicit expansion. The matrix's local
+480-second test budget and 300-second setup budget allow real Gateway `Retry-After` cooldowns (at most one
+UI retry per load). Fixture unread delivery may wait up to 125 seconds through a
+genuine Gateway cooldown; production limits remain enabled and no API routes are
+mocked. Failures other than a captured 429 are not retried by this helper. The
+long matrix renews its own fixture through the real Auth refresh endpoint before
+each case, carrying only its latest cookies/CSRF/bearer in memory; access-token
+lifetimes remain unchanged.
+
+Each matrix case saves `card-geometry.json` under its Playwright output path with
+rects, browser version, measured layout-shift totals, cooldowns and explicit N/A
+reasons. The droplet check also saves `droplet-frames.json`, sampled after RAF
+writers with actual timestamps. Neither artifact contains fixture tokens, cookie
+state or account credentials.
 Its discovery does not establish that its assertions passed; inspect the run summary.
 
 The separate [`docs/ui-audit`](../../docs/ui-audit/) scripts use fixture-backed

@@ -25,6 +25,34 @@ The sections below distinguish configured gates, observed results and test gaps.
 | Migration script artifacts | `.github/workflows/migrations.yml` | `dotnet ef migrations script --idempotent`, six DB-owning services; EF CLI 10.0.8 after restore/Release build |
 | OpenAPI artifacts | `.github/workflows/openapi.yml` | `dotnet swagger tofile`, all six HTTP services; Testing skips Todo/Collaboration startup migrations |
 
+## Verification Snapshot — 2026-10-08
+
+These results cover the reviewed integration, frozen friend audiences, migration
+startup guard, native avatar decoder and task control rail. Tests used disposable
+PostgreSQL/Compose services and a separate production frontend; owner services,
+credentials and the running production build were not reused.
+
+| Check | Observed result |
+|---|---|
+| Backend unit suite with live PostgreSQL cases | 1,119 passed; zero failed/skipped |
+| Backend error-handling suite | 90 passed; zero failed/skipped |
+| Native avatar boundary tests (included above) | 17 passed on Windows; actual PNG/JPEG/WebP decoding |
+| Migration startup checks (included above) | 14 passed: empty database, managed prefixes, compatible existing baseline, rejected gaps/unknown history/unsafe schemas, preservation and concurrent startup |
+| Frozen-audience API/SignalR scenario | 1 passed through real Auth/Todo/Collaboration/Realtime services; four users, removal/re-addition, child inheritance and retained sockets |
+| Native Linux avatar API scenario | 1 passed; actual upload through the gateway and independent decoding of all three WebP variants |
+| Frontend lint / TypeScript / isolated production build | Passed |
+| Complete frontend coverage suite | 117 files; 1,502 tests passed |
+| V8 statements / branches / functions / lines | 95.36% / 87.94% / 95.72% / 97.14%; all four 85% gates passed |
+| Google Chrome 153.0.8010.53 browser suite | 20/20 passed; all 16 width/DPR matrices, 11,131 measurements, 512 settled control windows; maximum centre error 0.000062 CSS px, CLS 0 |
+| Production npm / transitive NuGet scans | Zero affected packages in both scans |
+
+The separate full-graph npm scan still reports ten development dependency entries
+(seven high, three moderate); its high-severity CI gate remains enabled and fails.
+The [dependency review](../.github/security/frontend-dependencies-2026-10.md)
+records the unpatched tooling dependency and the compatible-upgrade boundary.
+Browser geometry measures its settled control window, not initial-load CLS or
+all possible GPU/compositor artifacts.
+
 ## Verification Snapshot — 2026-10-06
 
 These are observed local results collected earlier in this audit, not promises
@@ -194,7 +222,7 @@ waiting for a later mount, answered once, expiring — and `shortcuts-overlay.te
 
 `frontend/src/test/quality/usability-contract.test.tsx` also verifies the create panel: collapsed, it shows "New task" with "Date, category, audience" and advertises no key (`C` belongs to quick capture); open, its title is NOT focused — a field lights up only after a click or a keystroke — and the first printable key pressed from nowhere moves focus into the title. `todo-heavy-components.test.tsx` covers the edges of that type-to-focus rule (Ctrl/Cmd chords, Space, another field, an open selector popover) and locks the task card's control rail: the circle in the middle row of a `1fr auto 1fr` grid, the eye pinned to the bottom-left corner, and a completed card with no empty chip row.
 
-Layout and motion that jsdom cannot measure are covered in a real browser by `frontend/e2e/ui/motion-geometry.ui.spec.ts`: it seeds nine tasks through the create panel, then asserts that "New task" opens with an unfocused title and that typing (starting with the page's `F` shortcut letter) lands in it; that every open card's circle is within 0.5px of the card's vertical centre and its eye as far from the bottom as from the left, at 390px and 1280px; and that the droplet bar condenses in one motion — sampled every animation frame, the width's fastest frame must come within the first eight (one spring is a single early bell), and no frame may move more than 1.6× the frame before it plus 2px (at most 6px after a near-still frame). Checked against the recorded series: the old bug — a 70.6px frame after an 11.7px one, nine frames in — fails both rules; the fixed bar passes. The suite seeds through the create panel, which `/tasks` closes after every create, and signs in once for the whole file because the Auth API allows three registrations and five sign-ins a minute per address. Run it against a production build (`next start`), not `next dev`.
+Layout and motion that jsdom cannot measure are covered by `frontend/e2e/ui/motion-geometry.ui.spec.ts` against a production frontend and real services. Its create-panel checks seed nine tasks and verify unfocused opening and type-to-focus. Its separate two-user API fixtures exercise own, friend take-it, in-progress, completed, revealed, tall/Expected, multi-line title and unread-cluster cards on `/tasks` (including its completed preview), `/dashboard` and `/tasks/completed`, at widths 390/768/1280/1600 and DPR 1/1.25/1.5/2. All possible states are measured on first/repeated mounts after entrance and during card, circle and eye hover; only states excluded by the page's actual filters are N/A. Rect assertions require centre error ≤0.5 CSS px, eye insets 22px, actual semantic hit areas ≥44px with ≥14px gap, preserved circle spring, a minimal 188px short active card, unchanged hover/repeat heights and zero CLS in each settled control window. Programmatic scroll and its intentional fixed-bar morph finish before that window. Every case saves a credential-free `card-geometry.json` with measurements, layout-shift sources and captured real rate-limit cooldowns. The droplet test reads each frame after RAF writers and uses actual sample timestamps; it retains the early peak and adjacent-displacement checks that reject the recorded late 70.6px snap. Unavailable services and failures other than a captured real 429 fail the suite; limiter settings and API responses are not mocked.
 
 `motion-geometry.ui.spec.ts` is tracked and discovered by the UI project in a
 clean checkout and CI. Previously recorded browser series remain development

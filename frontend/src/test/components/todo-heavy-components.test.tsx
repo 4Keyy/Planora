@@ -119,7 +119,7 @@ describe("TodoCard", () => {
     expect(rail.parentElement).toHaveClass("items-center")
     expect(eye.parentElement).toBe(rail)
     expect(check).toHaveClass("row-start-2")
-    expect(eye).toHaveClass("row-start-3", "self-end", "mt-4", "mb-0.5")
+    expect(eye).toHaveClass("row-start-3", "self-end", "mt-4", "mb-px", "ml-px", "justify-self-start")
     // One padding for every open card, so the eye's bottom inset never changes.
     expect(rail.closest(".p-5")).not.toBeNull()
   })

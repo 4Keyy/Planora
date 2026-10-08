@@ -41,6 +41,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 - Secret scanning now recognizes complete required SMTP variable references with spaced error messages; the active Email password rule still detects literal passwords.
 - Avatar uploads now use SkiaSharp 4.153.1 with matching Linux native assets instead of the affected ImageSharp dependency. Actual input reads are capped at 5 MB, dimensions are validated before bitmap allocation, and fresh center-cropped WebP surfaces omit uploaded metadata while retaining the 64/128/512 variants, quality85 and immutable storage contract. Native Windows tests and a real Linux gateway upload/decode passed; the transitive NuGet scan reports no affected packages. The separate npm development-tool findings and full-graph security gate remain documented and enabled.
+- Task card controls: the completion/take-it circle now stays exactly at the vertical centre, with the eye 22px from both edges and stationary 44px hit areas at least 14px apart. The visible circle retains its existing spring/tap motion; only short active cards grow to the necessary 188px minimum. Active/completed placeholders reserve their matching rail geometry, and All friends worker badges show a count without a misleading audience denominator. Real-service Chrome coverage spans three surfaces, four widths, four DPRs, first/repeated mounts and all supported states/hover phases; the original root card motion is preserved.
 
 ### Performance
 

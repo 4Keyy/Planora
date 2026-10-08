@@ -1092,7 +1092,7 @@ export default function TasksPage() {
                           <MasonryColumns
                             items={[...Array(Math.min(3, COMPLETED_PREVIEW_SIZE))].map((_, i) => ({ id: `completed-skeleton-${i}` }))}
                             getKey={(item) => item.id}
-                            renderItem={() => <TodoSkeleton />}
+                            renderItem={() => <TodoSkeleton completed />}
                             columns={TASK_GRID_COLUMNS}
                             breakpoints={TASK_GRID_BREAKPOINTS}
                           />

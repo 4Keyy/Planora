@@ -621,11 +621,8 @@ function TodoCardComponent({
 
         <CardContent
           className={cn(
-            // Collapsed: unchanged. Open: one padding for every card. The hide toggle's bottom
-            // inset is this 20px + its own 2px margin, equal to its 22px inset from the left
-            // (20px + 2px centring a 28px button in the 32px rail). Sparse cards used to take
-            // py-4, but the rail's floor now sets their height, so a thinner pad would only
-            // have pulled the eye off its inset.
+            // The rail uses symmetric 20px padding. Its eye's 1px margins plus this padding
+            // and the Card's 1px border make both visible border-box insets exactly 22px.
             isCollapsed ? "px-5 py-2" : "p-5",
             "relative z-10"
           )}
@@ -710,30 +707,20 @@ function TodoCardComponent({
           ) : (
             <>
               <div className="flex items-center gap-4">
-                {/*
-                  The control rail. Owner's ruling (2026-10-05), replacing "aligned with the
-                  title's first line": the complete / take-it circle sits exactly on the card's
-                  vertical centre at every height, and the hide toggle sits in the bottom-left
-                  corner, 22px from the bottom (20px padding + mb-0.5) — the same 22px it sits
-                  from the left edge (20px padding + 2px centring 28px in the 32px rail).
+                {/* Equal 1fr tracks centre the circle in the symmetric card border-box,
+                    including fractional/odd heights. The eye's 1px bottom/left margins add to
+                    20px padding + 1px card border: its visible border-box is inset by 22px.
 
-                  How: the rail stretches to the row and is a `1fr auto 1fr` grid with the check
-                  in the auto row. The two 1fr rows always resolve to the same size, so the
-                  check's centre is the rail's centre, which is the card's (the padding is
-                  symmetric) — no breakpoint offsets. A 1fr row is never shorter than its
-                  content, so the eye's row is at least 46px (16 gap + 28 + 2) and the empty top
-                  row mirrors it: a short card grows to 46 + 32 + 46 = 124px of content (a 166px
-                  card) instead of the eye pushing the check off centre.
-
-                  mt-4 on the eye: each control's `.touch-target` reaches 6-8px past its circle,
-                  so the hit areas touch at 14px. At gap-2 the hide toggle's area covered the
-                  bottom of the check's, and a thumb just under the check hid the card.
-
-                  A completed card has no eye: both 1fr rows are empty and the check centres on
-                  the title. `items-center` on the row centres a body shorter than the rail's
-                  floor on the check's line; a taller body sets the row height itself.
-                */}
-                <div className="grid w-8 flex-shrink-0 grid-rows-[1fr_auto_1fr] justify-items-center self-stretch">
+                    With two stationary 44px targets, the eye's hit top is H - 58 and the
+                    circle's hit bottom is H/2 + 22, so their 14px gap needs H >= 188.
+                    Only open cards with an eye need this 146px rail floor (188 - 40 - 2);
+                    taller bodies keep their natural height and completed cards stay compact.
+                    The visible circle springs inside its fixed hit target, so spring overshoot
+                    cannot shrink that gap or scale the semantic target. */}
+                <div className={cn(
+                  "grid w-8 flex-shrink-0 grid-rows-[1fr_auto_1fr] justify-items-center self-stretch",
+                  allowCollapse && "min-h-[146px]",
+                )}>
                   {/* 3-state completion / join button */}
                   <motion.button
                     onClick={(e: React.MouseEvent) => {
@@ -742,29 +729,13 @@ function TodoCardComponent({
                     }}
                     onMouseEnter={() => { setIsControlHover(true); setIsButtonHovered(true) }}
                     onMouseLeave={() => { setIsControlHover(false); setIsButtonHovered(false) }}
-                    transition={SPRING_RESPONSIVE}
-                    whileHover={!isCompletionPending ? { scale: 1.06 } : undefined}
-                    whileTap={!isCompletionPending ? TAP_PRESS : undefined}
+                    animate="rest"
+                    whileHover={!isCompletionPending ? "hover" : undefined}
+                    whileTap={!isCompletionPending ? "pressed" : undefined}
                     disabled={isCompletionPending}
                     aria-busy={isCompletionPending}
-                    style={completionButtonTint}
                     className={cn(
-                      "touch-target row-start-2 flex h-8 w-8 items-center justify-center rounded-full border-2",
-                      "transition-[color,background-color,border-color,box-shadow,opacity] duration-fast",
-                      completionButtonTone,
-                      // Phase rings
-                      isJoining && "shadow-lg ring-2 ring-accent/35",
-                      isCompleting && "shadow-lg ring-2 ring-positive/30",
-                      isReopening && "shadow-md ring-2 ring-accent/20",
-                      // Working state rings (not in phase)
-                      !isCompletionPending && isWorkingOnThis && !isCompleted && (
-                        isButtonHovered
-                          ? "ring-2 ring-positive/45 shadow-md"
-                          : "ring-2 ring-accent-surface/45 shadow-sm"
-                      ),
-                      // Idle + joinable: an accent ring on hover
-                      !isCompletionPending && !isWorkingOnThis && !isCompleted && canJoin && isButtonHovered && "ring-2 ring-accent/50 shadow-md",
-                      // Cursor
+                      "touch-target row-start-2 flex h-8 w-8 items-center justify-center rounded-full",
                       isCompletionPending ? "cursor-wait" : "cursor-pointer",
                     )}
                     aria-label={
@@ -774,88 +745,113 @@ function TodoCardComponent({
                       : "Mark as complete"
                     }
                   >
-                    <AnimatePresence initial={false} mode="wait">
-                      {/* JOINING phase */}
-                      {isJoining && (
-                        <motion.div
-                          key="joining"
-                          initial={{ scale: 0.6, opacity: 0, rotate: -20 }}
-                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                          exit={{ scale: 0.6, opacity: 0 }}
-                          transition={SPRING_RESPONSIVE}
-                        >
-                          <Zap className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
-                        </motion.div>
+                    <motion.span
+                      data-completion-circle=""
+                      aria-hidden="true"
+                      variants={{ rest: { scale: 1 }, hover: { scale: 1.06 }, pressed: TAP_PRESS }}
+                      transition={SPRING_RESPONSIVE}
+                      style={completionButtonTint}
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-full border-2",
+                        "transition-[color,background-color,border-color,box-shadow,opacity] duration-fast",
+                        completionButtonTone,
+                        // Phase rings
+                        isJoining && "shadow-lg ring-2 ring-accent/35",
+                        isCompleting && "shadow-lg ring-2 ring-positive/30",
+                        isReopening && "shadow-md ring-2 ring-accent/20",
+                        // Working state rings (not in phase)
+                        !isCompletionPending && isWorkingOnThis && !isCompleted && (
+                          isButtonHovered
+                            ? "ring-2 ring-positive/45 shadow-md"
+                            : "ring-2 ring-accent-surface/45 shadow-sm"
+                        ),
+                        // Idle + joinable: an accent ring on hover
+                        !isCompletionPending && !isWorkingOnThis && !isCompleted && canJoin && isButtonHovered && "ring-2 ring-accent/50 shadow-md",
                       )}
+                    >
+                      <AnimatePresence initial={false} mode="wait">
+                        {/* JOINING phase */}
+                        {isJoining && (
+                          <motion.div
+                            key="joining"
+                            initial={{ scale: 0.6, opacity: 0, rotate: -20 }}
+                            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                            exit={{ scale: 0.6, opacity: 0 }}
+                            transition={SPRING_RESPONSIVE}
+                          >
+                            <Zap className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
+                          </motion.div>
+                        )}
 
-                      {/* COMPLETED or COMPLETING (not joining, not reopening) */}
-                      {!isJoining && (isCompleted || isCompleting) && !isReopening && (
-                        <motion.div
-                          key="check"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ scale: 0.78, rotate: 16, opacity: 0 }}
-                          transition={SPRING_RESPONSIVE}
-                        >
-                          {/* The ink fill and the drawn stroke ARE the animation here —
-                              see InkCheck. The wrapper only handles the exit, because a
-                              mark being taken away is an undo, not an achievement, and
-                              should not be drawn in reverse. */}
-                          <InkCheck size={20} />
-                        </motion.div>
-                      )}
+                        {/* COMPLETED or COMPLETING (not joining, not reopening) */}
+                        {!isJoining && (isCompleted || isCompleting) && !isReopening && (
+                          <motion.div
+                            key="check"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ scale: 0.78, rotate: 16, opacity: 0 }}
+                            transition={SPRING_RESPONSIVE}
+                          >
+                            {/* The ink fill and the drawn stroke ARE the animation here —
+                                see InkCheck. The wrapper only handles the exit, because a
+                                mark being taken away is an undo, not an achievement, and
+                                should not be drawn in reverse. */}
+                            <InkCheck size={20} />
+                          </motion.div>
+                        )}
 
-                      {/* REOPENING spinner */}
-                      {isReopening && (
-                        <motion.div
-                          key="reopening"
-                          initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
-                          animate={{ opacity: 1, scale: 1, rotate: 360 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={PHASE_TWEEN}
-                          className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent"
-                        />
-                      )}
+                        {/* REOPENING spinner */}
+                        {isReopening && (
+                          <motion.div
+                            key="reopening"
+                            initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
+                            animate={{ opacity: 1, scale: 1, rotate: 360 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            transition={PHASE_TWEEN}
+                            className="h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent"
+                          />
+                        )}
 
-                      {/* WORKING – hover shows the checkmark, at rest a still dot */}
-                      {isWorkingOnThis && !isCompleted && !isCompletionPending && isButtonHovered && (
-                        <motion.div
-                          key="work-check"
-                          initial={{ scale: 0, opacity: 0, rotate: -12 }}
-                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          transition={SPRING_RESPONSIVE}
-                        >
-                          <Check className="h-4 w-4 stroke-[3]" aria-hidden="true" />
-                        </motion.div>
-                      )}
-                      {isWorkingOnThis && !isCompleted && !isCompletionPending && !isButtonHovered && (
-                        <motion.div
-                          key="working-dot"
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          exit={{ scale: 0.8, opacity: 0 }}
-                          transition={SPRING_RESPONSIVE}
-                          // A still dot. It used to pulse forever — on every card someone
-                          // was working on, for as long as the list was open — and nothing
-                          // at rest may animate forever.
-                          className="h-2.5 w-2.5 rounded-full bg-current"
-                        />
-                      )}
+                        {/* WORKING – hover shows the checkmark, at rest a still dot */}
+                        {isWorkingOnThis && !isCompleted && !isCompletionPending && isButtonHovered && (
+                          <motion.div
+                            key="work-check"
+                            initial={{ scale: 0, opacity: 0, rotate: -12 }}
+                            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={SPRING_RESPONSIVE}
+                          >
+                            <Check className="h-4 w-4 stroke-[3]" aria-hidden="true" />
+                          </motion.div>
+                        )}
+                        {isWorkingOnThis && !isCompleted && !isCompletionPending && !isButtonHovered && (
+                          <motion.div
+                            key="working-dot"
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.8, opacity: 0 }}
+                            transition={SPRING_RESPONSIVE}
+                            // A still dot. It used to pulse forever — on every card someone
+                            // was working on, for as long as the list was open — and nothing
+                            // at rest may animate forever.
+                            className="h-2.5 w-2.5 rounded-full bg-current"
+                          />
+                        )}
 
-                      {/* IDLE + joinable + hovered: faint bolt hint */}
-                      {!isWorkingOnThis && !isCompleted && !isCompletionPending && canJoin && isButtonHovered && (
-                        <motion.div
-                          key="idle-hint"
-                          initial={{ scale: 0, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 0.55 }}
-                          exit={{ scale: 0, opacity: 0 }}
-                          transition={SPRING_RESPONSIVE}
-                        >
-                          <Zap className="h-3 w-3 text-accent" aria-hidden="true" />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                        {/* IDLE + joinable + hovered: faint bolt hint */}
+                        {!isWorkingOnThis && !isCompleted && !isCompletionPending && canJoin && isButtonHovered && (
+                          <motion.div
+                            key="idle-hint"
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 0.55 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={SPRING_RESPONSIVE}
+                          >
+                            <Zap className="h-3 w-3 text-accent" aria-hidden="true" />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.span>
                   </motion.button>
 
                   {allowCollapse && (
@@ -873,7 +869,7 @@ function TodoCardComponent({
                       aria-busy={isVisibilityPending || isCompletionPending}
                       whileTap={isVisibilityPending || isCompletionPending ? undefined : TAP_PRESS}
                       className={cn(
-                        "touch-target row-start-3 mb-0.5 mt-4 flex h-7 w-7 items-center justify-center self-end rounded-full text-ink-subtle transition-colors duration-fast hover:bg-paper-sunken hover:text-ink",
+                        "touch-target row-start-3 mb-px ml-px mt-4 flex h-7 w-7 justify-self-start items-center justify-center self-end rounded-full text-ink-subtle transition-colors duration-fast hover:bg-paper-sunken hover:text-ink",
                         (isVisibilityPending || isCompletionPending) && "opacity-60 cursor-wait"
                       )}
                       aria-label="Collapse task card"
@@ -971,7 +967,7 @@ function TodoCardComponent({
                           const statusNorm = todo.status?.toLowerCase().replace(/\s/g, '') ?? ''
                           const ownerSlotTaken = statusNorm === 'inprogress' ? 1 : 0
                           const joined = (todo.workerCount ?? 0) + ownerSlotTaken
-                          const slots = todo.requiredWorkers != null
+                          const slots = todo.isPublic ? null : todo.requiredWorkers != null
                             ? todo.requiredWorkers
                             : fc > 0 ? fc + 1 : null
                           const label = slots != null ? `${joined}/${slots}` : `${joined}`
