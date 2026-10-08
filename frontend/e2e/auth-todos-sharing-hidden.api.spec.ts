@@ -1,11 +1,9 @@
-import { execFileSync } from 'node:child_process';
-import { setTimeout as delay } from 'node:timers/promises';
-
 import { expect, request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 
+import { waitForEmailToken } from './_email';
+import { retryRateLimited } from './_rate-limit';
+
 const DEFAULT_API_URL = 'http://127.0.0.1:5132';
-const AUTH_LOG_CONTAINER = process.env.E2E_AUTH_LOG_CONTAINER ?? 'planora-auth-api';
-const VERIFY_EMAIL_FROM_LOGS = process.env.E2E_VERIFY_EMAIL_FROM_LOGS !== 'false';
 const PASSWORD = 'E2e!Passw0rd123';
 const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
 
@@ -24,8 +22,8 @@ test('auth, sharing, todos and hidden viewer preferences work through the API ga
   const viewer = await registerUser('viewer');
 
   try {
-    await verifyEmailFromAuthLogs(owner);
-    await verifyEmailFromAuthLogs(viewer);
+    await verifyEmail(owner);
+    await verifyEmail(viewer);
 
     const friendshipResponse = await owner.context.post('/auth/api/v1/friendships/requests', {
       headers: authHeaders(owner),
@@ -132,7 +130,7 @@ async function registerUser(label: string): Promise<Session> {
   const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const email = `e2e-${label}-${runId}@example.test`;
 
-  const response = await context.post('/auth/api/v1/auth/register', {
+  const response = await retryRateLimited(() => context.post('/auth/api/v1/auth/register', {
     headers: {
       'X-CSRF-Token': csrfToken,
     },
@@ -140,10 +138,10 @@ async function registerUser(label: string): Promise<Session> {
       email,
       password: PASSWORD,
       confirmPassword: PASSWORD,
-      firstName: `E2E ${label}`,
+      firstName: `Test ${label}`,
       lastName: 'User',
     },
-  });
+  }));
   await expectOk(response, `${label} registers`);
 
   const body = await response.json();
@@ -157,69 +155,20 @@ async function registerUser(label: string): Promise<Session> {
 }
 
 async function fetchCsrfToken(context: APIRequestContext) {
-  const response = await context.get('/auth/api/v1/auth/csrf-token');
+  const response = await retryRateLimited(() => context.get('/auth/api/v1/auth/csrf-token'));
   await expectOk(response, 'fetches CSRF token');
 
   const body = await response.json();
   return pick(body, 'token', 'Token');
 }
 
-async function verifyEmailFromAuthLogs(session: Session) {
-  test.skip(
-    !VERIFY_EMAIL_FROM_LOGS,
-    'E2E_VERIFY_EMAIL_FROM_LOGS=false disables email verification through Docker logs',
-  );
-
-  const token = await waitForVerificationToken(session.email);
-  const response = await session.context.get(
+async function verifyEmail(session: Session) {
+  const token = await waitForEmailToken(session.email, 'verification');
+  const response = await retryRateLimited(() => session.context.get(
     `/auth/api/v1/users/verify-email?token=${encodeURIComponent(token)}`,
     { headers: authHeaders(session) },
-  );
+  ));
   await expectOk(response, `verifies ${session.email}`);
-}
-
-async function waitForVerificationToken(email: string) {
-  const deadline = Date.now() + 60_000;
-
-  while (Date.now() < deadline) {
-    const logs = getAuthLogs();
-    const token = extractVerificationToken(logs, email);
-    if (token) {
-      return token;
-    }
-
-    await delay(2_000);
-  }
-
-  throw new Error(
-    `Verification token for ${email} was not found in Docker logs of ${AUTH_LOG_CONTAINER}. ` +
-      'Make sure the Docker stack is running and the Auth EmailService logs verification links.',
-  );
-}
-
-function getAuthLogs() {
-  try {
-    return execFileSync('docker', ['logs', '--since', '10m', AUTH_LOG_CONTAINER], {
-      encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024,
-    });
-  } catch (error) {
-    throw new Error(
-      `Cannot read Docker logs from ${AUTH_LOG_CONTAINER}. ` +
-        'Set E2E_AUTH_LOG_CONTAINER if the Auth API container name is different. ' +
-        `Original error: ${String(error)}`,
-    );
-  }
-}
-
-function extractVerificationToken(logs: string, email: string) {
-  const line = logs
-    .split(/\r?\n/)
-    .reverse()
-    .find((entry) => entry.includes(`Verification email to ${email}:`));
-
-  const match = line?.match(/[?&]token=([^\s"'<>]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
 }
 
 async function createCategory(session: Session, name: string) {

@@ -100,7 +100,7 @@ State-changing HTTP requests to **Auth, Todo, Category, Messaging and Collaborat
 3. frontend sends `X-CSRF-Token` on `POST`, `PUT`, `PATCH`, and `DELETE`;
 4. middleware validates header/cookie equality using constant-time comparison.
 
-Frontend startup uses `getCsrfToken()` instead of unconditional token fetch so reloads reuse an existing `XSRF-TOKEN` cookie. The CSRF helper also shares concurrent token fetches, and the public auth client retries one CSRF `403` after clearing the readable cookie. Silent refresh calls are serialized in `auth-public.ts` so one browser reload cannot send competing refresh-token rotation requests.
+Frontend startup uses `getCsrfToken()` instead of unconditional token fetch so reloads reuse an existing `XSRF-TOKEN` cookie. The CSRF helper also shares concurrent token fetches, and the public auth client retries one CSRF `403` after clearing the readable cookie. Silent refresh calls are serialized in `auth-public.ts` so one browser reload cannot send competing refresh-token rotation requests. HTTP errors from the CSRF fetch preserve their status and `Retry-After` without retaining the token or response body. A shared silent refresh waits that window and retries once on a CSRF or refresh `429` (seconds or HTTP-date, default 60s, bounded to 1–300s); cold hydration stays pending until a real token is obtained. Repeated limits remain errors, and `401`/`204` still end an unrestorable session. The mutation interceptor does not send an unprotected request after a CSRF `429`.
 
 **Client-side refresh discipline (anti-storm).** The axios interceptor in `api.ts` enforces two rules so background traffic cannot stampede `/auth/refresh` into its `10/min` rate limit (which would otherwise cascade into spurious logouts):
 

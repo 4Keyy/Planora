@@ -1,4 +1,7 @@
+"use client"
+
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useEnter } from "@/components/animated/entrance"
 import { Button } from "@/components/ui/button"
 import { pageWindow } from "@/lib/pagination"
 import { cn } from "@/lib/utils"
@@ -18,17 +21,42 @@ export function Pagination({
   totalPages,
   onChange,
   className,
+  entranceAt = 0,
 }: {
   page: number
   totalPages: number
   onChange: (page: number) => void
   className?: string
+  /** On a page's timeline: when the pager arrives, if the page has one. */
+  entranceAt?: number
 }) {
   if (totalPages <= 1) return null
+  return <Pager page={page} totalPages={totalPages} onChange={onChange} className={className} entranceAt={entranceAt} />
+}
+
+/** The pager itself — its own component so its entrance is timed when it first appears. */
+function Pager({
+  page,
+  totalPages,
+  onChange,
+  className,
+  entranceAt,
+}: {
+  page: number
+  totalPages: number
+  onChange: (page: number) => void
+  className?: string
+  entranceAt: number
+}) {
+  const entrance = useEnter("row", { at: entranceAt })
   const slots = pageWindow(page, totalPages)
 
   return (
-    <nav aria-label="Pagination" className={cn("flex items-center justify-center gap-2", className)}>
+    <nav
+      aria-label="Pagination"
+      style={entrance.style}
+      className={cn("flex items-center justify-center gap-2", entrance.className, className)}
+    >
       <Button
         variant="ghost"
         size="sm"

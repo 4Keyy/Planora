@@ -119,11 +119,13 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 | `NEXT_DEV_ALLOWED_ORIGINS` | optional, development only | Comma-separated additional allowed Next development origins; merged with detected local IPv4 addresses in `next.config.js`. |
 | `Frontend__BaseUrl` | optional | Frontend origin used in email verification/password-reset links. Use the laptop LAN IP instead of `localhost` when links are opened from another Wi-Fi device. |
 | `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, ... | optional | Explicit frontend origins for credentialed CORS. Add the LAN frontend origin when using another device. |
-| `Email__Provider` | optional | Auth email delivery provider. `Log` writes links to logs; `GmailSmtp` sends real mail through Gmail SMTP; `Smtp` uses generic SMTP settings. |
+| `Email__Provider` | optional | Auth email delivery provider. `Log` records only the server-defined subject, never recipients or secret action links; `GmailSmtp` sends real mail through Gmail SMTP; `Smtp` uses generic SMTP settings. |
 | `Email__SmtpHost` / `Email__SmtpPort` / `Email__EnableSsl` | optional | SMTP connection settings. Gmail defaults are `smtp.gmail.com`, `587`, and TLS enabled. |
 | `Email__Username` / `Email__Password` | required for SMTP providers | SMTP credentials. For Gmail, `Email__Password` must be a Google App Password, not the normal account password. |
 | `Email__FromEmail` / `Email__FromName` | optional for SMTP providers | Sender address/display name. If `FromEmail` is empty, the service uses `Email__Username`. |
 | `Email__TimeoutSeconds` | optional | SMTP send timeout. Default is 30 seconds. |
+| `E2E_SMTP_PASSWORD` | required only for the disposable E2E overlay | Fresh random SMTP credential shared by Auth and Mailpit; never a real mail-provider password. |
+| `E2E_MAILPIT_URL` | optional, test runner only | Mailpit API origin, default `http://127.0.0.1:8025`; loopback only in the supplied test overlay. |
 | `ASPNETCORE_ENVIRONMENT` | optional | ASP.NET environment; Compose sets `Docker` per backend container. |
 | `ASPNETCORE_URLS` | optional | Kestrel URL override when explicitly provided. |
 | `RateLimiting__Backend` | optional | Backend services select Redis when set to `Redis`; otherwise use the in-memory limiter. Compose sets it for all six services. The gateway uses its own in-memory per-IP limiter regardless of this key. |
@@ -136,7 +138,7 @@ Use it as a checklist, not as a committed source of real values. See [`secrets-m
 |---|---:|---:|---|
 | Frontend | `3000` | not in Compose | Next.js dev server. |
 | API Gateway | `5132` | `5132 -> 80` | Browser default API base URL. |
-| Auth API | Ocelot local target `5030` | `5031 -> 80` | Local appsettings also exposes an HTTP/2 endpoint at `5031`. Prefer gateway routes for API calls. |
+| Auth API | Ocelot local target `5030` | `5031 -> 80` | Local appsettings also exposes HTTP/2 at `5031`. Docker uses REST on `80` and a dedicated internal HTTP/2 listener on `81`; Todo, Collaboration and Realtime target `http://auth-api:81`. Prefer gateway routes for REST calls. |
 | Todo API | `5100` | `5100 -> 80` | Todo gRPC is local `5101` in appsettings, but Compose routes service-to-service through container URLs. |
 | Category REST | `5281` | `5281 -> 80` | REST endpoint used by gateway. |
 | Category gRPC | `5282` | `5282 -> 81` | Todo uses `GrpcServices__CategoryApi=http://category-api:81` in Compose. |
@@ -204,7 +206,7 @@ Providers:
 
 | Provider | Behavior |
 |---|---|
-| `Log` | Default. Does not send mail; writes verification/reset links to Auth API logs for local development and e2e tests. |
+| `Log` | Default. Does not send mail; logs only the subject. Exercise email flows with SMTP, using the disposable Mailpit overlay for E2E. |
 | `GmailSmtp` | Sends real messages through Gmail SMTP using the configured Gmail address and Google App Password. |
 | `Smtp` | Sends real messages through the configured SMTP host/port/credentials. |
 

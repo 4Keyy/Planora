@@ -96,7 +96,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     shortcuts: [
       { keys: ["#"], description: "Search only categories" },
       { keys: ["@"], description: "Search only people" },
-      { keys: [">"], description: "Search only commands" },
+      { keys: [">"], description: "Search only shortcuts — views, actions and screens" },
       { keys: ["Tab"], description: "Narrow to the highlighted category, person or view" },
       { keys: ["Backspace"], description: "Widen back out, from an empty field" },
       { keys: [MOD, "⏎"], description: "Open the highlighted task in a new tab" },

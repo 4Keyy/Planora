@@ -104,9 +104,9 @@ export function toRanges(indices: number[]): Array<[number, number]> {
 // ─── The query ──────────────────────────────────────────────────────────────
 
 /** Which kind of result a leading operator narrows the search to. */
-export type Narrow = "categories" | "people" | "commands"
+export type Narrow = "categories" | "people" | "shortcuts"
 
-export const OPERATORS: Record<string, Narrow> = { "#": "categories", "@": "people", ">": "commands" }
+export const OPERATORS: Record<string, Narrow> = { "#": "categories", "@": "people", ">": "shortcuts" }
 
 export interface ParsedQuery {
   /** Set by a leading `#`, `@` or `>`. */
@@ -151,6 +151,11 @@ export interface PaletteTask {
   workers: Array<{ id: string; name: string | null }>
   openSubtasks: number
   urgent: boolean
+  /**
+   * Hidden by the viewer. It can still be found, but its row stays blurred until it
+   * is pointed at, and it is never recommended — "Up next" leaves it out.
+   */
+  hidden: boolean
   /** Folded description, category and people names: matched as whole words, never as scattered letters. */
   keywords: string
 }
@@ -201,6 +206,7 @@ export function toPaletteTask(todo: Todo, viewerId: string | null, names: Map<st
     workers,
     openSubtasks: todo.openSubtaskCount ?? 0,
     urgent: Boolean(todo.isVisuallyUrgent),
+    hidden: Boolean(todo.hidden),
     keywords: fold([todo.description, categoryName, ...people].filter(Boolean).join(" ")),
   }
 }

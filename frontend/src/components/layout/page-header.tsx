@@ -1,4 +1,7 @@
+"use client"
+
 import type { ReactNode } from "react"
+import { useEnter, useEnterEach } from "@/components/animated/entrance"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { cn } from "@/lib/utils"
 
@@ -18,23 +21,46 @@ export function PageHeader({
   description,
   actions,
   className,
+  entranceAt = 0,
+  actionsReady = true,
 }: {
   eyebrow?: string
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
   className?: string
+  /** On a page's timeline: when the eyebrow arrives; each line after it follows a beat behind. */
+  entranceAt?: number
+  /** False while the actions show counts still on their way: they wait rather than arrive reading 0. */
+  actionsReady?: boolean
 }) {
+  // Read top to bottom, the order the eye takes them: the eyebrow, the title a beat
+  // later, the sentence after it, and the page's actions last, one after another.
+  const eyebrowIn = useEnter("text", { at: entranceAt })
+  const titleIn = useEnter("text", { at: entranceAt + (eyebrow ? 60 : 0) })
+  const descriptionIn = useEnter("text", { at: entranceAt + 120 })
+  const actionsIn = useEnterEach("chip", { at: entranceAt + (description ? 170 : 120), ready: actionsReady })
   return (
     <header className={cn("flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6", className)}>
       <div className="min-w-0">
-        {eyebrow ? <p className={FIELD_LABEL_CLASS}>{eyebrow}</p> : null}
-        <h1 className={cn("text-title font-bold tracking-tight text-ink sm:text-display-sm", eyebrow && "mt-2")}>
+        {eyebrow ? <p className={cn(FIELD_LABEL_CLASS, eyebrowIn.className)} style={eyebrowIn.style}>{eyebrow}</p> : null}
+        <h1
+          className={cn("text-title font-bold tracking-tight text-ink sm:text-display-sm", eyebrow && "mt-2", titleIn.className)}
+          style={titleIn.style}
+        >
           {title}
         </h1>
-        {description ? <p className="mt-2 max-w-2xl text-body text-ink-muted">{description}</p> : null}
+        {description ? (
+          <p className={cn("mt-2 max-w-2xl text-body text-ink-muted", descriptionIn.className)} style={descriptionIn.style}>
+            {description}
+          </p>
+        ) : null}
       </div>
-      {actions ? <div className="flex flex-shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className={cn("flex flex-shrink-0 flex-wrap items-center gap-2", actionsIn.className)} style={actionsIn.style}>
+          {actions}
+        </div>
+      ) : null}
     </header>
   )
 }

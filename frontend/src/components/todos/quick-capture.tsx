@@ -1,8 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { motion } from "@/components/ui/motion"
 import { Plus, X } from "lucide-react"
+import { useEnter } from "@/components/animated/entrance"
 import { Button } from "@/components/ui/button"
 import { SPRING_LAYOUT, TAP_PRESS, TWEEN_FAST } from "@/lib/animations"
 import { haptic } from "@/lib/haptics"
@@ -238,16 +239,7 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
     placement === "corner" ? "items-end" : placement === "center" ? "items-center" : "items-end sm:items-center"
 
   return (
-    <div
-      className={cn(
-        // `sticky` and not `toast`: an undo bar or a toast must be able to cover
-        // this, never the other way round.
-        // `pb-safe-4`, the same edge the undo and selection bars keep: 16px of air, or the
-        // home indicator where that is larger — never the two stacked.
-        "pointer-events-none fixed inset-x-0 bottom-0 z-sticky pb-safe-4",
-        className,
-      )}
-    >
+    <Dock className={className}>
       {/*
        * One live region for the whole control, mounted for the component's whole
        * life. Announcing from a node that mounts at the same moment its text
@@ -408,6 +400,35 @@ export function QuickCapture({ onCapture, hidden = false, placement = "responsiv
           </motion.button>
         )}
       </div>
+    </Dock>
+  )
+}
+
+/**
+ * The strip along the bottom of the screen the control floats in.
+ *
+ * On a page's timeline it rises in once the page has arrived, instead of standing in the
+ * corner before anything else is there — and, being remounted whenever a dialog that hid
+ * the control closes, it rises back then too rather than reappearing in one frame. It
+ * moves itself, never an ancestor: it is `position: fixed`, and a transformed ancestor
+ * would re-anchor it (see `app/template.tsx`).
+ */
+function Dock({ className, children }: { className?: string; children: ReactNode }) {
+  const entrance = useEnter("row", { at: 480 })
+  return (
+    <div
+      className={cn(
+        // `sticky` and not `toast`: an undo bar or a toast must be able to cover
+        // this, never the other way round.
+        // `pb-safe-4`, the same edge the undo and selection bars keep: 16px of air, or the
+        // home indicator where that is larger — never the two stacked.
+        "pointer-events-none fixed inset-x-0 bottom-0 z-sticky pb-safe-4",
+        className,
+        entrance.className,
+      )}
+      style={entrance.style}
+    >
+      {children}
     </div>
   )
 }

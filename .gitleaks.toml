@@ -53,11 +53,12 @@ regex = '''redis:6379,\s*password=([A-Za-z0-9+/=_\-]{6,})'''
 tags = ["secret", "planora", "redis"]
 secretGroup = 1
 
-# Email__Password literal (Gmail app password)
+# Email__Password literal (Gmail app password). Capture complete Compose interpolation,
+# including a required-variable message with spaces, before the existing allowlist runs.
 [[rules]]
 id = "planora-email-password"
 description = "Email provider password literal"
-regex = '''(?i)(Email__Password)\s*[:=]\s*['"]?([^\s'"]{6,})'''
+regex = '''(?i)(Email__Password)\s*[:=]\s*['"]?(\$\{[A-Z_][A-Z0-9_]*:\?[^}'"\r\n]*\}|[^\s'"]{6,})'''
 tags = ["secret", "planora", "email"]
 secretGroup = 2
 

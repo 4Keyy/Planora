@@ -1,26 +1,22 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { motion } from "@/components/ui/motion"
-import { DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
-import { isFirstPageOfVisit, markPageShown } from "@/lib/route-transition"
+import { useEffect } from "react"
+import { EntranceTimeline } from "@/components/animated/entrance"
+import { markPageShown } from "@/lib/route-transition"
 
 /**
- * The page's fade between signed-in routes. The bar sits above this, in the layout, so
- * it never fades; the root template does not remount between these routes at all (they
- * share the `(app)` segment).
+ * The start of every signed-in page's arrival. The bar sits above this, in the layout, so
+ * it never moves; the root template does not remount between these routes at all (they
+ * share the `(app)` segment), so this one runs once per page shown — on a navigation at
+ * once, on a refresh once the session is restored and the guard lets the page through.
  *
- * Opacity only, for the reason the root template measured: these pages have fixed
- * controls (quick capture, the selection bar, the undo bar), and a transformed ancestor
- * re-anchors them for the length of the animation.
+ * It used to fade the whole page in, opacity only. Each page now arrives part by part on
+ * the timeline this starts (`components/animated/entrance.tsx`), so a whole-page fade on
+ * top of that would only dim the first beat of it. Still no transform on this wrapper, for
+ * the reason the root template measured: the pages have fixed controls (quick capture, the
+ * selection bar, the undo bar) that a transformed ancestor would re-anchor.
  */
 export default function AppTemplate({ children }: { children: React.ReactNode }) {
-  const [initial] = useState(() => (isFirstPageOfVisit() ? false : { opacity: 0 }))
   useEffect(markPageShown, [])
-
-  return (
-    <motion.div initial={initial} animate={{ opacity: 1 }} transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}>
-      {children}
-    </motion.div>
-  )
+  return <EntranceTimeline>{children}</EntranceTimeline>
 }

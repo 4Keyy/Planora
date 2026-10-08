@@ -36,8 +36,22 @@ import { buildCompletionWindow } from "@/utils/completion-window"
 import { StatusPanel } from "@/components/ui/status-panel"
 import { Pagination } from "@/components/ui/pagination"
 import { PageHeader } from "@/components/layout/page-header"
+import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 
 const PAGE_SIZE = 20
+
+/**
+ * When each part of the archive arrives, in ms after the page starts — the way back, the
+ * header line by line, the filter, then the cards in reading order (from their moment, or
+ * when they load if that is later), and the pager under them.
+ */
+const COMPLETED_AT = {
+  back: 0,
+  header: 50,
+  filter: 270,
+  cards: 350,
+  pager: 450,
+} as const
 
 export default function CompletedTasksPage() {
   const router = useRouter()
@@ -435,13 +449,18 @@ export default function CompletedTasksPage() {
   return (
     <div className="space-y-8" aria-busy={loading}>
       <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-3 mb-4">
-          <Link href="/tasks">
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Back to tasks
-          </Link>
-        </Button>
+        <Enter tier="chip" at={COMPLETED_AT.back} className="-ml-3 mb-4 w-fit">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/tasks">
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to tasks
+            </Link>
+          </Button>
+        </Enter>
         <PageHeader
+          entranceAt={COMPLETED_AT.header}
+          // The count waits for the first page rather than arrive reading 0.
+          actionsReady={hasLoadedTodos}
           eyebrow="Archive"
           title="Completed tasks"
           description="Everything you have finished, newest first. Restore a task or copy it to start again."
@@ -464,93 +483,104 @@ export default function CompletedTasksPage() {
           unmounted it on every refetch — including the one a date pick triggers — which destroyed the
           date popover's open state, so the calendar snapped shut after the first pick instead of
           waiting for the second. Keep the same plate even when categories arrive late or empty. */}
-        <QuickFilterBar
-          categories={categories}
-          selectedIds={filterCategoryIds}
-          onOpen={() => setIsCategoryModalOpen(true)}
-          onClear={() => handleFilterChange([])}
-          dateControl={
-            totalCount > 0 || hasDateFilter ? (
-              <DateFilterPopover
-                start={searchStart}
-                end={searchEnd}
-                onChange={handleDateRangeChange}
-                onClear={clearDateFilter}
-              />
-            ) : undefined
-          }
-        />
+        <Enter tier="panel" at={COMPLETED_AT.filter} className="relative z-30">
+          <QuickFilterBar
+            categories={categories}
+            selectedIds={filterCategoryIds}
+            onOpen={() => setIsCategoryModalOpen(true)}
+            onClear={() => handleFilterChange([])}
+            dateControl={
+              totalCount > 0 || hasDateFilter ? (
+                <DateFilterPopover
+                  start={searchStart}
+                  end={searchEnd}
+                  onChange={handleDateRangeChange}
+                  onClear={clearDateFilter}
+                />
+              ) : undefined
+            }
+          />
+        </Enter>
 
-      {!hasLoadedTodos && !error ? (
-        <MasonryColumns
-          items={[...Array(PAGE_SIZE)].map((_, i) => ({ id: `completed-skeleton-${i}` }))}
-          getKey={(item) => item.id}
-          renderItem={() => <TodoSkeleton />}
-          columns={TASK_GRID_COLUMNS}
-          breakpoints={TASK_GRID_BREAKPOINTS}
-        />
-      ) : error ? (
-        <StatusPanel
-          tone="alert"
-          icon={AlertTriangle}
-          title="Couldn't load your completed tasks"
-          description={error}
-          action={{ label: "Try again", onClick: () => void fetchCompletedTodos() }}
-        />
-      ) : totalCount === 0 ? (
-        <div>
-          {hasDateFilter ? (
-            <StatusPanel
-              icon={CalendarSearch}
-              title="No tasks finished in this period"
-              description={`Nothing was completed ${formatDueRange(searchStart, searchEnd)}. Try a wider range.`}
-              action={{ label: "Clear date filter", onClick: clearDateFilter }}
-            />
-          ) : (
-            <StatusPanel
-              icon={CheckCircle2}
-              title="No completed tasks yet"
-              description="Finish a task and it will appear here."
-              action={{ label: "Go to active tasks", href: "/tasks" }}
-            />
-          )}
-        </div>
-      ) : (
-        <>
+      <SkeletonSwap
+        loading={!hasLoadedTodos && !error}
+        skeleton={
           <MasonryColumns
-            items={visibleTodos}
-            getKey={(todo) => todo.id}
-            getItemWeight={getTaskWeight}
+            items={[...Array(PAGE_SIZE)].map((_, i) => ({ id: `completed-skeleton-${i}` }))}
+            getKey={(item) => item.id}
+            renderItem={() => <TodoSkeleton />}
             columns={TASK_GRID_COLUMNS}
             breakpoints={TASK_GRID_BREAKPOINTS}
-            renderItem={(todo) => (
-              <div>
-                <TodoCard
-                  todo={todo}
-                  variant="completed"
-                  onComplete={() => handleComplete(todo.id)}
-                  onDelete={() => setDeletingTodo(todo)}
-                  onEdit={() => setEditingTodo(todo)}
-                  onToggleHidden={() => handleToggleHidden(todo.id)}
-                />
-                {/* Gentle auto-deletion countdown. A friend's task completed only by this reader
-                    counts from their own completion and leaves only their lists. */}
-                <TaskDeletionBadge
-                  completedAt={todo.completedAt}
-                  personal={todo.isCompletedByViewer === true && !todo.ownerCompleted}
-                  className="mt-2 ml-1"
-                />
-              </div>
-            )}
           />
+        }
+      >
+        {error ? (
+          <Enter tier="panel" at={COMPLETED_AT.cards}>
+            <StatusPanel
+              tone="alert"
+              icon={AlertTriangle}
+              title="Couldn't load your completed tasks"
+              description={error}
+              action={{ label: "Try again", onClick: () => void fetchCompletedTodos() }}
+            />
+          </Enter>
+        ) : totalCount === 0 ? (
+          <Enter tier="panel" at={COMPLETED_AT.cards}>
+            {hasDateFilter ? (
+              <StatusPanel
+                icon={CalendarSearch}
+                title="No tasks finished in this period"
+                description={`Nothing was completed ${formatDueRange(searchStart, searchEnd)}. Try a wider range.`}
+                action={{ label: "Clear date filter", onClick: clearDateFilter }}
+              />
+            ) : (
+              <StatusPanel
+                icon={CheckCircle2}
+                title="No completed tasks yet"
+                description="Finish a task and it will appear here."
+                action={{ label: "Go to active tasks", href: "/tasks" }}
+              />
+            )}
+          </Enter>
+        ) : (
+          <>
+            <MasonryColumns
+              items={visibleTodos}
+              getKey={(todo) => todo.id}
+              getItemWeight={getTaskWeight}
+              columns={TASK_GRID_COLUMNS}
+              breakpoints={TASK_GRID_BREAKPOINTS}
+              entranceAt={COMPLETED_AT.cards}
+              renderItem={(todo) => (
+                <div>
+                  <TodoCard
+                    todo={todo}
+                    variant="completed"
+                    onComplete={() => handleComplete(todo.id)}
+                    onDelete={() => setDeletingTodo(todo)}
+                    onEdit={() => setEditingTodo(todo)}
+                    onToggleHidden={() => handleToggleHidden(todo.id)}
+                  />
+                  {/* Gentle auto-deletion countdown. A friend's task completed only by this reader
+                      counts from their own completion and leaves only their lists. */}
+                  <TaskDeletionBadge
+                    completedAt={todo.completedAt}
+                    personal={todo.isCompletedByViewer === true && !todo.ownerCompleted}
+                    className="mt-2 ml-1"
+                  />
+                </div>
+              )}
+            />
 
-        </>
-      )}
+          </>
+        )}
+      </SkeletonSwap>
 
       {/* Outside the loading branch: the pager stays mounted while the next page loads,
           so the button just pressed keeps keyboard focus instead of unmounting under it. */}
       {!error ? (
         <Pagination
+          entranceAt={COMPLETED_AT.pager}
           className="pt-4"
           page={currentPage}
           totalPages={totalPages}

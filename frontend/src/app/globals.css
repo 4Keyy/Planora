@@ -398,6 +398,84 @@
   .dialog-surface[data-state="closed"] {
     animation: dialog-out theme("transitionDuration.fast") var(--pl-ease-exit) forwards;
   }
+
+  /* Page entrances. `components/animated/entrance.tsx` decides who arrives when, and sets
+     each tier's numbers inline from `tokens.motion.entrance`; this is only the motion.
+
+     Opacity, and the individual `translate` and `scale` properties — never `transform`:
+     they compose with any transform the element already has (a Tailwind translate, a
+     framer-motion hover or layout glide), so an entrance can sit on any element without
+     fighting it. All three run on the compositor, which is the point: a page arrives while
+     React is still rendering it, and a JavaScript-driven rise would stutter exactly then.
+
+     The fade is shorter than the travel, so nothing crosses the screen half-transparent.
+     `backwards` holds the first frame through the delay — a staggered element waits
+     invisible for its turn instead of flashing first — and leaves nothing behind: no
+     lingering transform, no containing block for a fixed descendant, no extra layer. */
+  .enter {
+    animation:
+      enter-fade var(--enter-fade, 320ms) cubic-bezier(0.33, 1, 0.68, 1) var(--enter-delay, 0ms) backwards,
+      enter-rise var(--enter-duration, 600ms) var(--pl-ease-emphasized) var(--enter-delay, 0ms) backwards;
+  }
+  /* The children of an element arrive one after another, each on the container's tier and
+     timing — a row of pills, a list's items, a strip of tiles — without wrapping each
+     child, so a flex or grid container keeps its own children and their sizing. */
+  .enter-each > * {
+    animation:
+      enter-fade var(--enter-fade, 320ms) cubic-bezier(0.33, 1, 0.68, 1)
+        calc(var(--enter-delay, 0ms) + var(--enter-i, 0) * var(--enter-stagger, 40ms)) backwards,
+      enter-rise var(--enter-duration, 600ms) var(--pl-ease-emphasized)
+        calc(var(--enter-delay, 0ms) + var(--enter-i, 0) * var(--enter-stagger, 40ms)) backwards;
+  }
+  .enter-each > :nth-child(2) { --enter-i: 1; }
+  .enter-each > :nth-child(3) { --enter-i: 2; }
+  .enter-each > :nth-child(4) { --enter-i: 3; }
+  .enter-each > :nth-child(5) { --enter-i: 4; }
+  .enter-each > :nth-child(6) { --enter-i: 5; }
+  .enter-each > :nth-child(7) { --enter-i: 6; }
+  .enter-each > :nth-child(8) { --enter-i: 7; }
+  /* Past the eighth the wait would outlast the reader: the rest arrive with it. */
+  .enter-each > :nth-child(n + 9) { --enter-i: 8; }
+  /* A bar that grows out of its baseline instead of rising (the week's bars). */
+  .enter-grow {
+    transform-origin: bottom;
+    animation:
+      enter-fade var(--enter-fade, 260ms) cubic-bezier(0.33, 1, 0.68, 1) var(--enter-delay, 0ms) backwards,
+      enter-grow var(--enter-duration, 600ms) var(--pl-ease-emphasized) var(--enter-delay, 0ms) backwards;
+  }
+  /* Waiting — for its section to scroll into view, or for the value it shows to arrive:
+     held invisible, nothing running. `!important` because some of these elements are
+     framer-motion components, which write an inline `opacity: 1` on mount; a CSS animation
+     outranks that by itself, a plain class does not. */
+  .enter-pending {
+    opacity: 0 !important;
+  }
+
+  /* A placeholder shows only when the wait is long enough to be noticed: a list that arrives
+     within ~300ms replaces an invisible skeleton, so the screen never flashes grey boxes
+     for a frame. When the content arrives the skeleton is not cut away — it stays on the
+     same element, steps behind the content and fades from whatever opacity it had reached,
+     a transition rather than an animation precisely so it can start mid-way. */
+  .skeleton-defer {
+    animation: enter-fade theme("transitionDuration.slow") cubic-bezier(0.33, 1, 0.68, 1) 280ms backwards;
+  }
+  .skeleton-leave {
+    opacity: 0;
+    transition: opacity theme("transitionDuration.slow") var(--pl-ease-exit);
+  }
+}
+
+@keyframes enter-fade {
+  from { opacity: 0; }
+}
+@keyframes enter-rise {
+  from {
+    translate: 0 var(--enter-y, 12px);
+    scale: var(--enter-scale, 1);
+  }
+}
+@keyframes enter-grow {
+  from { scale: 1 0; }
 }
 
 /* Each animates transform and opacity only, and states only the end that differs from the
@@ -674,5 +752,22 @@ a, button, [role="button"], label, summary {
   .dropdown-surface[data-cascade] > *,
   .dropdown-surface [data-cascade] > * {
     animation-delay: 0ms !important;
+  }
+  /* The same for a page's entrance: everything is simply there, at once. */
+  .enter,
+  .enter-grow,
+  .enter-each > * {
+    animation-delay: 0ms !important;
+  }
+  .enter-pending {
+    opacity: 1 !important;
+  }
+}
+
+/* A printed page has no scrolling to reveal what is further down, and no time to play
+   an entrance in: print everything as it stands. */
+@media print {
+  .enter-pending {
+    opacity: 1 !important;
   }
 }

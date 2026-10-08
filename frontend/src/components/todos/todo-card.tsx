@@ -27,6 +27,7 @@ import {
 } from "@/lib/animations"
 import { haptic } from "@/lib/haptics"
 import { CompletionCelebration } from "@/components/animated/celebration"
+import { useArrivalHandled } from "@/components/animated/entrance"
 import { NotificationBadgeCluster } from "@/components/notifications/notification-badge-cluster"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { PriorityMeter } from "@/components/ui/priority-meter"
@@ -113,6 +114,8 @@ function TodoCardComponent({
   viewerId: viewerIdProp,
 }: TodoCardProps) {
   const shouldReduceMotion = useReducedMotion()
+  // Inside a page's grid the grid rises the card in; rising here as well would stack two rises.
+  const arrivalHandled = useArrivalHandled()
   const [optimisticCollapsed, setOptimisticCollapsed] = useState<boolean | null>(null)
   const [isVisibilityPending, setIsVisibilityPending] = useState(false)
   const [completionPhase, setCompletionPhase] = useState<CompletionPhase>(null)
@@ -402,7 +405,7 @@ function TodoCardComponent({
         // collapsed row arrived stretched three times its height and settled. The height
         // now changes in one step under the crossfade, and the neighbours glide.
         layout="position"
-        initial={VARIANTS_CARD.hidden}
+        initial={arrivalHandled ? false : VARIANTS_CARD.hidden}
         animate={
           isJoining
             ? { opacity: 1, y: -1, scale: 1.002 }

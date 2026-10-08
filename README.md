@@ -335,9 +335,9 @@ CI is split across workflows. The main CI still builds/tests backend and fronten
 |---|---|---|
 | [`ci.yml`](.github/workflows/ci.yml) | configured push branches and PRs to main/develop | markdown lint + offline link check, the backend build (`-warnaserror`) and tests, the frontend lint / type-check / test / build pipeline, coverage artefacts |
 | [`security.yml`](.github/workflows/security.yml) | push, pull request, and weekly | **gitleaks**, **CodeQL**, **Trivy** IaC scanning, `dotnet list package --vulnerable`, `npm audit`, and CycloneDX SBOM artifacts; the frontend SBOM is attested on push |
-| [`e2e.yml`](.github/workflows/e2e.yml) | pull requests touching services, gateway, frontend, or compose | Playwright flows against the full Docker stack |
+| [`e2e.yml`](.github/workflows/e2e.yml) | pull requests touching services, gateway, frontend, or compose | Playwright API and UI flows against the Docker stack plus disposable SMTP sink; see [isolated setup](frontend/e2e/README.md). CI publishes redacted output and failure PNGs only |
 | [`openapi.yml`](.github/workflows/openapi.yml) | pull requests touching services or contracts | Swagger/Spectral artifacts for a five-service matrix; Collaboration is currently omitted |
-| [`migrations.yml`](.github/workflows/migrations.yml) | pull requests touching `Services/**/Migrations/**` | intended SQL artifacts for a five-service matrix; tool/build gaps and omitted Realtime are documented in the audit |
+| [`migrations.yml`](.github/workflows/migrations.yml) | pull requests touching `Services/**/Migrations/**` | SQL artifacts for all six services, including Realtime |
 | [`perf-smoke.yml`](.github/workflows/perf-smoke.yml) | manual dispatch only | k6 absolute-threshold scenarios against Docker |
 | [`cd.yml`](.github/workflows/cd.yml) | `v*` tags or manual ref | Fly blue/green deployment path with unresolved rollout blockers |
 

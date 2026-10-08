@@ -29,14 +29,19 @@ import type { RecentEntry } from "./recent"
 
 // ─── Model ──────────────────────────────────────────────────────────────────
 
-export type Tab = "all" | "tasks" | "categories" | "people" | "commands"
+export type Tab = "all" | "tasks" | "categories" | "people" | "shortcuts"
 
+/**
+ * "Shortcuts", not "Commands": the tab holds the views ("Due today", "Urgent"), the two
+ * actions and the screens — ways to get somewhere quickly. "Commands" read as something
+ * typed at a terminal, and next to "Due today" it said nothing about what was in it.
+ */
 export const TABS: Array<{ id: Tab; label: string }> = [
   { id: "all", label: "All" },
   { id: "tasks", label: "Tasks" },
   { id: "categories", label: "Categories" },
   { id: "people", label: "People" },
-  { id: "commands", label: "Commands" },
+  { id: "shortcuts", label: "Shortcuts" },
 ]
 
 export type Scope =
@@ -200,7 +205,7 @@ export interface BuildInput {
   now: Date
 }
 
-const LIMITS_ALL = { tasks: 6, categories: 3, people: 3, commands: 4 }
+const LIMITS_ALL = { tasks: 6, categories: 3, people: 3, shortcuts: 4 }
 const LIMIT_ONE = 50
 
 /** Views with their counts over the open tasks — the chips over an empty query. */
@@ -262,7 +267,7 @@ function buildHome(input: BuildInput): PaletteSection[] {
   if (tab === "people") {
     return people.length ? [{ id: "people", title: "People", items: people.map((p) => personItem(p)) }] : []
   }
-  if (tab === "commands") {
+  if (tab === "shortcuts") {
     return [
       { id: "views", title: "Views", items: countViews(tasks, now).map((v) => viewItem(v)) },
       { id: "actions", title: "Actions", items: ACTIONS.map((a) => fromStatic("action", a)) },
@@ -289,7 +294,12 @@ function buildHome(input: BuildInput): PaletteSection[] {
     if (recentItems.length === 4) break
   }
   const recentKeys = new Set(recentItems.map((i) => i.key))
-  const upNext = open.filter((t) => !recentKeys.has(`task:${t.id}`)).slice(0, 5).map((t) => taskItem(t))
+  // A recommendation never surfaces a task its owner chose to hide: it can be searched
+  // for, and then it arrives blurred, but nothing puts it in front of them unasked.
+  const upNext = open
+    .filter((t) => !t.hidden && !recentKeys.has(`task:${t.id}`))
+    .slice(0, 5)
+    .map((t) => taskItem(t))
 
   return [
     ...(recentItems.length ? [{ id: "recent", title: "Recent", items: recentItems }] : []),
@@ -358,7 +368,7 @@ function scorePeople(people: PalettePerson[], tokens: string[]): Scored[] {
   return scored.sort(byScore)
 }
 
-function scoreCommands(tasks: PaletteTask[], tokens: string[], now: Date): Scored[] {
+function scoreShortcuts(tasks: PaletteTask[], tokens: string[], now: Date): Scored[] {
   const scored: Scored[] = []
   for (const view of countViews(tasks, now)) {
     const m = matchCommand(view.label, view.hint, tokens)
@@ -388,7 +398,7 @@ export function countMatches(input: Pick<BuildInput, "query" | "tasks" | "catego
     tasks: scoreTasks(tasks, query.tokens).length,
     categories: scoreCategories(categories, query.tokens).length,
     people: scorePeople(people, query.tokens).length,
-    commands: scoreCommands(tasks, query.tokens, now).length,
+    shortcuts: scoreShortcuts(tasks, query.tokens, now).length,
   }
 }
 
@@ -397,7 +407,7 @@ export const SECTION_TAB: Record<string, Exclude<Tab, "all">> = {
   tasks: "tasks",
   categories: "categories",
   people: "people",
-  commands: "commands",
+  shortcuts: "shortcuts",
 }
 
 export function buildSections(input: BuildInput): PaletteSection[] {
@@ -419,7 +429,7 @@ export function buildSections(input: BuildInput): PaletteSection[] {
   if (tab === "all" || tab === "tasks") add("tasks", "Tasks", 0, scoreTasks(tasks, query.tokens))
   if (tab === "all" || tab === "categories") add("categories", "Categories", 1, scoreCategories(categories, query.tokens))
   if (tab === "all" || tab === "people") add("people", "People", 2, scorePeople(people, query.tokens))
-  if (tab === "all" || tab === "commands") add("commands", "Commands", 3, scoreCommands(tasks, query.tokens, now))
+  if (tab === "all" || tab === "shortcuts") add("shortcuts", "Shortcuts", 3, scoreShortcuts(tasks, query.tokens, now))
 
   // The group holding the single best match comes first, so Enter on a fresh
   // query always lands on the obvious result, whatever kind it is.

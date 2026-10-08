@@ -186,6 +186,8 @@ api.interceptors.request.use(async (config) => {
       const csrfToken = await getCsrfToken()
       config.headers[CSRF_HEADER_NAME] = csrfToken
     } catch (error) {
+      // A limited token fetch must not turn into a second mutation lacking its CSRF header.
+      if (axios.isAxiosError(error) && error.response?.status === 429) throw error
       console.error('[API] Failed to add CSRF token:', error)
       // Continue anyway - server will reject if CSRF is required
     }

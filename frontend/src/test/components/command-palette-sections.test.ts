@@ -38,6 +38,7 @@ function task(over: Partial<PaletteTask> & { id: string; title: string }): Palet
     workers: [],
     openSubtasks: 0,
     urgent: false,
+    hidden: false,
     keywords: fold([over.description, over.categoryName].filter(Boolean).join(" ")),
     ...over,
   }
@@ -96,6 +97,18 @@ describe("buildSections — nothing typed", () => {
     expect(sections[1].items.map((i) => i.key)).not.toContain("task:flights")
   })
 
+  it("never recommends a hidden task, though search still finds it", () => {
+    const secret = task({ id: "gift", title: "Buy the anniversary gift", dueDate: day(-3), hidden: true })
+    const tasks = [secret, ...TASKS]
+    const home = buildSections(input({ tasks }))
+    // The most overdue open task, and still not in Up next.
+    expect(home.find((s) => s.id === "next")!.items.map((i) => i.task?.id)).toEqual(["bank", "bills", "flights", "hotel", "report"])
+    expect(keys(buildSections(input({ tasks, q: "gift" })))).toContain("task:gift")
+    // Opened before, it is where the reader left it — Recent only remembers.
+    const recent = buildSections(input({ tasks, recent: [{ kind: "task", id: "gift" }] }))
+    expect(recent[0].items.map((i) => i.key)).toEqual(["task:gift"])
+  })
+
   it("lists one kind per tab", () => {
     const tasks = buildSections(input({ tab: "tasks" }))
     expect(ids(tasks)).toEqual(["open", "done"])
@@ -103,7 +116,7 @@ describe("buildSections — nothing typed", () => {
     expect(tasks[1].items.map((i) => i.task?.id)).toEqual(["milk", "gym"])
     expect(keys(buildSections(input({ tab: "categories" })))).toEqual(["category:travel", "category:home"])
     expect(keys(buildSections(input({ tab: "people" })))).toEqual(["person:ada", "person:ben"])
-    expect(ids(buildSections(input({ tab: "commands" })))).toEqual(["views", "actions", "screens"])
+    expect(ids(buildSections(input({ tab: "shortcuts" })))).toEqual(["views", "actions", "screens"])
   })
 
   it("returns nothing for an empty kind", () => {
@@ -128,12 +141,12 @@ describe("buildSections — searching", () => {
     expect(sections.at(-1)!.items[0]).toMatchObject({ kind: "create", label: "Create task “trav”", action: { type: "capture", title: "trav" } })
   })
 
-  it("finds people by name or by email, and commands by label or hint", () => {
+  it("finds people by name or by email, and shortcuts by label or hint", () => {
     expect(keys(buildSections(input({ q: "@lovelace" })))).toEqual(["person:ada"])
     expect(keys(buildSections(input({ q: "@books" })))).toEqual(["person:ben"])
-    const commands = buildSections(input({ q: ">archive" }))
-    expect(keys(commands)).toEqual(["screen:completed"])
-    expect(flatten(commands)[0].indices).toEqual([])
+    const shortcuts = buildSections(input({ q: ">archive" }))
+    expect(keys(shortcuts)).toEqual(["screen:completed"])
+    expect(flatten(shortcuts)[0].indices).toEqual([])
     expect(keys(buildSections(input({ q: ">overdue" })))).toEqual(["view:overdue"])
     // A hint matches as a whole fragment, never as letters scattered through it.
     expect(keys(buildSections(input({ q: ">every key" })))).toEqual(["action:shortcuts"])
@@ -159,7 +172,7 @@ describe("buildSections — searching", () => {
   it("counts matches per tab, and nothing with nothing typed", () => {
     expect(countMatches(input())).toBeNull()
     // Ben matches by his email address.
-    expect(countMatches(input({ q: "book" }))).toEqual({ tasks: 2, categories: 0, people: 1, commands: 0 })
+    expect(countMatches(input({ q: "book" }))).toEqual({ tasks: 2, categories: 0, people: 1, shortcuts: 0 })
     expect(countMatches(input({ q: "o" }))).toMatchObject({ categories: 1, people: 2 })
   })
 })

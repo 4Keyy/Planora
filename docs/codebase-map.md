@@ -219,6 +219,7 @@ Critical files:
 - `Infrastructure/Grpc/TaskBranchAuthorizer.cs` — gates branch topic subscription against Todo
 - `Infrastructure/Services/ConnectionManager.cs`, `RealtimeBroadcaster.cs`, `NotificationService.cs`, `NotificationStore.cs`, `NotificationReadStore.cs`
 - `Infrastructure/Persistence/RealtimeDbContext.cs` — active conditional notification persistence; delivery/outbox schemas exist without current runtime writers
+- `Infrastructure/Persistence/RealtimeDatabaseStartup.cs` — configured PostgreSQL bootstrap before event subscriptions; verifies compatible model-created schemas without adopting history and rejects schema/history drift
 - `Infrastructure/Retention/NotificationRetentionPolicies.cs`
 
 ## gRPC Contracts
@@ -253,7 +254,7 @@ Critical files:
 | `frontend/src/components/layout` | `app-shell.tsx` — the signed-in frame (the bar, `<main id="main">`, the column); `droplet.tsx` — `DropletFrame`, the floating capsule every bar is drawn as, with `useDropletScroll` and `useIsPhone`; `navbar.tsx` — the app's droplet bar (tabs, search, notifications, account, the phone menu); `page-header.tsx` — every page's title row |
 | `frontend/src/components/notifications` | the bell, its badge, and the badge cluster |
 | `frontend/src/components/backgrounds` | the raw-WebGL ribbon gradient and its static fallback |
-| `frontend/src/components/animated` | `celebration.tsx` (confetti), `fade-in.tsx`, `loading.tsx` |
+| `frontend/src/components/animated` | `entrance.tsx` — how a signed-in page arrives: the per-page timeline the `(app)` template starts, `useEnter`/`Enter`, `EnterEach`, `EnterInView` (arrive on scroll), `SkeletonSwap` (design-system § 9.13); `celebration.tsx` (confetti), `fade-in.tsx`, `loading.tsx` |
 | `frontend/src/components/*.tsx` | the headless singletons mounted near the root: `auth-guard`, `error-boundary`, `motion-preferences-provider`, `realtime-manager`, `security-initializer` |
 | `frontend/src/components/command-palette/` | the ⌘K palette, mounted in the root layout: `index.tsx` (state, reads, keys, motion), `search.ts` and `sections.ts` (pure matching and list building), `rows.tsx`, `preview.tsx`, `chrome.tsx`, `recent.ts` |
 | `frontend/src/hooks` | cross-cutting behaviour: list navigation, focus trap, scroll lock, autosave, friends, collapse-on-scroll |

@@ -198,8 +198,8 @@ const layer = {
 // ─── Motion ─────────────────────────────────────────────────────────────────
 
 /**
- * Five durations, three curves, three springs. Every animated value is a
- * `transform` or an `opacity` — nothing else composites on the GPU.
+ * Five durations, three curves, four springs, and the page-entrance tiers. Every
+ * animated value is a `transform` or an `opacity` — nothing else composites on the GPU.
  */
 const motion = {
   duration: {
@@ -239,6 +239,32 @@ const motion = {
      * `standard`.
      */
     layout: { type: "spring", stiffness: 400, damping: 40 },
+  },
+  /**
+   * How a page arrives, by the size of what arrives. A screen appearing is choreography,
+   * not a response to a press, so it is not held to `slow`: a page-wide card arriving in
+   * 320ms reads as a jolt. Mass sets the motion — the bigger the thing, the further it
+   * travels, the less it scales and the longer it takes; a chip barely moves and settles
+   * quickly. Every tier lands on `emphasized`, which covers nine tenths of the way in the
+   * first third of the time, so long durations still feel quick and the tail is the settle.
+   *
+   * `y` travel in px · `scale` the starting scale (wide surfaces scale least: 1% of a
+   * 1100px card is already 11px) · `duration` of the movement and `fade` of the opacity,
+   * which is shorter so nothing travels half-transparent · `stagger` between siblings.
+   */
+  entrance: {
+    /** The page's dominant surface: the dashboard overview, the profile identity card. */
+    hero: { y: 26, scale: 0.985, duration: 820, fade: 440, stagger: 90 },
+    /** Full-width plates and section cards: New task, the filter, a settings card. */
+    panel: { y: 20, scale: 0.99, duration: 720, fade: 400, stagger: 70 },
+    /** Cards in a grid. */
+    card: { y: 18, scale: 0.97, duration: 680, fade: 360, stagger: 55 },
+    /** Rows of a list, header rows, tiles. */
+    row: { y: 12, scale: 1, duration: 600, fade: 320, stagger: 40 },
+    /** Lines of text: eyebrows, titles, sentences. Never scaled — scaled type shimmers. */
+    text: { y: 10, scale: 1, duration: 640, fade: 380, stagger: 55 },
+    /** Pills, counters, small buttons, avatars. */
+    chip: { y: 8, scale: 0.92, duration: 520, fade: 260, stagger: 40 },
   },
 } as const
 

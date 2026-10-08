@@ -11,10 +11,12 @@ import {
   Flame,
   Folder,
   Play,
+  Share2,
   UsersRound,
   type LucideIcon,
 } from "lucide-react"
 import { Avatar } from "@/components/ui/avatar"
+import { RedactionBadge } from "@/components/ui/redaction-badge"
 import { Kbd } from "@/components/ui/shortcuts-overlay"
 import { ICON_MAP } from "@/lib/icon-map"
 import { cn } from "@/lib/utils"
@@ -132,6 +134,44 @@ function ItemGlyph({ item }: { item: PaletteItem }) {
   )
 }
 
+// ─── Hidden tasks ───────────────────────────────────────────────────────────
+
+/**
+ * How far a hidden task is blurred: no word survives it at a row's size, while the
+ * row still reads as a row — its shape, its glyph's colour and the marked letters of
+ * a match show through, so the reader can tell it is the task they were looking for.
+ */
+export const VEIL_BLUR = "blur-[4px]"
+
+const VEIL_LAYER =
+  "col-start-1 row-start-1 flex min-w-0 items-center transition-opacity duration-base ease-standard motion-reduce:transition-none"
+
+/**
+ * A hidden task, blurred until it is revealed — the task card's redaction, at the size
+ * of a row. Two copies share one grid cell and cross-fade, the blurred one fading out as
+ * the clear one fades in: animating `filter` would repaint the row on every frame, and
+ * opacity is composited. Both copies stay outside the accessibility tree until
+ * revealed; the row supplies a generic label in their place.
+ */
+export function Veil({ revealed, className, layerClassName, children }: {
+  revealed: boolean
+  className?: string
+  /** Spacing inside each copy — the copies are flex rows of their own. */
+  layerClassName?: string
+  children: ReactNode
+}) {
+  return (
+    <span data-veil={revealed ? "revealed" : "veiled"} className={cn("grid min-w-0 grid-cols-[minmax(0,1fr)]", className)}>
+      <span aria-hidden="true" className={cn(VEIL_LAYER, VEIL_BLUR, layerClassName, revealed ? "opacity-0" : "opacity-100")}>
+        {children}
+      </span>
+      <span aria-hidden={!revealed} className={cn(VEIL_LAYER, layerClassName, revealed ? "opacity-100" : "opacity-0")}>
+        {children}
+      </span>
+    </span>
+  )
+}
+
 // ─── Secondary line ─────────────────────────────────────────────────────────
 
 /** Who a task concerns, in a few words: "from Ada", "with Ada and Ben", "all friends". */
@@ -146,6 +186,50 @@ export function audience(task: PaletteTask, names: Map<string, string>): string 
   return `with ${known[0]} +${rest}`
 }
 
+const capitalise = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/**
+ * Who a task concerns, marked the way its card marks it, so a result says "All friends"
+ * with the same open ring before it is opened. Your own task shows its audience — the
+ * ring the card draws, open as far as the audience is wide; a friend's task shows whose
+ * it is, with the card's share glyph. A private task is unmarked in a row: "only you" is
+ * what an ordinary task is, and marking it would put a badge on almost every result.
+ * `sentence` is the preview's wording, which also names the private case.
+ */
+export function AudienceMark({ task, names, sentence = false }: {
+  task: PaletteTask
+  names: Map<string, string>
+  sentence?: boolean
+}) {
+  const who = audience(task, names)
+  const text = (value: string) => (sentence ? capitalise(value) : value)
+
+  if (!task.mine) {
+    return (
+      <span className="inline-flex min-w-0 items-center gap-1 text-accent">
+        <Share2 aria-hidden="true" className="h-3 w-3 flex-shrink-0" />
+        <span className="truncate">{text(who ?? "shared with you")}</span>
+      </span>
+    )
+  }
+  if (task.sharedWithAll) return <RedactionBadge audience="public" size="sm" />
+  if (task.sharedWith.length > 0 && who) {
+    return (
+      <span className="inline-flex min-w-0 items-center gap-1.5 text-accent">
+        <RedactionBadge audience="shared" viewerCount={task.sharedWith.length} size="sm" showLabel={false} />
+        <span className="truncate">{text(who)}</span>
+      </span>
+    )
+  }
+  if (!sentence) return null
+  return (
+    <span className="inline-flex items-center gap-1.5 text-ink-muted">
+      <RedactionBadge audience="private" size="sm" showLabel={false} />
+      Only you
+    </span>
+  )
+}
+
 function taskLine(task: PaletteTask, names: Map<string, string>, hideCategory: boolean): ReactNode {
   const parts: ReactNode[] = []
   if (task.categoryName && !hideCategory) {
@@ -156,8 +240,9 @@ function taskLine(task: PaletteTask, names: Map<string, string>, hideCategory: b
       </span>,
     )
   }
-  const who = audience(task, names)
-  if (who) parts.push(<span key="who" className={cn(!task.mine || task.sharedWithAll || task.sharedWith.length ? "text-accent" : undefined)}>{who}</span>)
+  if (!task.mine || task.sharedWithAll || task.sharedWith.length > 0) {
+    parts.push(<AudienceMark key="who" task={task} names={names} />)
+  }
   if (!task.completed && task.inProgress) parts.push(<span key="prog">in progress</span>)
   if (!task.completed && task.openSubtasks > 0) {
     parts.push(<span key="steps">{task.openSubtasks} {task.openSubtasks === 1 ? "step" : "steps"} open</span>)
@@ -178,11 +263,18 @@ export interface RowProps {
   highlight?: ReactNode
   /** Inside a category's scope every row would repeat its name. */
   hideCategory?: boolean
+  /**
+   * A hidden task's row is blurred until this is true: until the pointer has moved onto it,
+   * or the arrows have moved to it. Merely being the first row of a fresh result list does
+   * not count — a search must not unveil what its owner hid before they reach for it.
+   */
+  revealed?: boolean
 }
 
-export function RowContent({ item, active, now, names, highlight, hideCategory = false }: RowProps) {
+export function RowContent({ item, active, now, names, highlight, hideCategory = false, revealed = false }: RowProps) {
   const task = item.task
   const due = task ? describeDue(task, now) : null
+  const veiled = Boolean(task?.hidden)
 
   let secondary: ReactNode = item.hint ?? null
   if (task) secondary = taskLine(task, names, hideCategory)
@@ -192,35 +284,49 @@ export function RowContent({ item, active, now, names, highlight, hideCategory =
 
   const narrows = item.action.type === "scope"
 
+  const body = (
+    <>
+      <ItemGlyph item={item} />
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            "block truncate text-body-sm font-semibold",
+            task?.completed ? "text-ink-muted line-through decoration-line-strong" : "text-ink",
+          )}
+        >
+          {veiled ? <span className="sr-only">Hidden task: </span> : null}
+          <Highlight text={item.label} indices={item.indices} />
+        </span>
+        {secondary ? (
+          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-caption font-medium text-ink-muted">
+            {secondary}
+          </span>
+        ) : null}
+      </span>
+    </>
+  )
+
+  const dueChip = due ? (
+    <span className={cn("rounded-full px-2 py-0.5 text-caption font-semibold tabular-nums", DUE_TONE[due.tone])}>
+      {due.label}
+    </span>
+  ) : null
+
   return (
     <>
       {highlight}
+      {veiled && !revealed ? <span className="sr-only">Hidden task. Use the arrow keys to reveal.</span> : null}
       {/* Positioned without a z-index: painted after the highlight, so above it. */}
-      <span className="relative flex min-w-0 flex-1 items-center gap-3">
-        <ItemGlyph item={item} />
-        <span className="min-w-0 flex-1">
-          <span
-            className={cn(
-              "block truncate text-body-sm font-semibold",
-              task?.completed ? "text-ink-muted line-through decoration-line-strong" : "text-ink",
-            )}
-          >
-            <Highlight text={item.label} indices={item.indices} />
-          </span>
-          {secondary ? (
-            <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-caption font-medium text-ink-muted">
-              {secondary}
-            </span>
-          ) : null}
-        </span>
-      </span>
+      {veiled ? (
+        <Veil revealed={revealed} className="relative flex-1" layerClassName="gap-3">
+          {body}
+        </Veil>
+      ) : (
+        <span className="relative flex min-w-0 flex-1 items-center gap-3">{body}</span>
+      )}
 
       <span className="relative flex flex-shrink-0 items-center gap-2">
-        {due ? (
-          <span className={cn("rounded-full px-2 py-0.5 text-caption font-semibold tabular-nums", DUE_TONE[due.tone])}>
-            {due.label}
-          </span>
-        ) : null}
+        {dueChip && veiled ? <Veil revealed={revealed}>{dueChip}</Veil> : dueChip}
         {item.view ? (
           <span className={cn("min-w-6 rounded-full px-2 py-0.5 text-center text-caption font-semibold tabular-nums", item.view.count ? TONE_GLYPH[item.view.tone] : "text-ink-subtle")}>
             {item.view.count}

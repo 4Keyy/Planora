@@ -206,7 +206,7 @@ describe("create account", () => {
     await user.type(screen.getByLabelText("Confirm password"), confirm)
   }
 
-  it("ticks the rules and confirms the match while typing, then posts without the confirmation", async () => {
+  it("ticks the rules and confirms the match while typing, then posts the server-required confirmation", async () => {
     const user = userEvent.setup()
     post.mockResolvedValueOnce(LOGIN_OK)
     render(<RegisterPage />)
@@ -221,6 +221,7 @@ describe("create account", () => {
       lastName: "Morgan",
       email: "alex@example.com",
       password: "Correct1!horse",
+      confirmPassword: "Correct1!horse",
     })
     expect(sessionStorage.getItem("planora-first-run")).toBe("1")
   })

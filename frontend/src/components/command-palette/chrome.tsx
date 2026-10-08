@@ -46,13 +46,13 @@ const HINTS: Array<{ word: string; key?: string }> = [
   { word: "tasks" },
   { word: "categories", key: "#" },
   { word: "people", key: "@" },
-  { word: "commands", key: ">" },
+  { word: "shortcuts", key: ">" },
 ]
 
 const ROLL_EVERY_MS = 2600
 
 /**
- * "Search tasks", and the last word rolls: categories `#`, people `@`, commands
+ * "Search tasks", and the last word rolls: categories `#`, people `@`, shortcuts
  * `>`. A static placeholder can list what the palette searches; this one also
  * says how to search only one kind of thing, at the moment the field is empty and
  * the reader is deciding what to type. It rolls the way a counter does — the
@@ -73,7 +73,7 @@ export function RollingHint({ scopeLabel }: { scopeLabel?: string | null }) {
   }, [reduce, scopeLabel])
 
   if (scopeLabel) return <span className="truncate">Search in {scopeLabel}…</span>
-  if (reduce) return <span className="truncate">Search tasks, categories, people and commands…</span>
+  if (reduce) return <span className="truncate">Search tasks, categories, people and shortcuts…</span>
 
   const rows = [...HINTS, HINTS[0]]
   return (
@@ -156,7 +156,7 @@ export function ScopeChip({ scope, onRemove }: { scope: Scope; onRemove: () => v
 // ─── Tabs, or the way back out of a scope ───────────────────────────────────
 
 /**
- * All · Tasks · Categories · People · Commands. The selected one is the same ink
+ * All · Tasks · Categories · People · Shortcuts. The selected one is the same ink
  * drop the app bar uses for the current page, and it flows between tabs the same
  * way. While something is typed each tab says how many results it holds, so the
  * reader sees where the matches are before switching; typing `#`, `@` or `>`

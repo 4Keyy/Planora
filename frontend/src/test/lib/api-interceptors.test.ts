@@ -93,6 +93,12 @@ describe("api interceptors", () => {
     expect(errorSpy).toHaveBeenCalledWith("[API] Failed to add CSRF token:", expect.any(Error))
   })
 
+  it("does not send a mutation without CSRF after the token endpoint returns 429", async () => {
+    const error = { isAxiosError: true, response: { status: 429 } }
+    vi.mocked(getCsrfToken).mockRejectedValue(error)
+    await expect(requestFulfilled()({ method: "post", headers: {} })).rejects.toBe(error)
+  })
+
   it("propagates request interceptor setup errors", async () => {
     const error = new Error("bad request config")
 

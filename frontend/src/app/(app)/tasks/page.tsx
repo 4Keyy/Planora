@@ -48,6 +48,7 @@ import { readFilter, writeFilter } from "@/utils/category-filter"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
+import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { StatusPanel } from "@/components/ui/status-panel"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { PageHeader } from "@/components/layout/page-header"
@@ -71,6 +72,19 @@ const COMPLETED_PREVIEW_SIZE = 20
 const INITIAL_VISIBLE_TASKS = 24
 const VISIBLE_TASKS_CHUNK = 24
 const EMPTY_USER_ID = "00000000-0000-0000-0000-000000000000"
+
+/**
+ * When each part of the page arrives, in ms after it starts — top to bottom: the header
+ * line by line, the New task plate, the filter, then the cards in reading order (from their
+ * moment, or the moment they load if that is later), and the Completed row after them.
+ */
+const TASKS_AT = {
+  header: 0,
+  newTask: 190,
+  filter: 260,
+  cards: 340,
+  completed: 440,
+} as const
 
 /**
  * Header count pill ("5 active" / "2 done"). The number crossfades vertically
@@ -134,6 +148,9 @@ export default function TasksPage() {
   const [completedTotalCount, setCompletedTotalCount] = useState(0)
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  /** Each list has been read once: the header's counts may arrive, already right. */
+  const [activeLoaded, setActiveLoaded] = useState(false)
+  const [completedLoaded, setCompletedLoaded] = useState(false)
   const [completedLoading, setCompletedLoading] = useState(false)
 
   const friendNameCache = useRef<Map<string, string>>(new Map())
@@ -304,6 +321,7 @@ export default function TasksPage() {
       if (!silent) addToast({ type: "error", title: "Failed to load tasks" })
     } finally {
       if (!silent && !signal?.aborted) setLoading(false)
+      if (!signal?.aborted) setActiveLoaded(true)
     }
   }, [addToast, enrichTodosWithAuthorNames])
 
@@ -326,7 +344,10 @@ export default function TasksPage() {
       setCompletedPreview([])
       setCompletedTotalCount(0)
     } finally {
-      if (!signal?.aborted) setCompletedLoading(false)
+      if (!signal?.aborted) {
+        setCompletedLoading(false)
+        setCompletedLoaded(true)
+      }
     }
   }, [enrichTodosWithAuthorNames])
 
@@ -784,6 +805,7 @@ export default function TasksPage() {
   const activeCount = todos.filter(t => t.isCompletedByViewer !== true).length
   const doneCount = completedTotalCount
   const totalCount = activeCount + doneCount
+  const countsKnown = activeLoaded && completedLoaded
 
   const sortedTodos = useMemo(() => {
     const filtered = todos.filter(t => t.isCompletedByViewer !== true)
@@ -883,12 +905,16 @@ export default function TasksPage() {
   return (
     <div className="space-y-6">
       <PageHeader
+        entranceAt={TASKS_AT.header}
         eyebrow="Workspace"
         title="Tasks"
+        // The counts wait for both lists rather than arrive reading 0 and roll up. Keyed by
+        // that, so a pill arrives with its number instead of rolling to it as it appears.
+        actionsReady={countsKnown}
         actions={
           <>
-            <StatusPill count={activeCount} label="active" emphasis />
-            <StatusPill count={doneCount} label="done" />
+            <StatusPill key={countsKnown ? "active" : "active-loading"} count={activeCount} label="active" emphasis />
+            <StatusPill key={countsKnown ? "done" : "done-loading"} count={doneCount} label="done" />
           </>
         }
       />
@@ -896,216 +922,230 @@ export default function TasksPage() {
       {/* The redesigned control deck: the create panel and the quick-filter plate are BOTH always
           on screen — the panel's own collapsed header is the "new task" affordance and expands in
           place. Create sits above the filter (task creation is the primary action of this page). */}
-      <CreateTodoPanel
-        isOpen={isCreateOpen}
-        onToggle={() => setIsCreateOpen((prev) => !prev)}
-        categories={categories}
-        onSubmit={handleCreate}
-        onCreateCategory={fetchCategories}
-        onDeleteCategory={async (id) => {
-          await api.delete(`/categories/api/v1/categories/${id}`)
-          await fetchCategories()
-          await fetchActiveTodos()
-          await fetchCompletedPreview()
-        }}
-      />
-      <QuickFilterBar
-        categories={categories}
-        selectedIds={filterCategoryIds}
-        onOpen={() => setIsCategoryModalOpen(true)}
-        onClear={() => handleFilterChange([])}
-      />
+      <Enter tier="panel" at={TASKS_AT.newTask}>
+        <CreateTodoPanel
+          isOpen={isCreateOpen}
+          onToggle={() => setIsCreateOpen((prev) => !prev)}
+          categories={categories}
+          onSubmit={handleCreate}
+          onCreateCategory={fetchCategories}
+          onDeleteCategory={async (id) => {
+            await api.delete(`/categories/api/v1/categories/${id}`)
+            await fetchCategories()
+            await fetchActiveTodos()
+            await fetchCompletedPreview()
+          }}
+        />
+      </Enter>
+      <Enter tier="panel" at={TASKS_AT.filter}>
+        <QuickFilterBar
+          categories={categories}
+          selectedIds={filterCategoryIds}
+          onOpen={() => setIsCategoryModalOpen(true)}
+          onClear={() => handleFilterChange([])}
+        />
+      </Enter>
 
-      {loading ? (
-        <MasonryColumns
-          items={[...Array(6)].map((_, i) => ({ id: `skeleton-${i}` }))}
-          getKey={(item) => item.id}
-          renderItem={() => <TodoSkeleton />}
-          columns={TASK_GRID_COLUMNS}
-          breakpoints={TASK_GRID_BREAKPOINTS}
-        />
-      ) : totalCount === 0 ? (
-        <StatusPanel
-          icon={CheckCircle2}
-          title="No tasks yet"
-          description="Write down the first thing on your mind. You can share it later."
-          action={{ label: "Create a task", onClick: () => setIsCreateOpen(true) }}
-        />
-      ) : (
-        <div className="space-y-10">
-          <div>
-            {visibleTodos.length === 0 ? (
-              filterCategoryIds.length > 0 ? (
-                <StatusPanel
-                  size="compact"
-                  as="p"
-                  icon={FolderOpen}
-                  title="No tasks in the selected categories"
-                  description="Nothing here matches the filter. Widen it, or clear it to see everything."
-                  action={{ label: "Clear filter", onClick: () => handleFilterChange([]) }}
-                />
+      <SkeletonSwap
+        loading={loading}
+        skeleton={
+          <MasonryColumns
+            items={[...Array(6)].map((_, i) => ({ id: `skeleton-${i}` }))}
+            getKey={(item) => item.id}
+            renderItem={() => <TodoSkeleton />}
+            columns={TASK_GRID_COLUMNS}
+            breakpoints={TASK_GRID_BREAKPOINTS}
+          />
+        }
+      >
+        {totalCount === 0 ? (
+          <Enter tier="panel" at={TASKS_AT.cards}>
+            <StatusPanel
+              icon={CheckCircle2}
+              title="No tasks yet"
+              description="Write down the first thing on your mind. You can share it later."
+              action={{ label: "Create a task", onClick: () => setIsCreateOpen(true) }}
+            />
+          </Enter>
+        ) : (
+          <div className="space-y-10">
+            <div>
+              {visibleTodos.length === 0 ? (
+                <Enter tier="panel" at={TASKS_AT.cards}>
+                  {filterCategoryIds.length > 0 ? (
+                    <StatusPanel
+                      size="compact"
+                      as="p"
+                      icon={FolderOpen}
+                      title="No tasks in the selected categories"
+                      description="Nothing here matches the filter. Widen it, or clear it to see everything."
+                      action={{ label: "Clear filter", onClick: () => handleFilterChange([]) }}
+                    />
+                  ) : (
+                    <StatusPanel size="compact" as="p" icon={CheckCircle2} title="No active tasks" />
+                  )}
+                </Enter>
               ) : (
-                <StatusPanel size="compact" as="p" icon={CheckCircle2} title="No active tasks" />
-              )
-            ) : (
-              <>
-              {/* Held realtime changes, offered above the list they would have
-                  moved. Renders nothing while the queue is empty. */}
-              <UpdatePill count={incoming.count} onShow={incoming.show} noun="update" />
-              <MasonryColumns
-                items={renderedTodos}
-                getKey={(todo) => todo.id}
-                getItemWeight={getTaskWeight}
-                columns={TASK_GRID_COLUMNS}
-                breakpoints={TASK_GRID_BREAKPOINTS}
-                renderItem={(todo) => (
-                  <TodoCard
-                    todo={todo}
-                    variant="default"
-                    rowProps={nav.getRowProps(todo.id)}
-                    onComplete={() => handleComplete(todo.id)}
-                    onDelete={() => requestDelete(todo)}
-                    onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
-                    onToggleHidden={() => handleToggleHidden(todo.id)}
-                    onJoin={async () => {
-                      if (isTodoOwner(todo, user?.userId)) {
-                        try {
-                          await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "inProgress" })
-                          setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "In Progress" } : t))
-                          setCommentsRefreshKey((k) => k + 1)
-                        } catch {
-                          addToast({ type: "error", title: "Could not update task" })
-                        }
-                      } else {
-                        try {
-                          const updated = await joinTodo(todo.id)
-                          setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
-                          setCommentsRefreshKey((k) => k + 1)
-                        } catch (err: unknown) {
-                          const status = (err as { response?: { status: number } })?.response?.status
-                          if (status === 409) {
-                            addToast({ type: "warning", title: "Task is full or you have already joined" })
-                            try {
-                              const fresh = await fetchTaskById(todo.id)
-                              setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...fresh } : t))
-                            } catch { /* ignore refetch failure */ }
-                          } else {
-                            addToast({ type: "error", title: "Could not join task" })
+                <>
+                {/* Held realtime changes, offered above the list they would have
+                    moved. Renders nothing while the queue is empty. */}
+                <UpdatePill count={incoming.count} onShow={incoming.show} noun="update" />
+                <MasonryColumns
+                  items={renderedTodos}
+                  getKey={(todo) => todo.id}
+                  getItemWeight={getTaskWeight}
+                  columns={TASK_GRID_COLUMNS}
+                  breakpoints={TASK_GRID_BREAKPOINTS}
+                  entranceAt={TASKS_AT.cards}
+                  renderItem={(todo) => (
+                    <TodoCard
+                      todo={todo}
+                      variant="default"
+                      rowProps={nav.getRowProps(todo.id)}
+                      onComplete={() => handleComplete(todo.id)}
+                      onDelete={() => requestDelete(todo)}
+                      onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
+                      onToggleHidden={() => handleToggleHidden(todo.id)}
+                      onJoin={async () => {
+                        if (isTodoOwner(todo, user?.userId)) {
+                          try {
+                            await api.put(`/todos/api/v1/todos/${todo.id}`, { status: "inProgress" })
+                            setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "In Progress" } : t))
+                            setCommentsRefreshKey((k) => k + 1)
+                          } catch {
+                            addToast({ type: "error", title: "Could not update task" })
+                          }
+                        } else {
+                          try {
+                            const updated = await joinTodo(todo.id)
+                            setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...updated } : t))
+                            setCommentsRefreshKey((k) => k + 1)
+                          } catch (err: unknown) {
+                            const status = (err as { response?: { status: number } })?.response?.status
+                            if (status === 409) {
+                              addToast({ type: "warning", title: "Task is full or you have already joined" })
+                              try {
+                                const fresh = await fetchTaskById(todo.id)
+                                setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...fresh } : t))
+                              } catch { /* ignore refetch failure */ }
+                            } else {
+                              addToast({ type: "error", title: "Could not join task" })
+                            }
                           }
                         }
-                      }
-                    }}
+                      }}
+                    />
+                  )}
+                />
+                {hasMoreTodos && (
+                  <div
+                    ref={loadMoreRef}
+                    aria-hidden="true"
+                    className="h-6 w-full"
                   />
                 )}
-              />
-              {hasMoreTodos && (
-                <div
-                  ref={loadMoreRef}
-                  aria-hidden="true"
-                  className="h-6 w-full"
-                />
+                </>
               )}
-              </>
-            )}
-          </div>
+            </div>
 
-          {completedTotalCount > 0 && (
-            <div className="space-y-4">
-              <button
-                type="button"
-                onClick={() => setShowCompleted((prev) => !prev)}
-                aria-expanded={showCompleted}
-                className="group flex min-h-control w-full items-center gap-3 text-left"
-              >
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-fast",
-                    showCompleted ? "bg-ink text-paper" : "bg-paper-sunken text-ink-muted group-hover:text-ink",
-                  )}
+            {completedTotalCount > 0 && (
+              <Enter tier="row" at={TASKS_AT.completed} className="space-y-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCompleted((prev) => !prev)}
+                  aria-expanded={showCompleted}
+                  className="group flex min-h-control w-full items-center gap-3 text-left"
                 >
-                  <motion.span
-                    className="flex"
-                    animate={{ rotate: showCompleted ? 90 : 0 }}
-                    transition={SPRING_STANDARD}
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-fast",
+                      showCompleted ? "bg-ink text-paper" : "bg-paper-sunken text-ink-muted group-hover:text-ink",
+                    )}
                   >
-                    <ChevronRight className="h-4 w-4" />
-                  </motion.span>
-                </span>
-                <span className="text-title-sm font-bold tracking-tight text-ink">Completed</span>
-                <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-paper-sunken px-2 text-caption font-semibold tabular-nums text-ink-muted ring-1 ring-inset ring-line">
-                  {completedTotalCount}
-                </span>
-                <span aria-hidden="true" className="h-px flex-1 bg-line" />
-              </button>
-              {/* Opacity and a short rise, not `height: auto`: animating height re-laid out
-                  every card below the toggle on every frame of the opening. */}
-              <AnimatePresence initial={false}>
-                {showCompleted && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, transition: { duration: DURATION_FAST, ease: EASE_EXIT } }}
-                    transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
-                  >
-                    <div className="space-y-4">
-                      {completedLoading && completedPreview.length === 0 ? (
-                        <MasonryColumns
-                          items={[...Array(Math.min(3, COMPLETED_PREVIEW_SIZE))].map((_, i) => ({ id: `completed-skeleton-${i}` }))}
-                          getKey={(item) => item.id}
-                          renderItem={() => <TodoSkeleton />}
-                          columns={TASK_GRID_COLUMNS}
-                          breakpoints={TASK_GRID_BREAKPOINTS}
-                        />
-                      ) : (
-                        <>
+                    <motion.span
+                      className="flex"
+                      animate={{ rotate: showCompleted ? 90 : 0 }}
+                      transition={SPRING_STANDARD}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </motion.span>
+                  </span>
+                  <span className="text-title-sm font-bold tracking-tight text-ink">Completed</span>
+                  <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-paper-sunken px-2 text-caption font-semibold tabular-nums text-ink-muted ring-1 ring-inset ring-line">
+                    {completedTotalCount}
+                  </span>
+                  <span aria-hidden="true" className="h-px flex-1 bg-line" />
+                </button>
+                {/* Opacity and a short rise, not `height: auto`: animating height re-laid out
+                    every card below the toggle on every frame of the opening. */}
+                <AnimatePresence initial={false}>
+                  {showCompleted && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, transition: { duration: DURATION_FAST, ease: EASE_EXIT } }}
+                      transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
+                    >
+                      <div className="space-y-4">
+                        {completedLoading && completedPreview.length === 0 ? (
                           <MasonryColumns
-                            items={sortedCompletedPreview}
-                            getKey={(todo) => todo.id}
-                            getItemWeight={getTaskWeight}
+                            items={[...Array(Math.min(3, COMPLETED_PREVIEW_SIZE))].map((_, i) => ({ id: `completed-skeleton-${i}` }))}
+                            getKey={(item) => item.id}
+                            renderItem={() => <TodoSkeleton />}
                             columns={TASK_GRID_COLUMNS}
                             breakpoints={TASK_GRID_BREAKPOINTS}
-                            renderItem={(todo) => (
-                              <TodoCard
-                                todo={todo}
-                                variant="completed"
-                                onComplete={() => handleComplete(todo.id)}
-                                onDelete={() => requestDelete(todo)}
-                                onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
-                                onToggleHidden={() => handleToggleHidden(todo.id)}
-                              />
-                            )}
                           />
-                          <div className="flex flex-col gap-4 rounded-lg border border-line bg-paper p-5 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className={FIELD_LABEL_CLASS}>
-                                {completedTotalCount > COMPLETED_PREVIEW_SIZE
-                                  ? `Showing the latest ${COMPLETED_PREVIEW_SIZE}`
-                                  : "Everything you have finished"}
-                              </p>
-                              <p className="mt-1 text-body-sm text-ink-muted">
-                                {completedTotalCount > COMPLETED_PREVIEW_SIZE
-                                  ? `The archive has all ${completedTotalCount} completed tasks.`
-                                  : "All of your completed tasks fit here. The archive can restore or copy any of them."}
-                              </p>
+                        ) : (
+                          <>
+                            <MasonryColumns
+                              items={sortedCompletedPreview}
+                              getKey={(todo) => todo.id}
+                              getItemWeight={getTaskWeight}
+                              columns={TASK_GRID_COLUMNS}
+                              breakpoints={TASK_GRID_BREAKPOINTS}
+                              renderItem={(todo) => (
+                                <TodoCard
+                                  todo={todo}
+                                  variant="completed"
+                                  onComplete={() => handleComplete(todo.id)}
+                                  onDelete={() => requestDelete(todo)}
+                                  onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
+                                  onToggleHidden={() => handleToggleHidden(todo.id)}
+                                />
+                              )}
+                            />
+                            <div className="flex flex-col gap-4 rounded-lg border border-line bg-paper p-5 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <p className={FIELD_LABEL_CLASS}>
+                                  {completedTotalCount > COMPLETED_PREVIEW_SIZE
+                                    ? `Showing the latest ${COMPLETED_PREVIEW_SIZE}`
+                                    : "Everything you have finished"}
+                                </p>
+                                <p className="mt-1 text-body-sm text-ink-muted">
+                                  {completedTotalCount > COMPLETED_PREVIEW_SIZE
+                                    ? `The archive has all ${completedTotalCount} completed tasks.`
+                                    : "All of your completed tasks fit here. The archive can restore or copy any of them."}
+                                </p>
+                              </div>
+                              <Button asChild variant="outline" className="flex-shrink-0">
+                                <Link href="/tasks/completed">
+                                  <History className="h-4 w-4" aria-hidden="true" />
+                                  Open the archive
+                                </Link>
+                              </Button>
                             </div>
-                            <Button asChild variant="outline" className="flex-shrink-0">
-                              <Link href="/tasks/completed">
-                                <History className="h-4 w-4" aria-hidden="true" />
-                                Open the archive
-                              </Link>
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-        </div>
-      )}
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Enter>
+            )}
+          </div>
+        )}
+      </SkeletonSwap>
 
       <AnimatePresence>
         {editingTodo && (

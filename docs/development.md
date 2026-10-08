@@ -34,10 +34,10 @@ dotnet test Planora.sln --settings coverage.runsettings
 
 For e2e changes:
 
-```powershell
-docker compose --env-file .env up -d --build
-npm --prefix frontend run e2e
-```
+Follow the [isolated E2E setup guide](../frontend/e2e/README.md) to start a fresh
+HTTP/SMTP stack and production frontend with disposable fixture credentials.
+Do not reuse a user's environment file or running stack. Fixed container names
+and ports require a dedicated machine/runner or coordinated owner-provided overrides.
 
 For migration-touching changes:
 
@@ -310,7 +310,7 @@ What happens at boot differs per service, and it matters when you add the first 
 |---|---|---|
 | Auth, Category, Collaboration, Messaging | `DatabaseStartup.EnsureReadyAsync` finds no tracked migrations and calls `EnsureCreatedAsync` | Adding the first migration changes the startup path; reconcile a deliberate baseline for existing model-created databases. Recreate only explicitly disposable development data. |
 | Todo | same helper, but migrations exist, so pending ones are applied (with retry) | Complete the missing initial baseline and verify the chain before relying on a fresh install |
-| Realtime | no `DatabaseStartup` call at all | Apply by hand: `dotnet run --project tools/Planora.Migrator -- --service realtime` |
+| Realtime | Configured non-`Testing` hosts prepare PostgreSQL before event subscriptions; fresh/managed schemas use `DatabaseStartup`, compatible model-created schemas are verified without adopting history | Unknown history or incompatible existing schemas fail closed. Model-created databases still require an explicit migration plan before a schema upgrade; see `database.md` |
 
 The CD workflow includes a pre-deploy `Planora.Migrator` step, but service startup still applies migrations in five hosts and the runner image/workflow have unresolved build/configuration gaps. Production migration serialization is therefore a target policy, not an established guarantee; see [Deployment](deployment.md#confirmed-rollout-blockers). Full ownership and table-by-table
 detail: [`database.md`](database.md).
@@ -337,8 +337,14 @@ detail: [`database.md`](database.md).
 | Frontend state | Zustand |
 | Frontend validation/forms | Zod, React Hook Form where used |
 | Frontend tests | Vitest + Testing Library |
-| E2E tests | Playwright API project through gateway plus Chromium UI specs |
+| E2E tests | Playwright API through the gateway, Chromium UI and disposable Mailpit SMTP delivery; see [setup](../frontend/e2e/README.md) |
 | Docs checks | markdownlint-cli2 and lychee in CI |
+
+Run E2E only on a disposable stack with fresh fixture credentials. Fixed Compose
+container names and ports require a dedicated machine/runner or coordinated
+owner-provided overrides. CI uses `node e2e/run-ci.cjs` to redact captured output
+and publishes only failure PNGs; keep local HTML reports private because they
+can contain disposable credentials and action links. See [testing](testing.md).
 
 ## Documentation Rules
 

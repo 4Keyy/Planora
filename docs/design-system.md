@@ -295,6 +295,28 @@ depends on the browser, layers and surrounding content.
 | `SPRING_GENTLE` | 260 / 24 | Presence, decorative. Floats into place. Ratio 0.74 (3%) |
 | `SPRING_LAYOUT` | 400 / 40 | Travel — a surface growing out of a card, a pill becoming a circle, a list closing a gap. Critically damped (ratio 1.0): lands without passing its target, settles in about 0.3s |
 
+### Entrance tiers
+
+How a thing arrives on a page depends on its size: a large surface travels further and
+settles longer than a pill, and neither should move like a line of text. Six tiers, in
+`tokens.motion.entrance`, read by `components/animated/entrance.tsx` and played by `.enter`
+in `globals.css` (§ 9.13 is the choreography):
+
+| Tier | Rises | Scales from | Travel | Fade | Stagger | For |
+|---|---|---|---|---|---|---|
+| `hero` | 26px | 0.985 | 820ms | 440ms | 90ms | The page's dominant surface: the dashboard overview, the profile identity card, a branch |
+| `panel` | 20px | 0.99 | 720ms | 400ms | 70ms | Full-width plates and section cards: New task, the filter, a settings card |
+| `card` | 18px | 0.97 | 680ms | 360ms | 55ms | Cards in a grid |
+| `row` | 12px | — | 600ms | 320ms | 40ms | Rows of a list, header rows, a form inside a card |
+| `text` | 10px | — | 640ms | 380ms | 55ms | Eyebrows, titles, sentences, the words of a figure. Never scaled: scaled type shimmers |
+| `chip` | 8px | 0.92 | 520ms | 260ms | 40ms | Pills, counters, small buttons, an avatar, a week's bar |
+
+The travel runs longer than the ceiling in law 2 below, and that is not a contradiction.
+On `emphasized` the travel is front-loaded: a `hero` is within 1.5px of its place at
+410ms, and its fade — what decides when it can be read — is 440ms. The tail is a settle,
+not a wait. The fade is always shorter than the travel, so nothing crosses the screen
+half-transparent.
+
 ### DOM motion
 
 HTML motion components use `motion` from `@/components/ui/motion`; Framer hooks,
@@ -680,10 +702,14 @@ accessible name, which is read on arrival rather than announced on change.
 
 ### 9.9 The list appearing
 
-Cards rise 8px in reading order, `base` 220 on `emphasized`, 40ms apart and **capped at
-eight steps**. Past the eighth the delay outlasts the reader's patience and the last
-cards appear to be loading rather than arriving. Skeletons match the card's dimensions
-so the swap costs no layout shift.
+Cards arrive in reading order on the `card` tier — 18px up from 97% — 55ms apart and
+**capped at eight steps**. Past the eighth the delay outlasts the reader's patience and
+the last cards appear to be loading rather than arriving. In a masonry grid, reading
+order is row by row across the columns, not down each column. Skeletons match the card's
+dimensions so the swap costs no layout shift, and the swap itself is § 9.13's: no
+skeleton for a fast answer, a cross-fade for a slow one. Only the first paint cascades: a
+card added later — created, restored, arriving by realtime — arrives the same way at
+once, with no place in a queue to wait for, while its neighbours glide aside.
 
 ### 9.10 The weekly ring
 
@@ -696,7 +722,13 @@ arc was still moving.
 
 ### 9.11 The route transition, and the measurement that settled it
 
-A route change fades over `base` 220ms. **Opacity only** — and that is now a
+Between the signed-in pages there is no route fade any more: each page arrives part by
+part (§ 9.13), and a whole-page fade over that only dimmed its first beat. What follows
+is why the arrival never moves an *ancestor* of the page — the measurement still holds,
+and it is why every entrance sits on a block, a card or a line, never on a wrapper of
+the page, and why quick capture's dock rises by itself rather than inside anything.
+
+The public pages keep the fade, over `base` 220ms. **Opacity only** — and that is a
 measured decision rather than an argued one.
 
 BLUEPRINT moment 9 asks for the content to rise 8px as it fades. A transform on
@@ -758,11 +790,62 @@ viewports: worst LCP 3.9–9 s → under 500 ms.
 
 | Thing | Why |
 |---|---|
-| Route content beyond the fade | Measured above: a transform costs 16× the CLS for an 8px rise |
+| An ancestor of a page's fixed controls | Measured above: a transform costs 16× the CLS for an 8px rise |
 | Colour changes through framer-motion | Not composited. `transition-colors duration-fast` in CSS costs nothing |
 | Anything on a list at rest | A list that breathes is a list that cannot be read |
-| Error states | An error is not a moment to celebrate the animation system |
+| Error states, beyond the page's arrival | An error is not a moment to celebrate the animation system. An error panel arrives in its place like the block it stands in for — it would be stranger to pop in while everything round it rises — and gets nothing of its own: no shake, no bounce |
 | The outgoing half of a route change | Nothing in the App Router keeps it alive long enough |
+| A page arriving again | The timeline runs once per page shown. A refetch, a filter, a re-render never replays an entrance |
+
+### 9.13 A page arriving
+
+Every signed-in page is a timeline. `(app)/template.tsx` starts it when the page mounts —
+on a navigation at once, on a refresh once the session is restored — and everything on
+the page says **when** it arrives (`at`, ms after the start) and **what size of thing**
+it is (a tier, § 8). `components/animated/entrance.tsx` turns that into a class and three
+custom properties; `.enter` in `globals.css` is the whole motion: opacity and the
+individual `translate` and `scale` properties, on the compositor, nothing run per frame.
+
+**The order is the reading order.** The page's dominant surface first, then down the
+page: an eyebrow, the title a beat (60ms) later, its sentence after it, then the
+actions; a card's body after the card; a row of chips one after another. Blocks of a
+page are a beat of 70ms apart. The dashboard, as the reference: overview card 0, its
+label 90, headline 150, the ring 190, the stats from 230, the week from 250, "Active
+tasks" 210, New task 280, the cards from 360.
+
+**A delay is decided once.** At the element's first render — re-renders never restart
+or move it, and a timeline never replays.
+
+**Data never waits for the choreography, and the choreography never shows a guess.** A
+block that arrives with its data after its moment has passed starts at once, keeping
+only its stagger: a slow response delays the cards by the response, not by the
+animation. And a figure that would read 0 for a moment (`ready={false}`) holds its
+place, invisible, until the real value is there — "You have 0 open tasks" changing to
+12 was an entrance nobody asked for.
+
+**A placeholder is not seen for a fast answer, and is not cut for a slow one**
+(`SkeletonSwap`). It shows only once the wait passes 280ms, so a quick load never
+flashes grey; and when the content comes, the skeleton steps out of the flow behind it
+and fades from wherever it had got to while the content arrives over it. Cutting it
+left one frame of empty page between the last grey box and the first card. A route's
+own `loading.tsx` follows the first rule (`.skeleton-defer`) — and is rarely seen at
+all, because the tabs prefetch their whole route (`navbar.tsx`): with the route in hand
+a press renders the page at once. Without it, every press showed the loading state, and
+React keeps a boundary's fallback up for at least 300ms before revealing what replaces
+it, however fast the server was.
+
+**Below the first screen, things arrive as they are reached** (`EnterInView`). A long
+page — the profile — is not played off-screen: a section waits, invisible, until it is
+40px into the viewport, then its heading arrives line by line and each card as it comes
+into view, side-by-side cards a step apart. Its data is fetched a screen ahead, so it
+arrives with its content rather than with a placeholder.
+
+**One element, one entrance.** A card inside a grid that brings it in does not also
+play its own (`ArrivalHandled`); two rises stacked read as a jump. A component outside a
+timeline — on the landing page, in a test — renders exactly as it did.
+
+**Reduced motion:** no delays and no travel; everything is simply there, including
+what was waiting to scroll into view.
 
 ## 10. Control sizing
 
@@ -956,7 +1039,7 @@ type has stopped being a primitive.
 
 | Component | Owns |
 |---|---|
-| `CommandPalette` | ⌘K / Ctrl+K and the search button: search tasks, categories, people and commands, narrow into one, create from a query |
+| `CommandPalette` | ⌘K / Ctrl+K and the search button: search tasks, categories, people and shortcuts, narrow into one, create from a query |
 | `ShortcutsOverlay` + `SHORTCUT_GROUPS` | The `?` map, and the single list every other surface reads its key spellings from |
 | `useListNavigation` | The list cursor, the selection, and every bare-letter binding over a list of ids |
 | `SelectionBar` | What to do with a gathered selection, with the count stated before the verb |
@@ -969,7 +1052,8 @@ type has stopped being a primitive.
 | Module | Owns |
 |---|---|
 | `lib/shared-origin` | The card-to-dialog transition: the rect a dialog grows out of, and the geometry that gets it there |
-| `lib/route-transition` | Whether this is the first page of a visit. Both route templates read it: the first page is in the server HTML fully visible, only in-app navigation animates |
+| `lib/route-transition` | Whether this is the first page of a visit. The root and auth templates read it: the first page is in the server HTML fully visible, only in-app navigation animates |
+| `components/animated/entrance` | How a signed-in page arrives: its timeline, the tiers, arrival on scroll, the skeleton swap (§ 9.13) |
 
 ### The app shell
 
@@ -977,8 +1061,9 @@ Every signed-in route renders inside `app/(app)/layout.tsx` → `AppShell`
 (`components/layout/app-shell.tsx`): the droplet bar, `<main id="main">`, and one column,
 `.container-app` — the same `max-w-6xl` column as the landing page and the auth frame. The
 route group exists so the router keeps the bar mounted across the five routes — it stays
-still, its ink drop flows to the new tab, and only the page fades (`app/(app)/template.tsx`,
-opacity only because these pages have fixed controls).
+still, its ink drop flows to the new tab, and only the page arrives, part by part, on the
+timeline `app/(app)/template.tsx` starts (§ 9.13; never on a wrapper of the page, because
+these pages have fixed controls).
 
 Every page starts with `PageHeader` (`components/layout/page-header.tsx`): the eyebrow in
 `FIELD_LABEL_CLASS`, one `h1` at `title` on phones and `display-sm` from `sm`, an optional
@@ -1161,8 +1246,21 @@ actions; `docs/features.md` § Command palette has the behaviour. The design dec
   on the highlighted row.
 - **Nothing typed is still an answer**: view chips that double as a status line, Recent,
   Up next. **No query is a dead end**: the last row offers to create the task.
+- **A hidden task is found, never offered.** Up next leaves it out; a search finds it
+  blurred (`blur-[4px]`, the task card's redaction at row size) until it is reached for —
+  pointed at, or moved to with the arrows. Two copies of the row share one grid cell and
+  swap opacity, so the reveal is a composited cross-fade and never an animated `filter`.
+  The top row of a fresh result list is highlighted without being chosen, so it stays
+  blurred; its preview shows the title under the same blur and how to reveal it.
+  The veiled copies are hidden from assistive technology too: only the generic hidden-task
+  label is available until explicit pointer or keyboard reveal, then the real row becomes
+  accessible. Each opening reads tasks afresh instead of replaying stale visibility from cache.
+- **A row marks its audience the way its card does**: the open redaction ring and "All
+  friends" for an all-friends task, the ring opened by the count beside named friends,
+  the share glyph beside "from …" on a friend's task. Private stays unmarked, and no row
+  shows urgency.
 - **The empty field teaches the operators.** Its hint reads "Search tasks", and the last
-  word rolls through categories `#`, people `@` and commands `>` like a counter — a
+  word rolls through categories `#`, people `@` and shortcuts `>` like a counter — a
   column of words moving up one row, with a copy of the first at the end so the loop
   never runs backwards. Still under reduced motion.
 - **The footer is contextual.** It shows only the keys that act on the highlighted row —

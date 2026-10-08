@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { requireFrontendReachable, UI_PASSWORD } from './_helpers';
+import { requireFrontendReachable, submitAuthForm, UI_PASSWORD } from './_helpers';
 
 /**
  * T2.6 — browser-rendered E2E for the register flow.
@@ -9,11 +9,8 @@ import { requireFrontendReachable, UI_PASSWORD } from './_helpers';
  *   2. Fill name, email (unique per run), password + confirm.
  *   3. Submit, assert post-submit redirect into the authenticated app.
  *
- * Validation behaviour (mismatched confirm, weak password) is covered by
- * unit tests against the Zod resolver — this spec focuses on the *happy
- * path* of the actual browser submission so a future regression on form
- * wiring (e.g. the submit button gets bound to a different handler) is
- * caught immediately.
+ * The file also checks that a confirm-password mismatch keeps the visitor
+ * on the form and displays the client-side validation message.
  */
 test.describe('auth register (browser)', () => {
   test.beforeAll(async () => {
@@ -26,17 +23,15 @@ test.describe('auth register (browser)', () => {
     const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const email = `e2e-ui-register-${runId}@example.test`;
 
-    await page.getByPlaceholder('Jane').fill('Jane');
-    await page.getByPlaceholder('Doe').fill('Roe');
+    await page.getByLabel('First name', { exact: true }).fill('Jane');
+    await page.getByLabel('Last name', { exact: true }).fill('Roe');
     await page.getByPlaceholder('you@example.com').fill(email);
-    await page.getByPlaceholder('Create a strong password').fill(UI_PASSWORD);
-    await page.getByPlaceholder('••••••••').fill(UI_PASSWORD);
+    await page.getByLabel('Password', { exact: true }).fill(UI_PASSWORD);
+    await page.getByLabel('Confirm password', { exact: true }).fill(UI_PASSWORD);
 
-    await page.getByRole('button', { name: /create account/i }).click();
+    await submitAuthForm(page, '/auth/api/v1/auth/register', /create account/i);
 
-    // Successful registration routes to /dashboard (per `router.push` in the
-    // register page). Allow either /dashboard or /tasks here so a future
-    // post-register copy change does not break the assertion.
+    // Registration enters the authenticated app; its current landing route is /dashboard.
     await expect(page).toHaveURL(/\/(dashboard|tasks)(\/|$|\?)/, { timeout: 20_000 });
   });
 
@@ -46,17 +41,16 @@ test.describe('auth register (browser)', () => {
     const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const email = `e2e-ui-register-mismatch-${runId}@example.test`;
 
-    await page.getByPlaceholder('Jane').fill('Jane');
-    await page.getByPlaceholder('Doe').fill('Roe');
+    await page.getByLabel('First name', { exact: true }).fill('Jane');
+    await page.getByLabel('Last name', { exact: true }).fill('Roe');
     await page.getByPlaceholder('you@example.com').fill(email);
-    await page.getByPlaceholder('Create a strong password').fill(UI_PASSWORD);
-    await page.getByPlaceholder('••••••••').fill('different-password');
+    await page.getByLabel('Password', { exact: true }).fill(UI_PASSWORD);
+    await page.getByLabel('Confirm password', { exact: true }).fill('different-password');
 
     await page.getByRole('button', { name: /create account/i }).click();
 
-    // The Zod resolver short-circuits the submit on a confirm mismatch — the
-    // page must NOT route away. Allow a brief settle window before asserting.
-    await page.waitForTimeout(500);
+    // A confirm mismatch must show validation feedback and keep the form on screen.
+    await expect(page.getByText("The two passwords don't match.", { exact: true })).toBeVisible();
     await expect(page).toHaveURL(/\/auth\/register/);
   });
 });

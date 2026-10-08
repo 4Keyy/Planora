@@ -25,6 +25,7 @@ import { StatusPanel } from "@/components/ui/status-panel"
 import { PageHeader } from "@/components/layout/page-header"
 import { CategoryCard } from "@/components/categories/category-card"
 import { CategoryCardSkeleton } from "@/components/categories/category-card-skeleton"
+import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { forgetOrigin } from "@/lib/shared-origin"
 
 type CategoryFormData = {
@@ -37,6 +38,15 @@ type CategoryFormData = {
 /**
  * Category creation/editing modal
  */
+/**
+ * When the page's parts arrive, in ms after it starts: the header line by line, then the
+ * cards in reading order — from their moment, or from when they load if that is later.
+ */
+const CATEGORIES_AT = {
+  header: 0,
+  cards: 230,
+} as const
+
 function CategoryModal({
   isOpen,
   onClose,
@@ -450,6 +460,7 @@ export default function CategoriesPage() {
           started beside the title and dropped below it once the title block had its final
           height — an 84px jump that put this route's CLS at 0.129. */}
       <PageHeader
+        entranceAt={CATEGORIES_AT.header}
         eyebrow="Workspace"
         title="Categories"
         // Constant on purpose: a count here grew the sentence by a line after the list
@@ -473,37 +484,44 @@ export default function CategoriesPage() {
       />
 
       {/* Category grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <CategoryCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : categories.length === 0 ? (
-        <StatusPanel
-          icon={Folder}
-          title="No categories yet"
-          description="Categories group tasks the way you think about them: home, work, a trip."
-          action={{ label: "Create a category", onClick: openCreate }}
-        />
-      ) : (
-        // The presence wraps the cards, not the grid: wrapped round the grid it had one child
-        // that never left, so a deleted category vanished in a frame while its neighbours
-        // glided. `relative` is the offset parent a leaving card is pinned to.
-        <div className="relative grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <AnimatePresence mode="popLayout">
-            {categories.map((category, index) => (
-              <CategoryCard
-                key={category.id}
-                category={category}
-                onEdit={() => setEditingCategory(category)}
-                onDelete={() => setDeletingCategory(category)}
-                entranceDelay={hasLoadedGrid.current ? 0 : Math.min(index, 8) * 0.04}
-              />
+      <SkeletonSwap
+        loading={loading}
+        skeleton={
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <CategoryCardSkeleton key={i} />
             ))}
-          </AnimatePresence>
-        </div>
-      )}
+          </div>
+        }
+      >
+        {categories.length === 0 ? (
+          <Enter tier="panel" at={CATEGORIES_AT.cards}>
+            <StatusPanel
+              icon={Folder}
+              title="No categories yet"
+              description="Categories group tasks the way you think about them: home, work, a trip."
+              action={{ label: "Create a category", onClick: openCreate }}
+            />
+          </Enter>
+        ) : (
+          // The presence wraps the cards, not the grid: wrapped round the grid it had one child
+          // that never left, so a deleted category vanished in a frame while its neighbours
+          // glided. `relative` is the offset parent a leaving card is pinned to.
+          <div className="relative grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <AnimatePresence mode="popLayout">
+              {categories.map((category, index) => (
+                <CategoryCard
+                  key={category.id}
+                  category={category}
+                  onEdit={() => setEditingCategory(category)}
+                  onDelete={() => setDeletingCategory(category)}
+                  entrance={{ at: CATEGORIES_AT.cards, index: hasLoadedGrid.current ? 0 : index }}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </SkeletonSwap>
 
       {/* Modals */}
       <CategoryModal

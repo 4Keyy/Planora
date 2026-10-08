@@ -83,13 +83,13 @@ export default function RegisterPage() {
     setSubmitting(true)
     setError(null)
     try {
-      // `confirmPassword` is a client-side agreement between two fields. It was being
-      // posted with the rest of the form, sending the password to the server twice.
+      // The current API contract also validates the confirmation; keep both sides aligned.
       const res = await api.post<AuthRegisterResponse>("/auth/api/v1/auth/register", {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
         password: data.password,
+        confirmPassword: data.confirmPassword,
       })
       const p = parseApiResponse<AuthRegisterResponse>(res.data)
       setAuth({

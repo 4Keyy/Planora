@@ -10,6 +10,7 @@ import { useToastStore } from "@/store/toast"
 
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
+  prefetch: vi.fn(),
   pathname: "/dashboard",
 }))
 
@@ -17,6 +18,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => routerMocks.pathname,
   useRouter: () => ({
     push: routerMocks.push,
+    prefetch: routerMocks.prefetch,
   }),
 }))
 
@@ -31,6 +33,7 @@ vi.mock("@/lib/csrf", async () => {
 describe("Navbar", () => {
   beforeEach(() => {
     routerMocks.push.mockClear()
+    routerMocks.prefetch.mockClear()
     routerMocks.pathname = "/dashboard"
     vi.mocked(clearCsrfToken).mockClear()
     vi.spyOn(api, "post").mockResolvedValue({ data: {} })
@@ -90,7 +93,11 @@ describe("Navbar", () => {
   it("navigates to the profile from the account menu", async () => {
     const user = userEvent.setup()
     render(<Navbar />)
+    expect(routerMocks.prefetch).not.toHaveBeenCalled()
     await user.click(await screen.findByRole("button", { name: /Ada Lovelace/i }))
+    // The whole route is fetched as the menu opens, so the press renders the page at once
+    // instead of holding its loading state up.
+    expect(routerMocks.prefetch).toHaveBeenCalledWith("/profile", { kind: "full" })
     await user.click(screen.getByRole("button", { name: "Profile" }))
     expect(routerMocks.push).toHaveBeenCalledWith("/profile")
   })

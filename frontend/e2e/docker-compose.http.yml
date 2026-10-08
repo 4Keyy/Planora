@@ -1,0 +1,35 @@
+# Disposable loopback HTTP + SMTP test stack; never use this overlay for deployment.
+services:
+  mailpit:
+    image: axllent/mailpit:v1.31.4@sha256:b68349e3a014b90c5610bfb26b2ae36f3892d7b8cf25ee140c6c71c98d2fcf48
+    ports:
+      - "127.0.0.1:8025:8025"
+    environment:
+      MP_SMTP_AUTH: "planora_e2e:${E2E_SMTP_PASSWORD:?Set a disposable E2E_SMTP_PASSWORD}"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+      MP_MAX_MESSAGES: "100"
+    networks:
+      - planora-network
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  auth-api:
+    depends_on:
+      mailpit:
+        condition: service_healthy
+    environment:
+      Security__RequireHttps: "false"
+      Frontend__BaseUrl: "http://127.0.0.1:3000"
+      Email__Provider: "Smtp"
+      Email__SmtpHost: "mailpit"
+      Email__SmtpPort: "1025"
+      Email__EnableSsl: "false"
+      Email__Username: "planora_e2e"
+      Email__Password: "${E2E_SMTP_PASSWORD:?Set a disposable E2E_SMTP_PASSWORD}"
+      Email__FromEmail: "planora@example.test"
+  api-gateway:
+    environment:
+      Cors__AllowedOrigins__0: "http://127.0.0.1:3000"
+      Cors__AllowedOrigins__1: "http://localhost:3000"

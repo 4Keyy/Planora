@@ -58,6 +58,7 @@ function task(over: Partial<PaletteTask> = {}): PaletteTask {
     workers: [],
     openSubtasks: 0,
     urgent: false,
+    hidden: false,
     keywords: "",
     ...over,
   }
@@ -113,7 +114,7 @@ describe("parseQuery", () => {
   it("reads a leading operator and splits the rest into words", () => {
     expect(parseQuery("  #work  stuff ")).toEqual({ narrow: "categories", text: "work  stuff", tokens: ["work", "stuff"] })
     expect(parseQuery("@ada")).toMatchObject({ narrow: "people", tokens: ["ada"] })
-    expect(parseQuery(">short")).toMatchObject({ narrow: "commands", tokens: ["short"] })
+    expect(parseQuery(">short")).toMatchObject({ narrow: "shortcuts", tokens: ["short"] })
     expect(parseQuery("plain words")).toMatchObject({ narrow: null, tokens: ["plain", "words"] })
     expect(parseQuery("#")).toEqual({ narrow: "categories", text: "", tokens: [] })
     expect(parseQuery("")).toEqual({ narrow: null, text: "", tokens: [] })
@@ -236,6 +237,11 @@ describe("toPaletteTask", () => {
     )
     expect(t).toMatchObject({ completed: true, priority: 5, sharedWithAll: true, sharedWith: ["ada"], openSubtasks: 2, urgent: true })
     expect(t.keywords).toContain("cafe")
+  })
+
+  it("keeps whether the viewer hid the task", () => {
+    expect(toPaletteTask(todo({ hidden: true }), ME, names).hidden).toBe(true)
+    expect(toPaletteTask(todo({}), ME, names).hidden).toBe(false)
   })
 
   it("treats every task as the viewer's own when nobody is signed in", () => {

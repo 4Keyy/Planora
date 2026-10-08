@@ -6,14 +6,14 @@ import { registerVerifiedUser, requireFrontendReachable } from './_helpers';
  *
  * The Auth API returns the same 200 for "email exists" and "email unknown"
  * (anti-enumeration), so this spec validates the *user-visible behaviour*:
- *   1. Submit a valid (registered + verified) email — the success banner
- *      and "Back to sign in" CTA appear, replacing the form.
+ *   1. Submit a valid (registered + verified) email — "Check your inbox"
+ *      and the "Sign in" link appear, replacing the form.
  *   2. Submit an unregistered email — the form must still complete cleanly
  *      (no error banner), preserving the anti-enumeration contract.
  *
  * Reset-token consumption is covered by `auth-reset-password.ui.spec.ts`
- * (separate spec; it reads the reset link from Auth-API logs identical to
- * the email-verification helper).
+ * (separate spec; it reads the delivered reset link from the disposable
+ * Mailpit SMTP sink through the shared email helper).
  */
 test.describe('auth forgot-password (browser)', () => {
   test.beforeAll(async () => {
@@ -25,12 +25,12 @@ test.describe('auth forgot-password (browser)', () => {
 
     await page.goto('/auth/forgot-password');
     await page.getByPlaceholder('you@example.com').fill(user.email);
-    await page.getByRole('button', { name: /send reset link/i }).click();
+    await page.getByRole('button', { name: /send the link/i }).click();
 
-    // The form is replaced by a success banner with "Back to sign in".
-    await expect(page.getByText(/password reset link has been sent/i))
+    // The form is replaced by "Check your inbox" and the sign-in link.
+    await expect(page.getByRole('heading', { name: 'Check your inbox' }))
       .toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole('button', { name: /back to sign in/i }))
+    await expect(page.getByRole('link', { name: 'Sign in', exact: true }))
       .toBeVisible();
   });
 
@@ -38,11 +38,11 @@ test.describe('auth forgot-password (browser)', () => {
     await page.goto('/auth/forgot-password');
     const ghostEmail = `e2e-ui-ghost-${Date.now()}@example.test`;
     await page.getByPlaceholder('you@example.com').fill(ghostEmail);
-    await page.getByRole('button', { name: /send reset link/i }).click();
+    await page.getByRole('button', { name: /send the link/i }).click();
 
     // Anti-enumeration: the UI cannot expose whether the email existed.
     // The same success banner appears for unknown emails.
-    await expect(page.getByText(/password reset link has been sent/i))
+    await expect(page.getByRole('heading', { name: 'Check your inbox' }))
       .toBeVisible({ timeout: 10_000 });
   });
 });

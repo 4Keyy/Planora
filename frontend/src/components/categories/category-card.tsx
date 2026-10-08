@@ -4,6 +4,7 @@ import { forwardRef, useState, type CSSProperties } from "react"
 import { AnimatePresence, useReducedMotion } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import { Folder, Trash2 } from "lucide-react"
+import { useEnter } from "@/components/animated/entrance"
 import { Card } from "@/components/ui/card"
 import {
   HOVER_LIFT, SPRING_LAYOUT, SPRING_RESPONSIVE, TAP_CARD, TAP_PRESS,
@@ -12,15 +13,20 @@ import {
 import { ICON_MAP } from "@/lib/icon-map"
 import { rememberOrigin } from "@/lib/shared-origin"
 import type { Category } from "@/types/category"
+import { cn } from "@/lib/utils"
 
 // popLayout needs the leaving card's DOM ref to pin its position in the grid.
 export const CategoryCard = forwardRef<HTMLDivElement, {
   category: Category
   onEdit: () => void
   onDelete: () => void
-  /** Reading-order stagger on the page's first loaded grid only. */
-  entranceDelay?: number
-}>(function CategoryCard({ category, onEdit, onDelete, entranceDelay = 0 }, ref) {
+  /**
+   * The card's place in the grid's arrival: when the grid arrives (`at`) and the card's
+   * place in reading order (`index`, 0 for a card added later). On a page's timeline it
+   * rises in as a card, on the compositor; off one it springs in on its own.
+   */
+  entrance?: { at: number; index: number }
+}>(function CategoryCard({ category, onEdit, onDelete, entrance: arrival }, ref) {
   const reduce = useReducedMotion() ?? false
   const CategoryIcon = category.icon ? (ICON_MAP[category.icon] ?? Folder) : Folder
   const accentColor = category.color?.trim() || "var(--pl-accent)"
@@ -30,6 +36,9 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
   const [isDeleteZoneHovered, setIsDeleteZoneHovered] = useState(false)
   const [isDeleteZoneFocused, setIsDeleteZoneFocused] = useState(false)
   const [entrancePending, setEntrancePending] = useState(true)
+  const timeline = useEnter("card", { at: arrival?.at ?? 0, index: arrival?.index ?? 0 })
+  const arrives = arrival !== undefined && timeline.className !== undefined
+  const springDelay = arrives ? 0 : Math.min(arrival?.index ?? 0, 8) * 0.04
 
   return (
     <motion.div
@@ -38,10 +47,10 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
       tabIndex={-1}
       // Size layout would scale the rounded surface as neighbours leave the grid.
       layout="position"
-      initial={VARIANTS_CARD.hidden}
+      initial={arrives ? false : VARIANTS_CARD.hidden}
       animate={{
         ...VARIANTS_CARD.visible,
-        transition: reduce ? { duration: 0 } : { ...SPRING_RESPONSIVE, delay: entrancePending ? entranceDelay : 0 },
+        transition: reduce ? { duration: 0 } : { ...SPRING_RESPONSIVE, delay: entrancePending ? springDelay : 0 },
       }}
       exit={VARIANTS_CARD.exit}
       whileHover={isDeleteZoneHovered ? undefined : HOVER_LIFT}
@@ -56,7 +65,10 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
         rememberOrigin(e.currentTarget.querySelector<HTMLElement>("[data-category-card]") ?? e.currentTarget)
         onEdit()
       }}
-      className="group/card relative cursor-pointer"
+      // The moving layer carries the arrival too: `translate` and `scale` compose with the
+      // hover lift and the layout glide instead of replacing them.
+      style={arrives ? timeline.style : undefined}
+      className={cn("group/card relative cursor-pointer", arrives && timeline.className)}
     >
       {/* Keep the moving layer free of clipping and shadows, as on task cards:
           repainting a rounded shadow on that layer can leave hover artefacts.
