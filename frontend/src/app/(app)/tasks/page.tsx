@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { AnimatePresence } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import { CheckCircle2, ChevronRight, History, FolderOpen, Trash2 } from "lucide-react"
-import { cn, truncateText } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import axios from "axios"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
@@ -318,7 +318,7 @@ export default function TasksPage() {
       console.error("Failed to fetch active todos:", error)
       // A silent background reconcile must not surface a toast — the cards already
       // on screen stay valid; only an interactive (non-silent) load reports failure.
-      if (!silent) addToast({ type: "error", title: "Failed to load tasks" })
+      if (!silent) addToast({ type: "error", title: "Couldn't load tasks" })
     } finally {
       if (!silent && !signal?.aborted) setLoading(false)
       if (!signal?.aborted) setActiveLoaded(true)
@@ -474,13 +474,13 @@ export default function TasksPage() {
         } else {
           await Promise.all([fetchActiveTodos({ silent: true }), fetchCompletedPreview()])
         }
-        addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
+        addToast({ type: "success", title: wasCompleted ? "Task reopened" : "Task completed" })
       } catch (error) {
         console.error("Failed to update viewer completion:", error)
         if (isAuthorAlreadyCompletedError(error)) {
           addToast(AUTHOR_COMPLETED_TOAST)
         } else {
-          addToast({ type: "error", title: "Failed to update task" })
+          addToast({ type: "error", title: "Couldn't update task" })
         }
       }
       return
@@ -501,11 +501,11 @@ export default function TasksPage() {
 
       addToast({
         type: "success",
-        title: isCompleted ? "Task reopened!" : "Task completed!",
+        title: isCompleted ? "Task reopened" : "Task completed",
       })
     } catch (error) {
       console.error("Failed to update todo:", error)
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Couldn't update task" })
     }
   }
 
@@ -516,7 +516,7 @@ export default function TasksPage() {
       addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
     } catch (error) {
       console.error("Failed to duplicate todo:", error)
-      addToast({ type: "error", title: "Failed to duplicate task" })
+      addToast({ type: "error", title: "Couldn't duplicate task" })
       throw error
     }
   }
@@ -537,14 +537,14 @@ export default function TasksPage() {
     if (!wasCompleted) setTodos((prev) => prev.filter((t) => t.id !== todo.id))
 
     undoable.run({
-      label: `“${todo.title.length > 40 ? `${todo.title.slice(0, 40)}…` : todo.title}” deleted`,
+      label: "Task deleted",
       commit: async () => {
         try {
           await api.delete(`/todos/api/v1/todos/${todo.id}`)
           if (wasCompleted) await fetchCompletedPreview()
         } catch (error) {
           console.error("Failed to delete todo:", error)
-          addToast({ type: "error", title: "Failed to delete task" })
+          addToast({ type: "error", title: "Couldn't delete task" })
           // The server refused, so put the card back rather than leave the user
           // believing a task is gone when it is not.
           if (!wasCompleted) {
@@ -598,7 +598,7 @@ export default function TasksPage() {
       // local field state (the source of truth while editing) is never clobbered mid-edit.
     } catch (error) {
       console.error("Failed to update todo:", error)
-      addToast({ type: "error", title: "Failed to save changes" })
+      addToast({ type: "error", title: "Couldn't save changes" })
       // Re-throw so the modal's autosave surfaces the error state and retries on next edit.
       throw error
     }
@@ -627,7 +627,7 @@ export default function TasksPage() {
       // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
     } catch (error) {
       console.error("Failed to update viewer preference:", error)
-      addToast({ type: "error", title: "Failed to save your category" })
+      addToast({ type: "error", title: "Couldn't save your category" })
       throw error // surface error state in the modal's autosave indicator
     }
   }
@@ -636,7 +636,7 @@ export default function TasksPage() {
     try {
       const res = await api.post<ApiResponse<Todo>>("/todos/api/v1/todos", payload)
       setIsCreateOpen(false)
-      addToast({ type: "success", title: "Task created!" })
+      addToast({ type: "success", title: "Task created" })
       // Show the new task immediately, then reconcile against the server in the
       // background so the list never blanks out behind a skeleton.
       const created = parseApiResponse<Todo>(res.data)
@@ -648,7 +648,7 @@ export default function TasksPage() {
       void fetchActiveTodos({ silent: true })
     } catch (error) {
       console.error("Failed to create todo:", error)
-      addToast({ type: "error", title: "Failed to create task" })
+      addToast({ type: "error", title: "Couldn't create task" })
     }
   }
 
@@ -709,7 +709,7 @@ export default function TasksPage() {
 
     undoable.run({
       label: removed.length === 1
-        ? `“${truncateText(removed[0].todo.title, 40)}” deleted`
+        ? "Task deleted"
         : `${removed.length} tasks deleted`,
       commit: async () => {
         const results = await Promise.allSettled(
@@ -722,8 +722,9 @@ export default function TasksPage() {
         addToast({
           type: "error",
           title: failed.length === removed.length
-            ? "Failed to delete the tasks"
-            : `${failed.length} of ${removed.length} could not be deleted`,
+            ? "Couldn't delete tasks"
+            : "Couldn't delete some tasks",
+          description: `${failed.length} of ${removed.length} tasks could not be deleted.`,
         })
         setTodos((prev) => {
           const next = [...prev]
@@ -798,7 +799,7 @@ export default function TasksPage() {
         setTodos(revert)
         setCompletedPreview(revert)
       }
-      addToast({ type: "error", title: "Failed to update task visibility" })
+      addToast({ type: "error", title: "Couldn't update task visibility" })
     }
   }, [user?.userId, addToast])
 
@@ -1013,7 +1014,7 @@ export default function TasksPage() {
                             setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "In Progress" } : t))
                             setCommentsRefreshKey((k) => k + 1)
                           } catch {
-                            addToast({ type: "error", title: "Could not update task" })
+                            addToast({ type: "error", title: "Couldn't update task" })
                           }
                         } else {
                           try {
@@ -1029,7 +1030,7 @@ export default function TasksPage() {
                                 setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, ...fresh } : t))
                               } catch { /* ignore refetch failure */ }
                             } else {
-                              addToast({ type: "error", title: "Could not join task" })
+                              addToast({ type: "error", title: "Couldn't join task" })
                             }
                           }
                         }
@@ -1168,7 +1169,7 @@ export default function TasksPage() {
                   setEditingTodo((prev) => prev ? { ...prev, status: "In Progress" } : prev)
                   setCommentsRefreshKey((k) => k + 1)
                 } catch {
-                  addToast({ type: "error", title: "Could not update task" })
+                  addToast({ type: "error", title: "Couldn't update task" })
                 }
               } else {
                 try {
@@ -1180,7 +1181,7 @@ export default function TasksPage() {
                   const status = (err as { response?: { status: number } })?.response?.status
                   addToast(status === 409
                     ? { type: "warning", title: "Task is full or you have already joined" }
-                    : { type: "error", title: "Could not join task" })
+                    : { type: "error", title: "Couldn't join task" })
                 }
               }
             }}
@@ -1201,7 +1202,7 @@ export default function TasksPage() {
                   setTodos((prev) => prev.map((t) => t.id === todo.id ? { ...t, status: "Todo" } : t))
                   setCommentsRefreshKey((k) => k + 1)
                 } catch {
-                  addToast({ type: "error", title: "Could not stop working" })
+                  addToast({ type: "error", title: "Couldn't stop working" })
                 }
               } else {
                 try {
@@ -1211,7 +1212,7 @@ export default function TasksPage() {
                   ))
                   setCommentsRefreshKey((k) => k + 1)
                 } catch {
-                  addToast({ type: "error", title: "Could not leave task" })
+                  addToast({ type: "error", title: "Couldn't leave task" })
                 }
               }
             }}

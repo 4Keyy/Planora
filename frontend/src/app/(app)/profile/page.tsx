@@ -599,7 +599,7 @@ export default function ProfilePage() {
       })
       setProfileForm({ firstName: data.firstName, lastName: data.lastName })
     } catch {
-      addToast({ type: "error", title: "Failed to load profile" })
+      addToast({ type: "error", title: "Couldn't load profile" })
     } finally {
       setLoadingProfile(false)
       markLoaded("profile")
@@ -613,7 +613,7 @@ export default function ProfilePage() {
       const res = await api.get("/auth/api/v1/users/me/security")
       setSecurity(parseApiResponse<UserSecurityDto>(res.data))
     } catch {
-      addToast({ type: "error", title: "Failed to load security info" })
+      addToast({ type: "error", title: "Couldn't load security info" })
     } finally {
       setLoadingSecurity(false)
       markLoaded("security")
@@ -627,7 +627,7 @@ export default function ProfilePage() {
       const res = await api.get("/auth/api/v1/users/me/sessions")
       setSessions(parseApiResponse<SessionDto[]>(res.data))
     } catch {
-      addToast({ type: "error", title: "Failed to load sessions" })
+      addToast({ type: "error", title: "Couldn't load sessions" })
     } finally {
       setLoadingSessions(false)
       markLoaded("sessions")
@@ -643,7 +643,7 @@ export default function ProfilePage() {
       })
       setHistory(parseApiResponse<PagedResult<LoginHistoryPagedDto>>(res.data))
     } catch {
-      addToast({ type: "error", title: "Failed to load history" })
+      addToast({ type: "error", title: "Couldn't load history" })
     } finally {
       setLoadingHistory(false)
       markLoaded("history")
@@ -664,7 +664,7 @@ export default function ProfilePage() {
       setIncomingRequests(parseApiResponse<FriendRequestDto[]>(incoming.data))
       setOutgoingRequests(parseApiResponse<FriendRequestDto[]>(outgoing.data))
     } catch {
-      addToast({ type: "error", title: "Failed to load friends" })
+      addToast({ type: "error", title: "Couldn't load friends" })
     } finally {
       setLoadingFriends(false)
       markLoaded("friends")
@@ -690,7 +690,7 @@ export default function ProfilePage() {
       })
       setAdminUsers(parseApiResponse<PagedResult<UserListDto>>(res.data))
     } catch {
-      addToast({ type: "error", title: "Failed to load admin data" })
+      addToast({ type: "error", title: "Couldn't load admin data" })
     } finally {
       setLoadingAdmin(false)
       markLoaded("admin")
@@ -781,7 +781,7 @@ export default function ProfilePage() {
       addToast({ type: "success", title: "Avatar updated" })
       loadProfile()
     } catch {
-      addToast({ type: "error", title: "Failed to upload avatar" })
+      addToast({ type: "error", title: "Couldn't upload avatar" })
     } finally {
       setAvatarUploading(false)
     }
@@ -806,7 +806,7 @@ export default function ProfilePage() {
       setAvatarError(false)
       addToast({ type: "success", title: "Avatar removed" })
     } catch {
-      addToast({ type: "error", title: "Failed to remove avatar" })
+      addToast({ type: "error", title: "Couldn't remove avatar" })
     }
   }
 
@@ -824,7 +824,7 @@ export default function ProfilePage() {
       updateUser({ firstName: data.firstName, lastName: data.lastName, email: data.email, userId: data.id })
       addToast({ type: "success", title: "Profile updated" })
     } catch {
-      addToast({ type: "error", title: "Failed to update profile" })
+      addToast({ type: "error", title: "Couldn't update profile" })
     } finally {
       setSavingProfile(false)
     }
@@ -852,7 +852,7 @@ export default function ProfilePage() {
       })
       loadProfile()
     } catch {
-      addToast({ type: "error", title: "Failed to send verification email" })
+      addToast({ type: "error", title: "Couldn't send verification email" })
     } finally {
       setVerifyingEmail(false)
     }
@@ -865,7 +865,7 @@ export default function ProfilePage() {
       setTwoFactorSetup({ secret: data.secret, qrCodeUrl: data.qrCodeUrl })
       addToast({ type: "success", title: "2FA setup generated" })
     } catch {
-      addToast({ type: "error", title: "Failed to start 2FA" })
+      addToast({ type: "error", title: "Couldn't start 2FA" })
     }
   }
 
@@ -890,7 +890,7 @@ export default function ProfilePage() {
       addToast({ type: "success", title: "2FA disabled" })
       loadSecurity()
     } catch {
-      addToast({ type: "error", title: "Failed to disable 2FA" })
+      addToast({ type: "error", title: "Couldn't disable 2FA" })
     }
   }
 
@@ -903,7 +903,7 @@ export default function ProfilePage() {
       loadSessions()
       loadSecurity()
     } catch {
-      addToast({ type: "error", title: "Failed to revoke session" })
+      addToast({ type: "error", title: "Couldn't revoke session" })
     } finally {
       setRevokingSessionId(null)
     }
@@ -918,7 +918,7 @@ export default function ProfilePage() {
       loadSessions()
       loadSecurity()
     } catch {
-      addToast({ type: "error", title: "Failed to revoke sessions" })
+      addToast({ type: "error", title: "Couldn't revoke sessions" })
     }
   }
 
@@ -932,7 +932,7 @@ export default function ProfilePage() {
       addToast({ type: "success", title: "Account deleted" })
       router.push("/auth/login")
     } catch {
-      addToast({ type: "error", title: "Failed to delete account" })
+      addToast({ type: "error", title: "Couldn't delete account" })
     } finally {
       setDeletingAccount(false)
     }
@@ -955,7 +955,7 @@ export default function ProfilePage() {
       })
       loadFriends()
     } catch (error: unknown) {
-      addToast({ type: "error", title: getApiErrorMessage(error) || "Failed to send invite" })
+      addToast({ type: "error", title: "Couldn't send invite", description: getApiErrorMessage(error) || "Couldn't send invite" })
     }
   }
 
@@ -976,7 +976,7 @@ export default function ProfilePage() {
       addToast({ type: "success", title: "Request sent" })
       loadFriends()
     } catch (error: unknown) {
-      addToast({ type: "error", title: getApiErrorMessage(error) || "Failed to send request" })
+      addToast({ type: "error", title: "Couldn't send request", description: getApiErrorMessage(error) || "Couldn't send request" })
     }
   }
 
@@ -995,7 +995,7 @@ export default function ProfilePage() {
       invalidateFriends()
       loadFriends()
     } catch {
-      addToast({ type: "error", title: "Failed to accept request" })
+      addToast({ type: "error", title: "Couldn't accept request" })
     } finally {
       setRespondingRequestId(null)
     }
@@ -1007,7 +1007,7 @@ export default function ProfilePage() {
       addToast({ type: "success", title: "Request rejected" })
       loadFriends()
     } catch {
-      addToast({ type: "error", title: "Failed to reject request" })
+      addToast({ type: "error", title: "Couldn't reject request" })
     }
   }
 
@@ -1018,7 +1018,7 @@ export default function ProfilePage() {
       invalidateFriends()
       loadFriends()
     } catch {
-      addToast({ type: "error", title: "Failed to remove friend" })
+      addToast({ type: "error", title: "Couldn't remove friend" })
     }
   }
 
@@ -1027,7 +1027,7 @@ export default function ProfilePage() {
       const res = await api.get(`/auth/api/v1/users/${userId}`)
       setSelectedUser(parseApiResponse<UserDetailDto>(res.data))
     } catch {
-      addToast({ type: "error", title: "Failed to load user" })
+      addToast({ type: "error", title: "Couldn't load user" })
     }
   }
 

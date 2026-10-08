@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useMemo } from "react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import CategoriesPage from "@/app/(app)/categories/page"
 import { api } from "@/lib/api"
 import { forgetOrigin, rememberOrigin, takeOrigin } from "@/lib/shared-origin"
 import { useAuthStore } from "@/store/auth"
+import { useToastStore } from "@/store/toast"
 import type { Category } from "@/types/category"
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), refresh: vi.fn() }))
@@ -42,6 +43,7 @@ function recordStaleCard() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  useToastStore.getState().clear()
   forgetOrigin()
   useAuthStore.setState({
     user: { userId: "owner", email: "owner@example.com", firstName: "Owner", lastName: "User" },
@@ -54,6 +56,8 @@ beforeEach(() => {
   vi.mocked(api.post).mockResolvedValue({ data: {} })
   vi.mocked(api.put).mockResolvedValue({ data: {} })
 })
+
+afterEach(() => useToastStore.getState().clear())
 
 describe("Category motion parity", () => {
   it("animates the first loaded grid instead of disabling card entrances", async () => {
@@ -100,5 +104,26 @@ describe("Category motion parity", () => {
     fireEvent.keyDown(window, { key: "c" })
     expect(screen.queryByRole("dialog", { name: "New category" })).toBeNull()
     expect(screen.getAllByRole("dialog")).toHaveLength(1)
+  })
+})
+
+describe("Category notices", () => {
+  it("reports a failed load with a concise error heading", async () => {
+    vi.mocked(api.get).mockRejectedValueOnce(new Error("offline"))
+    render(<CategoriesPage />)
+    await waitFor(() => expect(useToastStore.getState().toasts).toEqual([
+      expect.objectContaining({ type: "error", title: "Couldn't load categories" }),
+    ]))
+  })
+
+  it("announces creation calmly after the category has been saved", async () => {
+    render(<CategoriesPage />)
+    await userEvent.click(await screen.findByRole("button", { name: "New category" }))
+    await userEvent.type(screen.getByRole("textbox", { name: /Name/ }), "Personal")
+    await userEvent.click(screen.getByRole("button", { name: "Create category" }))
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", expect.objectContaining({ name: "Personal" })))
+    await waitFor(() => expect(useToastStore.getState().toasts).toEqual([
+      expect.objectContaining({ type: "success", title: "Category created" }),
+    ]))
   })
 })

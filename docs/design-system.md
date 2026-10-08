@@ -1258,7 +1258,7 @@ undo, which looked, moved and stacked nothing alike.
 |---|---|
 | Surface | A drop of ink — `bg-ink text-paper rounded-xl shadow-xl`, the material of the bar's active tab — at most 420px wide |
 | Kind | A 24px mark on the left: a check on `positive`, a warning on `alert` or `warn`, an "i" on `accent`, the undo arrow on `paper/15` |
-| Words | Title in `body-sm` semibold; an optional `caption` line under it at `paper/70` |
+| Words | Title in `body-sm` semibold, sentence case, at most 40 characters, without a final full stop or exclamation mark; errors say "Couldn't …". Details use the optional `caption` description at `paper/70`; server-supplied notification titles retain their producer text |
 | Action | At most one ("Undo", "Retry"); pressing it runs it and dismisses the notice |
 | Place | One stack, bottom-centre on every screen, above the safe area — and above anything docked there (quick capture, the selection bar), which publish `--pl-dock-clearance` (`useDockClearance`) |
 | Stack | A deck: the newest in front, the two before it peeking 10px above, scaled back 5% each, their words hidden. Pointing at it or tabbing into it fans it out into a list (8px gaps); at most five are kept |

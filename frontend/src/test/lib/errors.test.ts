@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  AUTHOR_COMPLETED_TOAST,
   extractErrorMessage,
   getAccountChangeErrorKind,
   getAuthRequestMessage,
@@ -154,5 +155,14 @@ describe('account change refusals', () => {
     expect(getAccountChangeErrorKind({ response: { status: 429 } })).toBe('rate-limited')
     expect(getAccountChangeErrorKind({ request: {}, code: 'ERR_NETWORK' })).toBe('network')
     expect(getAccountChangeErrorKind({ response: { status: 500 } })).toBe('unknown')
+  })
+})
+
+describe("author completion notice", () => {
+  it("keeps the heading short and explains the refusal and next step in the detail", () => {
+    expect(AUTHOR_COMPLETED_TOAST.type).toBe("warning")
+    expect(AUTHOR_COMPLETED_TOAST.title).toBe("Couldn't reopen task")
+    expect(AUTHOR_COMPLETED_TOAST.title.length).toBeLessThanOrEqual(40)
+    expect(AUTHOR_COMPLETED_TOAST.description).toBe("The author completed this task. Make a copy to keep working on your own version.")
   })
 })

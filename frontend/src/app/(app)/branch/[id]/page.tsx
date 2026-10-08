@@ -79,7 +79,7 @@ export default function BranchPage() {
       const updated = parseApiResponse(res.data)
       setTodo((p) => (p ? { ...p, ...updated, authorName: p.authorName ?? updated.authorName } : updated))
     } catch (e) {
-      addToast({ type: "error", title: getApiErrorMessage(e, "Failed to save changes") })
+      addToast({ type: "error", title: "Couldn't save changes", description: getApiErrorMessage(e, "Couldn't save changes") })
       throw e // surface the editor's autosave error state
     }
   }, [todoId, todo, addToast])
@@ -90,7 +90,7 @@ export default function BranchPage() {
       await setViewerPreference(todoId, { viewerCategoryId, updateViewerCategory: true })
       await load()
     } catch (e) {
-      addToast({ type: "error", title: getApiErrorMessage(e, "Failed to save your category") })
+      addToast({ type: "error", title: "Couldn't save your category", description: getApiErrorMessage(e, "Couldn't save your category") })
       throw e
     }
   }, [todoId, load, addToast])
@@ -107,7 +107,7 @@ export default function BranchPage() {
     try {
       if (isOwner) await patchStatus("inProgress")
       else { const u = await joinTodo(todo.id); setTodo((p) => (p ? { ...p, ...u } : u)); setRefreshKey((k) => k + 1) }
-    } catch (e) { addToast({ type: "error", title: getApiErrorMessage(e, "Could not update task") }) }
+    } catch (e) { addToast({ type: "error", title: "Couldn't update task", description: getApiErrorMessage(e, "Couldn't update task") }) }
   }, [todo, isOwner, patchStatus, addToast])
 
   const handleStopWork = useCallback(async () => {
@@ -115,7 +115,7 @@ export default function BranchPage() {
     try {
       if (isOwner) await patchStatus("todo")
       else { await leaveTodo(todo.id); await load(); setRefreshKey((k) => k + 1) }
-    } catch (e) { addToast({ type: "error", title: getApiErrorMessage(e, "Could not stop working") }) }
+    } catch (e) { addToast({ type: "error", title: "Couldn't stop working", description: getApiErrorMessage(e, "Couldn't stop working") }) }
   }, [todo, isOwner, patchStatus, load, addToast])
 
   const handleComplete = useCallback(async () => {
@@ -136,12 +136,12 @@ export default function BranchPage() {
       } else {
         await patchStatus(completed ? "todo" : "done")
       }
-      addToast({ type: "success", title: completed ? "Task reopened!" : "Task completed!" })
+      addToast({ type: "success", title: completed ? "Task reopened" : "Task completed" })
     } catch (e) {
       if (isAuthorAlreadyCompletedError(e)) {
         addToast(AUTHOR_COMPLETED_TOAST)
       } else {
-        addToast({ type: "error", title: getApiErrorMessage(e, "Could not update task") })
+        addToast({ type: "error", title: "Couldn't update task", description: getApiErrorMessage(e, "Couldn't update task") })
       }
     }
   }, [todo, isOwner, isShared, statusKey, patchStatus, addToast])
@@ -152,7 +152,7 @@ export default function BranchPage() {
       const copy = await duplicateTodo(todo.id)
       addToast({ type: "success", title: "Task duplicated", description: "Opening the new copy." })
       router.push(`/branch/${copy.id}`)
-    } catch (e) { addToast({ type: "error", title: getApiErrorMessage(e, "Could not duplicate task") }) }
+    } catch (e) { addToast({ type: "error", title: "Couldn't duplicate task", description: getApiErrorMessage(e, "Couldn't duplicate task") }) }
   }, [todo, router, addToast])
 
   // The line that says it is loading is only shown if the wait is long enough to notice,

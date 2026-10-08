@@ -309,13 +309,13 @@ export default function CompletedTasksPage() {
       try {
         await setViewerPreference(todoId, { completedByViewer: false })
         await fetchCompletedTodos()
-        addToast({ type: "success", title: "Task reopened!" })
+        addToast({ type: "success", title: "Task reopened" })
       } catch (error) {
         console.error("Failed to reopen viewer completion:", error)
         if (isAuthorAlreadyCompletedError(error)) {
           addToast(AUTHOR_COMPLETED_TOAST)
         } else {
-          addToast({ type: "error", title: "Failed to update task" })
+          addToast({ type: "error", title: "Couldn't update task" })
         }
       }
       return
@@ -324,10 +324,10 @@ export default function CompletedTasksPage() {
     try {
       await api.put(`/todos/api/v1/todos/${todoId}`, { status: "todo" })
       await fetchCompletedTodos()
-      addToast({ type: "success", title: "Task reopened!" })
+      addToast({ type: "success", title: "Task reopened" })
     } catch (error) {
       console.error("Failed to reopen todo:", error)
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Couldn't update task" })
     }
   }
 
@@ -337,7 +337,7 @@ export default function CompletedTasksPage() {
       addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
     } catch (error) {
       console.error("Failed to duplicate todo:", error)
-      addToast({ type: "error", title: "Failed to duplicate task" })
+      addToast({ type: "error", title: "Couldn't duplicate task" })
       throw error
     }
   }
@@ -351,7 +351,7 @@ export default function CompletedTasksPage() {
       addToast({ type: "success", title: "Task deleted" })
     } catch (error) {
       console.error("Failed to delete todo:", error)
-      addToast({ type: "error", title: "Failed to delete task" })
+      addToast({ type: "error", title: "Couldn't delete task" })
     } finally {
       setDeletingTodo(null)
     }
@@ -373,7 +373,7 @@ export default function CompletedTasksPage() {
       // Autosave path: keep the modal open and quiet; the in-modal indicator confirms the save.
     } catch (error) {
       console.error("Failed to update todo:", error)
-      addToast({ type: "error", title: "Failed to save changes" })
+      addToast({ type: "error", title: "Couldn't save changes" })
       throw error // surface the error state in the modal's autosave indicator
     }
   }
@@ -396,7 +396,7 @@ export default function CompletedTasksPage() {
       // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
     } catch (error) {
       console.error("Failed to update viewer preference:", error)
-      addToast({ type: "error", title: "Failed to save your category" })
+      addToast({ type: "error", title: "Couldn't save your category" })
       throw error // surface the error state in the modal's autosave indicator
     }
   }, [todos, addToast])
@@ -436,7 +436,7 @@ export default function CompletedTasksPage() {
       if (canOptimisticallyToggle) {
         setTodos(prev => prev.map(t => t.id === todoId ? { ...t, hidden: !newHidden } : t))
       }
-      addToast({ type: "error", title: "Failed to update task visibility" })
+      addToast({ type: "error", title: "Couldn't update task visibility" })
     }
   }, [addToast, user?.userId])
 

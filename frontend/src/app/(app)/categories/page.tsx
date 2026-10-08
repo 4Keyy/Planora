@@ -338,7 +338,7 @@ export default function CategoriesPage() {
       setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(response.data)))
     } catch (error) {
       console.error("Failed to fetch categories:", error)
-      addToast({ type: "error", title: "Failed to load categories" })
+      addToast({ type: "error", title: "Couldn't load categories" })
     } finally {
       setLoading(false)
     }
@@ -388,10 +388,10 @@ export default function CategoriesPage() {
         displayOrder: 0,
       })
       await fetchCategories()
-      addToast({ type: "success", title: "Category created!" })
+      addToast({ type: "success", title: "Category created" })
     } catch (error) {
       console.error("Failed to create category:", error)
-      addToast({ type: "error", title: "Failed to create category" })
+      addToast({ type: "error", title: "Couldn't create category" })
     }
   }
 
@@ -424,7 +424,7 @@ export default function CategoriesPage() {
       )
     } catch (error) {
       console.error("Failed to update category:", error)
-      addToast({ type: "error", title: "Failed to save category" })
+      addToast({ type: "error", title: "Couldn't save category" })
       throw error
     }
   }
@@ -448,7 +448,7 @@ export default function CategoriesPage() {
       router.refresh()
     } catch (error) {
       console.error("Failed to delete category:", error)
-      addToast({ type: "error", title: "Failed to delete category" })
+      addToast({ type: "error", title: "Couldn't delete category" })
     } finally {
       setDeletingCategory(null)
     }

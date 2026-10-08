@@ -97,9 +97,9 @@ export function KeyboardConsole() {
     try {
       await api.put(`/todos/api/v1/todos/${id}`, { status: "done" })
       setTasks((prev) => prev.filter((t) => t.id !== id))
-      addToast({ type: "success", title: "Task completed!" })
+      addToast({ type: "success", title: "Task completed" })
     } catch {
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Couldn't update task" })
     }
   }
 
@@ -116,7 +116,7 @@ export function KeyboardConsole() {
       const updated = parseApiResponse<Todo>(res.data)
       setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
     } catch {
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Couldn't update task" })
     }
   }
 
@@ -144,7 +144,7 @@ export function KeyboardConsole() {
           await api.delete(`/todos/api/v1/todos/${id}`)
         } catch {
           putBack()
-          addToast({ type: "error", title: "Failed to delete task" })
+          addToast({ type: "error", title: "Couldn't delete task" })
         }
       },
       rollback: putBack,

@@ -27,11 +27,11 @@ describe("toast store", () => {
 
   it("counts the same notice said again instead of stacking a copy, and restarts its clock", () => {
     act(() => {
-      store().addToast({ type: "error", title: "Failed to load tasks" })
+      store().addToast({ type: "error", title: "Couldn't load tasks" })
     })
     act(() => vi.advanceTimersByTime(TOAST_DURATIONS.error - 100))
     act(() => {
-      store().addToast({ type: "error", title: "Failed to load tasks" })
+      store().addToast({ type: "error", title: "Couldn't load tasks" })
     })
     expect(store().toasts).toHaveLength(1)
     expect(store().toasts[0].count).toBe(2)

@@ -10,7 +10,6 @@ import axios from "axios"
 import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
-import { truncateText } from "@/lib/utils"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
 import { Todo, isTodoOwner, sameUserId, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
@@ -414,7 +413,7 @@ export default function DashboardPage() {
     try {
       sessionStorage.removeItem(FIRST_RUN_STORAGE_KEY)
     } catch { }
-    addToast({ type: "success", title: "Task created!" })
+    addToast({ type: "success", title: "Task created" })
     setCurrentPage(1)
     // Surface the new task immediately, then reconcile silently in the background.
     const created = parseApiResponse<Todo>(res.data)
@@ -489,12 +488,12 @@ export default function DashboardPage() {
     }
 
     undoable.run({
-      label: `“${truncateText(todo.title, 40)}” deleted`,
+      label: "Task deleted",
       commit: async () => {
         try {
           await api.delete(`/todos/api/v1/todos/${todo.id}`)
         } catch {
-          addToast({ type: "error", title: "Failed to delete task" })
+          addToast({ type: "error", title: "Couldn't delete task" })
           // The server refused, so put it back rather than leave the user
           // believing a task is gone when it is not.
           restore()
@@ -532,12 +531,12 @@ export default function DashboardPage() {
         setStatsTodos(prev => prev.map(t =>
           t.id !== todoId ? t : { ...t, isCompletedByViewer: result.completedByViewer ?? false, ownerCompleted: result.ownerCompleted }
         ))
-        addToast({ type: "success", title: wasCompleted ? "Task reopened!" : "Task completed!" })
+        addToast({ type: "success", title: wasCompleted ? "Task reopened" : "Task completed" })
       } catch (e) {
         if (isAuthorAlreadyCompletedError(e)) {
           addToast(AUTHOR_COMPLETED_TOAST)
         } else {
-          addToast({ type: "error", title: "Failed to update task" })
+          addToast({ type: "error", title: "Couldn't update task" })
         }
       }
       return
@@ -565,10 +564,10 @@ export default function DashboardPage() {
       }))
       addToast({
         type: "success",
-        title: isCompleted ? "Task reopened!" : "Task completed!",
+        title: isCompleted ? "Task reopened" : "Task completed",
       })
     } catch {
-      addToast({ type: "error", title: "Failed to update task" })
+      addToast({ type: "error", title: "Couldn't update task" })
     }
   }, [user?.userId, addToast, fetchTodos])
 
@@ -591,7 +590,7 @@ export default function DashboardPage() {
       // Autosave path: keep the modal open and quiet (the in-modal indicator confirms it);
       // do not refresh `editingTodo` so the open modal's local field state is never clobbered.
     } catch (error) {
-      addToast({ type: "error", title: "Failed to save changes" })
+      addToast({ type: "error", title: "Couldn't save changes" })
       throw error // surface the error state in the modal's autosave indicator
     }
   }
@@ -614,7 +613,7 @@ export default function DashboardPage() {
       setStatsTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
       // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
     } catch (error) {
-      addToast({ type: "error", title: "Failed to save your category" })
+      addToast({ type: "error", title: "Couldn't save your category" })
       throw error // surface the error state in the modal's autosave indicator
     }
   }, [todos, statsTodos, addToast])
@@ -636,9 +635,9 @@ export default function DashboardPage() {
         setTodos(prev => prev.map(t => t.id !== todoId ? t : enriched))
         setStatsTodos(prev => prev.map(t => t.id !== todoId ? t : enriched))
       }
-      addToast({ type: "success", title: "Task taken!" })
+      addToast({ type: "success", title: "Task taken" })
     } catch {
-      addToast({ type: "error", title: "Could not take task" })
+      addToast({ type: "error", title: "Couldn't take task" })
     }
   }, [user?.userId, addToast])
 
@@ -665,7 +664,7 @@ export default function DashboardPage() {
         : prev)
       addToast({ type: "success", title: "Left task" })
     } catch {
-      addToast({ type: "error", title: "Could not leave task" })
+      addToast({ type: "error", title: "Couldn't leave task" })
     }
   }, [todos, statsTodos, user?.userId, addToast])
 
@@ -675,7 +674,7 @@ export default function DashboardPage() {
       void fetchTodos(undefined, { silent: true })
       addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
     } catch {
-      addToast({ type: "error", title: "Could not duplicate task" })
+      addToast({ type: "error", title: "Couldn't duplicate task" })
       throw new Error("duplicate failed")
     }
   }, [fetchTodos, addToast])
@@ -737,7 +736,7 @@ export default function DashboardPage() {
         setTodos(revert)
         setStatsTodos(revert)
       }
-      addToast({ type: "error", title: "Failed to update task visibility" })
+      addToast({ type: "error", title: "Couldn't update task visibility" })
     }
   }, [addToast, user?.userId])
 

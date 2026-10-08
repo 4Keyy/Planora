@@ -65,8 +65,8 @@ export function isAuthorAlreadyCompletedError(err: unknown): boolean {
  */
 export const AUTHOR_COMPLETED_TOAST = {
   type: "warning",
-  title: "Can't reopen — the author completed this task",
-  description: "Make a copy to keep working on your own version.",
+  title: "Couldn't reopen task",
+  description: "The author completed this task. Make a copy to keep working on your own version.",
 } as const
 
 function getResponseStatus(err: unknown): number | undefined {

@@ -132,7 +132,7 @@ export default function LoginPage() {
       })
       // A toast is for something the user started that has already happened, and this
       // one lands on a route change where it is the only trace of the event.
-      addToast({ type: "success", title: "Welcome back!" })
+      addToast({ type: "success", title: "Welcome back" })
       router.push("/dashboard")
     } catch (err: unknown) {
       if (isTwoFactorChallenge(err)) {
