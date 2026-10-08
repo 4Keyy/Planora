@@ -1,16 +1,14 @@
 # NuGet Vulnerable Packages — Tracking Report
 
-> Historical workflow output from June 2026; this is not the current dependency scan. MessagePack is now pinned to 2.5.302 in the central package file. See [the current audit](../../docs/audits/2026-10-06.md) for scanner results and their limits.
+> Historical workflow output from July 2026; this is not the current dependency scan. The current central package versions and advisory data have changed. See [the October audit](../../docs/audits/2026-10-06.md), [XML dependency triage](cryptography-xml-2026-10.md) and [the new image advisories](imagesharp-2026-10.md) for later findings and their limits.
 
-Generated: 2026-06-13T06:53:44Z
-Workflow run: <https://github.com/4Keyy/Planora/actions/runs/27459604238>
+Generated: 2026-07-21T05:43:08Z
+Workflow run: <https://github.com/4Keyy/Planora/actions/runs/29804742626>
 
 Apply fixes by bumping the affected package versions in `Directory.Packages.props`.
 
 ```text
   Determining projects to restore...
-/home/runner/work/Planora/Planora/Services/RealtimeApi/Planora.Realtime.Api/Planora.Realtime.Api.csproj : warning NU1903: Package 'MessagePack' 2.5.187 has a known high severity vulnerability, https://github.com/advisories/GHSA-hv8m-jj95-wg3x [/home/runner/work/Planora/Planora/Planora.sln]
-/home/runner/work/Planora/Planora/tests/Planora.UnitTests/Planora.UnitTests.csproj : warning NU1903: Package 'MessagePack' 2.5.187 has a known high severity vulnerability, https://github.com/advisories/GHSA-hv8m-jj95-wg3x [/home/runner/work/Planora/Planora/Planora.sln]
   All projects are up-to-date for restore.
 
 The following sources were used:
@@ -20,7 +18,14 @@ The given project `Planora.ApiGateway` has no vulnerable packages given the curr
 The given project `Planora.Auth.Api` has no vulnerable packages given the current sources.
 The given project `Planora.Auth.Application` has no vulnerable packages given the current sources.
 The given project `Planora.Auth.Domain` has no vulnerable packages given the current sources.
-The given project `Planora.Auth.Infrastructure` has no vulnerable packages given the current sources.
+Project `Planora.Auth.Infrastructure` has the following vulnerable packages
+   [net10.0]:
+   Transitive Package                      Resolved   Severity   Advisory URL
+   > System.Security.Cryptography.Xml      10.0.8     High       https://github.com/advisories/GHSA-cvvh-rhrc-wg4q
+                                                      High       https://github.com/advisories/GHSA-g8r8-53c2-pm3f
+                                                      High       https://github.com/advisories/GHSA-23rf-6693-g89p
+                                                      High       https://github.com/advisories/GHSA-8q5v-6pqq-x66h
+
 The given project `Planora.BuildingBlocks.Domain` has no vulnerable packages given the current sources.
 The given project `Planora.BuildingBlocks.Application` has no vulnerable packages given the current sources.
 The given project `Planora.BuildingBlocks.Infrastructure` has no vulnerable packages given the current sources.
@@ -31,11 +36,7 @@ The given project `Planora.Messaging.Api` has no vulnerable packages given the c
 The given project `Planora.Realtime.Domain` has no vulnerable packages given the current sources.
 The given project `Planora.Realtime.Application` has no vulnerable packages given the current sources.
 The given project `Planora.Realtime.Infrastructure` has no vulnerable packages given the current sources.
-Project `Planora.Realtime.Api` has the following vulnerable packages
-   [net10.0]: 
-   Transitive Package      Resolved   Severity   Advisory URL                                     
-   > MessagePack           2.5.187    High       https://github.com/advisories/GHSA-hv8m-jj95-wg3x
-
+The given project `Planora.Realtime.Api` has no vulnerable packages given the current sources.
 The given project `GrpcContracts` has no vulnerable packages given the current sources.
 The given project `Planora.Todo.Application` has no vulnerable packages given the current sources.
 The given project `Planora.Todo.Domain` has no vulnerable packages given the current sources.
@@ -50,10 +51,19 @@ The given project `Planora.Collaboration.Domain` has no vulnerable packages give
 The given project `Planora.Collaboration.Infrastructure` has no vulnerable packages given the current sources.
 The given project `Planora.Collaboration.Api` has no vulnerable packages given the current sources.
 Project `Planora.UnitTests` has the following vulnerable packages
-   [net10.0]: 
-   Transitive Package      Resolved   Severity   Advisory URL                                     
-   > MessagePack           2.5.187    High       https://github.com/advisories/GHSA-hv8m-jj95-wg3x
+   [net10.0]:
+   Transitive Package                      Resolved   Severity   Advisory URL
+   > System.Security.Cryptography.Xml      10.0.8     High       https://github.com/advisories/GHSA-cvvh-rhrc-wg4q
+                                                      High       https://github.com/advisories/GHSA-g8r8-53c2-pm3f
+                                                      High       https://github.com/advisories/GHSA-23rf-6693-g89p
+                                                      High       https://github.com/advisories/GHSA-8q5v-6pqq-x66h
 
 The given project `Planora.ErrorHandlingTests` has no vulnerable packages given the current sources.
-The given project `Planora.Migrator` has no vulnerable packages given the current sources.
+Project `Planora.Migrator` has the following vulnerable packages
+   [net10.0]:
+   Transitive Package                      Resolved   Severity   Advisory URL
+   > System.Security.Cryptography.Xml      10.0.8     High       https://github.com/advisories/GHSA-cvvh-rhrc-wg4q
+                                                      High       https://github.com/advisories/GHSA-g8r8-53c2-pm3f
+                                                      High       https://github.com/advisories/GHSA-23rf-6693-g89p
+                                                      High       https://github.com/advisories/GHSA-8q5v-6pqq-x66h
 ```
