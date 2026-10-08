@@ -52,7 +52,7 @@ auto-subscribed by `AddPlanoraTelemetry`:
 | `planora.outbox.batch.duration` | Histogram | `s` | (none) |
 | `planora.outbox.message.age` | Histogram | `s` | (none) — the backpressure signal |
 | `planora.avatar.uploads` | Counter | `{upload}` | `outcome ∈ {success, rejected_size, rejected_mime, rejected_content, not_authenticated, user_missing}`. Use the three `rejected_*` outcomes for "is an attacker probing the upload endpoint?" alerting (`rejected_mime` spikes = polyglot attempts; `rejected_size` spikes = DoS attempts). |
-| `planora.avatar.variant.bytes` | Histogram | `By` | `size ∈ {small, medium, large}` — the WebP variant emitted by `ImageSharpImageProcessor`. Use p95 to catch encoder regressions or unexpectedly large variants. |
+| `planora.avatar.variant.bytes` | Histogram | `By` | `size ∈ {small, medium, large}` — the WebP variant emitted by `SkiaImageProcessor`. Use p95 to catch encoder regressions or unexpectedly large variants. |
 | `planora.cache.operations` | Counter | `{operation}` | `prefix`, `outcome ∈ {hit_l1, hit_l2, miss, error}` |
 | `planora.retention.rows_deleted` | Counter | `{row}` | `policy` |
 | `planora.retention.tripwire` | Counter | `{trip}` | `policy` |

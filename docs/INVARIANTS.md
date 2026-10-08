@@ -147,7 +147,7 @@ The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Pla
 
 **INV-AZ-5.** User-uploaded avatars are server-validated, re-encoded to WebP, and stripped of EXIF/ICC/XMP metadata before persistence. Raw bytes from `IFormFile` never reach disk. Only `image/jpeg`, `image/png`, `image/webp` are accepted, capped at 5 MB and 4096×4096; magic bytes are sniffed regardless of declared `Content-Type`. Storage is content-addressed under `/avatars/{userId}/{contentHash}/{size}.webp` and served with `Cache-Control: public, max-age=31536000, immutable`.
 
-- Evidence: `Services/AuthApi/Planora.Auth.Application/Features/Users/Validators/UploadAvatar/UploadAvatarCommandValidator.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/{ImageSharpImageProcessor,LocalAvatarStorage}.cs`, `Services/AuthApi/Planora.Auth.Api/Program.cs`, `docs/auth-security.md` § Avatar File Pipeline.
+- Evidence: `Services/AuthApi/Planora.Auth.Application/Features/Users/Validators/UploadAvatar/UploadAvatarCommandValidator.cs`, `Services/AuthApi/Planora.Auth.Infrastructure/Services/Common/{SkiaImageProcessor,LocalAvatarStorage}.cs`, `Services/AuthApi/Planora.Auth.Api/Program.cs`, `docs/auth-security.md` § Avatar File Pipeline.
 
 **INV-AZ-6.** The gRPC client interceptor (`ServiceKeyClientInterceptor`) emits exactly one outbound credential — `x-service-key`. It never propagates the inbound HTTP `Authorization` (Bearer JWT) header or any cookie into outgoing gRPC metadata. Trust contexts are kept fully separate: the inbound HTTP request authenticates the *user*, the outbound gRPC call authenticates the *peer service*. Pinned by `ServiceKeyInterceptorTests.ClientInterceptor_DoesNotLeakAuthorizationHeaderIntoOutgoingMetadata`.
 

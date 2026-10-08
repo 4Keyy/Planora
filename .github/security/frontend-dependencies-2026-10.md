@@ -54,3 +54,9 @@ explicitly accepted these documented limits. The
 commits and workflow evidence. Passing unit tests and build checks do not
 substitute for the blocked Docker-backed E2E flows or establish that every
 GitHub check is green.
+
+## Follow-up verification — 2026-10-08
+
+After the integration and scoped application fixes, the production frontend build, ESLint and TypeScript passed. The complete suite passed 1,502 tests in 117 files; statements/branches/functions/lines were 95.33% / 87.93% / 95.64% / 97.12%, above the four 85% gates. Docker-backed API/browser flows can now run; the earlier missing realtime database is historical evidence, not the current blocker.
+
+Fresh registry scans still report zero affected production dependencies and ten affected full-graph entries (seven high, three moderate), all in development dependencies. The high findings still include unpatched braces through the retained Tailwind/Next.js tooling. The existing full-graph npm high-severity CI gate is unchanged and remains failing; no override claims a patched version.

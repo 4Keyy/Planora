@@ -379,12 +379,12 @@ Canonical prefix: `/auth/api/v1/users`
 | Limit | Value | Enforced by |
 |---|---|---|
 | Max body size | 6 MB (5 MB payload + multipart overhead) | `[RequestSizeLimit]` on the action |
-| Max image bytes | 5 MB | `UploadAvatarCommandValidator` + `ImageSharpImageProcessor` |
+| Max image bytes | 5 MB | `UploadAvatarCommandValidator` + `SkiaImageProcessor` |
 | Allowed MIME | `image/jpeg`, `image/png`, `image/webp` | content-type whitelist + magic-byte sniff |
-| Min dimensions | 64×64 | ImageSharp decoder check |
-| Max dimensions | 4096×4096 | ImageSharp decoder check |
-| Output format | always `image/webp` (re-encoded server-side, lossy q=85) | `ImageSharpImageProcessor` |
-| Metadata stripping | EXIF / ICC / XMP cleared before re-encode | `ImageSharpImageProcessor` |
+| Min dimensions | 64×64 | Skia header check before bitmap allocation |
+| Max dimensions | 4096×4096 | Skia header check before bitmap allocation |
+| Output format | always `image/webp` (re-encoded server-side, lossy q=85) | `SkiaImageProcessor` |
+| Metadata stripping | fresh pixel surfaces; uploaded EXIF / ICC / XMP not copied | `SkiaImageProcessor` |
 
 Error codes:
 

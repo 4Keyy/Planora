@@ -21,7 +21,8 @@
 		<PackageReference Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" />
 		<PackageReference Include="System.Security.Cryptography.Xml" />
 		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
-		<PackageReference Include="SixLabors.ImageSharp" />
+		<PackageReference Include="SkiaSharp" />
+		<PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
 	</ItemGroup>
 
 	<ItemGroup>

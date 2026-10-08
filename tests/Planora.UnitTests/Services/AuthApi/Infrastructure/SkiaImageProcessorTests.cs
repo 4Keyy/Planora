@@ -1,16 +1,9 @@
 using Planora.Auth.Application.Common.Interfaces;
 using Planora.Auth.Infrastructure.Services.Common;
-using Microsoft.Extensions.Logging.Abstractions;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Metadata.Profiles.Exif;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace Planora.UnitTests.Services.AuthApi.Infrastructure;
 
-public sealed class ImageSharpImageProcessorTests
+public sealed class SkiaImageProcessorTests
 {
     [Fact]
     [Trait("TestType", "Security")]
@@ -86,8 +79,8 @@ public sealed class ImageSharpImageProcessorTests
         Assert.True(result.IsSuccess);
         foreach (var variant in result.Value!.Variants)
         {
-            using var reloaded = Image.Load(variant.Data);
-            Assert.Null(reloaded.Metadata.ExifProfile);
+            using var reloaded = SkiaSharp.SKBitmap.Decode(variant.Data);
+            Assert.DoesNotContain("EXIF", SkiaAvatarFixture.Chunks(variant.Data));
         }
     }
 
@@ -122,33 +115,13 @@ public sealed class ImageSharpImageProcessorTests
         Assert.Equal(3, result.Value!.Variants.Count);
     }
 
-    private static ImageSharpImageProcessor CreateProcessor()
-        => new(NullLogger<ImageSharpImageProcessor>.Instance);
+    private static SkiaImageProcessor CreateProcessor()
+        => new();
 
     private static byte[] CreatePngBytes(int width, int height)
-    {
-        using var image = new Image<Rgba32>(width, height);
-        using var ms = new MemoryStream();
-        image.Save(ms, new PngEncoder());
-        return ms.ToArray();
-    }
-
+        => SkiaAvatarFixture.Image(width, height, SkiaSharp.SKEncodedImageFormat.Png);
     private static byte[] CreateWebpBytes(int width, int height)
-    {
-        using var image = new Image<Rgba32>(width, height);
-        using var ms = new MemoryStream();
-        image.Save(ms, new WebpEncoder());
-        return ms.ToArray();
-    }
-
+        => SkiaAvatarFixture.Image(width, height, SkiaSharp.SKEncodedImageFormat.Webp);
     private static byte[] CreateJpegWithExif(int width, int height, string tag)
-    {
-        using var image = new Image<Rgba32>(width, height);
-        var exif = new ExifProfile();
-        exif.SetValue(ExifTag.ImageDescription, tag);
-        image.Metadata.ExifProfile = exif;
-        using var ms = new MemoryStream();
-        image.Save(ms, new JpegEncoder { Quality = 90 });
-        return ms.ToArray();
-    }
+        => SkiaAvatarFixture.WithExif(SkiaAvatarFixture.Image(width, height, SkiaSharp.SKEncodedImageFormat.Jpeg), tag);
 }

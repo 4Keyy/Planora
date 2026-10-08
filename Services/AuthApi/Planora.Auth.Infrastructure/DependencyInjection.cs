@@ -140,7 +140,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IDateTime, DateTimeService>();
         services.AddScoped<IFileStorageService, LocalFileStorageService>();
-        services.AddScoped<IImageProcessor, ImageSharpImageProcessor>();
+        services.AddScoped<IImageProcessor, SkiaImageProcessor>();
         services.AddScoped<IAvatarStorage, LocalAvatarStorage>();
         services.AddSingleton<IAvatarMetrics, AvatarMetrics>();
         services.AddScoped<IEmailMessageSender, SmtpEmailMessageSender>();
