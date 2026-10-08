@@ -156,9 +156,9 @@ describe("TodoCard", () => {
 
     // The owner of a shared task gets the redaction arc, not a generic share icon:
     // the useful fact is who can see it, which they already know they shared.
-    // This fixture is `isPublic: true` — every friend — which outranks the shared list:
+    // This fixture is `isPublic: true` — the frozen friend circle — which outranks the shared list:
     // the widest reach, drawn as the most open ring and never called "public".
-    expect(screen.getByRole("img", { name: "Shared with all your friends." })).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: "Shared with the friends you had when you shared it." })).toBeInTheDocument()
     expect(container.querySelector(".lucide-share2")).toBeNull()
 
     // Overdue outranks everything else: this task is shared (which would be the accent

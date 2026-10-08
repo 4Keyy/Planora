@@ -221,7 +221,7 @@ describe("rows", () => {
   it("marks who can see a task the way its card does", () => {
     const { container, rerender } = render(<RowContent item={taskItem(task({ sharedWithAll: true }))} active={false} now={NOW} names={NAMES} />)
     // The card's open ring and its words, not plain text.
-    expect(screen.getByRole("img", { name: /all your friends/i })).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: /the friends you had when you shared it/i })).toBeInTheDocument()
     expect(container).toHaveTextContent("All friends")
 
     // The redaction ring, opened by one viewer.
@@ -350,7 +350,7 @@ describe("Preview", () => {
 
   it("names everyone who can see a task", () => {
     const { container, rerender } = render(<Preview item={taskItem(task({ sharedWithAll: true }))} scope={null} tasks={[]} now={NOW} names={NAMES} />)
-    expect(screen.getByRole("img", { name: /all your friends/i })).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: /the friends you had when you shared it/i })).toBeInTheDocument()
     rerender(<Preview item={taskItem(task({ sharedWith: ["ada"] }))} scope={null} tasks={[]} now={NOW} names={NAMES} />)
     expect(container).toHaveTextContent("With Ada Lovelace")
   })
