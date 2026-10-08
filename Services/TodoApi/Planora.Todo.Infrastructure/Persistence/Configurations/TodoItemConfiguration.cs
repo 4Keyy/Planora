@@ -11,7 +11,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
             // 1500 accommodates a subtask's full content (a subtask has no separate body; its
             // text lives in the title). Regular-task titles are still held to 200 chars by their
             // create validator + UI. On an existing migration-built database this widening is also
-            // applied at startup (see TodoApi Program.cs) so the column matches this model.
+            // covered by the reviewed All-friends migration so the column matches this model.
             builder.Property(x => x.Title)
                 .IsRequired()
                 .HasMaxLength(1500);
@@ -32,13 +32,21 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
                 .IsRequired();
 
             // Creator of the item — only populated for subtasks (a collaborator may add one). Null
-            // for top-level tasks, where the owner is the creator. On existing migration-built
-            // databases the column is added at startup (see TodoApi Program.cs).
+            // for top-level tasks, where the owner is the creator. The additive snapshot migration
+            // also reconciles this column on older migration-built databases.
             builder.Property(x => x.CreatedByUserId)
                 .IsRequired(false);
 
             builder.Property(x => x.IsPublic)
                 .HasDefaultValue(false);
+
+            builder.Property(x => x.AllFriendsSnapshotAt)
+                .HasColumnType("timestamp with time zone")
+                .IsRequired(false);
+
+            // Batch legacy roots by ID without repeatedly scanning every task in the database.
+            builder.HasIndex(x => new { x.IsPublic, x.AllFriendsSnapshotAt, x.ParentTodoId, x.Id })
+                .HasDatabaseName("ix_todo_items_all_friends_snapshot_roots");
 
             builder.Property(x => x.Hidden)
                 .HasDefaultValue(false);
@@ -90,7 +98,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Configurations
             // leading columns are equality predicates and CompletedAt is the range bound, so this
             // covering index turns the search into an index range scan instead of scanning every one
             // of a user's done tasks — the win grows with archive size. Added on existing databases at
-            // startup via idempotent DDL (see TodoApi Program.cs), mirroring the DueDateStart pattern.
+            // the reviewed additive snapshot migration, together with DueDateStart.
             builder.HasIndex(x => new { x.UserId, x.Status, x.IsDeleted, x.CompletedAt })
                 .HasDatabaseName("ix_todo_items_user_status_deleted_completed");
 

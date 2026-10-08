@@ -856,11 +856,11 @@ Rules:
 - `dueDateStart` (interval start) requires `dueDate` to be set and must be `≤ dueDate`; the later bound is always the deadline. On update, a bare `dueDate: null` means **unchanged** (the full-payload autosave always sends it) — send `clearDueDate: true` to actually remove the date/interval, mirroring `clearRequiredWorkers`;
 - category must belong to current user;
 - shared users must be accepted friends;
-- `isPublic` is independent from `sharedWithUserIds`; public tasks are visible to all accepted friends, direct shares are visible to the selected accepted friends;
+- `isPublic` marks a frozen All friends audience. The server selects accepted friends when enabled; unchanged public updates preserve the snapshot, and private-to-public updates ignore client IDs and take a fresh snapshot. Direct shares require current accepted friendship;
 - non-owner friend-visible viewer can only change `status`;
 - `requiredWorkers` must be ≥ 1 when set, and **whenever the task has any direct shares** it cannot
-  exceed `1 + sharedWith.Count` (the owner occupies one slot). The cap is keyed on the shared list,
-  not on `isPublic`: a public task with no direct shares has no ceiling. Lowering it evicts the
+  exceed `1 + sharedWith.Count` (the owner occupies one slot). All friends creation and mode
+  transitions clear capacity; its stored audience is not a capacity denominator. Lowering it evicts the
   most-recently-joined workers until the count fits;
 - set `clearRequiredWorkers: true` to remove the capacity limit on update.
 
@@ -1024,7 +1024,7 @@ ISO 8601 representation; the presence of `Z` depends on the value's `DateTime` k
 
 ### `POST /{id}/join`
 
-Join the task as a worker. The implementation requires public visibility or a direct share; it checks friendship **only for a non-public shared task**. Unlike the list/detail/comment access rules, an authenticated non-friend with a public task id currently passes this path and receives an unredacted DTO. This is a known authorization gap, not a broader intended sharing policy; see [IDOR coverage](security-idor-coverage.md#known-findings-and-missing-regressions).
+Join the task as a worker. A non-owner requires current accepted friendship and a stored share; only legacy public rows without a snapshot retain dynamic friend visibility. This is the same access rule as list, detail and comment access. Non-owner public responses redact audience IDs.
 
 The call is **idempotent**, and two cases that look like errors are not:
 
@@ -1460,3 +1460,11 @@ The auth prefix being unauthenticated *at the gateway* is not the same as being 
 simply does not validate a token there, and `AuthenticationController` still applies `[Authorize]`
 where it must — `logout` is the one that needs it. Everything else on that prefix is genuinely public
 by design (CSRF token, register, login, refresh, validate-token, password reset request and reset).
+
+### Internal Friendship Snapshot Contract
+
+`auth.AuthService/GetFriendships` is additive and protected by the existing service-key
+interceptor. It returns accepted `friend_id` values with nullable UTC `accepted_at`. Todo
+snapshot creation/backfill and list/share validation call it without the friend-ID cache.
+Malformed IDs or dates fail the entire lookup; a failed lookup never creates an empty audience.
+The snapshot stamp is persisted internally, not supplied by the HTTP client.

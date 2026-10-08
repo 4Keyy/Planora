@@ -259,9 +259,9 @@ public class TodoItemWorkerTests
         var ownerId = Guid.NewGuid();
         var friend1 = Guid.NewGuid();
         var friend2 = Guid.NewGuid();
-        // Task is public AND shared with both friends so both can join
+        // Frozen public circle contains both friends so both can join
         var todo = TodoItem.Create(ownerId, "Task", isPublic: true,
-            sharedWithUserIds: new[] { friend1, friend2 });
+            sharedWithUserIds: new[] { friend1, friend2 }, allFriendsSnapshotAt: DateTime.UtcNow);
 
         todo.AddWorker(friend1);
         todo.AddWorker(friend2);

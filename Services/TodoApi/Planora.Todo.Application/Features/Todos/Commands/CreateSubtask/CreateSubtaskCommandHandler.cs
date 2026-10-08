@@ -59,12 +59,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             // Branch-access guard (mirrors GetSubtasks): the owner, OR a friend with access to a
             // shared/public parent, may add a subtask — collaborators contribute steps to a task
             // they participate in, not just the author. Never to another subtask (no nesting).
-            var isOwner = parent.UserId == userId;
-            var hasAccess = isOwner;
-            if (!isOwner && (parent.IsPublic || parent.SharedWith.Any(s => s.SharedWithUserId == userId)))
-            {
-                hasAccess = await _friendshipService.AreFriendsAsync(userId, parent.UserId, cancellationToken);
-            }
+            var hasAccess = await TodoAccessPolicy.CanAccessAsync(parent, userId, _friendshipService, cancellationToken);
             if (!hasAccess)
                 throw new ForbiddenException("You do not have access to this task");
             if (parent.IsSubtask)
@@ -92,7 +87,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             // of the subtask is excluded). The subtask inherits the parent's audience, so resolving
             // from the parent gives exactly the people who can see this branch.
             var actorName = _currentUserContext.Name ?? _currentUserContext.Email ?? userId.ToString();
-            var audience = await RealtimeAudience.ResolveAsync(parent, _friendshipService, cancellationToken, _logger);
+            var audience = await RealtimeAudience.ResolveContentAsync(parent, _friendshipService, cancellationToken, _logger);
             await NotificationFanout.EnqueueAsync(
                 _outboxRepository, audience, actorId: userId, taskId: parent.Id,
                 type: NotificationType.SubtaskAdded,
@@ -110,7 +105,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateSubtask
             // (filed under) the parent owner for access purposes. The caller IS the creator, so their
             // JWT is the freshest source for the author label; GetSubtasks reconciles it the same way
             // (from CreatedByUserId) on later reads.
-            var dto = _mapper.Map<TodoItemDto>(subtask) with
+            var dto = TodoAccessPolicy.RedactAudience(subtask, userId, _mapper.Map<TodoItemDto>(subtask)) with
             {
                 AuthorName = _currentUserContext.Name ?? _currentUserContext.Email,
                 AuthorAvatarUrl = string.IsNullOrEmpty(_currentUserContext.ProfilePictureUrl)

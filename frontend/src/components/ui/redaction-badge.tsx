@@ -131,9 +131,9 @@ const AUDIENCE_WORD: Record<Audience, string> = {
 function describeAudience(audience: Audience, viewerCount?: number): string {
   if (audience === "private") return "Private. Only you can see this."
   // `public` is the share picker's "All friends", and the server enforces it
-  // (`IsPublic && isFriend`). It once said "anyone with the link" — a link the product has
+  // (live friendship and the stored audience; only unfrozen legacy rows use `IsPublic`). It once said "anyone with the link" — a link the product has
   // never had, on the one sentence whose job is to say exactly who can see a task.
-  if (audience === "public") return "Shared with all your friends."
+  if (audience === "public") return "Shared with the friends you had when you shared it."
   const viewers = normaliseCount(viewerCount)
   if (viewers === undefined) return "Shared. Some people can see this."
   return `Shared with ${viewers} ${viewers === 1 ? "person" : "people"}.`

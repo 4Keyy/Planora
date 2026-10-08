@@ -8,6 +8,8 @@ using Planora.Auth.Application.Features.Users.Queries.GetUserAvatarsByIds;
 using Planora.Auth.Application.Features.Users.Queries.GetUserProfilesByIds;
 using Planora.GrpcContracts;
 using MediatR;
+using Google.Protobuf.WellKnownTypes;
+using Planora.Auth.Application.Features.Friendships.Queries.GetFriendships;
 
 namespace Planora.Auth.Api.Grpc
 {
@@ -158,6 +160,33 @@ namespace Planora.Auth.Api.Grpc
             var response = new GetFriendIdsResponse();
             response.FriendIds.AddRange(result.Value.Select(id => id.ToString()));
 
+            return response;
+        }
+
+        public override async Task<GetFriendshipsResponse> GetFriendships(
+            GetFriendshipsRequest request, ServerCallContext context)
+        {
+            if (!Guid.TryParse(request.UserId, out var userId) || userId == Guid.Empty)
+                throw new RpcException(new global::Grpc.Core.Status(global::Grpc.Core.StatusCode.InvalidArgument, "Invalid user ID format"));
+
+            var result = await _mediator.Send(new GetFriendshipsQuery(userId), context.CancellationToken);
+            if (result.IsFailure)
+                throw new RpcException(new global::Grpc.Core.Status(global::Grpc.Core.StatusCode.Internal,
+                    result.Error?.Message ?? "Failed to get friendships"));
+
+            var response = new GetFriendshipsResponse();
+            foreach (var friendship in result.Value)
+            {
+                var entry = new FriendshipSummary { FriendId = friendship.FriendId.ToString() };
+                if (friendship.AcceptedAt is DateTime acceptedAt)
+                {
+                    if (acceptedAt.Kind != DateTimeKind.Utc)
+                        throw new RpcException(new global::Grpc.Core.Status(global::Grpc.Core.StatusCode.Internal,
+                            "Invalid friendship acceptance timestamp"));
+                    entry.AcceptedAt = Timestamp.FromDateTime(acceptedAt);
+                }
+                response.Friendships.Add(entry);
+            }
             return response;
         }
 

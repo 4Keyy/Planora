@@ -1,3 +1,4 @@
+using Planora.Todo.Application.Common;
 using Planora.BuildingBlocks.Application.Context;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
@@ -52,12 +53,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
                 throw new EntityNotFoundException("TodoItem", request.ParentTodoId);
 
             // Access mirrors GetTodoById: owner, or a friend for a shared/public parent.
-            var isOwner = parent.UserId == userId;
-            var hasAccess = isOwner;
-            if (!isOwner && (parent.IsPublic || parent.SharedWith.Any(s => s.SharedWithUserId == userId)))
-            {
-                hasAccess = await _friendshipService.AreFriendsAsync(userId, parent.UserId, cancellationToken);
-            }
+            var hasAccess = await TodoAccessPolicy.CanAccessAsync(parent, userId, _friendshipService, cancellationToken);
             if (!hasAccess)
                 throw new ForbiddenException("You do not have access to this task");
 
@@ -117,7 +113,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetSubtasks
                     })
                     .ToList();
 
-                var dto = _mapper.Map<TodoItemDto>(s) with
+                var dto = TodoAccessPolicy.RedactAudience(s, userId, _mapper.Map<TodoItemDto>(s)) with
                 {
                     CategoryName = categoryInfo?.Name,
                     CategoryColor = categoryInfo?.Color,

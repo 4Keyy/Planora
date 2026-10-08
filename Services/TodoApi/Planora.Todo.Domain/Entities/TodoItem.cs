@@ -38,6 +38,8 @@ namespace Planora.Todo.Domain.Entities
         public DateTime? ActualDate { get; private set; }
         public TodoPriority Priority { get; private set; } = TodoPriority.Medium;
         public bool IsPublic { get; private set; } = false;
+        /// <summary>UTC instant the All friends audience was frozen. Null on private and legacy public rows.</summary>
+        public DateTime? AllFriendsSnapshotAt { get; private set; }
         public bool Hidden { get; private set; } = false;
         public bool IsCompleted => Status == TodoStatus.Done;
         public DateTime? CompletedAt { get; private set; }
@@ -71,7 +73,8 @@ namespace Planora.Todo.Domain.Entities
             bool isPublic = false,
             IEnumerable<Guid>? sharedWithUserIds = null,
             int? requiredWorkers = null,
-            DateTime? dueDateStart = null)
+            DateTime? dueDateStart = null,
+            DateTime? allFriendsSnapshotAt = null)
         {
             if (string.IsNullOrWhiteSpace(title))
                 throw new InvalidValueObjectException(nameof(TodoItem), "Title cannot be empty");
@@ -91,6 +94,9 @@ namespace Planora.Todo.Domain.Entities
             // if (expectedDate.HasValue && expectedDate.Value < DateTime.UtcNow)
             //     throw new InvalidValueObjectException(nameof(TodoItem), "Expected date cannot be in the past");
 
+            if (allFriendsSnapshotAt.HasValue && (!isPublic || allFriendsSnapshotAt.Value.Kind != DateTimeKind.Utc))
+                throw new InvalidValueObjectException(nameof(TodoItem), "An All friends snapshot requires a public task and a UTC timestamp");
+
             var todoItem = new TodoItem
             {
                 UserId = userId,
@@ -101,7 +107,8 @@ namespace Planora.Todo.Domain.Entities
                 DueDateStart = dueDateStart,
                 ExpectedDate = expectedDate,
                 Priority = priority,
-                IsPublic = isPublic
+                IsPublic = isPublic,
+                AllFriendsSnapshotAt = allFriendsSnapshotAt
             };
             if (sharedWithUserIds != null)
             {
@@ -160,6 +167,7 @@ namespace Planora.Todo.Domain.Entities
                 // Inherited from the parent — never set independently.
                 CategoryId = parent.CategoryId,
                 IsPublic = parent.IsPublic,
+                AllFriendsSnapshotAt = parent.AllFriendsSnapshotAt,
                 ParentTodoId = parent.Id,
                 // Subtasks carry their own priority but never a due/expected date.
                 Priority = priority,
@@ -168,6 +176,14 @@ namespace Planora.Todo.Domain.Entities
             // Inherit the parent's shared audience so branch access matches the parent exactly.
             subtask.SetSharedWith(parent._sharedWith.Select(s => s.SharedWithUserId), ownerId);
             subtask.MarkAsModified(ownerId);
+            // Touch the tracked parent in the same transaction as the child/outbox insert.
+            // Its xmin check rejects a concurrently frozen or edited inherited audience.
+            var previousUpdatedAt = parent.UpdatedAt;
+            parent.MarkAsModified(creatorUserId);
+            // A repeated/backward clock tick must still dirty the tracked parent. PostgreSQL
+            // stores microseconds, so advance by one microsecond to preserve the xmin check.
+            if (previousUpdatedAt.HasValue && parent.UpdatedAt!.Value <= previousUpdatedAt.Value)
+                parent.UpdatedAt = previousUpdatedAt.Value.AddTicks(10);
 
             // The domain event records the actual creator (which may be a collaborator, not the owner).
             subtask.AddDomainEvent(new TodoItemCreatedDomainEvent(
@@ -192,6 +208,7 @@ namespace Planora.Todo.Domain.Entities
 
             CategoryId = parent.CategoryId;
             IsPublic = parent.IsPublic;
+            AllFriendsSnapshotAt = parent.AllFriendsSnapshotAt;
             // SetSharedWith also evicts workers who lost access — keeps capacity consistent.
             SetSharedWith(parent._sharedWith.Select(s => s.SharedWithUserId), userId);
             MarkAsModified(userId);
@@ -253,8 +270,25 @@ namespace Planora.Todo.Domain.Entities
         {
             IsPublic = isPublic;
             if (!isPublic)
+            {
+                AllFriendsSnapshotAt = null;
                 CleanupWorkersOnAccessChange(_sharedWith.Select(s => s.SharedWithUserId));
+            }
             MarkAsModified(userId);
+        }
+
+        /// <summary>Materialises a server-resolved audience and evicts workers outside that circle.</summary>
+        public void FreezeAllFriendsAudience(IEnumerable<Guid> audience, DateTime snapshotAt, Guid? modifiedBy = null)
+        {
+            ArgumentNullException.ThrowIfNull(audience);
+            if (snapshotAt.Kind != DateTimeKind.Utc)
+                throw new InvalidValueObjectException(nameof(TodoItem), "An All friends snapshot timestamp must be UTC");
+
+            var ids = audience.ToArray();
+            IsPublic = true;
+            AllFriendsSnapshotAt = snapshotAt;
+            SetSharedWith(ids, modifiedBy ?? UserId);
+            SetRequiredWorkers(null, modifiedBy ?? UserId);
         }
 
         public void SetHidden(bool hidden, Guid userId)
@@ -463,6 +497,9 @@ namespace Planora.Todo.Domain.Entities
 
         private void CleanupWorkersOnAccessChange(IEnumerable<Guid> allowedUserIds)
         {
+            // Only legacy public rows still grant access dynamically to the owner's friends.
+            if (IsPublic && AllFriendsSnapshotAt == null)
+                return;
             // The owner always retains access to their own task, so their worker row — only ever
             // present on a SUBTASK (a normal task's owner is implicitly working, never a worker
             // row; see AddWorker) — must never be evicted by a share/visibility change. Without

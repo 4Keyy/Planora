@@ -321,6 +321,9 @@ public class MockCategoryGrpcClient : ICategoryGrpcClient
 /// </summary>
 public class MockFriendshipService : IFriendshipService
 {
+    public Task<IReadOnlyList<FriendshipInfo>> GetFriendshipsAsync(Guid userId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<FriendshipInfo>>(Array.Empty<FriendshipInfo>());
+
     public Task<IReadOnlyList<Guid>> GetFriendIdsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return Task.FromResult<IReadOnlyList<Guid>>(Array.Empty<Guid>());

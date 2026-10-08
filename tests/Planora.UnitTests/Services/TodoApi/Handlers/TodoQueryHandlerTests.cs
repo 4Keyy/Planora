@@ -1072,6 +1072,11 @@ public class TodoQueryHandlerTests
         {
             CurrentUserContext.SetupGet(x => x.UserId).Returns(userId);
             CurrentUserContext.SetupGet(x => x.IsAuthenticated).Returns(userId != Guid.Empty);
+            // Older cases declare accepted friend IDs; expose the same fixture data as uncached metadata.
+            FriendshipService.Setup(x => x.GetFriendshipsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Returns(async (Guid id, CancellationToken ct) => (IReadOnlyList<FriendshipInfo>)
+                    (await FriendshipService.Object.GetFriendIdsAsync(id, ct) ?? Array.Empty<Guid>())
+                    .Select(friendId => new FriendshipInfo(friendId, null)).ToArray());
             _mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>()))
                 .Returns((TodoItem item) => ToDto(item));
             ViewerPreferences

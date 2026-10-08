@@ -1,3 +1,4 @@
+using Planora.Todo.Application.Common;
 using Planora.BuildingBlocks.Application.Pagination;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Application.Context;
@@ -43,7 +44,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
             try
             {
                 // Get friend IDs
-                var friendIds = await _friendshipService.GetFriendIdsAsync(userId, cancellationToken);
+                var friendIds = AllFriendsSnapshotAudience.Current(await _friendshipService.GetFriendshipsAsync(userId, cancellationToken));
                 var friendIdsList = friendIds.ToList();
 
                 // Count only — the friend-id list itself is PII and must not be dumped on this read hot path.
@@ -61,15 +62,14 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                     if (!friendIdsList.Contains(request.FriendId.Value))
                     {
                         _logger.LogWarning("User {UserId} is not friends with {FriendId}", userId, request.FriendId.Value);
-                        return Result<PagedResult<TodoItemDto>>.Failure(new Error("NOT_FRIENDS", "User is not a friend"));
+                        return Result<PagedResult<TodoItemDto>>.Failure(Error.Forbidden("NOT_FRIENDS", "User is not a friend"));
                     }
 
                     var (friendItems, friendTotalCount) = await _repository.FindPageWithIncludesAsync(
-                        t => t.UserId == request.FriendId &&
+                        TodoAccessPolicy.And(t => t.UserId == request.FriendId &&
                              t.ParentTodoId == null &&
-                             (t.IsPublic || t.SharedWith.Any(s => s.SharedWithUserId == userId)) &&
                              !t.IsDeleted &&
-                             !hiddenTodoIds.Contains(t.Id),
+                             !hiddenTodoIds.Contains(t.Id), TodoAccessPolicy.VisibleTo(userId, friendIdsList)),
                         false,
                         request.PageNumber,
                         request.PageSize,
@@ -94,9 +94,9 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
                 var predicate = (System.Linq.Expressions.Expression<Func<TodoItem, bool>>)(t =>
                     friendIdsList.Contains(t.UserId) &&
                     t.ParentTodoId == null &&
-                    (t.IsPublic || t.SharedWith.Any(s => s.SharedWithUserId == userId)) &&
                     !t.IsDeleted &&
                     !hiddenTodoIds.Contains(t.Id));
+                predicate = TodoAccessPolicy.And(predicate, TodoAccessPolicy.VisibleTo(userId, friendIdsList));
 
                 var (items, totalCount) = await _repository.FindPageWithIncludesAsync(
                     predicate,
@@ -137,7 +137,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos
         /// </summary>
         private TodoItemDto MapPublicTodo(TodoItem item, Guid viewerId)
         {
-            var dto = _mapper.Map<TodoItemDto>(item);
+            var dto = TodoAccessPolicy.RedactAudience(item, viewerId, _mapper.Map<TodoItemDto>(item));
             return new TodoItemDto
             {
                 Id = dto.Id,

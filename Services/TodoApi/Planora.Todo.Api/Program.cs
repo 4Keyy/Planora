@@ -136,7 +136,7 @@ namespace Planora.Todo.Api
                     {
                         try
                         {
-                            await DatabaseStartup.EnsureReadyAsync(
+                            await TodoDatabaseStartup.EnsureReadyAsync(
                                 db,
                                 logger,
                                 app.Lifetime.ApplicationStopping);
@@ -157,103 +157,6 @@ namespace Planora.Todo.Api
                             }
                             await Task.Delay(TimeSpan.FromSeconds(5 * migrationRetries), app.Lifetime.ApplicationStopping);
                         }
-                    }
-
-                    // Subtasks allow up to 1500-character titles (a subtask's whole content is its
-                    // title). The shared TodoItems.Title column historically was varchar(200); widen
-                    // it on existing migration-built databases so long subtask titles persist. This
-                    // is idempotent and metadata-only in PostgreSQL (a varchar length *increase*
-                    // never rewrites the table), and guarded so it only runs while still too narrow.
-                    // Fresh installs already get 1500 from the EF model (TodoItemConfiguration).
-                    try
-                    {
-                        // The TodoItems table lives in the "todo" schema — qualify it explicitly
-                        // (an unqualified name resolves against the search_path/public and fails).
-                        await db.Database.ExecuteSqlRawAsync(@"
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_schema = 'todo' AND table_name = 'TodoItems' AND column_name = 'Title'
-          AND character_maximum_length IS NOT NULL
-          AND character_maximum_length < 1500
-    ) THEN
-        ALTER TABLE todo.""TodoItems"" ALTER COLUMN ""Title"" TYPE varchar(1500);
-    END IF;
-END $$;", app.Lifetime.ApplicationStopping);
-                        logger.LogInformation("✅ Ensured TodoItems.Title accommodates 1500-character subtask titles");
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Could not reconcile TodoItems.Title column width (non-fatal)");
-                    }
-
-                    // CreatedByUserId records who added a subtask (a collaborator may now add one),
-                    // letting the creator rename/delete their own subtask. Additive nullable column;
-                    // add it on existing migration-built databases. Idempotent (IF NOT EXISTS) and
-                    // metadata-only. Fresh installs already get it from the EF model.
-                    try
-                    {
-                        await db.Database.ExecuteSqlRawAsync(
-                            @"ALTER TABLE todo.""TodoItems"" ADD COLUMN IF NOT EXISTS ""CreatedByUserId"" uuid;",
-                            app.Lifetime.ApplicationStopping);
-                        logger.LogInformation("✅ Ensured TodoItems.CreatedByUserId column exists");
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Could not ensure TodoItems.CreatedByUserId column (non-fatal)");
-                    }
-
-                    // DueDateStart is the optional START bound of a task's estimated-completion
-                    // interval (the existing DueDate column is its END / single target date). Additive
-                    // nullable column; add it on existing migration-built databases. Idempotent
-                    // (IF NOT EXISTS) and metadata-only. Fresh installs already get it from the EF model.
-                    try
-                    {
-                        await db.Database.ExecuteSqlRawAsync(
-                            @"ALTER TABLE todo.""TodoItems"" ADD COLUMN IF NOT EXISTS ""DueDateStart"" timestamp with time zone;",
-                            app.Lifetime.ApplicationStopping);
-                        logger.LogInformation("✅ Ensured TodoItems.DueDateStart column exists");
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Could not ensure TodoItems.DueDateStart column (non-fatal)");
-                    }
-
-                    // Completion-date index — powers the completed archive's "find a task by roughly
-                    // when it was finished" date-range search (filter on UserId + Status + IsDeleted +
-                    // a CompletedAt window). Additive, idempotent (IF NOT EXISTS) and matches the EF
-                    // model (TodoItemConfiguration) so fresh installs get it from the model. A plain
-                    // (non-CONCURRENT) build is fine: IF NOT EXISTS means it runs once, and the table
-                    // is modest; a very large production table would prefer a one-off CONCURRENT build.
-                    try
-                    {
-                        await db.Database.ExecuteSqlRawAsync(
-                            @"CREATE INDEX IF NOT EXISTS ix_todo_items_user_status_deleted_completed
-                              ON todo.""TodoItems"" (""UserId"", ""Status"", ""IsDeleted"", ""CompletedAt"");",
-                            app.Lifetime.ApplicationStopping);
-                        logger.LogInformation("✅ Ensured completion-date index (ix_todo_items_user_status_deleted_completed) exists");
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Could not ensure completion-date index (non-fatal)");
-                    }
-
-                    // Retention purge index — the daily soft-delete purge sweeps "rows soft-deleted before
-                    // the grace cutoff" (IsDeleted equality + DeletedAt range). Additive, idempotent
-                    // (IF NOT EXISTS) and matches the EF model (TodoItemConfiguration). Same startup-DDL
-                    // convention as the columns/indexes above, so it lands on existing databases too.
-                    try
-                    {
-                        await db.Database.ExecuteSqlRawAsync(
-                            @"CREATE INDEX IF NOT EXISTS ix_todo_items_isdeleted_deletedat
-                              ON todo.""TodoItems"" (""IsDeleted"", ""DeletedAt"");",
-                            app.Lifetime.ApplicationStopping);
-                        logger.LogInformation("✅ Ensured retention purge index (ix_todo_items_isdeleted_deletedat) exists");
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Could not ensure retention purge index (non-fatal)");
                     }
 
                     // Subscribe to Integration Events

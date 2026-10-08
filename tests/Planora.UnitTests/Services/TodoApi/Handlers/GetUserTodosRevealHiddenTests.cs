@@ -316,8 +316,8 @@ public sealed class GetUserTodosRevealHiddenTests
             var currentUser = new Mock<ICurrentUserContext>();
             currentUser.SetupGet(context => context.UserId).Returns(ViewerId);
             var friendship = new Mock<IFriendshipService>();
-            friendship.Setup(f => f.GetFriendIdsAsync(ViewerId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(() => (IReadOnlyList<Guid>)FriendIds.ToArray());
+            friendship.Setup(f => f.GetFriendshipsAsync(ViewerId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => (IReadOnlyList<FriendshipInfo>)FriendIds.Select(id => new FriendshipInfo(id, null)).ToArray());
             var categoryClient = new Mock<ICategoryGrpcClient>();
             categoryClient.Setup(c => c.GetCategoryInfoAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((Guid category, Guid userId, CancellationToken _) => _categories.TryGetValue(category, out var info) && info.UserId == userId ? info : null);

@@ -99,6 +99,9 @@ namespace Planora.Todo.Infrastructure.Migrations
                     b.Property<DateTime?>("ActualDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("AllFriendsSnapshotAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid?>("CategoryId")
                         .HasColumnType("uuid");
 
@@ -112,6 +115,9 @@ namespace Planora.Todo.Infrastructure.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -123,6 +129,9 @@ namespace Planora.Todo.Infrastructure.Migrations
                         .HasColumnType("character varying(2000)");
 
                     b.Property<DateTime?>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DueDateStart")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("ExpectedDate")
@@ -162,8 +171,8 @@ namespace Planora.Todo.Infrastructure.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(1500)
+                        .HasColumnType("character varying(1500)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -188,12 +197,21 @@ namespace Planora.Todo.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("IsDeleted", "DeletedAt")
+                        .HasDatabaseName("ix_todo_items_isdeleted_deletedat");
+
                     b.HasIndex("UserId", "IsDeleted");
 
                     b.HasIndex("UserId", "Status");
 
                     b.HasIndex("ParentTodoId", "IsDeleted", "CreatedAt")
                         .HasDatabaseName("ix_todo_items_parent_deleted_created");
+
+                    b.HasIndex("IsPublic", "AllFriendsSnapshotAt", "ParentTodoId", "Id")
+                        .HasDatabaseName("ix_todo_items_all_friends_snapshot_roots");
+
+                    b.HasIndex("UserId", "Status", "IsDeleted", "CompletedAt")
+                        .HasDatabaseName("ix_todo_items_user_status_deleted_completed");
 
                     b.HasIndex("UserId", "Status", "IsDeleted", "CreatedAt")
                         .HasDatabaseName("ix_todo_items_user_status_deleted_created");

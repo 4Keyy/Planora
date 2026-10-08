@@ -1,3 +1,4 @@
+using Planora.Todo.Application.Common;
 using Grpc.Core;
 using Planora.GrpcContracts;
 using Planora.Todo.Application.Features.Todos.Commands.CreateTodo;
@@ -51,12 +52,8 @@ public class TodoGrpcService : TodoService.TodoServiceBase
             return new CheckTaskCommentAccessResponse { Exists = false, HasAccess = false, OwnerId = string.Empty };
         }
 
-        var isOwner = todoItem.UserId == requesterId;
-        var isSharedDirectly = todoItem.SharedWith.Any(s => s.SharedWithUserId == requesterId);
-        var hasVisibility = todoItem.IsPublic || isSharedDirectly;
-        var isFriend = hasVisibility && !isOwner
-            && await _friendshipService.AreFriendsAsync(requesterId, todoItem.UserId, context.CancellationToken);
-        var hasAccess = isOwner || (isSharedDirectly && isFriend) || (todoItem.IsPublic && isFriend);
+        var hasAccess = await TodoAccessPolicy.CanAccessAsync(
+            todoItem, requesterId, _friendshipService, context.CancellationToken);
 
         var response = new CheckTaskCommentAccessResponse
         {
@@ -65,15 +62,16 @@ public class TodoGrpcService : TodoService.TodoServiceBase
             OwnerId = todoItem.UserId.ToString(),
             // Single source of truth for the description — Collaboration synthesises the
             // pinned "Author's Note" from this instead of storing a genesis comment copy.
-            Description = todoItem.Description ?? string.Empty,
-            TaskCreatedAt = todoItem.CreatedAt.ToString("o"),
+            Description = hasAccess ? todoItem.Description ?? string.Empty : string.Empty,
+            TaskCreatedAt = hasAccess ? todoItem.CreatedAt.ToString("o") : string.Empty,
         };
 
-        // Notification recipients: owner + workers + shared-with audience.
-        var participants = new HashSet<Guid> { todoItem.UserId };
-        foreach (var w in todoItem.Workers) participants.Add(w.UserId);
-        foreach (var s in todoItem.SharedWith) participants.Add(s.SharedWithUserId);
-        response.ParticipantIds.AddRange(participants.Where(id => id != Guid.Empty).Select(id => id.ToString()));
+        if (hasAccess)
+        {
+            var participants = await RealtimeAudience.ResolveContentAsync(
+                todoItem, _friendshipService, context.CancellationToken, _logger);
+            response.ParticipantIds.AddRange(participants.Select(id => id.ToString()));
+        }
 
         return response;
     }

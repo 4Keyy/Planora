@@ -7,10 +7,10 @@ namespace Planora.Todo.Infrastructure.Services
     /// <summary>
     /// In-memory cache in front of <see cref="FriendshipGrpcService"/> for the friend-id list only.
     ///
-    /// <para>The realtime feed audience is resolved on every public-task mutation (create / update /
-    /// delete / join / leave / duplicate); without this, an actively-edited public task would hit
-    /// the Auth gRPC on every autosave just to learn who to fan out to. A short TTL collapses those
-    /// repeated lookups within an editing session.</para>
+    /// <para>Legacy public tasks still resolve the realtime feed audience dynamically. A short TTL
+    /// collapses repeated friend-id lookups within an editing session. Frozen All friends tasks use
+    /// their materialized shares; <see cref="GetFriendshipsAsync"/> always bypasses this cache when
+    /// choosing or backfilling a snapshot.</para>
     ///
     /// <para><b>Authorization stays fresh.</b> <see cref="AreFriendsAsync"/> — the call every access
     /// check flows through (GetTodoById, UpdateTodo, JoinTodo, DuplicateTodo) — is intentionally NOT
@@ -61,6 +61,11 @@ namespace Planora.Todo.Infrastructure.Services
         /// <summary>Never cached — every authorization decision must see live friendship state.</summary>
         public Task<bool> AreFriendsAsync(Guid userId1, Guid userId2, CancellationToken cancellationToken = default)
             => _inner.AreFriendsAsync(userId1, userId2, cancellationToken);
+
+        /// <summary>A materialized audience must use a fresh Auth snapshot, never the friend-id cache.</summary>
+        public Task<IReadOnlyList<FriendshipInfo>> GetFriendshipsAsync(
+            Guid userId, CancellationToken cancellationToken = default)
+            => _inner.GetFriendshipsAsync(userId, cancellationToken);
 
         private static string Key(Guid id) => KeyPrefix + id.ToString("N");
     }

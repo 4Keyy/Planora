@@ -1,3 +1,4 @@
+using Planora.Todo.Application.Common;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Context;
@@ -47,18 +48,8 @@ public sealed class GetTodoByIdQueryHandler : IQueryHandler<GetTodoByIdQuery, Re
             ?? throw new EntityNotFoundException("TodoItem", request.TodoId);
 
         var isOwner = todoItem.UserId == userId;
-        var hasFriendVisibleAccess = !isOwner &&
-            (todoItem.IsPublic || todoItem.SharedWith.Any(s => s.SharedWithUserId == userId));
-        if (hasFriendVisibleAccess)
-        {
-            hasFriendVisibleAccess = await _friendshipService.AreFriendsAsync(userId, todoItem.UserId, cancellationToken);
-        }
-
-        // Check if user has access to this todo (owner or friend-visible)
-        if (!isOwner && !hasFriendVisibleAccess)
-        {
+        if (!await TodoAccessPolicy.CanAccessAsync(todoItem, userId, _friendshipService, cancellationToken))
             throw new ForbiddenException("You do not have access to this todo item");
-        }
 
         var viewerPreference = await _viewerPreferenceRepository.GetAsync(userId, todoItem.Id, cancellationToken);
         var effectiveHidden = TodoViewerStateResolver.GetEffectiveHidden(todoItem, userId, viewerPreference);
@@ -97,7 +88,7 @@ public sealed class GetTodoByIdQueryHandler : IQueryHandler<GetTodoByIdQuery, Re
             (await _repository.GetOpenSubtaskCountsAsync(new[] { todoItem.Id }, cancellationToken))
                 ?.GetValueOrDefault(todoItem.Id) ?? 0;
 
-        var dto = _mapper.Map<TodoItemDto>(todoItem) with
+        var dto = TodoAccessPolicy.RedactAudience(todoItem, userId, _mapper.Map<TodoItemDto>(todoItem)) with
         {
             Hidden = effectiveHidden,
             CategoryId = effectiveCategoryId,

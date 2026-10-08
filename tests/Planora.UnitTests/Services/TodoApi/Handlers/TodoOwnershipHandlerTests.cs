@@ -30,8 +30,8 @@ public class TodoOwnershipHandlerTests
         var categoryGrpcClientMock = new Mock<ICategoryGrpcClient>();
         var friendshipServiceMock = new Mock<IFriendshipService>();
         friendshipServiceMock
-            .Setup(x => x.GetFriendIdsAsync(ownerId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { friendId });
+            .Setup(x => x.GetFriendshipsAsync(ownerId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { new FriendshipInfo(friendId, null) });
 
         var handler = new CreateTodoCommandHandler(
             repositoryMock.Object,

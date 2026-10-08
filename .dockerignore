@@ -58,3 +58,26 @@ docs
 frontend/e2e
 frontend/src/test
 tests
+
+# Admit only the reviewed Todo migration chain; keep every other migration ignored.
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations
+Services/TodoApi/Planora.Todo.Infrastructure/Migrations/**
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260510211105_AddWorkersAndComments.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260510211105_AddWorkersAndComments.Designer.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260511105105_AddViewerCompletion.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260511105105_AddViewerCompletion.Designer.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260517225900_AddSystemComment.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260517225900_AddSystemComment.Designer.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260518222758_AddGenesisComment.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260518222758_AddGenesisComment.Designer.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260525143832_AddCommentAvatarUrl.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260525143832_AddCommentAvatarUrl.Designer.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260526201043_RemoveCommentAvatarSnapshot.Designer.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260529120000_RemoveCommentsAddOutbox.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260529120000_RemoveCommentsAddOutbox.Designer.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260602111500_AddSubtaskParentTodoId.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20260602111500_AddSubtaskParentTodoId.Designer.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/20261007205138_AddAllFriendsSnapshot.Designer.cs
+!Services/TodoApi/Planora.Todo.Infrastructure/Migrations/TodoDbContextModelSnapshot.cs

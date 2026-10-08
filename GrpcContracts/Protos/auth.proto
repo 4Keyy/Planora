@@ -4,11 +4,14 @@ option csharp_namespace = "Planora.GrpcContracts";
 
 package auth;
 
+import "google/protobuf/timestamp.proto";
+
 service AuthService {
   rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
   rpc GetUserInfo (GetUserInfoRequest) returns (GetUserInfoResponse);
   rpc RevokeToken (RevokeTokenRequest) returns (RevokeTokenResponse);
   rpc GetFriendIds (GetFriendIdsRequest) returns (GetFriendIdsResponse);
+  rpc GetFriendships (GetFriendshipsRequest) returns (GetFriendshipsResponse);
   rpc AreFriends (AreFriendsRequest) returns (AreFriendsResponse);
   rpc GetUserAvatarsBatch (GetUserAvatarsBatchRequest) returns (GetUserAvatarsBatchResponse);
   // Batch profile lookup (display name + avatar) so consumers resolve author identity
@@ -79,6 +82,20 @@ message GetFriendIdsRequest {
 
 message GetFriendIdsResponse {
   repeated string friend_ids = 1;
+}
+
+message GetFriendshipsRequest {
+  string user_id = 1;
+}
+
+message FriendshipSummary {
+  string friend_id = 1;
+  // Absent for legacy accepted friendships whose acceptance time was not recorded.
+  google.protobuf.Timestamp accepted_at = 2;
+}
+
+message GetFriendshipsResponse {
+  repeated FriendshipSummary friendships = 1;
 }
 
 message AreFriendsRequest {

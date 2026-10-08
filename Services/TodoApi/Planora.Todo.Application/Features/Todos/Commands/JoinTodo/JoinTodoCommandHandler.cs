@@ -56,7 +56,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
 
             if (todoItem.UserId == userId && !isSubtask)
             {
-                var ownerDto = _mapper.Map<TodoItemDto>(todoItem) with
+                var ownerDto = TodoAccessPolicy.RedactAudience(todoItem, userId, _mapper.Map<TodoItemDto>(todoItem)) with
                 {
                     WorkerCount = todoItem.Workers.Count,
                     WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
@@ -66,26 +66,13 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
                 return Result<TodoItemDto>.Success(ownerDto);
             }
 
-            // The owner always has access to their own subtask; everyone else needs share/public + friendship.
-            if (todoItem.UserId != userId)
-            {
-                var canAccess = todoItem.IsPublic || todoItem.SharedWith.Any(s => s.SharedWithUserId == userId);
-                if (!canAccess)
-                    throw new ForbiddenException("You do not have access to this task");
-
-                // For shared (non-public) tasks, require friendship; public tasks are open to anyone
-                if (!todoItem.IsPublic)
-                {
-                    var areFriends = await _friendshipService.AreFriendsAsync(userId, todoItem.UserId, cancellationToken);
-                    if (!areFriends)
-                        throw new ForbiddenException("You must be friends with the task owner to join");
-                }
-            }
+            if (!await TodoAccessPolicy.CanAccessAsync(todoItem, userId, _friendshipService, cancellationToken))
+                throw new ForbiddenException("You do not have access to this task");
 
             // Idempotent: already a worker → return current state as success
             if (todoItem.Workers.Any(w => w.UserId == userId))
             {
-                var existing = _mapper.Map<TodoItemDto>(todoItem) with
+                var existing = TodoAccessPolicy.RedactAudience(todoItem, userId, _mapper.Map<TodoItemDto>(todoItem)) with
                 {
                     WorkerCount = todoItem.Workers.Count,
                     WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
@@ -117,8 +104,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
 
                 // Notify every other participant that someone took the task into work. The actor is
                 // excluded inside the fan-out, so the person who clicked "take" never notifies themselves.
+                var contentAudience = await RealtimeAudience.ResolveContentAsync(todoItem, _friendshipService, cancellationToken, _logger);
                 await NotificationFanout.EnqueueAsync(
-                    _outboxRepository, audience, actorId: userId, taskId: todoItem.Id,
+                    _outboxRepository, contentAudience, actorId: userId, taskId: todoItem.Id,
                     type: NotificationType.TaskStarted,
                     title: "Task picked up",
                     message: $"{userName} took “{NotificationFanout.TitlePreview(todoItem.Title)}” into work",
@@ -141,7 +129,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.JoinTodo
                 "User {UserId} joined task {TodoId}. Active worker task count: {Count}",
                 userId, todoItem.Id, activeWorkerTaskCount);
 
-            var dto = _mapper.Map<TodoItemDto>(todoItem) with
+            var dto = TodoAccessPolicy.RedactAudience(todoItem, userId, _mapper.Map<TodoItemDto>(todoItem)) with
             {
                 WorkerCount = todoItem.Workers.Count,
                 WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),

@@ -67,8 +67,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
             var isOwner = source.UserId == userId;
             if (!isOwner)
             {
-                var canSee = (source.IsPublic || source.SharedWith.Any(s => s.SharedWithUserId == userId))
-                    && await _friendshipService.AreFriendsAsync(userId, source.UserId, cancellationToken);
+                var canSee = await TodoAccessPolicy.CanAccessAsync(source, userId, _friendshipService, cancellationToken);
                 if (!canSee)
                     throw new ForbiddenException("You can only duplicate tasks you have access to");
             }
@@ -83,17 +82,23 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
                 if (categoryInfo is null) categoryId = null;
             }
 
-            // Copy the shared audience, but re-validate friendship so a since-removed friend is not
-            // silently re-granted access on the copy (mirrors CreateTodo's rule, fail-soft: drop,
-            // don't throw).
+            // All friends uses the duplicator's current circle. Direct shares are copied after
+            // re-validating friendship so removed friends are not re-granted access on the copy.
             var sharedWith = source.SharedWith
                 .Select(s => s.SharedWithUserId)
                 .Where(id => id != Guid.Empty && id != userId)
                 .Distinct()
                 .ToList();
-            if (sharedWith.Count > 0)
+            DateTime? snapshotAt = null;
+            if (source.IsPublic)
             {
-                var friendIds = await _friendshipService.GetFriendIdsAsync(userId, cancellationToken);
+                var friendships = await _friendshipService.GetFriendshipsAsync(userId, cancellationToken);
+                sharedWith = AllFriendsSnapshotAudience.Current(friendships).ToList();
+                snapshotAt = DateTime.UtcNow;
+            }
+            else if (sharedWith.Count > 0)
+            {
+                var friendIds = AllFriendsSnapshotAudience.Current(await _friendshipService.GetFriendshipsAsync(userId, cancellationToken));
                 var allowed = new HashSet<Guid>(friendIds);
                 sharedWith = sharedWith.Where(allowed.Contains).ToList();
             }
@@ -111,7 +116,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
                 source.Priority,
                 source.IsPublic,
                 sharedWith,
-                source.RequiredWorkers);
+                source.IsPublic ? null : source.RequiredWorkers,
+                allFriendsSnapshotAt: snapshotAt);
 
             // Tags are part of the "what" — carry them over.
             foreach (var tag in source.Tags)
@@ -131,7 +137,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
             // Live feed sync: the copy appears on every viewer's list/dashboard, exactly like a
             // normal create. The audience is computed from the copy's own visibility.
             var audience = await RealtimeAudience.ResolveAsync(
-                userId, source.IsPublic, sharedWith, _friendshipService, cancellationToken, _logger);
+                copy, _friendshipService, cancellationToken, _logger);
             await _outboxRepository.EnqueueIntegrationEventAsync(
                 new RealtimeSyncIntegrationEvent(
                     RealtimeSyncAction.TaskCreated, copy.Id, userId, audienceUserIds: audience),

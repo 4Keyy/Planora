@@ -153,7 +153,7 @@ Actual contracts: [auth.proto](../GrpcContracts/Protos/auth.proto),
 
 | Contract | Implemented trust | Evidence |
 |---|---|---|
-| `auth.AuthService/AreFriends`, `/GetFriendIds`, `/GetUserAvatarsBatch`, `/GetUserProfilesBatch`, `/GetUserInfo` | shared service key; payload user ids are trusted internal inputs | [AuthGrpcServiceTests](../tests/Planora.UnitTests/Services/AuthApi/Grpc/AuthGrpcServiceTests.cs), [ServiceKeyInterceptorTests](../tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs) |
+| `auth.AuthService/AreFriends`, `/GetFriendIds`, `/GetFriendships`, `/GetUserAvatarsBatch`, `/GetUserProfilesBatch`, `/GetUserInfo` | shared service key; payload user ids are trusted internal inputs | [AuthGrpcServiceTests](../tests/Planora.UnitTests/Services/AuthApi/Grpc/AuthGrpcServiceTests.cs), [ServiceKeyInterceptorTests](../tests/Planora.UnitTests/BuildingBlocks/Grpc/ServiceKeyInterceptorTests.cs) |
 | `todo.TodoService/CheckTaskCommentAccess` | key plus owner/friend and public/share rule for supplied requester | Todo gRPC source; caller must supply its authenticated requester |
 | `todo.TodoService/GetSubtaskBrief` | key plus parent/child scope; no independent bearer identity | source; Collaboration checks branch access first |
 | `category.CategoryService/GetCategoryById` | key; response owner checked by client where needed | [CategoryGrpcServiceTests](../tests/Planora.UnitTests/Services/CategoryApi/Grpc/CategoryGrpcServiceTests.cs) |
@@ -164,15 +164,12 @@ correctness or deployed transport encryption.
 
 ## Known Findings And Missing Regressions
 
-Findings are based on inspected code paths; application fixes/tests are outside this
-documentation change. Severity reflects the demonstrated source-level impact.
+The frozen-audience change resolves AZ-01, AZ-02 and AZ-04 with central live-friend
+authorization and uncached list selection. The findings below remain open.
 
 | Finding | Trigger and impact | Missing regression / remediation direction |
 |---|---|---|
-| **AZ-01 (high)** | non-friend authenticated user joins a public task: friendship skipped, full DTO returned even when normal view should deny/redact | deny non-friend under normal visibility; test hidden join response; reuse safe access/projection |
-| **AZ-02 (medium)** | former collaborator edits/deletes own-created subtask after parent access removed: creator shortcut precedes current access | revoked-creator rename/delete regression; clarify intended retained authority or enforce current branch access |
 | **AZ-03 (medium)** | former comment author deletes known regular comment after branch access removed: author/owner checked, `HasAccess` ignored | deletion denial matching existing `UpdateComment_AuthorWithoutTaskAccess_ThrowsForbidden` |
-| **AZ-04 (medium)** | main Todo list retains removed friendship in cached ids for up to 30 seconds | invalidation/current-access regression; define revocation latency |
 | **AZ-05 (medium)** | task room stays subscribed after access removal; JWT revocation/expiry does not end existing socket | room eviction/continuous authorization/expiry integration tests |
 | **AZ-06 (low)** | `LeaveTask` emits `UserStoppedTyping` to a room caller never joined | assert no unrelated-room event; require membership before signaling |
 

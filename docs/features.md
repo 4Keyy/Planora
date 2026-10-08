@@ -208,7 +208,7 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 | Expected/due dates | expected date cannot be after due date when both are present |
 | Due-date interval | the estimated-completion date can be a single day **or** an interval: `dueDate` is the single date / later bound (deadline), `dueDateStart` the optional earlier bound. When set, `dueDateStart ≤ dueDate` (enforced by the domain `SetDueRange` and the create/update validators); a lone `dueDateStart` without `dueDate` is rejected. Clearing on update requires `clearDueDate: true` (a bare null `dueDate` reads as "unchanged" on the full-payload autosave) |
 | Category | Todo validates category ownership through Category service |
-| Sharing | direct `sharedWithUserIds` must be accepted friends; the task form exposes public all-friends visibility inside `Share With`; `IsPublic` is independent from direct shares and makes the task visible to all accepted friends |
+| Sharing | direct `sharedWithUserIds` must be accepted friends; the task form exposes public all-friends visibility inside `Share With`; `IsPublic` identifies All friends; the server freezes accepted friends into stored shares when the mode is enabled |
 | Non-owner updates | ordinary friend-visible viewers can only change status; a subtask's recorded creator is treated as an editor and may change its non-inherited fields |
 | Visibility persistence | `UpdateTodoCommandHandler` loads the entity via `GetByIdWithIncludesTrackedAsync` (with EF Core change tracking) so that changes to `IsPublic` and `SharedWith` collection additions/removals are correctly persisted — tracked loading generates the right INSERT/DELETE DML for the `TodoItemShare` collection, whereas a detached `DbSet.Update()` call would silently emit UPDATE-only SQL against non-existent rows |
 
@@ -218,7 +218,7 @@ The read handlers do not all apply the same viewer projection:
 
 | Surface | Current selection/projection |
 |---|---|
-| Main user list | Own tasks plus public/explicit shares from accepted-friend IDs (cached 30 seconds); per-viewer hidden/category/completion projection; top-level only unless `includeSubtasks=true`; open-child counts batch-loaded. |
+| Main user list | Own tasks plus friend-visible stored shares; accepted-friend authorization is uncached, with the dynamic public fallback only for legacy null snapshots; per-viewer hidden/category/completion projection; top-level only unless `includeSubtasks=true`; open-child counts batch-loaded. |
 | Completed-only main list | Excludes masked shared/public rows using viewer-hidden preferences and the owner's legacy hidden flag before count/page; preserves private-owner hidden completion and the stored viewer completion classification. |
 | Detail | Own task or live friend-visible access; applies hidden/category projection, but does not overlay personal completion onto the mapped status as the main list does. |
 | Public/friend feed | Accepted-friend IDs; excludes hidden preference IDs entirely; explicit DTO projection omits viewer category/completion and `DueDateStart`. |
@@ -229,6 +229,22 @@ Completed-date filters currently use the aggregate's `CompletedAt`, not
 `CompletedByViewerAt`. An explicit `status=Done` filter also matches the stored global
 status, so it can exclude a task completed only by that viewer. These are current contract
 differences, not a promise that every route reproduces the same UI state.
+
+### Frozen All friends Audience
+
+Creating an All friends task snapshots the server's current accepted friends, including
+acceptance times, and clears worker capacity. Private-to-All-friends captures a fresh audience
+and ignores client friend IDs; an unchanged All friends update preserves it even if the
+client sends an empty list. Switching to direct shares validates the submitted current friends
+and clears the stamp. A public duplicate snapshots the new owner's current friends. Subtasks
+inherit their parent's flag, stored audience and stamp; they never choose a separate audience.
+
+New friends cannot see older frozen tasks. Removing friendship denies reads, list results,
+branch participation and comments even if a share row survives briefly. Re-adding a former
+friend does not recreate a removed share; switching private then All friends refreshes the
+audience explicitly. Owner responses retain actual audience IDs; non-owner public responses
+return an empty ID list. Unlimited All friends cards show the worker count without an audience
+denominator and explain: “Shared with the friends you had when you shared it.”
 
 ### Subtasks
 
@@ -743,7 +759,7 @@ whose cut opens wider per person — and never closes — beside the words:
 |---|---|
 | `private` | one narrow cut (12% of the circumference) plus a filled centre dot — you, the only viewer |
 | `shared` | cut open from 16%, widening 4.5% per viewer, saturating at 50% (eight viewers) — past half the circumference the mark stops reading as a ring and starts reading as a bracket. The viewer count rolls beside it |
-| `public` ("All friends") | the widest cut (50%), named "All friends" and announced "Shared with all your friends." Every accepted friend is still a circle the owner chose — the server grants access on `IsPublic && isFriend` and there is no public link — so the product never draws a closed ring and never says "Public". The create panel says "All friends", the editor's mode picker says "Friends", the branch page's visibility label says "All friends" for friends mode with nobody named (it used to read "Shared · 0"), and the icon is a group of people, not a globe |
+| `public` ("All friends") | the widest cut (50%), named "All friends" and announced "Shared with the friends you had when you shared it." Every accepted friend is still a circle the owner chose — the server grants non-owner access on live friendship plus a stored share (legacy null snapshots retain their temporary dynamic fallback) and there is no public link — so the product never draws a closed ring and never says "Public". The create panel says "All friends", the editor's mode picker says "Friends", the branch page's visibility label says "All friends" for friends mode with nobody named (it used to read "Shared · 0"), and the icon is a group of people, not a globe |
 
 The mark is geometry, not hue: the drawn arc is `ink` and the cut arc is `line`, so it survives
 greyscale and every kind of colour blindness, and it does not compete with the one saturated
@@ -936,11 +952,11 @@ Allow friends to claim participation slots on public or shared tasks. The task o
 | Top-level owner membership | Owner has no worker row on a top-level task; `/join` returns success with `isWorking: true` without a write. Subtask owners opt in/out through real worker rows. |
 | `RequiredWorkers` semantics | Total headcount including owner; `null` means unlimited; `1` means owner-only (always full) |
 | Capacity check | `IsCapacityFull` when `RequiredWorkers.HasValue && Workers.Count >= RequiredWorkers - 1` |
-| Join guards | Requires authentication and public/shared visibility; non-public joins require accepted friendship, while the current public join path skips this check and returns a full DTO. This is an authorization inconsistency, not a guarantee of friend-only access. Capacity and duplicate membership are checked. |
+| Join guards | Requires authentication and the same live-friend/stored-audience access as reads. Public snapshot rows do not bypass the friendship gate. Non-owner public audience IDs are redacted; capacity and duplicate membership are checked. |
 | Leave guard | A top-level owner cannot leave; a subtask owner can. Missing membership throws `EntityNotFoundException`; removing one's existing membership does not require a fresh friendship check. |
 | Auto-removal on completion | When a viewer marks a shared/public task done for themselves, their worker row is removed in the same save — on the viewer-preference path the UI uses (`SetViewerPreferenceCommandHandler`, which loads the task tracked when completing) and on the `PUT /{id}` status path (`UpdateTodoCommandHandler`); both are no-ops when the viewer is not a worker. Until October 2026 only the status path did it, so a friend who completed a task from the UI stayed listed as working on it; `TodoCompletedViewerReleasePolicy` removes those rows on its next pass. Reopening does not re-add the worker. Owner completion does not trigger removal because owners are never stored as workers. |
 | Active worker task count | `ITodoRepository.GetActiveWorkerTaskCountAsync(userId)` returns the number of non-deleted, non-done tasks the user is currently working on. Called in `JoinTodoCommandHandler` and `LeaveTodoCommandHandler` after `SaveChangesAsync`; the result is stored in a local variable and logged at `Information` level — not returned to the client. |
-| Eviction on access change | Domain share replacement removes workers outside explicit shares plus owner, including on public tasks; making private runs the same cleanup; capacity reduction uses newest-joined-first eviction. The friendship-removal consumer currently removes shares only, leaving worker rows until another cleanup path. |
+| Eviction on access change | Domain share replacement removes workers outside stored shares plus owner for direct and frozen All friends tasks; legacy null snapshots retain workers until freeze. Making private runs the same cleanup; capacity reduction uses newest-joined-first eviction. The friendship-removal consumer currently removes shares only, leaving worker rows until another cleanup path. |
 | EF Core persistence | Join/Leave handlers use `GetByIdWithIncludesTrackedAsync` (tracked query, no `AsNoTracking`). Change tracking correctly marks new workers as `Added` → `INSERT` and removed workers as orphaned `Deleted` → `DELETE` via `OnDelete(Cascade)`. No explicit `DbSet.Update()` call needed or made. |
 | Worker fields in DTO | `workerCount`, `workerUserIds`, `requiredWorkers`, `isWorking` patched on every GET/mutation response |
 
@@ -1216,8 +1232,8 @@ typing presence.
 
 ### Key Rules
 
-- **Feed audience** = task owner + explicitly shared-with users + (when the task is public) the
-  owner's accepted friends. An un-share/un-publish also reaches the users who just lost access, so
+- **Feed audience** = task owner + stored shared-with users; accepted friends are added only
+  for legacy public rows with a null snapshot. An un-share/un-publish also reaches the users who just lost access, so
   they drop the card. Resolution happens in the producing service; RealtimeApi only routes.
 - **Branch rooms** (`task:{id}`) require authorization via TodoApi's `CheckTaskCommentAccess` gRPC;
   joins fail closed. Membership is reference-counted client-side and re-joined on reconnect.
@@ -1232,9 +1248,8 @@ typing presence.
   share validation, category validation, database saves and outbox inserts can still fail the write.
 - **Friend-id lookups are cached 30s** (`CachingFriendshipService`) to keep the feed-audience hot
   path cheap, but the `AreFriendsAsync` authorization check is never cached — every access decision
-  uses a live friendship lookup. List selection/share validation also use the cached ID list,
-  so friendship freshness in those paths is bounded by 30 seconds; public join and subtask-creator
-  mutation exceptions are described in [auth-security.md](auth-security.md).
+  uses a live friendship lookup. Snapshot creation, direct-share validation and list selection use uncached accepted friendships.
+  Public join and subtask-creator mutations also require current branch access.
 - The frontend holds **one** SignalR connection and never opens a second during an automatic
   reconnect (e.g. a token refresh mid-reconnect).
 
@@ -1386,7 +1401,7 @@ can see it — and let a signed-out visitor verify it with their hands before ma
 | The sandbox never starts realtime | A WebSocket handshake needs a server. Left on, it retried forever — 486 console errors on one page view. With no socket the product falls back to the 9s poll it already documents, and the sandbox answers that, so the demo behaves exactly as the product does when realtime is down |
 | `enableDemo` restores the previous adapter on teardown | `api` is a module singleton shared with every authenticated route; an adapter left installed would mean a real session talking to a fake server |
 | Nothing on the landing page is public, and the ring never closes | `deriveAudience` and `ringReading` range over private, shared and past eight. Block 2's last legend row is "Protected · Always" — nothing is ever published, there is no link to hand out and no publish button, and even a task shared with every friend stays with the people chosen, the ring only counting them — drawn with a shield, because a closed ring is a state the product never shows. It used to read "Public · Not possible"; the owner's rule is that the word is never shown, not even to deny it, and a test fails if the block's text contains it. It briefly had an all-friends switch that closed the ring; the owner ruled that sharing with every friend is still not public, and it is gone |
-| The badge never says public | `RedactionBadge` once announced "Public. Anyone with the link can see this." on every all-friends task — a link the product has never had, on the one sentence whose job is to say exactly who can see a task. It now says "Shared with all your friends.", prints "All friends", and draws the widest open cut: nothing in Planora is public, and the ring never closes |
+| The badge never says public | `RedactionBadge` once announced "Public. Anyone with the link can see this." on every all-friends task — a link the product has never had, on the one sentence whose job is to say exactly who can see a task. It now says "Shared with the friends you had when you shared it.", prints "All friends", and draws the widest open cut: nothing in Planora is public, and the ring never closes |
 | Block 7 proves rather than claims | Five of six proofs run live — the product's undo and autosave hooks, a SHA-256 fingerprint, the browser's own list of contacted origins, a PBKDF2 guess timed at 210,000 rounds — and the sixth (delivery across a restart) is captioned as an illustration. Every claim comes from a code-verified list; `crypto`, `performance` and `document` are read only in handlers, never during render |
 | Block 5 is one card and five moves | `CardMoves` (`app/_landing/card-moves.tsx`) puts the product's own `TodoCard` on a stage and five moves under it, each a real feature users run into: Category cycles Home → Work → Travel → none (the chip, the watermark, the hover glow in the category's colour, and the stage picking the colour up); Share frames it in blue and opens the ring for two; Urgency cycles urgent (full priority, red frame) → two days late ("Overdue") → calm; Take it turns the check the category's colour and, shared, the chip blue; Finish presses the card's own circle, so the product's completion — burst, sweep, drawn check — is what plays. The card stays live (its eye folds it, its right edge deletes it). It replaced a builder with a title field and some twenty buttons, which asked visitors to make a task when the point was to see what a card says |
 | Block 5 keeps the page still | The card's box is reserved at its tallest state, the sentence under it is the one live region at two lines, the overdue date exists only after mount (from the visitor's clock), cycles show where they are with a row of dots and name their current value, and the first move sends one hint ring on first sight if nothing has been pressed. Pure local state: no `api`, no global stores |

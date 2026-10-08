@@ -1,3 +1,4 @@
+using Planora.Todo.Application.Common;
 using Planora.BuildingBlocks.Application.Pagination;
 using Planora.BuildingBlocks.Application.Context;
 using Planora.Todo.Application.DTOs;
@@ -60,7 +61,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                     .ToList();
             }
 
-            var friendIds = (await _friendshipService.GetFriendIdsAsync(userId, cancellationToken)).ToList();
+            var friendIds = (AllFriendsSnapshotAudience.Current(await _friendshipService.GetFriendshipsAsync(userId, cancellationToken))).ToList();
             _logger.LogInformation("Retrieved {Count} friends for user {UserId}", friendIds.Count, userId);
 
             var viewerCategoryTodoIds = request.CategoryId.HasValue
@@ -242,7 +243,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                     continue;
                 }
 
-                var dto = _mapper.Map<TodoItemDto>(item) with
+                var dto = TodoAccessPolicy.RedactAudience(item, userId, _mapper.Map<TodoItemDto>(item)) with
                 {
                     Hidden = effectiveHidden,
                     CategoryId = effectiveCategoryId,
@@ -318,7 +319,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
 
             var includeSubtasks = request.IncludeSubtasks;
 
-            return x => !x.IsDeleted &&
+            Expression<Func<TodoItem, bool>> filters = x => !x.IsDeleted &&
                        // Subtasks live only inside their parent's branch — never in task lists.
                        (includeSubtasks || x.ParentTodoId == null) &&
                        (requestedStatuses == null || requestedStatuses.Contains(x.Status)) &&
@@ -356,10 +357,10 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                            (x.UserId == userId &&
                             (!hasCategoryFilter || x.CategoryId == categoryId)) ||
                            // Friend tasks are visible when they are public or directly shared with the viewer.
-                           (friendIds.Contains(x.UserId) &&
-                            (x.IsPublic || x.SharedWith.Any(s => s.SharedWithUserId == userId)) &&
+                           (x.UserId != userId &&
                             (!hasCategoryFilter || viewerCategoryTodoIds.Contains(x.Id)))
                        );
+            return TodoAccessPolicy.And(filters, TodoAccessPolicy.VisibleTo(userId, friendIds));
         }
 
     }

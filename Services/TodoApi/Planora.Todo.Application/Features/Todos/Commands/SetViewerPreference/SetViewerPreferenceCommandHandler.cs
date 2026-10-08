@@ -1,3 +1,4 @@
+using Planora.Todo.Application.Common;
 using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Exceptions;
 using Planora.BuildingBlocks.Application.Services;
@@ -63,8 +64,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference
                     "OWNER_MUST_USE_HIDDEN_ENDPOINT",
                     "Task owners should use the /hidden endpoint"));
 
-            var isFriendVisible = todoItem.IsPublic || todoItem.SharedWith.Any(s => s.SharedWithUserId == viewerId);
-            if (!isFriendVisible || !await _friendshipService.AreFriendsAsync(viewerId, todoItem.UserId, cancellationToken))
+            if (!await TodoAccessPolicy.CanAccessAsync(todoItem, viewerId, _friendshipService, cancellationToken))
             {
                 throw new ForbiddenException("You can only set preferences for public or shared tasks from friends");
             }

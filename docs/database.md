@@ -39,17 +39,19 @@ Realtime does so when `ConnectionStrings__RealtimeDatabase` is configured. The c
 4. if no EF migrations exist, create the schema from the current EF model through `EnsureCreatedAsync`;
 5. fail startup after retry exhaustion.
 
-The repository ignores newly generated `**/Migrations/**`, but already-tracked migrations
-remain tracked: Todo has three incremental migrations and Realtime has one initial migration.
-Auth, Category, Messaging and Collaboration have no tracked migrations. Do not assume all
-services take the `EnsureCreatedAsync` branch.
+The repository ignores newly generated migrations. The owner explicitly authorized restoring
+Todo's eight historical migrations and adding its snapshot migration. The reviewed chain now
+initializes an empty Todo database. Realtime retains its initial migration; Auth, Category,
+Messaging and Collaboration have no tracked migrations.
 
-**Clean Todo bootstrap is currently incomplete.** Its earliest tracked migration,
-`20260511105105_AddViewerCompletion`, alters an existing `todo.user_todo_view_preferences`
-table; the migration that creates the base schema is absent. Since migrations exist,
-`DatabaseStartup` selects `MigrateAsync`, so an empty Todo database cannot be initialized
-from this migration chain. An existing compatible database or a reviewed baseline migration
-is required. Startup DDL runs after migration and does not repair this missing baseline.
+Todo uses `TodoDatabaseStartup` before subscriptions and hosted backfill. It rejects unknown
+or gapped migration history and validates mapped columns, nullability, database defaults,
+primary/foreign keys and indexes before upgrading a managed schema. For a migration-less
+model-created Todo schema, it proves equivalence with the June baseline under a transaction
+and advisory lock before recording exactly those eight historical IDs. It then applies the
+additive snapshot migration normally; existing task/share/worker rows are preserved. Partial
+or conflicting schemas stop startup without adopting history. Legacy comments require an
+explicit Collaboration migration; nonempty comments are never dropped by startup.
 
 `EnsureCreatedAsync` creates an absent schema; it never upgrades an existing schema.
 Production schema evolution requires a reviewed, service-owned migration chain. Startup
@@ -164,7 +166,7 @@ Default schema: `todo`
 
 | Entity | Important fields/indexes | Code |
 |---|---|---|
-| `TodoItem` | title max 1500 (a subtask's content lives in its title; regular-task titles stay ≤200 via the create validator + UI); description max 2000; status stored as string; priority stored as int; user/category ids; `IsPublic`; `Hidden`; `RequiredWorkers` (nullable int, total headcount including owner); estimated-completion date held as `DueDate` (`timestamptz`, the single target date / **later** bound of an interval) plus optional `DueDateStart` (`timestamptz`, the **earlier** bound — null for a single date; invariant `DueDateStart ≤ DueDate` enforced in the domain `SetDueRange`); soft delete; indexes by user/category/status/delete/created plus a `(UserId, Status, IsDeleted, CompletedAt)` covering index (`ix_todo_items_user_status_deleted_completed`) that serves the completed-archive date-range search. On existing migration-built DBs the `Title` column is widened to `varchar(1500)`, `DueDateStart` is added, and the completion-date index is ensured at TodoApi startup (idempotent, metadata-only) so they match the EF model | `Persistence/Configurations/TodoItemConfiguration.cs` |
+| `TodoItem` | title max 1500 (a subtask's content lives in its title; regular-task titles stay ≤200 via the create validator + UI); description max 2000; status stored as string; priority stored as int; user/category ids; `IsPublic`; `Hidden`; `RequiredWorkers` (nullable int, total headcount including owner); estimated-completion date held as `DueDate` (`timestamptz`, the single target date / **later** bound of an interval) plus optional `DueDateStart` (`timestamptz`, the **earlier** bound — null for a single date; invariant `DueDateStart ≤ DueDate` enforced in the domain `SetDueRange`); soft delete; indexes by user/category/status/delete/created plus a `(UserId, Status, IsDeleted, CompletedAt)` covering index (`ix_todo_items_user_status_deleted_completed`) that serves the completed-archive date-range search. `AllFriendsSnapshotAt` is nullable UTC `timestamptz`; null on a public row denotes legacy fallback only. The reviewed snapshot migration aligns title width, creator/date-start fields, completed/retention indexes and the audience batch index after schema preflight | `Persistence/Configurations/TodoItemConfiguration.cs` |
 | `TodoTag` | owned table `todo_tags`, tag name max 50 | `TodoItemConfiguration.cs` |
 | `TodoItemShare` | table `todo_item_shares`, composite key `(TodoItemId, SharedWithUserId)`, index by shared user | `Persistence/Configurations/TodoItemShareConfiguration.cs` |
 | `TodoItemWorker` | table `todo_item_workers`, composite PK `(TodoItemId, UserId)`, `JoinedAt` default `now()`, cascade FK to `TodoItems`; indexes on `UserId` and `TodoItemId` | `Persistence/Configurations/TodoItemWorkerConfiguration.cs` |
@@ -179,38 +181,44 @@ Subtasks have independent per-user worker membership, including the owner, and d
 the parent's capacity. Capacity is full when `Workers.Count >= RequiredWorkers - 1` when a
 capacity is set.
 
-Share replacement evicts workers outside the explicit share set plus the owner; this cleanup
-also runs on public tasks. Making a task private performs the same cleanup. Reducing capacity
-evicts the most recently joined workers first. Adding a worker touches the parent aggregate
+Share replacement evicts workers outside the stored share set plus the owner for direct and
+frozen All friends tasks. Legacy public rows with a null snapshot retain their fallback until
+backfill freezes their historical audience. Making a task private performs the same cleanup. Reducing capacity
+evicts the most recently joined workers first. Creating a subtask touches its parent in the same child/outbox transaction, rejecting a concurrent freeze instead of persisting a legacy child. Adding a worker touches the parent aggregate
 so `xmin` guards concurrent capacity checks.
 
 ### Todo Schema Bootstrap
 
 The repository `.gitignore` lists `**/Migrations/**`; adding an ignored migration requires an
-explicit repository-policy decision. Do not use `git add -f` without authorization. Current
-tracked Todo migrations are:
+explicit repository-policy decision. Do not use `git add -f` without authorization. The reviewed Todo chain is:
 
-| Migration name | Date | Change |
-|---|---|---|
-| `20260511105105_AddViewerCompletion` | 2026-05-11 | Adds `CompletedByViewer` and nullable `CompletedByViewerAt` to an existing preference table; this is not an initial-schema migration. |
-| `RemoveCommentsAddOutbox` | 2026-05-29 | **Drops `todo_item_comments`** (the timeline moved to the Collaboration service) and creates `todo.OutboxMessages` so Todo can publish task-lifecycle integration events. Run the Collaboration backfill (`Planora.Migrator --backfill-collaboration`) **before** this migration is applied in production so no comment is lost. |
-| `20260602111500_AddSubtaskParentTodoId` | 2026-06-02 | Adds nullable `ParentTodoId`, self-reference FK and `(ParentTodoId, IsDeleted, CreatedAt)` index. |
-| `AddTodoCreatedByUserId` (startup ALTER) | 2026-06-16 | Adds nullable `CreatedByUserId uuid` to `todo.TodoItems`. Records who created a subtask (a collaborator may now add one) so the creator — as well as the parent owner — can rename/delete it; null for top-level tasks. Applied idempotently at TodoApi startup (`ADD COLUMN IF NOT EXISTS`, see `Planora.Todo.Api/Program.cs`), so existing databases pick it up on the next deploy without a formal EF migration. |
-| `AddTodoDueDateStart` (startup ALTER) | 2026-06-19 | Adds nullable `DueDateStart timestamptz` to `todo.TodoItems`. Turns the estimated-completion date into an optional interval: the existing `DueDate` becomes the later bound (deadline / single target date) and `DueDateStart` the earlier bound (null for a single date). Additive and backward-compatible — existing rows keep their single `DueDate`. Applied idempotently at TodoApi startup (`ADD COLUMN IF NOT EXISTS`, see `Planora.Todo.Api/Program.cs`); no formal EF migration committed. |
-| `AddTodoCompletedAtIndex` (startup CREATE INDEX) | 2026-06-21 | Adds the `(UserId, Status, IsDeleted, CompletedAt)` covering index `ix_todo_items_user_status_deleted_completed` to `todo.TodoItems`. Backs the completed archive's "find a task by roughly when it was finished" date-range search — all three leading columns are equality predicates and `CompletedAt` is the range bound, so the search becomes an index range scan instead of scanning every one of a user's done tasks. Applied idempotently at TodoApi startup (`CREATE INDEX IF NOT EXISTS`, see `Planora.Todo.Api/Program.cs`); no formal EF migration committed. A very large production table would prefer a one-off `CREATE INDEX CONCURRENTLY`. |
+| Migration | Purpose |
+|---|---|
+| `20260510211105_AddWorkersAndComments` | Creates the original Todo tables, keys and indexes. |
+| `20260511105105_AddViewerCompletion` | Viewer completion fields. |
+| `20260517225900_AddSystemComment` | System comment flag. |
+| `20260518222758_AddGenesisComment` | Legacy genesis flag. |
+| `20260525143832_AddCommentAvatarUrl` | Historical comment avatar field and concurrency metadata. |
+| `20260526201043_RemoveCommentAvatarSnapshot` | Removes the legacy avatar snapshot. |
+| `20260529120000_RemoveCommentsAddOutbox` | Drops migrated comments and creates the outbox; startup refuses nonempty comments. |
+| `20260602111500_AddSubtaskParentTodoId` | Parent self-reference and tree index. |
+| `20261007205138_AddAllFriendsSnapshot` | Nullable UTC `AllFriendsSnapshotAt timestamptz`, audience batch index, title width1500, creator/date-start fields and completion/retention indexes. |
 
-Startup also widens `Title` to `varchar(1500)` and ensures the soft-delete retention index.
-These reconciliation statements log a warning and continue when they fail; they are not
-versioned migrations and do not appear in `__EFMigrationsHistory`. PostgreSQL `xmin` is a
-system concurrency column, not a column added by a migration.
+The last migration replaces the five warning-only startup DDL blocks. Guarded additive SQL
+supports existing compatible fields and indexes; read-only preflight rejects name/type
+conflicts before it runs. PostgreSQL `xmin` remains a system column. Repeated startup is
+idempotent. Docker admits only these reviewed migration files and their snapshot.
 
-For an existing compatible schema with its full migration history, apply manually:
+The snapshot migration refuses automatic downgrade: an older binary could reinterpret frozen
+public rows as available to later friends. Use a compatible backup or an explicit migration
+plan that preserves audience privacy; do not drop the stamp and run an older binary.
 
-```powershell
-dotnet ef database update `
-  --project Services/TodoApi/Planora.Todo.Infrastructure `
-  --startup-project Services/TodoApi/Planora.Todo.Api
-```
+`AllFriendsSnapshotAt` stays null only for legacy public rows awaiting backfill. The worker
+reads uncached accepted friendships with nullable UTC acceptance times and freezes at the
+task's original `CreatedAt`. It includes historically accepted friends and existing explicit
+shares, propagates to children, evicts unauthorized workers and saves each batch atomically.
+An Auth outage leaves that batch unchanged and retries with bounded backoff; `xmin` conflicts
+retry from fresh state without overwriting the winning edit.
 
 ### Description length
 
@@ -471,4 +479,4 @@ lock + tripwire. Every policy below is run live on PostgreSQL by the `Retention/
 
 Dead-lettered / failed outbox/inbox rows are deliberately kept for investigation. The `(IsDeleted,
 DeletedAt)` scan indexes land via the EF model on the migration-less services (created by `EnsureCreated`)
-and via idempotent startup DDL on TodoApi and RealtimeApi; no new EF migration was added.
+and via the reviewed Todo snapshot migration or Realtime startup DDL.

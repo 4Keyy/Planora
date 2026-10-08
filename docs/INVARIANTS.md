@@ -137,9 +137,13 @@ The forward-looking policy is enforced by `SecurityStampUsageContractTests` (Pla
 
 - Evidence: `Services/TodoApi/Planora.Todo.Application/Features/Todos/HiddenTodoDtoFactory.cs`, ADR-0004.
 
-**INV-AZ-4.** Task comment threads require an accepted friendship between the viewer and the task owner (when the task is shared/public). The comment timeline is owned by the Collaboration service, which never reads Todo's database: it authorises every comment read/write through the `TodoService.CheckTaskCommentAccess` gRPC call, which applies the exact owner / shared / public + friendship rule. The friendship check therefore remains mandatory and centralised in TodoApi (INV-OWN-2/3).
+**INV-AZ-4.** Task comment threads require an accepted friendship between the viewer and the task owner (when the task is shared/public). The comment timeline is owned by the Collaboration service, which never reads Todo's database: it authorises every comment read/write through the `TodoService.CheckTaskCommentAccess` gRPC call, which applies the central owner / live-friend-and-stored-audience rule, with dynamic public visibility restricted to legacy rows whose snapshot is null. The friendship check therefore remains mandatory and centralised in TodoApi (INV-OWN-2/3).
 
 - Evidence: commit `5a3a83e` — "require friendship to read todo comments"; `Services/TodoApi/Planora.Todo.Api/Grpc/TodoGrpcService.cs` (`CheckTaskCommentAccess`); `Services/CollaborationApi/Planora.Collaboration.Application/Features/Comments/**`.
+
+**INV-AZ-9.** All friends means the server materializes accepted friends when sharing, not a live audience for later friends. A non-owner needs current accepted friendship and a stored share; only legacy public rows with null `AllFriendsSnapshotAt` retain the dynamic fallback until backfill. Runtime guards and translated EF predicates use `TodoAccessPolicy`. Public non-owner DTOs never disclose the stored friend IDs. Snapshot selection and list authorization bypass the friend-ID cache.
+
+- Evidence: `TodoAccessPolicy`, `AllFriendsSnapshotAudience`, `AllFriendsSnapshotBackfillService`, `AllFriendsSnapshotHandlersTests`, `AllFriendsSnapshotPostgresTests`, and the Auth/GetFriendships contract tests.
 
 **INV-AZ-5.** User-uploaded avatars are server-validated, re-encoded to WebP, and stripped of EXIF/ICC/XMP metadata before persistence. Raw bytes from `IFormFile` never reach disk. Only `image/jpeg`, `image/png`, `image/webp` are accepted, capped at 5 MB and 4096×4096; magic bytes are sniffed regardless of declared `Content-Type`. Storage is content-addressed under `/avatars/{userId}/{contentHash}/{size}.webp` and served with `Cache-Control: public, max-age=31536000, immutable`.
 

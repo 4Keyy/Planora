@@ -419,7 +419,7 @@ public class TodoCommandHandlerExpandedTests
     [Fact]
     [Trait("TestType", "Functional")]
     [Trait("TestType", "Regression")]
-    public async Task UpdateTodo_ShouldTogglePublicIndependentlyFromDirectShares()
+    public async Task UpdateTodo_ShouldFreezePublicAndClearUnspecifiedDirectShares()
     {
         var userId = Guid.NewGuid();
         var friendId = Guid.NewGuid();
@@ -444,7 +444,7 @@ public class TodoCommandHandlerExpandedTests
 
         Assert.True(privateAgain.IsSuccess);
         Assert.False(todo.IsPublic);
-        Assert.Single(todo.SharedWith);
+        Assert.Empty(todo.SharedWith);
     }
 
     [Fact]
@@ -1057,6 +1057,8 @@ public class TodoCommandHandlerExpandedTests
             .Setup(x => x.GetCategoryInfoAsync(categoryId, userId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CategoryInfo(categoryId, userId, "Work", "#fff", "icon"));
 
+        fixture.FriendshipService.Setup(x => x.GetFriendshipsAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { new FriendshipInfo(friendId, null) });
+
         var result = await fixture.CreateSubtaskHandler().Handle(
             new CreateSubtaskCommand(parent.Id, "  Step 1  ", "note", TodoPriority.Urgent),
             CancellationToken.None);
@@ -1179,6 +1181,8 @@ public class TodoCommandHandlerExpandedTests
             .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subtask);
 
+        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(creatorId, ownerId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
         var result = await fixture.CreateDeleteHandler().Handle(
             new DeleteTodoCommand(subtask.Id), CancellationToken.None);
 
@@ -1217,6 +1221,8 @@ public class TodoCommandHandlerExpandedTests
         fixture.TodoRepository
             .Setup(x => x.GetByIdWithIncludesTrackedAsync(subtask.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(subtask);
+
+        fixture.FriendshipService.Setup(x => x.AreFriendsAsync(creatorId, ownerId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
 
         var result = await fixture.CreateUpdateHandler().Handle(
             new UpdateTodoCommand(subtask.Id, Title: "Renamed by creator"), CancellationToken.None);
@@ -1448,6 +1454,8 @@ public class TodoCommandHandlerExpandedTests
             .ReturnsAsync(allSubtasksDone);
         var messages = fixture.CaptureOutbox();
 
+        fixture.FriendshipService.Setup(x => x.GetFriendshipsAsync(owner, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { new FriendshipInfo(friend, null) });
+
         var result = await fixture.CreateUpdateHandler().Handle(
             new UpdateTodoCommand(task.Id, Status: "done"), CancellationToken.None);
 
@@ -1484,6 +1492,8 @@ public class TodoCommandHandlerExpandedTests
             .ReturnsAsync(new HashSet<Guid>()); // friendB has not completed → threshold not crossed
         var messages = fixture.CaptureOutbox();
 
+        fixture.FriendshipService.Setup(x => x.GetFriendshipsAsync(owner, It.IsAny<CancellationToken>())).ReturnsAsync(new[] { new FriendshipInfo(friendA, null), new FriendshipInfo(friendB, null) });
+
         var result = await fixture.CreateUpdateHandler().Handle(
             new UpdateTodoCommand(task.Id, Status: "done"), CancellationToken.None);
 
@@ -1516,6 +1526,11 @@ public class TodoCommandHandlerExpandedTests
         {
             CurrentUser.SetupGet(x => x.UserId).Returns(userId);
             CurrentUser.SetupGet(x => x.IsAuthenticated).Returns(userId != Guid.Empty);
+            // Older cases declare accepted friend IDs; expose the same fixture data as uncached metadata.
+            FriendshipService.Setup(x => x.GetFriendshipsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .Returns(async (Guid id, CancellationToken ct) => (IReadOnlyList<FriendshipInfo>)
+                    (await FriendshipService.Object.GetFriendIdsAsync(id, ct) ?? Array.Empty<Guid>())
+                    .Select(friendId => new FriendshipInfo(friendId, null)).ToArray());
             UnitOfWork.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
             Mapper.Setup(x => x.Map<TodoItemDto>(It.IsAny<TodoItem>())).Returns((TodoItem item) => ToDto(item));
             // Subtask lookups default to empty so parent update/delete propagation is a no-op

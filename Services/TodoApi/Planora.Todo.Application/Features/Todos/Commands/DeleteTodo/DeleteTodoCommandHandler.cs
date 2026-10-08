@@ -48,7 +48,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DeleteTodo
             // they added, even on a task owned by someone else.
             var canDelete = todoItem.UserId == userId
                 || (todoItem.IsSubtask && todoItem.CreatedByUserId == userId);
-            if (!canDelete)
+            if (!canDelete || !await TodoAccessPolicy.CanAccessAsync(todoItem, userId, _friendshipService, cancellationToken))
                 throw new ForbiddenException("You can only delete your own todo items. Friends cannot delete your public tasks");
 
             // Capture the feed audience while the task is still alive and its shares are loaded.

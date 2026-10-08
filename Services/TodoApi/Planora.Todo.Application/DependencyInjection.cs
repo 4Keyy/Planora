@@ -32,6 +32,7 @@ namespace Planora.Todo.Application
             // Integration Event Handlers
             services.AddScoped<CategoryDeletedEventHandler>();
             services.AddScoped<UserDeletedEventConsumer>();
+            services.AddScoped<FriendshipRemovedEventConsumer>();
 
             // Business Event Logger
 

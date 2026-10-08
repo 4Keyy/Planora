@@ -539,10 +539,10 @@ The repository has a root [`SECURITY.md`](../SECURITY.md) policy. The documented
 ## Known Security Gaps / Clarifications
 
 The [authorization coverage map](security-idor-coverage.md#known-findings-and-missing-regressions)
-records the concrete access-control gaps: public-task `join` bypasses the normal friend
-gate and hidden redaction; revoked subtask creators retain edit/delete paths; comment
-deletion checks actor identity without current branch access. No application fix is
-included in this documentation audit.
+records remaining access-control gaps, including comment deletion checking actor identity
+without current branch access and existing room subscriptions surviving access changes.
+The frozen-audience change closes public join friendship bypass, revoked-subtask-creator
+mutation shortcuts and the cached Todo list authorization path.
 
 | Topic | Observed behavior | Operational implication |
 |---|---|---|
@@ -573,3 +573,16 @@ reports no vulnerable packages against the current registry metadata. The full
 scan still reports development-tool vulnerabilities; this is not a claim that
 the entire package graph is clean. The [dated review](../.github/security/frontend-dependencies-2026-10.md)
 lists the remaining advisories and verification boundaries.
+
+## Frozen All friends Authorization
+
+`TodoAccessPolicy` applies the same rule to runtime guards and translated list predicates:
+owner, or current accepted friend with a stored share. The dynamic `IsPublic` fallback is
+restricted to legacy rows whose `AllFriendsSnapshotAt` is null while backfill is pending.
+New All friends tasks and private-to-public transitions select an uncached server audience;
+unchanged updates cannot expand it through client IDs. Subtasks inherit the parent's audience.
+Public non-owner DTOs redact friend IDs on reads, mutations and internal branch replies.
+
+Friendship removal denies content access immediately through live checks; content-free sync
+signals may still reach a user who just lost access so their card can disappear. Existing
+WebSocket membership is a separate documented limit and does not grant authorized refetches.

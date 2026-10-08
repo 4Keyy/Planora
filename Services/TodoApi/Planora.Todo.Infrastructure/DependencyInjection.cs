@@ -88,6 +88,8 @@ namespace Planora.Todo.Infrastructure
                 sp.GetRequiredService<Services.FriendshipGrpcService>(),
                 sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Services.CachingFriendshipService>>()));
+            // Program prepares the schema before hosted services start.
+            services.AddHostedService<Services.AllFriendsSnapshotBackfillService>();
             // Live subtask-author identity (display name + avatar) — same Auth channel.
             services.AddScoped<IUserProfileService, Services.UserProfileGrpcService>();
 

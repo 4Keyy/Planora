@@ -107,6 +107,8 @@ public sealed class WorkerLifecycleEventTests
             // "no friends" so these tests don't NRE on an unmocked friend list.
             Friendship.Setup(x => x.GetFriendIdsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Array.Empty<Guid>());
+            Friendship.Setup(x => x.GetFriendshipsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Array.Empty<FriendshipInfo>());
             Repository.Setup(x => x.GetActiveWorkerTaskCountAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(1);
             Outbox.Setup(x => x.AddAsync(It.IsAny<OutboxMessage>(), It.IsAny<CancellationToken>()))

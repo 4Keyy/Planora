@@ -61,9 +61,19 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
                 .Distinct()
                 .ToList() ?? new List<Guid>();
 
-            if (sharedWith.Count > 0)
+            DateTime? snapshotAt = null;
+            if (request.IsPublic)
             {
-                var friendIds = await _friendshipService.GetFriendIdsAsync(userId, cancellationToken);
+                var friendships = await _friendshipService.GetFriendshipsAsync(userId, cancellationToken);
+                var allowed = friendships.Select(friend => friend.FriendId).ToHashSet();
+                if (sharedWith.Any(id => !allowed.Contains(id)))
+                    throw new ForbiddenException("You can only share tasks with accepted friends");
+                sharedWith = AllFriendsSnapshotAudience.Current(friendships, sharedWith).ToList();
+                snapshotAt = DateTime.UtcNow;
+            }
+            else if (sharedWith.Count > 0)
+            {
+                var friendIds = AllFriendsSnapshotAudience.Current(await _friendshipService.GetFriendshipsAsync(userId, cancellationToken));
                 var allowed = new HashSet<Guid>(friendIds);
                 if (sharedWith.Any(id => !allowed.Contains(id)))
                     throw new ForbiddenException("You can only share tasks with accepted friends");
@@ -92,8 +102,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
                     request.Priority,
                     request.IsPublic,
                     sharedWith,
-                    request.RequiredWorkers,
-                    request.DueDateStart);
+                    request.IsPublic ? null : request.RequiredWorkers,
+                    request.DueDateStart,
+                    snapshotAt);
 
             await _repository.AddAsync(todoItem, cancellationToken);
 
@@ -106,11 +117,11 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
                 new TaskCreatedIntegrationEvent(todoItem.Id, userId, authorName, request.Description),
                 cancellationToken);
 
-            // Live feed sync: every user who can now see this task (owner + shared-with + friends
-            // when public) gets a TaskFeedChanged push so the card appears on their list/dashboard
+            // Live feed sync: every user in the owner + materialised share audience gets a
+            // TaskFeedChanged push so the card appears on their list/dashboard
             // without a refresh. Emitted in the same unit of work as the create (INV-COMM-3).
             var audience = await RealtimeAudience.ResolveAsync(
-                userId, request.IsPublic, sharedWith, _friendshipService, cancellationToken, _logger);
+                todoItem, _friendshipService, cancellationToken, _logger);
             await _outboxRepository.EnqueueIntegrationEventAsync(
                 new RealtimeSyncIntegrationEvent(
                     RealtimeSyncAction.TaskCreated, todoItem.Id, userId, audienceUserIds: audience),

@@ -66,6 +66,46 @@ namespace Planora.Todo.Infrastructure.Services
             }
         }
 
+        public async Task<IReadOnlyList<FriendshipInfo>> GetFriendshipsAsync(
+            Guid userId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await _client.GetFriendshipsAsync(
+                    new GetFriendshipsRequest { UserId = userId.ToString() },
+                    deadline: DateTime.UtcNow.AddSeconds(10),
+                    cancellationToken: cancellationToken);
+                var friends = new List<FriendshipInfo>(response.Friendships.Count);
+                var ids = new HashSet<Guid>();
+                foreach (var entry in response.Friendships)
+                {
+                    if (!Guid.TryParse(entry.FriendId, out var friendId) ||
+                        friendId == Guid.Empty || friendId == userId || !ids.Add(friendId))
+                        throw new InvalidDataException("Auth returned an invalid or duplicate friendship ID");
+
+                    // DateTime cannot represent sub-tick precision. Reject it rather than
+                    // rounding an acceptance after CreatedAt into a historical audience.
+                    if (entry.AcceptedAt is not null && entry.AcceptedAt.Nanos % 100 != 0)
+                        throw new InvalidDataException("Auth returned an unrepresentable friendship timestamp");
+                    friends.Add(new FriendshipInfo(friendId, entry.AcceptedAt?.ToDateTime()));
+                }
+                return friends;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (RpcException error) when (cancellationToken.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("Friendship snapshot request cancelled", error, cancellationToken);
+            }
+            catch (Exception error)
+            {
+                _logger.LogWarning(error, "Auth gRPC failed while resolving a fresh friendship snapshot for {UserId}", userId);
+                throw new ExternalServiceUnavailableException("AuthApi", "GetFriendships", error);
+            }
+        }
+
         public async Task<bool> AreFriendsAsync(
             Guid userId1,
             Guid userId2,

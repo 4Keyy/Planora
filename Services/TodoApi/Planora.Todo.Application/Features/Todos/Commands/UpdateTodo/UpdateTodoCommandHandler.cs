@@ -68,14 +68,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             // so this lets a collaborator rename the step they added on a task that isn't theirs.
             var isOwner = todoItem.UserId == userId
                 || (todoItem.IsSubtask && todoItem.CreatedByUserId == userId);
-            var hasFriendVisibleAccess = !isOwner &&
-                (todoItem.IsPublic || todoItem.SharedWith.Any(s => s.SharedWithUserId == userId));
-            if (hasFriendVisibleAccess)
-            {
-                hasFriendVisibleAccess = await _friendshipService.AreFriendsAsync(userId, todoItem.UserId, cancellationToken);
-            }
-
-            if (!isOwner && !hasFriendVisibleAccess)
+            if (!await TodoAccessPolicy.CanAccessAsync(todoItem, userId, _friendshipService, cancellationToken))
                 throw new ForbiddenException("You can only update your own todo items or friend-visible tasks");
 
             // If it's not the owner, only allow status changes — and record them per-viewer
@@ -127,7 +120,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                                 // Notify the other branch participants that a subtask was completed
                                 // (the completer is excluded). The subtask inherits the parent's
                                 // audience, so resolving from it yields the parent's participants.
-                                var subtaskAudience = await RealtimeAudience.ResolveAsync(
+                                var subtaskAudience = await RealtimeAudience.ResolveContentAsync(
                                     todoItem, _friendshipService, cancellationToken, _logger);
                                 await NotificationFanout.EnqueueAsync(
                                     _outboxRepository, subtaskAudience, actorId: userId,
@@ -153,7 +146,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                         }
                     }
 
-                    return Result<TodoItemDto>.Success(_mapper.Map<TodoItemDto>(todoItem) with
+                    return Result<TodoItemDto>.Success(TodoAccessPolicy.RedactAudience(todoItem, userId, _mapper.Map<TodoItemDto>(todoItem)) with
                     {
                         WorkerCount = todoItem.Workers.Count,
                         WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
@@ -216,7 +209,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                             // when THIS completion is the last one needed, raise the review milestone
                             // for the author. The actor is excluded throughout (no self-notification).
                             var authorId = todoItem.UserId;
-                            var audience = await RealtimeAudience.ResolveAsync(
+                            var audience = await RealtimeAudience.ResolveContentAsync(
                                 todoItem, _friendshipService, cancellationToken, _logger);
 
                             // Participants whose completion counts toward the milestone = everyone who
@@ -280,7 +273,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
 
                         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                        var viewerDto = _mapper.Map<TodoItemDto>(todoItem) with
+                        var viewerDto = TodoAccessPolicy.RedactAudience(todoItem, userId, _mapper.Map<TodoItemDto>(todoItem)) with
                         {
                             Status = completedByViewer ? "Done" : todoItem.Status.Display(),
                             IsCompleted = completedByViewer,
@@ -298,7 +291,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 }
 
                 // Non-owner with no status change (shouldn't happen given above guard, but be safe)
-                return Result<TodoItemDto>.Success(_mapper.Map<TodoItemDto>(todoItem) with
+                return Result<TodoItemDto>.Success(TodoAccessPolicy.RedactAudience(todoItem, userId, _mapper.Map<TodoItemDto>(todoItem)) with
                 {
                     WorkerCount = todoItem.Workers.Count,
                     WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),
@@ -313,6 +306,10 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             var wasPublic = todoItem.IsPublic;
             var wasCompleted = todoItem.IsCompleted;
             var previousSharedWith = todoItem.SharedWith.Select(s => s.SharedWithUserId).ToList();
+            var previousSnapshotAt = todoItem.AllFriendsSnapshotAt;
+            var previousAudience = await RealtimeAudience.ResolveAsync(
+                todoItem.UserId, wasPublic, previousSharedWith, _friendshipService,
+                cancellationToken, _logger, previousSnapshotAt);
 
             // A subtask inherits category, visibility, sharing and dates from its parent — they
             // are never editable on the child directly. The owner may still change a subtask's
@@ -371,33 +368,50 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             if (request.Priority.HasValue)
                 todoItem.UpdatePriority(request.Priority.Value, userId);
 
-            if (request.SharedWithUserIds != null)
+            // A child's audience remains inherited, including while its legacy parent awaits freeze.
+            if (!todoItem.IsSubtask)
             {
-                var sharedWith = request.SharedWithUserIds
-                    .Where(id => id != Guid.Empty && id != userId)
-                    .Distinct()
-                    .ToList();
-
-                if (sharedWith.Count > 0)
+                var shouldBePublic = request.IsPublic ?? todoItem.IsPublic;
+                if (shouldBePublic)
                 {
-                    var friendIds = await _friendshipService.GetFriendIdsAsync(userId, cancellationToken);
-                    var allowed = new HashSet<Guid>(friendIds);
-                    if (sharedWith.Any(id => !allowed.Contains(id)))
-                        throw new ForbiddenException("You can only share tasks with accepted friends");
+                    // All friends is server-owned. In particular, the editor's [] never clears a snapshot.
+                    if (!wasPublic)
+                    {
+                        var friendships = await _friendshipService.GetFriendshipsAsync(userId, cancellationToken);
+                        todoItem.FreezeAllFriendsAudience(AllFriendsSnapshotAudience.Current(friendships), DateTime.UtcNow, userId);
+                    }
+                    else if (todoItem.AllFriendsSnapshotAt == null)
+                    {
+                        var friendships = await _friendshipService.GetFriendshipsAsync(todoItem.UserId, cancellationToken);
+                        todoItem.FreezeAllFriendsAudience(AllFriendsSnapshotAudience.ForLegacy(todoItem, friendships), todoItem.CreatedAt, userId);
+                    }
+                    todoItem.SetRequiredWorkers(null, userId);
                 }
+                else
+                {
+                    if (wasPublic || request.SharedWithUserIds != null)
+                    {
+                        var sharedWith = (request.SharedWithUserIds ?? Array.Empty<Guid>())
+                            .Where(id => id != Guid.Empty && id != userId).Distinct().ToList();
+                        if (sharedWith.Count > 0)
+                        {
+                            var friendIds = AllFriendsSnapshotAudience.Current(await _friendshipService.GetFriendshipsAsync(userId, cancellationToken));
+                            var allowed = friendIds.ToHashSet();
+                            if (sharedWith.Any(id => !allowed.Contains(id)))
+                                throw new ForbiddenException("You can only share tasks with accepted friends");
+                        }
+                        todoItem.SetSharedWith(sharedWith, userId);
+                        todoItem.SetPublic(false, userId);
+                    }
+                    else if (request.IsPublic.HasValue)
+                        todoItem.SetPublic(false, userId);
 
-                todoItem.SetSharedWith(sharedWith, userId);
+                    if (request.ClearRequiredWorkers)
+                        todoItem.SetRequiredWorkers(null, userId);
+                    else if (request.RequiredWorkers.HasValue)
+                        todoItem.SetRequiredWorkers(request.RequiredWorkers.Value, userId);
+                }
             }
-
-            if (request.IsPublic.HasValue)
-            {
-                todoItem.SetPublic(request.IsPublic.Value, userId);
-            }
-
-            if (request.ClearRequiredWorkers)
-                todoItem.SetRequiredWorkers(null, userId);
-            else if (request.RequiredWorkers.HasValue)
-                todoItem.SetRequiredWorkers(request.RequiredWorkers.Value, userId);
 
             bool ownerJustCompleted = false;
             bool ownerStartedWorking = false;
@@ -441,7 +455,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             // changes, re-anchor every child so "a subtask is always as visible as its parent"
             // stays true. Done in the same unit of work as the parent update.
             if (!todoItem.IsSubtask &&
-                (request.CategoryId.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null))
+                (request.CategoryId.HasValue || request.IsPublic.HasValue || request.SharedWithUserIds != null ||
+                 previousSnapshotAt != todoItem.AllFriendsSnapshotAt))
             {
                 var children = await _repository.GetSubtasksTrackedAsync(todoItem.Id, cancellationToken);
                 foreach (var child in children)
@@ -475,7 +490,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                     cancellationToken);
 
                 // Same as the collaborator path: notify the other participants (owner excluded).
-                var ownerSubtaskAudience = await RealtimeAudience.ResolveAsync(
+                var ownerSubtaskAudience = await RealtimeAudience.ResolveContentAsync(
                     todoItem, _friendshipService, cancellationToken, _logger);
                 await NotificationFanout.EnqueueAsync(
                     _outboxRepository, ownerSubtaskAudience, actorId: userId,
@@ -509,17 +524,8 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
             {
                 // Feed audience = everyone who could see the task before OR after the change, so an
                 // un-share/un-publish reaches the users who just lost access (they drop the card).
-                var audienceSet = new HashSet<Guid> { todoItem.UserId };
-                foreach (var s in todoItem.SharedWith) audienceSet.Add(s.SharedWithUserId);
-                foreach (var s in previousSharedWith) audienceSet.Add(s);
-                if (wasPublic || todoItem.IsPublic)
-                {
-                    // Best-effort: an Auth-gRPC blip must not fail the update for a feed nicety.
-                    foreach (var f in await RealtimeAudience.SafeGetFriendIdsAsync(
-                        _friendshipService, todoItem.UserId, cancellationToken, _logger))
-                        audienceSet.Add(f);
-                }
-                audienceSet.Remove(Guid.Empty);
+                var currentAudience = await RealtimeAudience.ResolveAsync(todoItem, _friendshipService, cancellationToken, _logger);
+                var audienceSet = currentAudience.Concat(previousAudience).Where(id => id != Guid.Empty).ToHashSet();
 
                 var feedAction = ownerJustCompleted
                     ? RealtimeSyncAction.TaskCompleted
@@ -540,8 +546,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 // drives an OS notification on the client.
                 if (ownerJustCompleted)
                 {
+                    var contentAudience = await RealtimeAudience.ResolveContentAsync(todoItem, _friendshipService, cancellationToken, _logger);
                     await NotificationFanout.EnqueueAsync(
-                        _outboxRepository, audienceSet, actorId: userId, taskId: todoItem.Id,
+                        _outboxRepository, contentAudience, actorId: userId, taskId: todoItem.Id,
                         type: NotificationType.TaskCompleted,
                         title: "Task completed",
                         message: $"{ownerName} completed “{NotificationFanout.TitlePreview(todoItem.Title)}”",
@@ -562,7 +569,7 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
 
             _logger.LogInformation("Todo item updated: {TodoId} by user {UserId}", request.TodoId, userId);
 
-            var dto = _mapper.Map<TodoItemDto>(todoItem) with
+            var dto = TodoAccessPolicy.RedactAudience(todoItem, userId, _mapper.Map<TodoItemDto>(todoItem)) with
             {
                 WorkerCount = todoItem.Workers.Count,
                 WorkerUserIds = todoItem.Workers.Select(w => w.UserId).ToList(),

@@ -126,7 +126,7 @@ describe("RedactionBadge", () => {
 
   it("says all friends, never public", () => {
     render(<RedactionBadge audience="public" />)
-    expect(screen.getByRole("img")).toHaveAccessibleName("Shared with all your friends.")
+    expect(screen.getByRole("img")).toHaveAccessibleName("Shared with the friends you had when you shared it.")
     expect(screen.queryByText(/public/i)).toBeNull()
   })
 

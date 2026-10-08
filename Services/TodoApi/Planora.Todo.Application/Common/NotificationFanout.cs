@@ -7,9 +7,9 @@ namespace Planora.Todo.Application.Common
     /// Fans a per-user <see cref="NotificationEvent"/> out to every recipient <b>except the actor</b>
     /// through the service outbox (same unit of work as the mutation, INV-COMM-3). The actor never
     /// gets notified about their own action — the rule that keeps "I took this task into work" from
-    /// lighting my own card. Recipients are typically <c>RealtimeAudience.ResolveAsync(...)</c> (owner
-    /// + shared-with + public friends); de-duplication and the actor/empty filter happen here so call
-    /// sites stay a single line.
+    /// lighting my own card. Content recipients come from <c>RealtimeAudience.ResolveContentAsync(...)</c>
+    /// (owner + currently accepted friends who have stored access, with the fallback only on legacy rows).
+    /// De-duplication and the actor/empty filter happen here.
     /// </summary>
     internal static class NotificationFanout
     {
