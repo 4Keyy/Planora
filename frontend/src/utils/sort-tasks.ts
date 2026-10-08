@@ -12,6 +12,8 @@ export type SortableTask = {
   completedAt?: string | null
   hidden?: boolean | null
   isWorking?: boolean | null
+  expectedDate?: string | null
+  delay?: string | null
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -128,33 +130,42 @@ function sortKey(task: SortableTask, today: Date): [number, number, number, numb
 
 // ─── public API ───────────────────────────────────────────────────────────────
 
+/** A card's frame: its 1px border and 20px of padding, top and bottom. */
+const CARD_FRAME = 42
+/** A title line: `title-sm` at `leading-snug` from `sm` up (20px x 1.375). */
+const TITLE_LINE = 27.5
+/** About how many characters fit a title line in a three- or four-column grid. */
+const TITLE_CHARS_PER_LINE = 26
+/** And a description line (`body-sm`, 20px), which is smaller type. */
+const DESCRIPTION_CHARS_PER_LINE = 40
+
 /**
- * Estimates the visual height/weight of a task card for masonry balancing.
+ * A task card's height in px, estimated from what it holds, for dealing the masonry columns.
+ *
+ * It follows the card's real geometry (`components/todos/todo-card.tsx`): the frame round a
+ * body of a title (up to three lines), the chip row under it, then whatever else the task
+ * carries — two lines of description, the due date, the expected/delay strip. There is no
+ * height floor: a card is as short as its content, down to the 32px completion circle.
+ * A hidden card is its one collapsed row; a completed one is its title alone. The deal only
+ * needs these to be right relative to each other, and they are now the cards' own sizes
+ * rather than a 160px base that a sparse card never reached.
  */
 export function getTaskWeight(task: SortableTask): number {
-  if (task.hidden) return 80 // Collapsed state is small but has padding
+  const completed = taskIsCompleted(task)
+  // py-2 round the collapsed row, whose tallest piece is the 28px expand toggle.
+  if (task.hidden && !completed) return 46
 
-  let weight = 160 // Base height for a standard card (title, padding, borders)
+  const titleLines = Math.min(3, Math.max(1, Math.ceil((task.title?.trim().length ?? 0) / TITLE_CHARS_PER_LINE)))
+  let body = titleLines * TITLE_LINE
+  if (completed) return CARD_FRAME + Math.max(32, body)
 
-  if (task.title && task.title.length > 25) {
-    weight += 30 // Second line of title
-  }
-
+  body += 12 + 24 // the chip row, a column gap below the title
   if (task.description) {
-    const descLen = task.description.length
-    // Every ~40 chars is roughly a line of text (24px line-height)
-    // We cap it at 3 lines for the weight estimate
-    weight += Math.min(72, Math.ceil(descLen / 40) * 24)
+    body += 12 + Math.min(2, Math.ceil(task.description.trim().length / DESCRIPTION_CHARS_PER_LINE)) * 20
   }
-
-  // Tags/Badges row (always present in the UI if there's a category or public flag)
-  weight += 30
-
-  if (task.dueDate || task.status === "InProgress") {
-    weight += 40 // Date/Status row with icon
-  }
-
-  return weight
+  if (task.dueDate) body += 12 + 16
+  if (task.expectedDate || task.delay) body += 16 + 1 + 16 + 24 // ruled strip of chips
+  return CARD_FRAME + Math.max(32, body)
 }
 
 /**

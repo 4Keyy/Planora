@@ -173,36 +173,36 @@ describe("sortTasks", () => {
 })
 
 describe("getTaskWeight", () => {
-  it("uses a compact weight for hidden tasks", () => {
-    expect(getTaskWeight(task("hidden", { hidden: true }))).toBe(80)
+  // The card's own geometry: a 42px frame round the body; a title line is 27.5px, the chip
+  // row a 12px gap plus 24px. No floor: a sparse card is as short as its content.
+  it("weighs a hidden task as its one collapsed row", () => {
+    expect(getTaskWeight(task("hidden", { hidden: true }))).toBe(46)
   })
 
-  it("adds weight for long titles, descriptions, dates, and in-progress status", () => {
+  it("weighs a sparse task as a title and a chip row, with no height floor", () => {
+    expect(getTaskWeight(task("plain"))).toBe(42 + 27.5 + 36)
+    expect(getTaskWeight(task("short-title", { title: "Short" }))).toBe(42 + 27.5 + 36)
+  })
+
+  it("adds title lines (up to three), two description lines, the date and the expected strip", () => {
     expect(
       getTaskWeight(
         task("large", {
           title: "A very long task title that wraps",
           description: "x".repeat(90),
           dueDate: "2026-05-01T00:00:00.000Z",
-          status: TodoStatus.InProgress,
+          expectedDate: "2026-05-02T00:00:00.000Z",
         }),
       ),
-    ).toBe(332)
+    ).toBe(42 + 2 * 27.5 + 36 + (12 + 2 * 20) + (12 + 16) + 57)
+    expect(getTaskWeight(task("very-long", { title: "x".repeat(200) }))).toBe(42 + 3 * 27.5 + 36)
   })
 
-  it("returns base weight plus tags row for a plain task with no title, description, or due date", () => {
-    expect(getTaskWeight(task("plain"))).toBe(190)
+  it("does not weigh a status the card does not draw", () => {
+    expect(getTaskWeight(task("inprog-only", { status: TodoStatus.InProgress }))).toBe(42 + 27.5 + 36)
   })
 
-  it("adds status-row weight when status is InProgress with no due date", () => {
-    expect(
-      getTaskWeight(task("inprog-only", { status: TodoStatus.InProgress })),
-    ).toBe(230)
-  })
-
-  it("does not add title-wrap weight for a short title", () => {
-    expect(
-      getTaskWeight(task("short-title", { title: "Short" })),
-    ).toBe(190)
+  it("weighs a completed task as its title alone, and never hides it as a collapsed row", () => {
+    expect(getTaskWeight(task("done", { isCompleted: true, hidden: true, title: "Short" }))).toBe(42 + 32)
   })
 })

@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useCallback, useEffect, useRef, useState, type CSSProperties } from "react"
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react"
 import { AnimatePresence, useReducedMotion } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import {
@@ -13,6 +13,7 @@ import { formatDate, isPastDate, truncateText, formatPublicName, cn } from "@/li
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import {
+  DURATION_FAST,
   DURATION_SLOW,
   EASE_OUT_EXPO,
   HOVER_LIFT,
@@ -37,6 +38,7 @@ import { InkCheck } from "@/components/ui/ink-check"
 import { rememberOrigin } from "@/lib/shared-origin"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
 import type { ListRowProps } from "@/hooks/use-list-navigation"
+import { springEasing, useHeightTransition } from "@/hooks/use-height-transition"
 
 /** Priority is a magnitude, not a category — see components/ui/priority-meter.tsx. */
 /**
@@ -71,6 +73,44 @@ const JOIN_PRE_COMMIT_MS = 280
  * window they decorate.
  */
 const PHASE_TWEEN = { duration: DURATION_SLOW, ease: EASE_OUT_EXPO } as const
+
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect
+
+/**
+ * Where the hide toggle (the eye) goes depends on how much the card holds.
+ *
+ * The completion circle sits on the card's vertical centre at every height, and on a card
+ * with room the eye sits in the bottom-left corner under it, 22px from both edges. That
+ * corner needs a body at least this tall: the eye's row — its 16px margin, the 28px toggle
+ * and its 1px inset — is mirrored above the 32px circle, 45 + 32 + 45. Below it the two
+ * controls would be on top of each other, and holding the card open to this height was what
+ * made every sparse task as tall as a full one: a title and a priority, 188px.
+ *
+ * So a card with less to say keeps its natural height, and the eye opens its chip row
+ * instead — out of the circle's way, the same 44px target, under the first letter of the
+ * title on every such card. Measured, not guessed: a title's wrap depends on the column.
+ */
+const EYE_CORNER_MIN_BODY = 122
+/**
+ * In the chip row the eye takes a chip's room, so it can push the last chip onto a second
+ * line — a body up to this much taller than it would be with the eye in the corner. A card
+ * goes back to the corner only past that, or the move would undo itself: back in the corner
+ * the line it caused is gone, and the body is short again.
+ */
+const EYE_ROW_GROWTH = 24 + 8
+
+/**
+ * A card changing shape — hidden down to its one row, or opened back out — glides to its
+ * new height, and everything below it in the column, the grid and the page follows on the
+ * same curve (`useHeightTransition`). The curve is `SPRING_LAYOUT`, the one a card already
+ * glides up its column on: critically damped, so it gathers speed from rest instead of
+ * lurching — a front-loaded curve moved a short card's neighbours 25px in its first frame —
+ * and lands without passing its height. Settled in about 0.4s; the content cross-fades
+ * inside it on `fast`.
+ */
+let resize: { duration: number; easing: string } | null = null
+const resizeTransition = () => (resize ??= springEasing(SPRING_LAYOUT))
+const CONTENT_IN = { duration: DURATION_FAST + 0.06, ease: EASE_OUT_EXPO, delay: 0.05 } as const
 
 type CompletionPhase = "completing" | "reopening" | "joining" | null
 
@@ -194,6 +234,13 @@ function TodoCardComponent({
       node.focus()
     }
   }, [])
+
+  // The eye's place (see EYE_CORNER_MIN_BODY): the body is measured before the first paint,
+  // and again whenever its size changes. It starts in the corner, so the first measurement
+  // is of the body without the eye in it.
+  const cardRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [eyeInRow, setEyeInRow] = useState(false)
   const isInfoDense = !!todo.description && (!!todo.dueDate || !!todo.expectedDate || !!todo.delay)
   // Critically damped: a card closing a gap or moving up its column lands without overshoot.
   const layoutTransition = shouldReduceMotion ? { duration: 0 } : SPRING_LAYOUT
@@ -211,6 +258,27 @@ function TodoCardComponent({
   useEffect(() => {
     setOptimisticCollapsed(null)
   }, [todo.id, todo.hidden])
+
+  useIsomorphicLayoutEffect(() => {
+    if (!allowCollapse || isCollapsed) return
+    const body = bodyRef.current
+    if (!body) return
+    const place = () => {
+      const height = body.offsetHeight
+      setEyeInRow((inRow) => (inRow ? height < EYE_CORNER_MIN_BODY + EYE_ROW_GROWTH : height < EYE_CORNER_MIN_BODY))
+    }
+    place()
+    if (typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(place)
+    observer.observe(body)
+    return () => observer.disconnect()
+  }, [allowCollapse, isCollapsed])
+
+  // Hiding, opening, or the eye changing places: the card glides to its new height.
+  useHeightTransition(cardRef, isCollapsed ? "collapsed" : eyeInRow ? "open-row" : "open-corner", {
+    ...resizeTransition(),
+    disabled: !!shouldReduceMotion,
+  })
 
   useEffect(() => {
     setCompletionPhase(null)
@@ -402,8 +470,9 @@ function TodoCardComponent({
         {...rowProps}
         // Position only. A size `layout` animated hiding a card (166px -> 56px) as a scaleY
         // on this root, and nothing inside the Card is a layout node to correct it: the
-        // collapsed row arrived stretched three times its height and settled. The height
-        // now changes in one step under the crossfade, and the neighbours glide.
+        // collapsed row arrived stretched three times its height and settled. The Card's
+        // real height glides instead (`useHeightTransition` below), so its neighbours, the
+        // grid and the pager under it follow in the flow on the same curve.
         layout="position"
         initial={arrivalHandled ? false : VARIANTS_CARD.hidden}
         animate={
@@ -491,6 +560,7 @@ function TodoCardComponent({
         a hover state. Now it is a class and a custom property, and CSS runs the transition.
       */}
       <Card
+        ref={cardRef}
         data-task-card=""
         style={isCompleted ? undefined : glowStyle}
         className={cn(
@@ -627,15 +697,20 @@ function TodoCardComponent({
             "relative z-10"
           )}
         >
+          {/* The two shapes cross-fade while the card glides between their heights: the one
+              leaving is lifted out of the flow where it stood (`popLayout`) and fades under the
+              card's edge, so the height the card glides to is the arriving shape's alone. */}
+          <AnimatePresence initial={false} mode="popLayout">
           {isCollapsed && allowCollapse ? (
             <motion.div
+              key="collapsed"
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={contentTransition}
+              exit={{ opacity: 0, pointerEvents: "none", transition: shouldReduceMotion ? { duration: 0 } : TWEEN_EXIT }}
+              transition={shouldReduceMotion ? { duration: 0 } : CONTENT_IN}
               onHoverStart={() => setIsControlHover(true)}
               onHoverEnd={() => setIsControlHover(false)}
-              className="flex items-center justify-between gap-3 group/collapsed"
+              className="relative flex items-center justify-between gap-3 group/collapsed"
             >
               <div className="flex items-center gap-4 min-w-0">
                 <div className="flex w-8 items-center justify-center">
@@ -705,22 +780,25 @@ function TodoCardComponent({
               )}
             </motion.div>
           ) : (
-            <>
+            <motion.div
+              key="open"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, pointerEvents: "none", transition: shouldReduceMotion ? { duration: 0 } : TWEEN_EXIT }}
+              transition={shouldReduceMotion ? { duration: 0 } : CONTENT_IN}
+              className="relative"
+            >
               <div className="flex items-center gap-4">
                 {/* Equal 1fr tracks centre the circle in the symmetric card border-box,
                     including fractional/odd heights. The eye's 1px bottom/left margins add to
                     20px padding + 1px card border: its visible border-box is inset by 22px.
 
-                    With two stationary 44px targets, the eye's hit top is H - 58 and the
-                    circle's hit bottom is H/2 + 22, so their 14px gap needs H >= 188.
-                    Only open cards with an eye need this 146px rail floor (188 - 40 - 2);
-                    taller bodies keep their natural height and completed cards stay compact.
-                    The visible circle springs inside its fixed hit target, so spring overshoot
-                    cannot shrink that gap or scale the semantic target. */}
-                <div className={cn(
-                  "grid w-8 flex-shrink-0 grid-rows-[1fr_auto_1fr] justify-items-center self-stretch",
-                  allowCollapse && "min-h-[146px]",
-                )}>
+                    The rail has no height of its own any more: it stretches to the body. The
+                    eye is here only when the body is tall enough for the corner (see
+                    EYE_CORNER_MIN_BODY), where its 44px target clears the circle's; otherwise
+                    it ends the chip row. The visible circle springs inside its fixed hit
+                    target, so spring overshoot cannot move or scale the semantic target. */}
+                <div className="grid w-8 flex-shrink-0 grid-rows-[1fr_auto_1fr] justify-items-center self-stretch">
                   {/* 3-state completion / join button */}
                   <motion.button
                     onClick={(e: React.MouseEvent) => {
@@ -854,7 +932,7 @@ function TodoCardComponent({
                     </motion.span>
                   </motion.button>
 
-                  {allowCollapse && (
+                  {allowCollapse && !eyeInRow && (
                     <motion.button
                       ref={collapseButtonRef}
                       type="button"
@@ -881,7 +959,7 @@ function TodoCardComponent({
                 </div>
 
                 {/* Body: all task content, grows with data */}
-                <div className="flex-1 min-w-0">
+                <div ref={bodyRef} className="flex-1 min-w-0">
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2">
                       <h3
@@ -929,6 +1007,33 @@ function TodoCardComponent({
                         6px above the centred check. */}
                     {!isCompleted && (
                       <div className="flex flex-wrap items-center gap-2">
+                        {allowCollapse && eyeInRow && (
+                          // The eye opening the chips, on a card too short for its corner: chip
+                          // height, so the row is no taller for it, and first, so it can never be
+                          // left alone on a line or end up under the desktop delete strip.
+                          <motion.button
+                            ref={collapseButtonRef}
+                            type="button"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseEnter={() => setIsControlHover(true)}
+                            onMouseLeave={() => setIsControlHover(false)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              void handleVisibilityToggle(true, true)
+                            }}
+                            aria-disabled={isVisibilityPending || isCompletionPending}
+                            aria-busy={isVisibilityPending || isCompletionPending}
+                            whileTap={isVisibilityPending || isCompletionPending ? undefined : TAP_PRESS}
+                            className={cn(
+                              "touch-target flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-ink-subtle transition-colors duration-fast hover:bg-paper-sunken hover:text-ink",
+                              (isVisibilityPending || isCompletionPending) && "opacity-60 cursor-wait"
+                            )}
+                            aria-label="Collapse task card"
+                            aria-expanded={!isCollapsed}
+                          >
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                          </motion.button>
+                        )}
                         {todo.categoryName && (
                           <span className={cn(CHIP_CLASS, "max-w-40")}>
                             <span className="truncate">{todo.categoryName}</span>
@@ -1028,8 +1133,9 @@ function TodoCardComponent({
                   )}
                 </div>
               </div>
-            </>
+            </motion.div>
           )}
+          </AnimatePresence>
         </CardContent>
       </Card>
       </motion.div>
