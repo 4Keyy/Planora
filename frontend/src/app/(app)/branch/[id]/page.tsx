@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
 import {
   api, fetchTaskById, duplicateTodo, joinTodo, leaveTodo, setViewerPreference,
   parseApiResponse, getApiErrorMessage, type ApiResponse,
@@ -14,6 +13,7 @@ import { Todo, type UpdateTodoPayload, isTodoOwner, toApiTodoStatus } from "@/ty
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
 import { TodoEditor } from "@/components/todos/edit-todo-modal"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
+import { MissingTaskScene } from "@/components/errors/scenes"
 
 /**
  * Standalone branch page — the same full task editor the modal shows (title, the inline meta strip
@@ -164,12 +164,8 @@ export default function BranchPage() {
       skeleton={<p style={{ fontSize: 14, color: "var(--pl-ink-subtle)", padding: "8px 2px" }}>Loading branch…</p>}
     >
       {notFound || !todo ? (
-        <Enter tier="panel" style={{ padding: "8px 2px" }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", marginBottom: 8 }}>Task not found</p>
-          <p style={{ fontSize: 14, color: "var(--pl-ink-subtle)", marginBottom: 16 }}>
-            It may have been deleted, or you don&apos;t have access to it.
-          </p>
-          <Link href="/tasks" style={{ fontSize: 12, fontWeight: 700, color: "var(--pl-accent)" }}>← Back to tasks</Link>
+        <Enter tier="panel">
+          <MissingTaskScene />
         </Enter>
       ) : (
         <BranchCard>

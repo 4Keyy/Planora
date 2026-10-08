@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { SegmentError } from "@/components/ui/segment-error"
 import { MotionPreferencesProvider } from "@/components/motion-preferences-provider"
@@ -52,12 +52,26 @@ describe("SegmentError", () => {
     expect(screen.queryByText(/Reference id/i)).not.toBeInTheDocument()
   })
 
-  it("invokes reset when the Retry button is clicked", () => {
+  it("invokes reset when Retry is ticked, once its check has drawn", async () => {
     const reset = vi.fn()
     render(<SegmentError error={new Error("x")} reset={reset} segmentLabel="tasks" />)
 
     fireEvent.click(screen.getByRole("button", { name: /retry/i }))
-    expect(reset).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(reset).toHaveBeenCalledTimes(1))
+  })
+
+  it("says so when the connection is gone, and retries by itself when it comes back", async () => {
+    const reset = vi.fn()
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false)
+    render(<SegmentError error={new Error("x")} reset={reset} segmentLabel="tasks" />)
+    expect(screen.getByRole("heading", { name: "You're offline." })).toBeInTheDocument()
+
+    onLine.mockReturnValue(true)
+    act(() => {
+      window.dispatchEvent(new Event("online"))
+    })
+    expect(screen.getByRole("heading", { name: "Back online." })).toBeInTheDocument()
+    await waitFor(() => expect(reset).toHaveBeenCalledTimes(1))
   })
 
   it("offers an escape hatch back to the dashboard", () => {
