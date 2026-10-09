@@ -25,7 +25,7 @@ The sections below distinguish configured gates, observed results and test gaps.
 | Migration script artifacts | `.github/workflows/migrations.yml` | `dotnet ef migrations script --idempotent`, six DB-owning services; EF CLI 10.0.8 after restore/Release build |
 | OpenAPI artifacts | `.github/workflows/openapi.yml` | `dotnet swagger tofile`, all six HTTP services; Testing skips Todo/Collaboration startup migrations |
 
-## Verification — Codex compact-card and notice stage, 2026-10-09
+## Verification — Codex compact-card and notice stage, finalized 2026-10-10
 
 The owner requested a visual notice polish and an eye permanently aligned below
 the completion circle after the original verification assignment. This supersedes
@@ -144,7 +144,7 @@ Neither run is an all-green UI result.
 
 The focused 19-case notice/error rerun on the correct isolated production build
 (`final-notices4.log`) passed 17, failed one and explicitly skipped one
-inconclusive chunk investigation. Completion, the six-mutation deck, Undo without
+inconclusive chunk investigation. Completion, the six-notice deck, Undo without
 DELETE, pointer/keyboard eight-second holds, exactly one DELETE at expiry, both
 mobile dock surfaces, authenticated/public 404, private missing branches and the
 disposable service outage/repetition passed. The Todo service was restarted and
@@ -266,7 +266,75 @@ DELETE, not a completed root-cause proof. Proposal: define and test whether
 dismissal resumes or settles an already paused pending action. Neither pending
 action handlers nor the toast-store API were changed.
 
-### Final cross-browser prerequisite result
+### Completed WebKit verification
+
+The final WebKit 26.5 project (`final-webkit.log`) attempted all 48 new cases
+in 46.4 minutes: **27 passed, 20 failed and one investigation was explicitly
+skipped**. There were no expected-failure passes in this project.
+
+| New suite | Passed | Failed | Inconclusive skip |
+|---|---|---|---|
+| Compact public cards, hide/show, focus and reduced motion | 8 | 4 | 0 |
+| Expanded real-service geometry | 0 | 8 | 0 |
+| Notices and error scenes | 16 | 5 | 1 |
+| Real-service height, pager and performance | 3 | 3 | 0 |
+
+Four compact width/DPR cases passed: 390/768px at DPR 1 and 1280/1600px at
+DPR 2. The other four reached the unchanged 10-second scale-settle guard.
+Both public hide/show paths, rapid-toggle focus and strict reduced motion passed;
+the WebKit reduced-motion recording contained only 160px and 46px shapes.
+The compact cases saved 124 measurements, including partial failed-case data.
+Collected eye x-centre error was at most 0.00000382 CSS px, with no hit
+intersections; this does not certify the four incomplete matrices.
+
+Seven expanded cases failed the unchanged 44px target guard on completed cards,
+with actual hit heights from 43.9604 to 43.9752px. The 1280px/DPR-2 case timed
+out after 660 seconds. Partial evidence totals 1,225 measurements and has no
+collected hit intersections. WebKit did not expose the layout-shift metric,
+so no zero-CLS claim is made. The public diagnostics retain actual ancestor
+transforms and CSS/DOMRect heights. Proposal: investigate transform settling
+and engine timing around `frontend/src/lib/animations.ts:114` and
+`frontend/src/components/todos/todo-card.tsx` before changing motion parameters;
+the near-one transform alone does not establish a root cause or permanent
+44px layout defect. The strict target and animation logic were preserved.
+
+The real completion, six distinct notices from seven real mutations, Undo, keyboard hold, unheld
+expiry, both mobile docks, authenticated/private missing routes, service outage
+and offline investigation passed. Anonymous 404 failed native Tab focus on
+Go back, as in the earlier Windows WebKit run; the pointer-hold test stopped
+while waiting for task data, before deletion or pause assertions. Neither is
+evidence that the pointer timer or error-scene recovery passed in WebKit.
+
+Close independently passed with one DELETE, HTTP 204 and a persisted GET404.
+Escape removed the notice but saved zero DELETE requests/responses. Left and
+right swipe checks failed earlier because the Undo notice remained present;
+they did not reach the final deletion assertion. These are distinct observations
+from Chromium's four missing-DELETE cases. Reproduce by deleting a real task,
+then using each separate dismissal method; inspect gesture delivery and the
+paused-action lifecycle before proposing a handler change. Existing handlers
+were outside the permitted repair scope.
+
+The categories-only script set was again empty, so the chunk-500 investigation
+was explicitly skipped without claiming a fulfilled 500 or Retry recovery.
+Offline navigation again reached Categories with `navigator.onLine === false`
+and did not display the application offline scene.
+
+Tasks owner/shared and Dashboard shared RAF captures passed. The Dashboard
+owner's 293 → 46 → 293px capture corroborated the **75px following-card mismatch
+during hide** and additionally recorded **103px during show**, above the
+unchanged 1px guard. Its pager sample count was zero. The independent bottom-card
+pager case timed out after 180 seconds and remains inconclusive.
+
+The 60-task performance case recorded **7.5 movement FPS** from four movement
+RAF frames and **20.6897 FPS** over the full observation window, with a final
+height of 46px. WebKit ran headless on Windows with
+`--disable-accelerated-compositing`; these local software-rendering results
+cannot establish hardware performance elsewhere. The engine did not expose
+longtask, so an empty array does not certify zero long tasks. The ≥55 FPS target
+was preserved. Proposal: repeat profiling with an available accelerated engine
+before attributing slow frame delivery to a particular animation.
+
+### Final Firefox prerequisite result
 
 The final Firefox project discovered all 48 new cases. The first browser launch
 failed with `browserType.launch: spawn UNKNOWN` before any page or assertion
