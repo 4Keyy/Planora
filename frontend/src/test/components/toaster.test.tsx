@@ -19,6 +19,8 @@ describe("Toaster a11y", () => {
     // The container is a labelled, polite live region.
     const region = screen.getByRole("region", { name: "Notifications" })
     expect(region).toHaveAttribute("aria-live", "polite")
+    // Notices announce status/alert, so the layout list does not require listitem roles.
+    expect(region.querySelector("ol")).toHaveAttribute("role", "presentation")
 
     // Errors get role="alert" (assertive); other toasts get role="status".
     expect(screen.getByRole("alert")).toHaveTextContent("Save failed")

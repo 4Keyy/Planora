@@ -105,6 +105,7 @@ export function Toaster() {
       }}
     >
       <ol
+        role="presentation"
         className="pointer-events-auto relative w-full max-w-[420px]"
         style={{ height, transition: reduce ? undefined : "height 240ms cubic-bezier(0.4, 0, 0.2, 1)" }}
         onPointerEnter={(e) => { if (e.pointerType === "mouse") setPointerIn(true) }}
@@ -230,7 +231,7 @@ function Notice({
       onDragEnd={onDragEnd}
       style={{ zIndex: 9 - index, transformOrigin: "50% 0%" }}
       className={cn(
-        "absolute inset-x-0 bottom-0 overflow-hidden rounded-xl bg-ink text-paper shadow-xl",
+        "absolute inset-x-0 bottom-0 overflow-hidden rounded-[calc(var(--pl-radius-xl)+var(--pl-radius-sm))] border border-paper/10 bg-ink bg-gradient-to-b from-paper/[0.06] to-transparent text-paper shadow-xl",
         gone && "pointer-events-none",
         // The ones behind say nothing until the deck opens: only their edge shows.
         behind && "[&_[data-toast-body]]:opacity-0",
@@ -244,7 +245,7 @@ function Notice({
           toast.description ? "items-start" : "items-center",
         )}
       >
-        <span className={cn("relative mt-px flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full", mark.className)}>
+        <span className={cn("relative mt-px flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ring-1 ring-inset ring-paper/15", mark.className)}>
           <Icon className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden="true" />
           {toast.countdown && Number.isFinite(toast.remaining) ? (
             <Countdown key={toast.revision} ms={toast.total} paused={paused} reduce={reduce} />
@@ -269,7 +270,7 @@ function Notice({
           <button
             type="button"
             onClick={() => actOn(toast.id)}
-            className="touch-target flex flex-shrink-0 items-center gap-1.5 self-center rounded-md px-2.5 py-1.5 text-body-sm font-bold text-paper transition-colors duration-fast hover:bg-paper/15 focus-visible:bg-paper/15"
+            className="touch-target flex flex-shrink-0 items-center gap-1.5 self-center rounded-full border border-paper/10 bg-paper/10 px-2.5 py-1.5 text-body-sm font-bold text-paper transition-colors duration-fast hover:bg-paper/20 focus-visible:bg-paper/20"
           >
             {toast.icon === "undo" ? <Undo2 className="h-4 w-4" aria-hidden="true" /> : null}
             {toast.action.label}
@@ -280,7 +281,7 @@ function Notice({
           type="button"
           onClick={() => removeToast(toast.id)}
           aria-label="Dismiss notification"
-          className="touch-target flex h-7 w-7 flex-shrink-0 items-center justify-center self-center rounded-full text-paper/55 transition-colors duration-fast hover:bg-paper/10 hover:text-paper"
+          className="touch-target flex h-7 w-7 flex-shrink-0 items-center justify-center self-center rounded-full bg-paper/5 text-paper/70 transition-colors duration-fast hover:bg-paper/15 hover:text-paper"
         >
           <X className="h-4 w-4" aria-hidden="true" />
         </button>

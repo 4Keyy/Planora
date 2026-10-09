@@ -17,6 +17,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - Todo startup now uses the restored chronological migration chain and validates existing schema/history before adopting a proven model-created baseline. The additive snapshot migration and bounded backfill preserve creation times and existing data; unknown history, unsafe defaults/indexes and legacy comments stop startup before destructive changes. Creating a subtask dirties the tracked parent even on a repeated/backward clock tick so PostgreSQL xmin rejects a concurrent audience freeze and rolls back the child/outbox together.
 
 - Notice copy: local titles use sentence case, stay within 40 characters and omit trailing punctuation; errors use "Couldn't …" with their full reason in the description. Single-task undo offers say "Task deleted"; message types and actions are unchanged.
+- Notice polish: softer 28px corners, a subtle ink highlight and border, inset icon rings and rounded action/dismiss controls follow Planora's existing tokens. The deck, gestures, countdowns and store API are unchanged.
 
 ### Fixed
 
@@ -49,6 +50,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - Avatar uploads now use SkiaSharp 4.153.1 with matching Linux native assets instead of the affected ImageSharp dependency. Actual input reads are capped at 5 MB, dimensions are validated before bitmap allocation, and fresh center-cropped WebP surfaces omit uploaded metadata while retaining the 64/128/512 variants, quality85 and immutable storage contract. Native Windows tests and a real Linux gateway upload/decode passed; the transitive NuGet scan reports no affected packages. The separate npm development-tool findings and full-graph security gate remain documented and enabled.
 - Task card controls: the completion/take-it circle now stays exactly at the vertical centre, with the eye 22px from both edges and stationary 44px hit areas at least 14px apart. The visible circle retains its existing spring/tap motion; only short active cards grow to the necessary 188px minimum. Active/completed placeholders reserve their matching rail geometry, and All friends worker badges show a count without a misleading audience denominator. Real-service Chrome coverage spans three surfaces, four widths, four DPRs, first/repeated mounts and all supported states/hover phases; the original root card motion is preserved.
 - Task card eye alignment: the eye now always shares the completion circle's x centre. Only sparse active cards reserve the necessary 160px minimum so both 44px hit areas fit without overlap; the existing card styling, motion, masonry algorithm and completed-card sizing are preserved.
+- Notice accessibility: mark the positioning list as presentational so status/alert children keep their announcements without an invalid list structure; verified with axe on the production landing in Chromium and WebKit.
 
 ### Performance
 

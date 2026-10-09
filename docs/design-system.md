@@ -1256,7 +1256,7 @@ undo, which looked, moved and stacked nothing alike.
 
 | Aspect | Rule |
 |---|---|
-| Surface | A drop of ink — `bg-ink text-paper rounded-xl shadow-xl`, the material of the bar's active tab — at most 420px wide |
+| Surface | A drop of ink, at most 420px wide: `bg-ink text-paper shadow-xl`, 28px corners from the existing radius tokens, a `paper/10` border and a subtle top highlight. The mark has an inset ring; action and dismiss controls are rounded capsules |
 | Kind | A 24px mark on the left: a check on `positive`, a warning on `alert` or `warn`, an "i" on `accent`, the undo arrow on `paper/15` |
 | Words | Title in `body-sm` semibold, sentence case, at most 40 characters, without a final full stop or exclamation mark; errors say "Couldn't …". Details use the optional `caption` description at `paper/70`; server-supplied notification titles retain their producer text |
 | Action | At most one ("Undo", "Retry"); pressing it runs it and dismisses the notice |
@@ -1267,7 +1267,7 @@ undo, which looked, moved and stacked nothing alike.
 | Repeats | The same notice said again is counted (`×2`) and its clock restarts, instead of stacking a copy |
 | Leaving | Close, Escape while inside it, or a flick sideways (72px or 500px/s); the flicked one leaves the way it was thrown |
 | Motion | Enters 28px up from 94% on `SPRING_STANDARD`; the deck moves on `SPRING_LAYOUT`; exits on `fast` + `exit`. Reduced motion: opacity only |
-| Speech | Errors `role="alert"` (assertive), the rest `role="status"` (polite), inside a labelled region |
+| Speech | Errors `role="alert"` (assertive), the rest `role="status"` (polite), inside a labelled region. The positioning `ol` has `role="presentation"` so the live-region children do not violate list semantics |
 
 `addToast({ type, title, description })` is unchanged for its 120 callers; `action`,
 `duration`, `countdown`, `icon`, `updateToast(id, …)` and the pause hooks are additions.
