@@ -267,7 +267,7 @@ export function geometryCard(page: Page, item: GeometryCase) {
 export type GeometryMeasurement = {
   offCentre: number; height: number; circleHeight: number; titleLines: number; completionHovered: boolean;
   completeHitHeight: number; completeHitWidth: number;
-  eyeBottom: number | null; eyeLeft: number | null; eyeHitHeight: number | null; gap: number | null;
+  eyeBottom: number | null; eyeLeft: number | null; eyeHitHeight: number | null; eyeHitWidth: number | null; eyeOffset: number | null; hitIntersection: number; gap: number | null;
 };
 
 export async function measureCard(card: Locator): Promise<GeometryMeasurement> {
@@ -287,10 +287,15 @@ export async function measureCard(card: Locator): Promise<GeometryMeasurement> {
       const scaleY = rect.height / button.offsetHeight;
       const top = rect.top + (parseFloat(style.borderTopWidth) + parseFloat(pseudo.top) + transform.f) * scaleY;
       const height = parseFloat(pseudo.height) * scaleY;
-      return { top, bottom: top + height, height, width: parseFloat(pseudo.width) * scaleX };
+      const left = rect.left + (parseFloat(style.borderLeftWidth) + parseFloat(pseudo.left) + transform.e) * scaleX;
+      const width = parseFloat(pseudo.width) * scaleX;
+      return { left, right: left + width, top, bottom: top + height, height, width };
     };
     const completeHit = hit(control);
     const eyeHit = eye ? hit(eye) : null;
+    // Touching float32 DOMRect edges can differ by less than 0.001 CSS px.
+    const overlapX = eyeHit ? Math.max(0, Math.min(eyeHit.right, completeHit.right) - Math.max(eyeHit.left, completeHit.left)) : 0;
+    const overlapY = eyeHit ? Math.max(0, Math.min(eyeHit.bottom, completeHit.bottom) - Math.max(eyeHit.top, completeHit.top)) : 0;
     const title = element.querySelector('h3')!;
     return {
       offCentre: b.top + b.height / 2 - (c.top + c.height / 2),
@@ -298,6 +303,9 @@ export async function measureCard(card: Locator): Promise<GeometryMeasurement> {
       titleLines: Math.round(title.getBoundingClientRect().height / parseFloat(getComputedStyle(title).lineHeight)),
       completeHitHeight: completeHit.height, completeHitWidth: completeHit.width,
       eyeBottom: e ? c.bottom - e.bottom : null, eyeLeft: e ? e.left - c.left : null,
+      eyeHitWidth: eyeHit?.width ?? null,
+      eyeOffset: e ? e.left + e.width / 2 - (b.left + b.width / 2) : null,
+      hitIntersection: overlapX > 0.001 && overlapY > 0.001 ? overlapX * overlapY : 0,
       eyeHitHeight: eyeHit?.height ?? null, gap: eyeHit ? eyeHit.top - completeHit.bottom : null,
     };
   });
@@ -314,10 +322,12 @@ export function assertGeometry(measurement: GeometryMeasurement, completed: bool
     expect(measurement.eyeBottom, detail).toBeNull();
   } else {
     expect(Math.abs(measurement.eyeBottom! - 22), detail).toBeLessThanOrEqual(0.02);
-    expect(Math.abs(measurement.eyeLeft! - 22), detail).toBeLessThanOrEqual(0.02);
+    expect(Math.abs(measurement.eyeLeft! - 23), detail).toBeLessThanOrEqual(0.02);
     expect(measurement.eyeHitHeight, detail).toBeGreaterThanOrEqual(44 - 0.001);
-    // One thousandth of a CSS pixel only absorbs floating-point rect arithmetic, not layout errors.
-    expect(measurement.gap, detail).toBeGreaterThanOrEqual(14 - 0.001);
+    expect(Math.abs(measurement.eyeOffset!), detail).toBeLessThanOrEqual(0.02);
+    expect(measurement.eyeHitWidth, detail).toBeGreaterThanOrEqual(44 - 0.001);
+    expect(measurement.hitIntersection, detail).toBeLessThanOrEqual(0.001);
+    expect(measurement.gap, detail).toBeGreaterThanOrEqual(-0.001);
   }
 }
 

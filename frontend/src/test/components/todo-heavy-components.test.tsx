@@ -114,7 +114,7 @@ describe("TodoCard", () => {
     })
   }
 
-  it("centres the check in a 1fr auto 1fr rail and pins the eye to the corner of a tall card", () => {
+  it("centres the check in a 1fr auto 1fr rail and keeps the eye underneath on a tall card", () => {
     // Owner's ruling: the circle sits on the card's vertical centre at every height and the
     // eye 22px from the bottom, as far as it sits from the left — on a card with room for
     // both. jsdom cannot lay out, so this guards the structure that produces it.
@@ -124,32 +124,25 @@ describe("TodoCard", () => {
     const eye = screen.getByRole("button", { name: "Collapse task card" })
     const rail = check.parentElement!
     expect(rail).toHaveClass("grid", "grid-rows-[1fr_auto_1fr]", "self-stretch")
-    // No height of its own: the card is as tall as its content, never held open.
-    expect(rail.className).not.toMatch(/min-h-/)
+    // The smallest rail separates two 44px targets while keeping the circle centred.
+    expect(rail).toHaveClass("min-h-[118px]")
     expect(rail.parentElement).toHaveClass("items-center")
     expect(eye.parentElement).toBe(rail)
     expect(check).toHaveClass("row-start-2")
-    expect(eye).toHaveClass("row-start-3", "self-end", "mt-4", "mb-px", "ml-px", "justify-self-start")
+    expect(eye).toHaveClass("!absolute", "bottom-px", "touch-target")
     // One padding for every open card, so the eye's bottom inset never changes.
     expect(rail.closest(".p-5")).not.toBeNull()
     offsetHeight.mockRestore()
   })
 
-  it("moves the eye to the end of the chip row when the card is too short for its corner", () => {
-    // A title and a priority: 63px of body, under the 122px the corner needs. The card keeps
-    // that height instead of being held open to 188px, and the circle keeps the rail alone.
+  it("keeps the eye in the completion rail even with a short body", () => {
     const offsetHeight = measureBodyAs(63)
     render(<TodoCard todo={baseTodo()} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />)
     const check = screen.getByRole("button", { name: "Mark as complete" })
     const eye = screen.getByRole("button", { name: "Collapse task card" })
-    const rail = check.parentElement!
-    expect(rail.children).toHaveLength(1)
-    expect(eye.parentElement).not.toBe(rail)
-    // First in the chip row, chip height: never left alone on a wrapped line, never pushed
-    // under the desktop delete strip at the right edge.
-    expect(eye.parentElement).toHaveClass("flex-wrap")
-    expect(eye.parentElement!.firstElementChild).toBe(eye)
-    expect(eye).toHaveClass("h-6", "w-6", "touch-target")
+    expect(eye.parentElement).toBe(check.parentElement)
+    expect(eye.closest(".flex-wrap")).toBeNull()
+    expect(eye).toHaveClass("h-7", "w-7", "touch-target")
     offsetHeight.mockRestore()
   })
 

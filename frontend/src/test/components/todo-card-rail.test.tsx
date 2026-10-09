@@ -32,3 +32,25 @@ describe('TodoCard worker count with a materialized All friends audience', () =>
     expect(card({ requiredWorkers: 5 })).toHaveTextContent(/^3$/);
   });
 });
+
+// A short card must keep both controls in the same vertical rail after a resize.
+describe('TodoCard hide-control placement', () => {
+  beforeEach(() => {
+    useAuthStore.setState({ user: { userId: 'owner', email: 'owner@example.test' } } as never);
+    useNotificationStore.setState({ items: [], perTask: {}, totalUnread: 0, listLoaded: false, seen: new Set() });
+  });
+
+  it.each([0, 64, 121, 122, 153, 154, 220])('keeps the eye beside the completion control at body height %i', (height) => {
+    const measured = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(height);
+    try {
+      const { getByRole } = render(<TodoCard todo={{ ...task, description: undefined, dueDate: undefined }} onComplete={vi.fn()} onDelete={vi.fn()} onEdit={vi.fn()} />);
+      const complete = getByRole('button', { name: 'Mark as complete' });
+      const eye = getByRole('button', { name: 'Collapse task card' });
+      expect(eye.parentElement).toBe(complete.parentElement);
+      expect(eye.closest('.flex-wrap')).toBeNull();
+      expect(eye).toHaveAttribute('aria-expanded', 'true');
+    } finally {
+      measured.mockRestore();
+    }
+  });
+});

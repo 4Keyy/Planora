@@ -89,7 +89,7 @@ test.describe.serial('motion and geometry contracts (browser, post-login)', () =
     { width: 390, height: 844 },
     { width: 1280, height: 900 },
   ]) {
-    test(`a card's circle is on its centre and its eye in its corner at ${viewport.width}px`, async () => {
+    test(`a card's circle is on its centre and its eye below it at ${viewport.width}px`, async () => {
       await page.setViewportSize(viewport);
       await page.goto('/tasks');
       await expect(page.locator('[data-task-card]').first()).toBeVisible({ timeout: 20_000 });
@@ -244,10 +244,10 @@ test.describe.serial('card rail state, viewport and DPR matrix (real services)',
                 const heightKey = `${surface}/${item.key}`;
                 if (render === 'first') settledHeights.set(heightKey, baseline.height);
                 else expect(Math.abs(baseline.height - settledHeights.get(heightKey)!), 'Repeated mounts retain the same settled height').toBeLessThanOrEqual(0.02);
-                if (item.key === 'own-short') expect(Math.abs(baseline.height - 188), 'The necessary short-card height is minimal').toBeLessThanOrEqual(0.02);
+                if (item.key === 'own-short') expect(Math.abs(baseline.height - 160), 'The necessary short-card height is minimal').toBeLessThanOrEqual(0.02);
                 if (item.tall) {
                   await expect(card.getByText(/Expected /)).toBeVisible();
-                  expect(baseline.height).toBeGreaterThan(188);
+                  expect(baseline.height).toBeGreaterThan(160);
                 }
                 if (item.unread) await expect(card.locator('..').getByRole('status', { name: /types/ })).toBeVisible();
                 const bounds = (await card.boundingBox())!;
