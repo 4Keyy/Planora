@@ -1,6 +1,16 @@
-import { expect, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { expect, type Browser, type BrowserContext, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { retryRateLimited } from '../_rate-limit';
 import { API_BASE, FRONTEND_BASE, registerVerifiedUser, submitLoginForm, UI_PASSWORD, type UiUser } from './_helpers';
+
+// Keep measured JSON on disk even when the active reporter is only list.
+export async function persistJsonEvidence(info: TestInfo, name: string, options: { body: string; contentType: 'application/json' }) {
+  const file = info.outputPath(name.endsWith('.json') ? name : name + '.json');
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(file, options.body);
+  await info.attach(name, { path: file, contentType: options.contentType });
+}
 
 type Json = Record<string, unknown>;
 type Session = { context: BrowserContext; page: Page; user: UiUser; token: string; csrf: string };
@@ -160,8 +170,12 @@ export class GeometryRateBudget {
 
   constructor(private readonly page: Page) {
     page.on('response', response => {
-      if (response.status() !== 429 || new URL(response.url()).origin !== new URL(API_BASE).origin) return;
-      const path = new URL(response.url()).pathname;
+      const url = new URL(response.url());
+      const apiOrigins = [new URL(API_BASE).origin, new URL(FRONTEND_BASE).origin];
+      // Production can proxy the gateway on the frontend origin. Both transports
+      // expose the same real Retry-After header and must share this test budget.
+      if (response.status() !== 429 || !apiOrigins.includes(url.origin) || !/^\/(auth|todos|notifications|users)\/api\//.test(url.pathname)) return;
+      const path = url.pathname;
       const capture = (async () => {
         const header = await response.headerValue('retry-after');
         const seconds = header && /^\d+$/.test(header) ? Number(header) : header ? (Date.parse(header) - Date.now()) / 1000 : Number.NaN;
@@ -371,4 +385,99 @@ export async function endRailLayoutObservation(page: Page): Promise<{ score: num
     const score = state.entries.reduce((total, value) => total + value, 0);
     return { score, shifts: state.sources };
   });
+}
+
+export type ExpandedGeometryCase = GeometryCase & {
+  hidden?: boolean;
+  expectedTitleLines?: 1 | 2 | 3;
+  description?: boolean;
+  dueDate?: boolean;
+  expectedDelay?: boolean;
+  wrappedChips?: boolean;
+  overdue?: boolean;
+  inProgress?: boolean;
+  foreignShared?: boolean;
+};
+export type ExpandedGeometryFixtures = Omit<GeometryFixtures, 'cases'> & { cases: ExpandedGeometryCase[] };
+
+/** Optional larger matrix; the original eight fixtures and its six active dashboard cards stay intact. */
+export async function createExpandedGeometryFixtures(browser: Browser): Promise<ExpandedGeometryFixtures> {
+  const original = await createGeometryFixtures(browser);
+  const cases: ExpandedGeometryCase[] = original.cases.map(item => ({
+    ...item,
+    ...(item.key === 'own-short' ? { expectedTitleLines: 1 as const } : {}),
+    ...(item.key === 'own-working-unread' ? { inProgress: true } : {}),
+    ...(item.key === 'own-tall-three-lines' ? { description: true, dueDate: true } : {}),
+    ...(item.key === 'friend-take' || item.key === 'friend-working' ? { foreignShared: true } : {}),
+    ...(item.key === 'revealed' ? { hidden: true } : {}),
+  }));
+  const fixtures: ExpandedGeometryFixtures = { ...original, cases };
+  const completed = (todo: Json) => todo.isCompletedByViewer === true || ['done', 'completed'].includes(string(todo.status).toLowerCase());
+  try {
+    const create = async (key: string, title: string, extra: Json = {}, features: Partial<ExpandedGeometryCase> = {}) => {
+      const todo = unwrap(await api(fixtures.owner, 'post', '/todos/api/v1/todos', {
+        title, description: null, categoryId: null, dueDate: null, expectedDate: null,
+        priority: 3, isPublic: false, sharedWithUserIds: [], ...extra,
+      }));
+      const item: ExpandedGeometryCase = { ...features, key, id: string(todo.id), title, completed: completed(todo) };
+      cases.push(item);
+      return item;
+    };
+    await create('title-two-lines', 'Expanded review the team plan before Friday', {}, { expectedTitleLines: 2 });
+    await create('title-three-lines',
+      'Expanded prepare the complete quarterly planning report and review every outstanding delivery milestone before the next board meeting',
+      {}, { expectedTitleLines: 3 });
+    await create('description', 'Expanded description', {
+      description: 'A natural description occupies two text lines without adding dates, sharing or worker metadata. '.repeat(3),
+    }, { description: true });
+    await create('date', 'Expanded dated task', { dueDate: '2060-06-20T00:00:00Z' }, { dueDate: true });
+    const delay = await create('expected-delay', 'Expanded expected and delay', {
+      expectedDate: '2060-06-15T00:00:00Z', dueDate: '2060-06-20T00:00:00Z',
+    }, { expectedDelay: true, dueDate: true });
+    // UpdateActualDate auto-completes first; UpdateTodo then applies the explicit status.
+    // MarkAsTodo preserves ActualDate, so this real owner PUT leaves an active delay card.
+    const delayed = unwrap(await api(fixtures.owner, 'put', `/todos/api/v1/todos/${delay.id}`, {
+      actualDate: '2060-06-17T00:00:00Z', status: 'todo',
+    }));
+    expect(string(delayed.status).toLowerCase(), 'Real update explicitly returns an active status').toBe('todo');
+    expect(new Date(string(delayed.expectedDate)).toISOString(), 'Real update retains ExpectedDate').toBe('2060-06-15T00:00:00.000Z');
+    expect(new Date(string(delayed.actualDate)).toISOString(), 'Real update retains ActualDate').toBe('2060-06-17T00:00:00.000Z');
+    expect(delayed.delay, 'Real API derives a nonzero delay from actual/expected dates').toBeTruthy();
+    delay.completed = completed(delayed);
+    expect(delay.completed, 'Delay fixture is active in the real API response').toBe(false);
+
+    const category = unwrap(await api(fixtures.owner, 'post', '/categories/api/v1/categories', {
+      name: 'Long project coordination and quarterly planning', description: null, color: '#0EA5E9', icon: 'Briefcase', displayOrder: 0,
+    }));
+    const shared = await create('wrapped-shared', 'Expanded shared chip wrapping', {
+      categoryId: string(category.id), sharedWithUserIds: [fixtures.friend.user.userId], requiredWorkers: 2,
+    }, { wrappedChips: true, inProgress: true });
+    await api(fixtures.owner, 'put', `/todos/api/v1/todos/${shared.id}`, { status: 'inprogress' });
+    await api(fixtures.friend, 'post', `/todos/api/v1/todos/${shared.id}/join`);
+    await create('urgent-overdue', 'Expanded urgent overdue', {
+      priority: 5, dueDate: '2020-01-01T00:00:00Z',
+    }, { dueDate: true, overdue: true });
+
+    let visible: Json[] = [];
+    await expect.poll(async () => {
+      visible = items(await api(fixtures.owner, 'get', '/todos/api/v1/todos?pageNumber=1&pageSize=50'));
+      return cases.every(item => visible.some(todo => todo.id === item.id));
+    }, { timeout: 45_000, message: 'Real expanded task lists expose every authorized fixture' }).toBe(true);
+    for (const item of cases) item.completed = completed(visible.find(todo => todo.id === item.id)!);
+    expect(cases).toHaveLength(15);
+    expect(cases.filter(item => !item.completed), 'Real list confirms thirteen active fixture states').toHaveLength(13);
+    expect(cases.filter(item => item.completed), 'Real list confirms two completed fixture states').toHaveLength(2);
+    return fixtures;
+  } catch (error) {
+    await fixtures.owner.context.close();
+    await fixtures.friend.context.close();
+    throw error;
+  }
+}
+
+export function expandedGeometryCard(page: Page, item: ExpandedGeometryCase): Locator {
+  // A hidden API DTO deliberately contains no task title. This matrix hides only one fixture.
+  return item.hidden
+    ? page.locator('[data-task-card]').filter({ has: page.getByRole('button', { name: 'Expand task card', exact: true }) })
+    : geometryCard(page, item);
 }

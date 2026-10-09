@@ -121,6 +121,8 @@ from logs or production mailboxes.
 | `E2E_FRONTEND_URL` | `http://127.0.0.1:3000` | Browser target and frontend reachability probe |
 | `E2E_MAILPIT_URL` | `http://127.0.0.1:8025` | API of the disposable SMTP sink |
 | `E2E_SMTP_PASSWORD` | required, no default | Fresh random SMTP credential used by the Compose overlay and Auth sender |
+| `E2E_DISPOSABLE_TODO_CONTAINER` | optional | Todo container for the explicit outage investigation |
+| `E2E_DISPOSABLE_PROJECT` | required with outage container | Declared disposable Compose project; inspect must match project/service labels and running state before stop/start by immutable ID |
 
 UI files call `requireFrontendReachable()` before running. An unreachable frontend
 or a response ≥500 fails the suite; required services cannot silently turn a run
@@ -149,15 +151,16 @@ through the UI before their open rail is measured. Only page-filtered states
 are marked N/A: completed cards on Dashboard and active cards in the archive.
 
 The assertions measure the circle border-box, the actual 44px pseudo-element
-hit targets, the 22px eye insets, a minimum 14px hit gap, preserved circle spring,
-minimal 188px short open cards, unchanged hover/repeat heights and zero layout
+hit targets, a shared x centre for the eye and completion control, the 23px left /
+22px bottom eye insets, no hit-target intersection, preserved circle spring,
+minimal 160px short active cards, unchanged hover/repeat heights and zero layout
 shift during each settled control-hover window, after programmatic scrolling and
 the fixed-bar morph have finished. They do not assert zero CLS for
 initial document loading, navigation or explicit expansion. The matrix's local
 480-second test budget and 300-second setup budget allow real Gateway `Retry-After` cooldowns (at most one
 UI retry per load). Fixture unread delivery may wait up to 125 seconds through a
 genuine Gateway cooldown; production limits remain enabled and no API routes are
-mocked. Failures other than a captured 429 are not retried by this helper. The
+mocked. The helper observes both direct Gateway and same-origin frontend proxy responses. Failures other than a captured 429 are not retried by this helper. The
 long matrix renews its own fixture through the real Auth refresh endpoint before
 each case, carrying only its latest cookies/CSRF/bearer in memory; access-token
 lifetimes remain unchanged.
@@ -168,6 +171,19 @@ reasons. The droplet check also saves `droplet-frames.json`, sampled after RAF
 writers with actual timestamps. Neither artifact contains fixture tokens, cookie
 state or account credentials.
 Its discovery does not establish that its assertions passed; inspect the run summary.
+
+The compact-card/notice follow-up adds:
+
+- `ui/expanded-card-geometry.ui.spec.ts`: 15 real API states (13 active, two completed), including one/two/three-line titles, description/date combinations, Expected/delay, wrapped shared metadata, urgency/overdue, in-progress, foreign shared and collapsed cards. Eight width/DPR combinations measure Tasks, real Dashboard pages and Archive on first/repeated mounts, hover and round-trip resize. JSON records content/rail rectangles, overflow, collisions, layout shifts and column-height spread.
+- `ui/compact-rail.ui.spec.ts`: shipped public TodoCards at four widths and DPR 1/2, repeated mounts, breakpoint resizing, stationary control targets and settled hover CLS; owner/shared real-height frame samples, rapid toggles/focus and reduced motion. It waits for ancestor entrance scale to settle before checking the 44px targets. Rapid-toggle/focus and reduced-motion checks are separate. The Chromium reduced-motion transient is an explicit expected failure only after successful setup and final-state checks; the strict instantaneous-height assertion remains. Public fixtures complement live-service coverage.
+- `ui/task-height-motion.ui.spec.ts`: real owner/shared tasks on Tasks/Dashboard, per-frame card/next-row/pager tracking, the bottom card in the tallest dashboard column, and FPS/long-task telemetry with 60+ real tasks. Movement FPS and overlapping long tasks use the measured height-transition interval; the complete RAF-window FPS is recorded separately. Unsupported browser metrics are explicitly annotated. A glide must contain a measured intermediate height; an instantaneous snap cannot pass just because RAF was delayed.
+- `ui/notices-errors.ui.spec.ts`: actual task completion and deferred DELETE/Undo, eight-second pointer/keyboard holds, one successful DELETE after expiry, and DELETE plus GET404 after dismiss/Escape/swipes, six distinct notices from real UI mutations that exercise collapsed three/expanded five notice limits and newest-at-bottom order, mobile dock clearance, public/authenticated 404 navigation, private missing branches, static-chunk investigation (Retry recovery is asserted only when the real SegmentScene is reached) and offline investigation. Optional outage coverage requires `E2E_DISPOSABLE_TODO_CONTAINER` and `E2E_DISPOSABLE_PROJECT` naming its declared disposable environment; it verifies the declared disposable project/service labels, running state and immutable container ID before stopping, and restarts that same ID in finally. Console errors and real prerequisite failures remain visible.
+
+The global-error document also has a direct Vitest render/recovery regression in
+`src/test/components/global-error.test.tsx`. Local cross-browser runs use a
+separate temporary configuration; do not interpret default UI-project discovery
+as Firefox/WebKit execution. Dated results and remaining limitations are recorded
+in `docs/testing.md`.
 
 The separate [`docs/ui-audit`](../../docs/ui-audit/) scripts use fixture-backed
 browser routes. Their visual measurements complement these tests and do not

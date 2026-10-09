@@ -18,6 +18,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 - Notice copy: local titles use sentence case, stay within 40 characters and omit trailing punctuation; errors use "Couldn't …" with their full reason in the description. Single-task undo offers say "Task deleted"; message types and actions are unchanged.
 - Notice polish: softer 28px corners, a subtle ink highlight and border, inset icon rings and rounded action/dismiss controls follow Planora's existing tokens. The deck, gestures, countdowns and store API are unchanged.
+- Browser verification: expanded real-service card geometry, frame-by-frame height motion, 60-task telemetry, notice Undo/deck/dock checks and error-scene recovery investigations. The dated testing report records observed results and existing animation/browser limitations.
 
 ### Fixed
 

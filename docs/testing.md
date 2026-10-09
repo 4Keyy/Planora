@@ -25,7 +25,262 @@ The sections below distinguish configured gates, observed results and test gaps.
 | Migration script artifacts | `.github/workflows/migrations.yml` | `dotnet ef migrations script --idempotent`, six DB-owning services; EF CLI 10.0.8 after restore/Release build |
 | OpenAPI artifacts | `.github/workflows/openapi.yml` | `dotnet swagger tofile`, all six HTTP services; Testing skips Todo/Collaboration startup migrations |
 
-## Verification Snapshot — 2026-10-08
+## Verification — Codex compact-card and notice stage, 2026-10-09
+
+The owner requested a visual notice polish and an eye permanently aligned below
+the completion circle after the original verification assignment. This supersedes
+the earlier row/corner placement rules. Sparse active cards now measure 160px
+(118px rail plus existing padding/border); collapsed cards remain 46px. Completed
+cards retain their natural sizing. Unscaled circle/eye hit targets are 44px, with the same
+x centre and no intersection. The grid algorithm and animation hooks are unchanged.
+
+| Check | Observed result |
+|---|---|
+| Full frontend Vitest/V8 suite | 119 files, 1,526 passed |
+| V8 statements / branches / functions / lines | 94.06% / 86.13% / 93.97% / 95.87%; all 85% gates passed |
+| Frontend ESLint, TypeScript and isolated production build | Passed; final build in `.next-codex-stage2`, not the owner's running `.next` |
+| Backend build | 0 errors, 11 warnings; existing obsolete API warnings and native-copy retries |
+| Full backend suite with fresh disposable PostgreSQL | 1,209 passed (1,119 Unit + 90 ErrorHandling), 0 failed/skipped; initial run's 59 skips subsequently covered |
+| Tracked Markdown lint | 64 files, 0 issues; default root glob separately finds 8 existing issues in untracked local AGENTS files |
+
+Installed tooling differs from the declared manifests: Next 16.2.9, Vitest 4.1.9
+and Playwright 1.61.1 were used locally; the manifests request 16.3.8, 4.1.11 and
+1.63.0 respectively. These results certify the tested local runtime, not an exact
+`npm ci` reproduction. Dependencies and the owner's running server were preserved.
+
+### New coverage and public-browser findings
+
+See `frontend/e2e/README.md` for the compact rail, real-service height-motion
+and notice/error scenarios. `global-error.test.tsx` adds three render/recovery
+checks. The eye regression was reproduced against the original component (three
+short-card cases failed), then passed all ten rail tests. The full suite includes
+the updated heavy-card and notice-copy assertions. The copy audit retained 121
+`addToast` calls and normalized 79 calls / 84 title expressions; 118 audited
+literals had zero violations and a maximum length of 39. Server notification
+titles remain producer-owned.
+
+The initial public notice/error UI/axe run passed 5/5 in Chromium 149.0.7827.55.
+WebKit 26.5 passed 3/5: native Tab skipped anchors in this Windows configuration,
+and popup-then-drag produced a late navigation that did not reproduce in an
+independent fresh drag. Error-scene logic was preserved. Firefox 151.0 could not
+launch because Windows reported an invalid Side-by-Side configuration; installation
+of browser binaries alone did not fix that system-runtime prerequisite.
+
+Axe found an actual serious list-semantics violation in the notice stack. Setting
+the positioning list to `role="presentation"` preserved each live announcement;
+final notice axe passed in Chromium and WebKit. A later stricter public run
+collected `console.error` as well and correctly failed two Chromium cases
+while the unavailable Auth/Gateway returned CSRF HTTP 500. Earlier UI/axe passes
+do not establish a zero-console result; the real-service rerun is recorded below.
+
+The landing shared-card reserve is 166px. Settled open cards are 160px and hidden
+cards 46px in Chromium/WebKit: 6px extra while open, 120px while hidden. This
+intentional reserve prevents the surrounding illustration shifting; it was not changed.
+A destination check remained on 404 at 200ms and completed navigation after 571ms.
+
+Initial compact runs caught test measurement issues: float32 DOMRect arithmetic
+returned 159.99997px and a touching-hit-edge error below 0.001 CSS px; guards now
+absorb only that numerical precision. WebKit measurements during entrance
+scaling showed targets around 43.966px; tests now wait for scale to settle
+rather than lowering the 44px requirement. Chromium DPR-2 desktop runs exhausted
+the original 180-second matrix budget, so the extended matrix uses the existing
+480-second live-matrix budget.
+
+A separate reduced-motion probe found an existing content-transition transient
+in Chromium: 160 → 70 → 46px over the first ~64ms, with no running native height
+animation. The strict instantaneous-height assertion remains unchanged. Its Chromium-only
+expected-failure annotation is applied after successful setup/final-state checks
+and saved frame data; rapid-toggle/focus is tested separately. A Chrome 154 run
+failed its final-focus assertion; the later independent diagnostic passed it.
+Other engines
+retain their normal assertion. Animation logic was not changed. The original Claude build independently reproduced
+134 → 70 → 46px in ~63ms, confirming the transient predates the eye fix. Under
+normal motion the same probe recorded intermediate
+heights 75.0625, 50.625 and 46.6094px before 46px, then no inline height/animation.
+That probe was subject to slow RAF delivery and is not a 55-FPS performance proof.
+
+### Final real-service and cross-browser results
+
+Docker Desktop initially failed to start its Linux engine; on 2026-10-09 it
+became available. A unique disposable project used gateway 15132, Mailpit 18025
+and PostgreSQL 15433, separate containers/network/volumes and fresh secrets held
+outside Git. The owner's services and frontend on port 3000 were preserved.
+
+The complete API project passed 3/3 in 3.8 minutes: actual auth/sharing, native
+avatar upload/decoding and frozen friend audiences with retained SignalR sockets.
+The production browser run uses port 3110 and the same real stack.
+
+A test helper initially ignored HTTP 429 responses proxied through the frontend
+origin. A network probe confirmed browser API traffic on port 3110, while direct
+fixture setup uses 15132. The helper now records real Retry-After from both
+origins; service rate limits and response bodies are unchanged. Public demo
+readiness also allows the actual 10-second session request and CSRF retry before
+asserting all six cards. Its strict 44px hit targets and geometry limits remain.
+
+The initial complete Chromium UI run used the first versions of the new E2E
+scenarios: 44 passed, 20 failed and 12 did not run in serial groups. It is a
+diagnostic baseline, not a green certification. All 20 existing motion/geometry
+checks passed, including all 16 live width/DPR matrices: 8,654 measurements,
+maximum circle-centre error 0.0000611 CSS px, maximum eye x-centre error
+0.0000306 CSS px, zero hit intersections and zero CLS in 512 settled control
+windows. Short-card height ranged from 159.9961 to 160.0001 CSS px because of
+fractional compositor coordinates.
+
+The new harness was corrected after that baseline: it starts completion fixtures
+in the real InProgress status, invokes desktop delete via the existing keyboard
+handler, confirms actual API state for ActualDate fixtures, waits for restored
+authenticated content before offline/chunk navigation, and retains a stable real
+card locator when collapsing removes its heading. DELETE/dismiss checks require
+exactly one successful gateway deletion followed by a real authenticated GET404.
+No product handlers, rate limits, authorization or animation algorithms were
+changed to make these checks pass.
+
+The subsequent 45-case Chrome 154.0.8037.98 run (`final-chromium2.log`)
+reported 24 passed, 10 failed and 11 not run. One of the 24 is the explicitly
+expected Chromium reduced-motion failure: 23 were ordinary passes. After correcting
+fixture readiness and selectors, the independent 14-case live geometry/motion
+run (`final-live-geometry.log`) completed all cases: 9 passed and 5 failed.
+Neither run is an all-green UI result.
+
+The focused 19-case notice/error rerun on the correct isolated production build
+(`final-notices4.log`) passed 17, failed one and explicitly skipped one
+inconclusive chunk investigation. Completion, the six-mutation deck, Undo without
+DELETE, pointer/keyboard eight-second holds, exactly one DELETE at expiry, both
+mobile dock surfaces, authenticated/public 404, private missing branches and the
+disposable service outage/repetition passed. The Todo service was restarted and
+all eleven disposable services were healthy after the outage.
+
+The failed dismiss group observed no DELETE after closing the Undo offer and
+waiting 5.4 seconds plus a 10-second assertion window. Dismissal variants are
+now four independent tests so close cannot prevent Escape/left/right coverage;
+the final new-suite discovery is 48 cases per browser. Gesture and network
+counts are saved even when the final DELETE assertion fails.
+
+The seven-case independent Chrome diagnostic (`final-diagnostics.log`) passed
+three and failed four. Both desktop compact matrices (1280/1600px, DPR 1) and
+rapid hide/show focus passed on this attempt. Captured card/ancestor transforms
+showed no remaining scale; the observed hover ancestor only translated by −2px.
+This gives a passing observation for every compact width/DPR combination across
+the runs, without erasing the earlier scale-settle failures. Each separate
+close/Escape/left/right test removed its notice but captured **zero DELETE
+requests and zero DELETE responses** before fixture cleanup. All four retain
+normal failing assertions; none is marked expected or skipped.
+
+The category-only chunk set was empty: Tasks and Categories already shared all
+observed script URLs. The test therefore did not falsely claim a fulfilled HTTP
+500 or Retry recovery. Offline navigation reached `/categories`, still displayed
+the Categories heading and reported `navigator.onLine === false`; the application
+offline error scene was not reached. These are investigation outcomes permitted
+by the assignment, not error-scene recovery passes.
+
+After the desktop interruption, an initial server restart accidentally served
+the ordinary build because the custom Next server's router ignored its supplied
+config. A fresh fixture logged in directly at gateway 15132 with HTTP 200 but
+through port 3110 with HTTP 401. The isolated launcher now passes the verified
+serialized build configuration to its own child process. The same diagnostic
+then returned HTTP 200 directly, through the frontend and in the browser. The
+failed startup attempt (`final-notices3.log`) is excluded from product conclusions.
+
+The extended 15-state geometry matrix passed 6/8 combinations and saved 2,476
+measurements, including partial evidence from the two failing combinations.
+Collected hit intersections and measured settled CLS were zero. The two failures
+were completed-card targets at 768px DPR 1 (43.9763px) and after resizing the
+1600px DPR 2 case to 768px (43.9829px), below the unchanged 43.999px numerical
+guard. These readings may include an unsettled entrance transform; they do not
+prove a permanent target-size defect. Six complete cases each saved 348
+measurements. Public compact cases passed 6/8; desktop DPR-1 cases failed the
+strict scale-settle guard before further measurement. No scale ancestor is
+assumed without captured transform evidence.
+
+Recorded column-height spread across mounts, pages, DPRs and round-trip resizes:
+
+| Width | Tasks spread | Dashboard spread | Archive spread |
+|---|---|---|---|
+| 390px | 0px, one column | 0px, one column | 0px, one column |
+| 768px | 52–136px | 77–160px | 52px |
+| 1280px | 126–269px | 87–160px | 155.59375px |
+| 1600px | 126–269px | 87–160px | 155.59375px |
+
+These are measurements of this fixture set, not a balanced-column guarantee.
+The existing grid weights were preserved.
+
+### Motion findings left for the permitted follow-up
+
+Real-service RAF capture passed for owner and shared cards on Tasks and for the
+shared card on Dashboard. The tall owner path was 293 → 46 → 293px; the shared
+path was 160 → 46 → 160px. Each contained intermediate heights, ended without
+inline height/running native animations, and the following card's per-frame
+displacement error was 0px. Those three captures contained no pager samples and
+cannot certify pagination motion.
+
+- `frontend/src/hooks/use-height-transition.ts` and the existing content transition:
+  Chromium reduced motion includes the independently reproduced 70px transient
+  described above. Proposal: investigate how the content swap affects natural
+  height before the reduced-motion final shape; keep the strict instant-height
+  check. The animation code was outside the permitted repair scope.
+- `frontend/src/components/todos/todo-card.tsx`: rapidly collapse/re-expand a
+  public card, then wait one second. Chrome 154 restored the open shape but the
+  final Collapse-button focus assertion failed. Earlier Chromium 149 probing
+  and the latest Chrome 154 independent diagnostic passed. The earlier failure
+  remains recorded as intermittent; no cause or focus-handler fix is claimed.
+- `frontend/src/app/(app)/dashboard/page.tsx:682`: collapse the tall owner
+  fixture. The captured real card no longer offered Expand, so the show phase
+  could not run. Tasks and the Dashboard shared fixture passed. Investigate the
+  owner's hide response/state merge before attributing this to the height hook.
+  A later focused capture completed both Dashboard shapes (293 → 46 → 293px)
+  but measured a **75px following-card displacement mismatch during hide**,
+  above the unchanged 1px guard; show had 0px mismatch. This replaces the earlier
+  missing-control observation with an actual failing frame measurement without
+  establishing its cause. Tasks repeated the same path with 0px mismatch.
+  The separate tallest-column bottom-card test initially timed out in a test
+  loop whose indexed Expand locators shifted as buttons disappeared. The loop
+  now expands the first remaining button and asserts the real count decreases;
+  product pagination/grid logic was not changed.
+  The focused three-case rerun (`final-pager.log`) passed Tasks, failed the
+  Dashboard 75px assertion and still timed out in the pager case after 180s;
+  teardown additionally reported a storage-state protocol error. No successful
+  bottom-card pager capture is claimed. This remains an inconclusive case.
+- The 60+ real-task capture measured **54.9702 movement FPS**, 56.6805 FPS over
+  the whole 800ms window and one overlapping **54ms long task**, from 25 actual
+  movement RAF frames. This fails the unchanged ≥55 FPS / no >50ms target.
+  A long task overlapping the interval alone does not prove the animation caused
+  it; profile the workload before changing any animation/grid code. See
+  `animation-performance.json` under `final-live-geometry`.
+
+### Independently reproduced form issue
+
+`frontend/src/app/(app)/categories/page.tsx:68` initializes a new category color
+as `var(--pl-accent)`, and `handleCreate` sends it to the real API. Creating a
+category with only its name therefore returned HTTP 400 in the notice-deck
+scenario: the backend color validator requires a six-digit hex color. This is
+outside the allowed logic changes. Proposal: store a valid hex value as the form
+default while preserving the visual token. The E2E fixture now explicitly chooses
+`0ea5e9` in the existing Hex colour field and verifies the real successful POST;
+it does not mock or alter validation.
+
+The dismissed-Undo observation points to
+`frontend/src/components/ui/undo-bar.tsx` and `frontend/src/store/toast.ts`:
+holding the offer stops the pending-action clock, but removing it can leave no
+notice to resume that clock. This is an inference from the code and real missing
+DELETE, not a completed root-cause proof. Proposal: define and test whether
+dismissal resumes or settles an already paused pending action. Neither pending
+action handlers nor the toast-store API were changed.
+
+### Final cross-browser prerequisite result
+
+The final Firefox project discovered all 48 new cases. The first browser launch
+failed with `browserType.launch: spawn UNKNOWN` before any page or assertion
+ran; the remaining 47 were not run because of the explicit one-failure stop for
+this shared prerequisite. This is a browser-runtime failure, not 48 UI failures,
+and does not certify Firefox support. The earlier Side-by-Side launch failure
+and the final launcher error are both retained in local evidence.
+
+Raw logs, TRX, JSON frame/geometry data and screenshots are kept in ignored
+`test-results/codex-stage` and `frontend/test-results/codex-stage`. They are
+local evidence, not distributable fixture credentials. No tokens, cookies or
+authorization state are included in committed documentation.
+
+## Verification Snapshot — 2026-10-08, preceding stage
 
 These results cover the reviewed integration, frozen friend audiences, migration
 startup guard, native avatar decoder and task control rail. Tests used disposable
@@ -220,9 +475,9 @@ preview. `quick-capture.test.tsx` covers a capture asked for by the palette — 
 waiting for a later mount, answered once, expiring — and `shortcuts-overlay.test.tsx` the
 **Search** group and `OPEN_SHORTCUTS_EVENT`.
 
-`frontend/src/test/quality/usability-contract.test.tsx` also verifies the create panel: collapsed, it shows "New task" with "Date, category, audience" and advertises no key (`C` belongs to quick capture); open, its title is NOT focused — a field lights up only after a click or a keystroke — and the first printable key pressed from nowhere moves focus into the title. `todo-heavy-components.test.tsx` covers the edges of that type-to-focus rule (Ctrl/Cmd chords, Space, another field, an open selector popover) and locks the task card's control rail: the circle in the middle row of a `1fr auto 1fr` grid with no height floor, the eye in the bottom-left corner when the measured body is tall enough and first in the chip row when it is not, and a completed card with no empty chip row. `src/test/store/toast.test.ts` covers the notice store (durations, repeats counted, clocks stopping while read, actions, in-place updates, the limit), `dashboard-primitives.test.tsx` the undo offer through the stack (including the window holding while the stack is read), and `segment-error.test.tsx` the crash and offline scenes.
+`frontend/src/test/quality/usability-contract.test.tsx` also verifies the create panel: collapsed, it shows "New task" with "Date, category, audience" and advertises no key (`C` belongs to quick capture); open, its title is NOT focused — a field lights up only after a click or a keystroke — and the first printable key pressed from nowhere moves focus into the title. `todo-heavy-components.test.tsx` covers the edges of that type-to-focus rule (Ctrl/Cmd chords, Space, another field, an open selector popover) and locks the task card's control rail: the circle in the middle row of a `1fr auto 1fr` grid with a necessary 118px active rail, the eye always aligned below it in the same rail, and a completed card with no empty chip row. `src/test/store/toast.test.ts` covers the notice store (durations, repeats counted, clocks stopping while read, actions, in-place updates, the limit), `dashboard-primitives.test.tsx` the undo offer through the stack (including the window holding while the stack is read), and `segment-error.test.tsx` the crash and offline scenes.
 
-Layout and motion that jsdom cannot measure are covered by `frontend/e2e/ui/motion-geometry.ui.spec.ts` against a production frontend and real services. Its create-panel checks seed nine tasks and verify unfocused opening and type-to-focus. Its separate two-user API fixtures exercise own, friend take-it, in-progress, completed, revealed, tall/Expected, multi-line title and unread-cluster cards on `/tasks` (including its completed preview), `/dashboard` and `/tasks/completed`, at widths 390/768/1280/1600 and DPR 1/1.25/1.5/2. All possible states are measured on first/repeated mounts after entrance and during card, circle and eye hover; only states excluded by the page's actual filters are N/A. Rect assertions require centre error ≤0.5 CSS px, eye insets 22px, actual semantic hit areas ≥44px with ≥14px gap, preserved circle spring, a minimal 188px short active card, unchanged hover/repeat heights and zero CLS in each settled control window. Programmatic scroll and its intentional fixed-bar morph finish before that window. Every case saves a credential-free `card-geometry.json` with measurements, layout-shift sources and captured real rate-limit cooldowns. The droplet test reads each frame after RAF writers and uses actual sample timestamps; it retains the early peak and adjacent-displacement checks that reject the recorded late 70.6px snap. Unavailable services and failures other than a captured real 429 fail the suite; limiter settings and API responses are not mocked.
+Layout and motion that jsdom cannot measure are covered by `frontend/e2e/ui/motion-geometry.ui.spec.ts` against a production frontend and real services. Its create-panel checks seed nine tasks and verify unfocused opening and type-to-focus. Its separate two-user API fixtures exercise own, friend take-it, in-progress, completed, revealed, tall/Expected, multi-line title and unread-cluster cards on `/tasks` (including its completed preview), `/dashboard` and `/tasks/completed`, at widths 390/768/1280/1600 and DPR 1/1.25/1.5/2. All possible states are measured on first/repeated mounts after entrance and during card, circle and eye hover; only states excluded by the page's actual filters are N/A. Rect assertions require centre error ≤0.5 CSS px, eye insets 23px left / 22px bottom, actual semantic hit areas ≥44px without intersection, preserved circle spring, a minimal 160px short active card, unchanged hover/repeat heights and zero CLS in each settled control window. Programmatic scroll and its intentional fixed-bar morph finish before that window. Every case saves a credential-free `card-geometry.json` with measurements, layout-shift sources and captured real rate-limit cooldowns. The droplet test reads each frame after RAF writers and uses actual sample timestamps; it retains the early peak and adjacent-displacement checks that reject the recorded late 70.6px snap. Unavailable services and failures other than a captured real 429 fail the suite; limiter settings and API responses are not mocked.
 
 `motion-geometry.ui.spec.ts` is tracked and discovered by the UI project in a
 clean checkout and CI. Previously recorded browser series remain development
