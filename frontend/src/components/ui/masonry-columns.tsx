@@ -39,6 +39,12 @@ interface MasonryColumnsProps<T> {
    * Without it (or off a timeline) the grid fades its cards in itself.
    */
   entranceAt?: number
+  /**
+   * What the grid is dealing — the page of a paged list. A new deal is a fresh hand: its cards
+   * arrive in reading order, a beat apart, as the first paint's do, rather than all at once
+   * like a card added to the hand already on the table.
+   */
+  deal?: unknown
 }
 
 /** Which column each key sits in, for the column count it was dealt at. */
@@ -74,15 +80,20 @@ export function MasonryColumns<T>({
   breakpoints,
   getItemWeight,
   entranceAt,
+  deal,
 }: MasonryColumnsProps<T>) {
   const [columnCount, setColumnCount] = useState(baseColumns)
   const prevColumnCountRef = useRef(columnCount)
   const placementRef = useRef<Placement>({ count: 0, column: new Map() })
-  // The entrance stagger is for the grid's first paint; a card added later arrives at once.
+  // The entrance stagger is for the grid's first paint and for a new deal; a card added to the
+  // hand on the table arrives at once.
   const mountedRef = useRef(false)
+  const dealtRef = useRef(deal)
+  const freshDeal = !Object.is(dealtRef.current, deal)
   useEffect(() => {
     mountedRef.current = true
-  }, [])
+    dealtRef.current = deal
+  })
 
   /*
    * A layout effect, not an effect: the count has to be right before the first paint.
@@ -161,9 +172,9 @@ export function MasonryColumns<T>({
             {colItems.map((item, row) => (
               <MasonryItem
                 key={getKey(item)}
-                // Reading order across the grid, on the first paint only: after it a new card
-                // answers an action and must not wait for its place in a cascade.
-                order={mountedRef.current ? 0 : row * columnCount + idx}
+                // Reading order across the grid, on the first paint and a new deal only: after
+                // them a new card answers an action and must not wait for its place in a cascade.
+                order={mountedRef.current && !freshDeal ? 0 : row * columnCount + idx}
                 entranceAt={entranceAt}
               >
                 {renderItem(item)}

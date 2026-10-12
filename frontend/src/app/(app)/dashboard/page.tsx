@@ -11,6 +11,7 @@ import { api, parseApiResponse, fetchTaskById, setViewerPreference, joinTodo, le
 import { ensureFriendNames } from "@/lib/friend-names"
 import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Todo, isTodoOwner, sameUserId, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
 import { useFeedSync } from "@/lib/realtime/hooks"
@@ -32,6 +33,7 @@ const CreateTodoPanel = dynamic(
   { ssr: false, loading: () => <CreatePlatePlaceholder /> },
 )
 import { MasonryColumns } from "@/components/ui/masonry-columns"
+import { HeightGlide } from "@/components/ui/height-glide"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { CreatePlatePlaceholder } from "@/components/todos/plate-placeholder"
@@ -51,6 +53,7 @@ import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { rememberOrigin } from "@/lib/shared-origin"
+import { barClearance, holdScroll, isScrollHeld } from "@/lib/scroll-hold"
 import { KeyHintsPanel, KeyHintsToggle, useKeyHints } from "@/components/todos/keyboard-hints"
 
 const STATS_COMPLETED_PREVIEW_SIZE = 100
@@ -141,6 +144,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [pageSize] = useState(6)
   const [currentPage, setCurrentPage] = useState(1)
+  // The next page is on its way; the cards on screen stay until it is here.
+  const [paging, setPaging] = useState(false)
   const [lastFetchedPage, setLastFetchedPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -240,11 +245,23 @@ export default function DashboardPage() {
   // be torn down and re-added on every pagination click).
   useEffect(() => { currentPageRef.current = currentPage }, [currentPage])
 
-  const fetchTodos = useCallback(async (page = currentPageRef.current, { signal, silent = false }: { signal?: AbortSignal; silent?: boolean } = {}) => {
+  /*
+   * The last request wins: a page asked for after another one is the one shown, however the
+   * two answers race. `paging` keeps the cards on screen while the next page is on its way —
+   * the skeleton that used to stand in for them was a different height, and the page under the
+   * pager jumped twice (measured, 2026-10-12) — and goes back to the page still shown if the next
+   * one cannot be had.
+   */
+  const fetchSeqRef = useRef(0)
+  const lastFetchedPageRef = useRef(lastFetchedPage)
+  lastFetchedPageRef.current = lastFetchedPage
+  const fetchTodos = useCallback(async (page = currentPageRef.current, { signal, silent = false, paging = false }: { signal?: AbortSignal; silent?: boolean; paging?: boolean } = {}) => {
+    const seq = ++fetchSeqRef.current
+    const latest = () => seq === fetchSeqRef.current
     try {
       // Mutation-triggered refreshes pass silent:true so the page reconciles in the
       // background without flashing the skeleton grid over cards already on screen.
-      if (!silent) setLoading(true)
+      if (!silent && !paging) setLoading(true)
       const res = await api.get<{ items: Todo[]; totalCount: number }>("/todos/api/v1/todos", {
         params: {
           pageNumber: page,
@@ -254,21 +271,27 @@ export default function DashboardPage() {
         },
         signal,
       })
-      if (signal?.aborted) return
+      if (signal?.aborted || !latest()) return
       const items = res.data.items ?? []
       const enriched = await enrichTodosWithAuthorNames(items)
-      if (signal?.aborted) return
+      if (signal?.aborted || !latest()) return
       setTodos(enriched)
       setTotalCount(res.data.totalCount ?? 0)
       setLastFetchedPage(page)
     } catch (err) {
       if (axios.isCancel(err) || signal?.aborted) return
-      if (!silent) setError(err instanceof Error ? err.message : "Failed to load todos")
+      if (paging) {
+        if (latest()) {
+          setCurrentPage(lastFetchedPageRef.current)
+          addToast({ type: "error", title: "Couldn't load that page" })
+        }
+      } else if (!silent) setError(err instanceof Error ? err.message : "Failed to load todos")
     } finally {
-      if (!silent && !signal?.aborted) setLoading(false)
+      if (!silent && !paging && !signal?.aborted) setLoading(false)
       if (!signal?.aborted) setTodosLoaded(true)
+      if (latest()) setPaging(false)
     }
-  }, [pageSize, enrichTodosWithAuthorNames])
+  }, [pageSize, enrichTodosWithAuthorNames, addToast])
 
   // Set mounted flag on client side to prevent hydration mismatches
   useEffect(() => {
@@ -775,14 +798,40 @@ export default function DashboardPage() {
     onPriority: handlePriority,
   })
 
+  /*
+   * A page change keeps the cards on screen until the next page is here, then deals the new
+   * ones in while the grid glides to their height (`HeightGlide`), so the pager under it rides
+   * along instead of jumping. The view glides up to where the list starts — never down to it —
+   * on the hold that also keeps the page from clamping while the grid changes height under it
+   * (`lib/scroll-hold.ts`). It used to scroll smoothly to the very top while a skeleton of a
+   * different height swapped in and out below, and the two fought: the pager jumped 329px.
+   */
+  const listStartRef = useRef<HTMLElement>(null)
+  const pagingHoldRef = useRef<(() => void) | null>(null)
   const handlePageChange = useCallback((page: number) => {
     const maxPage = Math.max(1, Math.ceil(totalCount / pageSize))
     const nextPage = Math.max(1, Math.min(maxPage, page))
     if (nextPage === currentPage) return
     setCurrentPage(nextPage)
-    void fetchTodos(nextPage)
-    window.scrollTo({ top: 0, behavior: "smooth" })
+    setPaging(true)
+    void fetchTodos(nextPage, { paging: true })
+    const start = listStartRef.current
+    if (!start) return
+    const to = Math.max(0, start.getBoundingClientRect().top + window.scrollY - barClearance() - 12)
+    if (to >= window.scrollY) return
+    pagingHoldRef.current?.()
+    pagingHoldRef.current = holdScroll({ to })
+    // Reduced motion holds nothing and glides nothing: it simply goes there.
+    if (!isScrollHeld()) window.scrollTo({ top: to, behavior: "auto" })
   }, [currentPage, totalCount, pageSize, fetchTodos])
+
+  // The view is let go once the next page is on screen and its grid has begun its glide.
+  useEffect(() => {
+    if (paging || !pagingHoldRef.current) return
+    pagingHoldRef.current()
+    pagingHoldRef.current = null
+  }, [paging, todos])
+  useEffect(() => () => pagingHoldRef.current?.(), [])
 
   const totalPages = Math.ceil(totalCount / pageSize)
   const totalCountForStats = totalForStats
@@ -870,7 +919,7 @@ export default function DashboardPage() {
         </div>
       </Enter>
 
-      <section aria-labelledby="active-tasks-heading" className="space-y-6">
+      <section ref={listStartRef} aria-labelledby="active-tasks-heading" className="space-y-6">
         {/* The heading and the key panel it folds away are one block: folded, the panel is a
             0px row inside it and adds no gap of the section's own. */}
         <div>
@@ -945,7 +994,15 @@ export default function DashboardPage() {
               />
             </Enter>
           ) : (
-            <>
+            <HeightGlide
+              shape={lastFetchedPage}
+              aria-busy={paging || undefined}
+              className={cn(
+                "transition-opacity duration-base ease-standard",
+                // Dimmed only if the next page is slow to come: a quick one simply replaces it.
+                paging && "pointer-events-none opacity-60 delay-150",
+              )}
+            >
               {activeTodos.length === 0 ? (
                 firstRun ? (
                   <Enter tier="panel" at={DASH.cards} className="rounded-xl border border-dashed border-line bg-paper px-6 py-12 text-center sm:px-12">
@@ -995,6 +1052,7 @@ export default function DashboardPage() {
                   columns={TASK_GRID_COLUMNS}
                   breakpoints={TASK_GRID_BREAKPOINTS}
                   entranceAt={DASH.cards}
+                  deal={lastFetchedPage}
                   renderItem={(todo) => (
                     <TodoCard
                       todo={todo}
@@ -1012,8 +1070,7 @@ export default function DashboardPage() {
                   )}
                 />
               )}
-
-            </>
+            </HeightGlide>
           )}
         </SkeletonSwap>
 

@@ -909,6 +909,12 @@ Five rules keep it a single motion:
   read in that commit, from the last scroll position seen. The toggle that takes focus
   takes it without scrolling (`preventScroll`); the follower brings it into view.
 
+The same glide carries the dashboard's grid between pages (`components/ui/height-glide.tsx`,
+clipping what grows past its bottom edge so new cards never draw over the pager). The next
+page's cards are dealt in reading order, a beat apart, like a first paint (`MasonryColumns`
+`deal`), while the old ones stay on screen until they are here — there is no skeleton
+between pages any more, which was a different height and made the pager jump 329–632px.
+
 ### 9.15 Error pages
 
 A page that cannot be shown is still a Planora page (`components/errors/`). On the left,
@@ -1140,6 +1146,7 @@ type has stopped being a primitive.
 | `lib/shared-origin` | The card-to-dialog transition: the rect a dialog grows out of, and the geometry that gets it there |
 | `hooks/use-height-transition` | An element's height gliding to whatever its content needs, on a spring, frame by frame (§ 9.14) |
 | `lib/scroll-hold` | The page held still while something changes height, and the one hand that moves the view when it must (§ 9.14) |
+| `components/ui/height-glide` | A block whose height glides — the paged task grid above the pager |
 | `lib/route-transition` | Whether this is the first page of a visit. The root and auth templates read it: the first page is in the server HTML fully visible, only in-app navigation animates |
 | `components/animated/entrance` | How a signed-in page arrives: its timeline, the tiers, arrival on scroll, the skeleton swap (§ 9.13) |
 
