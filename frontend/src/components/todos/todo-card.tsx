@@ -38,7 +38,7 @@ import { InkCheck } from "@/components/ui/ink-check"
 import { rememberOrigin } from "@/lib/shared-origin"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
 import type { ListRowProps } from "@/hooks/use-list-navigation"
-import { springEasing, useHeightTransition } from "@/hooks/use-height-transition"
+import { useHeightTransition } from "@/hooks/use-height-transition"
 import { usePriorityTarget } from "@/hooks/use-priority-target"
 
 /** Priority is a magnitude, not a category — see components/ui/priority-meter.tsx. */
@@ -78,14 +78,13 @@ const PHASE_TWEEN = { duration: DURATION_SLOW, ease: EASE_OUT_EXPO } as const
 /**
  * A card changing shape — hidden down to its one row, or opened back out — glides to its
  * new height, and everything below it in the column, the grid and the page follows on the
- * same curve (`useHeightTransition`). The curve is `SPRING_LAYOUT`, the one a card already
- * glides up its column on: critically damped, so it gathers speed from rest instead of
- * lurching — a front-loaded curve moved a short card's neighbours 25px in its first frame —
- * and lands without passing its height. Settled in about 0.4s; the content cross-fades
- * inside it on `fast`.
+ * same curve (`useHeightTransition`). So does any later change of what it holds: a hidden
+ * task's description arriving after it opened is one more glide, not a snap. The curve is
+ * `SPRING_LAYOUT`, the one a card already glides up its column on: critically damped, so it
+ * gathers speed from rest instead of lurching — a front-loaded curve moved a short card's
+ * neighbours 25px in its first frame — and lands without passing its height. Settled in
+ * about 0.4s; the content cross-fades inside it on `fast`.
  */
-let resize: { duration: number; easing: string } | null = null
-const resizeTransition = () => (resize ??= springEasing(SPRING_LAYOUT))
 const CONTENT_IN = { duration: DURATION_FAST + 0.06, ease: EASE_OUT_EXPO, delay: 0.05 } as const
 
 type CompletionPhase = "completing" | "reopening" | "joining" | null
@@ -202,23 +201,29 @@ function TodoCardComponent({
 
   const allowCollapse = !isCompleted
   const isCollapsed = allowCollapse && (optimisticCollapsed ?? (todo.hidden ?? false))
-  // Callback refs rather than an effect: the counterpart toggle mounts only after the
-  // outgoing branch has finished its exit, so it is focused the moment it exists.
+  // Callback refs rather than an effect: the counterpart toggle is focused the moment it exists.
+  // Without moving the page: the toggle mounts at the card's new shape before the card has glided
+  // there, and a focus that scrolls to it jumped the page in the glide's first frame. The glide's
+  // hold brings it into view instead (`useHeightTransition`, `keepInView`). Reduced motion has no
+  // glide and no hold, so there the browser scrolls to it as it always did.
   const focusAfterToggle = useRef<"expand" | "collapse" | null>(null)
+  const reduceMotionRef = useRef(shouldReduceMotion)
+  reduceMotionRef.current = shouldReduceMotion
   const expandButtonRef = useCallback((node: HTMLButtonElement | null) => {
     if (node && focusAfterToggle.current === "expand") {
       focusAfterToggle.current = null
-      node.focus()
+      node.focus({ preventScroll: !reduceMotionRef.current })
     }
   }, [])
   const collapseButtonRef = useCallback((node: HTMLButtonElement | null) => {
     if (node && focusAfterToggle.current === "collapse") {
       focusAfterToggle.current = null
-      node.focus()
+      node.focus({ preventScroll: !reduceMotionRef.current })
     }
   }, [])
 
   const cardRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const isInfoDense = !!todo.description && (!!todo.dueDate || !!todo.expectedDate || !!todo.delay)
   // Critically damped: a card closing a gap or moving up its column lands without overshoot.
   const layoutTransition = shouldReduceMotion ? { duration: 0 } : SPRING_LAYOUT
@@ -237,9 +242,14 @@ function TodoCardComponent({
     setOptimisticCollapsed(null)
   }, [todo.id, todo.hidden])
 
-  useHeightTransition(cardRef, isCollapsed ? "collapsed" : "open", {
-    ...resizeTransition(),
+  // The card glides to whatever its content needs; folding, its top and a focused toggle stay in
+  // view while the page holds still (`lib/scroll-hold.ts`).
+  useHeightTransition(cardRef, {
+    content: contentRef,
+    shape: isCollapsed ? "collapsed" : "open",
+    spring: SPRING_LAYOUT,
     disabled: !!shouldReduceMotion,
+    keepInView: true,
   })
 
   /*
@@ -670,6 +680,7 @@ function TodoCardComponent({
         )}
 
         <CardContent
+          ref={contentRef}
           className={cn(
             // Symmetric 20px padding keeps the completion circle centred in the card.
             isCollapsed ? "px-5 py-2" : "p-5",

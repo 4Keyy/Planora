@@ -341,7 +341,9 @@ Three separate mechanisms, because no single one reaches everywhere:
 
 If you write a rAF loop, it is your job to handle the third case. Nothing else will. `hooks/use-collapse-scroll.ts` does: its 650ms glide to the top jumps instead under
 reduced motion, stops the moment the reader scrolls (wheel, touch, key, pointer), and is
-cancelled on unmount so no frame writes to a page that has moved on.
+cancelled on unmount so no frame writes to a page that has moved on. So does
+`lib/scroll-hold.ts` (§ 9.14): it holds nothing under reduced motion, and any scroll it did
+not make itself — a wheel, a scrollbar drag, find-in-page — hands the page back at once.
 
 ### The four laws
 
@@ -857,13 +859,14 @@ what was waiting to scroll into view.
 
 Hiding a task folds its card down to one row; showing it opens it back out. The card's
 real height glides between the two (`hooks/use-height-transition.ts`): a FLIP on `height`
-through the Web Animations API, from the height it had to the height its new content
-gives it, decided before the frame is painted. Because the height itself moves, everything
-below it reflows each frame — the cards under it in its column, the grid's height, the
-pager under the grid, the end of the page — so all of it moves as one, on one curve, with
-nothing to coordinate. The pager used to snap: it was not part of any animation.
+through the Web Animations API, from the height it showed to the height its content now
+needs, decided in a layout effect before the frame is painted. Because the height itself
+moves, everything below it reflows each frame — the cards under it in its column, the
+grid's height, the pager under the grid, the end of the page — so all of it moves as one,
+on one curve, with nothing to coordinate. The pager used to snap: it was not part of any
+animation.
 
-The curve is `SPRING_LAYOUT` sampled into a CSS `linear()` easing (`springEasing`), the
+The curve is `SPRING_LAYOUT` sampled into a CSS `linear()` easing (`springCurve`), the
 spring a card already glides up its column on: critically damped, so it gathers speed
 from rest instead of lurching, and lands without passing its height (settled in ~430ms;
 a bezier stands in where `linear()` is unsupported). Inside, the two shapes cross-fade:
@@ -872,6 +875,39 @@ the leaving one is lifted out of the flow (`popLayout`) and fades under the card
 and it leaves nothing behind. Height is not a compositor property — that is the point,
 it is what carries everything below — and at one element for under half a second it is
 cheap. Reduced motion: the height changes in one step.
+
+Five rules keep it a single motion:
+
+- **Any change of what it holds, not only a change of shape.** A hidden task opened
+  before its description and dates had arrived glided to the height of what it had and
+  snapped 135px taller when the rest came. Every commit is measured — the content's own
+  height, which no glide constrains — and a change glides, so content that comes late is
+  one more glide. A change that arrives outside a commit while a glide runs (a font, an
+  image) turns that glide through a ResizeObserver; at rest the browser lays it out.
+- **A change mid-glide is a turn, not a restart.** The new glide starts from the height
+  the old one had reached, at the speed it was moving (`springCurve(spring, v0)`), capped
+  at the spring's natural frequency so it never overshoots.
+- **Ahead of framer-motion.** The glide is pinned in the layout effect, before the
+  microtask in which framer-motion measures the cards around it for their `layout`
+  animations, so they see no jump to animate and ride the reflow. The card below moves by
+  exactly what the card grew, to within half a pixel.
+- **The clock is the frames that are drawn.** The animation is held paused and moved on
+  each frame by at most two frames' worth, however long that frame took, and ends when its
+  time is up. A commit and the effects after it can hold the main thread for several
+  frames — 66px of the glide vanished into one frame on a desktop, 239px on a phone at a
+  quarter of the speed — and a stalled frame now only delays the glide.
+- **The page holds still** (`lib/scroll-hold.ts`). While anything glides, scroll
+  anchoring is off and the document is held at least as tall as the bottom of the view,
+  so the browser moves nothing on its own: anchoring dragged the page up by a hidden
+  card's whole height (62px in one frame, 204px at a quarter of the speed, 255px on a
+  phone), and a page that became shorter than the scroll position was clamped in a single
+  frame. The view is moved by one hand instead — a critically damped follower that trails
+  the glide — towards the one place it has to be: where the reader was, the new bottom of
+  a page that became shorter, the top of a list that was just paged, and always far
+  enough to keep in view the row a card folded into, or the control the keyboard was
+  handed. A shape change writes the hold from an insertion effect, before any layout is
+  read in that commit, from the last scroll position seen. The toggle that takes focus
+  takes it without scrolling (`preventScroll`); the follower brings it into view.
 
 ### 9.15 Error pages
 
@@ -1102,6 +1138,8 @@ type has stopped being a primitive.
 | Module | Owns |
 |---|---|
 | `lib/shared-origin` | The card-to-dialog transition: the rect a dialog grows out of, and the geometry that gets it there |
+| `hooks/use-height-transition` | An element's height gliding to whatever its content needs, on a spring, frame by frame (§ 9.14) |
+| `lib/scroll-hold` | The page held still while something changes height, and the one hand that moves the view when it must (§ 9.14) |
 | `lib/route-transition` | Whether this is the first page of a visit. The root and auth templates read it: the first page is in the server HTML fully visible, only in-app navigation animates |
 | `components/animated/entrance` | How a signed-in page arrives: its timeline, the tiers, arrival on scroll, the skeleton swap (§ 9.13) |
 

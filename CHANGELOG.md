@@ -24,6 +24,9 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Fixed
 
+- Dashboard and Tasks: hiding a card while scrolled down no longer pulls the page up under the reader. Scroll anchoring dragged the page by the card's whole height (62px in one frame, 204px at a quarter of the speed, 255px on a phone) and a page that became shorter clamped in a single frame; on the dashboard it ended at the very top. While a card changes height the page now holds still and the view moves only as far as it must — to the new end of the page, or to keep the folded row in view — on one critically damped glide that trails the card, the way the page lifts when New task closes. Any input hands the page back at once; reduced motion keeps the browser's own one-step behaviour. `lib/scroll-hold.ts`.
+- Task cards: a card's height glide no longer skips. The glide's clock runs on the frames that are drawn, so a busy commit delays it instead of eating its first 66px (239px on a slowed phone), and a change of content mid-glide turns it from where it is, at the speed it has.
+
 - Command palette: hidden tasks no longer reappear in Recent after being opened. Recent skips hidden and missing tasks and fills its four places from older history; Up next also excludes hidden tasks, while the Tasks tab, search results and scoped lists keep them available under the existing blur and reveal behavior.
 
 - Landing task cards now show the Home category watermark and colour glow in the sharing demo, and valid category icons and colours throughout the keyboard sandbox. Every demo task response resolves current category metadata; hidden-list and detail projections match the API, including the palette’s `revealHidden` opt-in. Hiding the viewer copy clears the owner’s category fields.
