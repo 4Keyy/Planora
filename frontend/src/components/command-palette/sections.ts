@@ -280,7 +280,7 @@ function buildHome(input: BuildInput): PaletteSection[] {
   for (const entry of recent) {
     if (entry.kind === "task") {
       const task = tasks.find((t) => t.id === entry.id)
-      if (task) recentItems.push(taskItem(task))
+      if (task && !task.hidden) recentItems.push(taskItem(task))
     } else if (entry.kind === "screen") {
       const screen = SCREENS.find((s) => s.id === entry.id)
       if (screen) recentItems.push(fromStatic("screen", screen))

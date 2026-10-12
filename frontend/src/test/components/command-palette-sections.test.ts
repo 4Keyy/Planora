@@ -97,16 +97,57 @@ describe("buildSections — nothing typed", () => {
     expect(sections[1].items.map((i) => i.key)).not.toContain("task:flights")
   })
 
-  it("never recommends a hidden task, though search still finds it", () => {
+  it("never offers a hidden task in Recent or Up next, though search still finds it", () => {
     const secret = task({ id: "gift", title: "Buy the anniversary gift", dueDate: day(-3), hidden: true })
     const tasks = [secret, ...TASKS]
-    const home = buildSections(input({ tasks }))
-    // The most overdue open task, and still not in Up next.
+    const home = buildSections(input({ tasks, recent: [{ kind: "task", id: "gift" }] }))
+    // The most overdue open task stays hidden, even if it was opened before.
+    expect(ids(home)).toEqual(["next", "actions", "screens"])
     expect(home.find((s) => s.id === "next")!.items.map((i) => i.task?.id)).toEqual(["bank", "bills", "flights", "hotel", "report"])
-    expect(keys(buildSections(input({ tasks, q: "gift" })))).toContain("task:gift")
-    // Opened before, it is where the reader left it — Recent only remembers.
-    const recent = buildSections(input({ tasks, recent: [{ kind: "task", id: "gift" }] }))
-    expect(recent[0].items.map((i) => i.key)).toEqual(["task:gift"])
+    expect(keys(home)).not.toContain("task:gift")
+    expect(flatten(buildSections(input({ tasks, q: "gift" }))).find((i) => i.key === "task:gift")?.task).toMatchObject({ hidden: true })
+  })
+
+  it("fills Recent from older entries after skipping hidden and missing tasks", () => {
+    const hidden = task({ id: "gift", title: "Gift", hidden: true })
+    const hiddenDone = task({ id: "old-gift", title: "Old gift", hidden: true, completed: true, completedAt: day(-1) })
+    const sections = buildSections(input({
+      tasks: [hidden, hiddenDone, ...TASKS],
+      recent: [
+        { kind: "task", id: "gift" },
+        { kind: "task", id: "flights" },
+        { kind: "task", id: "old-gift" },
+        { kind: "task", id: "deleted-since" },
+        { kind: "screen", id: "categories" },
+        { kind: "category", id: "travel" },
+        { kind: "person", id: "ada" },
+        { kind: "screen", id: "profile" },
+      ],
+    }))
+    expect(sections.find((s) => s.id === "recent")!.items.map((i) => i.key)).toEqual([
+      "task:flights", "screen:categories", "category:travel", "person:ada",
+    ])
+    expect(sections.find((s) => s.id === "next")!.items.map((i) => i.key)).not.toContain("task:flights")
+    expect(flatten(sections).filter((i) => i.kind === "task").every((i) => !i.task!.hidden)).toBe(true)
+  })
+
+  it("keeps hidden tasks in the Tasks tab and explicit scopes", () => {
+    const hidden = task({ id: "gift", title: "Gift", hidden: true, categoryId: "travel", ownerId: "ada", dueDate: day(-3) })
+    const hiddenDone = task({ id: "old-gift", title: "Old gift", hidden: true, completed: true, completedAt: day(-1), categoryId: "travel", ownerId: "ada" })
+    const tasks = [hidden, hiddenDone, ...TASKS]
+    const taskTab = buildSections(input({ tasks, tab: "tasks" }))
+    expect(taskTab.find((s) => s.id === "open")!.items.map((i) => i.key)).toContain("task:gift")
+    expect(taskTab.find((s) => s.id === "done")!.items.map((i) => i.key)).toContain("task:old-gift")
+
+    const scopes: Scope[] = [
+      { kind: "category", id: "travel", label: "Travel", color: null, icon: null },
+      { kind: "person", id: "ada", label: "Ada", avatar: null },
+      { kind: "view", id: "overdue", label: "Overdue" },
+    ]
+    for (const scope of scopes) {
+      expect(keys(buildSections(input({ tasks, scope })))).toContain("task:gift")
+      expect(keys(buildSections(input({ tasks, scope, q: "gift" })))).toContain("task:gift")
+    }
   })
 
   it("lists one kind per tab", () => {

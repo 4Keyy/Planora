@@ -1326,7 +1326,9 @@ actions; `docs/features.md` § Command palette has the behaviour. The design dec
   on the highlighted row.
 - **Nothing typed is still an answer**: view chips that double as a status line, Recent,
   Up next. **No query is a dead end**: the last row offers to create the task.
-- **A hidden task is found, never offered.** Up next leaves it out; a search finds it
+- **A hidden task is found, never offered.** Recent and Up next leave it out;
+  Recent fills up to four slots from older eligible history. The Tasks tab and explicit
+  scopes still include it, and a search finds it
   blurred (`blur-[4px]`, the task card's redaction at row size) until it is reached for —
   pointed at, or moved to with the arrows. Two copies of the row share one grid cell and
   swap opacity, so the reveal is a composited cross-fade and never an animated `filter`.

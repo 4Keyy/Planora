@@ -24,6 +24,8 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Fixed
 
+- Command palette: hidden tasks no longer reappear in Recent after being opened. Recent skips hidden and missing tasks and fills its four places from older history; Up next also excludes hidden tasks, while the Tasks tab, search results and scoped lists keep them available under the existing blur and reveal behavior.
+
 - Landing task cards now show the Home category watermark and colour glow in the sharing demo, and valid category icons and colours throughout the keyboard sandbox. Every demo task response resolves current category metadata; hidden-list and detail projections match the API, including the palette’s `revealHidden` opt-in. Hiding the viewer copy clears the owner’s category fields.
 
 - Landing seat rail: rapid drags, outside releases and repeated keyboard or pointer selections no longer amplify the ring's percentage-string spring velocity. The ring and fill share one clamped numeric seat position, with matching initial renders and instant reduced-motion positioning.
