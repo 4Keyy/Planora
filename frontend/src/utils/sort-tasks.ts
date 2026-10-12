@@ -1,5 +1,14 @@
 import { TodoPriority } from "@/types/todo"
 
+/** Where a task sorts: compared element by element, smaller first. See `sortKey`. */
+export type SortKey = readonly number[]
+
+/**
+ * The place a card opened from hidden keeps (`keepPlace`): the key it sorted by while it was
+ * hidden, and the key its full copy sorts by.
+ */
+export type HeldPlace = { hidden: SortKey; open: SortKey }
+
 export type SortableTask = {
   id: string
   title?: string | null
@@ -14,6 +23,8 @@ export type SortableTask = {
   isWorking?: boolean | null
   expectedDate?: string | null
   delay?: string | null
+  /** Client-only — see `keepPlace`. A copy fresh from the server carries none. */
+  heldPlace?: HeldPlace | null
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -128,7 +139,35 @@ function sortKey(task: SortableTask, today: Date): [number, number, number, numb
   return [1, 3, dateMs, priorityRank(task), createdMs]
 }
 
+const sameKey = (a: SortKey, b: SortKey) => a.length === b.length && a.every((value, i) => value === b[i])
+
+/** The key a task is placed by: its own, unless it still holds the place it was opened in. */
+function placeKey(task: SortableTask, today: Date): SortKey {
+  const key = sortKey(task, today)
+  const held = task.heldPlace
+  return held && sameKey(key, held.open) ? held.hidden : key
+}
+
 // ─── public API ───────────────────────────────────────────────────────────────
+
+/**
+ * Opening a hidden card never moves it.
+ *
+ * The server sends a hidden task without what would place it — no due date, and for a task with
+ * an audience not even its status or when it was made — so a hidden card sorts as though it had
+ * no date. Opening it brings the rest, and the full copy sorted somewhere else: the card opened
+ * and then flew off to its date's place, as far as 800px up the list, with the keyboard's focus
+ * dragging the page after it on a phone (measured, 2026-10-12).
+ *
+ * The opened copy keeps the place the hidden one had, for as long as nothing that decides its
+ * place changes: a new priority, a due date, being taken into work — anything that changes its
+ * key — sends it where it belongs, as it would any card. A copy fresh from the server (the next
+ * time the list loads) carries no held place and sorts by its own key.
+ */
+export function keepPlace(before: SortableTask, after: SortableTask): HeldPlace {
+  const today = todayStart()
+  return { hidden: placeKey(before, today), open: sortKey(after, today) }
+}
 
 /** A card's frame: its 1px border and 20px of padding, top and bottom. */
 const CARD_FRAME = 42
@@ -179,7 +218,8 @@ export function getTaskWeight(task: SortableTask): number {
  *       f. No due date (sorted by priority only — see step 2)
  *  2. Within the same date bucket: Urgent → High → Medium → Low → VeryLow → None
  *  3. Completed tasks — most recently completed first
- *  4. Hidden tasks — no longer special (they stay in their place)
+ *  4. Hidden tasks — no longer special (they stay in their place), and a card opened from
+ *     hidden keeps the place it was opened in (`keepPlace`)
  *
  * Never mutates the original array.
  */
@@ -187,8 +227,8 @@ export function sortTasks<T extends SortableTask>(tasks: T[]): T[] {
   const today = todayStart()
 
   return [...tasks].sort((a, b) => {
-    const ka = sortKey(a, today)
-    const kb = sortKey(b, today)
+    const ka = placeKey(a, today)
+    const kb = placeKey(b, today)
 
     for (let i = 0; i < ka.length; i++) {
       if (ka[i] !== kb[i]) return ka[i] - kb[i]

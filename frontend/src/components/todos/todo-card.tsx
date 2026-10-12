@@ -64,6 +64,9 @@ const PRIORITY_CONFIG: Record<string, { num: number }> = {
   Critical: { num: 5 },
 }
 
+/** How long a pointer rests on a hidden card before the page starts fetching it. */
+const REVEAL_INTENT_DWELL_MS = 90
+
 const COMPLETION_PRE_COMMIT_MS = 360
 const REOPEN_PRE_COMMIT_MS = 260
 const JOIN_PRE_COMMIT_MS = 280
@@ -102,6 +105,17 @@ interface TodoCardProps {
    * hidden, not finished. Omitted, the keys pass it by.
    */
   onPriority?: (level: number) => void
+  /**
+   * A hidden card is about to be opened — the pointer has rested on it for a moment, it took
+   * focus, or it was pressed. The page may start fetching what opening it will show
+   * (`useTaskVisibility`), so the card opens once, with everything in it.
+   */
+  onRevealIntent?: () => void
+  /**
+   * The page is still hiding or opening this task — set when the keyboard opened it, which
+   * goes through the page and never through the card's own toggle.
+   */
+  visibilityPending?: boolean
   variant?: "default" | "completed"
   /**
    * Roving tabindex, the ref and the selection flags from `useListNavigation`.
@@ -131,6 +145,8 @@ function TodoCardComponent({
   onToggleHidden,
   onJoin,
   onPriority,
+  onRevealIntent,
+  visibilityPending = false,
   variant = "default",
   rowProps,
   viewerId: viewerIdProp,
@@ -139,7 +155,9 @@ function TodoCardComponent({
   // Inside a page's grid the grid rises the card in; rising here as well would stack two rises.
   const arrivalHandled = useArrivalHandled()
   const [optimisticCollapsed, setOptimisticCollapsed] = useState<boolean | null>(null)
-  const [isVisibilityPending, setIsVisibilityPending] = useState(false)
+  const [isTogglePending, setIsVisibilityPending] = useState(false)
+  // The card's own toggle, or the page's on its behalf.
+  const isVisibilityPending = isTogglePending || visibilityPending
   const [completionPhase, setCompletionPhase] = useState<CompletionPhase>(null)
   const [showCompletionCelebration, setShowCompletionCelebration] = useState(false)
   const [isControlHover, setIsControlHover] = useState(false)
@@ -229,9 +247,25 @@ function TodoCardComponent({
   const layoutTransition = shouldReduceMotion ? { duration: 0 } : SPRING_LAYOUT
   const contentTransition = shouldReduceMotion ? { duration: 0 } : TWEEN_FAST
 
+  /*
+   * A hidden card about to be opened: a pointer resting on it, focus, or a press. A pointer
+   * sweeping across the list on its way somewhere else is not one — it has to stay a moment.
+   */
+  const intentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearRevealIntent = () => {
+    if (intentTimerRef.current) clearTimeout(intentTimerRef.current)
+    intentTimerRef.current = null
+  }
+  const announceRevealIntent = () => {
+    clearRevealIntent()
+    if (isCollapsed) onRevealIntent?.()
+  }
+  const awaitsRevealIntent = isCollapsed && !!onRevealIntent
+
   useEffect(() => {
     return () => {
       mountedRef.current = false
+      if (intentTimerRef.current) clearTimeout(intentTimerRef.current)
       if (celebrationTimerRef.current) {
         clearTimeout(celebrationTimerRef.current)
       }
@@ -475,6 +509,20 @@ function TodoCardComponent({
                 : VARIANTS_CARD.visible
         }
         exit={VARIANTS_CARD.exit}
+        onFocus={() => {
+          rowProps?.onFocus()
+          if (awaitsRevealIntent) announceRevealIntent()
+        }}
+        onPointerEnter={
+          awaitsRevealIntent
+            ? () => {
+                clearRevealIntent()
+                intentTimerRef.current = setTimeout(announceRevealIntent, REVEAL_INTENT_DWELL_MS)
+              }
+            : undefined
+        }
+        onPointerLeave={clearRevealIntent}
+        onPointerDown={awaitsRevealIntent ? announceRevealIntent : undefined}
         whileHover={isControlHover || isVisibilityPending || isCompletionPending || isCompleted ? undefined : HOVER_LIFT}
         whileTap={isCompletionPending ? undefined : TAP_CARD}
         transition={{

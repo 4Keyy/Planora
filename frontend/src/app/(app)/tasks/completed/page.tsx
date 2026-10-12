@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch, AlertTriangle } from "lucide-react"
-import { api, setTaskHidden, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
+import { api, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
 import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
@@ -38,6 +38,7 @@ import { Pagination } from "@/components/ui/pagination"
 import { PageHeader } from "@/components/layout/page-header"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { useListNavigation } from "@/hooks/use-list-navigation"
+import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { rememberOrigin } from "@/lib/shared-origin"
 
 const PAGE_SIZE = 20
@@ -405,44 +406,15 @@ export default function CompletedTasksPage() {
     }
   }, [todos, addToast])
 
-  const handleToggleHidden = useCallback(async (todoId: string) => {
-    const existing = todosRef.current.find(t => t.id === todoId)
-    if (!existing) return
-    const newHidden = !(existing.hidden ?? false)
-    const isOwner = isTodoOwner(existing, user?.userId)
-    const canOptimisticallyToggle = isOwner || newHidden
-
-    if (canOptimisticallyToggle) {
-      setTodos(prev => prev.map(t => t.id === todoId ? { ...t, hidden: newHidden } : t))
-    }
-
-    try {
-      if (isOwner) {
-        await setTaskHidden(todoId, newHidden)
-
-        if (!newHidden) {
-          const fullTask = await fetchTaskById(todoId)
-          const authorName = friendNameCache.current.get(fullTask.userId)
-          const enriched = authorName ? { ...fullTask, authorName, hidden: false } : { ...fullTask, hidden: false }
-          setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
-        }
-      } else {
-        await setViewerPreference(todoId, { hiddenByViewer: newHidden })
-
-        if (!newHidden) {
-          const fullTask = await fetchTaskById(todoId)
-          const authorName = friendNameCache.current.get(fullTask.userId)
-          const enriched = authorName ? { ...fullTask, authorName, hidden: false } : { ...fullTask, hidden: false }
-          setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
-        }
-      }
-    } catch {
-      if (canOptimisticallyToggle) {
-        setTodos(prev => prev.map(t => t.id === todoId ? { ...t, hidden: !newHidden } : t))
-      }
-      addToast({ type: "error", title: "Couldn't update task visibility" })
-    }
-  }, [addToast, user?.userId])
+  // Hiding and opening a task, as every list does it (`useTaskVisibility`).
+  const visibility = useTaskVisibility({
+    find: (id) => todosRef.current.find(t => t.id === id),
+    update: (id, change) => setTodos(prev => prev.map(t => t.id === id ? change(t) : t)),
+    viewerId: user?.userId,
+    authorName: (userId) => friendNameCache.current.get(userId),
+    onError: () => addToast({ type: "error", title: "Couldn't update task visibility" }),
+  })
+  const handleToggleHidden = visibility.toggle
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 

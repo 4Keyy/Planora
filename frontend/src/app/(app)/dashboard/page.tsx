@@ -7,7 +7,7 @@ import { AnimatePresence, useReducedMotion } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import { Plus, CheckCircle2, AlertTriangle, CalendarClock, Users, ArrowRight } from "lucide-react"
 import axios from "axios"
-import { api, parseApiResponse, setTaskHidden, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
+import { api, parseApiResponse, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
@@ -49,6 +49,7 @@ import { QuickCapture } from "@/components/todos/quick-capture"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
+import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { rememberOrigin } from "@/lib/shared-origin"
 import { KeyHintsPanel, KeyHintsToggle, useKeyHints } from "@/components/todos/keyboard-hints"
 
@@ -686,66 +687,23 @@ export default function DashboardPage() {
     }
   }, [fetchTodos, addToast])
 
-  const handleToggleHidden = useCallback(async (todoId: string) => {
-    const existing = todosRef.current.find(t => t.id === todoId) ?? statsTodosRef.current.find(t => t.id === todoId)
-    if (!existing) return
-    const newHidden = !(existing.hidden ?? false)
-    const isOwner = !!user?.userId && existing.userId === user.userId
-    const canOptimisticallyToggle = isOwner || newHidden
-
-    const optimisticUpdate = (prev: Todo[]) =>
-      prev.map(t => t.id === todoId ? { ...t, hidden: newHidden } : t)
-    if (canOptimisticallyToggle) {
-      setTodos(optimisticUpdate)
-      setStatsTodos(optimisticUpdate)
-    }
-
-    try {
-      if (isOwner) {
-        const response = await setTaskHidden(todoId, newHidden)
-
-        const mergeHidden = (prev: Todo[]) =>
-          prev.map(t =>
-            t.id === todoId
-              ? {
-                  ...t,
-                  hidden: response.hidden,
-                  categoryName: response.categoryName ?? t.categoryName,
-                  categoryId: response.categoryId ?? t.categoryId,
-                }
-              : t
-          )
-        setTodos(mergeHidden)
-        setStatsTodos(mergeHidden)
-
-        if (!newHidden) {
-          const fullTask = await fetchTaskById(todoId)
-          const authorName = friendNameCache.current.get(fullTask.userId)
-          const enriched = authorName ? { ...fullTask, authorName, hidden: false } : { ...fullTask, hidden: false }
-          setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
-          setStatsTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
-        }
-      } else {
-        await setViewerPreference(todoId, { hiddenByViewer: newHidden })
-
-        if (!newHidden) {
-          const fullTask = await fetchTaskById(todoId)
-          const authorName = friendNameCache.current.get(fullTask.userId)
-          const enriched = authorName ? { ...fullTask, authorName, hidden: false } : { ...fullTask, hidden: false }
-          setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
-          setStatsTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...enriched } : t))
-        }
-      }
-    } catch {
-      if (canOptimisticallyToggle) {
-        const revert = (prev: Todo[]) =>
-          prev.map(t => t.id === todoId ? { ...t, hidden: !newHidden } : t)
-        setTodos(revert)
-        setStatsTodos(revert)
-      }
-      addToast({ type: "error", title: "Couldn't update task visibility" })
-    }
-  }, [addToast, user?.userId])
+  /*
+   * Hiding a card and opening it again (`useTaskVisibility`), as every list does it. Opening
+   * waits for the task's content, fetched ahead while the pointer rests on the card, so the
+   * card opens once with everything in it — and keeps its place in the list.
+   */
+  const visibility = useTaskVisibility({
+    find: (id) => todosRef.current.find(t => t.id === id) ?? statsTodosRef.current.find(t => t.id === id),
+    update: (id, change) => {
+      const apply = (prev: Todo[]) => prev.map(t => t.id === id ? change(t) : t)
+      setTodos(apply)
+      setStatsTodos(apply)
+    },
+    viewerId: user?.userId,
+    authorName: (userId) => friendNameCache.current.get(userId),
+    onError: () => addToast({ type: "error", title: "Couldn't update task visibility" }),
+  })
+  const handleToggleHidden = visibility.toggle
 
   const handleDeleteCategory = async (categoryId: string) => {
     try {
@@ -1046,6 +1004,8 @@ export default function DashboardPage() {
                       onDelete={() => requestDelete(todo)}
                       onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
                       onToggleHidden={() => handleToggleHidden(todo.id)}
+                      onRevealIntent={() => visibility.prefetch(todo.id)}
+                      visibilityPending={visibility.isPending(todo.id)}
                       onJoin={async () => handleJoin(todo.id)}
                       onPriority={(level) => handlePriority(todo.id, level)}
                     />

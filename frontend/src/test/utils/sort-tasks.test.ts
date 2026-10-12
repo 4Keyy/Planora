@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { getTaskWeight, sortTasks, type SortableTask } from "@/utils/sort-tasks"
+import { getTaskWeight, keepPlace, sortTasks, type SortableTask } from "@/utils/sort-tasks"
 import { TodoPriority, TodoStatus } from "@/types/todo"
 
 const task = (id: string, overrides: Partial<SortableTask> = {}): SortableTask => ({
@@ -169,6 +169,41 @@ describe("sortTasks", () => {
 
     expect(sortTasks(original).map((item) => item.id)).toEqual(["now", "later"])
     expect(original.map((item) => item.id)).toEqual(["later", "now"])
+  })
+})
+
+describe("keepPlace", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // A hidden copy has no date, so it sorts among the undated tasks by priority.
+  const hidden = task("opened", { hidden: true, priority: TodoPriority.High })
+  const full = { ...hidden, hidden: false, dueDate: "2026-04-28T00:00:00.000Z" }
+  const others = [task("today", { dueDate: "2026-05-01T00:00:00.000Z" }), task("undated", { priority: TodoPriority.Low })]
+
+  it("keeps a card opened from hidden where it was, though its full copy sorts elsewhere", () => {
+    expect(sortTasks([...others, full]).map((t) => t.id)).toEqual(["opened", "today", "undated"])
+    const opened = { ...full, heldPlace: keepPlace(hidden, full) }
+    expect(sortTasks([...others, opened]).map((t) => t.id)).toEqual(["today", "opened", "undated"])
+  })
+
+  it("lets it go where it belongs once anything that places it changes", () => {
+    const opened = { ...full, heldPlace: keepPlace(hidden, full) }
+    const working = { ...opened, status: TodoStatus.InProgress }
+    expect(sortTasks([...others, working]).map((t) => t.id)).toEqual(["opened", "today", "undated"])
+  })
+
+  it("keeps the first place across a second opening step — content that arrived late", () => {
+    const partial = { ...hidden, hidden: false }
+    const first = { ...partial, heldPlace: keepPlace(hidden, partial) }
+    const second = { ...full, heldPlace: keepPlace(first, full) }
+    expect(sortTasks([...others, second]).map((t) => t.id)).toEqual(["today", "opened", "undated"])
   })
 })
 
