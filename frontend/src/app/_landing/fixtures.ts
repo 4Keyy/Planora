@@ -1,4 +1,5 @@
 import type { Todo } from "@/types/todo"
+import { CATEGORY_COLOR_SWATCHES } from "@/components/todos/edit-todo-modal/utils"
 import type { PresenceMember } from "@/components/ui/presence-row"
 
 /**
@@ -93,6 +94,8 @@ export const SHARED_TASK: Todo = task({
   title: "Plan the weekend menu and grocery run",
   priority: "Medium",
   categoryName: "Home",
+  categoryIcon: "Home",
+  categoryColor: CATEGORY_COLOR_SWATCHES[1],
   authorName: "Victoria Whitfield",
   sharedWithUserIds: ["fx-viewer"],
   hasSharedAudience: true,

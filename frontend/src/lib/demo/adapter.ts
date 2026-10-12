@@ -110,6 +110,54 @@ function friendships() {
   }))
 }
 
+/** Resolve current category data at the transport boundary, just like the API DTOs. */
+function projectTodo(todo: Todo, mode: "detail" | "list" | "revealed-list" = "detail"): Todo {
+  const isOwner = todo.userId === DEMO_USER.userId
+  const hasSharedAudience = Boolean(todo.isPublic || todo.sharedWithUserIds?.length || todo.hasSharedAudience)
+  const categoryId = !isOwner && hasSharedAudience
+    ? demo.get().viewerCategoryIds[todo.id] ?? null
+    : todo.categoryId ?? null
+  const category = demo.categories().find((c) => c.id === categoryId)
+  const categoryFields = {
+    categoryId,
+    categoryName: category?.name ?? null,
+    categoryColor: category?.color ?? null,
+    categoryIcon: category?.icon ?? null,
+  }
+
+  // Ordinary lists return minimal hidden DTOs; private-owner details stay readable.
+  // A shared mask carries only the viewer's effective category, never author metadata.
+  const masked = !isOwner || hasSharedAudience
+  if (todo.hidden && mode !== "revealed-list" && (masked || mode === "list")) {
+    return {
+      id: todo.id,
+      userId: isOwner ? todo.userId : "00000000-0000-0000-0000-000000000000",
+      title: masked ? "Hidden task" : todo.title,
+      description: null,
+      hidden: true,
+      status: masked ? "" : todo.status,
+      priority: todo.priority,
+      isPublic: todo.isPublic,
+      isCompleted: masked ? false : todo.isCompleted,
+      tags: [],
+      createdAt: masked ? "0001-01-01T00:00:00" : todo.createdAt,
+      sharedWithUserIds: [],
+      hasSharedAudience,
+      isVisuallyUrgent: todo.isVisuallyUrgent,
+      ...categoryFields,
+      ...(!masked ? {
+        ownerCompleted: todo.isCompleted,
+        workerCount: todo.workerCount ?? 0,
+        workerUserIds: todo.workerUserIds ?? [],
+        requiredWorkers: todo.requiredWorkers ?? null,
+        isWorking: false,
+      } : {}),
+    }
+  }
+
+  return { ...todo, ...categoryFields }
+}
+
 export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConfig) => {
   const path = pathOf(config)
   const method = (config.method ?? "get").toUpperCase()
@@ -170,9 +218,9 @@ export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
     const parentId = idOf(path, "todos")
     if (!parentId) return respond(config, [])
     if (method === "POST") {
-      return respond(config, demo.createSubtask(parentId, String(body.title ?? "Untitled")))
+      return respond(config, projectTodo(demo.createSubtask(parentId, String(body.title ?? "Untitled"))))
     }
-    return respond(config, demo.subtasks(parentId))
+    return respond(config, demo.subtasks(parentId).map((todo) => projectTodo(todo)))
   }
 
   // ── viewer preferences ──────────────────────────────────────────────────────
@@ -183,11 +231,14 @@ export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
       patch.isCompletedByViewer = body.completedByViewer
     }
     if (typeof body.hiddenByViewer === "boolean") patch.hidden = body.hiddenByViewer
+    if (body.updateViewerCategory === true) {
+      demo.get().viewerCategoryIds[id] = typeof body.viewerCategoryId === "string" ? body.viewerCategoryId : null
+    }
     demo.patchTodo(id, patch)
     return respond(config, {
       todoId: id,
       hiddenByViewer: Boolean(body.hiddenByViewer),
-      viewerCategoryId: (body.viewerCategoryId as string | null) ?? null,
+      viewerCategoryId: demo.get().viewerCategoryIds[id] ?? null,
       completedByViewer: (body.completedByViewer as boolean | undefined) ?? null,
       ownerCompleted: false,
     })
@@ -198,7 +249,8 @@ export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
     const id = idOf(path, "todos") ?? ""
     const hidden = Boolean(body.hidden)
     demo.patchTodo(id, { hidden })
-    const t = demo.todo(id)
+    const stored = demo.todo(id)
+    const t = stored ? projectTodo(stored) : null
     return respond(config, {
       hidden,
       categoryName: t?.categoryName ?? null,
@@ -215,7 +267,7 @@ export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
       workerCount: (t?.workerCount ?? 0) + 1,
       workerUserIds: [...(t?.workerUserIds ?? []), DEMO_USER.userId],
     })
-    return respond(config, updated ?? {})
+    return respond(config, updated ? projectTodo(updated) : {})
   }
   if (path.endsWith("/leave")) {
     const id = idOf(path, "todos") ?? ""
@@ -232,13 +284,12 @@ export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
     const source = demo.todo(id)
     return respond(
       config,
-      demo.createTodo({
+      projectTodo(demo.createTodo({
         title: source?.title ?? "Copy",
         description: source?.description,
         priority: source?.priority,
         categoryId: source?.categoryId,
-        categoryName: source?.categoryName,
-      })
+      }))
     )
   }
 
@@ -246,12 +297,12 @@ export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
   if (path.includes("/todos")) {
     const id = idOf(path, "todos")
 
-    if (method === "POST" && !id) return respond(config, demo.createTodo(body as Partial<Todo>))
+    if (method === "POST" && !id) return respond(config, projectTodo(demo.createTodo(body as Partial<Todo>)))
 
     if (id) {
       if (method === "GET") {
         const found = demo.todo(id)
-        return found ? respond(config, found) : respond(config, { error: { code: "NOT_FOUND" } }, 404)
+        return found ? respond(config, projectTodo(found)) : respond(config, { error: { code: "NOT_FOUND" } }, 404)
       }
       if (method === "PUT" || method === "PATCH") {
         const patch = { ...body } as Partial<Todo>
@@ -261,7 +312,7 @@ export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
           patch.isCompleted = s === "done"
         }
         const updated = demo.patchTodo(id, patch)
-        return respond(config, updated ?? {}, updated ? OK : 404)
+        return respond(config, updated ? projectTodo(updated) : {}, updated ? OK : 404)
       }
       if (method === "DELETE") {
         demo.deleteTodo(id)
@@ -271,8 +322,9 @@ export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
 
     // The list, with the filters the two product screens actually send.
     const wantCompleted = params.isCompleted === true || params.isCompleted === "true"
+    const revealHidden = params.revealHidden === true || params.revealHidden === "true"
     const items = demo.todos().filter((t) => Boolean(t.isCompleted) === wantCompleted)
-    return respond(config, { items, totalCount: items.length })
+    return respond(config, { items: items.map((todo) => projectTodo(todo, revealHidden ? "revealed-list" : "list")), totalCount: items.length })
   }
 
   // Anything unmatched answers empty rather than hanging — a pending promise on a

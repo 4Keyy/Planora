@@ -52,6 +52,7 @@ const iso = (dayOffset: number) => new Date(EPOCH + dayOffset * 86_400_000).toIS
 export interface DemoState {
   todos: Todo[]
   categories: Category[]
+  viewerCategoryIds: Record<string, string | null>
   /** Keyed by task id. The Author's Note is synthesised, not stored — see `comments()`. */
   comments: Record<string, TodoComment[]>
   subtasks: Record<string, Todo[]>
@@ -73,10 +74,11 @@ function task(partial: Partial<Todo> & Pick<Todo, "id" | "title">): Todo {
 function seed(): DemoState {
   return {
     categories: [
-      { id: "dc-1", name: "Travel", color: "#0369a1", icon: "plane", displayOrder: 0 },
-      { id: "dc-2", name: "Home", color: "#15803d", icon: "home", displayOrder: 1 },
-      { id: "dc-3", name: "Money", color: "#a16207", icon: "wallet", displayOrder: 2 },
+      { id: "dc-1", name: "Travel", color: "#0369a1", icon: "Plane", displayOrder: 0 },
+      { id: "dc-2", name: "Home", color: "#15803d", icon: "Home", displayOrder: 1 },
+      { id: "dc-3", name: "Money", color: "#a16207", icon: "ShoppingCart", displayOrder: 2 },
     ] as Category[],
+    viewerCategoryIds: {},
 
     todos: [
       task({
@@ -193,7 +195,8 @@ export const demo = {
   },
 
   todos: () => state.todos.filter((t) => !t.parentTodoId),
-  todo: (id: string) => state.todos.find((t) => t.id === id) ?? state.subtasks["dt-1"]?.find((s) => s.id === id),
+  todo: (id: string) =>
+    state.todos.find((t) => t.id === id) ?? Object.values(state.subtasks).flat().find((s) => s.id === id),
   categories: () => state.categories,
 
   /**
@@ -302,10 +305,12 @@ export const demo = {
   },
 
   createSubtask: (parentId: string, title: string) => {
+    const parent = demo.todo(parentId)
     const created = task({
       id: `dst-${Math.abs(hash(title + parentId))}`,
       title,
       parentTodoId: parentId,
+      categoryId: parent?.categoryId ?? null,
       createdAt: nextStamp(),
     })
     state.subtasks[parentId] = [...(state.subtasks[parentId] ?? []), created]

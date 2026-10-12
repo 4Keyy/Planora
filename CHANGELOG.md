@@ -24,6 +24,8 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Fixed
 
+- Landing task cards now show the Home category watermark and colour glow in the sharing demo, and valid category icons and colours throughout the keyboard sandbox. Every demo task response resolves current category metadata; hidden-list and detail projections match the API, including the palette’s `revealHidden` opt-in. Hiding the viewer copy clears the owner’s category fields.
+
 - Landing seat rail: rapid drags, outside releases and repeated keyboard or pointer selections no longer amplify the ring's percentage-string spring velocity. The ring and fill share one clamped numeric seat position, with matching initial renders and instant reduced-motion positioning.
 
 - Keyboard: with the cursor on a hidden card on Tasks, `1`–`5` sent the server's redacted copy back as the whole task — no description, no due date, no audience — and `Enter` or `E` handed that copy to the editor, whose first autosave would have done the same. The number keys now pass hidden cards by, and `Enter`/`E` open the card as a press on it does. `Delete` from the keyboard on a task the viewer does not own is dropped instead of being undone by the server five seconds later.

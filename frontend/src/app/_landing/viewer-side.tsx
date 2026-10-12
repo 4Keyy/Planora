@@ -69,6 +69,8 @@ export function ViewerSide() {
             description: undefined,
             authorName: undefined,
             categoryName: undefined,
+            categoryIcon: undefined,
+            categoryColor: undefined,
             sharedWithUserIds: [],
             hasSharedAudience: true,
             hidden: true,
