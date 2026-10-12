@@ -26,10 +26,7 @@ import dynamic from "next/dynamic"
 // opens the create panel or clicks edit on a card, so deferring their JS
 // shrinks the tasks page's First Load by ~30 kB without changing the visible
 // flow (the framer-motion enter animation absorbs the ~50 ms chunk fetch).
-const EditTodoModal = dynamic(
-  () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
-  { ssr: false },
-)
+import { LazyEditTodoModal as EditTodoModal } from "@/components/todos/edit-todo-modal/lazy"
 const CreateTodoPanel = dynamic(
   () => import("@/components/todos/create-todo-panel").then((m) => ({ default: m.CreateTodoPanel })),
   {
@@ -57,6 +54,7 @@ import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
+import { useWarmEditor } from "@/hooks/use-warm-editor"
 import { rememberOrigin } from "@/lib/shared-origin"
 import { SelectionBar } from "@/components/ui/selection-bar"
 import { QuickCapture } from "@/components/todos/quick-capture"
@@ -216,24 +214,8 @@ export default function TasksPage() {
   }, [isCreateOpen])
 
 
-  /*
-   * Warm the editor chunk once the page is idle. It stays code-split — the First
-   * Load payload is unchanged — but the fetch no longer sits between the press and
-   * the dialog. That matters for more than latency: the card-to-dialog transition
-   * animates from a rect captured at press time, and a rect older than a second is
-   * discarded as stale (lib/shared-origin.ts), so a cold chunk fetch would silently
-   * cost the first open of every session its transition.
-   */
-  useEffect(() => {
-    const warm = () => { void import("@/components/todos/edit-todo-modal") }
-    const idle = window.requestIdleCallback
-    if (typeof idle === "function") {
-      const handle = idle(warm, { timeout: 2000 })
-      return () => window.cancelIdleCallback?.(handle)
-    }
-    const t = window.setTimeout(warm, 1200)
-    return () => window.clearTimeout(t)
-  }, [])
+  // The editor's chunk, fetched before the first open (`useWarmEditor`).
+  useWarmEditor()
 
   const handleFilterChange = useCallback((ids: string[]) => {
     setFilterCategoryIds(ids)

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import dynamic from "next/dynamic"
+import { LazyEditTodoModal as EditTodoModal } from "@/components/todos/edit-todo-modal/lazy"
 import { TodoCard } from "@/components/todos/todo-card"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
@@ -19,10 +19,6 @@ import type { Category } from "@/types/category"
 import { toCategoryList, type CategoryListResponse } from "@/types/category"
 import { SandboxNotice } from "./demo-sandbox"
 
-const EditTodoModal = dynamic(
-  () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
-  { ssr: false },
-)
 
 /**
  * Block 4 — the product, on the product's own data layer.

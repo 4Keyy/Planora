@@ -16,14 +16,9 @@ import { MasonryColumns } from "@/components/ui/masonry-columns"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { useToastStore } from "@/store/toast"
 import { Category, type CategoryListResponse, toCategoryList } from "@/types/category"
-import dynamic from "next/dynamic"
-// Edit modal mounts only when the user clicks a completed task. Lazy-load
-// keeps it out of the initial completed-page bundle; the framer-motion
-// enter animation absorbs the chunk fetch on first open.
-const EditTodoModal = dynamic(
-  () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
-  { ssr: false },
-)
+// Edit modal mounts only when the user clicks a completed task. Lazy-loaded, from the one import
+// `useWarmEditor` warms ahead of it (`components/todos/edit-todo-modal/lazy.tsx`).
+import { LazyEditTodoModal as EditTodoModal } from "@/components/todos/edit-todo-modal/lazy"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { getTaskWeight } from "@/utils/sort-tasks"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
@@ -39,6 +34,7 @@ import { PageHeader } from "@/components/layout/page-header"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
+import { useWarmEditor } from "@/hooks/use-warm-editor"
 import { rememberOrigin } from "@/lib/shared-origin"
 
 const PAGE_SIZE = 20
@@ -88,6 +84,8 @@ export default function CompletedTasksPage() {
   const [hintDismissed, setHintDismissed] = useState(false)
   const hintDismissedRef = useRef<boolean>(false)
   const friendNameCache = useRef<Map<string, string>>(new Map())
+  // The editor's chunk, fetched before the first open (`useWarmEditor`).
+  useWarmEditor()
   const todosRequest = useRef<AbortController | null>(null)
   const requestEpoch = useRef(0)
   const queryRef = useRef({ page: currentPage, start: searchStart, end: searchEnd, userId: user?.userId })

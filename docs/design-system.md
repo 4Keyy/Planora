@@ -565,8 +565,8 @@ reader has to re-find their place in the list when it closes.
 | Step | What | Duration |
 |---|---|---|
 | 1 | The pressed card's rect is recorded, on the press | — |
-| 2 | The dialog mounts at that rect: uniform `scale`, `x`/`y` centre-to-centre, `opacity 0` | — |
-| 3 | It grows to its own geometry | `SPRING_LAYOUT` — critically damped, so a 660px surface never swings past its size or the centre |
+| 2 | The dialog mounts at that rect: one `transform` — `translate` centre-to-centre, then a uniform `scale` — and `opacity 0` | — |
+| 3 | It grows to its own geometry, on the compositor | `SPRING_LAYOUT` — critically damped, so a 660px surface never swings past its size or the centre |
 | 4 | Closing returns along the same path | `base` 220, `standard` (no fade-into-a-snap ease-in: the eye follows it back to the card) |
 
 Three decisions inside it:
@@ -587,9 +587,23 @@ Three decisions inside it:
   finds nothing and falls back to the plain entrance. That is the honest thing to
   show: nothing on screen was the source.
 
-The tasks page warms the dialog's code-split chunk on idle, because a cold chunk fetch
-would push the open past the 1s expiry and silently cost the first open of every
-session its transition.
+**On the compositor.** The surface is animated as a single `transform` string, which
+framer-motion hands to the browser as a Web Animation (it samples the spring into
+keyframes); `x`, `y` and `scale` as separate values ran on the main thread — the thread
+that is mounting the editor and its branch at that very moment — and the open stuttered
+at 83–100ms frames on a desktop (95th percentile, measured 2026-10-12). Reduced motion
+keeps the fade alone.
+
+**Ready before the press.** Every screen that opens the dialog warms its code-split
+chunk once the page is idle, or at the first press anywhere, whichever comes first
+(`hooks/use-warm-editor.ts`), because a cold chunk fetch would push the open past the 1s
+expiry and silently cost the first open of a session its transition. The dialog and the
+warm-up share one `import()` (`edit-todo-modal/lazy.tsx`): the bundler gives every
+`import()` its own async chunk, and the warm-up used to fetch a copy the dialog never
+asked for. The dialog is not `next/dynamic` either — that is `React.lazy`, which suspends
+on its first render even when the module is in memory, and React holds back what
+replaces a fallback for 300ms: the first open of every session appeared 300ms after the
+press and every later one in 25ms. A warmed editor renders at once.
 
 ### 9.4 Presence arriving
 
@@ -1147,6 +1161,7 @@ type has stopped being a primitive.
 | `hooks/use-height-transition` | An element's height gliding to whatever its content needs, on a spring, frame by frame (§ 9.14) |
 | `lib/scroll-hold` | The page held still while something changes height, and the one hand that moves the view when it must (§ 9.14) |
 | `components/ui/height-glide` | A block whose height glides — the paged task grid above the pager |
+| `edit-todo-modal/lazy` + `hooks/use-warm-editor` | The task editor loaded once, from one import, warmed before the first press (§ 9.3) |
 | `lib/route-transition` | Whether this is the first page of a visit. The root and auth templates read it: the first page is in the server HTML fully visible, only in-app navigation animates |
 | `components/animated/entrance` | How a signed-in page arrives: its timeline, the tiers, arrival on scroll, the skeleton swap (§ 9.13) |
 

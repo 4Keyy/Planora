@@ -19,13 +19,9 @@ import { TodoCard } from "@/components/todos/todo-card"
 import { useToastStore } from "@/store/toast"
 import { Category } from "@/types/category"
 import dynamic from "next/dynamic"
-// Lazy-load the editing surface: it only mounts when a user clicks edit or
-// opens the create panel. Cuts dashboard First Load JS without touching UX —
-// the framer-motion enter animation absorbs the chunk fetch on first open.
-const EditTodoModal = dynamic(
-  () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
-  { ssr: false },
-)
+// The editing surface loads on first use, from the one import `useWarmEditor` warms ahead of it
+// (`components/todos/edit-todo-modal/lazy.tsx`). Cuts dashboard First Load JS without touching UX.
+import { LazyEditTodoModal as EditTodoModal } from "@/components/todos/edit-todo-modal/lazy"
 const CreateTodoPanel = dynamic(
   () => import("@/components/todos/create-todo-panel").then((m) => ({ default: m.CreateTodoPanel })),
   // The collapsed panel is always on screen, so its place is held while the chunk loads —
@@ -52,6 +48,7 @@ import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
 import { useTaskVisibility } from "@/hooks/use-task-visibility"
+import { useWarmEditor } from "@/hooks/use-warm-editor"
 import { rememberOrigin } from "@/lib/shared-origin"
 import { barClearance, holdScroll, isScrollHeld } from "@/lib/scroll-hold"
 import { KeyHintsPanel, KeyHintsToggle, useKeyHints } from "@/components/todos/keyboard-hints"
@@ -171,6 +168,8 @@ export default function DashboardPage() {
 
   // Smooth scroll to top when create panel collapses
   useCollapseScroll(isCreateOpen)
+  // The editor's chunk, fetched before the first open (`useWarmEditor`).
+  useWarmEditor()
 
   const fetchCategories = useCallback(async (signal?: AbortSignal) => {
     try {

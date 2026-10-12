@@ -657,6 +657,21 @@ export function EditTodoModal(props: EditTodoModalProps) {
     return originTransform(origin, target)
   })
 
+  /*
+   * The surface moves on the compositor. framer-motion runs `x`, `y` and `scale` on the main
+   * thread — the thread that is mounting the editor and its branch at that very moment — and
+   * the open stuttered: frames of 83–100ms at the 95th percentile on a desktop (measured,
+   * 2026-10-12). Written as one `transform`, the same spring is handed to the browser as a Web
+   * Animation (framer samples it into keyframes), so the surface glides however busy the page
+   * is. Reduced motion keeps the fade alone, as MotionConfig did for the individual values.
+   */
+  const away = reduce
+    ? { opacity: 0 }
+    : entrance
+      ? { opacity: 0, transform: `translate(${entrance.x}px, ${entrance.y}px) scale(${entrance.scale})` }
+      : { opacity: 0, transform: "translate(0px, 20px) scale(0.95)" }
+  const shown = reduce ? { opacity: 1 } : { opacity: 1, transform: "translate(0px, 0px) scale(1)" }
+
   return (
     <ModalPortal>
       <div
@@ -680,12 +695,8 @@ export function EditTodoModal(props: EditTodoModalProps) {
           aria-modal="true"
           aria-label={props.todo?.title ? `Task: ${props.todo.title}` : "Task details"}
           tabIndex={-1}
-          initial={
-            entrance
-              ? { opacity: 0, scale: entrance.scale, x: entrance.x, y: entrance.y }
-              : { opacity: 0, scale: 0.95, y: 20 }
-          }
-          animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+          initial={away}
+          animate={shown}
           /*
            * It leaves the way it came, so closing returns the reader's eye to the row
            * they opened. Faster than the entrance on purpose: an exit that takes as
@@ -693,11 +704,7 @@ export function EditTodoModal(props: EditTodoModalProps) {
            * curve, not an ease-in: the eye follows this travel back to the card, and an
            * accelerating exit would end in a snap.
            */
-          exit={
-            entrance
-              ? { opacity: 0, scale: entrance.scale, x: entrance.x, y: entrance.y, transition: { duration: DURATION_UI, ease: EASE_STANDARD } }
-              : { opacity: 0, scale: 0.95, y: 20, transition: { duration: DURATION_FAST, ease: EASE_STANDARD } }
-          }
+          exit={{ ...away, transition: { duration: entrance ? DURATION_UI : DURATION_FAST, ease: EASE_STANDARD } }}
           // Critically damped: a 660px surface growing out of a card must not swing past
           // its size and the centre on the way in.
           transition={SPRING_LAYOUT}
