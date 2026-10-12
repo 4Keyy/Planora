@@ -247,6 +247,40 @@ cannot certify pagination motion.
   it; profile the workload before changing any animation/grid code. See
   `animation-performance.json` under `final-live-geometry`.
 
+### Motion verification — hidden cards, folding at the bottom, paging, the task dialog (2026-10-13)
+
+Unit tests: `src/test/hooks/use-height-transition.test.tsx` (the spring curve, a glide per
+commit, turns mid-glide with carried speed, width reflows, the insertion-effect hold, the
+frame-driven clock through a stall, ResizeObserver turns, clipping, `keepInView`),
+`src/test/lib/scroll-hold.test.ts` (tracking without layout reads, holding still, the glide to
+a shorter page, `show` by either edge, `to`, staying where a shown element brought the view,
+handing back on input or a foreign scroll, reduced motion), `src/test/hooks/use-task-visibility.test.tsx`
+(fetch ahead, the 350ms wait, late content, failed writes, masked tasks, held places, the
+viewer path, re-entry), `src/test/components/todo-card-reveal-intent.test.tsx`,
+`src/test/components/lazy-edit-todo-modal.test.tsx`, `src/test/hooks/use-warm-editor.test.tsx`
+and `keepPlace` cases in `src/test/utils/sort-tasks.test.ts`.
+
+Browser probes ran on a production build (`next start`) in headless Chromium against an
+in-memory API served by Playwright routes (pagination, the hidden-task DTOs of
+`GetUserTodosQueryHandler`, latency: list 260ms, read 200ms, write 150ms), sampling every
+frame; desktop 1440×900 and mobile 390×844, CPU 1× and 4×. The backend stack was not
+running, so these are not real-service results; the real-service suites above remain the
+reference.
+
+| Scenario | Before (real service, 2026-10-12) | After |
+|---|---|---|
+| Open a hidden card | 135px snap when the content arrived; the card moved 209–823px to its date's place; a phone's page jumped 813–2439px after the focus | Content fetched ahead or with the write; no height reversal; largest frame step 36px (1×) and 60px (4×, the two-frame cap); the card's top within 0.5px; the card below tracks it within 0.5px |
+| Fold the bottom card while scrolled to the end | scroll steps up to 62px (1×), 204px (4×), 255px (phone); desktop ended at the page top | scroll steps at most 7px (1×), 14px (4×), monotone; the folded row stays in view; the card below tracks within 0px |
+| Change dashboard page | pager steps 329–632px, a skeleton for 5–57 frames | pager steps at most 20px (document), no skeleton frames; on a phone the view glides to the list start at up to 55px per frame |
+| Open a task | first open visible 316–339ms after the press (its chunk fetched again, then React's 300ms hold on a lazy component), later ones 14–25ms; the surface moved on the main thread | every open 19–58ms on a desktop and 25ms on a phone, no chunk fetched after the press; the surface moves as a Web Animation (`transform`), and opacity and scale never step back, opening or closing |
+
+Keyboard reveals scroll the view to the focused toggle when it lands below the fold
+(61px on desktop) and keep it there. The long frames still recorded while the dialog opens on
+a headless desktop (p95 50–67ms) all come from the backdrop's `backdrop-filter` blur, which
+headless Chromium renders in software over the whole 1440×900 viewport: with the blur
+disabled the same open measured p95 17ms and no long animation frame. A GPU draws that blur
+as a shader pass; it was left as designed.
+
 ### Independently reproduced form issue
 
 `frontend/src/app/(app)/categories/page.tsx:68` initializes a new category color
