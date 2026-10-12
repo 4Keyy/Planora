@@ -627,6 +627,27 @@ The keys that act are echoed on `window` (`planora:key-echo`, `lib/key-echo.ts`)
 can light the row of the key that just did something — the landing console's legend and the
 dashboard's key panel do.
 
+#### The dashboard's key panel
+
+The dashboard shows the keyboard instead of leaving it to someone who already knows to press `?`
+(`frontend/src/components/todos/keyboard-hints.tsx`, legend rows from
+`frontend/src/components/ui/key-legend.tsx`, shared with the landing console).
+
+| Part | Behaviour |
+|---|---|
+| The toggle | A **Keys** cap in the "Active tasks" heading, drawn as a key: raised on a ledge at rest, down while pressed and while the panel is open. Shown only to a device with a hovering pointer (`@media (hover: hover)`) — a phone has no keyboard to teach |
+| Folded | The default. The panel is a 0px grid row inside the heading's block, so it adds no gap; `aria-hidden` and `inert` (written to the node by `useInert`, because React 18 drops a boolean `inert` prop) |
+| Opening | The New task plate's motion: the row grows on `slow` with the emphasized curve, the content fades in behind it, and the rows arrive one after another (60 ms, then 25 ms apart). Every opening replays the rows; the list below simply moves down |
+| Content | The landing console's eight keys in its words, in three groups — Move and open (`J K`, `⏎`, `E`), Change (`Space`, `1–5` "Point at a card, or move to it", `Delete`), Anywhere (`Ctrl K`/`⌘ K`, `?`) — under the sentence "These keys work on every task card, wherever you find one.", with a link to the full `?` map |
+| Live | While open, a key that just did something lights its row for 700 ms: the list's keys and the priority keys through the echo, the palette chord and `?` from their keydown. A key that did nothing stays dark |
+| Remembered | Open or folded is kept per device (`planora:pref:dashboardKeyHintsOpen`). A remembered "open" is restored after mount in one step, with no glide and no row entrance, before the list's own entrance has drawn anything under it |
+| Reduced motion | The row and the content change in one step; no row entrance |
+
+The `?` overlay (`frontend/src/components/ui/shortcuts-overlay.tsx`) is the on-screen copy of
+this map, and `SHORTCUT_GROUPS` there is exported so the command palette prints the same
+strings. Its **Search** group lists the palette's own keys; the palette's "Keyboard shortcuts"
+row opens it through `OPEN_SHORTCUTS_EVENT`. See `docs/frontend.md` §7 for the cross-page keyboard model.
+
 ### Command palette
 
 `frontend/src/components/command-palette/` — one field that reaches everything the product

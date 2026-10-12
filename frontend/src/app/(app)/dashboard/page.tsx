@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react"
+import { useEffect, useId, useMemo, useState, useCallback, useRef } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, useReducedMotion } from "framer-motion"
@@ -50,6 +50,7 @@ import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
 import { rememberOrigin } from "@/lib/shared-origin"
+import { KeyHintsPanel, KeyHintsToggle, useKeyHints } from "@/components/todos/keyboard-hints"
 
 const STATS_COMPLETED_PREVIEW_SIZE = 100
 const STATS_REQUEST_TIMEOUT_MS = 30000
@@ -71,6 +72,7 @@ const DASH = {
   week: 340,
   listHeading: 210,
   listCount: 260,
+  keys: 265,
   allTasks: 270,
   newTask: 280,
   cards: 360,
@@ -796,6 +798,9 @@ export default function DashboardPage() {
     setEditingTodo(todo)
   }, [handleToggleHidden])
 
+  const keyHints = useKeyHints()
+  const keyHintsId = useId()
+
   const navIds = useMemo(() => activeTodos.map(t => t.id), [activeTodos])
   const nav = useListNavigation({
     ids: navIds,
@@ -908,31 +913,41 @@ export default function DashboardPage() {
       </Enter>
 
       <section aria-labelledby="active-tasks-heading" className="space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <Enter
-            as="h2"
-            tier="text"
-            at={DASH.listHeading}
-            id="active-tasks-heading"
-            className="flex items-center gap-3 text-title-sm font-bold tracking-tight text-ink"
-          >
-            Active tasks
+        {/* The heading and the key panel it folds away are one block: folded, the panel is a
+            0px row inside it and adds no gap of the section's own. */}
+        <div>
+          <div className="flex items-center justify-between gap-4">
             <Enter
-              as="span"
-              tier="chip"
-              at={DASH.listCount}
-              ready={todosLoaded}
-              className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-paper-sunken px-2 text-caption font-semibold tabular-nums text-ink-muted ring-1 ring-inset ring-line"
+              as="h2"
+              tier="text"
+              at={DASH.listHeading}
+              id="active-tasks-heading"
+              className="flex items-center gap-3 text-title-sm font-bold tracking-tight text-ink"
             >
-              {totalCount}
+              Active tasks
+              <Enter
+                as="span"
+                tier="chip"
+                at={DASH.listCount}
+                ready={todosLoaded}
+                className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-paper-sunken px-2 text-caption font-semibold tabular-nums text-ink-muted ring-1 ring-inset ring-line"
+              >
+                {totalCount}
+              </Enter>
             </Enter>
-          </Enter>
-          <Enter tier="chip" at={DASH.allTasks} className="-mr-3">
-            <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")}>
-              All tasks
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </Enter>
+            <div className="flex items-center gap-2">
+              <Enter tier="chip" at={DASH.keys}>
+                <KeyHintsToggle open={keyHints.open} onToggle={keyHints.toggle} controls={keyHintsId} />
+              </Enter>
+              <Enter tier="chip" at={DASH.allTasks} className="-mr-3">
+                <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")}>
+                  All tasks
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </Enter>
+            </div>
+          </div>
+          <KeyHintsPanel id={keyHintsId} open={keyHints.open} restoring={keyHints.restoring} />
         </div>
 
         {/* The create panel spans the column. It sat alone in a sidebar a third of the
