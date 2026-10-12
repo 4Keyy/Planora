@@ -8,11 +8,12 @@ const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : us
  * Makes a subtree inert — out of the tab order, the accessibility tree and the pointer —
  * while `inert` is true.
  *
- * The JSX prop does not do it on React 18. `inert` is a React 19 attribute: React 18
- * warns "Received `true` for a non-boolean attribute" and writes nothing at all, so a
- * folded panel declared `inert={!isOpen}` stayed fully reachable by Tab, every one of its
- * invisible fields a stop. The attribute is written to the node here instead, before the
- * frame is painted.
+ * Written to the node rather than passed as the JSX prop, so it holds under both Reacts this
+ * code runs on. The App Router renders with the React 19 that Next.js ships, where the prop
+ * works; the unit tests render with the React 18 in `package.json`, which warns "Received
+ * `true` for a non-boolean attribute" and writes nothing — a folded panel tested there would
+ * look reachable by Tab when it is not, or the other way round. The attribute is written
+ * before the frame is painted.
  */
 export function useInert(ref: RefObject<HTMLElement | null>, inert: boolean): void {
   useIsomorphicLayoutEffect(() => {

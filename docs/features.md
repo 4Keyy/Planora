@@ -636,7 +636,7 @@ The dashboard shows the keyboard instead of leaving it to someone who already kn
 | Part | Behaviour |
 |---|---|
 | The toggle | A **Keys** cap in the "Active tasks" heading, drawn as a key: raised on a ledge at rest, down while pressed and while the panel is open. Shown only to a device with a hovering pointer (`@media (hover: hover)`) — a phone has no keyboard to teach |
-| Folded | The default. The panel is a 0px grid row inside the heading's block, so it adds no gap; `aria-hidden` and `inert` (written to the node by `useInert`, because React 18 drops a boolean `inert` prop) |
+| Folded | The default. The panel is a 0px grid row inside the heading's block, so it adds no gap; `aria-hidden` and `inert` (written to the node by `useInert`, so it holds under the React 19 the App Router ships and the React 18 the unit tests render with, which drops a boolean `inert` prop) |
 | Opening | The New task plate's motion: the row grows on `slow` with the emphasized curve, the content fades in behind it, and the rows arrive one after another (60 ms, then 25 ms apart). Every opening replays the rows; the list below simply moves down |
 | Content | The landing console's eight keys in its words, in three groups — Move and open (`J K`, `⏎`, `E`), Change (`Space`, `1–5` "Point at a card, or move to it", `Delete`), Anywhere (`Ctrl K`/`⌘ K`, `?`) — under the sentence "These keys work on every task card, wherever you find one.", with a link to the full `?` map |
 | Live | While open, a key that just did something lights its row for 700 ms: the list's keys and the priority keys through the echo, the palette chord and `?` from their keydown. A key that did nothing stays dark |
