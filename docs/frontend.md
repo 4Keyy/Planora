@@ -275,16 +275,16 @@ desktop this is where an experienced user lives.
 | `C` | Capture a task — one field, no selectors | Dashboard, Tasks |
 | `F` | Open the category filter | Tasks |
 | `Escape` | Close the topmost layer | Everywhere |
-| `J` `K` / `↑` `↓` | Move the cursor | Task list |
-| `G` `G` / `Shift + G` | First / last task | Task list |
-| `Enter` | Open the task under the cursor | Task list, palette |
-| `Space` | Complete or reopen it | Task list |
-| `E` | Edit it | Task list |
-| `1`–`5` | Set its priority (owner only) | Task list |
-| `X` | Add it to the selection | Task list |
-| `Shift + J/K` / `Shift + ↑/↓` | Extend the selection | Task list |
-| `Cmd/Ctrl + A` | Select everything visible | Task list |
-| `Delete` / `Backspace` | Delete it, with a five-second undo | Task list |
+| `J` `K` / `↑` `↓` | Move the cursor | Every list of task cards: dashboard, Tasks, archive, landing console |
+| `G` `G` / `Shift + G` | First / last task | Every list of task cards |
+| `Enter` | Open the task under the cursor (a hidden card opens itself instead) | Every list of task cards, palette |
+| `Space` | Complete or reopen it | Every list of task cards |
+| `E` | Edit it, starting in the title | Every list of task cards |
+| `1`–`5` | Set the priority of the card under the pointer, or of the cursor's — whichever was aimed last (owner's open cards only) | Any task card; the cursor's on every list |
+| `X` | Add it to the selection | Tasks |
+| `Shift + J/K` / `Shift + ↑/↓` | Extend the selection | Tasks |
+| `Cmd/Ctrl + A` | Select everything visible | Tasks |
+| `Delete` / `Backspace` | Delete it, with a five-second undo (the archive asks first) | Every list of task cards |
 
 `SHORTCUT_GROUPS` in `components/ui/shortcuts-overlay.tsx` defines the `?` map.
 The palette and some control hints also declare shortcut labels locally; they do

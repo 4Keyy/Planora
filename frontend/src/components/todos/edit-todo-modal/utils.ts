@@ -174,19 +174,19 @@ export const CATEGORY_COLOR_SWATCHES = [
 /**
  * A complete owner payload built straight from a task.
  *
- * Two callers need it and they need it to agree. The editor uses it as the
- * autosave baseline, so a freshly-opened task is never seen as "dirty"; the task
- * list uses it to change one field from the keyboard (`1`-`5` for priority)
- * without opening the editor at all.
+ * The editor uses it as the autosave baseline, so a freshly-opened task is never
+ * seen as "dirty": the editor's own payload is built the same way from its fields,
+ * and the two must agree field for field.
  *
- * It has to be the whole task, because the endpoint is a PUT: sending
- * `{ priority: 4 }` alone would clear the title, the description, the date and
- * the audience. That is the shape of bug a one-key shortcut is most likely to
- * ship with, and the reason this lives here rather than being re-typed at the
- * second call site.
+ * The number keys used to send this too, to change one field. They no longer do:
+ * the update endpoint applies only the fields it is given (`UpdateTodoCommandHandler`,
+ * pinned by `UpdateTodo_WithPriorityOnly_ShouldLeaveEveryOtherFieldAsItWas`), so a
+ * one-key edit sends `{ priority }` alone (`hooks/use-priority-writer.ts`). Built from a
+ * hidden task's redacted copy, this payload would have written "no description, no
+ * date, no audience" back to the server.
  *
- * It lives in `utils.ts` — which imports nothing — specifically so the tasks page
- * can call it without pulling the code-split editor chunk into the first load.
+ * It lives in `utils.ts` — which imports nothing — so a list page can import it
+ * without pulling the code-split editor chunk into the first load.
  */
 export function todoToOwnerPayload(todo: {
   title: string

@@ -55,8 +55,8 @@ import { PageHeader } from "@/components/layout/page-header"
 import { NumberRoll } from "@/components/ui/number-roll"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
+import { usePriorityWriter } from "@/hooks/use-priority-writer"
 import { rememberOrigin } from "@/lib/shared-origin"
-import { todoToOwnerPayload } from "@/components/todos/edit-todo-modal/utils"
 import { SelectionBar } from "@/components/ui/selection-bar"
 import { QuickCapture } from "@/components/todos/quick-capture"
 import { UpdatePill, useDeferredUpdates } from "@/components/ui/update-pill"
@@ -846,43 +846,65 @@ export default function TasksPage() {
    */
   const navIds = useMemo(() => renderedTodos.map((t) => t.id), [renderedTodos])
 
+  const writePriority = usePriorityWriter({
+    read: (id) => todosRef.current.find((t) => t.id === id) ?? completedPreviewRef.current.find((t) => t.id === id),
+    patch: (id, fields) => {
+      const merge = (prev: Todo[]) => prev.map((t) => (t.id === id ? { ...t, ...fields } : t))
+      setTodos(merge)
+      setCompletedPreview(merge)
+    },
+    save: async (id, level) => {
+      const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${id}`, { priority: level })
+      return parseApiResponse(res.data)
+    },
+    onError: () => addToast({ type: "error", title: "Couldn't change the priority" }),
+  })
+
+  /**
+   * `1`–`5`, from the cursor or the pointer. Only the owner may re-prioritise — a shared
+   * viewer pressing `3` would earn a 403 for a key nobody offered them — and never on a
+   * hidden card, whose copy is the server's redacted one.
+   */
+  const handlePriority = (id: string, level: number) => {
+    const todo = todosRef.current.find((t) => t.id === id)
+    if (!todo || todo.hidden || !isTodoOwner(todo, user?.userId)) return
+    writePriority(id, level)
+  }
+
+  /**
+   * Enter and `E` on a hidden card open the card, as a press on it does — never the
+   * editor. The editor would be seeded with the redacted copy (no description, no date,
+   * no audience), and its first autosave would have written exactly that back.
+   */
+  const openFromKeys = (id: string, titleEdit: boolean) => {
+    const todo = todosRef.current.find((t) => t.id === id)
+    if (!todo) return
+    if (todo.hidden) {
+      void handleToggleHidden(id)
+      return
+    }
+    // Hand over the same rect a click would have, so Enter and a pointer open
+    // the editor identically. See lib/shared-origin.ts.
+    rememberOrigin(nav.getRowNode(id))
+    // `E` is the only path that lands in the title. The keyboard map promises
+    // "Edit it in place", and until now it opened exactly what Enter opened.
+    setOpenInTitleEdit(titleEdit)
+    setEditingTodo(todo)
+  }
 
   const nav = useListNavigation({
     ids: navIds,
     enabled: listKeysEnabled,
-    onActivate: (id) => {
-      const todo = todosRef.current.find((t) => t.id === id)
-      if (!todo) return
-      // Hand over the same rect a click would have, so Enter and a pointer open
-      // the editor identically. See lib/shared-origin.ts.
-      rememberOrigin(nav.getRowNode(id))
-      setOpenInTitleEdit(false)
-      setEditingTodo(todo)
-    },
-    onEdit: (id) => {
-      const todo = todosRef.current.find((t) => t.id === id)
-      if (!todo) return
-      rememberOrigin(nav.getRowNode(id))
-      // `E` is the only path that lands in the title. The keyboard map promises
-      // "Edit it in place", and until now it opened exactly what Enter opened.
-      setOpenInTitleEdit(true)
-      setEditingTodo(todo)
-    },
+    onActivate: (id) => openFromKeys(id, false),
+    onEdit: (id) => openFromKeys(id, true),
     onToggleComplete: (id) => { void handleComplete(id) },
     onDelete: (id) => {
       const todo = todosRef.current.find((t) => t.id === id)
-      if (todo) requestDelete(todo)
+      // Only the owner can delete; anyone else's Delete would be put back by the server
+      // five seconds later, with an error.
+      if (todo && isTodoOwner(todo, user?.userId)) requestDelete(todo)
     },
-    onPriority: (id, level) => {
-      const todo = todosRef.current.find((t) => t.id === id)
-      if (!todo) return
-      // Only the owner may re-prioritise; a shared viewer pressing `3` would get a
-      // 403 and a toast for a key they were never offered.
-      if (!isTodoOwner(todo, user?.userId)) return
-      // The whole task, not `{ priority }` — the endpoint is a PUT, so a partial
-      // body clears every field it omits. See todoToOwnerPayload.
-      void handleUpdate(id, { ...todoToOwnerPayload(todo), priority: level })
-    },
+    onPriority: handlePriority,
   })
 
   useEffect(() => {
@@ -1007,6 +1029,7 @@ export default function TasksPage() {
                       onDelete={() => requestDelete(todo)}
                       onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
                       onToggleHidden={() => handleToggleHidden(todo.id)}
+                      onPriority={(level) => handlePriority(todo.id, level)}
                       onJoin={async () => {
                         if (isTodoOwner(todo, user?.userId)) {
                           try {

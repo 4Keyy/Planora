@@ -111,7 +111,9 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ["⏎"], description: "Open the highlighted task" },
       { keys: ["Space"], description: "Complete or reopen it" },
       { keys: ["E"], description: "Edit it in place" },
-      { keys: ["1–5"], description: "Set priority" },
+      // Two targets, one key: the card under the pointer when the pointer moved last, the
+      // highlighted one otherwise — on any task card, not only this list's.
+      { keys: ["1–5"], description: "Set priority of the highlighted task, or the one you point at" },
       { keys: ["X"], description: "Add it to the selection" },
       { keys: ["Shift", "↑", "or", "↓"], description: "Extend the selection" },
       { keys: [MOD, "A"], description: "Select everything" },

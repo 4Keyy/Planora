@@ -39,6 +39,7 @@ import { rememberOrigin } from "@/lib/shared-origin"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
 import type { ListRowProps } from "@/hooks/use-list-navigation"
 import { springEasing, useHeightTransition } from "@/hooks/use-height-transition"
+import { usePriorityTarget } from "@/hooks/use-priority-target"
 
 /** Priority is a magnitude, not a category — see components/ui/priority-meter.tsx. */
 /**
@@ -96,6 +97,12 @@ interface TodoCardProps {
   onEdit: () => void
   onToggleHidden?: () => Promise<void>
   onJoin?: () => Promise<void>
+  /**
+   * Sets the task's priority, 1–5. Given, the card takes the number keys while the pointer
+   * rests on it (`lib/priority-keys.ts`) — when the viewer owns it and it is open: not
+   * hidden, not finished. Omitted, the keys pass it by.
+   */
+  onPriority?: (level: number) => void
   variant?: "default" | "completed"
   /**
    * Roving tabindex, the ref and the selection flags from `useListNavigation`.
@@ -124,6 +131,7 @@ function TodoCardComponent({
   onEdit,
   onToggleHidden,
   onJoin,
+  onPriority,
   variant = "default",
   rowProps,
   viewerId: viewerIdProp,
@@ -232,6 +240,25 @@ function TodoCardComponent({
   useHeightTransition(cardRef, isCollapsed ? "collapsed" : "open", {
     ...resizeTransition(),
     disabled: !!shouldReduceMotion,
+  })
+
+  /*
+   * The number keys under the pointer (`lib/priority-keys.ts`). Only the owner may change a
+   * priority, and only on an open card: a hidden card holds the server's redacted copy, a
+   * finished one shows no meter, and a card mid-completion or mid-fold is about to be
+   * something else. Asked when the key lands, so the answer is never a render old.
+   *
+   * A key for the level the task already has still answers — the meter ticks — so a press
+   * is never met with silence.
+   */
+  const [priorityPulse, setPriorityPulse] = useState(0)
+  usePriorityTarget(cardRef, {
+    accepts: () =>
+      !!onPriority && isOwner && !isCompleted && !isCollapsed && !todo.hidden && !isCompletionPending && !isVisibilityPending,
+    apply: (level) => {
+      if (level === priorityConfig.num) setPriorityPulse((n) => n + 1)
+      onPriority?.(level)
+    },
   })
   useEffect(() => {
     setCompletionPhase(null)
@@ -958,7 +985,7 @@ function TodoCardComponent({
                             <span className="truncate">{todo.categoryName}</span>
                           </span>
                         )}
-                        <PriorityMeter value={priorityConfig.num} size="sm" />
+                        <PriorityMeter value={priorityConfig.num} size="sm" animate pulse={priorityPulse} />
                         {/*
                          * Two different facts, and they were previously one chip.
                          *

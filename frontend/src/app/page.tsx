@@ -283,8 +283,9 @@ export default function HomePage() {
             <StaggerItem className="mt-7 max-w-2xl">
               <p className="text-pretty text-body text-ink-muted">
                 Then press <Kbd>Ctrl K</Kbd> or <Kbd>⌘K</Kbd> and search. Move with <Kbd>J</Kbd>{" "}
-                and <Kbd>K</Kbd>, open a task with <Kbd>⏎</Kbd>. These are the app&rsquo;s real
-                cards, command palette and task editor, running in your browser on made-up tasks.
+                and <Kbd>K</Kbd>, open a task with <Kbd>⏎</Kbd>, or point at a card and press{" "}
+                <Kbd>1</Kbd> to <Kbd>5</Kbd>. These are the app&rsquo;s real cards, command palette
+                and task editor, running in your browser on made-up tasks.
               </p>
             </StaggerItem>
             <StaggerItem index={1} className="mt-12">

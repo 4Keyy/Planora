@@ -7,6 +7,8 @@ import {
   type ListNavigation,
   type ListNavigationOptions,
 } from "@/hooks/use-list-navigation"
+import { KEY_ECHO_EVENT } from "@/lib/key-echo"
+import { registerPriorityTarget, resetPriorityKeysForTests } from "@/lib/priority-keys"
 
 beforeEach(() => {
   window.matchMedia = vi.fn().mockReturnValue({
@@ -886,5 +888,127 @@ describe("the cursor ring appears only for the keyboard", () => {
     act(() => nav().setActiveId(null))
     expect(nav().cursorVisible).toBe(false)
     expect(ringed(rows())).toHaveLength(0)
+  })
+})
+
+// ─── The number keys, shared with the pointer ───────────────────────────────
+
+describe("the number keys and the card under the pointer", () => {
+  const callbacks = () => ({ onPriority: vi.fn() })
+
+  /** A task card the pointer can rest on, the way `TodoCard` registers itself. */
+  function pointAtCard() {
+    const node = document.createElement("article")
+    document.body.appendChild(node)
+    const accepts = vi.fn(() => true)
+    const apply = vi.fn()
+    const unregister = registerPriorityTarget(node, { accepts, apply })
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: () => node })
+    const move = (x: number) => {
+      const event = new MouseEvent("pointermove", { clientX: x, clientY: 10 })
+      Object.defineProperty(event, "pointerType", { value: "mouse" })
+      act(() => {
+        window.dispatchEvent(event)
+      })
+    }
+    return { node, apply, unregister, move }
+  }
+
+  afterEach(() => {
+    resetPriorityKeysForTests()
+  })
+
+  it("leaves 1-5 to the card under a pointer that moved after the cursor", async () => {
+    const cb = callbacks()
+    renderList({ ids: IDS, ...cb })
+    await userEvent.keyboard("j")
+    const card = pointAtCard()
+    card.move(20)
+
+    const event = press("4")
+
+    expect(cb.onPriority).not.toHaveBeenCalled()
+    expect(card.apply).toHaveBeenCalledWith(4)
+    expect(event.defaultPrevented).toBe(true)
+    card.unregister()
+  })
+
+  it("takes them back for the cursor as soon as the cursor moves again", async () => {
+    const cb = callbacks()
+    renderList({ ids: IDS, ...cb })
+    const card = pointAtCard()
+    card.move(20)
+    await userEvent.keyboard("j")
+
+    press("2")
+
+    expect(cb.onPriority).toHaveBeenCalledWith("a", 2)
+    expect(card.apply).not.toHaveBeenCalled()
+    card.unregister()
+  })
+
+  it("reads a digit from the physical key on a layout that types a symbol there", async () => {
+    const cb = callbacks()
+    renderList({ ids: IDS, ...cb })
+    await userEvent.keyboard("j")
+
+    press("é", { code: "Digit2" })
+
+    expect(cb.onPriority).toHaveBeenCalledWith("a", 2)
+  })
+
+  it("ignores a held digit's repeats", async () => {
+    const cb = callbacks()
+    renderList({ ids: IDS, ...cb })
+    await userEvent.keyboard("j")
+
+    press("3", { repeat: true })
+
+    expect(cb.onPriority).not.toHaveBeenCalled()
+  })
+})
+
+describe("selection: false", () => {
+  it("leaves x, Shift-extend and Mod+A to the page", async () => {
+    const { nav } = renderList({ ids: IDS, selection: false })
+    await userEvent.keyboard("j")
+
+    const x = press("x")
+    press("ArrowDown", { shiftKey: true })
+    const all = press("a", { ctrlKey: true })
+
+    expect(nav().selectedIds).toEqual([])
+    expect(x.defaultPrevented).toBe(false)
+    expect(all.defaultPrevented).toBe(false)
+    // Shift+Down still moves the cursor; it just gathers nothing.
+    expect(nav().activeId).toBe("b")
+  })
+})
+
+describe("echoing the keys it acted on", () => {
+  it("says which legend key did something, and only then", async () => {
+    const heard: string[] = []
+    const listen = (event: Event) => heard.push((event as CustomEvent<string>).detail)
+    window.addEventListener(KEY_ECHO_EVENT, listen)
+    const cb = {
+      onActivate: vi.fn(),
+      onToggleComplete: vi.fn(),
+      onEdit: vi.fn(),
+      onDelete: vi.fn(),
+      onPriority: vi.fn(),
+    }
+    renderList({ ids: IDS, ...cb })
+
+    // A hidden cursor acts on nothing, so nothing is echoed for it.
+    press(" ")
+    press("j")
+    press("e")
+    press(" ")
+    press("3")
+    press("Delete")
+    press("Enter")
+    window.removeEventListener(KEY_ECHO_EVENT, listen)
+
+    expect(heard).toEqual(["J K", "E", "Space", "1–5", "Delete", "⏎"])
   })
 })

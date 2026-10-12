@@ -2,25 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
-import { useReducedMotion } from "framer-motion"
-import { motion } from "@/components/ui/motion"
 import { TodoCard } from "@/components/todos/todo-card"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
+import { usePriorityWriter } from "@/hooks/use-priority-writer"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
+import { KeyLegendRow, useLitKey } from "@/components/ui/key-legend"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
-import { todoToOwnerPayload } from "@/components/todos/edit-todo-modal/utils"
 import { api, parseApiResponse } from "@/lib/api"
 import { DEMO_USER } from "@/lib/demo/state"
-import { legendKeyFor, ROW_KEYS, type LegendKey } from "@/lib/landing-keys"
-import { SPRING_RESPONSIVE } from "@/lib/animations"
+import { type LegendKey } from "@/lib/landing-keys"
 import { useToastStore } from "@/store/toast"
-import { isTodoOwner, toApiTodoStatus, type Todo, type PagedTodosResponse } from "@/types/todo"
+import { isTodoOwner, type Todo, type PagedTodosResponse } from "@/types/todo"
 import type { Category } from "@/types/category"
 import { toCategoryList, type CategoryListResponse } from "@/types/category"
 import { SandboxNotice } from "./demo-sandbox"
-import { cn } from "@/lib/utils"
 
 const EditTodoModal = dynamic(
   () => import("@/components/todos/edit-todo-modal").then((m) => ({ default: m.EditTodoModal })),
@@ -41,11 +38,12 @@ const EditTodoModal = dynamic(
  * Completing is **not** optimistic in the product: the card leaves once the server has
  * said yes, and the product says "Task completed!". A failure is a toast, as it is there —
  * this block used to roll back silently, which no screen in the app does. Priority is the
- * owner's alone and goes through `todoToOwnerPayload`, because the endpoint is a PUT and a
- * partial body clears what it omits. The list stops listening while the task editor is
- * open (`enabled`), exactly as `/tasks` does: otherwise Escape in the editor also dropped
- * the list's cursor, and Space on a focused editor control could complete the task behind
- * the dialog.
+ * owner's alone and goes through `usePriorityWriter`, the same writer the app's screens
+ * use: shown on the keypress, saved once, `{ priority }` and nothing else — from the
+ * cursor, or from the card under the pointer. The list stops listening while the task
+ * editor is open (`enabled`), exactly as `/tasks` does: otherwise Escape in the editor also
+ * dropped the list's cursor, and Space on a focused editor control could complete the task
+ * behind the dialog.
  *
  * Two constraints that are easy to break:
  *
@@ -103,21 +101,26 @@ export function KeyboardConsole() {
     }
   }
 
-  const setPriority = async (id: string, level: number) => {
-    const task = tasks.find((t) => t.id === id)
+  // Memoised cards keep the handlers of their first render; the writer reads the list
+  // through this ref, so an old handler still sees today's tasks.
+  const tasksRef = useRef(tasks)
+  tasksRef.current = tasks
+
+  const writePriority = usePriorityWriter({
+    read: (id) => tasksRef.current.find((t) => t.id === id),
+    patch: (id, fields) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...fields } : t))),
+    save: async (id, level) => {
+      const res = await api.put(`/todos/api/v1/todos/${id}`, { priority: level })
+      return parseApiResponse<Todo>(res.data)
+    },
+    onError: () => addToast({ type: "error", title: "Couldn't change the priority" }),
+  })
+
+  const setPriority = (id: string, level: number) => {
+    const task = tasksRef.current.find((t) => t.id === id)
     // A shared viewer pressing `3` would earn a 403 for a key nobody offered them.
-    if (!task || !isTodoOwner(task, DEMO_USER.userId)) return
-    try {
-      const res = await api.put(`/todos/api/v1/todos/${id}`, {
-        ...todoToOwnerPayload(task),
-        priority: level,
-        status: toApiTodoStatus(task.status),
-      })
-      const updated = parseApiResponse<Todo>(res.data)
-      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)))
-    } catch {
-      addToast({ type: "error", title: "Couldn't update task" })
-    }
+    if (!task || task.hidden || !isTodoOwner(task, DEMO_USER.userId)) return
+    writePriority(id, level)
   }
 
   /**
@@ -169,13 +172,10 @@ export function KeyboardConsole() {
     },
     onToggleComplete: (id) => void toggleComplete(id),
     onDelete: remove,
-    onPriority: (id, level) => void setPriority(id, level),
+    onPriority: setPriority,
   })
 
-  const lit = useLitKey({
-    enabled: editing === null,
-    rowKeysLive: nav.cursorVisible && nav.activeId !== null,
-  })
+  const lit = useLitKey({ enabled: editing === null })
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-10">
@@ -214,6 +214,7 @@ export function KeyboardConsole() {
                 onComplete={() => toggleComplete(task.id)}
                 onDelete={() => remove(task.id)}
                 onEdit={() => openEditor(task, false)}
+                onPriority={(level) => setPriority(task.id, level)}
               />
             ))}
           </div>
@@ -224,7 +225,7 @@ export function KeyboardConsole() {
         <p className={FIELD_LABEL_CLASS}>Bound on this page</p>
         <dl className="mt-3 flex flex-col gap-2">
           {KEYS.map(({ keys, does }) => (
-            <LegendRow key={keys} keys={keys} does={does} lit={lit === keys} />
+            <KeyLegendRow key={keys} keys={keys} does={does} lit={lit === keys} />
           ))}
         </dl>
         <p className="mt-4 text-caption text-ink-muted">
@@ -253,86 +254,6 @@ export function KeyboardConsole() {
           onCreateCategory={load}
         />
       )}
-    </div>
-  )
-}
-
-/**
- * The legend row the visitor's last keystroke belongs to, for ~700ms.
- *
- * A passive listener: it never prevents, never stops propagation, and ignores keys typed
- * into a field, so it cannot change what any key does — it only reports it. Row keys light
- * only while the list's cursor is shown, because with a hidden cursor they do nothing, and
- * a legend that lights up for a key that did nothing would be the lie this block exists to
- * avoid.
- */
-function useLitKey({ enabled, rowKeysLive }: { enabled: boolean; rowKeysLive: boolean }) {
-  const [lit, setLit] = useState<LegendKey | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const live = useRef(rowKeysLive)
-  useEffect(() => {
-    live.current = rowKeysLive
-  }, [rowKeysLive])
-
-  useEffect(() => {
-    if (!enabled) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target
-      if (
-        target instanceof HTMLElement &&
-        (target.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])") !== null)
-      ) {
-        return
-      }
-      const row = legendKeyFor(event)
-      if (!row) return
-      if (ROW_KEYS.has(row) && !live.current) return
-      setLit(row)
-      if (timer.current) clearTimeout(timer.current)
-      timer.current = setTimeout(() => setLit(null), 700)
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => {
-      window.removeEventListener("keydown", onKeyDown)
-      if (timer.current) clearTimeout(timer.current)
-    }
-  }, [enabled])
-
-  return lit
-}
-
-function LegendRow({ keys, does, lit }: { keys: LegendKey; does: string; lit: boolean }) {
-  const reduce = useReducedMotion() ?? false
-  return (
-    // Keys in one column, what they do in the next, both left-aligned: a table the eye can
-    // run down. The descriptions used to be pushed to the far right, a ragged edge with a
-    // gap as wide as the column between each key and its meaning.
-    <div className="grid h-7 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-3">
-      <dt>
-        <motion.kbd
-          aria-hidden="true"
-          // A single press, keyed to each lighting so a repeated key presses again.
-          key={lit ? `${keys}-lit` : keys}
-          initial={lit && !reduce ? { scale: 0.9 } : false}
-          animate={{ scale: 1 }}
-          transition={SPRING_RESPONSIVE}
-          className={cn(
-            "inline-flex h-6 min-w-6 items-center justify-center rounded-sm border px-1.5",
-            "text-caption font-semibold tabular-nums transition-colors duration-fast",
-            lit ? "border-ink bg-ink text-paper" : "border-line bg-paper-sunken text-ink-muted"
-          )}
-        >
-          {keys}
-        </motion.kbd>
-      </dt>
-      <dd
-        className={cn(
-          "text-caption transition-colors duration-fast",
-          lit ? "font-semibold text-ink" : "text-ink-muted"
-        )}
-      >
-        {does}
-      </dd>
     </div>
   )
 }

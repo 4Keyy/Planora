@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState, useCallback, useRef } from "react"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch, AlertTriangle } from "lucide-react"
 import { api, setTaskHidden, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
@@ -37,6 +37,8 @@ import { StatusPanel } from "@/components/ui/status-panel"
 import { Pagination } from "@/components/ui/pagination"
 import { PageHeader } from "@/components/layout/page-header"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
+import { useListNavigation } from "@/hooks/use-list-navigation"
+import { rememberOrigin } from "@/lib/shared-origin"
 
 const PAGE_SIZE = 20
 
@@ -70,6 +72,8 @@ export default function CompletedTasksPage() {
   const [lastFetchedPage, setLastFetchedPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
+  /** `E` opens the editor with the title already in edit mode; `Enter` and a click do not. */
+  const [openInTitleEdit, setOpenInTitleEdit] = useState(false)
   const [deletingTodo, setDeletingTodo] = useState<Todo | null>(null)
   // Category filter — same mechanism + shared persistence as the /tasks page.
   const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([])
@@ -442,9 +446,37 @@ export default function CompletedTasksPage() {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE)
 
-  const visibleTodos = filterCategoryIds.length === 0
+  const visibleTodos = useMemo(() => filterCategoryIds.length === 0
     ? todos
-    : todos.filter(t => filterCategoryIds.includes(t.categoryId ?? ""))
+    : todos.filter(t => filterCategoryIds.includes(t.categoryId ?? "")), [todos, filterCategoryIds])
+
+  // ── The keyboard ───────────────────────────────────────────────────────────
+  /*
+   * The archive's cards answer the same keys as every other list of cards: `J`/`K` move,
+   * Enter opens, `E` opens into the title, Space reopens (the card's own circle does the
+   * same), Delete asks first, as the card's own delete does here. Finished cards show no
+   * priority, so the number keys pass them by; and there is no bulk action to select for.
+   */
+  const navIds = useMemo(() => visibleTodos.map(t => t.id), [visibleTodos])
+  const openFromKeys = (id: string, titleEdit: boolean) => {
+    const todo = todosRef.current.find(t => t.id === id)
+    if (!todo) return
+    rememberOrigin(nav.getRowNode(id))
+    setOpenInTitleEdit(titleEdit)
+    setEditingTodo(todo)
+  }
+  const nav = useListNavigation({
+    ids: navIds,
+    enabled: !editingTodo && !deletingTodo && !isCategoryModalOpen,
+    selection: false,
+    onActivate: (id) => openFromKeys(id, false),
+    onEdit: (id) => openFromKeys(id, true),
+    onToggleComplete: (id) => { void handleComplete(id) },
+    onDelete: (id) => {
+      const todo = todosRef.current.find(t => t.id === id)
+      if (todo && isTodoOwner(todo, user?.userId)) setDeletingTodo(todo)
+    },
+  })
 
   return (
     <div className="space-y-8" aria-busy={loading}>
@@ -556,9 +588,10 @@ export default function CompletedTasksPage() {
                   <TodoCard
                     todo={todo}
                     variant="completed"
+                    rowProps={nav.getRowProps(todo.id)}
                     onComplete={() => handleComplete(todo.id)}
                     onDelete={() => setDeletingTodo(todo)}
-                    onEdit={() => setEditingTodo(todo)}
+                    onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
                     onToggleHidden={() => handleToggleHidden(todo.id)}
                   />
                   {/* Gentle auto-deletion countdown. A friend's task completed only by this reader
@@ -595,6 +628,7 @@ export default function CompletedTasksPage() {
         <EditTodoModal
           todo={editingTodo}
           categories={categories}
+          openInTitleEdit={openInTitleEdit}
           onClose={() => setEditingTodo(null)}
           onSave={(payload) => handleUpdate(editingTodo.id, payload)}
           onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}

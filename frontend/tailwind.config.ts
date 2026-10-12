@@ -89,6 +89,18 @@ const config = {
           from: { transform: "translateX(-100%)" },
           to: { transform: "translateX(100%)" },
         },
+        /**
+         * A priority segment answering a key. Two names for one motion: the meter alternates
+         * them per change, because a new animation name restarts the animation in place.
+         */
+        "meter-tick": {
+          "0%, 100%": { transform: "scaleY(1)" },
+          "45%": { transform: "scaleY(1.5)" },
+        },
+        "meter-tock": {
+          "0%, 100%": { transform: "scaleY(1)" },
+          "45%": { transform: "scaleY(1.5)" },
+        },
       },
       animation: {
         "fade-in": `fade-in ${tokens.motion.duration.base}ms cubic-bezier(${tokens.motion.ease.emphasized.join(", ")})`,
@@ -96,6 +108,8 @@ const config = {
         "slide-up": `slide-up ${tokens.motion.duration.base}ms cubic-bezier(${tokens.motion.ease.emphasized.join(", ")})`,
         "scale-in": `scale-in ${tokens.motion.duration.base}ms cubic-bezier(${tokens.motion.ease.emphasized.join(", ")})`,
         shimmer: `shimmer 1200ms linear infinite`,
+        "meter-tick": `meter-tick ${tokens.motion.duration.base}ms cubic-bezier(${tokens.motion.ease.standard.join(", ")})`,
+        "meter-tock": `meter-tock ${tokens.motion.duration.base}ms cubic-bezier(${tokens.motion.ease.standard.join(", ")})`,
       },
 
       // Control heights, so a button and a field can never disagree.

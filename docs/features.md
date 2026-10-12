@@ -527,13 +527,16 @@ the "In progress" chip) that opens it in a new tab. Both compute the URL from th
 
 ### The keyboard over the task list
 
-`/tasks` answers to a cursor that walks the list without the pointer
-(`frontend/src/hooks/use-list-navigation.ts`, wired in `frontend/src/app/(app)/tasks/page.tsx`).
-One `keydown` listener on `window` serves the whole list: one listener per row would be one
-per mounted card, and it would require each row to hold DOM focus before its keys did
-anything, which is not how a list reads to a keyboard user. The hook never moves focus — the
-row under the cursor is simply the one tabbable row (roving `tabindex`), so `Tab` enters the
-list once and the keys take over from there.
+Every list of task cards answers to a cursor that walks it without the pointer
+(`frontend/src/hooks/use-list-navigation.ts`): `/dashboard` (the page of six), `/tasks`, the
+archive at `/tasks/completed`, and the landing page's keyboard console. One `keydown` listener on
+`window` serves the whole list: one listener per row would be one per mounted card, and it would
+require each row to hold DOM focus before its keys did anything, which is not how a list reads to
+a keyboard user. The hook never moves focus — the row under the cursor is simply the one tabbable
+row (roving `tabindex`), so `Tab` enters the list once and the keys take over from there.
+Selection (`X`, `Shift`-extend, `Cmd/Ctrl+A`) exists only on `/tasks`, the one screen with bulk
+actions to spend it on; elsewhere the hook runs with `selection: false` and leaves those keys to
+the browser.
 
 | Key | Acts on | Behaviour |
 |---|---|---|
@@ -542,13 +545,13 @@ list once and the keys take over from there.
 | `Shift+J` / `Shift+K` / `Shift+↑` / `Shift+↓` | cursor + selection | Move and extend the selection. Moving back over a row that is already selected shrinks the selection instead of growing it in both directions |
 | `G` `G` | the cursor | Jump to the first row. The two presses must fall inside 500 ms (`CHORD_WINDOW_MS`); any other key cancels a half-typed chord |
 | `Shift+G` | the cursor | Jump to the last row |
-| `Enter` | the row under the cursor | Open its branch editor |
+| `Enter` | the row under the cursor | Open its branch editor. On a hidden card it opens the card instead, as a press on the card does — see below |
 | `Space` | the row under the cursor | Complete or reopen it — the same `handleComplete` path the card's check button takes |
-| `E` | the row under the cursor | Opens the same editor as `Enter`; the page wires `onEdit` and `onActivate` to one handler |
-| `1`–`5` | the row under the cursor | Set priority. The page drops the key unless the viewer owns the task (a shared viewer would earn a `403` for a key nobody offered them), and sends the whole task through `todoToOwnerPayload` because the endpoint is a `PUT` and a partial body clears what it omits |
-| `X` | the row under the cursor | Add it to, or remove it from, the selection. The selection is always re-ordered to match the list |
-| `Cmd/Ctrl+A` | every reachable row | Select all of them, and seat the cursor on the first row if it has none — row actions bail on a null cursor, so `⌘A` followed by `Space` or `Delete` used to do nothing. An empty list gives the browser its default back |
-| `Delete` / `Backspace` | the row under the cursor **only** | Delete it, through the undo window described below |
+| `E` | the row under the cursor | Open the editor with the title already in edit mode (`openInTitleEdit`). On a hidden card it opens the card instead |
+| `1`–`5` | the card under the pointer, or the row under the cursor | Set priority — see "Priority from the number keys" below. Owner only, open cards only |
+| `X` | the row under the cursor | Add it to, or remove it from, the selection. The selection is always re-ordered to match the list (`/tasks` only) |
+| `Cmd/Ctrl+A` | every reachable row | Select all of them, and seat the cursor on the first row if it has none — row actions bail on a null cursor, so `⌘A` followed by `Space` or `Delete` used to do nothing. An empty list gives the browser its default back (`/tasks` only) |
+| `Delete` / `Backspace` | the row under the cursor **only** | Delete it, through the undo window described below (the archive asks first, as its cards do). Owner only: anyone else's `Delete` is dropped rather than undone by the server five seconds later |
 | `Escape` | one layer per press | Clears the selection first; a second press drops the cursor. Deliberately not `preventDefault`-ed, so an outer layer keeps its own meaning for the key |
 
 Two rules are not obvious from the key list:
@@ -564,7 +567,8 @@ Two rules are not obvious from the key list:
   visibility. A click moves the place — so `Tab` and `J` carry on from the card that was
   clicked — but any pointer press hides the ring, and `Tab` into the list, a move, a jump or
   `⌘A` shows it. While it is hidden the row keys (`Enter`, `Space`, `E`, `1`–`5`, `X`,
-  `Delete`) do nothing and are not `preventDefault`-ed: `Space` after a click scrolls the
+  `Delete`) do nothing for the cursor and are not `preventDefault`-ed — the number keys still
+  reach the card under the pointer, which is its own target: `Space` after a click scrolls the
   page instead of completing a task nobody could see was targeted. It used to be that a click
   focused the row, focus set the cursor and the cursor drew an outline — a ring around every
   card you clicked that no click elsewhere removed. Selection (`data-selected`) is unaffected:
@@ -587,19 +591,41 @@ Guards, all of them in the hook:
 The listener is attached in the **bubble** phase, so a popover or menu inside a row can keep a
 key with `stopPropagation()`; a capture-phase listener on `window` could not be overruled.
 
-**Scope.** The cursor addresses the *mounted* window of cards, not the whole filtered list —
-the page mounts 24 cards and grows by 24 as the user scrolls (`INITIAL_VISIBLE_TASKS` /
+**Scope.** On `/tasks` the cursor addresses the *mounted* window of cards, not the whole filtered
+list — the page mounts 24 cards and grows by 24 as the user scrolls (`INITIAL_VISIBLE_TASKS` /
 `VISIBLE_TASKS_CHUNK`), and letting the cursor walk off into rows with no element would make
-it appear to vanish. The hook detaches entirely (`enabled: false`) whenever the branch editor,
-the create panel, or the category-filter modal is open — one flag, `listKeysEnabled`, also
-hides quick capture and marks realtime arrivals as unsafe to apply, so the three cannot answer
-the question differently. Detaching leaves the cursor where it was, so closing the dialog
-returns the user to their place.
+it appear to vanish. On the dashboard and the archive it addresses the page of cards on screen.
+The hook detaches entirely (`enabled: false`) whenever the branch editor, the create panel, or a
+filter or confirmation dialog is open — on `/tasks` one flag, `listKeysEnabled`, also hides quick
+capture and marks realtime arrivals as unsafe to apply, so the three cannot answer the question
+differently. Detaching leaves the cursor where it was, so closing the dialog returns the user to
+their place.
 
-The `?` overlay (`frontend/src/components/ui/shortcuts-overlay.tsx`) is the on-screen copy of
-this map, and `SHORTCUT_GROUPS` there is exported so the command palette prints the same
-strings. Its **Search** group lists the palette's own keys; the palette's "Keyboard shortcuts"
-row opens it through `OPEN_SHORTCUTS_EVENT`. See `docs/frontend.md` §7 for the cross-page keyboard model.
+**A hidden card never reaches the editor from a key.** A hidden task arrives from the list read
+redacted — no description, no dates, no audience — and an editor seeded with that copy would
+write it back on its first autosave. `Enter` and `E` on a hidden card therefore open the card,
+exactly as a press on it does, and the number keys pass it by.
+
+#### Priority from the number keys
+
+`1`–`5` set the priority of the card under the pointer, on every surface that shows task cards,
+and of the row under the keyboard cursor on the lists above (`frontend/src/lib/priority-keys.ts`,
+`frontend/src/hooks/use-priority-target.ts`, `frontend/src/hooks/use-priority-writer.ts`).
+
+| Rule | Behaviour |
+|---|---|
+| Who takes the key | The owner's open card: not hidden, not finished, not mid-completion or mid-fold, and only on a surface that gave the card an `onPriority`. Anything else — a friend's task, a hidden card — takes nothing, and the key is left unprevented |
+| One target, never two | A pointer resting on one card and a cursor on another: the key goes to whichever was aimed with last. The pointer counts when it moves, wheels or presses; the cursor when the list moves or shows it (`noteKeyboardAim`). Both readers ask `pointerAimsAtCard()`, so listener order decides nothing. A pointer resting on a card that declines still owns the key — pointing at a friend's task and pressing `3` changes nothing, not the card the cursor was left on |
+| What "under the pointer" means | Read when the key lands, with `elementFromPoint` at the last pointer position, never remembered from `pointerenter`: cards re-sort and glide under a still pointer, the page scrolls under it, and a dialog may cover the card by now |
+| The card moved after the key | Lists sort by priority, so a changed card can glide away. A second number within 800 ms, with the pointer still, goes to the same card rather than to whichever slid under the pointer |
+| Keys left alone | `6`–`9` and `0`; any key with `Ctrl`, `Cmd` or `Alt`; auto-repeat; a key typed into a field or inside a dialog; a key another handler already claimed. A finger does not aim the keys, and a pointer that left the window aims at nothing |
+| Layouts | The digit is read from `key`, or from the physical number row (`code`) when that row types symbols unshifted (AZERTY). A numpad key counts only with NumLock on — off, it is an arrow and belongs to the cursor |
+| Feedback | The card's meter fills or empties segment by segment from the old level, each with a short tick, and its `n/5` rolls (`PriorityMeter animate`). A key for the level the task already has ticks the filled segments instead of doing nothing. A polite live region says "Priority 4 of 5, High" (`lib/announce.ts`) |
+| The write | Shown on the keypress; presses on one task inside 200 ms become one request carrying the last of them; never two saves in flight for a task, the newer level waits and goes next; an answer that arrives after a newer press does not repaint the card; a failed save puts the server's level back with a "Couldn't change the priority" notice. The body is `{ priority }` alone — the update endpoint is a merge (`docs/API.md`), pinned by `UpdateTodo_WithPriorityOnly_ShouldLeaveEveryOtherFieldAsItWas` — so a key can neither overwrite a field someone else just changed nor write back a redacted copy. The red frame follows on the keypress: `Urgent`, or due today or earlier on the server's UTC calendar |
+
+The keys that act are echoed on `window` (`planora:key-echo`, `lib/key-echo.ts`) so a key legend
+can light the row of the key that just did something — the landing console's legend and the
+dashboard's key panel do.
 
 ### Command palette
 

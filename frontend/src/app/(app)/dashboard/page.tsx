@@ -47,6 +47,9 @@ import { StatRow } from "@/components/ui/stat-row"
 import { DURATION_DELIBERATE, EASE_OUT_EXPO } from "@/lib/animations"
 import { QuickCapture } from "@/components/todos/quick-capture"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
+import { useListNavigation } from "@/hooks/use-list-navigation"
+import { usePriorityWriter } from "@/hooks/use-priority-writer"
+import { rememberOrigin } from "@/lib/shared-origin"
 
 const STATS_COMPLETED_PREVIEW_SIZE = 100
 const STATS_REQUEST_TIMEOUT_MS = 30000
@@ -139,6 +142,8 @@ export default function DashboardPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
+  /** `E` opens the editor with the title already in edit mode; `Enter` and a click do not. */
+  const [openInTitleEdit, setOpenInTitleEdit] = useState(false)
   /** Deletions wait five seconds in here instead of behind a confirmation dialog. */
   const undoable = useUndoableAction()
   const [mounted, setMounted] = useState(false)
@@ -748,6 +753,65 @@ export default function DashboardPage() {
     } catch { }
   }
 
+  // ── The keyboard ───────────────────────────────────────────────────────────
+  /*
+   * The same keys as Tasks and the landing page's console, on the same cards: `J`/`K`
+   * move, Enter opens, `E` opens into the title, Space completes, Delete deletes with
+   * five seconds to undo, `1`–`5` set the priority — of the card under the pointer, or of
+   * the cursor's. No selection here: there is no bulk action on this screen to spend it on.
+   */
+  const writePriority = usePriorityWriter({
+    read: (id) => todosRef.current.find(t => t.id === id) ?? statsTodosRef.current.find(t => t.id === id),
+    patch: (id, fields) => {
+      const merge = (prev: Todo[]) => prev.map(t => t.id === id ? { ...t, ...fields } : t)
+      setTodos(merge)
+      setStatsTodos(merge)
+    },
+    save: async (id, level) => {
+      const res = await api.put<ApiResponse<Todo>>(`/todos/api/v1/todos/${id}`, { priority: level })
+      return parseApiResponse(res.data)
+    },
+    onError: () => addToast({ type: "error", title: "Couldn't change the priority" }),
+  })
+
+  /** The owner's open task only: a hidden card holds the server's redacted copy. */
+  const handlePriority = useCallback((todoId: string, level: number) => {
+    const todo = todosRef.current.find(t => t.id === todoId)
+    if (!todo || todo.hidden || !isTodoOwner(todo, user?.userId)) return
+    writePriority(todoId, level)
+  }, [writePriority, user?.userId])
+
+  const openTask = useCallback((todoId: string, titleEdit: boolean, origin: HTMLElement | null) => {
+    const todo = todosRef.current.find(t => t.id === todoId)
+    if (!todo) return
+    // A hidden card opens itself, as a press on it does. The editor is never handed the
+    // redacted copy: an autosave from it would write that copy back.
+    if (todo.hidden) {
+      void handleToggleHidden(todoId)
+      return
+    }
+    // Hand over the same rect a click would, so a key and a pointer open it identically.
+    rememberOrigin(origin)
+    setOpenInTitleEdit(titleEdit)
+    setEditingTodo(todo)
+  }, [handleToggleHidden])
+
+  const navIds = useMemo(() => activeTodos.map(t => t.id), [activeTodos])
+  const nav = useListNavigation({
+    ids: navIds,
+    enabled: !editingTodo && !isCreateOpen,
+    selection: false,
+    onActivate: (id) => openTask(id, false, nav.getRowNode(id)),
+    onEdit: (id) => openTask(id, true, nav.getRowNode(id)),
+    onToggleComplete: (id) => { void handleComplete(id) },
+    onDelete: (id) => {
+      const todo = todosRef.current.find(t => t.id === id)
+      // Only the owner can delete; anyone else's Delete would be undone by the server.
+      if (todo && isTodoOwner(todo, user?.userId)) requestDelete(todo)
+    },
+    onPriority: handlePriority,
+  })
+
   const handlePageChange = useCallback((page: number) => {
     const maxPage = Math.max(1, Math.ceil(totalCount / pageSize))
     const nextPage = Math.max(1, Math.min(maxPage, page))
@@ -962,11 +1026,13 @@ export default function DashboardPage() {
                     <TodoCard
                       todo={todo}
                       variant="default"
+                      rowProps={nav.getRowProps(todo.id)}
                       onComplete={() => handleComplete(todo.id)}
                       onDelete={() => requestDelete(todo)}
-                      onEdit={() => setEditingTodo(todo)}
+                      onEdit={() => { setOpenInTitleEdit(false); setEditingTodo(todo) }}
                       onToggleHidden={() => handleToggleHidden(todo.id)}
                       onJoin={async () => handleJoin(todo.id)}
+                      onPriority={(level) => handlePriority(todo.id, level)}
                     />
                   )}
                 />
@@ -988,6 +1054,7 @@ export default function DashboardPage() {
           <EditTodoModal
             todo={editingTodo}
             categories={categories}
+            openInTitleEdit={openInTitleEdit}
             onClose={() => setEditingTodo(null)}
             onSave={payload => handleUpdate(editingTodo.id, payload)}
             onSaveViewerPreference={(payload) => handleSaveViewerPreference(editingTodo.id, payload.viewerCategoryId)}

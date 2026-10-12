@@ -1393,6 +1393,16 @@ a row can claim a key with `stopPropagation()`. That makes the hook single-insta
 page — a second list's `defaultPrevented` guard trips on the first's `preventDefault()`
 — which is right for a list nested in a list and would need a scope for anything else.
 
+**The number keys belong to whatever was aimed last.** `1`–`5` also set the priority of the
+card under the pointer, on every surface with task cards (`lib/priority-keys.ts`). A page can
+hold a resting pointer and a keyboard cursor on two different cards, and a key must change
+exactly one of them: the pointer when it moved, wheeled or pressed after the cursor last moved,
+the cursor otherwise. "Under the pointer" is read with `elementFromPoint` when the key lands,
+never remembered from a hover, because cards glide and pages scroll under a still pointer. A
+changed card answers with its meter — the segments fill one after another from the old level
+and the `n/5` rolls — so the press is seen, and a press for the level it already has ticks the
+meter rather than meeting silence.
+
 ### `PresenceRow` — first mount is not an event
 
 The difference between two consecutive id sets is an arrival. The set that was already

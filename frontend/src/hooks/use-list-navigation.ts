@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useReducedMotion } from "framer-motion"
 import { SCROLL_BEHAVIOR } from "@/lib/animations"
+import { isTextEntry } from "@/lib/text-entry"
+import { echoKey } from "@/lib/key-echo"
+import { MAX_PRIORITY, MIN_PRIORITY, noteKeyboardAim, pointerAimsAtCard, priorityDigit } from "@/lib/priority-keys"
 
 /**
  * Keyboard navigation for a flat list of rows.
@@ -55,29 +58,20 @@ import { SCROLL_BEHAVIOR } from "@/lib/animations"
  * silently deaf. That is the right answer for a list nested inside a list — the
  * outer one should not also move — but two independent lists on one screen would
  * need a scope, and today nothing asks for one.
+ *
+ * The number keys are shared with the pointer (`lib/priority-keys.ts`): a card under a
+ * pointer aimed after the cursor takes them, so the cursor's `1`–`5` stand aside while
+ * the pointer rests on any card. Every move and every showing of the cursor is reported
+ * as the keyboard's aim, and every key the list acts on is echoed (`lib/key-echo.ts`) for
+ * the legends that light up as keys are used.
  */
 
 /** Two `g` presses further apart than this are two `g` presses, not `gg`. */
 const CHORD_WINDOW_MS = 500
 
-const MIN_PRIORITY = 1
-const MAX_PRIORITY = 5
-
-/**
- * A key pressed into a text field belongs to the text field.
- *
- * Without this, typing "extra jam" into the create composer would edit a task,
- * toggle three others and delete one. `isContentEditable` alone is not enough:
- * jsdom does not implement it, and a caret inside a nested node of an editable
- * region reports the attribute on an ancestor rather than on the node itself.
- */
-export function isTextEntry(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  const tag = target.tagName
-  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true
-  if (target.isContentEditable) return true
-  return target.closest("[contenteditable]:not([contenteditable='false'])") !== null
-}
+// The text-field guard is shared with the priority keys under the pointer, so it lives in
+// `lib/text-entry.ts`; re-exported because the composer and the tests import it from here.
+export { isTextEntry }
 
 /**
  * Enter and Space already mean something to a focused control.
@@ -103,6 +97,12 @@ export interface ListNavigationOptions {
   onDelete?: (id: string) => void
   onPriority?: (id: string, level: number) => void
   onSelectionChange?: (ids: string[]) => void
+  /**
+   * Whether `x`, Shift-extend and Mod+A gather a selection. Off on a screen with no bulk
+   * actions to spend one on: there the keys are left to the browser, and Mod+A selects
+   * the page's text as it always would, instead of outlining every card for nothing.
+   */
+  selection?: boolean
 }
 
 /** Spread onto each row. Every field is derived from the id, so rows stay dumb. */
@@ -184,6 +184,7 @@ export function useListNavigation({
   onDelete,
   onPriority,
   onSelectionChange,
+  selection = true,
 }: ListNavigationOptions): ListNavigation {
   const [activeId, setActiveIdState] = useState<string | null>(null)
   const [cursorVisible, setCursorVisible] = useState(false)
@@ -223,6 +224,7 @@ export function useListNavigation({
     onDelete,
     onPriority,
     onSelectionChange,
+    selection,
   })
   useEffect(() => {
     latest.current = {
@@ -236,6 +238,7 @@ export function useListNavigation({
       onDelete,
       onPriority,
       onSelectionChange,
+      selection,
     }
   })
 
@@ -373,7 +376,14 @@ export function useListNavigation({
        * modifier bail-out below for that reason, and only when the list has rows
        * to select, so an empty list still gives the browser its default back.
        */
-      if ((event.metaKey || event.ctrlKey) && (event.key === "a" || event.key === "A")) {
+      // The cursor shown by a key is the keyboard's aim: the number keys follow it until
+      // the pointer moves again (`lib/priority-keys.ts`).
+      const showCursor = () => {
+        setCursorVisible(true)
+        noteKeyboardAim()
+      }
+
+      if (state.selection && (event.metaKey || event.ctrlKey) && (event.key === "a" || event.key === "A")) {
         if (rowIds.length === 0) return
         event.preventDefault()
         setSelectedIds(rowIds.slice())
@@ -387,7 +397,7 @@ export function useListNavigation({
         }
         // And show it: after a click the cursor is seated but hidden, and a
         // hidden cursor does not act, which would bring the dead keystroke back.
-        setCursorVisible(true)
+        showCursor()
         return
       }
 
@@ -419,12 +429,12 @@ export function useListNavigation({
         // cursor already at the edge is still shown, or `j` on the last row after
         // a click would do nothing anyone could see.
         if (to < 0 || to >= rowIds.length) {
-          if (index !== -1) setCursorVisible(true)
+          if (index !== -1) showCursor()
           return
         }
         const nextId = rowIds[to]
         const currentId = state.activeId
-        if (extend && currentId !== null && currentId !== nextId) {
+        if (extend && state.selection && currentId !== null && currentId !== nextId) {
           setSelectedIds((prev) => {
             const next = new Set(prev)
             if (next.has(nextId)) {
@@ -440,7 +450,7 @@ export function useListNavigation({
           })
         }
         setActiveIdState(nextId)
-        setCursorVisible(true)
+        showCursor()
       }
 
       // ── Moving ──────────────────────────────────────────────────────────────
@@ -450,12 +460,14 @@ export function useListNavigation({
         event.preventDefault()
         step(1, event.shiftKey)
         chordAt.current = 0
+        if (rowIds.length > 0) echoKey("J K")
         return
       }
       if (key === "k" || key === "ArrowUp") {
         event.preventDefault()
         step(-1, event.shiftKey)
         chordAt.current = 0
+        if (rowIds.length > 0) echoKey("J K")
         return
       }
       if (key === "g") {
@@ -465,7 +477,7 @@ export function useListNavigation({
         if (completesChord && rowIds.length > 0) {
           event.preventDefault()
           setActiveIdState(rowIds[0])
-          setCursorVisible(true)
+          showCursor()
         }
         return
       }
@@ -477,7 +489,7 @@ export function useListNavigation({
         if (rowIds.length === 0) return
         event.preventDefault()
         setActiveIdState(rowIds[rowIds.length - 1])
-        setCursorVisible(true)
+        showCursor()
         return
       }
 
@@ -519,6 +531,7 @@ export function useListNavigation({
       if (key === "Enter") {
         event.preventDefault()
         state.onActivate?.(targetId)
+        echoKey("⏎")
         return
       }
       if (key === " ") {
@@ -526,11 +539,13 @@ export function useListNavigation({
         // Space is the browser's page-down.
         event.preventDefault()
         state.onToggleComplete?.(targetId)
+        echoKey("Space")
         return
       }
       if (key === "e") {
         event.preventDefault()
         state.onEdit?.(targetId)
+        echoKey("E")
         return
       }
       if (key === "Delete" || key === "Backspace") {
@@ -538,9 +553,10 @@ export function useListNavigation({
         // every user's muscle memory from the ones where it did.
         event.preventDefault()
         state.onDelete?.(targetId)
+        echoKey("Delete")
         return
       }
-      if (key === "x") {
+      if (key === "x" && state.selection) {
         event.preventDefault()
         setSelectedIds((prev) => {
           const next = new Set(prev)
@@ -550,9 +566,14 @@ export function useListNavigation({
         })
         return
       }
-      if (key >= String(MIN_PRIORITY) && key <= String(MAX_PRIORITY) && key.length === 1) {
+      const level = priorityDigit(event)
+      if (level !== null && level >= MIN_PRIORITY && level <= MAX_PRIORITY && !event.repeat) {
+        // The pointer, aimed after the cursor and resting on a card, owns the number
+        // keys: that card takes it, or nothing does. Left unprevented for it.
+        if (pointerAimsAtCard()) return
         event.preventDefault()
-        state.onPriority?.(targetId, Number(key))
+        state.onPriority?.(targetId, level)
+        if (state.onPriority) echoKey("1–5")
       }
     }
 
@@ -591,7 +612,10 @@ export function useListNavigation({
       // focus arrives here.
       onFocus: () => {
         setActiveIdState(id)
-        if (focusByKeyboard.current) setCursorVisible(true)
+        if (focusByKeyboard.current) {
+          setCursorVisible(true)
+          noteKeyboardAim()
+        }
       },
     }
     rowHandles.current.set(id, handles)
@@ -628,6 +652,7 @@ export function useListNavigation({
   const setActiveId = useCallback((id: string | null) => {
     setActiveIdState(id)
     setCursorVisible(id !== null)
+    if (id !== null) noteKeyboardAim()
   }, [])
   const clearSelection = useCallback(() => setSelectedIds([]), [])
   const getRowNode = useCallback((id: string) => rows.current.get(id) ?? null, [])

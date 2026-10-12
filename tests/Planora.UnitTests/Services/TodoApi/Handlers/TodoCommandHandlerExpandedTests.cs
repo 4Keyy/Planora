@@ -448,6 +448,51 @@ public class TodoCommandHandlerExpandedTests
     }
 
     [Fact]
+    [Trait("TestType", "Functional")]
+    [Trait("TestType", "Regression")]
+    public async Task UpdateTodo_WithPriorityOnly_ShouldLeaveEveryOtherFieldAsItWas()
+    {
+        // The frontend's number keys send `{ priority }` and nothing else (use-priority-writer.ts):
+        // an omitted field is "unchanged", never "cleared". If this stops holding, a one-key
+        // priority change wipes the description, the dates and the audience.
+        var userId = Guid.NewGuid();
+        var friendId = Guid.NewGuid();
+        var categoryId = Guid.NewGuid();
+        var due = DateTime.UtcNow.Date.AddDays(7);
+        var todo = TodoItem.Create(
+            userId,
+            "Adaptive design",
+            description: "Three breakpoints and a print sheet",
+            categoryId: categoryId,
+            dueDate: due,
+            priority: TodoPriority.Medium,
+            sharedWithUserIds: new[] { friendId },
+            requiredWorkers: 2,
+            dueDateStart: due.AddDays(-2));
+        var fixture = new TodoCommandFixture(userId);
+        fixture.TodoRepository.Setup(x => x.GetByIdWithIncludesTrackedAsync(todo.Id, It.IsAny<CancellationToken>())).ReturnsAsync(todo);
+        fixture.FriendshipService
+            .Setup(x => x.GetFriendIdsAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { friendId });
+
+        var result = await fixture.CreateUpdateHandler().Handle(
+            new UpdateTodoCommand(todo.Id, Priority: TodoPriority.High),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(TodoPriority.High, todo.Priority);
+        Assert.Equal("Adaptive design", todo.Title);
+        Assert.Equal("Three breakpoints and a print sheet", todo.Description);
+        Assert.Equal(categoryId, todo.CategoryId);
+        Assert.Equal(due, todo.DueDate);
+        Assert.Equal(due.AddDays(-2), todo.DueDateStart);
+        Assert.False(todo.IsPublic);
+        Assert.Equal(friendId, Assert.Single(todo.SharedWith).SharedWithUserId);
+        Assert.Equal(2, todo.RequiredWorkers);
+        Assert.Equal(TodoStatus.Todo, todo.Status);
+    }
+
+    [Fact]
     [Trait("TestType", "Security")]
     public async Task UpdateTodo_ShouldAllowSharedViewerStatusOnly_AndHideOwnerCategory()
     {
