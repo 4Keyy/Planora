@@ -472,6 +472,12 @@ Units matter: `useSpring` given a string such as `"8%"` parses the number and dr
 the band travelled 8px instead of a third of its width. Spring the number, then template the
 unit on with `useMotionTemplate`.
 
+The seat rail also springs a number: its column coordinate, never a percentage string.
+An interrupted string spring normalises the next trip to 0–100 while inheriting velocity in
+percentage units, which can amplify the ring's travel. One numeric spring and its clamped
+0–10 projection drive both the ring transform and the line's 0–1 fill; reduced motion jumps
+to the selected column. The responsive percentage geometry needs no layout measurements.
+
 **Centring and moving are two nodes, never one.** framer-motion writes the whole `transform`
 of anything it animates, so a `-translate-x-1/2 -translate-y-1/2` on the same node is gone on
 the first frame of an `x`, a `y` or a `scale`. The landing page had it three times: the viewer

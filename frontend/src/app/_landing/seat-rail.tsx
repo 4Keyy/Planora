@@ -1,7 +1,7 @@
 "use client"
 
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react"
-import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react"
+import { AnimatePresence, useReducedMotion, useSpring, useTransform } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import { Plus } from "lucide-react"
 import { SHARING_CEILING, viewerValueText } from "@/lib/landing-audience"
@@ -62,6 +62,17 @@ export function SeatRail({
   labelledBy: string
 }) {
   const reduce = useReducedMotion() ?? false
+  // String springs normalise each trip to 0–100 but inherit velocity in percentage
+  // units. Frequent retargeting amplifies it. Keep position and velocity in seats.
+  const column = useSpring(value, { ...SPRING_STANDARD, restDelta: 0.01, restSpeed: 0.5 })
+  const bounded = useTransform(column, (n) => Math.max(0, Math.min(MAX, n)))
+  const x = useTransform(bounded, (n) => `${n * 100}%`)
+  const scaleX = useTransform(bounded, (n) => n / MAX)
+  useEffect(() => {
+    if (reduce) column.jump(value)
+    else column.set(value)
+  }, [column, reduce, value])
+
   const railRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState(false)
   const [hover, setHover] = useState<number | null>(null)
@@ -147,8 +158,6 @@ export function SeatRail({
     pick(step[e.key])
   }
 
-  const move = reduce ? { duration: 0 } : SPRING_STANDARD
-
   return (
     <div>
       <div
@@ -187,10 +196,8 @@ export function SeatRail({
         <motion.span
           aria-hidden="true"
           className="absolute top-[calc(50%-1px)] h-0.5 origin-left rounded-full bg-ink"
-          style={{ left: centre(0), right: `calc(100% - ${centre(MAX)})` }}
+          style={{ left: centre(0), right: `calc(100% - ${centre(MAX)})`, scaleX }}
           initial={false}
-          animate={{ scaleX: value / MAX }}
-          transition={move}
         />
 
         {/* The seats. */}
@@ -244,10 +251,8 @@ export function SeatRail({
         <motion.span
           aria-hidden="true"
           className="pointer-events-none absolute inset-y-0 left-0"
-          style={{ width: `${100 / STOPS}%` }}
+          style={{ width: `${100 / STOPS}%`, x }}
           initial={false}
-          animate={{ x: `${value * 100}%` }}
-          transition={move}
         >
           <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <motion.span
