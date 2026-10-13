@@ -1,6 +1,6 @@
 import { writeFile } from 'node:fs/promises';
-import { expect, test, type Page } from '@playwright/test';
-import { assertGeometry, beginRailLayoutObservation, endRailLayoutObservation, createGeometryFixtures, geometryCard, hideRevealFixture, measureCard, navigateGeometrySurface, GeometryRateBudget, waitForGeometryTasks, type GeometryFixtures, type GeometryMeasurement } from './_card-geometry';
+import { expect, test, type Page, type Response } from '@playwright/test';
+import { persistJsonEvidence, assertGeometry, beginRailLayoutObservation, endRailLayoutObservation, createGeometryFixtures, geometryCard, hideRevealFixture, measureCard, navigateGeometrySurface, GeometryRateBudget, waitForGeometryTasks, type GeometryFixtures, type GeometryMeasurement } from './_card-geometry';
 import { FRONTEND_BASE } from './_helpers';
 import {
   registerVerifiedUser,
@@ -50,17 +50,102 @@ test.describe.serial('motion and geometry contracts (browser, post-login)', () =
     const user: UiUser = await registerVerifiedUser('geometry');
     page = await browser.newPage();
     await signIn(page, user);
-    await page.goto('/tasks');
-    const openPanel = page.getByRole('button', { name: /open create task panel/i });
-    const title = page.getByPlaceholder('What needs to be done?');
-    for (const text of TITLES) {
-      await openPanel.click();
-      await title.fill(text);
-      await page.keyboard.press('Control+Enter');
-      // /tasks closes the panel once the task is created (handleCreate -> setIsCreateOpen(false)).
-      await expect(openPanel).toBeVisible({ timeout: 10_000 });
-    }
-    await expect(page.locator('[data-task-card]')).toHaveCount(TITLES.length, { timeout: 10_000 });
+    const writes: Array<{ title: string; status: number; id: string | null; epoch: number }> = [];
+    const listReads: Array<{ epoch: number; status: number; pageNumber: string | null; pageSize: string | null;
+      isCompleted: string | null; items: Array<{ id: string; title: string }>; bodyReadable: boolean }> = [];
+    const reading = new Set<Promise<void>>();
+    const fixtureTitles = new Set(TITLES);
+    const object = (value: unknown): Record<string, unknown> | null =>
+      value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+    const unwrap = (value: unknown) => {
+      const body = object(value);
+      return object(body?.value ?? body?.data ?? body);
+    };
+    const onList = (response: Response) => {
+      const url = new URL(response.url());
+      if (response.request().method() !== 'GET' || url.pathname !== '/todos/api/v1/todos') return;
+      const epoch = Date.now();
+      const capture = (async () => {
+        let safeItems: Array<{ id: string; title: string }> = [];
+        let bodyReadable = true;
+        try {
+          const body = unwrap(await response.json());
+          const items: unknown[] = Array.isArray(body?.items) ? body.items : [];
+          safeItems = items.flatMap(value => {
+            const todo = object(value);
+            return typeof todo?.id === 'string' && typeof todo.title === 'string' && fixtureTitles.has(todo.title)
+              ? [{ id: todo.id, title: todo.title }] : [];
+          });
+        } catch { bodyReadable = false; }
+        listReads.push({ epoch, status: response.status(), pageNumber: url.searchParams.get('pageNumber'),
+          pageSize: url.searchParams.get('pageSize'), isCompleted: url.searchParams.get('isCompleted'), items: safeItems, bodyReadable });
+      })();
+      reading.add(capture);
+      void capture.then(() => reading.delete(capture), () => reading.delete(capture));
+    };
+    const onPost = (response: Response) => {
+      if (response.request().method() !== 'POST' || new URL(response.url()).pathname !== '/todos/api/v1/todos') return;
+      // Every task write in this fresh fixture page belongs to this seed, even if its payload was wrong.
+      const payload = object(response.request().postDataJSON());
+      const title = typeof payload?.title === 'string' ? payload.title : '(missing fixture title)';
+      const epoch = Date.now();
+      const capture = (async () => {
+        let id: string | null = null;
+        try {
+          const todo = unwrap(await response.json());
+          if (typeof todo?.id === 'string') id = todo.id;
+        } catch { /* The status is retained even for an unreadable task response. */ }
+        writes.push({ title, status: response.status(), id, epoch });
+      })();
+      reading.add(capture);
+      void capture.then(() => reading.delete(capture), () => reading.delete(capture));
+    };
+    page.on('response', onList);
+    page.on('response', onPost);
+    try {
+      await page.goto('/tasks');
+      const openPanel = page.getByRole('button', { name: /open create task panel/i });
+      const title = page.getByPlaceholder('What needs to be done?');
+      for (const text of TITLES) {
+        await openPanel.click();
+        await title.fill(text);
+        await expect(page.getByRole('button', { name: 'Create task', exact: true })).toBeEnabled();
+        // Observe this exact write before pressing: a closed header alone does not verify its payload or status.
+        const created = page.waitForResponse(response => new URL(response.url()).pathname === '/todos/api/v1/todos'
+          && response.request().method() === 'POST' && response.request().postDataJSON()?.title === text);
+        await page.keyboard.press('Control+Enter');
+        const response = await created;
+
+        expect(response.ok(), 'Fixture task ' + text + ': POST HTTP ' + response.status()).toBeTruthy();
+        // /tasks closes the panel once the task is created (handleCreate -> setIsCreateOpen(false)).
+        await expect(openPanel).toBeVisible({ timeout: 10_000 });
+      }
+      await Promise.allSettled([...reading]);
+      writes.sort((a, b) => a.epoch - b.epoch);
+      await persistJsonEvidence(test.info(), 'create-fixture-writes', { body: JSON.stringify({ writes }, null, 2), contentType: 'application/json' });
+      await expect(page.locator('[data-task-card]')).toHaveCount(TITLES.length, { timeout: 10_000 });
+    } catch (error) {
+      await Promise.allSettled([...reading]);
+      let domCount: number | null = null;
+      let domTitles: string[] = [];
+      try {
+        domCount = await page.locator('[data-task-card]').count();
+        domTitles = (await page.locator('[data-task-card] h3').allTextContents())
+          .map(title => title.replace(/\s+/g, ' ').trim()).filter(title => fixtureTitles.has(title));
+      } catch { /* Preserve the original setup error when the page itself became unavailable. */ }
+      try {
+        await Promise.allSettled([...reading]);
+      writes.sort((a, b) => a.epoch - b.epoch);
+      await persistJsonEvidence(test.info(), 'create-fixture-writes', { body: JSON.stringify({ writes }, null, 2), contentType: 'application/json' });
+        await persistJsonEvidence(test.info(), 'create-fixture-list', {
+          body: JSON.stringify({ writes, listReads: [...listReads].sort((a, b) => a.epoch - b.epoch), domCount, domTitles }, null, 2),
+          contentType: 'application/json',
+        });
+      } catch {
+        test.info().annotations.push({ type: 'evidence error', description: 'Creation fixture JSON could not be persisted; the original setup error is retained.' });
+      }
+      throw error;
+    } finally { page.off('response', onList); page.off('response', onPost); }
   });
 
   test.afterAll(async () => {

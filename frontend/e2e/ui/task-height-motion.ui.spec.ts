@@ -2,8 +2,9 @@ import { expect, test, type Locator } from '@playwright/test';
 import { API_BASE, FRONTEND_BASE, requireFrontendReachable } from './_helpers';
 import { persistJsonEvidence, createGeometryFixtures, geometryCard, hideRevealFixture, GeometryRateBudget, type GeometryFixtures } from './_card-geometry';
 import { retryRateLimited } from '../_rate-limit';
+import { watchRequests } from './_motion-frames';
 
-type Frame = { time: number; height: number; nextTop: number | null; pagerTop: number | null; controlsPager: boolean; animations: number };
+type Frame = { time: number; height: number; nextTop: number | null; pagerTop: number | null; controlsPager: boolean; animations: number; pending: boolean };
 let fixtures: GeometryFixtures;
 test.describe('real-service card height and layout motion', () => {
   test.beforeAll(async ({ browser }) => {
@@ -30,10 +31,11 @@ test.describe('real-service card height and layout motion', () => {
         const columnHeight = column.getBoundingClientRect().height;
         frames.push({
           time: time - start, height: element.getBoundingClientRect().height,
-          nextTop: next?.getBoundingClientRect().top ?? null,
-          pagerTop: pager?.getBoundingClientRect().top ?? null,
+          nextTop: next ? next.getBoundingClientRect().top + window.scrollY : null,
+          pagerTop: pager ? pager.getBoundingClientRect().top + window.scrollY : null,
           controlsPager: Array.from(grid.children).every(child => child.getBoundingClientRect().height <= columnHeight + 1),
           animations: element.getAnimations().length,
+          pending: element.querySelector('button[aria-busy="true"]') !== null,
         });
       };
       read(start);
@@ -42,7 +44,13 @@ test.describe('real-service card height and layout motion', () => {
       toggle.click();
       const sample = (time: number) => {
         read(time);
-        if (time - start < 1800) requestAnimationFrame(sample);
+        const tail = frames.slice(-12);
+        const landed = Math.abs(frames.at(-1)!.height - frames[0].height) > 20
+          && tail.length === 12 && tail.every(frame => !frame.pending && frame.animations === 0
+            && Math.abs(frame.height - tail[0].height) <= 0.02);
+        // Masked reveals wait for both real responses; the height clock counts drawn frames.
+        // Retain the original geometric guards and bound recording of a stuck request/glide.
+        if ((time - start < 1800 || !landed) && time - start < 8000) requestAnimationFrame(sample);
         else resolve(frames);
       };
       requestAnimationFrame(sample);
@@ -60,6 +68,9 @@ test.describe('real-service card height and layout motion', () => {
       if (frame.controlsPager && previous.controlsPager && frame.pagerTop !== null && previous.pagerTop !== null) expect(Math.abs(frame.pagerTop - previous.pagerTop - delta), 'pager tracks highest column').toBeLessThanOrEqual(1);
     }
     expect(frames.at(-1)!.animations).toBe(0);
+    const tail = frames.slice(-12);
+    expect(tail, 'Recording reaches twelve settled frames before its 8s cap').toHaveLength(12);
+    expect(tail.every(frame => !frame.pending && frame.animations === 0 && Math.abs(frame.height - tail[0].height) <= 0.02), 'A pending response or unfinished glide cannot pass at the recording cap').toBe(true);
   }
 
   for (const surface of ['/tasks', '/dashboard']) {
@@ -68,6 +79,7 @@ test.describe('real-service card height and layout motion', () => {
         await hideRevealFixture(fixtures);
         const context = await browser.newContext({ baseURL: FRONTEND_BASE, storageState: fixtures.storage, viewport: { width: 390, height: 1000 } });
         const page = await context.newPage();
+        const requests = watchRequests(page);
         try {
           const item = fixtures.cases.find(value => value.key === key)!;
           await page.goto(surface);
@@ -93,8 +105,11 @@ test.describe('real-service card height and layout motion', () => {
           expect(Math.abs(show.at(-1)!.height - natural)).toBeLessThanOrEqual(1);
           expect(await card.evaluate(element => (element as HTMLElement).style.height)).toBe('');
         } finally {
-          fixtures.storage = await context.storageState();
-          await context.close();
+          requests.stop();
+          try {
+            await persistJsonEvidence(info, 'real-height-requests', { body: JSON.stringify(requests.events), contentType: 'application/json' });
+            if (!page.isClosed()) fixtures.storage = await context.storageState();
+          } finally { await context.close(); }
         }
       });
     }
@@ -110,18 +125,25 @@ test.describe('real-service card height and layout motion', () => {
     expect(result.ok()).toBe(true);
     const context = await browser.newContext({ baseURL: FRONTEND_BASE, storageState: fixtures.storage, viewport: { width: 768, height: 1000 } });
     const page = await context.newPage();
+    const requests = watchRequests(page);
+    const progress: Array<{ step: string; epoch: number }> = [];
+    const mark = (step: string) => progress.push({ step, epoch: Date.now() });
     try {
+      mark('navigate');
       await page.goto('/dashboard');
       await expect(page.locator('[data-task-card]').first()).toBeVisible();
       await expect(page.locator('nav[aria-label="Pagination"]')).toBeVisible();
+      mark('expand fixture cards');
       const expanders = page.getByRole('button', { name: 'Expand task card', exact: true });
       // Expanding removes this button; indexed locators would then skip cards and stall.
       for (let remaining = await expanders.count(); remaining > 0; remaining--) {
+        mark('expand remaining ' + remaining);
         await expanders.first().click();
         await expect(expanders).toHaveCount(remaining - 1);
       }
       await page.mouse.move(0, 0);
       await page.waitForTimeout(1000);
+      mark('select tallest column');
       const selector = await page.evaluate(() => {
         const columns = Array.from(document.querySelectorAll('[class~="relative"][class~="flex-col"][class~="flex-1"]')).filter(column => column.querySelector('[data-task-card]'));
         columns.sort((a, b) => b.getBoundingClientRect().height - a.getBoundingClientRect().height);
@@ -133,13 +155,21 @@ test.describe('real-service card height and layout motion', () => {
       await card.scrollIntoViewIfNeeded();
       await page.mouse.move(0, 0);
       await page.waitForTimeout(650);
+      mark('record collapse');
       const hide = await collect(card, 'Collapse task card');
       await persistJsonEvidence(info, 'bottom-card-hide', { body: JSON.stringify(hide), contentType: 'application/json' });
+      mark('record reveal');
       const frames = await collect(card, 'Expand task card');
       await persistJsonEvidence(info, 'bottom-card-pager', { body: JSON.stringify(frames), contentType: 'application/json' });
       expect(frames.some(frame => frame.controlsPager && frame.pagerTop !== null)).toBe(true);
       assertFrames(frames);
-    } finally { fixtures.storage = await context.storageState(); await context.close(); }
+    } finally {
+      requests.stop();
+      try {
+        await persistJsonEvidence(info, 'bottom-card-requests', { body: JSON.stringify({ progress, requests: requests.events }), contentType: 'application/json' });
+        if (!page.isClosed()) fixtures.storage = await context.storageState();
+      } finally { await context.close(); }
+    }
   });
 
   test('60 real tasks record animation FPS and long tasks', async ({ browser }, info) => {

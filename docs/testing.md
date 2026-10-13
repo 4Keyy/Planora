@@ -974,3 +974,133 @@ These are documentation observations, not claims of missing tests after running 
 | Relational persistence | Many backend repository/factory tests use EF InMemory; passing them does not verify PostgreSQL-specific SQL, constraints or transaction behavior. The retention policies are the exception: they run live on PostgreSQL (see above). |
 | Excluded frontend source | Route pages and the full branch-editor subtree are excluded from numeric coverage; audit their behavior independently. |
 | Session transitions | Friend cache isolation across accounts, scheduled refresh after later login and long-lived realtime reconnect exhaustion need targeted regression coverage. |
+
+<!-- codex-motion-20261013:start -->
+## Codex: регрессии motion на настоящих сервисах (2026-10-13)
+
+Проверяемая ревизия: `main`, `85fda00`; диапазон изменений `13ce27b..85fda00`.
+Код `frontend/src/**` и `Services/**` не изменён. Добавлен
+`frontend/e2e/ui/motion-regressions.ui.spec.ts` с реальными API-фикстурами,
+покадровой геометрией и физическими JSON/PNG-артефактами.
+
+Окружение: Windows, Node.js 22.18.0, установленные Next.js 16.2.9,
+Playwright 1.61.1, TypeScript 5.9.3, Vitest 4.1.9, React 18.3.1,
+Framer Motion 11.18.2. В manifest объявлены более новые Next ^16.3.8,
+Playwright ^1.63.0 и Vitest ^4.1.11; node_modules не переустанавливались.
+Выводы относятся к фактически установленным версиям; полный стек после
+синхронизации зависимостей не проверен. Прод-сборка выполнена с
+`NEXT_DIST_DIR=.next-codex`, `next start -p 3301`; viewport 1440×900
+и 390×844, DPR 1, CPU 1×, headless с `ignoreDefaultArgs: ["--hide-scrollbars"]`.
+Gateway `:5132` первоначально не отвечал: запущен
+`.\Start-Planora-Local.ps1 -SkipFrontend -NoBrowser`, существующие данные сохранены.
+Поднят отдельный Mailpit для настоящей email verification; SMTP настроен только
+в runtime собственного запущенного Auth-процесса. Backend, frontend `:3301`
+и тестовый SMTP оставлены работающими. `:3000` не перезапускался и не изменялся.
+Собственные автоправки side-build отменены; `frontend/tsconfig.json`
+и `frontend/next-env.d.ts` исключены из commit. Перед staging next-env уже
+возвращён внешним изменением к HEAD; текущая версия сохранена. TypeScript
+с этим актуальным конфигом повторно прошёл.
+
+Регистратор устанавливает наблюдение rAF до импорта приложения, чтобы покрыть
+закэшированный scheduler Framer. Порядок, timestamps и handles app callbacks
+сохраняются; чтение переносится после записывающих callbacks, каждый пропущенный
+кадр делает замер непригодным для сертификации. Результаты сохраняются до soft
+assertions, поэтому один дефект не прерывает остальные сценарии. Пользователи
+одноразовые `e2e-…@example.test`, verification и friendship настоящие, один вход
+на actor за прогон; cookies, JWT и CSRF находятся только в памяти.
+
+В существующем `task-height-motion.ui.spec.ts` координаты следующей карточки
+и пагинатора переведены в координаты документа: новый scroll hold намеренно
+меняет viewport, а проверяемая величина — положение в потоке. Численные пороги
+сохранены. В `motion-geometry.ui.spec.ts` seed ждёт enabled Create и успешный
+POST с точным title; девять карточек по-прежнему обязательны, ответы и список
+сохраняются для диагностики. Reduced paging проверяет мгновенное достижение
+цели и один различный программный scroll destination на каждую смену страницы;
+последующее нативное ограничение короткой страницы учитывается отдельно.
+
+### Сценарий → порог → факт
+
+| Сценарий | Порог | Факт Chromium, три последовательных прогона |
+|---|---|---|
+| Private hover/touch, /dashboard и /tasks, обе ширины | Данные и даты в первом росте; GET ≤ PATCH; шаг ≤25%; без разворота и изменения высоты после окончания | 24 сценария: все соответствующие assertions прошли; max шаг 24.00245%; GET≤PATCH 24/24. [кадры](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run1/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/dashboard-1440-hover.json) |
+| Сосед в той же колонке | Смещение равно приросту высоты ±1 px | max ошибка 0.0005 px; все прогоны прошли |
+| Shared owner / viewer friend pending | Expand до обоих ответов; Collapse отсутствует; нет открытого Hidden task; одно раскрытие | Все assertions прошли, отложены настоящие успешные PATCH/GET. [shared](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run1/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/shared-pending-reveal.json), [viewer](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run1/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/viewer-pending-reveal.json) |
+| Document-relative top | ≤1 px | **FAIL**: shared/viewer до 2.340576 px, hover до 1.938721 px. DOM-порядок сохранён; численный контракт visual top нарушен |
+| Сворачивание внизу | Monotone scroll; ≤20 px/кадр; новый низ ±1 px; строка целиком видима; без возврата к верху | Все три прошли: макс. 14 px, scroll506→328, scrollHeight1406→1228, end bottom error0. [кадры](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run1/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/bottom-collapse.json) |
+| Next / номер / два быстрых Next / abort | 0 skeleton; pager≤40 px/кадр; scroll только вверх; latest wins; rollback и точный toast | Функциональные assertions прошли. **FAIL** шаг pager: 82.765625 / 82.875 / 91.59375 px. [кадры](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run3/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/pagination-number-one.json) |
+| Модалка после ≥2.5 s, Escape | 0 scripts после клика; первый видимый кадр≤120 ms; native transform; opacity/scale monotone | Обычная: 78.5 / 81.2 / 112.1 ms; 0 scripts; transform присутствует, кривые открывания/закрывания прошли. [открытие](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run1/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/modal-opening.json) |
+| Reduced modal | Нет transform, scale1, opacity monotone; тот же записанный бюджет120 ms | Transform0, scale1, кривые прошли. Latency 93.2 / 126.6 / 94.5 ms: один выход за120 ms; зелёная стабильность бюджета не подтверждена |
+| Reduced hide/reveal | Один шаг высоты; body minHeight никогда не задаётся | **FAIL** во всех трёх: reveal46→271→295, collapse295→70→46 (два шага); body minHeight0 назначений. [reveal](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run1/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/reduced-reveal.json), [collapse](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run1/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/reduced-collapse.json) |
+| Reduced paging | Прокрутка без анимации; minHeight отсутствует | Все assertions прошли: цели достигаются в первом кадре, разных программных целей≤1 на явную смену страницы; body minHeight0 назначений. [кадры](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run1/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/reduced-pagination-next.json) |
+| Tab → Enter у нижнего края | Collapse сфокусирован и полностью видим; scroll≤20 px/кадр | Фокус и финальная видимость прошли. Шаги 17 / 34 / 18 px: **FAIL** во втором. Исходная кнопка полностью видима во всех strict-прогонах. [кадры](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run2/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/keyboard-reveal.json) |
+
+Три master-теста завершены с exit1; retries0, по17 сценариев каждый, пропущенных rAF0. Требование трёх зелёных прогонов **не достигнуто**. Численные пороги не ослаблялись; обнаруженные app defects не исправлялись. [Сводка](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/verification-summary.json) и [критические кадры с индексами](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/critical-frame-excerpts.json).
+
+### Другие браузеры
+
+| Движок | Запущено | Результат |
+|---|---|---|
+| WebKit26.5, revision2311 | Вся матрица17 сценариев, кадровых JSON28, missed0 | **RED**: pager91.672 px, bottom scroll31 px, keyboard39 px; modal155 ms/reduced496 ms, scripts0 и native/reduced transform корректны. CSS height monotone; отдельный FAIL rect monotonicity−0.059 px, вклад transform требует диагностики. Reduced height один шаг, но visual top до4 px. [report](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/final-webkit.json) |
+| Firefox151, revision1532 | Попытка запуска установленного executable | spawn UNKNOWN до первого сценария; замеров0. [журнал](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/final-firefox.log) |
+
+В Chromium использован 149.0.7827.55, revision1228. Длинные кадры desktop headless при backdrop-filter не классифицировались как отдельный дефект; указанные latency-бюджеты честно оставлены красными при превышении. Keyboard height проверяется по CSS height, исключая известный Enter whileTap≈0.998.
+
+### Существующие spec-файлы и полный прогон
+
+| Файл | Обычные pass | Expected failure | Unexpected | Skipped |
+|---|---:|---:|---:|---:|
+| compact-rail.ui.spec.ts | 8 | 1 | 3 | 0 |
+| expanded-card-geometry.ui.spec.ts | 8 | 0 | 0 | 0 |
+| motion-geometry.ui.spec.ts | 20 | 0 | 0 | 0 |
+| task-height-motion.ui.spec.ts | 4 | 0 | 2 | 0 |
+| tasks-page.ui.spec.ts | 1 | 0 | 0 | 0 |
+
+[Полный исходный прогон47](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/final-existing-chromium.json). Ни expected failure, ни skipped не считаются обычным pass. Результаты позднего targeted rerun приведены отдельно; с полным47 они не складываются в искусственный зелёный итог.
+
+Public hide/show sampler заменил фиксированное окончание900 ms на фактическое окончание анимаций плюс12 стабильных кадров, с пределом8 s. Это ожидание изменено потому, что новый clock считает отрисованные кадры; геометрические пороги остались прежними. JSON сохраняется в finally, animation metadata содержит properties/currentTime/playState. Targeted rerun: 2 обычных pass и 1 ожидаемое падение reduced-motion; unexpected0. [report](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/post-public-height.json).
+
+В task-height sampler фиксированные1800 ms заменены завершением pending-ответов и анимации, плюс12 стабильных кадров, с пределом8 s. Геометрические assertions остались прежними. Сохранены безопасные HTTP paths/status и этапы bottom-case; при закрытом page cleanup не запрашивает storage. Отдельный повтор после исправления URL: {"startTime":"2026-10-13T17:57:43.529Z","duration":312966.352,"expected":0,"skipped":0,"unexpected":2,"flaky":0}. [report](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/post-task-height-correct-url.json).
+
+В исходном полном прогоне остались: public1280/DPR1 entrance scale error0.000474739 при пороге0.000001; dashboard friend show сохранил46 px на всём прежнем1800 ms окне; bottom-case превысил180 s до сохранения кадров, затем возник вторичный storageState ProtocolError. Два public hide/show падения были проверены повторно после ожидания фактического завершения. [снимок friend-case](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/final-existing-chromium/ui-task-height-motion.ui-r-769b8-ide-and-show-friend-working-ui/test-failed-1.png), [контекст bottom-case](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/final-existing-chromium/ui-task-height-motion.ui-r-54ea2--opens-without-a-pager-snap-ui/error-context.md). Неустановленная причина таймаута не объявляется доказанным дефектом приложения.
+
+Дополнительная попытка targeted task-height с localhost остановилась в beforeAll: verification helper требует точный origin письма, runtime Auth использует127.0.0.1. Это ошибка команды запуска, motion-сценариев в ней не выполнялось. [журнал](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/post-task-height.log).
+
+После финального независимого review сборщики явно проверяют тот же settle predicate из 12 кадров после возврата; достижение8 s cap не считается успехом. Финальный запуск 5 выбранных тестов: 2 обычных pass, 1 expected failure (reduced), 2 unexpected (dashboard friend/bottom), skipped0. [report](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/final-legacy-targets.json).
+
+Targeted dashboard friend: hide160→46, но сохранён busy=true в DOM до 8 s и ещё8 s при попытке show; Записаны HTTP 200 response headers PATCH viewer-preferences, новых reveal-запросов не было. Завершение body/requestfinished не записывалось. Busy может принадлежать уходящему AnimatePresence-элементу: причина требует проверки реального доступного control, не объявляется доказанным зависанием hook. [кадры](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/post-task-height-correct-url/ui-task-height-motion.ui-r-769b8-ide-and-show-friend-working-ui/real-height-frames.json), [запросы](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/post-task-height-correct-url/ui-task-height-motion.ui-r-769b8-ide-and-show-friend-working-ui/real-height-requests.json). Bottom setup остановился на втором expander; PATCH/GET первого раскрытия200, до record collapse не дошёл. [этапы и запросы](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/post-task-height-correct-url/ui-task-height-motion.ui-r-54ea2--opens-without-a-pager-snap-ui/bottom-card-requests.json).
+
+Запущены `npm --prefix frontend run test:coverage -- --run`, TypeScript `--noEmit -p frontend` и полный `npm --prefix frontend run lint`. Коды завершения: final-webkit=1, final-firefox=1, final-existing-chromium=1, manual-private-late=0, coverage=1, tsc=0, lint=0, post-public-height=0, post-tsc=0, post-lint=0, coverage-rerun=1, final-legacy-targets=1, coverage-serial-diagnostic=0, reviewed-tsc=0, reviewed-lint=0, precommit-current-tsc=0.
+
+```text
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed | 133 passed (134)
+      Tests  1 failed | 1710 passed (1711)
+```
+
+[coverage log](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/final-coverage.log), [последний завершённый TypeScript log](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/precommit-current-tsc.log), [последний завершённый lint log](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/reviewed-lint.log).
+
+Повторный полный coverage дал тот же результат:1710/1711, Today timeout5000 ms. Этот файл отдельно прошёл9/9; источник зависимости от полного прогона не установлен. [повтор coverage](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/coverage-rerun.log), [диагностика9/9](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/coverage-timeout-diagnostic.log). Процент покрытия при неуспешном прогоне не сертифицируется. Исходники unit-теста не изменены.
+
+Дополнительный полный coverage с одним worker: `npm --prefix frontend run test:coverage -- --run --maxWorkers=1`. Это диагностический прогон зависимости Today timeout от параллелизма; исходные два результата сохраняются. Статус: 0. [журнал](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/coverage-serial-diagnostic.log).
+
+```text
+ Test Files  134 passed (134)
+      Tests  1711 passed (1711)
+All files          |    94.7 |    87.04 |   94.58 |   96.48 |
+```
+
+Покрытие последовательного прогона: statements 94.70%, branches 87.04%, functions 94.58%, lines 96.48%; exit0. Два стандартных параллельных прогона по-прежнему красные. Разница совместима с влиянием нагрузки на5000 ms budget Today; точная причина не установлена.
+
+### Дефекты и границы вывода
+
+- **P2 pager:** 40 px budget нарушен во всех трёх Chromium и в WebKit. `frontend/src/components/ui/height-glide.tsx:21` передаёт spring в `frontend/src/hooks/use-height-transition.ts:261`, ограничивающий время33.333 ms; абсолютного px cap нет. Это согласованное объяснение по коду, не отдельный записанный grid clock.
+- **P2 reduced height, Chromium:** два физических CSS шага при уже загруженных description/dates/expected/delay. Связанные участки: `frontend/src/components/todos/todo-card.tsx:734`, `:741`, `frontend/src/hooks/use-height-transition.ts:301`. Разница24 px совпадает с padding py-2/p-5; точная причина остаётся гипотезой.
+- **P2 keyboard scroll budget:**34 px во втором strict-прогоне с полностью видимой исходной кнопкой. Связанный follower: `frontend/src/lib/scroll-hold.ts:186`, `:191`. Монотонность, финальный focus и видимость выполняются.
+- **Visual-position contract:** shared/viewer до2.341 px и reduced до2 px в Chromium, до4 px в WebKit. DOM-порядок и связь с соседней карточкой сохранены. Связанные transforms: `frontend/src/components/todos/todo-card.tsx:526`, `frontend/src/lib/animations.ts:149`; Дополнительный probe записал движение parent transform при hover=false; это подтверждает вклад transform в visual top, но причина состояния Framer остаётся гипотезой. Перестановки в DOM не наблюдалось.
+
+Дополнительный отдельный скрипт задерживает настоящий private GET на650 ms, фиксирует fallback и поздний payload, а также parent transform/hover. Факт: первый открытый кадр393.9 ms, description732.4 ms, два native height flights, missed0. Источник содержит fallback timer350 ms; измеренный первый открытый кадр не доказывает срок≤350 ms. Скрипт прошёл один раз. [скрипт](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/manual-motion.ui.spec.ts), [report](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/manual-private-late.json). Заявлять конкретный deadline только по source нельзя; численные факты находятся в его JSON.
+
+Дополнительные физические PNG: [модалка PNG](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/strict-chromium-run1/ui-motion-regressions.ui-r-f2bad-he-motion-regression-matrix-ui/modal-opening.png), [private поздний payload](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/manual-private-late/manual-motion.ui-manual-sc-6380d-lback-and-late-real-payload-ui/private-late-settled.png).
+
+Файлы приложения не изменялись. [Разбор source и диагностических серий](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/source-analysis.md). Все физические артефакты находятся в `C:\Users\fkeyy\AppData\Local\Temp\planora-motion-regressions-20261013`; большие JSON/PNG сохранены вне Git. [Итоговый локальный отчёт](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/QA-report.md).
+<!-- codex-motion-20261013:end -->

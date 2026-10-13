@@ -77,17 +77,30 @@ for (const dpr of [1, 2]) {
   }
 }
 
-type Frame = { time: number; height: number; animations: number };
+type Frame = { time: number; height: number; animations: number; animationDetails: Array<{ currentTime: number | null; playState: string; properties: string[] }> };
 async function sampleToggle(card: Locator, label: string): Promise<Frame[]> {
   return card.evaluate((element, name) => new Promise<Frame[]>(resolve => {
     const frames: Frame[] = [];
     const start = performance.now();
+    const read = (time: number): Frame => {
+      const animations = element.getAnimations();
+      return { time, height: element.getBoundingClientRect().height, animations: animations.length,
+        animationDetails: animations.map(animation => ({
+          currentTime: animation.currentTime === null ? null : Number(animation.currentTime), playState: animation.playState,
+          properties: animation.effect instanceof KeyframeEffect ? [...new Set(animation.effect.getKeyframes().flatMap(key =>
+            Object.keys(key).filter(name => !['offset', 'computedOffset', 'easing', 'composite'].includes(name))))] : [],
+        })) };
+    };
     const sample = (time: number) => {
-      frames.push({ time: time - start, height: element.getBoundingClientRect().height, animations: element.getAnimations().length });
-      if (time - start < 900) requestAnimationFrame(sample);
+      frames.push(read(time - start));
+      const tail = frames.slice(-12);
+      const landed = tail.length === 12 && tail.every(frame => frame.animations === 0 && Math.abs(frame.height - tail[0].height) <= 0.02);
+      // The new clock counts drawn frames; 900ms of wall time cannot certify completion.
+      // Keep recording until it lands, bounded so a stuck animation still fails the same guard.
+      if ((time - start < 900 || !landed) && time - start < 8000) requestAnimationFrame(sample);
       else resolve(frames);
     };
-    frames.push({ time: 0, height: element.getBoundingClientRect().height, animations: element.getAnimations().length });
+    frames.push(read(0));
     (element.querySelector('button[aria-label="' + name + '"]') as HTMLButtonElement).click();
     requestAnimationFrame(sample);
   }), label);
@@ -104,6 +117,9 @@ function assertGlide(frames: Frame[]) {
     if (frames[i].time - frames[i - 1].time <= 20) expect(Math.abs(delta)).toBeLessThanOrEqual(distance * 0.25 + 1);
   }
   expect(frames.at(-1)!.animations).toBe(0);
+  const tail = frames.slice(-12);
+  expect(tail, 'Recording reaches twelve settled frames before its 8s cap').toHaveLength(12);
+  expect(tail.every(frame => frame.animations === 0 && Math.abs(frame.height - tail[0].height) <= 0.02), 'An unfinished glide cannot pass at the recording cap').toBe(true);
 }
 for (const who of ["Victoria's list", 'Your list']) {
   test('public real-height hide/show glide: ' + who, async ({ page }, info) => {
@@ -115,13 +131,17 @@ for (const who of ["Victoria's list", 'Your list']) {
     await page.mouse.move(0, 0);
     await page.waitForTimeout(800);
     const natural = (await card.boundingBox())!.height;
-    const hide = await sampleToggle(card, 'Collapse task card');
-    assertGlide(hide);
-    const show = await sampleToggle(card, 'Expand task card');
-    assertGlide(show);
-    expect(Math.abs(show.at(-1)!.height - natural)).toBeLessThanOrEqual(1);
-    expect(await card.evaluate(element => (element as HTMLElement).style.height)).toBe('');
-    await persistJsonEvidence(info, 'height-frames', { body: JSON.stringify({ who, hide, show }), contentType: 'application/json' });
+    let hide: Frame[] = [], show: Frame[] = [];
+    try {
+      hide = await sampleToggle(card, 'Collapse task card');
+      assertGlide(hide);
+      show = await sampleToggle(card, 'Expand task card');
+      assertGlide(show);
+      expect(Math.abs(show.at(-1)!.height - natural)).toBeLessThanOrEqual(1);
+      expect(await card.evaluate(element => (element as HTMLElement).style.height)).toBe('');
+    } finally {
+      await persistJsonEvidence(info, 'height-frames', { body: JSON.stringify({ who, hide, show }), contentType: 'application/json' });
+    }
   });
 }
 test('public hide/show restores focus after rapid toggles', async ({ page }) => {
