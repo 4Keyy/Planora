@@ -93,6 +93,20 @@ describe("TodoCard — about to be opened", () => {
     expect(onRevealIntent).not.toHaveBeenCalled()
   })
 
+  it("comes back from pending though the task's copy has not changed", () => {
+    // A friend's task hidden on the dashboard: the page's write ends with no new copy of the
+    // task, so the memo must still let the end of pending through.
+    const onToggleHidden = vi.fn(async () => {})
+    const props = { todo: hidden, onComplete: vi.fn(), onDelete: vi.fn(), onEdit: vi.fn(), onToggleHidden }
+    const { rerender } = render(<TodoCard {...props} visibilityPending />)
+    expect(screen.getByRole("button", { name: "Expand task card" })).toHaveAttribute("aria-busy", "true")
+    rerender(<TodoCard {...props} visibilityPending={false} />)
+    const expand = screen.getByRole("button", { name: "Expand task card" })
+    expect(expand).toHaveAttribute("aria-busy", "false")
+    fireEvent.click(expand)
+    expect(onToggleHidden).toHaveBeenCalledTimes(1)
+  })
+
   it("shows a page-side opening as pending and refuses another press meanwhile", () => {
     const { onToggleHidden } = renderCard({ visibilityPending: true })
     const expand = screen.getByRole("button", { name: "Expand task card" })

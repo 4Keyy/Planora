@@ -1192,10 +1192,17 @@ export const TodoCard = memo(
    * values can actually change. `aria-current` moves with `data-active` today,
    * but it is compared on its own anyway: leaving it to ride along is how a card
    * ends up announcing a cursor it no longer shows the moment the two diverge.
+   *
+   * Every value that is not a callback is compared. `visibilityPending` once was not: a
+   * friend's task hidden on the dashboard went pending with its new `hidden` copy, but
+   * came back from pending with the same copy, so the card never heard it and stayed
+   * busy — refusing every press — until the page reloaded.
    */
   (prev, next) =>
     prev.todo === next.todo &&
     prev.variant === next.variant &&
+    prev.visibilityPending === next.visibilityPending &&
+    prev.viewerId === next.viewerId &&
     prev.rowProps?.tabIndex === next.rowProps?.tabIndex &&
     prev.rowProps?.["data-active"] === next.rowProps?.["data-active"] &&
     prev.rowProps?.["aria-current"] === next.rowProps?.["aria-current"] &&
