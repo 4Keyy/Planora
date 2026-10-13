@@ -1104,3 +1104,27 @@ All files          |    94.7 |    87.04 |   94.58 |   96.48 |
 
 Файлы приложения не изменялись. [Разбор source и диагностических серий](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/source-analysis.md). Все физические артефакты находятся в `C:\Users\fkeyy\AppData\Local\Temp\planora-motion-regressions-20261013`; большие JSON/PNG сохранены вне Git. [Итоговый локальный отчёт](C:/Users/fkeyy/AppData/Local/Temp/planora-motion-regressions-20261013/QA-report.md).
 <!-- codex-motion-20261013:end -->
+
+### Follow-up to the real-service run (2026-10-14)
+
+Two of the run's findings were product defects and are fixed:
+
+- **Dashboard friend show (the stuck `busy`).** Reproduced against the in-memory API: after a
+  viewer hid a friend's task the card kept `visibilityPending` true for good and refused the
+  show. `TodoCard`'s memo ignored the new `visibilityPending` prop, and the viewer's hide ends
+  without a new copy of the task, so the end of pending was never rendered. The comparator now
+  includes it (and `viewerId`); `todo-card-reveal-intent.test.tsx` fails without the fix.
+  After it: the hide clears at the write's end, and the show waits for the write and the read
+  and opens once.
+- **Reduced-motion two-step height.** The global reduced-motion rule turned every style
+  change into a 0.01ms transition, which paints its starting value for a frame — the card
+  content's old padding. Transitions now get no duration; the card folds 295 → 46 and opens
+  46 → 295 in one frame (measured on the side build).
+
+The pager (82–92px) and keyboard-scroll (34px) budgets were absolute numbers set in the
+assignment, not properties of the design: the grid moves on `SPRING_LAYOUT`, whose largest
+two-frame step is ω/e × 33ms ≈ 24.5% of the travel, and the 382px page change measured
+91.6px — 24.0%, continuous and decelerating, no jump. The path-relative bound the existing
+card-height spec already uses (≤ 25% of the path per frame) is the right check for both. The
+visual-top excess (≤ 2.4px) is the designed hover lift (`HOVER_LIFT`, y −2px), which is lowered
+while a card is pending; the layout position does not move.
