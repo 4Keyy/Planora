@@ -748,14 +748,21 @@ a, button, [role="button"], label, summary {
 /* Honour prefers-reduced-motion for the CSS keyframe animations in this file.
    framer-motion is covered globally by MotionConfig reducedMotion="user", and
    the WebGL background stops its rAF loop itself — three mechanisms, no gaps.
-   Collapsed to near-instant rather than fully removed so state changes stay
-   legible for users who still need the visual cue. */
+   Keyframe animations are collapsed to near-instant rather than removed, so their
+   end events still fire; transitions are removed outright (see below). */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  /* Animations keep 0.01ms rather than none: dropdowns and dialogs unmount on their
+     `animationend`. Transitions get no duration at all. `transition-property` starts as
+     `all` on every element, so a 0.01ms duration turned every style change on every
+     element into a transition, and a transition paints its starting value for the frame
+     it starts in: a task card folding under reduced motion stood a frame at 70px, its new
+     row inside its old padding, before it reached 46. Nothing waits on `transitionend`
+     here, and a transition with a delay still lands when its delay is up. */
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: 0s !important;
     scroll-behavior: auto !important;
   }
   /* A dropdown's content and its cascading rows also wait on a delay, which the rule

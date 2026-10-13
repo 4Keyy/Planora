@@ -330,8 +330,13 @@ values and SVG behavior.
 
 Three separate mechanisms, because no single one reaches everywhere:
 
-1. `globals.css` collapses CSS transitions and animations under
-   `@media (prefers-reduced-motion: reduce)`.
+1. `globals.css`, under `@media (prefers-reduced-motion: reduce)`, collapses CSS
+   animations to 0.01ms — dropdowns and dialogs unmount on their `animationend` — and
+   gives transitions no duration at all. `transition-property` starts as `all` on every
+   element, so the 0.01ms it once gave transitions turned every style change into a
+   transition, and a transition paints its starting value for the frame it starts in: a
+   task card folding stood a frame at 70px, its new row inside its old padding. With no
+   duration no transition starts; one with a delay still lands when the delay is up.
 2. framer-motion's root `MotionConfig reducedMotion="user"` supplies the user
    preference to descendants; it does not stop every opacity, color, SVG or
    computed MotionValue animation. Components with those paths use explicit guards.
