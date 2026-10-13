@@ -102,7 +102,9 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe("CreateTodoPanel selector clear controls", () => {
+// Each case drives a real picker — the date one renders a whole calendar — through userEvent:
+// 1.6s alone, and past the 5s default when the full suite runs in parallel under coverage.
+describe("CreateTodoPanel selector clear controls", { timeout: 15_000 }, () => {
   it("shows chevrons without clear controls when date and category are unset", () => {
     renderPanel()
 
