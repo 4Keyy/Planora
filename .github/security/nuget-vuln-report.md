@@ -1,13 +1,11 @@
 # NuGet Vulnerable Packages — Tracking Report
 
-> Historical workflow output from July 2026; this is not the current dependency scan. The current central package versions and advisory data have changed. See [the October audit](../../docs/audits/2026-10-06.md), [XML dependency triage](cryptography-xml-2026-10.md) and [the new image advisories](imagesharp-2026-10.md) for later findings and their limits.
-
-Generated: 2026-07-21T05:43:08Z
-Workflow run: <https://github.com/4Keyy/Planora/actions/runs/29804742626>
+Generated: 2026-10-14T08:16:06Z
+Workflow run: https://github.com/4Keyy/Planora/actions/runs/38533781440
 
 Apply fixes by bumping the affected package versions in `Directory.Packages.props`.
 
-```text
+```
   Determining projects to restore...
   All projects are up-to-date for restore.
 
@@ -19,12 +17,15 @@ The given project `Planora.Auth.Api` has no vulnerable packages given the curren
 The given project `Planora.Auth.Application` has no vulnerable packages given the current sources.
 The given project `Planora.Auth.Domain` has no vulnerable packages given the current sources.
 Project `Planora.Auth.Infrastructure` has the following vulnerable packages
-   [net10.0]:
-   Transitive Package                      Resolved   Severity   Advisory URL
-   > System.Security.Cryptography.Xml      10.0.8     High       https://github.com/advisories/GHSA-cvvh-rhrc-wg4q
-                                                      High       https://github.com/advisories/GHSA-g8r8-53c2-pm3f
-                                                      High       https://github.com/advisories/GHSA-23rf-6693-g89p
-                                                      High       https://github.com/advisories/GHSA-8q5v-6pqq-x66h
+   [net10.0]: 
+   Top-level Package                       Requested   Resolved   Severity   Advisory URL                                     
+   > System.Security.Cryptography.Xml      10.0.12     10.0.12    High       https://github.com/advisories/GHSA-r955-8q5j-3h83
+                                                                  High       https://github.com/advisories/GHSA-7hqp-7c5m-4vq6
+                                                                  High       https://github.com/advisories/GHSA-c399-9853-6jmj
+
+   Transitive Package                       Resolved   Severity   Advisory URL                                     
+   > System.Security.Cryptography.Pkcs      10.0.12    High       https://github.com/advisories/GHSA-846f-f764-76mx
+                                                       Moderate   https://github.com/advisories/GHSA-2fmv-rv2c-59x7
 
 The given project `Planora.BuildingBlocks.Domain` has no vulnerable packages given the current sources.
 The given project `Planora.BuildingBlocks.Application` has no vulnerable packages given the current sources.
@@ -51,19 +52,21 @@ The given project `Planora.Collaboration.Domain` has no vulnerable packages give
 The given project `Planora.Collaboration.Infrastructure` has no vulnerable packages given the current sources.
 The given project `Planora.Collaboration.Api` has no vulnerable packages given the current sources.
 Project `Planora.UnitTests` has the following vulnerable packages
-   [net10.0]:
-   Transitive Package                      Resolved   Severity   Advisory URL
-   > System.Security.Cryptography.Xml      10.0.8     High       https://github.com/advisories/GHSA-cvvh-rhrc-wg4q
-                                                      High       https://github.com/advisories/GHSA-g8r8-53c2-pm3f
-                                                      High       https://github.com/advisories/GHSA-23rf-6693-g89p
-                                                      High       https://github.com/advisories/GHSA-8q5v-6pqq-x66h
+   [net10.0]: 
+   Transitive Package                       Resolved   Severity   Advisory URL                                     
+   > System.Security.Cryptography.Pkcs      10.0.12    High       https://github.com/advisories/GHSA-846f-f764-76mx
+                                                       Moderate   https://github.com/advisories/GHSA-2fmv-rv2c-59x7
+   > System.Security.Cryptography.Xml       10.0.12    High       https://github.com/advisories/GHSA-r955-8q5j-3h83
+                                                       High       https://github.com/advisories/GHSA-7hqp-7c5m-4vq6
+                                                       High       https://github.com/advisories/GHSA-c399-9853-6jmj
 
 The given project `Planora.ErrorHandlingTests` has no vulnerable packages given the current sources.
 Project `Planora.Migrator` has the following vulnerable packages
-   [net10.0]:
-   Transitive Package                      Resolved   Severity   Advisory URL
-   > System.Security.Cryptography.Xml      10.0.8     High       https://github.com/advisories/GHSA-cvvh-rhrc-wg4q
-                                                      High       https://github.com/advisories/GHSA-g8r8-53c2-pm3f
-                                                      High       https://github.com/advisories/GHSA-23rf-6693-g89p
-                                                      High       https://github.com/advisories/GHSA-8q5v-6pqq-x66h
+   [net10.0]: 
+   Transitive Package                       Resolved   Severity   Advisory URL                                     
+   > System.Security.Cryptography.Pkcs      10.0.12    High       https://github.com/advisories/GHSA-846f-f764-76mx
+                                                       Moderate   https://github.com/advisories/GHSA-2fmv-rv2c-59x7
+   > System.Security.Cryptography.Xml       10.0.12    High       https://github.com/advisories/GHSA-r955-8q5j-3h83
+                                                       High       https://github.com/advisories/GHSA-7hqp-7c5m-4vq6
+                                                       High       https://github.com/advisories/GHSA-c399-9853-6jmj
 ```
