@@ -50,6 +50,22 @@ primitive that imports a `Todo` type has stopped being a primitive.
 
 ---
 
+### Brand assets and metadata
+
+`components/ui/wordmark.tsx` renders the shared private-ring geometry from `lib/brand-mark.ts`.
+It is already used by the application navbar, landing navbar/footer and auth frame; keep those
+callers on `Wordmark`. The root layout advertises the adaptive `/favicon.svg`, a 32px PNG fallback,
+the 180px Apple touch icon and `/manifest.webmanifest`. `app/manifest.ts` references the same 192px
+and 512px paper-tile PNGs, including a maskable entry; it adds installation metadata, not offline
+support or a service worker. `/favicon.ico` retains its existing rewrite to the SVG.
+
+`npm run brand:generate` (Node 22.18+) regenerates the public SVG/PNGs and `docs/assets/logo.svg`
+from that geometry and `design-tokens.ts`. It uses the Sharp version bundled with Next.js; no new
+runtime package or remote font is needed. `npm run brand:check` verifies the generated files.
+SVG uses the normalized arc lengths from `Wordmark`; PNG export converts those lengths to the
+same physical circumference because raster SVG readers do not consistently support `pathLength`.
+See the [product mark contract](design-system.md#product-mark) for geometry and colour rules.
+
 ## 2. Rendering model
 
 The whole App Router is `force-dynamic`, declared once in `app/layout.tsx` and

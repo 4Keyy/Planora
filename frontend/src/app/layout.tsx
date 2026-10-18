@@ -70,9 +70,14 @@ export const metadata = {
     template: "%s · Planora",
   },
   description: "Private shared tasks for friends and family with secure sessions, messaging, and accountability.",
+  manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon.svg", sizes: "any", type: "image/svg+xml" },
+    ],
     shortcut: "/favicon.svg",
+    apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
   },
 }
 

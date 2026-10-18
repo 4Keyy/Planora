@@ -1119,6 +1119,27 @@ composites to.
 Nothing in `components/ui/` knows what a task is. A primitive that imports a `Todo`
 type has stopped being a primitive.
 
+### Product mark
+
+`Wordmark` is the Planora logo everywhere the product is branded. Its private ring means a task
+starts private, with you at the centre. `frontend/src/lib/brand-mark.ts` owns the geometry used by
+both the component and exported assets: a 24×24 viewBox, centre `(12, 12)`, ring radius 9, stroke 3
+with butt caps, an arc of 0.88 and a gap of 0.12 centred at twelve o'clock, and a central dot of
+radius 3. `Wordmark` keeps its existing `sm`/`md` sizes and `showName` API; the navbars may animate
+or responsively hide the name beside the same mark. The arc remains contract-tested against
+`redactionArc("private")` without importing that client module into server components.
+
+The favicon and `docs/assets/logo.svg` use `ink` on a light surface and `paper` under
+`prefers-color-scheme: dark`. Their colours come from the design tokens. Apple, bookmark and
+manifest PNGs use the same geometry in ink on a paper tile; the 24-unit mark is centred inside
+32 units so its outer edge fits the maskable-icon safe zone. These are exported presentations of
+one sign, not separate logos. Error illustrations, progress spinners and task-completion checks
+are semantic UI, not brand marks.
+
+Run `npm run brand:generate` in `frontend` (Node 22.18+) after changing geometry or palette;
+`npm run brand:check` detects stale SVG and PNG exports. Asset contract tests compare the SVG
+geometry with the rendered `Wordmark` and check PNG dimensions, the top cut and central dot.
+
 ### Structure
 
 | Component | Owns |

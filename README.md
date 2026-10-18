@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🪐 Planora
+<img src="docs/assets/logo.svg" alt="Planora" width="96" height="96" />
+
+# Planora
 
 **Organise. Share. Collaborate — in real time.**
 
