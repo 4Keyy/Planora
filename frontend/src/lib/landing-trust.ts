@@ -74,3 +74,27 @@ export function formatMs(ms: number): string {
 export function secondsLeft(windowMs: number, elapsedMs: number): number {
   return Math.max(0, Math.ceil((windowMs - elapsedMs) / 1000))
 }
+
+/**
+ * A long span in plain words — "about 3.4 hours", "about 12 days" — for a number a visitor
+ * should feel rather than read: the time a million password guesses would take on their own
+ * device. One decimal while the number is small, whole units after; nonsense reads as
+ * "under a second" rather than "NaN".
+ */
+export function formatSpan(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 1000) return "under a second"
+  const units: [number, string][] = [
+    [365 * 24 * 3600_000, "year"],
+    [24 * 3600_000, "day"],
+    [3600_000, "hour"],
+    [60_000, "minute"],
+    [1000, "second"],
+  ]
+  for (const [size, name] of units) {
+    if (ms < size) continue
+    const value = ms / size
+    const shown = value < 10 ? Math.round(value * 10) / 10 : Math.round(value)
+    return `about ${shown.toLocaleString("en-US")} ${name}${shown === 1 ? "" : "s"}`
+  }
+  return "under a second"
+}

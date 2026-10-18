@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   cookieNames,
   formatMs,
+  formatSpan,
   secondsLeft,
   toBase64Url,
   toHex,
@@ -82,5 +83,22 @@ describe("time", () => {
     expect(secondsLeft(5000, 4001)).toBe(1)
     expect(secondsLeft(5000, 5000)).toBe(0)
     expect(secondsLeft(5000, 9000)).toBe(0)
+  })
+})
+
+describe("formatSpan", () => {
+  it("says a long span in words, with one decimal while it is small", () => {
+    expect(formatSpan(3.4 * 3600_000)).toBe("about 3.4 hours")
+    expect(formatSpan(45 * 60_000)).toBe("about 45 minutes")
+    expect(formatSpan(12.6 * 24 * 3600_000)).toBe("about 13 days")
+    expect(formatSpan(2 * 365 * 24 * 3600_000)).toBe("about 2 years")
+    expect(formatSpan(1000)).toBe("about 1 second")
+    expect(formatSpan(1234 * 365 * 24 * 3600_000)).toBe("about 1,234 years")
+  })
+
+  it("refuses nonsense and tiny spans", () => {
+    expect(formatSpan(Number.NaN)).toBe("under a second")
+    expect(formatSpan(-1)).toBe("under a second")
+    expect(formatSpan(999)).toBe("under a second")
   })
 })
