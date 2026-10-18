@@ -127,3 +127,28 @@ describe("Category notices", () => {
     ]))
   })
 })
+
+describe("Category task counts", () => {
+  const serve = (counts: unknown) =>
+    vi.mocked(api.get).mockImplementation(async (url: string) => {
+      if (url.endsWith("/category-counts")) {
+        if (counts instanceof Error) throw counts
+        return { data: counts }
+      }
+      return { data: [category, { ...category, id: "home", name: "Home", description: null }] }
+    })
+
+  it("draws each card with its open-task count, and a category with none as having none", async () => {
+    serve([{ categoryId: "work", openCount: 3 }])
+    render(<CategoriesPage />)
+    expect(await screen.findByRole("img", { name: "3 open tasks" })).toBeInTheDocument()
+    expect(screen.getByRole("img", { name: "0 open tasks" })).toBeInTheDocument()
+  })
+
+  it("leaves the counts off when they cannot be read, and still lists the categories", async () => {
+    serve(new Error("old server"))
+    render(<CategoriesPage />)
+    expect(await screen.findByRole("button", { name: "Edit category Work" })).toBeInTheDocument()
+    expect(screen.queryByRole("img", { name: /open task/ })).toBeNull()
+  })
+})
