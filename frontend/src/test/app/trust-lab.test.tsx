@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, within } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
+import { describe, expect, it, vi } from "vitest"
 import { TrustLab } from "@/app/_landing/trust-lab"
 
 /**
@@ -100,5 +100,30 @@ describe("the reliability and privacy block", () => {
       expect(screen.getByText(fact)).toBeInTheDocument()
     }
     expect(screen.getByText("Also true").nextElementSibling?.children).toHaveLength(8)
+  })
+
+  it("shows both saved badges when the server restarts mid-save", () => {
+    vi.useFakeTimers()
+    try {
+      render(<TrustLab />)
+      fireEvent.click(tab("Survives a restart"))
+      const panel = within(visiblePanel())
+      expect(panel.queryByText("Change")).not.toBeInTheDocument()
+      expect(panel.queryByText("Notice")).not.toBeInTheDocument()
+      fireEvent.click(panel.getByRole("button", { name: "Restart the server mid-save" }))
+      act(() => vi.advanceTimersByTime(560))
+
+      for (const label of ["Change", "Notice"]) {
+        const badge = panel.getByText(label).parentElement!
+        expect(badge).toHaveTextContent(`${label} saved`)
+        expect(badge.querySelector("svg")).toHaveAttribute("aria-hidden", "true")
+        expect(badge).not.toHaveTextContent("✓")
+      }
+      expect(panel.getByText("Saved together. Server restarting…")).toBeInTheDocument()
+      act(() => vi.advanceTimersByTime(1400))
+      expect(panel.getByText("Delivered after the restart.")).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

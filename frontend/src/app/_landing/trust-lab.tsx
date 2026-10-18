@@ -853,19 +853,19 @@ function DeliveryProof() {
       </div>
 
       {/* What the server kept through the restart. Reserved, so it appears without shifting. */}
-      <div className="mt-5 flex min-h-8 justify-center">
+      <div className="mt-5 flex min-h-8 items-center justify-center">
         <AnimatePresence>
           {reached("restarting") && (
             <motion.span
               key={run}
-              className="flex gap-2"
+              className="flex items-center gap-2"
               initial={reduce ? { opacity: 0 } : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
             >
-              <Tag>Change ✓</Tag>
-              <Tag>Notice ✓</Tag>
+              <Tag>Change</Tag>
+              <Tag>Notice</Tag>
             </motion.span>
           )}
         </AnimatePresence>
@@ -901,8 +901,10 @@ function Node({ label, children }: { label: string; children: ReactNode }) {
 
 function Tag({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-full border border-line-strong bg-paper px-3 py-1 text-caption font-semibold text-ink">
-      {children}
+    <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-line-strong bg-paper px-3 text-caption font-semibold text-ink">
+      <span>{children}</span>
+      <Check className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+      <span className="sr-only"> saved</span>
     </span>
   )
 }
