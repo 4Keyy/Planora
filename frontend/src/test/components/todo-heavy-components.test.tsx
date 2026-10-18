@@ -1031,7 +1031,7 @@ describe("EditTodoModal", () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it("turns an all-friends task into a share with just the friend the owner picks", async () => {
+  it("lets the only friend out of an all-friends task, which then saves as private", async () => {
     const user = userEvent.setup()
     const onSave = vi.fn().mockResolvedValue(undefined)
     render(
@@ -1047,14 +1047,15 @@ describe("EditTodoModal", () => {
     )
     // The token says what the save will write: all friends, never "public".
     await user.click(screen.getByRole("button", { name: /all friends/i }))
-    await user.click(await screen.findByRole("checkbox", { name: "Ada Lovelace" }))
+    // On the audience map every friend of an All friends task is in; pressing one lets them out.
+    await user.click(await screen.findByRole("button", { name: "Share with Ada Lovelace" }))
     await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2000 })
     expect(onSave).toHaveBeenLastCalledWith(
       expect.objectContaining({
         isPublic: false,
-        sharedWithUserIds: ["friend-1"],
-        requiredWorkers: 2,
-        clearRequiredWorkers: false,
+        sharedWithUserIds: [],
+        requiredWorkers: null,
+        clearRequiredWorkers: true,
       }),
     )
   })

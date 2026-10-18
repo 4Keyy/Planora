@@ -153,8 +153,18 @@ export function TodoEditor({
    * direct share, as in the create panel) or makes it private.
    */
   const [allFriends, setAllFriends] = useState(!!todo.isPublic)
+  /*
+   * The circle an All friends task was frozen with (the owner's copy of its stored shares), so
+   * the audience map seats exactly the people who can see it rather than every current friend.
+   * Any change of audience in the editor drops it: from then on All friends means the friends
+   * there are now, which is what the save will freeze.
+   */
+  const frozenCircleOf = (current: Todo) =>
+    current.isPublic && (current.sharedWithUserIds?.length ?? 0) > 0 ? (current.sharedWithUserIds ?? null) : null
+  const [allFriendsIds, setAllFriendsIds] = useState<string[] | null>(() => frozenCircleOf(todo))
   const changeVisMode = useCallback((mode: "private" | "friends") => {
     setVisMode(mode)
+    setAllFriendsIds(null)
     if (mode === "private") setAllFriends(false)
   }, [])
   const changeSharedIds = useCallback((ids: string[]) => {
@@ -162,6 +172,7 @@ export function TodoEditor({
     const coversCurrentFriends = !allFriends && friends.length > 0
       && friends.every(friend => ids.includes(friend.id))
     setAllFriends(coversCurrentFriends)
+    setAllFriendsIds(null)
     setSharedIds(coversCurrentFriends ? [] : ids)
   }, [allFriends, friends])
 
@@ -230,6 +241,7 @@ export function TodoEditor({
     setVisMode((todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0) ? "friends" : "private")
     setSharedIds(todo.isPublic ? [] : (todo.sharedWithUserIds ?? []))
     setAllFriends(!!todo.isPublic)
+    setAllFriendsIds(frozenCircleOf(todo))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todo.id])
 
@@ -459,7 +471,7 @@ export function TodoEditor({
     isOwner,
     visMode, onVisModeChange: changeVisMode,
     sharedIds, onSharedIdsChange: changeSharedIds,
-    allFriends,
+    allFriends, allFriendsIds,
     friends, openPopover, setOpenPopover,
   }
 

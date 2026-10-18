@@ -113,52 +113,78 @@ describe("Share auto-selects All friends", () => {
 
   it("turns the editor's final picked friend into All friends and autosaves that payload", async () => {
     const { onSave } = editor(todo({ sharedWithUserIds: ["friend-1"] }))
-    fireEvent.click(await screen.findByRole("checkbox", { name: "Grace Friend" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Share with Grace Friend" }))
     expect(fixture.ownerPayload).toMatchObject(publicPayload)
-    expect(screen.getByRole("button", { name: /all friends/i })).toBeInTheDocument()
+    // The token and the map's chip both say so.
+    expect(screen.getByRole("button", { name: "Share with all friends" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getAllByRole("button", { name: /all friends/i })).toHaveLength(2)
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining(publicPayload)))
   })
 
-  it("turns ALL into All friends through the editor callback", async () => {
+  it("turns the All friends chip into All friends through the editor callback", async () => {
     editor(todo({ sharedWithUserIds: ["friend-1"] }))
-    fireEvent.click(await screen.findByRole("button", { name: "ALL" }))
+    const chip = await screen.findByRole("button", { name: "Share with all friends" })
+    expect(chip).toHaveAttribute("aria-pressed", "false")
+    fireEvent.click(chip)
     expect(fixture.ownerPayload).toMatchObject(publicPayload)
+    expect(screen.getByRole("button", { name: "Share with all friends" })).toHaveAttribute("aria-pressed", "true")
   })
 
   it("compares coverage of current friends even when the direct selection has stale ids", async () => {
     editor(todo({ sharedWithUserIds: ["stale-friend", "friend-1"] }))
-    fireEvent.click(await screen.findByRole("checkbox", { name: "Grace Friend" }))
+    fireEvent.click(await screen.findByRole("button", { name: "Share with Grace Friend" }))
     expect(fixture.ownerPayload).toMatchObject(publicPayload)
   })
 
-  it("uses the same All friends rule in the headless branch sidebar", () => {
+  it("uses the same All friends rule in the branch page's sidebar", () => {
     editor(todo({ sharedWithUserIds: ["friend-1"] }), "page")
-    fireEvent.click(screen.getByRole("checkbox", { name: "Grace Friend" }))
+    fireEvent.click(screen.getByRole("button", { name: "Share with Grace Friend" }))
     expect(fixture.ownerPayload).toMatchObject(publicPayload)
-    expect(screen.getByText("All friends")).toBeInTheDocument()
+    expect(screen.getByText("All your friends can see this.")).toBeInTheDocument()
     expect(screen.queryByText("Task access")).not.toBeInTheDocument()
   })
 
-  it("keeps a public single-friend click as a direct share in the editor", async () => {
+  it("seats everyone of an All friends task, and lets one friend out, leaving it shared with the rest", async () => {
+    editor(todo({ isPublic: true, sharedWithUserIds: ["friend-1", "friend-2"] }))
+    expect(await screen.findByRole("button", { name: "Share with Ada Friend" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: "Share with Grace Friend" })).toHaveAttribute("aria-pressed", "true")
+    fireEvent.click(screen.getByRole("button", { name: "Share with Ada Friend" }))
+    expect(fixture.ownerPayload).toMatchObject(directPayload(["friend-2"]))
+    expect(screen.getByText("You and Grace can see this.")).toBeInTheDocument()
+  })
+
+  it("seats only the frozen circle of an All friends task, not friends added since", async () => {
+    editor(todo({ isPublic: true, sharedWithUserIds: ["friend-1"] }))
+    expect(await screen.findByRole("button", { name: "Share with Ada Friend" })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: "Share with Grace Friend" })).toHaveAttribute("aria-pressed", "false")
+  })
+
+  it("lets the only friend out of All friends, which leaves the task private", async () => {
     fixture.friends = [friends[0]]
     editor(todo({ isPublic: true, sharedWithUserIds: ["friend-1"] }))
-    fireEvent.click(await screen.findByRole("checkbox", { name: "Ada Friend" }))
-    expect(fixture.ownerPayload).toMatchObject(directPayload(["friend-1"]))
+    fireEvent.click(await screen.findByRole("button", { name: "Share with Ada Friend" }))
+    expect(fixture.ownerPayload).toMatchObject({ isPublic: false, sharedWithUserIds: [], requiredWorkers: null, clearRequiredWorkers: true })
+    expect(screen.getByText("Only you can see this.")).toBeInTheDocument()
   })
 
-  it("shows NONE for All friends and clears the audience without switching mode", async () => {
+  it("takes All friends back to only you, from the chip or from Only you", async () => {
     editor(todo({ isPublic: true, sharedWithUserIds: ["friend-1", "friend-2"] }))
-    fireEvent.click(await screen.findByRole("button", { name: "NONE" }))
-    expect(fixture.ownerPayload).toMatchObject(directPayload([]))
-    expect(screen.getByRole("button", { name: /nobody yet/i })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole("button", { name: "Only you" }))
+    expect(fixture.ownerPayload).toMatchObject({ isPublic: false, sharedWithUserIds: [], requiredWorkers: null })
+    expect(screen.getByRole("button", { name: /private/i })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Share with all friends" }))
+    expect(fixture.ownerPayload).toMatchObject(publicPayload)
+    fireEvent.click(screen.getByRole("button", { name: "Share with all friends" }))
+    expect(fixture.ownerPayload).toMatchObject({ isPublic: false, sharedWithUserIds: [] })
   })
 
-  it("does not infer All friends from an empty loaded friend list", () => {
+  it("keeps a task private, and says why, when there are no friends to share with", () => {
     fixture.friends = []
     editor(todo(), "page")
-    fireEvent.click(screen.getByRole("button", { name: "Friends" }))
+    expect(screen.getByText(/No friends to share with yet/)).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Share with all friends" })).toBeNull()
     expect(fixture.ownerPayload).toMatchObject({ isPublic: false, sharedWithUserIds: [] })
-    expect(screen.getByText("Nobody yet")).toBeInTheDocument()
   })
 
   it("uses exactly the unchanged public owner payload as the autosave baseline", () => {

@@ -474,10 +474,31 @@ the list.
   and the "In progress" chip on the right; below it a **compact left meta sidebar** (`PageMetaPanel`,
   ~389px) and the branch filling the rest. The sidebar stacks priority and category as full-width
   rows that open their popovers, and renders **two controls always-open inline** so the wide space
-  is useful at a glance: the **visibility panel** (`VisibilityPanel`, extracted from
-  `VisibilityPopover` — private/public + the friend access list, no dropdown) and the **due-date
-  calendar** (`DateCalendar`, headless, quick-picks hidden via `hideQuickPicks` — just the grid).
-  Escape closes the modal but is a no-op (beyond popover/title) on the page.
+  is useful at a glance: the **audience map** (`VisibilityPanel`, the same map the modal opens in
+  `VisibilityPopover` — see "The audience map" below) and the **due-date calendar** (`DateCalendar`,
+  headless, quick-picks hidden via `hideQuickPicks` — just the grid). Escape closes the modal but is
+  a no-op (beyond popover/title) on the page.
+
+#### The audience map
+
+Who can see a task is chosen on the landing page's first-block circle, with the owner's real friends
+in its seats (`frontend/src/components/todos/audience/audience-map.tsx`, geometry and words in
+`frontend/src/lib/audience-map.ts`). It opens under the visibility token in the task modal
+(`VisibilityPopover`, 368px) and stays open in the sidebar of a task's own page (`VisibilityPanel`).
+It replaced the Private/Friends switch over a list of check-boxes.
+
+| Part | Behaviour |
+|---|---|
+| The picture | "You" in the `AudienceRing` (the badge's own arc, at 104px) on a dotted sheet; every friend on a seat around it. An empty seat is a dashed circle with a plus — no face; choosing a friend springs their avatar into the seat (`SPRING_GENTLE`), draws a line from the ring's edge to theirs and opens the ring's cut a little wider. Pressing them again lets them out, and the minus on hover says so first |
+| Who sits where | Seats lie on a sunflower spiral (each a golden angle on from the last, every seat the same area), ranked by `GET /todos/api/v1/todos/friend-affinity`: highest score first, then more shared tasks, then name. Distance from you grows with the rank and with nothing else, so the friends you share the most with, both ways and most recently, sit closest. Until the closeness arrives the seats are in name order; when it does they glide to their places, each seat and its line on one spring. On arrival the seats pour out of the ring, closest first |
+| Zoom and move | The wheel zooms around the pointer (Ctrl+wheel — a trackpad pinch — in finer steps), a drag moves the sheet, two fingers pinch, a double click zooms in; − / Show everyone / + do the same from buttons. Every change of view glides on one smoothing curve, so a wheel's notches read as one motion and the point under the pointer stays put; a drag follows the hand at once. The dots move and scale with the drawing. The view opens at 0.82 (names readable, the nearest friends in view) or closer if everyone fits; Show everyone fits the whole spiral, however long. Zoom runs 0.3–1.75, lower when a very long list needs it to fit; the drawing cannot be dragged out of sight. Names fade out below about 0.6 |
+| The page keeps its scroll | The wheel is taken only over the map — a non-passive listener that prevents the page's scroll — with `overscroll-behavior: contain`; on touch the map is `touch-action: pan-y`, so a vertical swipe still scrolls the page and a sideways one moves the map. The chips scroll inside their own box. Nothing scrolls the page and the map together |
+| The chips | Under the map, as on the landing page: "Share with" and one chip per friend (avatar, first name, plus → check), in the map's order, plus **All friends** first. The chips are the labelled control — the picture is `aria-hidden` and its seats are pointer targets only — so keyboards and screen readers get each toggle once, with its pressed state. **Only you** appears once anyone is in |
+| The sentence | One live region under the map, in the landing's words: "Only you can see this.", "You and Ada can see this.", "You, Ada, Tom and 2 others can see this.", "All your friends can see this." |
+| What is saved | The editor's own audience callbacks, unchanged: choosing the last friend who is not yet in turns the task into All friends (`isPublic`); nobody in is private. An All friends task seats exactly its frozen circle (the owner's copy of its stored shares) until the audience changes in the editor, and pressing one of them lets them out, leaving the task shared with the rest — the old list, which showed nobody ticked in All friends, made that press a share with just them |
+| A friend's task | Shown as it is, muted: the chips are disabled, the seats do not press, and the sentence speaks from the viewer's side ("Its owner shared it with 2 people you know."). The map still zooms and moves |
+| No friends | The ring alone, and "No friends to share with yet. Add them on your profile, then share this task." |
+| Reduced motion | Seats, lines, ring and view change in one step; no pour-out |
 
 **Calendars are click-to-open everywhere except this page.** The branch page sidebar is the only
 place the calendar stays open; the modal's date token and the create panel's Due-date selector plate

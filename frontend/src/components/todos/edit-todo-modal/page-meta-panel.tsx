@@ -40,6 +40,8 @@ interface PageMetaPanelProps {
   onSharedIdsChange: (ids: string[]) => void
   /** Shared with every accepted friend (the server's `IsPublic`), rather than with named people. */
   allFriends: boolean
+  /** The circle an All friends task was frozen with, when known. */
+  allFriendsIds?: readonly string[] | null
   friends: FriendDto[]
   openPopover: OpenPopover
   setOpenPopover: (v: OpenPopover) => void
@@ -110,7 +112,7 @@ export function PageMetaPanel({
   categoryId, onCategoryChange, categories, onCreateCategory, canEditCategory,
   authorCategoryName, authorCategoryColor, authorCategoryIcon,
   isOwner,
-  visMode, onVisModeChange, sharedIds, onSharedIdsChange, allFriends, friends,
+  visMode, onVisModeChange, sharedIds, onSharedIdsChange, allFriends, allFriendsIds, friends,
   openPopover, setOpenPopover,
 }: PageMetaPanelProps) {
   const priorityRef   = useRef<HTMLDivElement>(null)
@@ -243,6 +245,7 @@ export function PageMetaPanel({
             friends={friends}
             readOnly={ownerLocked}
             allFriends={allFriends}
+            allFriendsIds={allFriendsIds}
             headless
           />
         </div>

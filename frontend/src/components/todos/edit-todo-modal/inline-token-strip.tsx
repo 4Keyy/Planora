@@ -40,6 +40,8 @@ interface InlineTokenStripProps {
   onSharedIdsChange: (ids: string[]) => void
   /** Shared with every accepted friend (the server's `IsPublic`), rather than with named people. */
   allFriends: boolean
+  /** The circle an All friends task was frozen with, when known. */
+  allFriendsIds?: readonly string[] | null
   friends: FriendDto[]
   openPopover: OpenPopover
   setOpenPopover: (v: OpenPopover) => void
@@ -103,7 +105,7 @@ export function InlineTokenStrip({
   categoryId, onCategoryChange, categories, onCreateCategory, canEditCategory,
   authorCategoryName, authorCategoryColor, authorCategoryIcon,
   isOwner,
-  visMode, onVisModeChange, sharedIds, onSharedIdsChange, allFriends, friends,
+  visMode, onVisModeChange, sharedIds, onSharedIdsChange, allFriends, allFriendsIds, friends,
   openPopover, setOpenPopover,
 }: InlineTokenStripProps) {
   const priorityRef   = useRef<HTMLDivElement>(null)
@@ -320,6 +322,7 @@ export function InlineTokenStrip({
               containerRef={visibilityRef as RefObject<HTMLElement | null>}
               readOnly={ownerLocked}
               allFriends={allFriends}
+            allFriendsIds={allFriendsIds}
             />
           }
         />
