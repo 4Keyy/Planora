@@ -142,7 +142,18 @@ describe("ShortcutsOverlay", () => {
     const dialog = screen.getByRole("dialog")
     expect(dialog).toHaveAttribute("aria-modal", "true")
     expect(dialog).toHaveAccessibleName("Keyboard shortcuts")
+    expect(dialog.style.animation).toBe("none")
     expect(screen.getByRole("heading", { level: 2, name: "Keyboard shortcuts" })).toBeInTheDocument()
+  })
+
+  it("keeps a reopened shortcut map mounted after interrupting its exit", async () => {
+    const onClose = vi.fn()
+    const view = render(<ShortcutsOverlay open onClose={onClose} />)
+    view.rerender(<ShortcutsOverlay open={false} onClose={onClose} />)
+    expect(screen.getByRole("dialog").parentElement).toHaveClass("pointer-events-none")
+    view.rerender(<ShortcutsOverlay open onClose={onClose} />)
+    await waitFor(() => expect(screen.getByRole("dialog").style.opacity).toBe("1"))
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-state", "open")
   })
 
   it("lists every group and every shortcut in the source of truth", () => {

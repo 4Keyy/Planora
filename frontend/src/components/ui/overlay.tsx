@@ -37,9 +37,9 @@ import { cn } from "@/lib/utils"
  * - **Backdrop click closes it** — the pointer equivalent of Escape. The backdrop
  *   is deliberately NOT focusable and carries no role: a viewport-sized button
  *   would be announced as one.
- * - **Exit presence** keeps the dialog mounted through its fold-away. Ordinary
- *   dialogs use CSS; card editors opt into the task editor's shared-origin entrance
- *   and return to the same card on close. Exiting dialogs let clicks through.
+ * - **Exit presence** keeps the dialog mounted through its controlled motion exit.
+ *   Ordinary dialogs use the centred fallback; card editors can opt into a shared
+ *   origin and return to the same card on close. Exiting dialogs let clicks through.
  *
  * `labelledBy` exists for the case where the dialog renders its own heading with
  * markup this component should not own; pass the heading's id and omit `title`.
@@ -54,6 +54,8 @@ export interface OverlayProps {
   description?: ReactNode
   /** Use instead of `title` when the content supplies its own heading element. */
   labelledBy?: string
+  /** Accessible description supplied by the content, independently of the header. */
+  describedBy?: string
   /** Extra classes for the dialog panel (width, max-height, padding). */
   className?: string
   /** Hides the built-in header entirely; requires `labelledBy`. */
@@ -82,6 +84,7 @@ function OriginBackdrop({ open, ...props }: Omit<HTMLMotionProps<"div">, "animat
 
 function OriginDialog({
   open,
+  fromOrigin,
   dialogRef,
   onExitComplete,
   onExitDurationChange,
@@ -89,6 +92,7 @@ function OriginDialog({
   ...props
 }: Omit<HTMLMotionProps<"div">, "animate" | "initial" | "ref"> & {
   open: boolean
+  fromOrigin: boolean
   dialogRef: RefCallback<HTMLDivElement>
   onExitComplete: () => void
   onExitDurationChange: (durationMs: number) => void
@@ -132,7 +136,8 @@ function OriginDialog({
 
     // The portal attaches later, and this dialog has natural height. Measure its
     // untransformed panel before the first visible frame, once per opening edge.
-    const origin = takeOrigin()
+    // Only card editors own the shared origin. Filters and confirmations must leave it intact.
+    const origin = fromOrigin ? takeOrigin() : null
     // Motion's DOM write can lag its values by a frame on a rapid reopen.
     const previousTransform = node.style.transform
     node.style.transform = "none"
@@ -146,8 +151,8 @@ function OriginDialog({
     controls.set(entrance
       ? { opacity: 0, ...entrance }
       : { opacity: 0, scale: reduce ? 1 : 0.95, x: 0, y: reduce ? 0 : 20 })
-    void controls.start(RESTING_TRANSFORM, SPRING_LAYOUT)
-  }, [node, open, reduce, controls, onExitComplete, onExitDurationChange])
+    void controls.start(RESTING_TRANSFORM, reduce ? TWEEN_FAST : SPRING_LAYOUT)
+  }, [node, open, fromOrigin, reduce, controls, onExitComplete, onExitDurationChange])
 
   useLayoutEffect(() => () => {
     ++animationRun.current
@@ -173,6 +178,7 @@ export function Overlay({
   title,
   description,
   labelledBy,
+  describedBy,
   className,
   hideHeader,
   animateFromOrigin = false,
@@ -182,7 +188,7 @@ export function Overlay({
   const titleId = labelledBy ?? `${generatedId}-title`
   const dialogRef = useFocusTrap<HTMLDivElement>(open)
   const [originExitMs, setOriginExitMs] = useState(DURATION_FAST * 1000)
-  const { mounted, presenceProps, finishExit } = useExitPresence(open, animateFromOrigin ? originExitMs : undefined)
+  const { mounted, presenceProps, finishExit } = useExitPresence(open, originExitMs)
 
   useScrollLock(open)
 
@@ -219,10 +225,11 @@ export function Overlay({
     role: "dialog",
     "aria-modal": true as const,
     "aria-labelledby": titleId,
+    "aria-describedby": describedBy,
     tabIndex: -1,
-    ...presenceProps,
+    "data-state": presenceProps["data-state"],
     className: cn(
-      "dialog-surface relative z-modal max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-paper shadow-xl outline-none",
+      "relative z-modal max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-paper shadow-xl outline-none will-change-[transform,opacity]",
       className,
     ),
   }
@@ -248,23 +255,15 @@ export function Overlay({
     <ModalPortal>
       {mounted && (
         <div className={cn("fixed inset-0 z-modal flex items-center justify-center p-4", !open && "pointer-events-none")}>
-          {animateFromOrigin ? (
-            <OriginBackdrop open={open} {...backdropProps} />
-          ) : (
-            <div {...backdropProps} />
-          )}
-
-          {animateFromOrigin ? (
-            <OriginDialog
-              open={open}
-              dialogRef={dialogRef}
-              onExitComplete={finishExit}
-              onExitDurationChange={setOriginExitMs}
-              {...panelProps}
-            >{content}</OriginDialog>
-          ) : (
-            <div ref={dialogRef} {...panelProps}>{content}</div>
-          )}
+          <OriginBackdrop open={open} {...backdropProps} />
+          <OriginDialog
+            open={open}
+            fromOrigin={animateFromOrigin}
+            dialogRef={dialogRef}
+            onExitComplete={finishExit}
+            onExitDurationChange={setOriginExitMs}
+            {...panelProps}
+          >{content}</OriginDialog>
         </div>
       )}
     </ModalPortal>

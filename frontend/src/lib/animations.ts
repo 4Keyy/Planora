@@ -24,10 +24,10 @@ import { tokens } from "@/lib/design-tokens"
  * `prefers-reduced-motion` for everything here, so no component needs its own
  * `useReducedMotion()` guard.
  *
- * Floating surfaces — dropdowns, popovers, menus, dialogs — are not animated from here.
- * They enter and leave with CSS (`.dropdown-surface`, `.dialog-surface` in globals.css),
- * kept mounted by `hooks/use-exit-presence.ts`: framer's hand-off from the Web Animations
- * API ended every one of them with a one-frame blink. Their presets used to live here.
+ * Dropdowns, popovers and menus use CSS (`.dropdown-surface` in globals.css).
+ * Dialogs reuse Overlay's controlled spring/fade and the presets below. Both paths
+ * use `hooks/use-exit-presence.ts`; controlled motion keeps opacity stable across
+ * the Web Animations API hand-off instead of flashing for a frame.
  */
 
 const { duration, ease, spring } = tokens.motion

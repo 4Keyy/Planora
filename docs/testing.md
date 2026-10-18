@@ -14,6 +14,20 @@ cards share row heights and metadata baselines; skeletons supplied the matching 
 flags replace cards with a 0px height difference. This does not certify CLS for initially
 unknown API content. The preview route was removed before committing.
 
+Dialog component regressions cover the centred default, shared-origin preservation,
+interrupted exits, reduced motion, and confirmation focus/description/checkbox behavior.
+`frontend/e2e/ui/dialog-motion.ui.spec.ts` uses the existing RAF frame recorder and
+browser-intercepted API fixtures, with no backend or real session required. It records
+opening and closing the category filter on `/tasks` and `/tasks/completed` and the task's
+unfinished-subtask confirmation, under normal and reduced motion. Every recorded frame
+must have monotonic opacity; closed dialogs cannot reappear, reduced-motion surfaces
+keep scale 1, and focus returns to the trigger. Run against a production frontend built
+with `NEXT_DIST_DIR=.next-codex` on port 3300 or higher, setting `E2E_FRONTEND_URL` to it.
+The 2026-10-18 Chromium production run passed all six cases: twelve recordings had
+zero opacity reversals and zero missed RAF samples. The full Vitest run passed
+1,722 tests in 134 files; coverage was 94.61% statements, 87.01% branches,
+94.39% functions and 96.40% lines. Type-check, lint and the isolated build passed.
+
 | Area | Path | Framework |
 |---|---|---|
 | Backend unit/contract tests | `tests/Planora.UnitTests` | xUnit, Moq, EF InMemory, NetArchTest.Rules |

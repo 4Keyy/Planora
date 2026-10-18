@@ -1,6 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { useState } from "react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { QuickFilterBar } from "@/components/todos/quick-filter-bar"
+import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
 import type { Category } from "@/types/category"
 
 const cat = (id: string, overrides: Partial<Category> = {}): Category => ({
@@ -23,6 +25,24 @@ const cats: Category[] = [
 ]
 
 describe("QuickFilterBar", () => {
+  it("opens the category filter on the shared motion path and lets it finish closing", async () => {
+    function Filter() {
+      const [open, setOpen] = useState(false)
+      return <>
+        <QuickFilterBar categories={cats} selectedIds={[]} onOpen={() => setOpen(true)} onClear={vi.fn()} />
+        <CategoryFilterModal isOpen={open} onClose={() => setOpen(false)} categories={cats} selected={[]} onChange={vi.fn()} />
+      </>
+    }
+    render(<Filter />)
+    fireEvent.click(screen.getByRole("button", { name: "Choose categories" }))
+    expect(screen.getByRole("dialog")).toHaveAccessibleName("Filter Views by category")
+    expect(screen.getByRole("dialog").style.animation).toBe("none")
+    fireEvent.keyDown(document, { key: "Escape" })
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-state", "closed")
+    expect(screen.getByRole("dialog").parentElement).toHaveClass("pointer-events-none")
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+  }, 15_000)
+
   it("idle: shows the hint + F shortcut, no clear button, and opens the category picker", () => {
     const onOpen = vi.fn()
     const onClear = vi.fn()

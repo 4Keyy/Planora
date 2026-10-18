@@ -103,6 +103,8 @@ describe("portal and confirm dialog", () => {
     )
 
     expect(await screen.findByText("Delete task")).toBeInTheDocument()
+    expect(screen.getByRole("dialog")).toHaveAccessibleDescription("This cannot be undone")
+    expect(screen.getByRole("dialog").style.animation).toBe("none")
     await user.click(screen.getByRole("button", { name: "Delete" }))
 
     expect(onConfirm).toHaveBeenCalledOnce()
@@ -148,6 +150,34 @@ describe("portal and confirm dialog", () => {
     await user.click(screen.getByRole("button", { name: "Finish" }))
 
     expect(onConfirm).toHaveBeenCalledWith(true)
+  })
+
+  it("traps confirmation focus, restores its trigger, and resets the checkbox on reopening", async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    const warning = (isOpen: boolean) => <>
+      <button>Open warning</button>
+      <ConfirmDialog isOpen={isOpen} onClose={onClose} onConfirm={vi.fn()} title="Finish task"
+        description="Still has open subtasks" dontAskAgainLabel="Don't show again" />
+    </>
+    const view = render(warning(false))
+    const trigger = screen.getByRole("button", { name: "Open warning" })
+    trigger.focus()
+    view.rerender(warning(true))
+    const close = screen.getByRole("button", { name: "Close" })
+    await waitFor(() => expect(close).toHaveFocus())
+    screen.getByRole("button", { name: "Confirm" }).focus()
+    await user.tab()
+    expect(close).toHaveFocus()
+    await user.click(screen.getByRole("checkbox"))
+    await user.keyboard("{Escape}")
+    expect(onClose).toHaveBeenCalledOnce()
+    view.rerender(warning(false))
+    expect(trigger).toHaveFocus()
+    expect(screen.getByRole("dialog").parentElement).toHaveClass("pointer-events-none")
+    view.rerender(warning(true))
+    expect(screen.getByRole("checkbox")).not.toBeChecked()
+    await waitFor(() => expect(screen.getByRole("dialog").style.opacity).toBe("1"))
   })
 
   it("omits the checkbox when no dontAskAgainLabel is given", async () => {

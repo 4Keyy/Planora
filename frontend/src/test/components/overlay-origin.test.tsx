@@ -138,16 +138,16 @@ describe("Overlay opening from a card", () => {
     expect(screen.getByText("saved content")).toBeInTheDocument()
   })
 
-  it("ignores an old exit completion after reopening and closing again", async () => {
+  it.each([false, true])("ignores an old exit completion after reopening and closing again (origin: %s)", async (animateFromOrigin) => {
     motionCalls.deferExits = true
     recordCard()
     const onClose = vi.fn()
-    const view = render(<Overlay open animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
-    view.rerender(<Overlay open={false} animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
+    const view = render(<Overlay open animateFromOrigin={animateFromOrigin} onClose={onClose} title="Edit">body</Overlay>)
+    view.rerender(<Overlay open={false} animateFromOrigin={animateFromOrigin} onClose={onClose} title="Edit">body</Overlay>)
     const finishOldDialogExit = motionCalls.exitResolvers.at(-1)!
     recordCard(400, 300)
-    view.rerender(<Overlay open animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
-    view.rerender(<Overlay open={false} animateFromOrigin onClose={onClose} title="Edit">body</Overlay>)
+    view.rerender(<Overlay open animateFromOrigin={animateFromOrigin} onClose={onClose} title="Edit">body</Overlay>)
+    view.rerender(<Overlay open={false} animateFromOrigin={animateFromOrigin} onClose={onClose} title="Edit">body</Overlay>)
     const finishCurrentDialogExit = motionCalls.exitResolvers.at(-1)!
 
     await act(async () => finishOldDialogExit())
@@ -156,13 +156,13 @@ describe("Overlay opening from a card", () => {
     expect(screen.queryByRole("dialog")).toBeNull()
   })
 
-  it("leaves ordinary overlays on their existing CSS animation", () => {
+  it("gives ordinary overlays the centred spring without consuming a shared card origin", () => {
     recordCard()
     render(<Overlay open onClose={vi.fn()} title="Other dialog">body</Overlay>)
-    expect(motionCalls.start).not.toHaveBeenCalled()
-    expect(screen.getByRole("dialog").style.animation).toBe("")
-    expect(screen.getByRole("dialog")).toHaveClass("dialog-surface")
-    expect(takeOrigin()).not.toBeNull()
+    expect(motionCalls.set).toHaveBeenCalledWith({ opacity: 0, scale: 0.95, x: 0, y: 20 })
+    expect(motionCalls.start).toHaveBeenCalledWith(resting, SPRING_LAYOUT)
+    expect(screen.getByRole("dialog").style.animation).toBe("none")
+    expect(takeOrigin()).toEqual({ left: 40, top: 120, width: 350, height: 120 })
   })
 
   it("consumes the card but removes travel and scale for reduced motion", () => {
@@ -170,7 +170,7 @@ describe("Overlay opening from a card", () => {
     recordCard()
     render(<Overlay open animateFromOrigin onClose={vi.fn()} title="Edit">body</Overlay>)
     expect(motionCalls.set).toHaveBeenCalledWith({ opacity: 0, scale: 1, x: 0, y: 0 })
-    expect(motionCalls.start).toHaveBeenCalledWith(resting, SPRING_LAYOUT)
+    expect(motionCalls.start).toHaveBeenCalledWith(resting, TWEEN_FAST)
     expect(takeOrigin()).toBeNull()
   })
 

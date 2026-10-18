@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Overlay } from "@/components/ui/overlay"
@@ -109,30 +109,23 @@ describe("Overlay", () => {
   })
 })
 
-/** jsdom has no AnimationEvent, so React hears the prefixed name there; fire both. */
-function endAnimation(el: Element) {
-  fireEvent.animationEnd(el)
-  fireEvent(el, new Event("webkitAnimationEnd", { bubbles: true }))
-}
-
 describe("Overlay's exit", () => {
-  it("stays through its fold-away, lets clicks through meanwhile, and goes when the fold ends", () => {
+  it("stays through its motion exit, lets clicks through meanwhile, and unmounts when it ends", async () => {
     const { rerender } = render(<Overlay open onClose={vi.fn()} title="Edit">body</Overlay>)
     rerender(<Overlay open={false} onClose={vi.fn()} title="Edit">body</Overlay>)
 
-    // Still mounted, folding away: CSS runs the exit, and the page underneath is already live.
+    // The controlled exit keeps the surface mounted while the page is already live.
     const dialog = screen.getByRole("dialog")
     expect(dialog).toHaveAttribute("data-state", "closed")
     expect(dialog.parentElement).toHaveClass("pointer-events-none")
 
-    endAnimation(dialog)
-    expect(screen.queryByRole("dialog")).toBeNull()
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
   })
 
   it("enters as an open dialog surface with its scrim", () => {
     const { container } = render(<Overlay open onClose={vi.fn()} title="Edit">body</Overlay>)
     const dialog = screen.getByRole("dialog")
-    expect(dialog).toHaveClass("dialog-surface")
+    expect(dialog.style.animation).toBe("none")
     expect(dialog).toHaveAttribute("data-state", "open")
     const scrim = container.ownerDocument.querySelector(".backdrop-surface")
     expect(scrim).toHaveAttribute("data-state", "open")

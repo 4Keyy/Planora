@@ -172,6 +172,7 @@ Organize todos with user-owned labels that carry color, icon, and display order.
 - Initial category results use the task grid's 40ms stagger, capped at the ninth card; later updates do not replay it. Position-only rearrangement uses `SPRING_LAYOUT`, while small hover/press feedback uses `SPRING_RESPONSIVE`. Reduced motion removes the stagger and transform travel.
 - Opening an existing category uses the task editor's card-to-dialog entrance: `shared-origin` measures the pressed card's static inner surface, `originTransform` targets the category dialog's natural size, and `SPRING_LAYOUT` drives the surface while `TWEEN_FAST` fades the backdrop. Closing returns to that origin on a 220ms `EASE_STANDARD` tween. An interrupted entrance exits from its current pose, and an old exit cannot unmount a reopened dialog. Reduced motion keeps the fade without travel or scaling.
 - New Category clears any saved card origin and uses the task editor's centered fallback: opacity 0, scale 0.95 and y 20 to the resting surface on `SPRING_LAYOUT`, then the 160ms fallback exit. Dialog dimensions, fields and save behavior are unchanged.
+- Ordinary `Overlay` dialogs (including category filters on active/completed tasks and keyboard shortcuts) and `ConfirmDialog` use that same centred fallback by default, without reading or consuming a card editor's shared origin. The panel sets its initial pose in `useLayoutEffect`, uses controlled motion with CSS animation disabled, and ignores completion from interrupted exits. Backdrops fade with `TWEEN_FAST`; reduced motion uses only a fast opacity fade. Closing surfaces let pointer input through. Confirmations keep their accessible title/description, focus trap and return, Escape/backdrop dismissal, actions, and per-opening checkbox reset. Command-palette and phone-menu CSS backdrops retain their existing animation.
 - Editing an existing category is **quick-save**: there are no Save/Cancel buttons. Changing the name, description, color (color picker), or icon persists automatically. The debounced `useAutosave` hook (`frontend/src/hooks/use-autosave.ts`) coalesces bursts (e.g. dragging the color picker) into a single `PUT`, updates the grid optimistically, and a `AutosaveIndicator` reports `Saving… / All changes saved / Couldn’t save`.
 - An empty name is never persisted (a category's only required field); the modal shows an inline "Enter a name to save your changes" hint and skips the save until a name is present.
 - Pending edits are flushed when the modal closes (X / `Escape` / backdrop / `Done`), so a change made inside the debounce window is never lost.
@@ -937,8 +938,8 @@ that shared list.
   collapsed header ("New task" / "Date, category, audience") and the quick filter ("Quick filter" /
   "Filter tasks by category." / an `F` hint / "Choose categories"; the category picker it opens,
   `components/todos/category-filter-modal.tsx`, is an `Overlay` — scrim, focus trap, Escape, scroll
-  lock and a CSS rise-and-fade from there — after its own framer-motion copy blinked its dark "Show
-  All Tasks" row once it had opened and came back for a frame after it had closed). Both are always on screen, the
+  lock and the controlled centred spring/fade from there. Initial values are set before paint,
+  keeping the dark "Show All Tasks" row steady through opening and closing). Both are always on screen, the
   create panel above the filter; the panel's header is the "new task" affordance and expands in place.
   On phones the filter's actions sit on their own row under its title, always, because whether the
   archive's date control is present is known only after the data arrives. While either plate's code or
