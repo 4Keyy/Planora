@@ -79,6 +79,15 @@ namespace Planora.Todo.Domain.Repositories
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// The id, owner and owner's category of every task matching <paramref name="predicate"/> — a
+        /// narrow, untracked projection with no includes, for tallies that group by a category the
+        /// row alone cannot tell (a friend's shared task is filed under the viewer's own category).
+        /// </summary>
+        Task<IReadOnlyList<TodoCategoryKey>> GetCategoryKeysAsync(
+            Expression<Func<TodoItem, bool>> predicate,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Removes all TodoItemShare rows that represent sharing between two users whose
         /// friendship has been revoked. Deletes shares in both directions.
         /// </summary>

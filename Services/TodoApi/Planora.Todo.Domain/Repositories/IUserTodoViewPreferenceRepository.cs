@@ -23,6 +23,12 @@ namespace Planora.Todo.Domain.Repositories
             IReadOnlyCollection<Guid> todoItemIds,
             CancellationToken cancellationToken = default);
         Task<List<Guid>> GetTodoIdsByViewerCategoryAsync(Guid viewerId, Guid categoryId, CancellationToken cancellationToken = default);
+        /// <summary>
+        /// Every task this viewer filed under one of their own categories, as task id → category id.
+        /// </summary>
+        Task<IReadOnlyDictionary<Guid, Guid>> GetViewerCategoryAssignmentsAsync(
+            Guid viewerId,
+            CancellationToken cancellationToken = default);
         Task<UserTodoViewPreference?> GetAsync(Guid viewerId, Guid todoItemId, CancellationToken cancellationToken = default);
 
         /// <summary>

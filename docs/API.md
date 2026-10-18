@@ -617,6 +617,7 @@ All routes require bearer auth.
 |---|---|---|---|---|
 | `GET` | `?pageNumber=1&pageSize=10&status=&categoryId=&isCompleted=&includeSubtasks=false&completedFrom=&completedTo=` | `200` | `PagedResult<TodoItemDto>` | list own and friend-visible todos |
 | `GET` | `/public?pageNumber=1&pageSize=10&friendId=` | `200` | `ApiResponse<PagedResult<TodoItemDto>>` | list public or directly shared friend todos |
+| `GET` | `/category-counts` | `200` | `CategoryTaskCountDto[]` | open top-level tasks per caller category (the category cards' counts) |
 | `GET` | `/{id}` | `200` | `TodoItemDto` | get one todo |
 | `POST` | `/` | `201` + `Location` | `TodoItemDto` | create todo |
 | `PUT` | `/{id}` | `200` | `TodoItemDto` | update todo — a field-wise merge, not a replace |
@@ -713,6 +714,23 @@ placeholders there. Personal completion stays set, so
 retention-hidden tasks do not return to Active. A private owner's hidden completed task
 remains readable; another owner's legacy global hidden flag does not hide their task from
 a viewer. Active/mixed lists retain the existing hidden-task projection.
+
+### `GET /category-counts`
+
+The count on each category card, for every category at once instead of one list request per
+category. Each `openCount` equals the `totalCount` of
+`GET /todos/api/v1/todos?categoryId={categoryId}&isCompleted=false`: the same access rule, top-level
+tasks only, nothing globally done and nothing the caller completed for themselves. Hidden tasks count,
+as they appear in the active list. The caller's own task counts under its stored category; a friend's
+shared task counts under the category the caller filed it in, and nowhere until they do. Categories
+with no open task are omitted — read a missing id as `0`.
+
+```json
+[
+  { "categoryId": "3f1c9a52-7d0e-4b7a-9a61-2f4c8e0b5d11", "openCount": 4 },
+  { "categoryId": "a8e2d417-0c3b-4f6e-8d29-71b5c6e9f034", "openCount": 1 }
+]
+```
 
 ### Which fields are populated on which read
 

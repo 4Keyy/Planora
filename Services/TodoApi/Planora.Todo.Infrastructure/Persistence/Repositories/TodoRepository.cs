@@ -261,6 +261,17 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                     cancellationToken);
         }
 
+        public async Task<IReadOnlyList<TodoCategoryKey>> GetCategoryKeysAsync(
+            Expression<Func<TodoItem, bool>> predicate,
+            CancellationToken cancellationToken = default)
+        {
+            return await DbSet
+                .AsNoTracking()
+                .Where(predicate)
+                .Select(t => new TodoCategoryKey(t.Id, t.UserId, t.CategoryId))
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<IReadOnlyDictionary<Guid, int>> GetOpenSubtaskCountsAsync(
             IReadOnlyCollection<Guid> parentTodoIds,
             CancellationToken cancellationToken = default)

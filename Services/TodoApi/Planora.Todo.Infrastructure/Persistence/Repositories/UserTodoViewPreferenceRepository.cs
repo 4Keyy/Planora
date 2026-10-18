@@ -76,6 +76,16 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<IReadOnlyDictionary<Guid, Guid>> GetViewerCategoryAssignmentsAsync(
+            Guid viewerId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.UserTodoViewPreferences
+                .AsNoTracking()
+                .Where(p => p.ViewerId == viewerId && p.ViewerCategoryId != null)
+                .ToDictionaryAsync(p => p.TodoItemId, p => p.ViewerCategoryId!.Value, cancellationToken);
+        }
+
         public async Task<UserTodoViewPreference?> GetAsync(Guid viewerId, Guid todoItemId, CancellationToken cancellationToken = default)
         {
             return await _context.UserTodoViewPreferences

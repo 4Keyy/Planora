@@ -8,6 +8,7 @@ using Planora.Todo.Application.Features.Todos.Commands.DeleteTodo;
 using Planora.Todo.Application.Features.Todos.Commands.SetTodoHidden;
 using Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference;
 using Planora.Todo.Application.Features.Todos.Queries.GetUserTodos;
+using Planora.Todo.Application.Features.Todos.Queries.GetCategoryTaskCounts;
 using Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos;
 using Planora.Todo.Application.Features.Todos.Queries.GetTodosByCategory;
 using Planora.Todo.Application.Features.Todos.Queries.GetTodoById;
@@ -68,6 +69,21 @@ namespace Planora.Todo.Api.Controllers
         {
             var query = new GetPublicTodosQuery(pageNumber, pageSize, friendId);
             var result = await _mediator.Send(query, cancellationToken);
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// How many open top-level tasks the caller has in each of their categories — each count
+        /// equals the <c>totalCount</c> of the active list filtered to that category. Categories
+        /// with none are omitted.
+        /// </summary>
+        [HttpGet("category-counts")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<IReadOnlyList<CategoryTaskCountDto>>> GetCategoryTaskCounts(
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _mediator.Send(new GetCategoryTaskCountsQuery(), cancellationToken);
 
             return Ok(result);
         }
