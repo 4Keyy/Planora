@@ -469,6 +469,68 @@ function Import-LauncherModules {
     }
 }
 
+# ---------------------------------------------------------------------------
+#  Native commands that must not hang the launcher
+# ---------------------------------------------------------------------------
+
+# Runs a native command with a hard time limit. `& exe ... 2>&1 | Out-Null` waits for its
+# output streams to close, not for the process to exit, so a command that hangs - or one whose
+# streams a long-lived child inherited - stalls the launcher forever with nothing on screen.
+# Here the output is drained asynchronously, the process itself is awaited, and on timeout its
+# whole tree is killed. Returns @{ ExitCode; TimedOut; Output }.
+function Invoke-NativeWithTimeout {
+    param(
+        [Parameter(Mandatory)][string]$FilePath,
+        [string[]]$Arguments = @(),
+        [int]$TimeoutSeconds = 30
+    )
+
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = $FilePath
+    $psi.Arguments = ($Arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    $stdout = $proc.StandardOutput.ReadToEndAsync()
+    $stderr = $proc.StandardError.ReadToEndAsync()
+
+    if (-not $proc.WaitForExit($TimeoutSeconds * 1000)) {
+        # taskkill /T works on Windows PowerShell 5.1 too, where Process.Kill($true) does not exist.
+        & taskkill.exe /PID $proc.Id /T /F 2>&1 | Out-Null
+        return @{ ExitCode = -1; TimedOut = $true; Output = "" }
+    }
+
+    # Streams a surviving child still holds must not block us either: take what has arrived.
+    $null = [System.Threading.Tasks.Task]::WaitAll(@($stdout, $stderr), 2000)
+    $text = (@($stdout, $stderr) | Where-Object { $_.IsCompleted } | ForEach-Object { $_.Result }) -join "`n"
+    return @{ ExitCode = $proc.ExitCode; TimedOut = $false; Output = $text }
+}
+
+# The SDK's build servers (Roslyn's VBCSCompiler, MSBuild worker nodes, the Razor server) are
+# disposable: the next build starts fresh ones. When `dotnet build-server shutdown` cannot reach
+# a wedged one over its named pipe, stop them directly - they would otherwise keep the bin/
+# folders locked and the build below would fail with MSB3021/MSB3027.
+function Stop-DotnetBuildServers {
+    $servers = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -eq 'VBCSCompiler.exe' -or (
+            $_.Name -eq 'dotnet.exe' -and $_.CommandLine -and (
+                $_.CommandLine -match 'VBCSCompiler\.dll' -or
+                $_.CommandLine -match 'MSBuild\.dll.*(/nodemode|-nodemode|/nodeReuse|-nodeReuse)' -or
+                $_.CommandLine -match 'rzc\.dll.*server' -or
+                $_.CommandLine -match 'Microsoft\.NET\.Sdk\.Razor\.Tool'
+            )
+        )
+    }
+    foreach ($server in $servers) {
+        Write-Info "Stopping stuck build server PID $($server.ProcessId) ($($server.Name))"
+        Stop-Process -Id $server.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    return @($servers).Count
+}
+
 function Get-NpmExecutable {
     $npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
     if ($npmCmd) { return $npmCmd.Source }
@@ -597,9 +659,10 @@ function Test-LanFirewallRule {
 # refuses every LAN peer, so the share banner must tell these two states apart truthfully.
 function Test-PortListensOnLan {
     param([int]$Port)
-    $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-    if (-not $conns) { return $false }
-    return [bool]($conns | Where-Object { $_.LocalAddress -in '0.0.0.0', '::' })
+    # The OS listener table, not Get-NetTCPConnection: that CIM query takes seconds per call here.
+    return [bool](Get-ListeningTcpPorts | Where-Object {
+        $_.Port -eq $Port -and ($_.Address.Equals([System.Net.IPAddress]::Any) -or $_.Address.Equals([System.Net.IPAddress]::IPv6Any))
+    })
 }
 
 # Open an inbound TCP allow rule for the given ports, scoped to the local subnet only (reachable by
@@ -838,10 +901,19 @@ function Stop-PlanoraProcesses {
         }
     }
 
-    # Shut down .NET build server to release file locks
-    if (Get-Command dotnet -ErrorAction SilentlyContinue) {
+    # Shut down .NET build servers to release file locks. Time-limited: a build server that
+    # stops answering on its pipe used to hang the launcher at this line indefinitely.
+    $dotnetCmd = Get-Command dotnet -ErrorAction SilentlyContinue
+    if ($dotnetCmd) {
         Write-Info "Shutting down .NET build servers..."
-        & dotnet build-server shutdown 2>&1 | Out-Null
+        $shutdown = Invoke-NativeWithTimeout -FilePath $dotnetCmd.Source -Arguments @('build-server', 'shutdown') -TimeoutSeconds 20
+        if ($shutdown.TimedOut) {
+            Write-Warn "dotnet build-server shutdown did not finish in 20s - stopping the build servers directly."
+            $stopped = Stop-DotnetBuildServers
+            if ($stopped -eq 0) { Write-Info "No build server processes were left running." }
+        } elseif ($shutdown.ExitCode -ne 0) {
+            Write-Warn "dotnet build-server shutdown exited with code $($shutdown.ExitCode) - continuing."
+        }
     }
 
     # Wait for every port this launcher owns (REST + gRPC + frontend) to be free.

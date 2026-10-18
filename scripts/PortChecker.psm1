@@ -25,6 +25,75 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# ---------------------------------------------------------------------------
+#  Fast socket tables
+# ---------------------------------------------------------------------------
+#
+# Get-NetTCPConnection is a CIM query, and on a machine with many sockets (a VPN, Docker and
+# WSL adapters, thousands of connections) it took ~8.5 s per call. The launcher asked it twice
+# for each of its ~13 ports, so stopping old processes sat silent for minutes and looked hung.
+# These two read the same facts in milliseconds:
+#
+#   - Get-ListeningTcpPorts: the OS's own listener table (IPGlobalProperties, ~30 ms), every
+#     address and both families - enough to answer "is anything listening on this port".
+#   - Get-TcpPortOwnerTable: one `netstat -ano` pass (~130 ms) mapping port -> PID, for when
+#     the owner matters. A listening row is recognised by its remote address (`0.0.0.0:0`,
+#     `[::]:0`, `*:*`), not by the state column, which Windows localises.
+
+function Get-ListeningTcpPorts {
+    <#
+    .SYNOPSIS
+        Returns the TCP listener endpoints the OS reports right now (all addresses, IPv4 and IPv6).
+    .OUTPUTS
+        [System.Net.IPEndPoint[]]
+    #>
+    try {
+        return [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
+    } catch {
+        Write-Verbose "[PortChecker] Listener table unavailable: $_"
+        return @()
+    }
+}
+
+function Get-TcpPortOwnerTable {
+    <#
+    .SYNOPSIS
+        Maps local TCP ports to the process that owns them, from one netstat pass.
+    .DESCRIPTION
+        A listening socket wins over a connection on the same local port. Each value is a
+        hashtable with Pid, State ('Listen' or 'Connected') and LocalAddress.
+    .OUTPUTS
+        [hashtable] port -> @{ Pid; State; LocalAddress }
+    #>
+    $table = @{}
+    $lines = @()
+    try {
+        $lines += & netstat.exe -ano -p TCP 2>$null
+        $lines += & netstat.exe -ano -p TCPv6 2>$null
+    } catch {
+        Write-Verbose "[PortChecker] netstat failed: $_"
+        return $table
+    }
+
+    foreach ($line in $lines) {
+        # TCP  <local addr>:<port>  <remote addr>:<port>  <state>  <pid>
+        if ($line -notmatch '^\s*TCP\s+(\S+):(\d+)\s+(\S+)\s+\S+\s+(\d+)\s*$') { continue }
+        # Take the groups before the next -match, which overwrites $Matches.
+        $local = $Matches[1]; $port = [int]$Matches[2]; $remote = $Matches[3]; $ownerPid = [int]$Matches[4]
+        $listening = $remote -match ':0$|^\*:\*$'
+        $entry = @{
+            Pid          = $ownerPid
+            State        = if ($listening) { 'Listen' } else { 'Connected' }
+            LocalAddress = $local.Trim('[', ']')
+        }
+        if ($entry.Pid -le 0) { continue }
+        if (-not $table.ContainsKey($port) -or ($listening -and $table[$port].State -ne 'Listen')) {
+            $table[$port] = $entry
+        }
+    }
+    return $table
+}
+
 function Test-PortFree {
     <#
     .SYNOPSIS
@@ -33,7 +102,7 @@ function Test-PortFree {
     .DESCRIPTION
         Two independent checks, because either one alone lies on Windows:
 
-          1. Get-NetTCPConnection - is ANY socket already LISTENING on this port,
+          1. The OS listener table - is ANY socket already LISTENING on this port,
              on any local address and any address family?
           2. Exclusive wildcard bind probes on IPv4 (0.0.0.0) and IPv6 ([::]) - the
              OS is the final authority on whether a bind would actually be granted.
@@ -59,12 +128,7 @@ function Test-PortFree {
     )
 
     # --- Check 1: is anything already listening, on any address / family? ---
-    try {
-        $listening = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-        if ($null -ne $listening) { return $false }
-    } catch {
-        Write-Verbose "[PortChecker] Get-NetTCPConnection unavailable for port ${Port}; relying on bind probes."
-    }
+    if (@(Get-ListeningTcpPorts | Where-Object { $_.Port -eq $Port }).Count -gt 0) { return $false }
 
     # --- Check 2: exclusive wildcard bind on each address family ---
     foreach ($address in @([System.Net.IPAddress]::Any, [System.Net.IPAddress]::IPv6Any)) {
@@ -167,9 +231,9 @@ function Get-PortOwner {
         Returns information about the process currently listening on the given TCP port.
 
     .DESCRIPTION
-        Uses Get-NetTCPConnection (Windows built-in) to identify the PID owning
-        the port, then looks up the process name. Falls back to netstat parsing
-        when Get-NetTCPConnection is unavailable (older OS versions).
+        Reads the PID owning the port from one netstat pass (Get-TcpPortOwnerTable),
+        then looks up the process name. A listening socket is preferred over a
+        connection on the same local port.
 
         The returned object's IsPlanora property answers "may this be killed?".
         When -RepoRoot is supplied it is decided by Test-ProcessUnderPath - the process
@@ -200,35 +264,10 @@ function Get-PortOwner {
     $ownerPath     = '(unknown)'
     $connectionState = 'Unknown'
 
-    # --- Method 1: Get-NetTCPConnection (Windows PowerShell / pwsh on Windows) ---
-    try {
-        $conn = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue |
-                Where-Object { $_.State -in @('Listen', 'Established', 'CloseWait') } |
-                Select-Object -First 1
-
-        if ($null -ne $conn) {
-            $ownerPid        = $conn.OwningProcess
-            $connectionState = $conn.State
-        }
-    } catch {
-        Write-Verbose "[PortChecker] Get-NetTCPConnection unavailable, falling back to netstat."
-    }
-
-    # --- Method 2: netstat fallback ---
-    if ($null -eq $ownerPid) {
-        try {
-            $netstatOutput = & netstat -ano 2>$null
-            foreach ($line in $netstatOutput) {
-                # Match lines like:  TCP    0.0.0.0:5030    ...    LISTENING    1234
-                if ($line -match "TCP\s+[^\s]+:$Port\s+[^\s]+\s+(\w+)\s+(\d+)") {
-                    $connectionState = $Matches[1]
-                    $ownerPid        = [int]$Matches[2]
-                    break
-                }
-            }
-        } catch {
-            Write-Verbose "[PortChecker] netstat fallback also failed: $_"
-        }
+    $row = (Get-TcpPortOwnerTable)[$Port]
+    if ($null -ne $row) {
+        $ownerPid        = $row.Pid
+        $connectionState = $row.State
     }
 
     if ($null -eq $ownerPid) {
@@ -393,6 +432,8 @@ function Assert-PortsFree {
 }
 
 Export-ModuleMember -Function @(
+    'Get-ListeningTcpPorts',
+    'Get-TcpPortOwnerTable',
     'Test-PortFree',
     'Test-ProcessUnderPath',
     'Get-PortOwner',
