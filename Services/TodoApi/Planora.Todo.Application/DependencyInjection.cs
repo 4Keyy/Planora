@@ -4,6 +4,7 @@ using Planora.BuildingBlocks.Application.Services;
 using Planora.Todo.Application.Features.Todos.Events;
 using Planora.Todo.Application.Features.IntegrationEvents;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using FluentValidation;
 
 namespace Planora.Todo.Application
@@ -13,6 +14,7 @@ namespace Planora.Todo.Application
         public static IServiceCollection AddTodoApplication(this IServiceCollection services)
         {
             var assembly = Assembly.GetExecutingAssembly();
+            services.TryAddSingleton<TimeProvider>(TimeProvider.System);
 
             services.AddMediatR(cfg =>
             {

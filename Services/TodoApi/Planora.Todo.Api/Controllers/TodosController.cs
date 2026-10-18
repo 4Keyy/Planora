@@ -9,6 +9,7 @@ using Planora.Todo.Application.Features.Todos.Commands.SetTodoHidden;
 using Planora.Todo.Application.Features.Todos.Commands.SetViewerPreference;
 using Planora.Todo.Application.Features.Todos.Queries.GetUserTodos;
 using Planora.Todo.Application.Features.Todos.Queries.GetCategoryTaskCounts;
+using Planora.Todo.Application.Features.Todos.Queries.GetFriendAffinity;
 using Planora.Todo.Application.Features.Todos.Queries.GetPublicTodos;
 using Planora.Todo.Application.Features.Todos.Queries.GetTodosByCategory;
 using Planora.Todo.Application.Features.Todos.Queries.GetTodoById;
@@ -84,6 +85,16 @@ namespace Planora.Todo.Api.Controllers
             CancellationToken cancellationToken = default)
         {
             var result = await _mediator.Send(new GetCategoryTaskCountsQuery(), cancellationToken);
+
+            return Ok(result);
+        }
+
+        [HttpGet("friend-affinity")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<IReadOnlyList<FriendAffinityDto>>> GetFriendAffinity(
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _mediator.Send(new GetFriendAffinityQuery(), cancellationToken);
 
             return Ok(result);
         }

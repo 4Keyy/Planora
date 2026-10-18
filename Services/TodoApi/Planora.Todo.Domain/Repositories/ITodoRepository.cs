@@ -88,6 +88,16 @@ namespace Planora.Todo.Domain.Repositories
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Projects only directed shares between the caller and current friends, without tracking.
+        /// The predicate restricts eligible tasks; recipients are filtered before projection.
+        /// </summary>
+        Task<IReadOnlyList<TodoFriendShareKey>> GetFriendShareKeysAsync(
+            Expression<Func<TodoItem, bool>> predicate,
+            Guid userId,
+            IReadOnlyCollection<Guid> friendIds,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Removes all TodoItemShare rows that represent sharing between two users whose
         /// friendship has been revoked. Deletes shares in both directions.
         /// </summary>

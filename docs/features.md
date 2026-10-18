@@ -230,6 +230,7 @@ The read handlers do not all apply the same viewer projection:
 | Public/friend feed | Accepted-friend IDs; excludes hidden preference IDs entirely; explicit DTO projection omits viewer category/completion and `DueDateStart`. |
 | Category route | Own top-level tasks with that stored category; direct mapping rather than the main list's viewer-redaction/collection-enrichment pipeline. |
 | Category counts | `GET /category-counts`: the main list's access rule and active-only filter (not done, not completed by the viewer, top-level) over tasks that sit in a category; each own task counts under its stored category and each friend's task under the viewer's personal one, so every count equals that category's active-list `totalCount`. One narrow `(id, owner, category)` projection, grouped in the handler. |
+| Friend affinity | `GET /friend-affinity`: current friends with explicit shares in either direction; only non-deleted, top-level, non-public tasks, including completed/hidden ones. One untracked projection, grouped in memory; weights `1 / (1 + max(0, ageDays) / 30)` use `updatedAt ?? createdAt`, sum before rounding to two decimals, then sort by returned score, interaction count and friend id. Friends without interactions are omitted. |
 | Subtask list | Parent owner or live friend-visible access; global child completion and per-user workers; batched current creator/worker profiles. |
 
 Completed-date filters currently use the aggregate's `CompletedAt`, not

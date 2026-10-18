@@ -261,6 +261,22 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                     cancellationToken);
         }
 
+        public async Task<IReadOnlyList<TodoFriendShareKey>> GetFriendShareKeysAsync(
+            Expression<Func<TodoItem, bool>> predicate,
+            Guid userId,
+            IReadOnlyCollection<Guid> friendIds,
+            CancellationToken cancellationToken = default)
+        {
+            return await DbSet.AsNoTracking()
+                .Where(predicate)
+                .SelectMany(todo => todo.SharedWith.Where(share =>
+                        (todo.UserId == userId && friendIds.Contains(share.SharedWithUserId)) ||
+                        (friendIds.Contains(todo.UserId) && share.SharedWithUserId == userId)),
+                    (todo, share) => new TodoFriendShareKey(
+                        todo.Id, todo.UserId, todo.UpdatedAt ?? todo.CreatedAt, share.SharedWithUserId))
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<IReadOnlyList<TodoCategoryKey>> GetCategoryKeysAsync(
             Expression<Func<TodoItem, bool>> predicate,
             CancellationToken cancellationToken = default)

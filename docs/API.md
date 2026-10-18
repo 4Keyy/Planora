@@ -618,6 +618,7 @@ All routes require bearer auth.
 | `GET` | `?pageNumber=1&pageSize=10&status=&categoryId=&isCompleted=&includeSubtasks=false&completedFrom=&completedTo=` | `200` | `PagedResult<TodoItemDto>` | list own and friend-visible todos |
 | `GET` | `/public?pageNumber=1&pageSize=10&friendId=` | `200` | `ApiResponse<PagedResult<TodoItemDto>>` | list public or directly shared friend todos |
 | `GET` | `/category-counts` | `200` | `CategoryTaskCountDto[]` | open top-level tasks per caller category (the category cards' counts) |
+| `GET` | `/friend-affinity` | `200` | `FriendAffinityDto[]` | rank current friends by explicitly shared tasks in both directions |
 | `GET` | `/{id}` | `200` | `TodoItemDto` | get one todo |
 | `POST` | `/` | `201` + `Location` | `TodoItemDto` | create todo |
 | `PUT` | `/{id}` | `200` | `TodoItemDto` | update todo — a field-wise merge, not a replace |
@@ -731,6 +732,34 @@ with no open task are omitted — read a missing id as `0`.
   { "categoryId": "a8e2d417-0c3b-4f6e-8d29-71b5c6e9f034", "openCount": 1 }
 ]
 ```
+
+### `GET /friend-affinity`
+
+Returns a bare JSON array for the authenticated caller's current accepted friends. Friends with no
+qualifying interaction are omitted; clients treat a missing friend as zero affinity.
+
+```json
+[
+  { "friendId": "3f1c9a52-7d0e-4b7a-9a61-2f4c8e0b5d11", "score": 3.42, "sharedByMe": 4, "sharedWithMe": 2 }
+]
+```
+
+Only non-deleted, top-level tasks with `isPublic == false` count. All friends tasks are excluded,
+including legacy public tasks and frozen snapshots with explicit stored shares. Completed and hidden
+tasks still count, regardless of viewer preferences. `sharedByMe` counts the caller's tasks with an
+explicit share naming that friend; `sharedWithMe` counts that friend's tasks explicitly shared with
+the caller. Former friends, non-friends and shares between other people contribute nothing.
+
+Each qualifying task contributes `1 / (1 + ageDays / 30)`, where
+`ageDays = max(0, (UtcNow - (updatedAt ?? createdAt)).TotalDays)`. One UTC instant is used for the
+whole response, fractional days count, and future timestamps have age zero. Weights from both
+directions are summed with decimal arithmetic, then rounded to two decimal places (midpoints away
+from zero). There is no age cutoff: an old interaction remains in the counts and the response even
+if its returned score rounds to `0`.
+
+Order is returned `score` descending, then `sharedByMe + sharedWithMe` descending, then `friendId`
+ascending. A single untracked SQL query projects only task id, owner, last activity and share recipient;
+grouping and scoring happen in memory without loading task content.
 
 ### Which fields are populated on which read
 
