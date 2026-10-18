@@ -1,6 +1,6 @@
 "use client"
 
-import { ReactNode, RefObject, useEffect, useRef } from "react"
+import { ReactNode, RefObject, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useExitPresence } from "@/hooks/use-exit-presence"
 import { useDismissHiddenAnchor } from "@/hooks/use-dismiss-hidden-anchor"
@@ -51,6 +51,53 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
   const { mounted, presenceProps } = useExitPresence(open)
   useDismissHiddenAnchor(open, containerRef, onClose)
   const pos = useFixedPopoverPosition(portal && open, containerRef, ref, width, align)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [nudge, setNudge] = useState(0)
+  const nudgeRef = useRef(0)
+
+  /*
+   * The in-flow popover hangs from its trigger, and a trigger near a phone's right edge used to
+   * push it out of the box that clips it — the editor's own panel — which then scrolled sideways
+   * to show it. Once laid out it is fitted to that box (the nearest ancestor that clips, or the
+   * viewport): capped to its width less an 8px margin each side, and slid back inside by the
+   * individual `translate` property, which composes with the centred alignment's own transform.
+   */
+  const [cap, setCap] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    if (portal || !mounted) return
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    const fit = () => {
+      const rect = wrapper.getBoundingClientRect()
+      if (rect.width === 0) return
+      const margin = 8
+      const vw = document.documentElement.clientWidth || window.innerWidth
+      let boxLeft = 0
+      let boxRight = vw
+      for (let el = wrapper.parentElement; el && el !== document.body; el = el.parentElement) {
+        if (getComputedStyle(el).overflowX === "visible") continue
+        const box = el.getBoundingClientRect()
+        boxLeft = Math.max(0, box.left)
+        boxRight = Math.min(vw, box.left + el.clientWidth)
+        break
+      }
+      const room = Math.max(0, boxRight - boxLeft - 2 * margin)
+      const nextCap = width > room ? room : null
+      const shown = nextCap ?? width
+      const left = rect.left - nudgeRef.current
+      let shift = 0
+      if (left + shown > boxRight - margin) shift = boxRight - margin - (left + shown)
+      if (left + shift < boxLeft + margin) shift = boxLeft + margin - left
+      if (shift !== nudgeRef.current) {
+        nudgeRef.current = shift
+        setNudge(shift)
+      }
+      setCap((old) => (old === nextCap ? old : nextCap))
+    }
+    fit()
+    window.addEventListener("resize", fit)
+    return () => window.removeEventListener("resize", fit)
+  }, [portal, mounted, width])
 
   // Outside-click + Escape — shared by both rendering modes.
   useEffect(() => {
@@ -108,14 +155,17 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
     { left: 0 }
 
   return (
-    <div style={{ position: "absolute", top: "calc(100% + 8px)", zIndex: tokens.layer.popover, ...alignStyle }}>
+    <div
+      ref={wrapperRef}
+      style={{ position: "absolute", top: "calc(100% + 8px)", zIndex: tokens.layer.popover, ...alignStyle, translate: nudge ? `${nudge}px 0` : undefined }}
+    >
       <div
         ref={ref}
         role="dialog"
         {...presenceProps}
         className="dropdown-surface"
         style={{
-          width,
+          width: cap ?? width,
           transformOrigin: align === "right" ? "top right" : align === "center" ? "top center" : "top left",
           overflow: "hidden",
           ...SURFACE_STYLE,

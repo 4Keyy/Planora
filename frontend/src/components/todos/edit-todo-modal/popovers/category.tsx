@@ -1,15 +1,21 @@
 "use client"
 
 import { RefObject, useState } from "react"
+import { AnimatePresence, useReducedMotion } from "framer-motion"
 import { Plus, X } from "lucide-react"
 import { Popover, PopoverHeader } from "../popover"
-import { CATEGORY_COLOR_SWATCHES } from "../utils"
-import { ColorPicker } from "../color-picker"
+import { motion } from "@/components/ui/motion"
+import { NewCategoryForm, type NewCategoryDraft } from "@/components/categories/new-category-form"
+import { DURATION_FAST, DURATION_UI, EASE_OUT_EXPO } from "@/lib/animations"
 import { ICON_MAP } from "@/lib/icon-map"
 import { Category } from "@/types/category"
 import { api, parseApiResponse, type ApiResponse } from "@/lib/api"
 
-const iconList = Object.keys(ICON_MAP)
+/**
+ * One width for the list and the form: the popover never jumps sideways when it turns from one
+ * into the other, and the form's nine-across icon grid fits it exactly.
+ */
+const POPOVER_WIDTH = 344
 
 interface CategoryPopoverProps {
   open: boolean
@@ -31,208 +37,51 @@ interface CategoryPopoverProps {
 export function CategoryPopover({
   open, onClose, value, onChange, categories, onCreateCategory, onDeleteCategory, containerRef, canEdit, align = "left", portal,
 }: CategoryPopoverProps) {
+  const reduce = useReducedMotion() ?? false
   const [creating,  setCreating]  = useState(false)
-  const [name,      setName]      = useState("")
-  const [color,     setColor]     = useState(CATEGORY_COLOR_SWATCHES[0])
-  const [icon,      setIcon]      = useState("Briefcase")
-  const [saving,    setSaving]    = useState(false)
-  const [error,     setError]     = useState<string | null>(null)
   const [localCats, setLocalCats] = useState<Category[]>(categories)
 
   if (localCats !== categories && !creating) setLocalCats(categories)
 
   const selectCategory = (id: string | null) => { onChange(id); onClose() }
 
-  const handleCreate = async () => {
-    if (!name.trim() || saving) return
-    setSaving(true)
-    setError(null)
-    try {
-      const res = await api.post<ApiResponse<Category>>("/categories/api/v1/categories", {
-        name: name.trim(),
-        color,
-        icon,
-        displayOrder: 0,
-      })
-      const newCat = parseApiResponse<Category>(res.data)
-      setLocalCats((prev) => [...prev, newCat])
-      onChange(newCat.id)
-      setCreating(false)
-      setName("")
-      setColor(CATEGORY_COLOR_SWATCHES[0])
-      setIcon("Briefcase")
-      await onCreateCategory()
-      onClose()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const cancelCreate = () => {
+  const createCategory = async ({ name, color, icon }: NewCategoryDraft) => {
+    const res = await api.post<ApiResponse<Category>>("/categories/api/v1/categories", {
+      name,
+      color,
+      icon,
+      displayOrder: 0,
+    })
+    const newCat = parseApiResponse<Category>(res.data)
+    setLocalCats((prev) => [...prev, newCat])
+    onChange(newCat.id)
     setCreating(false)
-    setName("")
-    setColor(CATEGORY_COLOR_SWATCHES[0])
-    setIcon("Briefcase")
-    setError(null)
+    await onCreateCategory()
+    onClose()
   }
 
-  const NamePreviewIcon = ICON_MAP[icon] ?? ICON_MAP["Briefcase"]
-
-  // Category list uses 320px; create panel needs more room for the color picker
-  const width = creating ? 360 : 320
+  /*
+   * The list and the form slide past each other: the form comes in from the right as the list
+   * leaves to the left, and back. The popover's own size follows on its open/close motion only;
+   * between the two faces it keeps one width, so nothing jumps sideways.
+   */
+  const face = (direction: 1 | -1) => ({
+    initial: reduce ? { opacity: 0 } : { opacity: 0, x: 16 * direction },
+    animate: { opacity: 1, x: 0, transition: reduce ? { duration: 0 } : { duration: DURATION_UI, ease: EASE_OUT_EXPO } },
+    exit: reduce ? { opacity: 0 } : { opacity: 0, x: -16 * direction, transition: { duration: DURATION_FAST } },
+  })
 
   return (
-    <Popover open={open} onClose={onClose} width={width} align={align} containerRef={containerRef} portal={portal}>
+    <Popover open={open} onClose={onClose} width={POPOVER_WIDTH} align={align} containerRef={containerRef} portal={portal}>
+      <AnimatePresence initial={false} mode="popLayout">
       {creating ? (
         /* ── CREATE PANEL ── */
-        <div style={{ padding: "16px 16px 14px" }}>
-
-          {/* Header row: label + live preview chip */}
-          <div style={{
-            display: "flex", alignItems: "center",
-            justifyContent: "space-between", marginBottom: 14,
-          }}>
-            <span style={{
-              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
-              textTransform: "uppercase", color: "var(--pl-ink-muted)",
-            }}>
-              New category
-            </span>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              background: "var(--pl-paper-sunken)", borderRadius: 100, padding: "5px 11px 5px 6px",
-              border: "1px solid var(--pl-line)",
-            }}>
-              <div style={{
-                width: 20, height: 20, borderRadius: 5, flexShrink: 0,
-                background: `${color}22`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <NamePreviewIcon size={10} color={color} />
-              </div>
-              <span style={{
-                fontSize: 12, fontWeight: 700, color: "var(--pl-ink)",
-                maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              }}>
-                {name.trim() || "name"}
-              </span>
-            </div>
-          </div>
-
-          {/* Name input */}
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Category name"
-            aria-label="Category name"
-            maxLength={30}
-            // Focused on purpose: the press on "New category" is the press on this field.
-            autoFocus
-            // A boxed field: sunken at rest, paper with an ink edge and a halo while focused.
-            className="field-box border border-line bg-paper-sunken hover:border-line-strong transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
-            style={{
-              width: "100%", marginBottom: 14, borderRadius: 12,
-              minHeight: 44, padding: "11px 14px", fontSize: 14, fontWeight: 700, color: "var(--pl-ink)", boxSizing: "border-box", fontFamily: "inherit",
-            }}
-          />
-
-          {/* Color picker */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{
-              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
-              textTransform: "uppercase", color: "var(--pl-ink-muted)", marginBottom: 10,
-            }}>
-              Color
-            </div>
-            <ColorPicker value={color} onChange={setColor} />
-          </div>
-
-          {/* Icon grid */}
-          <div style={{ marginBottom: 16 }}>
-            <div style={{
-              fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
-              textTransform: "uppercase", color: "var(--pl-ink-muted)", marginBottom: 8,
-            }}>
-              Icon
-            </div>
-            <div style={{
-              display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4,
-              maxHeight: 116, overflowY: "auto",
-            }}>
-              {iconList.map((iconKey) => {
-                const IconComp = ICON_MAP[iconKey]
-                const isActive = icon === iconKey
-                return (
-                  <button
-                    key={iconKey}
-                    type="button"
-                    onClick={() => setIcon(iconKey)}
-                    aria-label={iconKey}
-                    aria-pressed={isActive}
-                    title={iconKey}
-                    style={{
-                      aspectRatio: "1/1", borderRadius: 10, border: "none", cursor: "pointer",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      background: isActive ? "var(--pl-ink)" : "var(--pl-paper-sunken)",
-                      color: isActive ? "var(--pl-paper)" : "var(--pl-ink-muted)",
-                      transition: "background 100ms, color 100ms",
-                      padding: 6,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-line)"
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "var(--pl-paper-sunken)"
-                    }}
-                  >
-                    <IconComp size={12} />
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {error && (
-            <p style={{ fontSize: 12, color: "var(--pl-alert)", marginBottom: 8 }}>{error}</p>
-          )}
-
-          {/* Actions */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              onClick={cancelCreate}
-              style={{
-                flex: 1, padding: "10px 0", borderRadius: 12, border: "none", cursor: "pointer",
-                background: "transparent", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
-                textTransform: "uppercase", color: "var(--pl-ink-muted)", fontFamily: "inherit",
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={!name.trim() || saving}
-              style={{
-                flex: 2, padding: "10px 0", borderRadius: 12, border: "none",
-                cursor: name.trim() && !saving ? "pointer" : "not-allowed",
-                background: name.trim() && !saving ? "var(--pl-ink)" : "var(--pl-line)",
-                color: name.trim() && !saving ? "var(--pl-paper)" : "var(--pl-ink-subtle)",
-                fontSize: 12, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase",
-                boxShadow: name.trim() && !saving ? "var(--pl-shadow-md)" : "none",
-                transition: "background 120ms, box-shadow 120ms",
-                fontFamily: "inherit",
-              }}
-            >
-              {saving ? "Creating…" : "Create"}
-            </button>
-          </div>
-        </div>
+        <motion.div key="create" {...face(1)}>
+          <NewCategoryForm onCreate={createCategory} onBack={() => setCreating(false)} />
+        </motion.div>
       ) : (
         /* ── CATEGORY LIST ── */
-        <>
+        <motion.div key="list" {...face(-1)}>
           <PopoverHeader
             label="Category"
             sub={
@@ -358,8 +207,9 @@ export function CategoryPopover({
               </button>
             </div>
           )}
-        </>
+        </motion.div>
       )}
+      </AnimatePresence>
     </Popover>
   )
 }

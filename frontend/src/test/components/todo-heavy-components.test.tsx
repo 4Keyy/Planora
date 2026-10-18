@@ -708,9 +708,11 @@ describe("CreateTodoPanel", () => {
     // there and never blocks creating the task itself (which proceeds category-less).
     fireEvent.click(screen.getByRole("button", { name: "Category" }))
     await user.click(await screen.findByText("Create new category"))
-    fireEvent.change(screen.getByPlaceholderText("Category name"), { target: { value: "Inbox" } })
+    fireEvent.change(screen.getByRole("textbox", { name: "Category name" }), { target: { value: "Inbox" } })
     await user.click(screen.getByRole("button", { name: "Create" }))
-    expect(await screen.findByText("category service unavailable")).toBeInTheDocument()
+    // The form keeps the draft and says so in its own words, never the transport's.
+    expect(await screen.findByText("Couldn't create the category. Try again.")).toBeInTheDocument()
+    expect(screen.getByRole("textbox", { name: "Category name" })).toHaveValue("Inbox")
     expect(onCreateCategory).not.toHaveBeenCalled()
 
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
@@ -751,15 +753,15 @@ describe("CreateTodoPanel", () => {
     expect(onDeleteCategory).toHaveBeenCalledWith("cat-1")
 
     await user.click(screen.getByText("Create new category"))
-    fireEvent.change(screen.getByPlaceholderText("Category name"), { target: { value: "Inbox" } })
+    fireEvent.change(screen.getByRole("textbox", { name: "Category name" }), { target: { value: "Inbox" } })
     await user.click(screen.getByRole("button", { name: "Create" }))
 
-    // The popover creates the category immediately with the default swatch + icon
+    // The popover creates the category at once on the first swatch, with no icon picked (Folder)
     await waitFor(() => expect(onCreateCategory).toHaveBeenCalledOnce())
     expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
       name: "Inbox",
       color: "#0ea5e9",
-      icon: "Briefcase",
+      icon: null,
       displayOrder: 0,
     })
 
@@ -1145,8 +1147,10 @@ describe("EditTodoModal", () => {
     await user.click(screen.getByRole("button", { name: "No category" }))
     // Navigate into the create form
     await user.click(await screen.findByText("Create new category"))
-    // Fill in name and color
-    fireEvent.change(screen.getByPlaceholderText("Category name"), { target: { value: "Planning" } })
+    // Fill in the name, then a custom colour from the wheel the custom swatch folds out
+    fireEvent.change(screen.getByRole("textbox", { name: "Category name" }), { target: { value: "Planning" } })
+    await user.click(screen.getByRole("radio", { name: "Custom colour" }))
+    expect(screen.getByRole("radio", { name: "Custom colour" })).toHaveAttribute("aria-expanded", "true")
     fireEvent.change(document.body.querySelector('input[maxlength="6"]') as HTMLInputElement, {
       target: { value: "654321" },
     })
@@ -1156,7 +1160,7 @@ describe("EditTodoModal", () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/categories/api/v1/categories", {
       name: "Planning",
       color: "#654321",
-      icon: "Briefcase",
+      icon: null,
       displayOrder: 0,
     }))
     expect(onCreateCategory).toHaveBeenCalledOnce()
