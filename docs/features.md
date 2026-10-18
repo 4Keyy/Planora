@@ -1449,6 +1449,7 @@ can see it — and let a signed-out visitor verify it with their hands before ma
 | Rule | Why |
 |---|---|
 | The shell is a server component; `"use client"` lives in the islands | The `h1` is the LCP element. The previous version was `"use client"` end to end, which put it inside a tree waiting on hydration |
+| The droplet's primary action stays centred on hover | Both **Start for free** and **Open Planora** keep a 44px target and equal 6px top/bottom insets inside the 56px capsule. Hover changes the ink tone without lift or outer shadow; the desktop arrow travels 2px on `duration-fast` / `ease-emphasized`. Reduced motion keeps colour feedback only, and the keyboard outline fits within the capsule. |
 | Heavy blocks are `next/dynamic` with **`ssr` left on** | Turning SSR off swaps a placeholder for content after hydration, which is a layout shift |
 | Every demo mounts the component the product ships | A copy diverges on the first change and the page starts lying about the product |
 | Landing task categories use the product’s metadata | Block 3’s Home cards use the `Home` icon and `CATEGORY_COLOR_SWATCHES[1]`; hiding the viewer copy clears its category name, icon and colour. The keyboard sandbox resolves current category metadata for every task response, including mutations and subtasks; its icon keys are `Plane`, `Home` and `ShoppingCart`. Ordinary hidden lists use the API’s minimal projection, shared masks carry only the viewer’s effective category, and `revealHidden=true` keeps tasks searchable. |

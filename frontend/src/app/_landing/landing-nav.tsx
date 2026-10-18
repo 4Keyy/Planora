@@ -102,9 +102,13 @@ export function LandingNav() {
           >
             Sign in
           </Link>
-          <Button onClick={go} suppressHydrationWarning className="h-11 whitespace-nowrap rounded-full px-4 sm:px-5">
+          <Button
+            onClick={go}
+            suppressHydrationWarning
+            className="group/cta h-11 whitespace-nowrap rounded-full px-4 shadow-none hover:translate-y-0 hover:bg-ink/90 hover:shadow-none motion-reduce:active:scale-100 sm:px-5"
+          >
             {signedIn ? "Open Planora" : "Start for free"}
-            <ArrowRight className="ml-1 hidden h-4 w-4 sm:block" aria-hidden="true" />
+            <ArrowRight className="ml-1 hidden h-4 w-4 transition-transform duration-fast ease-emphasized motion-safe:group-hover/cta:translate-x-0.5 motion-reduce:transition-none sm:block" aria-hidden="true" />
           </Button>
         </motion.span>
       </DropletFrame>
