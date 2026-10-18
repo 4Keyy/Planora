@@ -1,27 +1,28 @@
 "use client"
 
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react"
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, useReducedMotion } from "framer-motion"
-import { ArrowRight, Check, EyeOff, Folder, ListTodo, Pipette, Plus, RotateCw, Trash2, X } from "lucide-react"
+import { ArrowRight, Folder, Inbox, ListTodo, Plus, RotateCw, Trash2, X } from "lucide-react"
 import { motion } from "@/components/ui/motion"
 import { Button } from "@/components/ui/button"
 import { Overlay } from "@/components/ui/overlay"
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator"
-import { PriorityMeter } from "@/components/ui/priority-meter"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
-import { ICON_PICKER_ITEMS } from "@/components/ui/icon-picker"
-import { ColorPicker } from "@/components/todos/edit-todo-modal/color-picker"
-import { CATEGORY_COLOR_SWATCHES } from "@/components/todos/edit-todo-modal/utils"
+import { ColourField, DEFAULT_CATEGORY_COLOR, IconField, SwapIcon, isHexColor } from "@/components/categories/category-look"
+import { RowContent } from "@/components/command-palette/rows"
+import { byUrgency, toPaletteTask, type PaletteTask } from "@/components/command-palette/search"
+import type { PaletteItem } from "@/components/command-palette/sections"
+import { SkeletonRows } from "@/components/command-palette/chrome"
 import { useAutosave } from "@/hooks/use-autosave"
+import { useFriends } from "@/hooks/use-friends"
 import { api } from "@/lib/api"
-import { DURATION_FAST, DURATION_SLOW, DURATION_UI, EASE_OUT_EXPO, SPRING_RESPONSIVE, SPRING_STANDARD, TAP_PRESS } from "@/lib/animations"
-import { UI_LOCALE } from "@/lib/datetime"
+import { DURATION_FAST, DURATION_UI, EASE_OUT_EXPO, SPRING_STANDARD, TAP_PRESS } from "@/lib/animations"
 import { ICON_MAP } from "@/lib/icon-map"
 import { isTextEntry } from "@/lib/text-entry"
 import { useAuthStore } from "@/store/auth"
 import type { Category } from "@/types/category"
-import { TodoPriorityOrder, type PagedTodosResponse, type Todo } from "@/types/todo"
+import type { PagedTodosResponse, Todo } from "@/types/todo"
 import { writeFilter } from "@/utils/category-filter"
 import { cn } from "@/lib/utils"
 
@@ -70,13 +71,8 @@ export interface CategoryDialogProps {
 
 const NAME_MAX = 50
 const DESCRIPTION_MAX = 500
-/** A new category starts on the first swatch: a real colour the API accepts, never a CSS variable. */
-const DEFAULT_COLOR = CATEGORY_COLOR_SWATCHES[0]
-/** How many open tasks the sheet lists before pointing at the Tasks page for the rest. */
-const LIST_LIMIT = 50
+const DEFAULT_COLOR = DEFAULT_CATEGORY_COLOR
 const PRINTABLE_KEY = /^\S$/u
-
-const isHex = (value: string | null | undefined): value is string => !!value && /^#[0-9a-f]{6}$/i.test(value)
 
 export function CategoryDialog({ mode, open, onClose, onSave, category: given, onDelete, onOpenCount }: CategoryDialogProps) {
   const creating = mode === "create"
@@ -93,6 +89,8 @@ export function CategoryDialog({ mode, open, onClose, onSave, category: given, o
   const [color, setColor] = useState<string | null>(DEFAULT_COLOR)
   const [icon, setIcon] = useState<string | null>(null)
   const [creatingNow, setCreatingNow] = useState(false)
+  /** Counts openings: the pickers remount with each one, so the colour wheel always starts folded. */
+  const [opening, setOpening] = useState(0)
   const [error, setError] = useState("")
 
   const formData: CategoryFormData = useMemo(
@@ -120,7 +118,7 @@ export function CategoryDialog({ mode, open, onClose, onSave, category: given, o
       const next = {
         name: creating ? "" : category?.name ?? "",
         description: creating ? "" : category?.description ?? "",
-        color: creating ? DEFAULT_COLOR : isHex(category?.color) ? category.color : null,
+        color: creating ? DEFAULT_COLOR : isHexColor(category?.color) ? category.color : null,
         icon: creating ? null : category?.icon ?? null,
       }
       setName(next.name)
@@ -128,6 +126,7 @@ export function CategoryDialog({ mode, open, onClose, onSave, category: given, o
       setColor(next.color)
       setIcon(next.icon)
       setError("")
+      setOpening((n) => n + 1)
       reset({ ...next, name: next.name.trim(), description: next.description.trim() })
     }
     wasOpen.current = open
@@ -306,7 +305,7 @@ export function CategoryDialog({ mode, open, onClose, onSave, category: given, o
       {/* ── Look, and what the category holds ──────────────────────────────── */}
       <div className="grid grid-cols-1 gap-8 px-6 py-7 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-10">
         <div className="min-w-0 space-y-7">
-          <ColourField value={color} onChange={setColor} reduce={reduce} />
+          <ColourField key={opening} value={color} onChange={setColor} reduce={reduce} />
           <IconField value={icon} onChange={setIcon} accent={accent} reduce={reduce} />
         </div>
 
@@ -315,7 +314,14 @@ export function CategoryDialog({ mode, open, onClose, onSave, category: given, o
           {creating ? (
             <CardPreview name={formData.name} description={formData.description} accent={accent} Icon={Icon} />
           ) : category ? (
-            <CategoryTasks categoryId={category.id} open={open} onClose={close} onOpenCount={onOpenCount} reduce={reduce} />
+            <CategoryTasks
+              category={category}
+              look={{ color, icon }}
+              open={open}
+              onClose={close}
+              onOpenCount={onOpenCount}
+              reduce={reduce}
+            />
           ) : null}
         </div>
       </div>
@@ -354,197 +360,11 @@ export function CategoryDialog({ mode, open, onClose, onSave, category: given, o
   )
 }
 
-/** An icon that swaps with a small spring when the choice changes, instead of blinking. */
-function SwapIcon({
-  icon: Glyph,
-  id,
-  reduce,
-  className,
-  strokeWidth,
-  style,
-}: {
-  icon: typeof Folder
-  id: string
-  reduce: boolean
-  className: string
-  strokeWidth?: number
-  style?: CSSProperties
-}) {
-  return (
-    <AnimatePresence initial={false} mode="popLayout">
-      <motion.span
-        key={id}
-        className="grid place-items-center"
-        initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6, rotate: -12 }}
-        animate={{ opacity: 1, scale: 1, rotate: 0 }}
-        exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6, rotate: 12 }}
-        transition={reduce ? { duration: 0 } : SPRING_RESPONSIVE}
-      >
-        <Glyph className={cn("transition-colors duration-slow", className)} strokeWidth={strokeWidth} style={style} />
-      </motion.span>
-    </AnimatePresence>
-  )
-}
-
 function Kbd({ children }: { children: ReactNode }) {
   return (
     <kbd className="inline-flex h-6 min-w-6 items-center justify-center rounded-sm border border-line bg-paper-sunken px-1.5 font-sans text-caption font-semibold text-ink-muted">
       {children}
     </kbd>
-  )
-}
-
-/* ────────────────────────────────── Colour ───────────────────────────────── */
-
-function ColourField({ value, onChange, reduce }: { value: string | null; onChange: (hex: string) => void; reduce: boolean }) {
-  const groupId = useId()
-  const preset = CATEGORY_COLOR_SWATCHES.find((c) => c.toLowerCase() === value?.toLowerCase())
-  const custom = !!value && !preset
-  const [wheel, setWheel] = useState(false)
-  const wheelOpen = wheel || custom
-
-  return (
-    <fieldset>
-      <legend className={FIELD_LABEL_CLASS}>Colour</legend>
-      <div role="radiogroup" aria-label="Colour" className="mt-3 grid grid-cols-7 gap-2 sm:gap-1.5">
-        {CATEGORY_COLOR_SWATCHES.map((swatch) => {
-          const selected = swatch === preset
-          return (
-            <motion.button
-              key={swatch}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              aria-label={`Colour ${swatch}`}
-              whileTap={TAP_PRESS}
-              onClick={() => {
-                onChange(swatch)
-                setWheel(false)
-              }}
-              className="relative grid aspect-square place-items-center rounded-full"
-            >
-              {selected && (
-                <motion.span
-                  layoutId={`${groupId}-ring`}
-                  aria-hidden="true"
-                  className="absolute -inset-0.5 rounded-full border-2 border-ink"
-                  transition={reduce ? { duration: 0 } : SPRING_STANDARD}
-                />
-              )}
-              <span aria-hidden="true" className="h-[78%] w-[78%] rounded-full shadow-sm" style={{ backgroundColor: swatch }} />
-              {selected && <Check className="absolute h-3.5 w-3.5 text-paper" strokeWidth={3} aria-hidden="true" />}
-            </motion.button>
-          )
-        })}
-        <motion.button
-          type="button"
-          role="radio"
-          aria-checked={custom}
-          aria-expanded={wheelOpen}
-          aria-label="Custom colour"
-          whileTap={TAP_PRESS}
-          onClick={() => setWheel((w) => !w || custom)}
-          className="relative grid aspect-square place-items-center rounded-full"
-        >
-          {custom && (
-            <motion.span
-              layoutId={`${groupId}-ring`}
-              aria-hidden="true"
-              className="absolute -inset-0.5 rounded-full border-2 border-ink"
-              transition={reduce ? { duration: 0 } : SPRING_STANDARD}
-            />
-          )}
-          <span
-            aria-hidden="true"
-            className="grid h-[78%] w-[78%] place-items-center rounded-full shadow-sm"
-            // The wheel of the swatches themselves, closed on the first one.
-            style={{ background: `conic-gradient(${[...CATEGORY_COLOR_SWATCHES, CATEGORY_COLOR_SWATCHES[0]].join(", ")})` }}
-          >
-            <span className="grid h-[58%] w-[58%] place-items-center rounded-full bg-paper">
-              <Pipette className="h-3 w-3 text-ink-muted" />
-            </span>
-          </span>
-        </motion.button>
-      </div>
-
-      {/* The full wheel folds out under the swatches, the New task plate's way: a grid row
-          growing from 0fr on the slow curve while its content fades in behind it. */}
-      <div
-        className="grid"
-        style={{
-          gridTemplateRows: wheelOpen ? "1fr" : "0fr",
-          transition: reduce ? "none" : `grid-template-rows ${DURATION_SLOW}s var(--pl-ease-emphasized)`,
-        }}
-      >
-        <div className="min-h-0 overflow-hidden" inert={!wheelOpen} aria-hidden={!wheelOpen}>
-          <div
-            className="pt-4"
-            style={{ opacity: wheelOpen ? 1 : 0, transition: reduce ? "none" : `opacity ${DURATION_UI}s var(--pl-ease-emphasized)` }}
-          >
-            <div className="rounded-lg border border-line bg-paper-sunken p-4">
-              <ColorPicker value={value ?? DEFAULT_COLOR} onChange={onChange} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </fieldset>
-  )
-}
-
-/* ─────────────────────────────────── Icon ────────────────────────────────── */
-
-function IconField({
-  value,
-  onChange,
-  accent,
-  reduce,
-}: {
-  value: string | null
-  onChange: (name: string) => void
-  accent: string
-  reduce: boolean
-}) {
-  const groupId = useId()
-  const current = value ?? "Folder"
-  return (
-    <fieldset>
-      <legend className={FIELD_LABEL_CLASS}>Icon</legend>
-      {/* Six across at 44px on a phone; nine across at 36px from `sm`, four rows for all 34,
-          each still a 44px target (`touch-target`). */}
-      <div role="radiogroup" aria-label="Icon" className="mt-3 grid grid-cols-6 gap-1.5 sm:grid-cols-9 sm:gap-1">
-        {ICON_PICKER_ITEMS.map((item) => {
-          const Glyph = item.icon
-          const selected = current === item.name
-          return (
-            <motion.button
-              key={item.name}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              aria-label={`${item.name} icon`}
-              whileTap={TAP_PRESS}
-              onClick={() => onChange(item.name)}
-              className={cn(
-                "touch-target relative grid h-11 place-items-center rounded-md transition-colors duration-fast sm:h-9",
-                selected ? "text-paper" : "text-ink-muted hover:bg-paper-sunken hover:text-ink",
-              )}
-            >
-              {selected && (
-                // The choice is one surface in the category's colour, springing to the new icon.
-                <motion.span
-                  layoutId={`${groupId}-fill`}
-                  aria-hidden="true"
-                  className="absolute inset-0 rounded-md shadow-sm"
-                  style={{ backgroundColor: accent }}
-                  transition={reduce ? { duration: 0 } : SPRING_STANDARD}
-                />
-              )}
-              <Glyph className="relative h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
-            </motion.button>
-          )
-        })}
-      </div>
-    </fieldset>
   )
 }
 
@@ -603,30 +423,53 @@ function CardPreview({
 
 /* ─────────────────────────── Existing: what it holds ─────────────────────── */
 
+/** The palette's own reads for a scope: every open task, and the latest finished ones. */
+const OPEN_LIMIT = 50
+const DONE_LIMIT = 30
+
 type TasksState =
   | { phase: "loading" }
   | { phase: "error" }
-  | { phase: "ready"; open: Todo[]; openTotal: number; doneTotal: number | null }
+  | { phase: "ready"; open: Todo[]; done: Todo[]; openTotal: number; doneTotal: number }
 
-const DUE = new Intl.DateTimeFormat(UI_LOCALE, { month: "short", day: "numeric" })
+const byCompletion = (a: PaletteTask, b: PaletteTask) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")
 
+const personName = (friend: { firstName?: string | null; lastName?: string | null; email?: string | null }) =>
+  [friend.firstName, friend.lastName].filter(Boolean).join(" ").trim() || friend.email || ""
+
+/**
+ * The category's tasks, drawn exactly as the search draws a category's scope (Ctrl K, Tab on a
+ * category): "Open" by deadline, then "Done" newest first, in the palette's own rows —
+ * `RowContent` with its category squircle, title, second line, deadline chip and the
+ * one-drop highlight that glides between rows and glows in the category's colour. The reads
+ * are the palette's too (`revealHidden=true`): a hidden task arrives whole and is blurred by
+ * the palette's veil until it is reached for — pointed at, or moved to with Tab or the arrows.
+ */
 function CategoryTasks({
-  categoryId,
+  category,
+  look,
   open,
   onClose,
   onOpenCount,
   reduce,
 }: {
-  categoryId: string
+  category: Category
+  /** The colour and icon as they stand in the sheet now, so the rows follow every pick live. */
+  look: { color: string | null; icon: string | null }
   open: boolean
   onClose: () => void
   onOpenCount?: (categoryId: string, openCount: number) => void
   reduce: boolean
 }) {
   const router = useRouter()
-  const userId = useAuthStore((s) => s.user?.userId)
+  const viewerId = useAuthStore((s) => s.user?.userId) ?? null
+  const friends = useFriends(open)
+  const listId = useId()
   const [state, setState] = useState<TasksState>({ phase: "loading" })
   const [attempt, setAttempt] = useState(0)
+  const [active, setActive] = useState<string | null>(null)
+  const [reached, setReached] = useState<string | null>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const reportCount = useRef(onOpenCount)
   reportCount.current = onOpenCount
 
@@ -634,101 +477,178 @@ function CategoryTasks({
     if (!open) return
     const controller = new AbortController()
     setState({ phase: "loading" })
-    const params = { categoryId, pageNumber: 1 }
-    Promise.all([
+    setActive(null)
+    setReached(null)
+    const read = (isCompleted: boolean, pageSize: number) =>
       api.get<PagedTodosResponse>("/todos/api/v1/todos", {
-        params: { ...params, pageSize: LIST_LIMIT, isCompleted: false },
+        params: { categoryId: category.id, pageNumber: 1, pageSize, isCompleted, revealHidden: true },
         signal: controller.signal,
-      }),
-      api
-        .get<PagedTodosResponse>("/todos/api/v1/todos", {
-          params: { ...params, pageSize: 1, isCompleted: true },
-          signal: controller.signal,
-        })
-        .then((res) => res.data.totalCount ?? null)
-        // The done count is a footnote: without it the list still stands.
-        .catch(() => null),
+      })
+    Promise.all([
+      read(false, OPEN_LIMIT),
+      // The finished ones are the second section: without them the open list still stands.
+      read(true, DONE_LIMIT).catch(() => null),
     ])
-      .then(([openRes, doneTotal]) => {
-        const items = openRes.data.items ?? []
-        const openTotal = typeof openRes.data.totalCount === "number" ? openRes.data.totalCount : items.length
-        setState({ phase: "ready", open: items, openTotal, doneTotal })
-        reportCount.current?.(categoryId, openTotal)
+      .then(([openRes, doneRes]) => {
+        const openItems = openRes.data.items ?? []
+        const doneItems = doneRes?.data.items ?? []
+        const openTotal = typeof openRes.data.totalCount === "number" ? openRes.data.totalCount : openItems.length
+        const doneTotal = typeof doneRes?.data.totalCount === "number" ? doneRes.data.totalCount : doneItems.length
+        setState({ phase: "ready", open: openItems, done: doneItems, openTotal, doneTotal })
+        reportCount.current?.(category.id, openTotal)
       })
       .catch(() => {
         if (!controller.signal.aborted) setState({ phase: "error" })
       })
     return () => controller.abort()
-  }, [categoryId, open, attempt])
+  }, [category.id, open, attempt])
+
+  /** Display names by user id: friends, plus the API's own author names — the palette's map. */
+  const names = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const friend of friends) {
+      const name = personName(friend)
+      if (name) map.set(friend.id, name)
+    }
+    if (state.phase === "ready") {
+      for (const todo of [...state.open, ...state.done]) {
+        if (todo.authorName && !map.has(todo.userId)) map.set(todo.userId, todo.authorName)
+      }
+    }
+    return map
+  }, [friends, state])
+
+  const sections = useMemo(() => {
+    if (state.phase !== "ready") return []
+    // Every row is in this category, so every squircle shows the category as the sheet shows it
+    // — the colour and icon being picked, not the ones the list was read with.
+    const fill = (todo: Todo) =>
+      toPaletteTask(
+        {
+          ...todo,
+          categoryName: category.name,
+          categoryColor: look.color ?? "var(--pl-accent)",
+          categoryIcon: look.icon ?? "Folder",
+        },
+        viewerId,
+        names,
+      )
+    const openTasks = state.open.map(fill).filter((t) => !t.completed).sort(byUrgency)
+    const doneTasks = state.done.map(fill).sort(byCompletion)
+    return [
+      ...(openTasks.length ? [{ id: "open", title: "Open", tasks: openTasks }] : []),
+      ...(doneTasks.length ? [{ id: "done", title: "Done", tasks: doneTasks }] : []),
+    ]
+  }, [state, category.name, look.color, look.icon, viewerId, names])
+
+  // One clock per read, so every deadline chip in the list says the same "today".
+  const readAt = state.phase === "ready" ? state : null
+  const now = useMemo(() => (readAt ? new Date() : new Date(0)), [readAt])
+
+  const point = useCallback((key: string) => {
+    setActive(key)
+    setReached(key)
+  }, [])
+
+  const openTask = useCallback(
+    (taskId: string) => {
+      onClose()
+      router.push(`/branch/${taskId}`)
+    },
+    [onClose, router],
+  )
+
+  /** Up and down move between rows, as they do in the search. */
+  const onListKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return
+    const rows = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-row]") ?? [])
+    if (rows.length === 0) return
+    event.preventDefault()
+    const at = rows.indexOf(document.activeElement as HTMLElement)
+    const next = event.key === "ArrowDown" ? Math.min(rows.length - 1, at + 1) : Math.max(0, at - 1)
+    rows[at === -1 ? 0 : next]?.focus()
+  }
 
   const showInTasks = () => {
-    writeFilter(userId, [categoryId])
+    writeFilter(viewerId, [category.id])
     onClose()
     router.push("/tasks")
   }
 
   return (
-    <section aria-labelledby={`${categoryId}-tasks`} className="flex h-full flex-col">
+    <section aria-labelledby={`${listId}-title`} className="flex h-full flex-col">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 id={`${categoryId}-tasks`} className={FIELD_LABEL_CLASS}>
-          Open tasks
+        <h3 id={`${listId}-title`} className={FIELD_LABEL_CLASS}>
+          Tasks
         </h3>
         {state.phase === "ready" && (
           <p className="text-caption font-semibold tabular-nums text-ink-muted">
             {state.openTotal} open
-            {state.doneTotal !== null && state.doneTotal > 0 ? ` · ${state.doneTotal} done` : ""}
+            {state.doneTotal > 0 ? ` · ${state.doneTotal} done` : ""}
           </p>
         )}
       </div>
 
-      <div className="mt-3 flex min-h-[12rem] flex-1 flex-col rounded-lg border border-line bg-paper">
+      <div className="mt-3 flex min-h-[15rem] flex-1 flex-col overflow-hidden rounded-xl border border-line bg-paper shadow-sm">
         {state.phase === "loading" ? (
-          <ul aria-label="Loading tasks" className="divide-y divide-line">
-            {[0, 1, 2].map((i) => (
-              <li key={i} className="flex items-center gap-3 px-4 py-3">
-                <span className="h-4 w-4 flex-shrink-0 animate-pulse rounded-full bg-paper-sunken motion-reduce:animate-none" />
-                <span className="h-3.5 flex-1 animate-pulse rounded-sm bg-paper-sunken motion-reduce:animate-none" style={{ maxWidth: `${70 - i * 15}%` }} />
-              </li>
-            ))}
-          </ul>
+          <SkeletonRows />
         ) : state.phase === "error" ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-            <p className="text-body-sm text-ink-muted">Couldn&rsquo;t load the tasks.</p>
-            <Button variant="outline" size="sm" onClick={() => setAttempt((n) => n + 1)}>
+          <ListNote icon={RotateCw} title="Couldn’t load the tasks." hint="The category is fine; only its list did not arrive.">
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => setAttempt((n) => n + 1)}>
               <RotateCw className="h-4 w-4" aria-hidden="true" />
               Try again
             </Button>
-          </div>
-        ) : state.open.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
-            <span aria-hidden="true" className="grid h-10 w-10 place-items-center rounded-full bg-paper-sunken text-ink-muted">
-              <Check className="h-5 w-5" />
-            </span>
-            <p className="text-body-sm font-semibold text-ink">Nothing open here</p>
-            <p className="max-w-[16rem] text-caption text-ink-muted">
-              {state.doneTotal ? "Every task in this category is done." : "Put a task in this category from its editor and it shows up here."}
-            </p>
-          </div>
+          </ListNote>
+        ) : sections.length === 0 ? (
+          <ListNote
+            icon={Inbox}
+            title="Nothing in this category yet"
+            hint="Put a task in it from the task's editor or the New task panel, and it shows up here."
+          />
         ) : (
-          <ul className="max-h-[17rem] divide-y divide-line overflow-y-auto">
-            {state.open.map((todo, index) => (
-              <TaskRow
-                key={todo.id}
-                todo={todo}
-                order={index}
-                reduce={reduce}
-                onOpen={() => {
-                  onClose()
-                  router.push(`/branch/${todo.id}`)
-                }}
-              />
+          <div
+            ref={listRef}
+            role="list"
+            aria-label={`Tasks in ${category.name}`}
+            onKeyDown={onListKeyDown}
+            onPointerLeave={() => setActive(null)}
+            className="max-h-[19rem] flex-1 overflow-y-auto overscroll-contain px-1.5 pb-1.5"
+          >
+            {sections.map((section) => (
+              <div key={section.id} role="presentation">
+                <div
+                  aria-hidden="true"
+                  className={cn(FIELD_LABEL_CLASS, "sticky top-0 z-[1] flex items-center justify-between bg-paper px-3 pb-1.5 pt-3 text-ink-subtle")}
+                >
+                  <span>{section.title}</span>
+                  {section.id === "done" && state.phase === "ready" && state.doneTotal > section.tasks.length ? (
+                    <span className="normal-case tracking-normal text-ink-muted">Latest {section.tasks.length}</span>
+                  ) : null}
+                </div>
+                {section.tasks.map((task) => {
+                  const key = `task:${task.id}`
+                  return (
+                    <TaskOption
+                      key={key}
+                      itemKey={key}
+                      task={task}
+                      layoutId={`${listId}-active`}
+                      active={active === key}
+                      revealed={active === key && reached === key}
+                      now={now}
+                      names={names}
+                      reduce={reduce}
+                      onPoint={point}
+                      onOpen={openTask}
+                    />
+                  )
+                })}
+              </div>
             ))}
-            {state.openTotal > state.open.length && (
-              <li className="px-4 py-3 text-caption text-ink-muted">
-                And {state.openTotal - state.open.length} more in Tasks.
-              </li>
+            {state.phase === "ready" && state.openTotal > state.open.length && (
+              <p className="px-3 pb-1 pt-2 text-caption text-ink-muted">And {state.openTotal - state.open.length} more open in Tasks.</p>
             )}
-          </ul>
+          </div>
         )}
       </div>
 
@@ -742,38 +662,90 @@ function CategoryTasks({
   )
 }
 
-function TaskRow({ todo, order, onOpen, reduce }: { todo: Todo; order: number; onOpen: () => void; reduce: boolean }) {
-  const due = todo.dueDate ? new Date(todo.dueDate) : null
-  const overdue = !!due && !Number.isNaN(due.getTime()) && due.getTime() < Date.now() - 24 * 3600_000
-  const level = TodoPriorityOrder[String(todo.priority)] ?? 3
+/** The list's empty and error states, in the palette's own empty-state shape. */
+function ListNote({ icon: Icon, title, hint, children }: { icon: typeof Inbox; title: string; hint: string; children?: ReactNode }) {
   return (
-    // The rows arrive one after another when the list has loaded, the first eight staggered.
-    <motion.li
-      initial={{ opacity: 0, y: reduce ? 0 : 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={reduce ? { duration: 0 } : { duration: DURATION_UI, ease: EASE_OUT_EXPO, delay: Math.min(order, 8) * 0.035 }}
-    >
-      <button
-        type="button"
-        onClick={onOpen}
-        className="group flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-fast hover:bg-paper-sunken focus-visible:-outline-offset-2"
-      >
-        {todo.hidden ? (
-          <EyeOff className="h-4 w-4 flex-shrink-0 text-ink-subtle" aria-hidden="true" />
-        ) : (
-          <span aria-hidden="true" className="h-4 w-4 flex-shrink-0 rounded-full border-2 border-line-strong transition-colors duration-fast group-hover:border-ink" />
-        )}
-        <span className={cn("min-w-0 flex-1 truncate text-body-sm font-semibold", todo.hidden ? "text-ink-muted" : "text-ink")}>
-          {todo.hidden ? "Hidden task" : todo.title}
-        </span>
-        {due && !Number.isNaN(due.getTime()) && (
-          <span className={cn("flex-shrink-0 text-caption font-semibold tabular-nums", overdue ? "text-alert" : "text-ink-muted")}>
-            {DUE.format(due)}
-          </span>
-        )}
-        {!todo.hidden && <PriorityMeter value={level} size="sm" className="hidden flex-shrink-0 sm:flex" />}
-        <ArrowRight className="h-3.5 w-3.5 flex-shrink-0 text-ink-subtle opacity-0 transition-opacity duration-fast group-hover:opacity-100" aria-hidden="true" />
-      </button>
-    </motion.li>
+    <div className="flex flex-1 animate-fade-in flex-col items-center justify-center px-6 py-8 text-center">
+      <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-full bg-paper-sunken text-ink-subtle">
+        <Icon className="h-5 w-5" />
+      </span>
+      <p className="mt-3 text-body-sm font-semibold text-ink">{title}</p>
+      <p className="mt-1 max-w-xs text-caption font-medium text-ink-muted">{hint}</p>
+      {children}
+    </div>
   )
 }
+
+/**
+ * One task row: the palette's `Option`, as a button. The highlight is one drop shared between
+ * rows (`layoutId`) that slides to the row under the pointer or the focus, glowing in the task's
+ * category colour the way a task card does; a veiled row does not glow, the colour being the
+ * task's. Rows follow the pointer on `pointermove`, so a list scrolling under a resting pointer
+ * does not steal the highlight.
+ */
+const TaskOption = memo(function TaskOption({
+  itemKey,
+  task,
+  layoutId,
+  active,
+  revealed,
+  now,
+  names,
+  reduce,
+  onPoint,
+  onOpen,
+}: {
+  itemKey: string
+  task: PaletteTask
+  layoutId: string
+  active: boolean
+  revealed: boolean
+  now: Date
+  names: Map<string, string>
+  reduce: boolean
+  onPoint: (key: string) => void
+  onOpen: (taskId: string) => void
+}) {
+  const item: PaletteItem = useMemo(
+    () => ({ key: itemKey, kind: "task", label: task.title, task, action: { type: "open-task", taskId: task.id } }),
+    [itemKey, task],
+  )
+  const veiled = task.hidden
+  const color = !task.completed && (!veiled || revealed) ? task.categoryColor : null
+  const glow = color ? ({ "--row-glow": `color-mix(in srgb, ${color} 34%, transparent)` } as CSSProperties) : undefined
+
+  return (
+    <div role="listitem">
+      <button
+        type="button"
+        data-row=""
+        onPointerMove={() => {
+          if (!active || (veiled && !revealed)) onPoint(itemKey)
+        }}
+        onFocus={() => onPoint(itemKey)}
+        onClick={() => onOpen(task.id)}
+        className="relative flex min-h-12 w-full cursor-pointer select-none items-center gap-3 rounded-md px-3 py-2 text-left focus-visible:-outline-offset-2"
+      >
+        <RowContent
+          item={item}
+          active={active}
+          revealed={revealed}
+          now={now}
+          names={names}
+          hideCategory
+          highlight={
+            active ? (
+              <motion.span
+                layoutId={layoutId}
+                aria-hidden="true"
+                style={glow}
+                transition={reduce ? { duration: 0 } : SPRING_STANDARD}
+                className="absolute inset-0 rounded-md bg-ink/5 shadow-[0_8px_20px_-10px_var(--row-glow,transparent)]"
+              />
+            ) : null
+          }
+        />
+      </button>
+    </div>
+  )
+})

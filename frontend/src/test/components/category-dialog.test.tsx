@@ -120,22 +120,84 @@ describe("the existing-category sheet", () => {
     return { ...props, ...view }
   }
 
-  it("shows the category and its open tasks, and reports the count", async () => {
-    serveTasks([todo("a", { dueDate: "2026-11-08T00:00:00Z" }), todo("b", { hidden: true, title: "Hidden task" })], 3)
+  it("shows the category and its tasks the way the search does, and reports the count", async () => {
+    serveTasks([todo("a", { dueDate: "2099-11-08T00:00:00Z", priority: "Urgent" }), todo("b")], 3)
     const { onOpenCount } = renderEdit()
     expect(screen.getByRole("dialog", { name: "Category Home" })).toBeInTheDocument()
     expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("Home")
     expect(screen.getByRole("textbox", { name: "Description" })).toHaveValue("The flat")
 
-    expect(await screen.findByText("Task a")).toBeInTheDocument()
-    expect(screen.getByText("Hidden task")).toBeInTheDocument()
+    const list = await screen.findByRole("list", { name: "Tasks in Home" })
+    // The palette's scope order: dated before undated.
+    const rows = within(list).getAllByRole("button")
+    expect(rows.map((row) => row.textContent)).toEqual([expect.stringContaining("Task a"), expect.stringContaining("Task b")])
+    expect(within(list).getByText("Open")).toBeInTheDocument()
     expect(screen.getByText("2 open · 3 done")).toBeInTheDocument()
-    expect(screen.getByText("Nov 8")).toBeInTheDocument()
     expect(onOpenCount).toHaveBeenCalledWith("home", 2)
+    // The palette's reads: hidden tasks arrive whole, to be veiled here.
     expect(vi.mocked(api.get)).toHaveBeenCalledWith(
       "/todos/api/v1/todos",
-      expect.objectContaining({ params: expect.objectContaining({ categoryId: "home", isCompleted: false }) }),
+      expect.objectContaining({ params: expect.objectContaining({ categoryId: "home", isCompleted: false, revealHidden: true }) }),
     )
+  })
+
+  it("lists finished tasks under Done, newest first", async () => {
+    vi.mocked(api.get).mockImplementation(async (_url, config) => {
+      const params = (config as { params?: { isCompleted?: boolean } } | undefined)?.params
+      return params?.isCompleted
+        ? { data: { items: [
+            todo("old", { isCompleted: true, status: "Done", completedAt: "2026-10-01T00:00:00Z" }),
+            todo("new", { isCompleted: true, status: "Done", completedAt: "2026-10-10T00:00:00Z" }),
+          ], totalCount: 2 } }
+        : { data: { items: [], totalCount: 0 } }
+    })
+    renderEdit()
+    const list = await screen.findByRole("list", { name: "Tasks in Home" })
+    expect(within(list).getByText("Done")).toBeInTheDocument()
+    expect(within(list).getAllByRole("button").map((row) => row.textContent)).toEqual([
+      expect.stringContaining("Task new"),
+      expect.stringContaining("Task old"),
+    ])
+  })
+
+  it("blurs a hidden task until it is reached for, as the search does", async () => {
+    serveTasks([todo("secret", { hidden: true, title: "Surprise party" })])
+    renderEdit()
+    const list = await screen.findByRole("list", { name: "Tasks in Home" })
+    const row = within(list).getByRole("button")
+    expect(row.querySelector("[data-veil]")).toHaveAttribute("data-veil", "veiled")
+    expect(within(row).getByText("Hidden task. Use the arrow keys to reveal.")).toBeInTheDocument()
+    fireEvent.pointerMove(row)
+    expect(row.querySelector("[data-veil]")).toHaveAttribute("data-veil", "revealed")
+    fireEvent.pointerLeave(list)
+    expect(row.querySelector("[data-veil]")).toHaveAttribute("data-veil", "veiled")
+  })
+
+  it("moves between rows with the arrow keys", async () => {
+    serveTasks([todo("a"), todo("b")])
+    renderEdit()
+    const list = await screen.findByRole("list", { name: "Tasks in Home" })
+    const [first, second] = within(list).getAllByRole("button")
+    fireEvent.keyDown(list, { key: "ArrowDown" })
+    expect(first).toHaveFocus()
+    fireEvent.keyDown(list, { key: "ArrowDown" })
+    expect(second).toHaveFocus()
+    fireEvent.keyDown(list, { key: "ArrowUp" })
+    expect(first).toHaveFocus()
+    fireEvent.keyDown(list, { key: "Enter" })
+    expect(first).toHaveFocus()
+  })
+
+  it("keeps the colour wheel folded on opening, even for a custom colour", () => {
+    serveTasks([])
+    renderEdit({ ...home, color: "#123456" })
+    const custom = screen.getByRole("radio", { name: "Custom colour" })
+    expect(custom).toHaveAttribute("aria-checked", "true")
+    expect(custom).toHaveAttribute("aria-expanded", "false")
+    fireEvent.click(custom)
+    expect(custom).toHaveAttribute("aria-expanded", "true")
+    fireEvent.click(custom)
+    expect(custom).toHaveAttribute("aria-expanded", "false")
   })
 
   it("opens a task's branch from its row", async () => {
@@ -154,16 +216,11 @@ describe("the existing-category sheet", () => {
     expect(router.push).toHaveBeenCalledWith("/tasks")
   })
 
-  it("says when nothing is open, and when everything is done", async () => {
+  it("says when the category holds nothing yet", async () => {
     serveTasks([], 0)
-    const { unmount } = renderEdit()
-    expect(await screen.findByText("Nothing open here")).toBeInTheDocument()
-    expect(screen.getByText(/Put a task in this category/)).toBeInTheDocument()
-    unmount()
-
-    serveTasks([], 4)
     renderEdit()
-    expect(await screen.findByText("Every task in this category is done.")).toBeInTheDocument()
+    expect(await screen.findByText("Nothing in this category yet")).toBeInTheDocument()
+    expect(screen.queryByRole("list", { name: "Tasks in Home" })).toBeNull()
   })
 
   it("offers to try again when the tasks cannot be read", async () => {
