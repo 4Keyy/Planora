@@ -7,6 +7,13 @@ The sections below distinguish configured gates, observed results and test gaps.
 
 ## Test Inventory
 
+Category card component tests cover omitted blank descriptions, optional open-task counts
+(unknown, zero, singular and plural), their accessible labels, and the existing edit/delete
+and shared-origin interactions. A temporary preview checked 360/768/1024/1280px grids:
+cards share row heights and metadata baselines; skeletons supplied the matching content
+flags replace cards with a 0px height difference. This does not certify CLS for initially
+unknown API content. The preview route was removed before committing.
+
 | Area | Path | Framework |
 |---|---|---|
 | Backend unit/contract tests | `tests/Planora.UnitTests` | xUnit, Moq, EF InMemory, NetArchTest.Rules |

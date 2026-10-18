@@ -52,9 +52,25 @@ describe("CategoryCard", () => {
     expect(container.querySelector("[aria-hidden] .h-28")).toBeInTheDocument()
   })
 
-  it.each([undefined, null, "", "   "])("shows No description for %s", (description) => {
-    renderCard({ description })
-    expect(screen.getByText("No description")).toBeInTheDocument()
+  it.each([undefined, null, "", "   "])("omits an empty description (%s)", (description) => {
+    const { container } = renderCard({ description })
+    expect(screen.queryByText("No description")).not.toBeInTheDocument()
+    expect(container.querySelector(".line-clamp-1")).toBeNull()
+  })
+
+  it.each([[0, "No tasks", "0 open tasks"], [1, "1 task", "1 open task"], [12, "12 tasks", "12 open tasks"]] as const)("shows %s open tasks as metadata", (taskCount, label, accessibleLabel) => {
+    render(<CategoryCard category={category} taskCount={taskCount} onEdit={vi.fn()} onDelete={vi.fn()} />)
+    const metadata = screen.getByLabelText(accessibleLabel)
+    expect(metadata).toHaveTextContent(label)
+    expect(metadata.querySelector(".tabular-nums")).toBeInTheDocument()
+    expect(metadata.querySelector("svg")).toHaveAttribute("aria-hidden", "true")
+    expect(screen.getByRole("button", { name: "Edit category Work" })).toHaveAccessibleDescription(accessibleLabel)
+  })
+
+  it("omits task metadata when the count is unknown", () => {
+    renderCard()
+    expect(screen.queryByLabelText(/open tasks?/)).not.toBeInTheDocument()
+    expect(screen.queryByText("No tasks")).not.toBeInTheDocument()
   })
 
   it("opens editing from the card's button", async () => {

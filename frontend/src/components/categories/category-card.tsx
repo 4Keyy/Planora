@@ -1,9 +1,9 @@
 "use client"
 
-import { forwardRef, useState, type CSSProperties } from "react"
+import { forwardRef, useId, useState, type CSSProperties } from "react"
 import { AnimatePresence, useReducedMotion } from "framer-motion"
 import { motion } from "@/components/ui/motion"
-import { Folder, Trash2 } from "lucide-react"
+import { Folder, ListTodo, Trash2 } from "lucide-react"
 import { useEnter } from "@/components/animated/entrance"
 import { Card } from "@/components/ui/card"
 import {
@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 // popLayout needs the leaving card's DOM ref to pin its position in the grid.
 export const CategoryCard = forwardRef<HTMLDivElement, {
   category: Category
+  /** Open top-level tasks in this category; omit while the count is unknown. */
+  taskCount?: number
   onEdit: () => void
   onDelete: () => void
   /**
@@ -26,10 +28,12 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
    * rises in as a card, on the compositor; off one it springs in on its own.
    */
   entrance?: { at: number; index: number }
-}>(function CategoryCard({ category, onEdit, onDelete, entrance: arrival }, ref) {
+}>(function CategoryCard({ category, taskCount, onEdit, onDelete, entrance: arrival }, ref) {
   const reduce = useReducedMotion() ?? false
   const CategoryIcon = category.icon ? (ICON_MAP[category.icon] ?? Folder) : Folder
   const accentColor = category.color?.trim() || "var(--pl-accent)"
+  const description = category.description?.trim()
+  const taskCountId = useId()
   const glowStyle = {
     "--card-glow": `color-mix(in srgb, ${accentColor} 20%, transparent)`,
   } as CSSProperties
@@ -68,7 +72,7 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
       // The moving layer carries the arrival too: `translate` and `scale` compose with the
       // hover lift and the layout glide instead of replacing them.
       style={arrives ? timeline.style : undefined}
-      className={cn("group/card relative cursor-pointer", arrives && timeline.className)}
+      className={cn("group/card relative flex cursor-pointer", arrives && timeline.className)}
     >
       {/* Keep the moving layer free of clipping and shadows, as on task cards:
           repainting a rounded shadow on that layer can leave hover artefacts.
@@ -76,7 +80,7 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
       <Card
         data-category-card=""
         style={glowStyle}
-        className="relative overflow-hidden border-line bg-paper shadow-sm transition-[box-shadow,border-color,opacity] duration-base ease-emphasized group-hover/card:shadow-[0_8px_32px_-4px_var(--card-glow),0_4px_16px_-2px_var(--card-glow)]"
+        className="relative flex w-full overflow-hidden border-line bg-paper shadow-sm transition-[box-shadow,border-color,opacity] duration-base ease-emphasized group-hover/card:shadow-[0_8px_32px_-4px_var(--card-glow),0_4px_16px_-2px_var(--card-glow)]"
       >
         {/* The control stays focusable while its panel is parked outside the surface.
             A real button provides Enter/Space activation without a second handler. */}
@@ -136,8 +140,9 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
         <button
           type="button"
           aria-label={`Edit category ${category.name}`}
+          aria-describedby={taskCount !== undefined ? taskCountId : undefined}
           // Keep the focus outline inside the surface's clipped edge.
-          className="relative z-10 flex w-full items-center gap-4 rounded-lg p-5 pr-14 text-left focus-visible:-outline-offset-2 md:pr-5"
+          className="relative z-10 flex w-full items-start gap-4 rounded-lg p-5 pr-16 text-left focus-visible:-outline-offset-2 md:pr-20"
         >
           <span
             aria-hidden="true"
@@ -146,11 +151,24 @@ export const CategoryCard = forwardRef<HTMLDivElement, {
           >
             <CategoryIcon className="h-5 w-5" style={{ color: accentColor }} />
           </span>
-          <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 flex-1 flex-col self-stretch">
             <span className="block truncate text-body font-semibold tracking-tight text-ink">{category.name}</span>
-            <span className="mt-0.5 line-clamp-1 text-body-sm text-ink-muted">
-              {category.description?.trim() || "No description"}
-            </span>
+            {description && (
+              <span className="mt-0.5 line-clamp-1 text-body-sm text-ink-muted">{description}</span>
+            )}
+            {taskCount !== undefined && (
+              <span className="mt-auto flex pt-3">
+                <span
+                  role="img"
+                  aria-label={`${taskCount} open ${taskCount === 1 ? "task" : "tasks"}`}
+                  className="inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-sm border border-line bg-paper-sunken px-2 text-caption font-semibold text-ink-muted"
+                >
+                  <ListTodo className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                  <span className="tabular-nums">{taskCount === 0 ? "No tasks" : `${taskCount} ${taskCount === 1 ? "task" : "tasks"}`}</span>
+                </span>
+                <span id={taskCountId} className="sr-only">{taskCount} open {taskCount === 1 ? "task" : "tasks"}</span>
+              </span>
+            )}
           </span>
         </button>
       </Card>
