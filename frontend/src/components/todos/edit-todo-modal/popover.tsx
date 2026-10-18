@@ -84,7 +84,13 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
       const room = Math.max(0, boxRight - boxLeft - 2 * margin)
       const nextCap = width > room ? room : null
       const shown = nextCap ?? width
-      const left = rect.left - nudgeRef.current
+      // Where the popover would start at the width it will have, from the edge its alignment
+      // pins — that edge does not move when the width changes, the measured left edge does.
+      const natural = { left: rect.left - nudgeRef.current, right: rect.right - nudgeRef.current }
+      const left =
+        align === "right" ? natural.right - shown :
+        align === "center" ? (natural.left + natural.right) / 2 - shown / 2 :
+        natural.left
       let shift = 0
       if (left + shown > boxRight - margin) shift = boxRight - margin - (left + shown)
       if (left + shift < boxLeft + margin) shift = boxLeft + margin - left
@@ -97,7 +103,7 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
     fit()
     window.addEventListener("resize", fit)
     return () => window.removeEventListener("resize", fit)
-  }, [portal, mounted, width])
+  }, [portal, mounted, width, align])
 
   // Outside-click + Escape — shared by both rendering modes.
   useEffect(() => {
