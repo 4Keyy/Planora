@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useId, useMemo, useState, useCallback, useRef } from "react"
+import { useEffect, useMemo, useState, useCallback, useRef } from "react"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, useReducedMotion } from "framer-motion"
@@ -51,7 +51,7 @@ import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { useWarmEditor } from "@/hooks/use-warm-editor"
 import { rememberOrigin } from "@/lib/shared-origin"
 import { barClearance, holdScroll, isScrollHeld } from "@/lib/scroll-hold"
-import { KeyHintsPanel, KeyHintsToggle, useKeyHints } from "@/components/todos/keyboard-hints"
+import { KeyHintsDock } from "@/components/todos/keyboard-hints"
 
 const STATS_COMPLETED_PREVIEW_SIZE = 100
 const STATS_REQUEST_TIMEOUT_MS = 30000
@@ -73,7 +73,6 @@ const DASH = {
   week: 340,
   listHeading: 210,
   listCount: 260,
-  keys: 265,
   allTasks: 270,
   newTask: 280,
   cards: 360,
@@ -778,8 +777,6 @@ export default function DashboardPage() {
     setEditingTodo(todo)
   }, [handleToggleHidden])
 
-  const keyHints = useKeyHints()
-  const keyHintsId = useId()
 
   const navIds = useMemo(() => activeTodos.map(t => t.id), [activeTodos])
   const nav = useListNavigation({
@@ -919,8 +916,6 @@ export default function DashboardPage() {
       </Enter>
 
       <section ref={listStartRef} aria-labelledby="active-tasks-heading" className="space-y-6">
-        {/* The heading and the key panel it folds away are one block: folded, the panel is a
-            0px row inside it and adds no gap of the section's own. */}
         <div>
           <div className="flex items-center justify-between gap-4">
             <Enter
@@ -941,19 +936,13 @@ export default function DashboardPage() {
                 {totalCount}
               </Enter>
             </Enter>
-            <div className="flex items-center gap-2">
-              <Enter tier="chip" at={DASH.keys}>
-                <KeyHintsToggle open={keyHints.open} onToggle={keyHints.toggle} controls={keyHintsId} />
-              </Enter>
-              <Enter tier="chip" at={DASH.allTasks} className="-mr-3">
-                <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")}>
-                  All tasks
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </Enter>
-            </div>
+            <Enter tier="chip" at={DASH.allTasks} className="-mr-3">
+              <Button size="sm" variant="ghost" onClick={() => router.push("/tasks")}>
+                All tasks
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </Enter>
           </div>
-          <KeyHintsPanel id={keyHintsId} open={keyHints.open} restoring={keyHints.restoring} />
         </div>
 
         {/* The create panel spans the column. It sat alone in a sidebar a third of the
@@ -1114,6 +1103,10 @@ export default function DashboardPage() {
         screen, or from the command palette.
       */}
       <QuickCapture onCapture={handleQuickCapture} hidden={!!editingTodo || isCreateOpen} />
+
+      {/* The card keys, in the corner until asked for — hidden, like capture, while a dialog
+          owns the screen. */}
+      <KeyHintsDock hidden={!!editingTodo || isCreateOpen} />
 
       <UndoBar pending={undoable.pending} onUndo={undoable.undo} onHold={undoable.hold} onRelease={undoable.release} />
 

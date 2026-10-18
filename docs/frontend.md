@@ -286,9 +286,9 @@ desktop this is where an experienced user lives.
 | `Cmd/Ctrl + A` | Select everything visible | Tasks |
 | `Delete` / `Backspace` | Delete it, with a five-second undo (the archive asks first) | Every list of task cards |
 
-The dashboard also shows the card keys in place: a **Keys** cap in the "Active tasks" heading
-folds out the landing console's legend, which lights the row of a key that just did something
-(`components/todos/keyboard-hints.tsx`; `docs/features.md` § The dashboard's key panel).
+The dashboard also shows the card keys in place: a glass droplet in the bottom-right corner
+opens into the landing console's legend, which lights the row of a key that just did something
+(`components/todos/keyboard-hints.tsx`; `docs/features.md` § The dashboard's key dock).
 
 `SHORTCUT_GROUPS` in `components/ui/shortcuts-overlay.tsx` defines the `?` map.
 The palette and some control hints also declare shortcut labels locally; they do
