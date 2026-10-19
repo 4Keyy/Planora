@@ -15,6 +15,10 @@ const fixture = vi.hoisted(() => ({
 }))
 
 vi.mock("@/hooks/use-friends", () => ({ useFriends: () => fixture.friends }))
+// The map orders friends by closeness. Unmocked, its request fails in jsdom, the client's
+// refresh fails after it and signs the store out — the editor then stops being the owner's,
+// its autosave switches off, and "autosaves that payload" waits for a save that never comes.
+vi.mock("@/hooks/use-friend-affinity", () => ({ useFriendAffinity: () => new Map() }))
 vi.mock("@/components/todos/edit-todo-modal/branch-feed", () => ({ BranchFeed: () => null }))
 vi.mock("@/hooks/use-autosave", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/hooks/use-autosave")>()
