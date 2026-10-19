@@ -29,7 +29,7 @@ for (const dpr of [1, 2]) {
             }), { message: 'entrance scale settles before measuring 44px targets' }).toBeLessThanOrEqual(0.000001);
             const baseline = await measureCard(card);
             assertGeometry(baseline, false, mount + '/settled');
-            expect(baseline.height).toBeGreaterThanOrEqual(160 - 0.02);
+            expect(baseline.height).toBeGreaterThanOrEqual(148 - 0.02);
             expect(await card.getByRole('button', { name: 'Collapse task card' }).evaluate(element => element.closest('.flex-wrap') === null)).toBe(true);
             const supported = await page.evaluate(() => PerformanceObserver.supportedEntryTypes.includes('layout-shift'));
             if (supported) await beginRailLayoutObservation(page);
@@ -170,7 +170,7 @@ test('public reduced motion changes height without an intermediate shape', async
   await page.waitForTimeout(300);
   const frames = await sampleToggle(card, 'Collapse task card');
   await persistJsonEvidence(info, 'reduced-motion-frames', { body: JSON.stringify(frames), contentType: 'application/json' });
-  expect(frames[0].height).toBeGreaterThanOrEqual(160 - 0.02);
+  expect(frames[0].height).toBeGreaterThanOrEqual(148 - 0.02);
   expect(Math.abs(frames.at(-1)!.height - 46)).toBeLessThanOrEqual(0.02);
   expect(frames.at(-1)!.animations).toBe(0);
   expect(await card.evaluate(element => (element as HTMLElement).style.height)).toBe('');

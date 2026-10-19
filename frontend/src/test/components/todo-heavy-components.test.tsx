@@ -124,8 +124,10 @@ describe("TodoCard", () => {
     const eye = screen.getByRole("button", { name: "Collapse task card" })
     const rail = check.parentElement!
     expect(rail).toHaveClass("grid", "grid-rows-[1fr_auto_1fr]", "self-stretch")
-    // The smallest rail separates two 44px targets while keeping the circle centred.
-    expect(rail).toHaveClass("min-h-[118px]")
+    // The smallest rail keeps the circle centred; the eye's 44px target is moved 6px down,
+    // into the padding, so it meets the circle's target without overlapping it.
+    expect(rail).toHaveClass("min-h-[106px]")
+    expect(eye).toHaveClass("after:[transform:translate(-50%,calc(-50%_+_6px))]")
     expect(rail.parentElement).toHaveClass("items-center")
     expect(eye.parentElement).toBe(rail)
     expect(check).toHaveClass("row-start-2")

@@ -492,7 +492,7 @@ function TodoCardComponent({
     <>
       <motion.div
         {...rowProps}
-        // Position only. A size `layout` animated hiding a card (166px -> 56px) as a scaleY
+        // Position only. A size `layout` animated hiding a card (148px -> 46px) as a scaleY
         // on this root, and nothing inside the Card is a layout node to correct it: the
         // collapsed row arrived stretched three times its height and settled. The Card's
         // real height glides instead (`useHeightTransition` below), so its neighbours, the
@@ -827,10 +827,13 @@ function TodoCardComponent({
               className="relative"
             >
               <div className="flex items-center gap-4">
-                {/* Equal tracks keep the circle centred. At 118px, its 44px hit target
-                    just clears the eye's 44px target below it: 118 / 2 - 15 = 44.
+                {/* Equal tracks keep the circle centred. The 106px floor makes a sparse
+                    card 148px (it was 160px, with 54px to spare round two rows of content).
+                    The circle's 44px hit area ends at 53 + 22 = 75; the eye's, centred on
+                    the eye at 91, would start at 69, so it is moved 6px down into the
+                    card's padding: the two 44px targets touch at 75 and never overlap.
                     Taller cards retain the eye's bottom inset; both controls share x. */}
-                <div className={cn("relative grid w-8 flex-shrink-0 grid-rows-[1fr_auto_1fr] justify-items-center self-stretch", allowCollapse && "min-h-[118px]")}>
+                <div className={cn("relative grid w-8 flex-shrink-0 grid-rows-[1fr_auto_1fr] justify-items-center self-stretch", allowCollapse && "min-h-[106px]")}>
                   {/* 3-state completion / join button */}
                   <motion.button
                     onClick={(e: React.MouseEvent) => {
@@ -980,6 +983,7 @@ function TodoCardComponent({
                       whileTap={isVisibilityPending || isCompletionPending ? undefined : TAP_PRESS}
                       className={cn(
                         "touch-target !absolute bottom-px flex h-7 w-7 items-center justify-center rounded-full text-ink-subtle transition-colors duration-fast hover:bg-paper-sunken hover:text-ink",
+                        "after:[transform:translate(-50%,calc(-50%_+_6px))]",
                         (isVisibilityPending || isCompletionPending) && "opacity-60 cursor-wait"
                       )}
                       aria-label="Collapse task card"

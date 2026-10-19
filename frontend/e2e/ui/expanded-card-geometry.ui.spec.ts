@@ -262,7 +262,7 @@ test.describe('expanded real-service card geometry', () => {
             expect(content.collisions, 'Visible title/chips/eye/mobile delete do not overlap').toEqual([]);
             expect(content.titleRects.length).toBeGreaterThan(0);
             if (!item.completed) {
-              expect(rail.height).toBeGreaterThanOrEqual(160 - 0.02);
+              expect(rail.height).toBeGreaterThanOrEqual(148 - 0.02);
               const eye = card.getByRole('button', { name: 'Collapse task card', exact: true });
               expect(await eye.evaluate(element => element.closest('.flex-wrap') === null
                 && !!element.parentElement?.querySelector('[data-completion-circle]')), 'Eye always shares the completion rail').toBe(true);
@@ -280,7 +280,7 @@ test.describe('expanded real-service card geometry', () => {
               await expect(card.getByRole('img', { name: /^Priority 5 of 5/ })).toBeVisible();
             }
             if (item.inProgress) await expect(card.getByRole('button', { name: 'Mark as complete', exact: true })).toBeVisible();
-            if (item.key === 'own-short') expect(Math.abs(rail.height - 160), 'Minimum short rail stays at the necessary 160px').toBeLessThanOrEqual(0.02);
+            if (item.key === 'own-short') expect(Math.abs(rail.height - 148), 'Minimum short rail stays at the necessary 148px').toBeLessThanOrEqual(0.02);
             return rail.height;
           };
 

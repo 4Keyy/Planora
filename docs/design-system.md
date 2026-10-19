@@ -386,7 +386,7 @@ none of them. Five rules follow.
    offset parent (`relative`). `motion.*` elements take the ref; a function component must
    `forwardRef` to its root, or the pop is silently skipped.
 4. **Siblings that close a gap carry `layout="position"`.** Size `layout` only goes on an
-   element whose children are layout nodes too — on a card it played a 166px → 56px hide as
+   element whose children are layout nodes too — on a card it played a 148px → 46px hide as
    a scaleY that stretched everything inside three times over. Long glides use
    `SPRING_LAYOUT`.
 5. **A keyed child cannot move between parents.** React unmounts it from one and mounts a
@@ -1723,7 +1723,7 @@ once. It is worth reading as a worked example.
 |---|---|---|
 | Surface | `bg-paper`, `border` (1px), `rounded-lg` via `Card`, `shadow-sm`, lift `y: -2` on hover. The hover shadow glows in the task's own colour — the category's, the accent while you work on it, alert when it is urgent — and is plain `shadow-lg` without one | Opaque: the page's background never shows through a task. The glow is the category colour at 20% in the two-layer card shadow, carried by a `--card-glow` custom property so the hover stays a class and CSS runs the transition; it used to be computed in JavaScript from a hover state, beside a `backdrop-blur` that re-rasterised the card under the pointer |
 | Title | `body` on phones, `title-sm` from `sm`, `font-semibold`, `ink`, `line-clamp-3` | Shown in full up to three lines. It used to be cut at 40 characters in JavaScript whatever the card's width, so a wide card still read "battery for the smok…" |
-| Controls | The completion mark in a 32px rail: a stretched `1fr auto 1fr` grid with the circle in the middle row and the eye absolutely pinned below it on the same x centre. An active rail reserves 118px; open cards keep `p-5` | The circle stays at the card's vertical centre (error ≤0.5 CSSpx). The eye always stays directly below it, including sparse cards, with 23px left and 22px bottom insets. Two 44px hit areas just touch at the necessary 160px card minimum and do not overlap; taller cards keep their natural content height. The visible circle retains its existing spring and tap. Completed cards have neither an eye nor this rail minimum |
+| Controls | The completion mark in a 32px rail: a stretched `1fr auto 1fr` grid with the circle in the middle row and the eye absolutely pinned below it on the same x centre. An active rail reserves 106px; open cards keep `p-5` | The circle stays at the card's vertical centre (error ≤0.5 CSSpx). The eye always stays directly below it, including sparse cards, with 23px left and 22px bottom insets. Two 44px hit areas just touch at the 148px card minimum and do not overlap — the eye's is moved 6px down into the bottom padding; taller cards keep their natural content height. The visible circle retains its existing spring and tap. Completed cards have neither an eye nor this rail minimum |
 | Chips | one shape: `h-6 rounded-sm border-line bg-paper-sunken px-2 text-caption font-semibold text-ink-muted` | Category, audience, workers, expected date and delay. There were five chip styles on one card; "in work" is the only tinted one (`accent-surface`), and delay the only warn one |
 | Completion control | `InkCheck`, 44 × 44 | The one multi-step entrance in the product |
 | Priority | `PriorityMeter` | Magnitude as filled length — never hue (rule 5) |

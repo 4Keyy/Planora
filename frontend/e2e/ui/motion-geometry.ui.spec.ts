@@ -329,10 +329,11 @@ test.describe.serial('card rail state, viewport and DPR matrix (real services)',
                 const heightKey = `${surface}/${item.key}`;
                 if (render === 'first') settledHeights.set(heightKey, baseline.height);
                 else expect(Math.abs(baseline.height - settledHeights.get(heightKey)!), 'Repeated mounts retain the same settled height').toBeLessThanOrEqual(0.02);
-                if (item.key === 'own-short') expect(Math.abs(baseline.height - 160), 'The necessary short-card height is minimal').toBeLessThanOrEqual(0.02);
+                // 106px rail + 2 x 20px padding + 2 x 1px border: the short card's floor since October 2026 (was 160).
+                if (item.key === 'own-short') expect(Math.abs(baseline.height - 148), 'The necessary short-card height is minimal').toBeLessThanOrEqual(0.02);
                 if (item.tall) {
                   await expect(card.getByText(/Expected /)).toBeVisible();
-                  expect(baseline.height).toBeGreaterThan(160);
+                  expect(baseline.height).toBeGreaterThan(148);
                 }
                 if (item.unread) await expect(card.locator('..').getByRole('status', { name: /types/ })).toBeVisible();
                 const bounds = (await card.boundingBox())!;

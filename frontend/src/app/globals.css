@@ -614,7 +614,7 @@
 }
 
 /* Task card density modifier. (A `--sparse` one set min-height: 3rem, which the control
-   rail's 166px floor made unreachable.) */
+   rail's 148px floor made unreachable.) */
 .task-card--dense p.line-clamp-2 {
   -webkit-line-clamp: 3;
 }
