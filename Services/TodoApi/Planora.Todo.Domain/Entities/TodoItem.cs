@@ -6,6 +6,8 @@ namespace Planora.Todo.Domain.Entities
 {
     public class TodoItem : BaseEntity, IAggregateRoot
     {
+        public const int MaxSharedUsers = 12;
+
         private readonly List<TodoItemTag> _tags = new();
         private readonly List<TodoItemShare> _sharedWith = new();
         private readonly List<TodoItemWorker> _workers = new();

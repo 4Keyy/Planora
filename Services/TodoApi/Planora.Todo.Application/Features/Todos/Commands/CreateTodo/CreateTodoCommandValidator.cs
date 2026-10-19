@@ -1,3 +1,5 @@
+using Planora.Todo.Application.Common;
+
 namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
 {
     public sealed class CreateTodoCommandValidator : AbstractValidator<CreateTodoCommand>
@@ -40,6 +42,11 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
             RuleFor(x => x.RequiredWorkers)
                 .GreaterThanOrEqualTo(1).WithMessage("RequiredWorkers must be at least 1")
                 .When(x => x.RequiredWorkers.HasValue);
+
+            RuleFor(x => x.SharedWithUserIds)
+                .Must(ids => !DirectSharingLimit.IsExceeded(ids))
+                .WithMessage(DirectSharingLimit.Message)
+                .When(x => !x.IsPublic);
         }
     }
 }

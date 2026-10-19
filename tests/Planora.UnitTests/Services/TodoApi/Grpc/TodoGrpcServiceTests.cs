@@ -250,6 +250,64 @@ public class TodoGrpcServiceTests
         Assert.Equal(StatusCode.InvalidArgument, category.StatusCode);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShareLimitValidation_IsAnInvalidArgument(bool update)
+    {
+        var mediator = new Mock<IMediator>();
+        var validation = new Planora.BuildingBlocks.Application.Validation.ValidationException(
+            [new FluentValidation.Results.ValidationFailure("SharedWithUserIds", "A task can be shared with at most 12 friends")]);
+        mediator.Setup(x => x.Send(It.IsAny<CreateTodoCommand>(), It.IsAny<CancellationToken>())).ThrowsAsync(validation);
+        mediator.Setup(x => x.Send(It.IsAny<UpdateTodoCommand>(), It.IsAny<CancellationToken>())).ThrowsAsync(validation);
+        var service = CreateService(mediator);
+
+        var exception = update
+            ? await Assert.ThrowsAsync<RpcException>(() => service.UpdateTodo(new UpdateTodoRequest { Id = Guid.NewGuid().ToString() }, CreateContext()))
+            : await Assert.ThrowsAsync<RpcException>(() => service.CreateTodo(new CreateTodoRequest { Title = "Task" }, CreateContext()));
+
+        Assert.Equal(StatusCode.InvalidArgument, exception.StatusCode);
+        Assert.Equal("A task can be shared with at most 12 friends", exception.Status.Detail);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShareLimitResult_IsAnInvalidArgument(bool update)
+    {
+        var mediator = new Mock<IMediator>();
+        var result = global::Planora.BuildingBlocks.Domain.Result<TodoItemDto>.Failure(
+            "TOO_MANY_SHARED_USERS", "A task can be shared with at most 12 friends", global::Planora.BuildingBlocks.Domain.ErrorType.Validation);
+        mediator.Setup(x => x.Send(It.IsAny<CreateTodoCommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        mediator.Setup(x => x.Send(It.IsAny<UpdateTodoCommand>(), It.IsAny<CancellationToken>())).ReturnsAsync(result);
+        var service = CreateService(mediator);
+
+        var exception = update
+            ? await Assert.ThrowsAsync<RpcException>(() => service.UpdateTodo(new UpdateTodoRequest { Id = Guid.NewGuid().ToString() }, CreateContext()))
+            : await Assert.ThrowsAsync<RpcException>(() => service.CreateTodo(new CreateTodoRequest { Title = "Task" }, CreateContext()));
+
+        Assert.Equal(StatusCode.InvalidArgument, exception.StatusCode);
+        Assert.Equal("A task can be shared with at most 12 friends", exception.Status.Detail);
+    }
+
+    [Fact]
+    public async Task CreateAllFriends_PreservesPublicModeForValidation()
+    {
+        var mediator = new Mock<IMediator>();
+        CreateTodoCommand? sent = null;
+        using var cancellation = new CancellationTokenSource();
+        mediator.Setup(x => x.Send(It.IsAny<CreateTodoCommand>(), cancellation.Token))
+            .Callback<IRequest<global::Planora.BuildingBlocks.Domain.Result<TodoItemDto>>, CancellationToken>((command, _) => sent = (CreateTodoCommand)command)
+            .ReturnsAsync(global::Planora.BuildingBlocks.Domain.Result<TodoItemDto>.Success(TodoDto(Guid.NewGuid(), null, null)));
+        var request = new CreateTodoRequest { Title = "All friends", IsPublic = true };
+        request.SharedWithUserIds.AddRange(Enumerable.Range(0, 20).Select(_ => Guid.NewGuid().ToString()));
+
+        await CreateService(mediator).CreateTodo(request, new FakeServerCallContext(cancellation.Token));
+
+        Assert.True(sent!.IsPublic);
+        Assert.True((await new CreateTodoCommandValidator().ValidateAsync(sent)).IsValid);
+    }
+
     private static TodoGrpcService CreateService(Mock<IMediator> mediator)
         => new(
             mediator.Object,

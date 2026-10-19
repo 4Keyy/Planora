@@ -826,6 +826,16 @@ update read `00000000-0000-0000-0000-000000000000` in `categoryId` as "no catego
 (or send `null`) for a single date; when present it must be `≤ dueDate`. A create never sets
 `actualDate` or `status`; a new task starts `Todo`.
 
+Direct sharing (`isPublic: false`) accepts at most **12 distinct, non-empty**
+`sharedWithUserIds`. Duplicate IDs and `Guid.Empty` do not count. POST and PUT return `400`
+with `A task can be shared with at most 12 friends` when this limit is exceeded. On PUT,
+the cap applies only when the list is supplied and the resulting task is direct-shared;
+omitting `isPublic` uses the stored mode after authorization. All friends (`isPublic: true`)
+has no audience limit and uses the server's frozen friend snapshot instead of client IDs.
+Existing larger audiences remain readable; metadata-only updates, audience synchronization
+and inherited subtask audiences keep working. gRPC writes report the same validation failure
+as `InvalidArgument`.
+
 `priority` must be sent as a **number**: `VeryLow` = 1, `Low` = 2, `Medium` = 3 (the default),
 `High` = 4, `Urgent` = 5. No service registers a `JsonStringEnumConverter`, so `"priority": "Medium"`
 fails model binding. The DTO nonetheless **returns the name** as a string — the AutoMapper profile
@@ -1116,7 +1126,9 @@ the new branch's "created" system comment and all participant notifications fire
 No request body. Success `201 Created`: the new `TodoItemDto` (with category info populated). Errors:
 `403` if the caller cannot access the task (not the owner and not a friend who can see a public/shared
 task); `404` if the task does not exist or is a subtask (subtasks have no standalone existence to
-duplicate); `503` if the Category/Auth gRPC checks are unavailable.
+duplicate); `400` with `A task can be shared with at most 12 friends` if the direct audience
+still contains more than 12 friends after revalidation; `503` if the Category/Auth gRPC checks
+are unavailable. All friends duplicates have no audience limit.
 
 ### Subtasks
 

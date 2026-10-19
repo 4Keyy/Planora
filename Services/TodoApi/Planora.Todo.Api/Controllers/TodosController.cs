@@ -167,6 +167,7 @@ namespace Planora.Todo.Api.Controllers
         /// </summary>
         [HttpPost("{id}/duplicate")]
         [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<TodoItemDto>> DuplicateTodo(

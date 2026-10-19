@@ -4,6 +4,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ## [Unreleased]
 
+### Added
+
+- Direct task sharing is limited to 12 distinct non-empty friend IDs on create, audience update and duplicate; All friends remains unlimited. Requests above the limit return `400` (`InvalidArgument` over gRPC). Existing larger audiences remain readable and metadata updates and inherited sharing still work. Clients editing such an audience must reduce it to 12 friends or choose All friends before submitting the list.
+
 ### Changed
 
 - Tasks: who can see a task is now chosen on the landing page's first-block circle, in the task modal and on a task's own page, in place of the Private/Friends switch and its check-box list. You sit in the audience ring; every friend has a seat around you, the ones you share the most with closest (`GET /todos/api/v1/todos/friend-affinity`), and choosing someone springs their avatar into the seat and draws the line to them. The map zooms around the pointer with the wheel, moves with a drag, pinches on touch and has − / Show everyone / + buttons; the page never scrolls along with it. Under it, the landing's "Share with" chips and the sentence say who can see the task. Pressing a friend of an All friends task now lets them out, leaving it shared with the rest, where it used to make a share with just them.

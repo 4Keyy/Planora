@@ -103,6 +103,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.DuplicateTodo
                 sharedWith = sharedWith.Where(allowed.Contains).ToList();
             }
 
+            if (!source.IsPublic && DirectSharingLimit.IsExceeded(sharedWith))
+                return Result<TodoItemDto>.Failure(DirectSharingLimit.Exceeded);
+
             // Fresh task: copies the "what" (title/description/priority/category/visibility/audience/
             // required workers) but NOT the dates — the copy starts with a clean schedule and as an
             // active (not completed) task.

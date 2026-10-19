@@ -214,7 +214,7 @@ Create, update, delete, complete, filter, share, hide, and categorize tasks.
 | Expected/due dates | expected date cannot be after due date when both are present |
 | Due-date interval | the estimated-completion date can be a single day **or** an interval: `dueDate` is the single date / later bound (deadline), `dueDateStart` the optional earlier bound. When set, `dueDateStart ≤ dueDate` (enforced by the domain `SetDueRange` and the create/update validators); a lone `dueDateStart` without `dueDate` is rejected. Clearing on update requires `clearDueDate: true` (a bare null `dueDate` reads as "unchanged" on the full-payload autosave) |
 | Category | Todo validates category ownership through Category service |
-| Sharing | direct `sharedWithUserIds` must be accepted friends; the task form exposes public all-friends visibility inside `Share With`; `IsPublic` identifies All friends; the server freezes accepted friends into stored shares when the mode is enabled |
+| Sharing | direct `sharedWithUserIds` must be accepted friends, with at most 12 distinct non-empty IDs (`TodoItem.MaxSharedUsers`); `IsPublic` identifies unlimited All friends; the server freezes accepted friends into stored shares when the mode is enabled |
 | Non-owner updates | ordinary friend-visible viewers can only change status; a subtask's recorded creator is treated as an editor and may change its non-inherited fields |
 | Visibility persistence | `UpdateTodoCommandHandler` loads the entity via `GetByIdWithIncludesTrackedAsync` (with EF Core change tracking) so that changes to `IsPublic` and `SharedWith` collection additions/removals are correctly persisted — tracked loading generates the right INSERT/DELETE DML for the `TodoItemShare` collection, whereas a detached `DbSet.Update()` call would silently emit UPDATE-only SQL against non-existent rows |
 
@@ -239,6 +239,13 @@ status, so it can exclude a task completed only by that viewer. These are curren
 differences, not a promise that every route reproduces the same UI state.
 
 ### Frozen All friends Audience
+
+New direct audiences are capped at 12 friends on create, explicit audience updates and
+duplicate (after filtering against the duplicator's current friends). Duplicate and empty
+IDs do not count. HTTP returns `400` with `A task can be shared with at most 12 friends`;
+gRPC returns `InvalidArgument`. All friends remains unlimited. Legacy larger audiences can
+still be read, receive metadata-only updates and synchronize to children; inherited sharing
+does not throw. An update that omits the audience leaves it alone.
 
 Creating an All friends task snapshots the server's current accepted friends, including
 acceptance times, and clears worker capacity. Private-to-All-friends captures a fresh audience

@@ -1,4 +1,4 @@
-using Planora.Todo.Domain.Enums;
+using Planora.Todo.Application.Common;
 
 namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
 {
@@ -49,6 +49,12 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 .Must(x => !x.DueDate.HasValue || x.DueDateStart!.Value <= x.DueDate.Value)
                 .WithMessage("Due-date range start cannot be after the end date")
                 .When(x => x.DueDateStart.HasValue);
+
+            RuleFor(x => x.SharedWithUserIds)
+                .Must(ids => !DirectSharingLimit.IsExceeded(ids))
+                .WithMessage(DirectSharingLimit.Message)
+                // The handler resolves an omitted flag only after authorising the caller.
+                .When(x => x.SharedWithUserIds != null && x.IsPublic == false);
         }
     }
 }

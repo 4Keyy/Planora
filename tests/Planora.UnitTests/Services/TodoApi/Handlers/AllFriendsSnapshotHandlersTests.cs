@@ -5,9 +5,11 @@ using MediatR;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Planora.BuildingBlocks.Application.Context;
+using Planora.BuildingBlocks.Application.Behaviors;
 using Planora.BuildingBlocks.Application.Outbox;
 using Planora.BuildingBlocks.Application.Messaging.Events;
 using Planora.BuildingBlocks.Domain.Exceptions;
+using Planora.BuildingBlocks.Domain;
 using Planora.BuildingBlocks.Domain.Interfaces;
 using Planora.GrpcContracts;
 using Planora.Todo.Api.Grpc;
@@ -219,6 +221,177 @@ public sealed class AllFriendsSnapshotHandlersTests
         var source = TodoItem.Create(f.ViewerId, "direct", sharedWithUserIds: [formerFriend]); f.Todos.Add(source);
         var result = await f.Duplicate().Handle(new DuplicateTodoCommand(source.Id), default);
         Assert.Empty(result.Value!.SharedWithUserIds);
+    }
+
+    [Theory]
+    [InlineData(12, true)]
+    [InlineData(13, false)]
+    public async Task CreateDirect_EnforcesLimitBeforePersisting(int count, bool valid)
+    {
+        var f = new Fixture();
+        var friends = Enumerable.Range(0, count).Select(_ => Guid.NewGuid()).ToArray();
+        foreach (var friend in friends) f.Accept(f.ViewerId, friend);
+
+        var result = await f.Create().Handle(new CreateTodoCommand(null, "direct", null, null, null, null,
+            SharedWithUserIds: friends), default);
+
+        Assert.Equal(valid, result.IsSuccess);
+        if (valid) Assert.Equal(friends.Length, Assert.Single(f.Todos).SharedWith.Count);
+        else
+        {
+            Assert.Equal("TOO_MANY_SHARED_USERS", result.Error!.Code);
+            Assert.Equal("A task can be shared with at most 12 friends", result.Error.Message);
+            Assert.Empty(f.Todos);
+            Assert.Empty(f.OutboxMessages);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(null)]
+    public async Task UpdateDirect_OversizedListDoesNotMutateTask(bool? isPublic)
+    {
+        var f = new Fixture();
+        var original = Guid.NewGuid(); f.Accept(f.ViewerId, original);
+        var task = TodoItem.Create(f.ViewerId, "original", sharedWithUserIds: [original]); f.Todos.Add(task);
+        var friends = Enumerable.Range(0, 13).Select(_ => Guid.NewGuid()).ToArray();
+        foreach (var friend in friends) f.Accept(f.ViewerId, friend);
+
+        var result = await f.Update().Handle(new UpdateTodoCommand(task.Id, Title: "changed", IsPublic: isPublic,
+            SharedWithUserIds: friends), default);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("TOO_MANY_SHARED_USERS", result.Error!.Code);
+        Assert.Equal("original", task.Title);
+        Assert.Equal(original, Assert.Single(task.SharedWith).SharedWithUserId);
+        Assert.Empty(f.OutboxMessages);
+    }
+
+    [Theory]
+    [InlineData("create")]
+    [InlineData("update")]
+    [InlineData("duplicate")]
+    public async Task AllFriends_LargerThanDirectLimitRemainUnlimited(string surface)
+    {
+        var f = new Fixture();
+        var friends = Enumerable.Range(0, 20).Select(_ => Guid.NewGuid()).ToArray();
+        foreach (var friend in friends) f.Accept(f.ViewerId, friend);
+        if (surface == "create")
+        {
+            var result = await f.Create().Handle(new CreateTodoCommand(null, "all friends", null, null, null, null,
+                IsPublic: true, SharedWithUserIds: friends), default);
+            Assert.True(result.IsSuccess);
+        }
+        else
+        {
+            var task = f.Frozen(f.ViewerId, friends);
+            var result = surface == "update"
+                ? await f.Update().Handle(new UpdateTodoCommand(task.Id, Title: "renamed", SharedWithUserIds: friends), default)
+                : await f.Duplicate().Handle(new DuplicateTodoCommand(task.Id), default);
+            Assert.True(result.IsSuccess);
+        }
+        Assert.All(f.Todos, task => { Assert.True(task.IsPublic); Assert.Equal(20, task.SharedWith.Count); });
+    }
+
+    [Theory]
+    [InlineData(12, true)]
+    [InlineData(13, false)]
+    public async Task DuplicateDirect_CountsOnlyRemainingCurrentFriends(int currentCount, bool valid)
+    {
+        var f = new Fixture();
+        var friends = Enumerable.Range(0, currentCount).Select(_ => Guid.NewGuid()).ToArray();
+        foreach (var friend in friends) f.Accept(f.ViewerId, friend);
+        var source = TodoItem.Create(f.ViewerId, "legacy", sharedWithUserIds: [.. friends, Guid.NewGuid()]); f.Todos.Add(source);
+
+        var result = await f.Duplicate().Handle(new DuplicateTodoCommand(source.Id), default);
+
+        Assert.Equal(valid, result.IsSuccess);
+        if (valid) Assert.Equal(12, f.Todos.Single(task => task.Id != source.Id).SharedWith.Count);
+        else
+        {
+            Assert.Equal("TOO_MANY_SHARED_USERS", result.Error!.Code);
+            Assert.Single(f.Todos);
+            Assert.Empty(f.OutboxMessages);
+        }
+    }
+
+    [Fact]
+    public async Task LegacyDirectAudience_CanBeReadRenamedAndInheritedWithoutResubmittingShares()
+    {
+        var f = new Fixture();
+        var friends = Enumerable.Range(0, 20).Select(_ => Guid.NewGuid()).ToArray();
+        foreach (var friend in friends) f.Accept(f.ViewerId, friend);
+        var task = TodoItem.Create(f.ViewerId, "legacy", sharedWithUserIds: friends); f.Todos.Add(task);
+        var child = TodoItem.CreateSubtask(task, f.ViewerId, "child", null); f.Todos.Add(child);
+
+        Assert.True((await f.ById().Handle(new GetTodoByIdQuery(task.Id), default)).IsSuccess);
+        Assert.True((await f.Update().Handle(new UpdateTodoCommand(task.Id, Title: "renamed"), default)).IsSuccess);
+        task.SetSharedWith([.. friends, Guid.NewGuid()], f.ViewerId);
+        child.SyncInheritedFromParent(task, f.ViewerId);
+
+        Assert.Equal("renamed", task.Title);
+        Assert.Equal(21, child.SharedWith.Count);
+    }
+
+    [Fact]
+    public async Task NonOwnerOversizedUpdate_StillFailsTheOwnerGuard()
+    {
+        var f = new Fixture(); var owner = Guid.NewGuid(); f.Accept(owner, f.ViewerId);
+        var task = TodoItem.Create(owner, "shared", sharedWithUserIds: [f.ViewerId]); f.Todos.Add(task);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => f.Update().Handle(new UpdateTodoCommand(task.Id,
+            SharedWithUserIds: Enumerable.Range(0, 13).Select(_ => Guid.NewGuid()).ToArray()), default));
+
+        Assert.Equal(f.ViewerId, Assert.Single(task.SharedWith).SharedWithUserId);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ForeignOversizedPartialUpdate_ThroughPipeline_DoesNotRevealStoredVisibility(bool isPublic)
+    {
+        var f = new Fixture(); var owner = Guid.NewGuid(); f.Accept(owner, f.ViewerId);
+        var task = TodoItem.Create(owner, "shared", isPublic: isPublic, sharedWithUserIds: [f.ViewerId]); f.Todos.Add(task);
+        var command = new UpdateTodoCommand(task.Id,
+            SharedWithUserIds: Enumerable.Range(0, 13).Select(_ => Guid.NewGuid()).ToArray());
+        var behavior = new ValidationBehavior<UpdateTodoCommand, Result<TodoItemDto>>(
+            [new UpdateTodoCommandValidator()],
+            NullLogger<ValidationBehavior<UpdateTodoCommand, Result<TodoItemDto>>>.Instance);
+
+        var exception = await Assert.ThrowsAsync<ForbiddenException>(() => behavior.Handle(command,
+            token => f.Update().Handle(command, token), default));
+
+        Assert.Equal("You can only mark friend-visible tasks as complete, not edit them", exception.Message);
+        Assert.Empty(f.OutboxMessages);
+        f.Repository.Verify(x => x.ExistsAsync(It.IsAny<Expression<Func<TodoItem, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OwnOversizedPartialUpdate_ThroughPipeline_ValidatesTheAuthorisedEffectiveMode(bool isPublic)
+    {
+        var f = new Fixture();
+        var friends = Enumerable.Range(0, 13).Select(_ => Guid.NewGuid()).ToArray();
+        foreach (var friend in friends) f.Accept(f.ViewerId, friend);
+        var task = TodoItem.Create(f.ViewerId, "original", isPublic: isPublic, sharedWithUserIds: friends); f.Todos.Add(task);
+        var command = new UpdateTodoCommand(task.Id, Title: "changed", SharedWithUserIds: friends);
+        var behavior = new ValidationBehavior<UpdateTodoCommand, Result<TodoItemDto>>(
+            [new UpdateTodoCommandValidator()],
+            NullLogger<ValidationBehavior<UpdateTodoCommand, Result<TodoItemDto>>>.Instance);
+
+        var result = await behavior.Handle(command, token => f.Update().Handle(command, token), default);
+
+        Assert.Equal(isPublic, result.IsSuccess);
+        f.Repository.Verify(x => x.ExistsAsync(It.IsAny<Expression<Func<TodoItem, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
+        if (isPublic) Assert.Equal("changed", task.Title);
+        else
+        {
+            Assert.Equal(ErrorType.Validation, result.Error!.Type);
+            Assert.Equal("TOO_MANY_SHARED_USERS", result.Error.Code);
+            Assert.Equal("original", task.Title);
+            Assert.Empty(f.OutboxMessages);
+        }
     }
 
     [Theory]

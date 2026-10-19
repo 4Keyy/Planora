@@ -61,6 +61,9 @@ namespace Planora.Todo.Application.Features.Todos.Commands.CreateTodo
                 .Distinct()
                 .ToList() ?? new List<Guid>();
 
+            if (!request.IsPublic && DirectSharingLimit.IsExceeded(sharedWith))
+                return Result<TodoItemDto>.Failure(DirectSharingLimit.Exceeded);
+
             DateTime? snapshotAt = null;
             if (request.IsPublic)
             {

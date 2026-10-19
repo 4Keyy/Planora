@@ -1,4 +1,5 @@
 using Planora.Todo.Application.Common;
+using Planora.BuildingBlocks.Domain;
 using Grpc.Core;
 using Planora.GrpcContracts;
 using Planora.Todo.Application.Features.Todos.Commands.CreateTodo;
@@ -7,8 +8,10 @@ using Planora.Todo.Application.Features.Todos.Commands.UpdateTodo;
 using Planora.Todo.Application.Features.Todos.Queries.GetTodosByCategory;
 using Planora.Todo.Application.Features.Todos.Queries.GetUserTodos;
 using Planora.Todo.Application.Services;
+using Planora.Todo.Application.DTOs;
 using Planora.Todo.Domain.Repositories;
 using MediatR;
+using ValidationException = Planora.BuildingBlocks.Application.Validation.ValidationException;
 
 namespace Planora.Todo.Api.Grpc;
 
@@ -197,14 +200,17 @@ public class TodoGrpcService : TodoService.TodoServiceBase
             ParseOptionalGuid(request.CategoryId, "category_id"),
             null, // DueDate
             null, // ExpectedDate
+            IsPublic: request.IsPublic,
             SharedWithUserIds: sharedWith
         );
 
-        var result = await _mediator.Send(command);
+        var result = await SendTodoWriteAsync(command, context.CancellationToken);
 
         if (result.IsFailure)
         {
-            throw new RpcException(new global::Grpc.Core.Status(global::Grpc.Core.StatusCode.Internal, result.Error?.Message ?? "Unknown Error"));
+            throw new RpcException(new global::Grpc.Core.Status(
+                result.Error?.Type == ErrorType.Validation ? StatusCode.InvalidArgument : StatusCode.Internal,
+                result.Error?.Message ?? "Unknown Error"));
         }
 
         return new CreateTodoResponse
@@ -226,20 +232,35 @@ public class TodoGrpcService : TodoService.TodoServiceBase
             SharedWithUserIds: sharedWith,
             Status: request.IsCompleted ? "Done" : "Todo");
 
-        var result = await _mediator.Send(command);
+        var result = await SendTodoWriteAsync(command, context.CancellationToken);
 
         // Do not swallow failures: a rejected update (not found / forbidden / validation) must surface
         // as an RPC error, not a false Success=true that the caller treats as applied.
         if (result.IsFailure)
         {
             throw new RpcException(new global::Grpc.Core.Status(
-                global::Grpc.Core.StatusCode.Internal, result.Error?.Message ?? "Failed to update todo"));
+                result.Error?.Type == ErrorType.Validation ? StatusCode.InvalidArgument : StatusCode.Internal,
+                result.Error?.Message ?? "Failed to update todo"));
         }
 
         return new UpdateTodoResponse
         {
             Success = true
         };
+    }
+
+    private async Task<Result<TodoItemDto>> SendTodoWriteAsync(
+        IRequest<Result<TodoItemDto>> command, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _mediator.Send(command, cancellationToken);
+        }
+        catch (ValidationException exception)
+        {
+            throw new RpcException(new global::Grpc.Core.Status(StatusCode.InvalidArgument,
+                string.Join("; ", exception.Errors.Values.SelectMany(errors => errors))));
+        }
     }
 
     public override async Task<DeleteTodoResponse> DeleteTodo(DeleteTodoRequest request, ServerCallContext context)

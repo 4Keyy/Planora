@@ -323,6 +323,10 @@ namespace Planora.Todo.Application.Features.Todos.Commands.UpdateTodo
                 throw new ForbiddenException("A subtask inherits category, visibility and dates from its parent");
             }
 
+            if (!(request.IsPublic ?? todoItem.IsPublic) && request.SharedWithUserIds != null &&
+                DirectSharingLimit.IsExceeded(request.SharedWithUserIds))
+                return Result<TodoItemDto>.Failure(DirectSharingLimit.Exceeded);
+
             if (!string.IsNullOrEmpty(request.Title))
                 todoItem.UpdateTitle(request.Title, userId);
 
