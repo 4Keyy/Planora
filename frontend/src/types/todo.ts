@@ -137,7 +137,7 @@ export type Todo = {
    * Client-only: the place a card opened from hidden keeps in its list until something that
    * decides its place changes (`keepPlace` in utils/sort-tasks.ts). Never sent to the server.
    */
-  heldPlace?: { hidden: readonly number[]; open: readonly number[] } | null
+  heldPlace?: { place: readonly number[]; open: readonly number[] } | null
 }
 
 export type PagedTodosResponse = {

@@ -182,15 +182,16 @@ describe("keepPlace", () => {
     vi.useRealTimers()
   })
 
-  // A hidden copy has no date, so it sorts among the undated tasks by priority.
+  // A hidden copy has no date, and sorts after the open tasks.
   const hidden = task("opened", { hidden: true, priority: TodoPriority.High })
   const full = { ...hidden, hidden: false, dueDate: "2026-04-28T00:00:00.000Z" }
   const others = [task("today", { dueDate: "2026-05-01T00:00:00.000Z" }), task("undated", { priority: TodoPriority.Low })]
 
   it("keeps a card opened from hidden where it was, though its full copy sorts elsewhere", () => {
     expect(sortTasks([...others, full]).map((t) => t.id)).toEqual(["opened", "today", "undated"])
+    expect(sortTasks([...others, hidden]).map((t) => t.id)).toEqual(["today", "undated", "opened"])
     const opened = { ...full, heldPlace: keepPlace(hidden, full) }
-    expect(sortTasks([...others, opened]).map((t) => t.id)).toEqual(["today", "opened", "undated"])
+    expect(sortTasks([...others, opened]).map((t) => t.id)).toEqual(["today", "undated", "opened"])
   })
 
   it("lets it go where it belongs once anything that places it changes", () => {
@@ -203,7 +204,107 @@ describe("keepPlace", () => {
     const partial = { ...hidden, hidden: false }
     const first = { ...partial, heldPlace: keepPlace(hidden, partial) }
     const second = { ...full, heldPlace: keepPlace(first, full) }
-    expect(sortTasks([...others, second]).map((t) => t.id)).toEqual(["today", "opened", "undated"])
+    expect(sortTasks([...others, second]).map((t) => t.id)).toEqual(["today", "undated", "opened"])
+  })
+
+  it("keeps an urgent card opened from hidden with the urgent ones it was placed with", () => {
+    const masked = task("opened", { hidden: true, priority: TodoPriority.Urgent, isVisuallyUrgent: true })
+    const shown = { ...masked, hidden: false, dueDate: "2026-05-20T00:00:00.000Z", isVisuallyUrgent: true }
+    const opened = { ...shown, heldPlace: keepPlace(masked, shown) }
+    expect(sortTasks([...others, opened]).map((t) => t.id)).toEqual(["today", "opened", "undated"])
+  })
+
+  it("holds an open place too, when the card it copies was not hidden", () => {
+    const open = task("kept", { priority: TodoPriority.High })
+    const later = { ...open, dueDate: "2026-04-20T00:00:00.000Z" }
+    const held = { ...later, heldPlace: keepPlace(open, later) }
+    expect(sortTasks([...others, held]).map((t) => t.id)).toEqual(["today", "kept", "undated"])
+  })
+})
+
+describe("hidden tasks", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    // Friday 1 May 2026, noon.
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const ids = (tasks: SortableTask[]) => sortTasks(tasks).map((t) => t.id)
+  const overdue = task("overdue", { dueDate: "2026-04-28T00:00:00.000Z" })
+  const future = task("future", { dueDate: "2026-05-20T00:00:00.000Z", priority: TodoPriority.Low })
+  const undated = task("undated", { priority: TodoPriority.High })
+  const urgentUndated = task("urgent-undated", { priority: TodoPriority.Urgent })
+  // As the server sends them: no date, the priority and the red frame's flag.
+  const hiddenUrgent = task("hidden-urgent", { hidden: true, priority: TodoPriority.Urgent, isVisuallyUrgent: true })
+  const hiddenDueToday = task("hidden-due-today", { hidden: true, priority: TodoPriority.Low, isVisuallyUrgent: true })
+  const hiddenHigh = task("hidden-high", { hidden: true, priority: TodoPriority.High, isVisuallyUrgent: false })
+  const hiddenLow = task("hidden-low", { hidden: true, priority: TodoPriority.Low, isVisuallyUrgent: false })
+  const done = task("done", { isCompleted: true, completedAt: "2026-04-30T10:00:00.000Z" })
+
+  it("go after every open task, in the smart order among themselves", () => {
+    expect(ids([hiddenLow, future, hiddenHigh, undated])).toEqual(["future", "undated", "hidden-high", "hidden-low"])
+  })
+
+  it("stay above the completed ones", () => {
+    expect(ids([done, hiddenLow, future])).toEqual(["future", "hidden-low", "done"])
+  })
+
+  it("follow the last open urgent task when they are urgent, ahead of the open tasks after it", () => {
+    expect(ids([hiddenLow, future, hiddenUrgent, overdue, undated])).toEqual([
+      "overdue",
+      "hidden-urgent",
+      "future",
+      "undated",
+      "hidden-low",
+    ])
+  })
+
+  it("never go ahead of an open urgent task, wherever the smart sort puts it", () => {
+    // An undated Urgent task sorts after every dated one; the hidden urgent ones follow it.
+    expect(ids([hiddenDueToday, urgentUndated, future, overdue, hiddenUrgent, undated])).toEqual([
+      "overdue",
+      "future",
+      "urgent-undated",
+      "hidden-urgent",
+      "hidden-due-today",
+      "undated",
+    ])
+  })
+
+  it("sit below the open tasks, heading the hidden ones, while nothing open is urgent", () => {
+    expect(ids([hiddenHigh, hiddenUrgent, future, undated])).toEqual(["future", "undated", "hidden-urgent", "hidden-high"])
+  })
+
+  it("count urgency the way the card draws it: the server's flag first, else the card's rule", () => {
+    // No flag: Urgent, overdue and due today are urgent; a High task due tomorrow is not.
+    const tomorrow = task("tomorrow", { dueDate: "2026-05-02T00:00:00.000Z", priority: TodoPriority.High })
+    expect(ids([hiddenUrgent, tomorrow])).toEqual(["tomorrow", "hidden-urgent"])
+    const dueToday = task("due-today", { dueDate: "2026-05-01T00:00:00.000Z", priority: TodoPriority.Low })
+    expect(ids([hiddenUrgent, tomorrow, dueToday])).toEqual(["due-today", "hidden-urgent", "tomorrow"])
+    // The server says an open task is not urgent: the card is not red, and nothing joins it.
+    const calm = task("calm", { priority: TodoPriority.Urgent, isVisuallyUrgent: false })
+    expect(ids([hiddenUrgent, calm, future])).toEqual(["future", "calm", "hidden-urgent"])
+    // A hidden task without the flag is urgent by its priority alone.
+    const legacy = task("legacy", { hidden: true, priority: TodoPriority.Urgent })
+    expect(ids([hiddenHigh, legacy, future])).toEqual(["future", "legacy", "hidden-high"])
+  })
+
+  it("keep the in-work tasks first and the hidden in-work ones among the hidden", () => {
+    const working = task("working", { status: TodoStatus.InProgress, priority: TodoPriority.Low })
+    const hiddenWorking = task("hidden-working", { hidden: true, status: TodoStatus.InProgress, isVisuallyUrgent: false })
+    expect(ids([hiddenLow, hiddenWorking, future, working])).toEqual(["working", "future", "hidden-working", "hidden-low"])
+  })
+
+  it("keep their input order on equal keys and never mutate the list", () => {
+    const a = task("a", { hidden: true, isVisuallyUrgent: false })
+    const b = task("b", { hidden: true, isVisuallyUrgent: false })
+    const list = [b, a]
+    expect(ids(list)).toEqual(["b", "a"])
+    expect(list.map((t) => t.id)).toEqual(["b", "a"])
   })
 })
 

@@ -56,6 +56,8 @@ import { KeyHintsDock } from "@/components/todos/keyboard-hints"
 const STATS_COMPLETED_PREVIEW_SIZE = 100
 const STATS_REQUEST_TIMEOUT_MS = 30000
 const FIRST_RUN_STORAGE_KEY = "planora-first-run"
+/** A hidden card's fold and its glide to the page's end, before the page is read again. */
+const HIDE_SETTLE_MS = 650
 
 /**
  * When each part of the dashboard arrives, in ms after the page starts — top to bottom,
@@ -706,7 +708,29 @@ export default function DashboardPage() {
     authorName: (userId) => friendNameCache.current.get(userId),
     onError: () => addToast({ type: "error", title: "Couldn't update task visibility" }),
   })
-  const handleToggleHidden = visibility.toggle
+
+  /*
+   * The server pages hidden tasks after the open ones, so a card hidden here belongs on the last
+   * pages. It folds and glides to the end of this page first, then — once that has settled — the
+   * page is read again and the next open task takes its place. An opened card is not re-read:
+   * it keeps the place it was opened in (`keepPlace`) until the list loads again.
+   */
+  const hideSettleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const toggleVisibility = visibility.toggle
+  const handleToggleHidden = useCallback(async (todoId: string) => {
+    const todo = todosRef.current.find(t => t.id === todoId)
+    const hiding = !!todo && !todo.hidden
+    await toggleVisibility(todoId)
+    if (!hiding) return
+    if (hideSettleRef.current) clearTimeout(hideSettleRef.current)
+    hideSettleRef.current = setTimeout(() => {
+      hideSettleRef.current = null
+      void fetchTodos(undefined, { silent: true })
+    }, HIDE_SETTLE_MS)
+  }, [toggleVisibility, fetchTodos])
+  useEffect(() => () => {
+    if (hideSettleRef.current) clearTimeout(hideSettleRef.current)
+  }, [])
 
   const handleDeleteCategory = async (categoryId: string) => {
     try {

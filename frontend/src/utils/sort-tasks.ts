@@ -4,10 +4,10 @@ import { TodoPriority } from "@/types/todo"
 export type SortKey = readonly number[]
 
 /**
- * The place a card opened from hidden keeps (`keepPlace`): the key it sorted by while it was
- * hidden, and the key its full copy sorts by.
+ * The place a card opened from hidden keeps (`keepPlace`): the key it was placed by while it was
+ * hidden, and the key its full copy is placed by.
  */
-export type HeldPlace = { hidden: SortKey; open: SortKey }
+export type HeldPlace = { place: SortKey; open: SortKey }
 
 export type SortableTask = {
   id: string
@@ -20,6 +20,11 @@ export type SortableTask = {
   status?: string | null
   completedAt?: string | null
   hidden?: boolean | null
+  /**
+   * The server's word on the card's red frame (`TodoViewerStateResolver.IsVisuallyUrgent`): the
+   * one sign of urgency a hidden task keeps, its date being withheld.
+   */
+  isVisuallyUrgent?: boolean | null
   isWorking?: boolean | null
   expectedDate?: string | null
   delay?: string | null
@@ -139,25 +144,64 @@ function sortKey(task: SortableTask, today: Date): [number, number, number, numb
   return [1, 3, dateMs, priorityRank(task), createdMs]
 }
 
+/**
+ * Urgent, the way the card draws it: its red frame. The server's flag when there is one (a
+ * hidden task has nothing else), otherwise the card's own rule — Urgent, overdue or due today.
+ */
+function taskIsUrgent(task: SortableTask, today: Date): boolean {
+  if (taskIsCompleted(task)) return false
+  if (task.isVisuallyUrgent != null) return task.isVisuallyUrgent
+  return priorityRank(task) === 0 || dateBucket(parseDue(task), today) <= 1
+}
+
+// ─── tiers ────────────────────────────────────────────────────────────────────
+// The first element of every place key: open tasks, then hidden ones, then completed ones.
+// Inside a tier the smart sort above decides; a hidden task's key leads with whether it is
+// urgent, so the urgent ones head the hidden tier.
+
+const OPEN_TIER = 0
+const HIDDEN_TIER = 1
+const DONE_TIER = 2
+
+/** The key a task's own state places it by — the smart sort's, under its tier. */
+function ownKey(task: SortableTask, today: Date): SortKey {
+  const key = sortKey(task, today)
+  if (taskIsCompleted(task)) return [DONE_TIER, ...key]
+  if (task.hidden) return [HIDDEN_TIER, taskIsUrgent(task, today) ? 0 : 1, ...key]
+  return [OPEN_TIER, ...key]
+}
+
 const sameKey = (a: SortKey, b: SortKey) => a.length === b.length && a.every((value, i) => value === b[i])
+
+function compareKeys(a: SortKey, b: SortKey): number {
+  const n = Math.min(a.length, b.length)
+  for (let i = 0; i < n; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i]
+  }
+  return a.length - b.length
+}
 
 /** The key a task is placed by: its own, unless it still holds the place it was opened in. */
 function placeKey(task: SortableTask, today: Date): SortKey {
-  const key = sortKey(task, today)
+  const key = ownKey(task, today)
   const held = task.heldPlace
-  return held && sameKey(key, held.open) ? held.hidden : key
+  return held && sameKey(key, held.open) ? held.place : key
 }
+
+/** Placed among the hidden tasks' urgent ones: hidden (or holding a hidden place) and urgent. */
+const isHiddenUrgent = (key: SortKey) => key[0] === HIDDEN_TIER && key[1] === 0
 
 // ─── public API ───────────────────────────────────────────────────────────────
 
 /**
  * Opening a hidden card never moves it.
  *
- * The server sends a hidden task without what would place it — no due date, and for a task with
- * an audience not even its status or when it was made — so a hidden card sorts as though it had
- * no date. Opening it brings the rest, and the full copy sorted somewhere else: the card opened
- * and then flew off to its date's place, as far as 800px up the list, with the keyboard's focus
- * dragging the page after it on a phone (measured, 2026-10-12).
+ * A hidden card sorts among the hidden ones, after the open tasks (`sortTasks`), and the server
+ * sends it without what would place it among those — no due date, and for a task with an
+ * audience not even its status or when it was made. Opening it brings the rest, and the full
+ * copy sorts somewhere else: the card opened and then flew off to its date's place, as far as
+ * 800px up the list, with the keyboard's focus dragging the page after it on a phone (measured,
+ * 2026-10-12).
  *
  * The opened copy keeps the place the hidden one had, for as long as nothing that decides its
  * place changes: a new priority, a due date, being taken into work — anything that changes its
@@ -166,7 +210,7 @@ function placeKey(task: SortableTask, today: Date): SortKey {
  */
 export function keepPlace(before: SortableTask, after: SortableTask): HeldPlace {
   const today = todayStart()
-  return { hidden: placeKey(before, today), open: sortKey(after, today) }
+  return { place: placeKey(before, today), open: ownKey(after, today) }
 }
 
 /** A card's frame: its 1px border and 20px of padding, top and bottom. */
@@ -217,22 +261,29 @@ export function getTaskWeight(task: SortableTask): number {
  *       e. Future (beyond this week, soonest first)
  *       f. No due date (sorted by priority only — see step 2)
  *  2. Within the same date bucket: Urgent → High → Medium → Low → VeryLow → None
- *  3. Completed tasks — most recently completed first
- *  4. Hidden tasks — no longer special (they stay in their place), and a card opened from
- *     hidden keeps the place it was opened in (`keepPlace`)
+ *  3. Hidden tasks — after every open task, in the same order among themselves, the urgent
+ *     ones (a red frame: `isVisuallyUrgent`) first. While open tasks are urgent, the hidden
+ *     urgent ones join them instead: straight after the last open urgent task, so they keep to
+ *     the urgent group without going ahead of any open task more urgent than they are, nor of
+ *     any open task while nothing open is urgent.
+ *  4. Completed tasks — most recently completed first
  *
- * Never mutates the original array.
+ * In-work tasks lead the open ones, as before. A card opened from hidden keeps the place it was
+ * opened in (`keepPlace`). Never mutates the original array; equal keys keep their input order.
  */
 export function sortTasks<T extends SortableTask>(tasks: T[]): T[] {
   const today = todayStart()
+  const placed = tasks.map((task) => ({ task, key: placeKey(task, today) }))
+  placed.sort((a, b) => compareKeys(a.key, b.key))
 
-  return [...tasks].sort((a, b) => {
-    const ka = placeKey(a, today)
-    const kb = placeKey(b, today)
+  // Open tasks come first, so an index among them is their index in the whole list.
+  let lastUrgent = -1
+  for (let i = 0; i < placed.length && placed[i].key[0] === OPEN_TIER; i++) {
+    if (taskIsUrgent(placed[i].task, today)) lastUrgent = i
+  }
+  const hiddenUrgent = lastUrgent < 0 ? [] : placed.filter((p) => isHiddenUrgent(p.key))
+  if (hiddenUrgent.length === 0) return placed.map((p) => p.task)
 
-    for (let i = 0; i < ka.length; i++) {
-      if (ka[i] !== kb[i]) return ka[i] - kb[i]
-    }
-    return 0
-  })
+  const rest = placed.filter((p) => !isHiddenUrgent(p.key))
+  return [...rest.slice(0, lastUrgent + 1), ...hiddenUrgent, ...rest.slice(lastUrgent + 1)].map((p) => p.task)
 }

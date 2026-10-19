@@ -1220,9 +1220,34 @@ The frontend performs optimistic collapse/redaction when hiding a shared task, b
 
 - **The owner's own private task** is answered in full by `GET /todos/{id}` even while hidden, so its content is fetched ahead — when the pointer has rested on the folded card for 90ms, when it takes focus (the keyboard cursor landing on it), or when it is pressed (`TodoCard` `onRevealIntent`) — and held aside, never merged into the list, until the card is opened; a fetch older than 20s is made again. Without a fetch ahead (a touch screen), the read starts beside `PATCH /hidden` instead of after it. The card opens when the content is there, or after 350ms with what it has, the rest following as one more glide of its height; a failed write folds it again with "Couldn't update task visibility".
 - **A masked task** — one with an audience, or someone else's, the rule in `HiddenTodoDtoFactory.ShouldMask` — can only be read once the server knows it is open, so the card stays folded and pending (dimmed toggle, `aria-busy`) until the write (`PATCH /hidden`, or `viewer-preferences` for a viewer) and then the read are both back; it is never fetched ahead.
-- **The opened card keeps its place.** A hidden copy carries no due date (and a masked one no status or creation time), so it sorts as though undated; the full copy used to send the card flying to its date's place — 820px up the list on Tasks — with the keyboard's focus dragging a phone's page after it. `keepPlace` (`frontend/src/utils/sort-tasks.ts`) holds the place the hidden copy had until anything that decides the card's place changes — a priority, a due date, being taken into work — or the list is loaded again.
+- **The opened card keeps its place.** A hidden copy sorts among the hidden tasks, after the open ones (see "Where hidden tasks sort" below), and carries no due date (a masked one no status or creation time either); the full copy used to send the card flying to its date's place — 820px up the list on Tasks — with the keyboard's focus dragging a phone's page after it. `keepPlace` (`frontend/src/utils/sort-tasks.ts`) holds the place the hidden copy had — among the hidden tasks, or with the urgent ones it was placed after — until anything that decides the card's place changes — a priority, a due date, being taken into work — or the list is loaded again.
 
 A second press while an opening or a hide is on its way is ignored, and the keyboard's openings show the same pending state as a press (`TodoCard` `visibilityPending`).
+
+#### Where hidden tasks sort
+
+Every task list sorts with `sortTasks` (`frontend/src/utils/sort-tasks.ts`), and hidden tasks are a tier
+of their own inside it — the smart sort itself is unchanged:
+
+1. **Open tasks first**, by the smart sort: tasks in work, then overdue, today and tomorrow by priority,
+   then this week and later by date, then undated tasks by priority.
+2. **Hidden tasks after them**, in the same smart order among themselves, the urgent ones first. Urgent is
+   what the card draws as its red frame: the server's `isVisuallyUrgent` when the task carries it (a hidden
+   task carries nothing else — its date is withheld), otherwise Urgent priority, overdue or due today.
+3. **While any open task is urgent, the hidden urgent ones join the urgent group**: they follow the last
+   open urgent task, wherever the smart sort put it (an undated Urgent task sorts after every dated one).
+   So they are never ahead of an open urgent task, and never ahead of any open task while nothing open is
+   urgent — then they head the hidden tier instead.
+4. **Completed tasks last**, the newest completion first.
+
+On **Tasks** the whole active list is read and sorted at once, so hidden tasks end it (one far down the
+list mounts with the rest of the progressive window, as any card does). The **Dashboard** reads six tasks
+a page, and the server pages them in the same spirit (`GET /todos`, docs/API.md): tasks open for the
+viewer by creation time, then hidden ones, urgent first — so hidden tasks fill the last pages, and each
+page is smart-sorted with the rules above. Hiding a card on the dashboard folds it and glides it to the
+end of its page; once that has settled (`HIDE_SETTLE_MS`, 650ms) the page is read again silently and the
+next open task takes its place. Opening a hidden card does not re-read the page: the opened card keeps
+its place until the list loads again.
 
 Automated verification: `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts` covers registration, email verification, accepted friendship, shared todo creation, hidden redaction, owner visibility, and reveal behavior through the API Gateway and Docker services.
 

@@ -10,6 +10,7 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Changed
 
+- Tasks and Dashboard: hidden tasks now sort after the open ones. Among themselves they keep the smart sort, the urgent ones (a red frame) first; while open tasks are urgent, the hidden urgent ones follow the last open urgent task instead, so they stay with the urgent group without going ahead of any open task more urgent than they are — and with nothing open urgent, they sit below every open task. Completed tasks stay last. On the dashboard the server pages hidden tasks after the open ones, so they fill the last pages; hiding a card there folds it, glides it to the end of its page and then hands its place to the next open task. A card opened from hidden still keeps its place until the list loads again. `utils/sort-tasks.ts`.
 - Who can see a task: the audience map opens a touch closer — 10% nearer than it did, framed on the first circle and its names rather than on the ring — and its − / Show everyone / + are folded into one round button in the corner: pressed, a strip slides out to the left and the tools come up into it one by one; a chevron folds them away.
 - Task creation: C opens the existing New task panel on Dashboard and Tasks and requests title focus; Categories keeps C for New category. The physical key works across layouts and respects typing, IME, modifiers and overlays. Palette creation actions hand their title to the same panel, including after navigation to Tasks.
 
