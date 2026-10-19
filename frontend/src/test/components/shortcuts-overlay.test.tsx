@@ -32,7 +32,7 @@ describe("SHORTCUT_GROUPS", () => {
   it("is the only list, so nothing can print a key the app does not answer to", () => {
     // Exported for the command palette and the row menus. If this shrinks to a
     // private const, three hand-written copies grow back.
-    expect(SHORTCUT_GROUPS.map((g) => g.title)).toEqual(["Anywhere", "Search", "The list", "A branch"])
+    expect(SHORTCUT_GROUPS.map((g) => g.title)).toEqual(["Anywhere", "Dashboard and Tasks", "Categories", "Search", "The list", "A branch"])
     for (const group of SHORTCUT_GROUPS) {
       expect(group.shortcuts.length).toBeGreaterThan(0)
       for (const shortcut of group.shortcuts) {

@@ -15,7 +15,7 @@ import { isFirstPageOfVisit, markPageShown } from "@/lib/route-transition"
  * BLUEPRINT moment 9 asks for the content to rise 8px as it fades. A transform
  * here creates a containing block, and a `position: fixed` descendant anchors to
  * that block instead of the viewport — this page tree has fixed descendants
- * (quick capture, the selection bar, the undo bar).
+ * (the selection bar, the undo bar).
  *
  * That objection was argued rather than measured, so it was tested. framer-motion
  * genuinely does clean up after itself: on the shipped build, an element that runs

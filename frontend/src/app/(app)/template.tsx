@@ -13,8 +13,8 @@ import { markPageShown } from "@/lib/route-transition"
  * It used to fade the whole page in, opacity only. Each page now arrives part by part on
  * the timeline this starts (`components/animated/entrance.tsx`), so a whole-page fade on
  * top of that would only dim the first beat of it. Still no transform on this wrapper, for
- * the reason the root template measured: the pages have fixed controls (quick capture, the
- * selection bar, the undo bar) that a transformed ancestor would re-anchor.
+ * the reason the root template measured: the pages have fixed controls (the selection
+ * bar, the undo bar) that a transformed ancestor would re-anchor.
  */
 export default function AppTemplate({ children }: { children: React.ReactNode }) {
   useEffect(markPageShown, [])

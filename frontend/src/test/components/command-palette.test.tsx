@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { CommandPalette, OPEN_PALETTE_EVENT, requestPalette } from "@/components/command-palette"
-import { OPEN_CAPTURE_EVENT } from "@/components/todos/quick-capture"
+import { CREATE_TASK_EVENT, takeCreateTaskRequest } from "@/lib/create-task-request"
 import { OPEN_SHORTCUTS_EVENT } from "@/components/ui/shortcuts-overlay"
 import { invalidateFriends } from "@/hooks/use-friends"
 import { useAuthStore } from "@/store/auth"
@@ -94,6 +94,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  takeCreateTaskRequest()
   // Unmount first: signing the store out under a mounted palette is an update
   // nobody awaited, and the next read resolving after the test is another.
   cleanup()
@@ -327,32 +328,33 @@ describe("CommandPalette — searching", () => {
     expect(dialog()).not.toBeNull()
   })
 
-  it("offers to make a query that matches nothing a task, typed in quick capture", async () => {
+  it("hands a query that matches nothing to the New task panel", async () => {
     const received: CustomEvent[] = []
     const listener = (e: Event) => received.push(e as CustomEvent)
-    window.addEventListener(OPEN_CAPTURE_EVENT, listener)
+    window.addEventListener(CREATE_TASK_EVENT, listener)
     const user = await openPalette()
     await user.type(field(), "zzzzzzz")
     expect(await screen.findByText(/Nothing matches/)).toBeInTheDocument()
     expect(screen.getByRole("status")).toHaveTextContent("No results")
     await user.keyboard("{Enter}")
     await waitFor(() => expect(received).toHaveLength(1))
-    expect(received[0].detail).toEqual({ title: "zzzzzzz" })
+    expect(received[0].detail).toEqual({ title: "zzzzzzz", nonce: expect.any(Number) })
     expect(push).not.toHaveBeenCalled()
-    window.removeEventListener(OPEN_CAPTURE_EVENT, listener)
+    window.removeEventListener(CREATE_TASK_EVENT, listener)
   })
 
-  it("goes to Tasks first when the screen it was opened on has no capture", async () => {
+  it("goes to Tasks when the current screen has no New task panel", async () => {
     pathname = "/categories"
     const received: CustomEvent[] = []
     const listener = (e: Event) => received.push(e as CustomEvent)
-    window.addEventListener(OPEN_CAPTURE_EVENT, listener)
+    window.addEventListener(CREATE_TASK_EVENT, listener)
     const user = await openPalette()
     await user.type(field(), "milk run")
     await user.keyboard("{Enter}")
     expect(push).toHaveBeenCalledWith("/tasks")
-    expect(received[0].detail).toEqual({ title: "milk run" })
-    window.removeEventListener(OPEN_CAPTURE_EVENT, listener)
+    expect(received[0].detail).toEqual({ title: "milk run", nonce: expect.any(Number) })
+    expect(takeCreateTaskRequest()).toMatchObject({ title: "milk run" })
+    window.removeEventListener(CREATE_TASK_EVENT, listener)
   })
 
   it("opens the shortcut map from its command", async () => {

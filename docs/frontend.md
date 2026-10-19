@@ -103,7 +103,7 @@ from a stale count of `"use client"` directives.
 | `/auth/login`, `/auth/register` | Credential forms; successful sign-in/registration navigates to `/dashboard` |
 | `/auth/forgot-password`, `/auth/forgot-password/sent` | Reset-link request, masked address and resend cooldown |
 | `/auth/reset-password`, `/auth/verify-email` | Token-driven recovery and verification |
-| `/dashboard` | Active-task overview, statistics and quick capture |
+| `/dashboard` | Active-task overview, statistics and the New task panel |
 | `/tasks` | Active feed, category filters, completed preview, keyboard selection and editor |
 | `/tasks/completed` | Paginated archive with local-day completion-window filters |
 | `/categories` | Category creation, edit/autosave and deletion |
@@ -288,7 +288,8 @@ desktop this is where an experienced user lives.
 |---|---|---|
 | `Cmd/Ctrl + K` | Command palette — search tasks, categories, people and shortcuts; `#` `@` `>` narrow the search, `Tab` narrows into a row, a query that matches nothing becomes a task | Anywhere, signed in |
 | `?` | The keyboard map itself | Anywhere |
-| `C` | Capture a task — one field, no selectors | Dashboard, Tasks |
+| `C` | New task — open the existing panel and focus its title; physical KeyC works in any layout | Dashboard, Tasks |
+| `C` | New category — open the creation dialog with the same typing and overlay guards | Categories |
 | `F` | Open the category filter | Tasks |
 | `Escape` | Close the topmost layer | Everywhere |
 | `J` `K` / `↑` `↓` | Move the cursor | Every list of task cards: dashboard, Tasks, archive, landing console |

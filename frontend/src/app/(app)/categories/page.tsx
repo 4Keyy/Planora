@@ -17,6 +17,7 @@ import { CategoryCardSkeleton } from "@/components/categories/category-card-skel
 import { CategoryDialog, type CategoryFormData } from "@/components/categories/category-dialog"
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { forgetOrigin, rememberOrigin } from "@/lib/shared-origin"
+import { canHandleCreateShortcut } from "@/lib/create-task-request"
 
 /**
  * When the page's parts arrive, in ms after it starts: the header line by line, then the
@@ -88,11 +89,8 @@ export default function CategoriesPage() {
   // Press "C" — open create modal
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== "c") return
-      if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return
+      if (!canHandleCreateShortcut(e)) return
       if (isCreateOpen || editingCategory || deletingCategory) return
-      const target = e.target as HTMLElement
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return
       e.preventDefault()
       openCreate(null)
     }

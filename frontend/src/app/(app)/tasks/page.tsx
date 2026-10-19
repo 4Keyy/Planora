@@ -57,7 +57,7 @@ import { useTaskVisibility } from "@/hooks/use-task-visibility"
 import { useWarmEditor } from "@/hooks/use-warm-editor"
 import { rememberOrigin } from "@/lib/shared-origin"
 import { SelectionBar } from "@/components/ui/selection-bar"
-import { QuickCapture } from "@/components/todos/quick-capture"
+import { useNewTaskShortcut } from "@/hooks/use-new-task-shortcut"
 import { UpdatePill, useDeferredUpdates } from "@/components/ui/update-pill"
 
 const ACTIVE_PAGE_SIZE = 200
@@ -175,13 +175,17 @@ export default function TasksPage() {
   /**
    * Whether the list itself has the screen.
    *
-   * One flag, three consumers, because they are all asking the same question and
-   * must not be able to answer it differently: the keyboard detaches, the capture
-   * bubble hides so it cannot float over a backdrop or be reached by Tab from
-   * behind one, and realtime updates queue instead of landing under a dialog the
+   * One flag for the list consumers, because they are asking the same question and
+   * must not be able to answer it differently: the keyboard detaches and
+   * realtime updates queue instead of landing under a dialog the
    * user is reading.
    */
   const listKeysEnabled = !editingTodo && !isCreateOpen && !isCategoryModalOpen
+  const { panelRef: createPanelRef, titleRequest } = useNewTaskShortcut({
+    // The open composer suspends list keys, but C may still request its title again.
+    enabled: isAuthenticated && (listKeysEnabled || isCreateOpen) && !editingTodo && !isCategoryModalOpen,
+    onOpen: () => setIsCreateOpen(true),
+  })
 
   // Smooth scroll to top when large panels collapse
   useCollapseScroll(isCreateOpen)
@@ -636,25 +640,6 @@ export default function TasksPage() {
   }
 
   /**
-   * The capture path: a title and nothing else.
-   *
-   * It deliberately does NOT reuse `handleCreate`, for one reason that matters —
-   * `handleCreate` catches its own failure and raises a toast. `QuickCapture` keeps
-   * the typed text and shows the error inline only if the promise rejects, so
-   * swallowing the error here would clear the field and lose the thought the user
-   * had just stopped to write down. The rejection is the contract.
-   */
-  const handleQuickCapture = useCallback(async (title: string) => {
-    const res = await api.post<ApiResponse<Todo>>("/todos/api/v1/todos", { title })
-    const created = parseApiResponse<Todo>(res.data)
-    if (created?.id) {
-      const [enriched] = await enrichTodosWithAuthorNames([created])
-      setTodos((prev) => (prev.some((t) => t.id === created.id) ? prev : [enriched, ...prev]))
-    }
-    void fetchActiveTodos({ silent: true })
-  }, [enrichTodosWithAuthorNames, fetchActiveTodos])
-
-  /**
    * Delete a whole selection under ONE undo window.
    *
    * Looping `requestDelete` would be the obvious implementation and it is wrong:
@@ -884,9 +869,10 @@ export default function TasksPage() {
       {/* The redesigned control deck: the create panel and the quick-filter plate are BOTH always
           on screen — the panel's own collapsed header is the "new task" affordance and expands in
           place. Create sits above the filter (task creation is the primary action of this page). */}
-      <Enter tier="panel" at={TASKS_AT.newTask}>
+      <Enter ref={createPanelRef} tier="panel" at={TASKS_AT.newTask}>
         <CreateTodoPanel
           isOpen={isCreateOpen}
+          titleRequest={titleRequest}
           onToggle={() => setIsCreateOpen((prev) => !prev)}
           categories={categories}
           onSubmit={handleCreate}
@@ -1183,13 +1169,6 @@ export default function TasksPage() {
           />
         )}
       </AnimatePresence>
-
-      {/*
-        Capture, before anything else. It is `position: fixed` in the phone's thumb
-        zone, and it is hidden whenever a dialog owns the screen — otherwise it
-        floats over the backdrop and is reachable by Tab from behind it.
-      */}
-      <QuickCapture onCapture={handleQuickCapture} hidden={!listKeysEnabled} />
 
       <SelectionBar
         count={nav.selectedIds.length}

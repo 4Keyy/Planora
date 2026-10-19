@@ -122,12 +122,7 @@ export const SCREENS: StaticEntry[] = [
 ]
 
 export const ACTIONS: StaticEntry[] = [
-  /**
-   * One creation entry, and it is the same thing `C` does: quick capture, which
-   * asks for a title and nothing else. The heavy composer keeps no entry — its
-   * collapsed header is permanently on screen on both routes that have it.
-   */
-  { id: "capture", label: "Capture a task", hint: "Just a title — details come later", icon: Plus, shortcut: "C", action: { type: "capture" } },
+  { id: "capture", label: "New task", hint: "Open the New task panel", icon: Plus, shortcut: "C", action: { type: "capture" } },
   { id: "shortcuts", label: "Keyboard shortcuts", hint: "Every key the product answers to", icon: Keyboard, shortcut: "?", action: { type: "shortcuts" } },
 ]
 
@@ -221,7 +216,7 @@ function createSection(text: string): PaletteSection {
       key: "create",
       kind: "create",
       label: `Create task “${text}”`,
-      hint: "Opens quick capture with this title",
+      hint: "Opens New task with this title",
       icon: Plus,
       action: { type: "capture", title: text },
     }],

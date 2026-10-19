@@ -3,13 +3,12 @@
 import { useEffect, type RefObject } from "react"
 
 /**
- * How much of the bottom of the screen a docked control is holding — quick capture's
- * bubble, the selection bar — published as `--pl-dock-clearance` on the document, so the
+ * How much of the bottom of the screen a docked control is holding — the selection
+ * bar — published as `--pl-dock-clearance` on the document, so the
  * notice stack (`Toaster`) can rise above whatever sits there instead of covering it.
  *
  * Each dock registers its fixed strip; the variable is the tallest one's height, or 0px
- * when none shows anything (a strip whose content is hidden — the capture bubble above
- * `sm` — holds nothing and counts for nothing).
+ * when none shows anything (a strip whose content is hidden holds nothing).
  */
 const docks = new Map<symbol, number>()
 

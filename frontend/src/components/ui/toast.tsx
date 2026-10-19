@@ -20,7 +20,7 @@ import { SPRING_LAYOUT, SPRING_STANDARD, DURATION_FAST, EASE_EXIT, EASE_OUT_EXPO
  *
  * At the bottom, centred, on every screen: where an undo has always been, in reach of a
  * thumb, and clear of the bar at the top. It rises above whatever is docked down there —
- * quick capture, the selection bar — through `--pl-dock-clearance`.
+ * the selection bar — through `--pl-dock-clearance`.
  */
 
 /** Gap between notices when the deck is fanned out. */

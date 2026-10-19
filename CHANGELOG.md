@@ -10,6 +10,8 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 
 ### Changed
 
+- Task creation: C opens the existing New task panel on Dashboard and Tasks and requests title focus; Categories keeps C for New category. The physical key works across layouts and respects typing, IME, modifiers and overlays. Palette creation actions hand their title to the same panel, including after navigation to Tasks.
+
 - Who can see a task: the audience map now seats friends on concentric circles — the first holds the people chosen and the closest of the rest, at most twelve, and the others fill the circles outward, evenly spaced. Choosing a friend from a far circle brings them in along the circles while the rest make room, inner circles first, and the view glides along if it had been moved away. The line to each person is a bowed thread that trails a moving seat and swings once, is drawn out of you with a ripple as it lands, and carries a point of light now and then; friends not chosen drift on their own slow loops. Direct sharing stops at 12 friends, as the server now requires: a counter shows how many are taken, the rest lock at the limit, and a refused press shakes and says why. The New task panel on the dashboard and on Tasks chooses its audience on the same map, without the "Share with" chips — the seats are the buttons there — in place of its old Share list. The landing page's first block uses the same threads and drift. `lib/audience-map.ts`, `components/ui/audience-motion.tsx`.
 - Tasks: who can see a task is now chosen on the landing page's first-block circle, in the task modal and on a task's own page, in place of the Private/Friends switch and its check-box list. You sit in the audience ring; every friend has a seat around you, the ones you share the most with closest (`GET /todos/api/v1/todos/friend-affinity`), and choosing someone springs their avatar into the seat and draws the line to them. The map zooms around the pointer with the wheel, moves with a drag, pinches on touch and has − / Show everyone / + buttons; the page never scrolls along with it. Under it, the landing's "Share with" chips and the sentence say who can see the task. Pressing a friend of an All friends task now lets them out, leaving it shared with the rest, where it used to make a share with just them.
 - Brand: the navbar's private-ring Wordmark is now the single project logo across favicon, bookmark/Apple/install icons and documentation. The SVG adapts to light/dark browser themes using ink/paper tokens; generated exports share the unchanged navbar geometry. README uses the mark above the product name.
@@ -34,6 +36,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
 - Notice copy: local titles use sentence case, stay within 40 characters and omit trailing punctuation; errors use "Couldn't …" with their full reason in the description. Single-task undo offers say "Task deleted"; message types and actions are unchanged.
 - Notice polish: softer 28px corners, a subtle ink highlight and border, inset icon rings and rounded action/dismiss controls follow Planora's existing tokens. The deck, gestures, countdowns and store API are unchanged.
 - Browser verification: expanded real-service card geometry, frame-by-frame height motion, 60-task telemetry, notice Undo/deck/dock checks and error-scene recovery investigations. The dated testing report records observed results and existing animation/browser limitations.
+
+### Removed
+
+- The floating quick-capture bubble, title-only popup and separate quick-capture submission path.
 
 ### Fixed
 

@@ -73,7 +73,7 @@ describe("Category motion parity", () => {
     await screen.findByText(path === "empty state" ? "No categories yet" : "Work")
     recordStaleCard()
     if (path === "shortcut") {
-      fireEvent.keyDown(window, { key: "c" })
+      fireEvent.keyDown(window, { key: "с", code: "KeyC" })
     } else {
       await userEvent.click(screen.getByRole("button", { name: path === "empty state" ? "Create a category" : "New category" }))
     }
@@ -101,13 +101,32 @@ describe("Category motion parity", () => {
     render(<CategoriesPage />)
     await userEvent.click(await screen.findByRole("button", { name: "Edit category Work" }))
     act(() => screen.getByRole("button", { name: "Done" }).focus())
-    fireEvent.keyDown(window, { key: "c" })
+    fireEvent.keyDown(window, { key: "c", code: "KeyC" })
     expect(screen.queryByRole("dialog", { name: "New category" })).toBeNull()
     expect(screen.getAllByRole("dialog")).toHaveLength(1)
   })
 })
 
 describe("Category notices", () => {
+  it.each([{ ctrlKey: true }, { shiftKey: true }, { isComposing: true }])("ignores modified or composing C: %o", async (properties) => {
+    render(<CategoriesPage />)
+    await screen.findByText("Work")
+    fireEvent.keyDown(document.body, { key: "с", code: "KeyC", ...properties })
+    expect(screen.queryByRole("dialog", { name: "New category" })).toBeNull()
+  })
+
+  it("leaves C in a field and behind an unrelated overlay alone", async () => {
+    render(<CategoriesPage />)
+    await screen.findByText("Work")
+    const input = document.body.appendChild(document.createElement("input"))
+    fireEvent.keyDown(input, { key: "c", code: "KeyC" })
+    const overlay = document.body.appendChild(document.createElement("div"))
+    overlay.setAttribute("role", "dialog")
+    fireEvent.keyDown(document.body, { key: "c", code: "KeyC" })
+    expect(screen.queryByRole("dialog", { name: "New category" })).toBeNull()
+    input.remove()
+    overlay.remove()
+  })
   it("reports a failed load with a concise error heading", async () => {
     vi.mocked(api.get).mockRejectedValueOnce(new Error("offline"))
     render(<CategoriesPage />)

@@ -43,7 +43,7 @@ import { NumberRoll } from "@/components/ui/number-roll"
 import { WeekBars } from "@/components/ui/week-bars"
 import { StatRow } from "@/components/ui/stat-row"
 import { DURATION_DELIBERATE, EASE_OUT_EXPO } from "@/lib/animations"
-import { QuickCapture } from "@/components/todos/quick-capture"
+import { useNewTaskShortcut } from "@/hooks/use-new-task-shortcut"
 import { UndoBar, useUndoableAction } from "@/components/ui/undo-bar"
 import { useListNavigation } from "@/hooks/use-list-navigation"
 import { usePriorityWriter } from "@/hooks/use-priority-writer"
@@ -146,6 +146,10 @@ export default function DashboardPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
+  const { panelRef: createPanelRef, titleRequest } = useNewTaskShortcut({
+    enabled: isAuthenticated && !editingTodo,
+    onOpen: () => setIsCreateOpen(true),
+  })
   /** `E` opens the editor with the title already in edit mode; `Enter` and a click do not. */
   const [openInTitleEdit, setOpenInTitleEdit] = useState(false)
   /** Deletions wait five seconds in here instead of behind a confirmation dialog. */
@@ -456,28 +460,6 @@ export default function DashboardPage() {
     // runs only after onSubmit resolves, so awaiting here left the fields filled for seconds.
     void Promise.all([fetchTodos(1, { silent: true }), fetchStats()])
   }
-
-  /**
-   * Capture: a title, and the promise left to reject.
-   *
-   * Not `handleCreate` with a synthesised payload — that one closes the create
-   * panel, clears the first-run state and raises a success toast, none of which
-   * apply here. The toast in particular would be noise: the field collapsing back
-   * into the button already said it worked, and a message that repeats what the
-   * screen just showed is a message people learn to ignore.
-   */
-  const handleQuickCapture = useCallback(async (title: string) => {
-    const res = await api.post<ApiResponse<Todo>>("/todos/api/v1/todos", { title })
-    const created = parseApiResponse<Todo>(res.data)
-    if (created?.id) {
-      const [enriched] = await enrichTodosWithAuthorNames([created])
-      const prepend = (prev: Todo[]) => (prev.some((t) => t.id === created.id) ? prev : [enriched, ...prev])
-      setTodos(prepend)
-      setStatsTodos(prepend)
-      setTotalCount((c) => c + 1)
-    }
-    void Promise.all([fetchTodos(1, { silent: true }), fetchStats()])
-  }, [enrichTodosWithAuthorNames, fetchTodos, fetchStats])
 
   /**
    * Delete with a window, not a dialog — the same affordance `/tasks` has.
@@ -948,9 +930,10 @@ export default function DashboardPage() {
         {/* The create panel spans the column. It sat alone in a sidebar a third of the
             page wide, which squeezed the task cards into three narrow columns beside a
             mostly empty one. */}
-        <Enter tier="panel" at={DASH.newTask}>
+        <Enter ref={createPanelRef} tier="panel" at={DASH.newTask}>
           <CreateTodoPanel
             isOpen={isCreateOpen}
+            titleRequest={titleRequest}
             onToggle={() => setIsCreateOpen(!isCreateOpen)}
             categories={categories}
             onSubmit={handleCreate}
@@ -1094,17 +1077,7 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      {/*
-        `C` means the same thing on every screen that has it: capture, one field.
-        Both pages previously bound `C` to the full create panel, which asks for
-        priority, date, category and audience before it will take a task — the
-        opposite of capture, and not what the keyboard map promises. The panel is
-        still here; it is opened by pressing its own header, which is always on
-        screen, or from the command palette.
-      */}
-      <QuickCapture onCapture={handleQuickCapture} hidden={!!editingTodo || isCreateOpen} />
-
-      {/* The card keys, in the corner until asked for — hidden, like capture, while a dialog
+      {/* The card keys, in the corner until asked for — hidden while a dialog
           owns the screen. */}
       <KeyHintsDock hidden={!!editingTodo || isCreateOpen} />
 

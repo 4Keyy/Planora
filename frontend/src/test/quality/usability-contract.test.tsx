@@ -51,9 +51,7 @@ describe("frontend usability contract", () => {
     expect(screen.getByRole("button", { name: "Open create task panel" })).toHaveAttribute("aria-expanded", "false")
 
     // The subtitle says what this panel is FOR, and deliberately advertises no key.
-    // It used to print "press C to open" — and `C` opens quick capture, which asks
-    // for a title and nothing else. A printed key that does something else teaches
-    // the wrong binding, and the user only finds out from a surface that disagrees.
+    // The page owns C and requests title focus; a pointer opening still focuses nothing.
     expect(screen.getByText(/Date, category, audience/i)).toBeInTheDocument()
     expect(screen.queryByText(/press/i)).toBeNull()
   })

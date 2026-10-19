@@ -84,10 +84,17 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     title: "Anywhere",
     shortcuts: [
       { keys: [MOD, "K"], description: "Open the command palette" },
-      { keys: ["C"], description: "Capture a new task" },
       { keys: ["?"], description: "Show this list" },
       { keys: ["Esc"], description: "Close whatever is open" },
     ],
+  },
+  {
+    title: "Dashboard and Tasks",
+    shortcuts: [{ keys: ["C"], description: "New task" }],
+  },
+  {
+    title: "Categories",
+    shortcuts: [{ keys: ["C"], description: "New category" }],
   },
   {
     // The palette's own keys. Its footer shows the everyday four; these are the

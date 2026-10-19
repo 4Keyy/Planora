@@ -7,7 +7,7 @@ import { motion } from "@/components/ui/motion"
 import { useEnter } from "@/components/animated/entrance"
 import { isKeyboardFocus } from "@/components/layout/droplet"
 import { KeyLegendRow, useLitKey } from "@/components/ui/key-legend"
-import { OPEN_SHORTCUTS_EVENT } from "@/components/ui/shortcuts-overlay"
+import { KeyCombo, OPEN_SHORTCUTS_EVENT } from "@/components/ui/shortcuts-overlay"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { SPRING_LAYOUT, SPRING_STANDARD, TAP_PRESS, TWEEN_FAST } from "@/lib/animations"
 import type { LegendKey } from "@/lib/landing-keys"
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils"
  * It used to be a "Keys" cap in the list's heading — a raised key on a ledge, the only
  * control of its kind in the product — that folded a full-width panel out over the list and
  * pushed every card down. Now it is a droplet: the same glass, border and shadow as the
- * app's bar, floating in the bottom-right corner, the corner the capture bubble holds on a
+ * app's bar, floating in the bottom-right corner, reserved for the task controls on a
  * phone.
  *
  * - **At rest** it is a 48px circle with a keyboard in it. Pointing at it, or reaching it with
@@ -282,6 +282,10 @@ function HintsPanel({
             </dl>
           </div>
         ))}
+        <div className="flex items-center gap-3 text-body-sm text-ink-muted">
+          <KeyCombo keys={["C"]} />
+          <span>New task</span>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-3 border-t border-line py-2 pl-5 pr-3">

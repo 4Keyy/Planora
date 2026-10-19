@@ -318,10 +318,10 @@
     background-color: theme("colors.alert-surface / 40%");
   }
 
-  /* 3. A shell that IS the field — quick capture's pill, the branch composer, the colour
+  /* 3. A shell that IS the field — the branch composer, the colour
         picker's hex box, the command palette's query row. Its edge is the indicator.
-        Whatever elevation the shell already carries (Tailwind's --tw-shadow, e.g. quick
-        capture's shadow-xl) stays under the halo; a flat shell gets the halo alone. Do not
+        Whatever elevation the shell already carries (Tailwind's --tw-shadow) stays
+        under the halo; a flat shell gets the halo alone. Do not
         put hover:border-* on a shell: it is 0,2,0 like this rule and emitted later. */
   .field-shell {
     transition:

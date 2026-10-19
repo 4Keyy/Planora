@@ -192,7 +192,7 @@ describe("buildSections — searching", () => {
     // A hint matches as a whole fragment, never as letters scattered through it.
     expect(keys(buildSections(input({ q: ">every key" })))).toEqual(["action:shortcuts"])
     expect(keys(buildSections(input({ q: ">trav" })))).toEqual([])
-    expect(keys(buildSections(input({ q: ">capture" })))).toEqual(["action:capture"])
+    expect(keys(buildSections(input({ q: ">new task" })))).toEqual(["action:capture"])
   })
 
   it("does not offer to create from a narrowed search or a non-task tab", () => {

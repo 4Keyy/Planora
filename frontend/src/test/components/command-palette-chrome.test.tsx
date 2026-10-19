@@ -390,9 +390,9 @@ describe("Preview", () => {
   it("previews a command, the offer to create, and nothing", () => {
     const { container, rerender } = render(<Preview item={screenItem()} scope={null} tasks={[]} now={NOW} names={NAMES} />)
     expect(container).toHaveTextContent(SCREENS[0].hint!)
-    const capture: PaletteItem = { key: "action:capture", kind: "action", label: "Capture a task", icon: ACTIONS[0].icon, shortcut: "C", action: { type: "capture" } }
+    const capture: PaletteItem = { key: "action:capture", kind: "action", label: "New task", icon: ACTIONS[0].icon, shortcut: "C", action: { type: "capture" } }
     rerender(<Preview item={capture} scope={null} tasks={[]} now={NOW} names={NAMES} />)
-    expect(container).toHaveTextContent("does this from any screen")
+    expect(container).toHaveTextContent("C on Dashboard and Tasks")
     rerender(<Preview item={{ key: "create", kind: "create", label: "Create task “x”", action: { type: "capture", title: "x" } }} scope={null} tasks={[]} now={NOW} names={NAMES} />)
     expect(container).toHaveTextContent("Create task “x”")
     rerender(<Preview item={null} scope={null} tasks={[]} now={NOW} names={NAMES} />)

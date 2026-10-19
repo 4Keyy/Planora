@@ -57,6 +57,7 @@ describe("the dashboard's key dock", () => {
       "Delete, with five seconds to undo",
       "The command palette",
       "The keyboard map itself",
+      "New task",
     ]) {
       expect(screen.getByText(does)).toBeInTheDocument()
     }

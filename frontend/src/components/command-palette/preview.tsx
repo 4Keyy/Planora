@@ -252,7 +252,7 @@ export function Preview({ item, scope, tasks, now, names, revealed = false }: {
       {item.hint ? <p className="mt-1 text-caption font-medium text-ink-muted">{item.hint}</p> : null}
       {item.shortcut ? (
         <p className="mt-auto flex items-center gap-1.5 pt-5 text-caption font-medium text-ink-muted">
-          <Kbd>{item.shortcut}</Kbd> does this from any screen
+          <Kbd>{item.shortcut}</Kbd> {item.action.type === "capture" ? "on Dashboard and Tasks" : "does this from any screen"}
         </p>
       ) : null}
     </div>

@@ -20,7 +20,7 @@ import { motion } from "@/components/ui/motion"
 import { ModalPortal } from "@/components/ui/modal-portal"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field-label"
 import { Kbd, OPEN_SHORTCUTS_EVENT, useIsApplePlatform } from "@/components/ui/shortcuts-overlay"
-import { requestCapture } from "@/components/todos/quick-capture"
+import { requestNewTask } from "@/lib/create-task-request"
 import { useExitPresence } from "@/hooks/use-exit-presence"
 import { useFocusTrap } from "@/hooks/use-focus-trap"
 import { useFriends } from "@/hooks/use-friends"
@@ -71,7 +71,7 @@ import {
  *   view narrows the search to it, shown as a chip in the field; Backspace in the
  *   empty field widens it again, and Escape steps back one level at a time.
  * - **Nothing is a dead end.** A query that matches nothing offers to become a
- *   task — quick capture opens with the text already typed.
+ *   task — the New task panel opens with the text already typed.
  * - **The highlighted row explains itself.** On a desktop the column beside the
  *   results shows the task — deadline, priority, people, steps — glowing in its
  *   category's colour, so the right one of three similar titles is picked first time.
@@ -104,8 +104,8 @@ export function requestPalette(from?: HTMLElement | null): void {
 const TODOS_URL = "/todos/api/v1/todos"
 const CATEGORIES_URL = "/categories/api/v1/categories"
 
-/** The screens that mount quick capture; anywhere else the palette goes to Tasks first. */
-const CAPTURE_ROUTES = new Set(["/dashboard", "/tasks"])
+/** The screens that mount New task; anywhere else the request waits for Tasks. */
+const CREATE_ROUTES = new Set(["/dashboard", "/tasks"])
 
 /** Rows PageUp and PageDown jump. */
 const PAGE = 5
@@ -524,12 +524,12 @@ export function CommandPalette() {
     setOpen(false)
     if (action.type === "capture") {
       const request = { title: action.title }
-      // On a screen with capture it opens in place, a frame after the palette has
+      // On a screen with New task it opens in place, a frame after the palette has
       // handed focus back; anywhere else the request waits for Tasks to mount it.
-      if (CAPTURE_ROUTES.has(pathname ?? "")) {
-        window.requestAnimationFrame(() => requestCapture(request))
+      if (CREATE_ROUTES.has(pathname ?? "")) {
+        window.requestAnimationFrame(() => requestNewTask(request))
       } else {
-        requestCapture(request)
+        requestNewTask(request)
         router.push("/tasks")
       }
       return
@@ -743,7 +743,7 @@ export function CommandPalette() {
     } else if (shownTab === "categories") {
       empty = { title: "No categories yet", hint: "Make one on the Categories screen to group your tasks." }
     } else if (shownTab === "tasks") {
-      empty = { title: "No tasks yet", hint: "Press C anywhere to capture the first one." }
+      empty = { title: "No tasks yet", hint: "Choose New task to create the first one." }
     }
   }
 
