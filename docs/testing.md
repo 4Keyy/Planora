@@ -811,7 +811,11 @@ Frontend coverage:
 - excludes tests, `src/app/**`, and the entire `src/components/todos/edit-todo-modal/**`
   subtree. Unit/browser tests may exercise these areas, but the coverage percentages
   do not measure them, and the browser suite does not cover every branch-editor state;
-- thresholds: ≥85% for statements, branches, functions, and lines.
+- thresholds: ≥85% for statements, branches, functions, and lines;
+- per-test timeout: 15 s (`testTimeout`). The heaviest jsdom tests render whole editors,
+  panels and pages; under V8 instrumentation with every worker busy they ran past Vitest's
+  default 5 s on an ordinary laptop, failing different tests on every run (on an unchanged
+  `HEAD` too). A test that genuinely hangs still fails, at 15 s.
 
 `TodoApiTestFactory` runs Todo API in ASP.NET Core TestServer, replaces persistence
 with EF InMemory and substitutes gRPC/RabbitMQ/Redis dependencies. These tests

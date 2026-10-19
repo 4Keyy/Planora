@@ -8,6 +8,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Whole editors, panels and pages render in jsdom here. Under v8 coverage, with every worker
+    // busy, the heaviest of them run past Vitest's default 5 s on an ordinary laptop — not because
+    // anything hangs, but because each is a second or two of real rendering slowed several times.
+    testTimeout: 15_000,
     exclude: ['e2e/**', 'playwright-report/**', 'test-results/**', 'node_modules/**', 'dist/**', '.next/**', '.next-*/**'],
     coverage: {
       provider: 'v8',
