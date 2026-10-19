@@ -514,8 +514,9 @@ locally; it is not a search over every page of the repository's task data.
 
 `MasonryColumns` re-deals the whole grid on every change of the list or of the
 column count: in list order, each card to the shortest column, the leftmost of
-equal ones, by measured height (`dealColumns`). Reading the grid left to right
-and top to bottom therefore reads the sorted list, and DOM and keyboard order
+those within a row of it (`ROW_PX`, 24px), by measured height (`dealColumns`).
+Reading the grid left to right and top to bottom therefore reads the sorted list
+— a row of near-equal columns is dealt left to right — and DOM and keyboard order
 are the list's. Cards are children of one box, placed by `x`/`y` motion values;
 every move glides on `SPRING_LAYOUT` from the card's current speed, a leaving
 card fades in place under one `AnimatePresence`, and a card whose height changes

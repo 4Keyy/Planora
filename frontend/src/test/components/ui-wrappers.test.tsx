@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { Avatar } from "@/components/ui/avatar"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
-import { MasonryColumns, dealColumns } from "@/components/ui/masonry-columns"
+import { MasonryColumns, ROW_PX, dealColumns } from "@/components/ui/masonry-columns"
 import { ModalPortal } from "@/components/ui/modal-portal"
 import { Textarea } from "@/components/ui/textarea"
 import { Toaster } from "@/components/ui/toast"
@@ -205,12 +205,25 @@ describe("dealColumns", () => {
     expect(tops([300, 40, 40, 40], 2).map((c) => c.column)).toEqual([0, 1, 1, 1])
   })
 
-  it("never starts a card higher than the one before it: the grid reads in the list's order", () => {
-    const heights = [120, 46, 210, 90, 46, 160, 75, 300, 46, 46, 130, 88]
+  it("starts a card higher than the one before it only beside it, to its right, within a row", () => {
+    const heights = [120, 46, 210, 90, 46, 160, 75, 300, 46, 46, 130, 88, 150, 62, 98, 104]
     for (const columns of [1, 2, 3, 4]) {
       const cards = tops(heights, columns)
-      for (let i = 1; i < cards.length; i++) expect(cards[i].top).toBeGreaterThanOrEqual(cards[i - 1].top - 0.5)
+      for (let i = 1; i < cards.length; i++) {
+        if (cards[i].top >= cards[i - 1].top) continue
+        expect(cards[i].column).toBeGreaterThan(cards[i - 1].column)
+        expect(cards[i - 1].top - cards[i].top).toBeLessThanOrEqual(ROW_PX)
+      }
     }
+  })
+
+  it("deals a row left to right: a column only a little shorter does not take the next card", () => {
+    // After 100 and 96 the right column is 4px shorter — one row to the eye. The third card
+    // goes left and the fourth right, so the second row reads in the list's order; with a
+    // half-pixel tie the third went right and the fourth left, 4px lower, read first.
+    expect(tops([100, 96, 50, 50], 2).map((c) => c.column)).toEqual([0, 1, 0, 1])
+    // A column a row or more shorter still takes it: the columns stay even.
+    expect(tops([100, 100 - ROW_PX - 1, 50], 2).map((c) => c.column)).toEqual([0, 1, 1])
   })
 
   it("never leaves a column empty while one to its right has cards", () => {

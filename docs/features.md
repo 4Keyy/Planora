@@ -1018,8 +1018,13 @@ that shared list.
   `components/ui/masonry-columns.tsx`). Every card is a child of one box, placed on it by a transform: a
   column is a place, not a parent. Each change of the list or of the column count re-deals from scratch
   on the cards' measured heights (`dealColumns`: in list order, each card to the shortest column, the
-  leftmost of equal ones), so the grid reads left to right and top to bottom in the sort order, its
-  columns are as even as that order allows, and no column is ever empty while one to its right has cards.
+  leftmost of those within a row of it — `ROW_PX`, 24px), so the grid reads left to right and top to
+  bottom in the sort order, its columns are as even as that order allows, and no column is ever empty
+  while one to its right has cards. Columns whose bottoms differ by less than a row are one row to the
+  eye, and the leftmost of them takes the next card: with a half-pixel tie a right column 4px shorter took
+  it and the card after went left, 4px lower, so that row read the later task first. A card now starts
+  higher than the one before it only beside it, to its right, by less than a row; the columns end at most
+  a row less even.
   The grid used to keep each card in the column it was first dealt to (a card changing column remounted
   under the old column parents); after a quick filter change that left a full column, an empty one and a
   full one, and a new task at the top of the list landed wherever there was room. Every move now glides on

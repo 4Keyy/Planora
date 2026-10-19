@@ -22,8 +22,16 @@ const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : us
 
 /** 40ms between cards in reading order — the list rhythm of design-system § 9.9. */
 const ENTRANCE_STAGGER_S = 0.04
-/** Two columns this close are as short as each other: the left one takes the next card. */
-const TIE_PX = 0.5
+/**
+ * Two columns whose bottoms are this close are one row: the left one takes the next card.
+ *
+ * It was half a pixel — a tie only when exactly equal. A right column 4px shorter than the left
+ * then took the next card, and the card after it went left, 4px lower: one row to the eye, read
+ * left to right in the wrong order, the later task first. A row's worth of tolerance deals a
+ * row left to right. A card can now start higher than the one before it only beside it, to its
+ * right and by less than this, and the columns end at most this much less even.
+ */
+export const ROW_PX = 24
 /** How long a card's height must hold still before the grid re-deals around it. */
 const SETTLE_MS = 180
 
@@ -43,12 +51,25 @@ export interface DealtCard {
 }
 
 /**
- * Deals cards, in list order, each to the shortest column — the leftmost of equally short ones.
+ * The column the next card goes to: the leftmost whose bottom is within a row (`ROW_PX`) of the
+ * shortest one's.
+ */
+function rowColumn(bottoms: readonly number[]): number {
+  let lowest = bottoms[0]
+  for (let j = 1; j < bottoms.length; j++) if (bottoms[j] < lowest) lowest = bottoms[j]
+  for (let j = 0; j < bottoms.length; j++) if (bottoms[j] <= lowest + ROW_PX) return j
+  return 0
+}
+
+/**
+ * Deals cards, in list order, each to the shortest column — the leftmost of those within a row
+ * of it (`ROW_PX`).
  *
- * The column a card goes to is the one whose bottom is highest, so every card starts no higher
- * than the one before it: reading the grid left to right and top to bottom reads the list in
- * its order, and a column is never left empty while one to its right has cards. A card's place
- * depends only on the cards before it, so a change near the end of the list moves nothing above.
+ * The column a card goes to is the one whose bottom is highest, give or take a row, so every
+ * card starts no higher than the one before it unless it sits beside it, to its right, in the
+ * same row: reading the grid left to right and top to bottom reads the list in its order, and a
+ * column is never left empty while one to its right has cards. A card's place depends only on
+ * the cards before it, so a change near the end of the list moves nothing above.
  */
 export function dealColumns(
   heights: readonly number[],
@@ -58,8 +79,7 @@ export function dealColumns(
   const count = Math.max(1, Math.floor(columns))
   const bottoms = new Array<number>(count).fill(0)
   const cards = heights.map((h) => {
-    let column = 0
-    for (let j = 1; j < count; j++) if (bottoms[j] < bottoms[column] - TIE_PX) column = j
+    const column = rowColumn(bottoms)
     const top = bottoms[column]
     bottoms[column] = top + Math.max(0, h) + gap
     return { column, top }
@@ -254,10 +274,7 @@ export function MasonryColumns<T>({
       const bottoms = new Array<number>(count).fill(0)
       dealt = order.map((key) => {
         const kept = columnOf.current.get(key)
-        let column = kept !== undefined && kept < count ? kept : 0
-        if (kept === undefined || kept >= count) {
-          for (let j = 1; j < count; j++) if (bottoms[j] < bottoms[column] - TIE_PX) column = j
-        }
+        const column = kept !== undefined && kept < count ? kept : rowColumn(bottoms)
         const top = bottoms[column]
         bottoms[column] = top + heightOf(key) + space
         return { column, top }
