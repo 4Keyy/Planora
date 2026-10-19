@@ -451,6 +451,13 @@ describe("TodoCard", () => {
   })
 })
 
+/**
+ * A plate's value crossfades, and the outgoing one stays mounted until its exit finishes. Alone
+ * that takes a few hundred milliseconds; with the whole suite running in parallel it can take
+ * longer than `waitFor`'s default second, so the waits for a settled plate allow for it.
+ */
+const CROSSFADE_WAIT = 4000
+
 describe("CreateTodoPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -799,7 +806,7 @@ describe("CreateTodoPanel", () => {
     expect(await screen.findByText("Failed to create task. Please try again.")).toBeInTheDocument()
   })
 
-  it("auto-selects All friends for the only friend and permits a direct override", async () => {
+  it("auto-selects All friends for the only friend, and lets the task go back to private", async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(undefined)
 
@@ -814,23 +821,20 @@ describe("CreateTodoPanel", () => {
       />,
     )
 
-    // Picking the sole current friend covers the whole audience.
+    // Picking the sole current friend on the map covers the whole audience.
     await user.click(screen.getByRole("button", { name: "Private task" }))
-    await user.click(await screen.findByRole("checkbox", { name: "Ada Lovelace" }))
+    await user.click(await screen.findByRole("button", { name: "Share with Ada Lovelace" }))
     expect(screen.getByRole("button", { name: "Shared with all friends" })).toBeInTheDocument()
 
-    // Picking a friend while public flips back to a direct share with just them
-    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
-    expect(screen.getByRole("button", { name: "Shared with 1 friend" })).toBeInTheDocument()
-
-    // Toggling the same friend off returns to private
-    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    // Letting the only friend out of All friends leaves nobody: private again.
+    await user.click(screen.getByRole("button", { name: "Share with Ada Lovelace" }))
     expect(screen.getByRole("button", { name: "Private task" })).toBeInTheDocument()
 
-    // Cover the whole audience, then deliberately pick the friend as a direct share.
-    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    // All friends straight from the map, then back to a private task with Only you.
+    await user.click(screen.getByRole("button", { name: "All friends" }))
     expect(screen.getByRole("button", { name: "Shared with all friends" })).toBeInTheDocument()
-    await user.click(screen.getByRole("checkbox", { name: "Ada Lovelace" }))
+    await user.click(screen.getByRole("button", { name: "Only you" }))
+    expect(screen.getByRole("button", { name: "Private task" })).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "Pair task" },
     })
@@ -839,8 +843,8 @@ describe("CreateTodoPanel", () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
     expect(onSubmit.mock.calls[0][0]).toMatchObject({
       isPublic: false,
-      sharedWithUserIds: ["friend-1"],
-      requiredWorkers: 2,
+      sharedWithUserIds: [],
+      requiredWorkers: null,
     })
   })
 
@@ -865,11 +869,11 @@ describe("CreateTodoPanel", () => {
     // animation, so assert on the settled state rather than the next tick.
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("Work"),
-    )
+    { timeout: CROSSFADE_WAIT })
     await user.click(screen.getByRole("button", { name: "Clear category" }))
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Category" })).toHaveTextContent("None"),
-    )
+    { timeout: CROSSFADE_WAIT })
 
     // Due date: pick "Today", plate leaves the "No date" placeholder, then clear via keyboard
     fireEvent.click(screen.getByRole("button", { name: "Due date" }))
@@ -877,7 +881,7 @@ describe("CreateTodoPanel", () => {
     // The old value crossfades out — wait for the exiting "No date" span to unmount
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Due date" })).not.toHaveTextContent("No date"),
-    )
+    { timeout: CROSSFADE_WAIT })
     /*
      * Focus it and press Enter, rather than dispatching a bare `keydown`.
      *

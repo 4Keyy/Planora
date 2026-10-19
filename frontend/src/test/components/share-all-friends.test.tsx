@@ -84,30 +84,39 @@ const publicPayload = { isPublic: true, sharedWithUserIds: [], requiredWorkers: 
 const directPayload = (ids: string[]) => ({ isPublic: false, sharedWithUserIds: ids, requiredWorkers: ids.length + 1, clearRequiredWorkers: false })
 
 describe("Share auto-selects All friends", () => {
-  it("creates an All friends task when the second current friend is picked", async () => {
+  it("creates an All friends task when the second current friend is picked on the map", async () => {
     const onSubmit = createPanel()
-    fireEvent.click(await screen.findByRole("checkbox", { name: "Ada Friend" }))
+    // No chips under the map in the New task panel: the seats are the buttons.
+    expect(screen.queryByRole("group", { name: "Share with" })).toBeNull()
+    fireEvent.click(await screen.findByRole("button", { name: "Share with Ada Friend" }))
     expect(screen.getByRole("button", { name: "Shared with 1 friend" })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("checkbox", { name: "Grace Friend" }))
+    fireEvent.click(screen.getByRole("button", { name: "Share with Grace Friend" }))
     expect(screen.getByRole("button", { name: "Shared with all friends" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "All friends" })).toHaveAttribute("aria-pressed", "true")
     expect(await submitTask(onSubmit)).toMatchObject({ isPublic: true, sharedWithUserIds: [], requiredWorkers: null })
   })
 
-  it("auto-selects All friends for one friend, but a public friend click stays direct", async () => {
-    fixture.friends = [friends[0]]
+  it("lets one friend out of All friends as a direct share with the rest", async () => {
     const onSubmit = createPanel()
-    fireEvent.click(await screen.findByRole("checkbox", { name: "Ada Friend" }))
+    fireEvent.click(await screen.findByRole("button", { name: "All friends" }))
     expect(screen.getByRole("button", { name: "Shared with all friends" })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("checkbox", { name: "Ada Friend" }))
+    fireEvent.click(screen.getByRole("button", { name: "Share with Ada Friend" }))
     expect(screen.getByRole("button", { name: "Shared with 1 friend" })).toBeInTheDocument()
-    expect(await submitTask(onSubmit)).toMatchObject({ isPublic: false, sharedWithUserIds: ["friend-1"], requiredWorkers: 2 })
+    expect(await submitTask(onSubmit)).toMatchObject({ isPublic: false, sharedWithUserIds: ["friend-2"], requiredWorkers: 2 })
   })
 
-  it("describes the current audience and keeps an empty friend list private", async () => {
+  it("goes back to private with Only you", async () => {
+    const onSubmit = createPanel()
+    fireEvent.click(await screen.findByRole("button", { name: "Share with Grace Friend" }))
+    fireEvent.click(screen.getByRole("button", { name: "Only you" }))
+    expect(screen.getByRole("button", { name: "Private task" })).toBeInTheDocument()
+    expect(await submitTask(onSubmit)).toMatchObject({ isPublic: false, sharedWithUserIds: [] })
+  })
+
+  it("says what to do with no friends yet and keeps the task private", async () => {
     fixture.friends = []
     const onSubmit = createPanel()
-    expect(await screen.findByText("Every friend you have right now")).toBeInTheDocument()
-    expect(screen.getByText("No friends yet.")).toBeInTheDocument()
+    expect(await screen.findByText(/No friends to share with yet/)).toBeInTheDocument()
     expect(await submitTask(onSubmit)).toMatchObject({ isPublic: false, sharedWithUserIds: [] })
   })
 

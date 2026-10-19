@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useState } from "react"
 import { AudienceMap, type AudienceMapProps } from "@/components/todos/audience/audience-map"
@@ -40,6 +40,7 @@ function Harness(props: Partial<AudienceMapProps> & { start?: { mode: "private" 
         }}
         readOnly={rest.readOnly}
         allFriendsIds={rest.allFriendsIds}
+        chips={rest.chips}
       />
       <output data-testid="state">{`${mode}|${all ? "all" : ids.join(",")}`}</output>
     </>
@@ -151,6 +152,95 @@ describe("the audience map", () => {
     expect(screen.getByText(/No friends to share with yet/)).toBeInTheDocument()
     expect(screen.getByRole("link", { name: "profile" })).toHaveAttribute("href", "/profile#friends")
     expect(screen.queryByRole("group", { name: "Share with" })).toBeNull()
+  })
+})
+
+describe("the limit of twelve by name", () => {
+  const crowd = Array.from({ length: 16 }, (_, i) => friend(`f${String(i).padStart(2, "0")}`, `Name${i}`))
+  const twelve = crowd.slice(0, 12).map((f) => f.id)
+
+  it("counts the people chosen by name once there are more friends than seats", () => {
+    render(<Harness friends={crowd} start={{ mode: "friends", ids: crowd.slice(0, 3).map((f) => f.id) }} />)
+    expect(screen.getByLabelText("3 of 12 friends chosen")).toBeInTheDocument()
+  })
+
+  it("locks the rest once twelve are chosen, refuses a thirteenth and says why", () => {
+    render(<Harness friends={crowd} start={{ mode: "friends", ids: twelve }} />)
+    expect(screen.getByLabelText("12 of 12 friends chosen")).toBeInTheDocument()
+    expect(screen.getByText(/the most one task can be shared with by name/)).toBeInTheDocument()
+    const locked = chip("Name14 Friend")
+    expect(locked).toHaveAttribute("aria-disabled", "true")
+    fireEvent.click(locked)
+    expect(state()).toBe(`friends|${twelve.join(",")}`)
+    // A seat outside the first circle refuses the same way.
+    fireEvent.click(screen.getByRole("button", { name: "Add Name15", hidden: true }))
+    expect(state()).toBe(`friends|${twelve.join(",")}`)
+
+    // Letting one out frees a seat.
+    fireEvent.click(chip("Name0 Friend"))
+    expect(chip("Name14 Friend")).not.toHaveAttribute("aria-disabled")
+    fireEvent.click(chip("Name14 Friend"))
+    expect(state()).toBe(`friends|${[...twelve.slice(1), "f14"].join(",")}`)
+  })
+
+  it("refuses letting one out of All friends while more than twelve would stay, and says how", () => {
+    render(<Harness friends={crowd} start={{ mode: "friends", ids: [], all: true }} />)
+    fireEvent.click(chip("Name3 Friend"))
+    expect(state()).toBe("friends|all")
+    expect(screen.getByText(/start from Only you/)).toBeInTheDocument()
+  })
+
+  it("lets the refusal note go after a while", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    try {
+      render(<Harness friends={crowd} start={{ mode: "friends", ids: [], all: true }} />)
+      fireEvent.click(chip("Name3 Friend"))
+      expect(screen.getByText(/start from Only you/)).toBeInTheDocument()
+      act(() => {
+        vi.advanceTimersByTime(4000)
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+    await waitFor(() => expect(screen.queryByText(/start from Only you/)).toBeNull())
+  })
+
+  it("shows no counter while every friend fits in the first circle", () => {
+    render(<Harness start={{ mode: "friends", ids: ["ada"] }} />)
+    expect(screen.queryByLabelText(/friends chosen$/)).toBeNull()
+  })
+})
+
+describe("the map without chips", () => {
+  it("makes the seats the buttons: named, pressed and in the tab order", () => {
+    render(<Harness chips={false} />)
+    expect(screen.queryByRole("group", { name: "Share with" })).toBeNull()
+    const map = screen.getByRole("group", { name: /choose who can see this task/ })
+    const ada = within(map).getByRole("button", { name: "Share with Ada Friend" })
+    expect(ada).toHaveAttribute("aria-pressed", "false")
+    expect(ada).toHaveAttribute("tabindex", "0")
+    fireEvent.focus(ada)
+    fireEvent.click(ada)
+    expect(state()).toBe("friends|ada")
+    expect(ada).toHaveAttribute("aria-pressed", "true")
+  })
+
+  it("puts All friends and Only you on the map", async () => {
+    render(<Harness chips={false} />)
+    const all = screen.getByRole("button", { name: "All friends" })
+    expect(all).toHaveAttribute("aria-pressed", "false")
+    fireEvent.click(all)
+    expect(state()).toBe("friends|all")
+    expect(screen.getByRole("button", { name: "All friends" })).toHaveAttribute("aria-pressed", "true")
+    fireEvent.click(screen.getByRole("button", { name: "Only you" }))
+    expect(state()).toBe("private|")
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Only you" })).toBeNull())
+  })
+
+  it("keeps the counter on the map", () => {
+    const crowd = Array.from({ length: 14 }, (_, i) => friend(`c${i}`, `Crowd${i}`))
+    render(<Harness chips={false} friends={crowd} start={{ mode: "friends", ids: ["c1", "c2"] }} />)
+    expect(screen.getByLabelText("2 of 12 friends chosen")).toBeInTheDocument()
   })
 })
 

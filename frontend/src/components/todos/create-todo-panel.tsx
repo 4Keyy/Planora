@@ -6,7 +6,6 @@ import { motion } from "@/components/ui/motion"
 import {
   ArrowRight,
   Calendar,
-  Check,
   ChevronDown,
   ChevronRight,
   Folder,
@@ -18,15 +17,13 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Avatar } from "@/components/ui/avatar"
 import { Category } from "@/types/category"
 import type { CreateTodoPayload } from "@/types/todo"
-import type { FriendDto } from "@/types/auth"
 import { ICON_MAP } from "@/lib/icon-map"
-import { Popover, PopoverHeader } from "@/components/todos/edit-todo-modal/popover"
 import { PriorityPopover } from "@/components/todos/edit-todo-modal/popovers/priority"
 import { CategoryPopover } from "@/components/todos/edit-todo-modal/popovers/category"
 import { DatePopover } from "@/components/todos/edit-todo-modal/popovers/date"
+import { VisibilityPopover } from "@/components/todos/edit-todo-modal/popovers/visibility"
 import { formatDueRange, getPriorityLabel, getPriorityNumber } from "@/components/todos/edit-todo-modal/utils"
 import { useFriends } from "@/hooks/use-friends"
 import { isTextEntry } from "@/hooks/use-list-navigation"
@@ -42,6 +39,17 @@ interface CreateTodoPanelProps {
   onSubmit: (payload: CreateTodoPayload) => Promise<void>
   onCreateCategory: () => Promise<void>
   onDeleteCategory: (id: string) => Promise<void>
+  /**
+   * A deliberate request to start typing a task: the `C` key, or the palette's "Create task".
+   * Each new `nonce` focuses the title (and fills it with `title`, when one is given) once the
+   * panel is open. Opening the panel any other way still focuses nothing.
+   */
+  titleRequest?: TitleRequest | null
+}
+
+export interface TitleRequest {
+  nonce: number
+  title?: string
 }
 
 const TITLE_MAX_LENGTH = 200
@@ -63,12 +71,6 @@ function LimitCounter({ value, max }: { value: number; max: number }) {
       {value}/{max}
     </span>
   )
-}
-
-function friendName(f: FriendDto): string {
-  const full = [f.firstName, f.lastName].filter(Boolean).join(" ").trim()
-  if (full) return full
-  return f.email ? f.email.split("@")[0] : f.id
 }
 
 /**
@@ -209,149 +211,6 @@ function SelectorCard({
   )
 }
 
-/**
- * Covering every current friend selects "All friends" and clears direct shares.
- * Picking a friend while public deliberately switches to a direct share with just them.
- */
-function SharePopover({
-  open,
-  onClose,
-  containerRef,
-  friends,
-  isPublic,
-  onPublicChange,
-  selectedIds,
-  onChange,
-}: {
-  open: boolean
-  onClose: () => void
-  containerRef: RefObject<HTMLElement | null>
-  friends: FriendDto[]
-  isPublic: boolean
-  onPublicChange: (v: boolean) => void
-  selectedIds: string[]
-  onChange: (ids: string[]) => void
-}) {
-  const toggleFriend = (id: string) => {
-    if (isPublic) {
-      onPublicChange(false)
-      onChange([id])
-      return
-    }
-    const nextIds = selectedIds.includes(id)
-      ? selectedIds.filter(fid => fid !== id)
-      : [...selectedIds, id]
-    if (friends.length > 0 && friends.every(friend => nextIds.includes(friend.id))) {
-      onPublicChange(true)
-      onChange([])
-    } else {
-      onChange(nextIds)
-    }
-  }
-
-  const sub = isPublic
-    ? "all friends"
-    : selectedIds.length > 0
-      ? `${selectedIds.length} of ${friends.length}`
-      : "only you"
-
-  return (
-    <Popover open={open} onClose={onClose} width={320} align="center" containerRef={containerRef} portal>
-      <PopoverHeader
-        label="Share"
-        sub={<span className="text-caption font-semibold text-ink-muted">{sub}</span>}
-      />
-      <div className="p-1.5">
-        <button
-          type="button"
-          onClick={() => {
-            const nextPublic = !isPublic
-            onPublicChange(nextPublic)
-            if (nextPublic) onChange([])
-          }}
-          className={cn(
-            "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors duration-fast",
-            isPublic ? "bg-ink text-paper" : "hover:bg-paper-sunken"
-          )}
-        >
-          <span
-            className={cn(
-              "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md",
-              isPublic ? "bg-paper/10 text-paper" : "bg-gray-100 text-ink-subtle"
-            )}
-          >
-            <UsersRound className="h-4 w-4" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-caption font-bold tracking-tight">All friends</span>
-            <span className={cn("block text-caption font-semibold", isPublic ? "text-paper/55" : "text-ink-subtle")}>
-              Every friend you have right now
-            </span>
-          </span>
-          <span
-            className={cn(
-              "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-caption font-bold transition-colors",
-              isPublic ? "bg-paper text-ink" : "shadow-[inset_0_0_0_1.5px_var(--pl-line)] text-transparent"
-            )}
-          >
-            <Check className="h-3 w-3" strokeWidth={3} />
-          </span>
-        </button>
-
-        <div className="mx-1.5 my-1.5 h-px bg-gray-100" />
-
-        {friends.length === 0 ? (
-          <div className="px-3 py-5 text-center text-caption font-bold text-ink-muted">
-            No friends yet.
-          </div>
-        ) : (
-          <div data-cascade className="max-h-52 space-y-0.5 overflow-y-auto">
-            {friends.map(f => {
-              const selected = !isPublic && selectedIds.includes(f.id)
-              return (
-                <button
-                  key={f.id}
-                  type="button"
-                  role="checkbox"
-                  aria-checked={selected}
-                  aria-label={friendName(f)}
-                  onClick={() => toggleFriend(f.id)}
-                  className={cn(
-                    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors duration-fast",
-                    selected ? "bg-paper-sunken" : "hover:bg-paper-sunken"
-                  )}
-                >
-                  <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center overflow-hidden rounded-md">
-                    <Avatar
-                      src={f.profilePictureUrl}
-                      firstName={f.firstName}
-                      lastName={f.lastName}
-                      email={f.email}
-                      size={28}
-                      className="rounded-md"
-                    />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-caption font-bold text-ink">
-                    {friendName(f)}
-                  </span>
-                  <span
-                    className={cn(
-                      "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full transition-colors",
-                      selected ? "bg-ink text-paper" : "shadow-[inset_0_0_0_1.5px_var(--pl-line)] text-transparent"
-                    )}
-                  >
-                    <Check className="h-2.5 w-2.5" strokeWidth={3.5} />
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </Popover>
-  )
-}
-
 export function CreateTodoPanel({
   isOpen,
   onToggle,
@@ -359,6 +218,7 @@ export function CreateTodoPanel({
   onSubmit,
   onCreateCategory,
   onDeleteCategory,
+  titleRequest = null,
 }: CreateTodoPanelProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
@@ -387,6 +247,23 @@ export function CreateTodoPanel({
   const shareCardRef = useRef<HTMLDivElement>(null)
 
   const titleNearLimit = title.length >= TITLE_MAX_LENGTH * LIMIT_WARNING_RATIO
+
+  /*
+   * Who will see the new task, held the way the task editor holds it: the map's "private"
+   * clears everyone, and naming every current friend one by one becomes All friends (the
+   * server's `IsPublic`), as the old Share list did. A press from All friends is a direct share
+   * with whoever is left — the map refuses it while that would be more than twelve.
+   */
+  const changeShareMode = (mode: "private" | "friends") => {
+    if (mode !== "private") return
+    setIsPublic(false)
+    setSelectedFriendIds([])
+  }
+  const changeSharedIds = (ids: string[]) => {
+    const coversCurrentFriends = !isPublic && friends.length > 0 && friends.every(friend => ids.includes(friend.id))
+    setIsPublic(coversCurrentFriends)
+    setSelectedFriendIds(coversCurrentFriends ? [] : ids)
+  }
 
   const togglePopover = (key: Exclude<OpenPopover, null>) =>
     setOpenPopover(prev => (prev === key ? null : key))
@@ -424,6 +301,35 @@ export function CreateTodoPanel({
     openerRef.current = null
     setOpenPopover(null)
   }, [isOpen])
+
+  /*
+   * The one exception to "opening focuses nothing": the user asked to type. Pressing `C` is
+   * the request itself, so the title takes focus (and the caret lands at the end of any text
+   * the palette passed in). Waits two frames so the body is no longer `inert` and its grid row
+   * has started growing; `preventScroll` for the same clipped-container reason as below.
+   */
+  const handledTitleRequest = useRef<number | null>(null)
+  useEffect(() => {
+    if (!isOpen || !titleRequest || handledTitleRequest.current === titleRequest.nonce) return
+    const { nonce, title: text } = titleRequest
+    if (text) setTitle(text.slice(0, TITLE_MAX_LENGTH))
+    setOpenPopover(null)
+    let second = 0
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => {
+        const field = titleRef.current
+        if (!field) return
+        handledTitleRequest.current = nonce
+        field.focus({ preventScroll: true })
+        const end = field.value.length
+        field.setSelectionRange(end, end)
+      })
+    })
+    return () => {
+      cancelAnimationFrame(first)
+      cancelAnimationFrame(second)
+    }
+  }, [isOpen, titleRequest])
 
   /*
    * Closing with focus inside the form (Escape in the title, Cancel) hands focus back to the
@@ -842,15 +748,19 @@ export function CreateTodoPanel({
                     open={openPopover === "share"}
                     onToggle={() => togglePopover("share")}
                   >
-                    <SharePopover
+                    <VisibilityPopover
                       open={openPopover === "share"}
                       onClose={() => setOpenPopover(null)}
                       containerRef={shareCardRef as RefObject<HTMLElement | null>}
                       friends={friends}
-                      isPublic={isPublic}
-                      onPublicChange={setIsPublic}
-                      selectedIds={selectedFriendIds}
-                      onChange={setSelectedFriendIds}
+                      mode={isPublic || selectedFriendIds.length > 0 ? "friends" : "private"}
+                      onModeChange={changeShareMode}
+                      sharedIds={selectedFriendIds}
+                      onSharedIdsChange={changeSharedIds}
+                      allFriends={isPublic}
+                      align="center"
+                      portal
+                      chips={false}
                     />
                   </SelectorCard>
                 </motion.div>

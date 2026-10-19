@@ -1,21 +1,29 @@
 import { describe, expect, it } from "vitest"
 import {
+  COMFORT_ZOOM,
   FIRST_ORBIT,
+  MAX_SHARED_FRIENDS,
   MAX_ZOOM,
   MIN_ZOOM,
+  ORBIT_GAP,
   RING_SIZE,
   SEAT_SIZE,
+  assignSeats,
   audienceSentence,
   clampPan,
   clampZoom,
   firstName,
+  firstOrbitRadius,
   fitZoom,
   mapRadius,
+  nearestAngle,
   openingZoom,
-  orbitRadius,
+  orbitLayout,
+  orbitSlots,
   personName,
   rankByAffinity,
-  seatPositions,
+  seedOf,
+  toggleAudience,
   zoomAround,
   type FriendAffinity,
 } from "@/lib/audience-map"
@@ -46,36 +54,125 @@ describe("who sits closest", () => {
   })
 })
 
-describe("the spiral", () => {
-  it("places seats farther from the centre the further down the ranking they are", () => {
-    const seats = seatPositions(60)
-    const distances = seats.map((s) => Math.hypot(s.x, s.y))
-    for (let i = 1; i < distances.length; i++) expect(distances[i]).toBeGreaterThan(distances[i - 1])
-    expect(distances[0]).toBeCloseTo(FIRST_ORBIT)
-    expect(distances[59]).toBeCloseTo(orbitRadius(59))
-  })
-
-  it("keeps the first seat clear of the ring, and every seat clear of every other", () => {
-    expect(FIRST_ORBIT - SEAT_SIZE / 2).toBeGreaterThan(RING_SIZE / 2 + 24)
-    const seats = seatPositions(150)
-    let closest = Infinity
-    for (let i = 0; i < seats.length; i++) {
-      for (let j = i + 1; j < seats.length; j++) {
-        closest = Math.min(closest, Math.hypot(seats[i].x - seats[j].x, seats[i].y - seats[j].y))
-      }
+describe("the circles", () => {
+  it("puts at most twelve on the first circle and fills the rest outward, one gap apart", () => {
+    expect(orbitLayout(0)).toEqual([])
+    expect(orbitLayout(-3)).toEqual([])
+    expect(orbitLayout(5)).toEqual([{ radius: FIRST_ORBIT, count: 5 }])
+    const orbits = orbitLayout(80)
+    expect(orbits[0].count).toBe(MAX_SHARED_FRIENDS)
+    expect(orbits.reduce((sum, o) => sum + o.count, 0)).toBe(80)
+    for (let i = 1; i < orbits.length; i++) {
+      expect(orbits[i].radius - orbits[i - 1].radius).toBeCloseTo(ORBIT_GAP)
+      // Wider circles hold more, except the last, which holds whoever is left.
+      if (i < orbits.length - 1) expect(orbits[i].count).toBeGreaterThanOrEqual(orbits[i - 1].count)
     }
-    // A seat and the name under it.
-    expect(closest).toBeGreaterThan(SEAT_SIZE + 20)
   })
 
-  it("starts up and to the left, and handles nobody", () => {
-    const [first] = seatPositions(1)
-    expect(first.x).toBeLessThan(0)
-    expect(first.y).toBeLessThan(0)
-    expect(seatPositions(0)).toEqual([])
-    expect(seatPositions(-3)).toEqual([])
+  it("keeps the first circle clear of the ring, and every seat clear of every other", () => {
+    expect(FIRST_ORBIT - SEAT_SIZE / 2).toBeGreaterThan(RING_SIZE / 2 + 24)
+    for (const total of [3, 12, 13, 40, 150]) {
+      const seats = orbitSlots(total)
+      expect(seats).toHaveLength(total)
+      let closest = Infinity
+      for (let i = 0; i < seats.length; i++) {
+        for (let j = i + 1; j < seats.length; j++) {
+          closest = Math.min(closest, Math.hypot(seats[i].x - seats[j].x, seats[i].y - seats[j].y))
+        }
+      }
+      // A seat and a short first name beside it.
+      expect(closest).toBeGreaterThan(SEAT_SIZE + 20)
+    }
+  })
+
+  it("sets every seat exactly on its circle, evenly round it, the first up and to the left", () => {
+    const slots = orbitSlots(30)
+    for (const slot of slots) expect(Math.hypot(slot.x, slot.y)).toBeCloseTo(slot.radius)
+    const first = slots.filter((s) => s.orbit === 0)
+    const step = first[1].angle - first[0].angle
+    for (let i = 1; i < first.length; i++) expect(first[i].angle - first[i - 1].angle).toBeCloseTo(step)
+    expect(first[0].x).toBeLessThan(0)
+    expect(first[0].y).toBeLessThan(0)
+  })
+
+  it("reaches as far as the outermost circle and its names", () => {
     expect(mapRadius(0)).toBe(RING_SIZE / 2)
-    expect(mapRadius(5)).toBeGreaterThan(orbitRadius(4))
+    const orbits = orbitLayout(40)
+    expect(mapRadius(40)).toBe(orbits[orbits.length - 1].radius + SEAT_SIZE / 2 + 22)
+    expect(firstOrbitRadius(40)).toBe(orbits[0].radius + SEAT_SIZE / 2 + 22)
+    expect(firstOrbitRadius(0)).toBe(RING_SIZE / 2)
+  })
+})
+
+describe("who sits where", () => {
+  const people = Array.from({ length: 20 }, (_, i) => ({ id: `p${i}` }))
+  const seated = (chosen: string[]) => assignSeats(people, new Set(chosen))
+  const orbitOf = (seats: Map<string, number>, id: string) => orbitSlots(people.length)[seats.get(id) ?? -1].orbit
+
+  it("seats the closest friends on the first circle when nobody is chosen, in ranking order", () => {
+    const seats = seated([])
+    people.forEach((p, i) => expect(seats.get(p.id)).toBe(i))
+  })
+
+  it("brings a friend chosen from far out to the first circle, moving the fewest people", () => {
+    const before = seated([])
+    const after = seated(["p17"])
+    expect(orbitOf(before, "p17")).toBe(1)
+    expect(orbitOf(after, "p17")).toBe(0)
+    // The least close friend not chosen steps out; the eleven closest keep their seats.
+    expect(orbitOf(after, "p11")).toBe(1)
+    for (let i = 0; i < 11; i++) expect(after.get(`p${i}`)).toBe(before.get(`p${i}`))
+    // Everyone gets exactly one seat.
+    expect(new Set(after.values()).size).toBe(people.length)
+  })
+
+  it("keeps everyone chosen on the first circle, and the overflow of an older list next", () => {
+    const chosen = Array.from({ length: 14 }, (_, i) => `p${19 - i}`)
+    const seats = seated(chosen)
+    const firstCircle = people.filter((p) => orbitOf(seats, p.id) === 0).map((p) => p.id)
+    expect(firstCircle).toHaveLength(MAX_SHARED_FRIENDS)
+    for (const id of firstCircle) expect(chosen).toContain(id)
+  })
+
+  it("turns the short way round", () => {
+    const tau = Math.PI * 2
+    expect(nearestAngle(0.1, tau - 0.1)).toBeCloseTo(-0.1)
+    expect(nearestAngle(3 * tau + 0.2, 0.3)).toBeCloseTo(3 * tau + 0.3)
+    expect(nearestAngle(1, 1)).toBe(1)
+  })
+
+  it("gives every id its own stable phase", () => {
+    expect(seedOf("ada")).toBe(seedOf("ada"))
+    expect(seedOf("ada")).not.toBe(seedOf("tom"))
+    for (const id of ["", "a", "a-very-long-friend-id-0123456789"]) {
+      expect(seedOf(id)).toBeGreaterThanOrEqual(0)
+      expect(seedOf(id)).toBeLessThan(1)
+    }
+  })
+})
+
+describe("the limit", () => {
+  const ids = (n: number) => Array.from({ length: n }, (_, i) => `f${i}`)
+
+  it("lets people in and out up to twelve", () => {
+    expect(toggleAudience([], "a", false)).toEqual({ ok: true, ids: ["a"] })
+    expect(toggleAudience(["a", "b"], "a", false)).toEqual({ ok: true, ids: ["b"] })
+    expect(toggleAudience(ids(11), "x", false)).toEqual({ ok: true, ids: [...ids(11), "x"] })
+  })
+
+  it("refuses a thirteenth by name", () => {
+    expect(toggleAudience(ids(MAX_SHARED_FRIENDS), "x", false)).toEqual({ ok: false })
+  })
+
+  it("lets people out of an older, longer list", () => {
+    const result = toggleAudience(ids(15), "f0", false)
+    expect(result.ok && result.ids).toHaveLength(14)
+  })
+
+  it("refuses letting one out of All friends when more than twelve would stay chosen by name", () => {
+    expect(toggleAudience(ids(20), "f0", true)).toEqual({ ok: false })
+    const result = toggleAudience(ids(13), "f0", true)
+    expect(result.ok && result.ids).toHaveLength(12)
   })
 })
 
@@ -87,10 +184,12 @@ describe("zoom", () => {
     expect(fitZoom(0, 300, 100)).toBe(1)
   })
 
-  it("opens close enough to read names, but never past the fit or above 1", () => {
-    expect(openingZoom(0.4)).toBe(0.82)
-    expect(openingZoom(0.95)).toBe(0.95)
-    expect(openingZoom(1)).toBe(1)
+  it("opens on the whole first circle, everyone if they fit, never above 1 or below legible", () => {
+    expect(openingZoom(0.4, 0.75)).toBe(0.75)
+    expect(openingZoom(0.95, 0.95)).toBe(0.95)
+    expect(openingZoom(1.4, 1.4)).toBe(1)
+    expect(openingZoom(0.2, 0.3)).toBe(COMFORT_ZOOM)
+    expect(openingZoom(0.9)).toBe(0.9)
   })
 
   it("clamps any zoom into range", () => {

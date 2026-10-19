@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { AnimatePresence, useReducedMotion } from "framer-motion"
+import { AnimatePresence, useMotionValue, useReducedMotion, useTransform, type MotionValue } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import { Check, Minus, Plus } from "lucide-react"
 import { RedactionBadge } from "@/components/ui/redaction-badge"
 import { Avatar } from "@/components/ui/avatar"
+import { AudienceLink, useClock, useDrift, useOnScreen } from "@/components/ui/audience-motion"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
 import { deriveAudience } from "@/lib/landing-audience"
 import {
@@ -23,6 +24,7 @@ import {
   SPRING_GENTLE,
   TAP_PRESS,
 } from "@/lib/animations"
+import { seedOf } from "@/lib/audience-map"
 import { cn } from "@/lib/utils"
 import { AudienceRing } from "./audience-ring"
 
@@ -37,8 +39,9 @@ import { AudienceRing } from "./audience-ring"
  * Everything that moves is the product's own vocabulary: the ring is `AudienceRing`, drawn
  * by the same `redactionArc` the 14px badge on every task uses, and the badge in the task
  * row is the shipped `RedactionBadge` itself. A person joining arrives the way presence
- * arrives in the app (`SPRING_GENTLE`), and the line to them is drawn — the one motion that
- * says "you did this".
+ * arrives in the app (`SPRING_GENTLE`), and the thread to them is drawn out of the ring
+ * (`AudienceLink`) — the motion that says "you did this". The empty seats drift, as they do on
+ * the audience map in the app (`useDrift`).
  *
  * Decisions that are not stylistic:
  *
@@ -56,8 +59,9 @@ import { AudienceRing } from "./audience-ring"
  * - **The stage is `aria-hidden`.** It restates the sentence as a picture; a screen reader
  *   gets the sentence once and the toggles with their pressed state.
  * - **The hint is bounded.** If nobody has pressed anything after a moment, the first
- *   seat's plus sends out two rings and stops for good. Nothing on this card moves at rest
- *   after that.
+ *   seat's plus sends out two rings and stops for good. What moves at rest after that is the
+ *   app's own life — the empty seats' drift, light along a thread — and none of it under
+ *   reduced motion.
  */
 
 /** Seat centres on the stage, in percent of its width and height. */
@@ -198,13 +202,17 @@ export function AudienceConsole() {
  * The picture of the sentence: you in the ring, three seats around it, a line to each
  * person you let in.
  *
- * Lines are laid out in pixels from the stage's measured width, so they meet the ring's
- * edge and the seat's edge exactly at every viewport. Before the first measurement there
- * are no lines, which is also the correct picture of a private task.
+ * The motion is the app's own (`components/ui/audience-motion`), so the hero promises exactly
+ * what the audience map in a task does: a seat nobody has chosen drifts on its own slow loop, and
+ * letting someone in settles them, draws a thread out of the ring to them — bowed, weighted,
+ * swinging once as it lands — and sends light along it now and then.
  *
- * A seat's CIRCLE is what sits on its coordinates. The name used to share a centred
- * column with it, which put the circle 10px above the point every line was aimed at; the
- * name now hangs below the circle, outside the box that is centred.
+ * Lines are laid out in pixels from the stage's measured width, so they meet the ring's edge and
+ * the seat's edge exactly at every viewport. Before the first measurement there are no lines,
+ * which is also the correct picture of a private task.
+ *
+ * A seat's CIRCLE is what sits on its coordinates. The name hangs below the circle, outside the
+ * box that is centred, so every line aims at the circle itself.
  */
 function Stage({
   selected,
@@ -223,21 +231,25 @@ function Stage({
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
+  const onScreen = useOnScreen(ref)
+  const clock = useClock(onScreen && !reduce)
+  const cx = useMotionValue(0)
+  const cy = useMotionValue((RING.y / 100) * STAGE_HEIGHT)
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
     const measure = () => setWidth(el.getBoundingClientRect().width)
     measure()
+    if (typeof ResizeObserver === "undefined") return
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
-  const cx = (RING.x / 100) * width
-  const cy = (RING.y / 100) * STAGE_HEIGHT
-  const ringR = RING.size / 2 + 4
-  const seatR = 24 + 4
+  useEffect(() => {
+    cx.set((RING.x / 100) * width)
+  }, [cx, width])
 
   const audience = deriveAudience(selected.length)
 
@@ -251,45 +263,8 @@ function Stage({
       )}
       style={{ height: STAGE_HEIGHT }}
     >
-      {width > 0 && (
-        <svg
-          className="absolute inset-0"
-          width={width}
-          height={STAGE_HEIGHT}
-          viewBox={`0 0 ${width} ${STAGE_HEIGHT}`}
-          fill="none"
-        >
-          {CIRCLE_SEATS.map((seat) => {
-            const sx = (SEAT_POS[seat.id].x / 100) * width
-            const sy = (SEAT_POS[seat.id].y / 100) * STAGE_HEIGHT
-            const dx = sx - cx
-            const dy = sy - cy
-            const len = Math.hypot(dx, dy) || 1
-            const x1 = cx + (dx / len) * ringR
-            const y1 = cy + (dy / len) * ringR
-            const x2 = sx - (dx / len) * seatR
-            const y2 = sy - (dy / len) * seatR
-            const on = selected.includes(seat.id)
-            return (
-              <motion.line
-                key={seat.id}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                strokeWidth={1.5}
-                className="stroke-ink"
-                initial={false}
-                animate={{ pathLength: on ? 1 : 0, opacity: on ? 1 : 0 }}
-                transition={{ duration: reduce ? 0 : DURATION_UI, ease: EASE_OUT_EXPO }}
-              />
-            )
-          })}
-        </svg>
-      )}
-
       <div
-        className="absolute -translate-x-1/2 -translate-y-1/2"
+        className="absolute z-[1] -translate-x-1/2 -translate-y-1/2"
         style={{ left: `${RING.x}%`, top: `${RING.y}%` }}
       >
         <AudienceRing audience={audience} viewerCount={selected.length} size={RING.size} stroke={5} drawIn>
@@ -300,90 +275,167 @@ function Stage({
         </AudienceRing>
       </div>
 
-      {CIRCLE_SEATS.map((seat, i) => {
-        const on = selected.includes(seat.id)
-        const isSurprise = seat.id === SURPRISE_FOR
-        const hinting = hint && i === 0 && !on
-        return (
-          // Positioned by this wrapper, pressed on the button inside it: framer-motion
-          // writes the whole `transform`, so a scale on the positioned node would wipe
-          // out its -50% centring on the first frame of a hover.
-          <div
-            key={seat.id}
-            className="absolute -translate-x-1/2 -translate-y-1/2"
-            style={{ left: `${SEAT_POS[seat.id].x}%`, top: `${SEAT_POS[seat.id].y}%` }}
-          >
-            <motion.button
-              type="button"
-              tabIndex={-1}
-              // Named although the picture is aria-hidden: a pointer target with no name is
-              // still a control nobody can describe, and the scan counts it as one.
-              aria-label={on ? `Remove ${seat.firstName}` : `Add ${seat.firstName}`}
-              onClick={() => onToggle(seat.id)}
-              whileHover={reduce ? undefined : { scale: 1.06 }}
-              whileTap={reduce ? undefined : TAP_PRESS}
-              className={cn(
-                "group relative grid h-12 w-12 cursor-pointer place-items-center rounded-full",
-                // The name below the circle is part of the target: people aim at the word.
-                "after:absolute after:-inset-x-4 after:-bottom-7 after:-top-2 after:content-['']"
-              )}
-            >
-              {hinting && (
-                <motion.span
-                  className="pointer-events-none absolute inset-0 rounded-full border-2 border-ink"
-                  initial={{ scale: 1, opacity: 0.5 }}
-                  animate={{ scale: 1.6, opacity: 0 }}
-                  transition={{ duration: 0.9, ease: EASE_OUT_EXPO, repeat: 1, repeatDelay: 0.2 }}
-                  onAnimationComplete={onHintDone}
-                />
-              )}
-              <span
-                className={cn(
-                  "absolute inset-0 grid place-items-center rounded-full border-2 border-dashed bg-paper-sunken",
-                  "transition-colors duration-fast group-hover:border-solid group-hover:border-ink group-hover:bg-paper",
-                  hinting ? "border-ink" : "border-line-strong"
-                )}
-              >
-                <Plus
-                  className={cn(
-                    "h-4 w-4 transition-colors duration-fast group-hover:text-ink",
-                    hinting ? "text-ink" : "text-ink-subtle"
-                  )}
-                />
-              </span>
-              <AnimatePresence initial={false}>
-                {on && (
-                  <motion.span
-                    key={isSurprise ? `seat-${wobble}` : "seat"}
-                    className="absolute inset-0"
-                    initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
-                    animate={
-                      isSurprise && !reduce
-                        ? { opacity: 1, scale: 1, rotate: [0, -8, 8, 0] }
-                        : { opacity: 1, scale: 1 }
-                    }
-                    exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
-                    transition={
-                      isSurprise && !reduce
-                        ? { ...SPRING_GENTLE, rotate: { duration: 0.32, ease: "easeOut", delay: 0.12 } }
-                        : SPRING_GENTLE
-                    }
-                  >
-                    <Avatar firstName={seat.firstName} lastName={seat.lastName} size={48} />
-                    {/* Pressing a person again lets them out: the minus says so before the press. */}
-                    <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-paper-sunken bg-ink text-paper opacity-0 transition-opacity duration-fast group-hover:opacity-100">
-                      <Minus className="h-3 w-3" strokeWidth={3} />
-                    </span>
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.button>
-            <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-caption font-semibold text-ink-muted">
-              {seat.firstName}
-            </span>
-          </div>
-        )
-      })}
+      {CIRCLE_SEATS.map((seat, i) => (
+        <Seat
+          key={seat.id}
+          seat={seat}
+          width={width}
+          on={selected.includes(seat.id)}
+          surprise={seat.id === SURPRISE_FOR}
+          hinting={hint && i === 0 && !selected.includes(seat.id)}
+          wobble={wobble}
+          reduce={reduce}
+          clock={clock}
+          cx={cx}
+          cy={cy}
+          onToggle={onToggle}
+          onHintDone={onHintDone}
+        />
+      ))}
     </div>
+  )
+}
+
+const SEAT_PX = 48
+const RING_EDGE = RING.size / 2 + 4
+const SEAT_EDGE = SEAT_PX / 2 + 4
+
+/**
+ * One seat and the thread to it. The seat sits on its percentage of the stage and drifts around
+ * it while it is empty; the thread is drawn from the same motion values, so it ends on the circle
+ * wherever the drift has carried it, and the drift settles as the person is let in.
+ *
+ * Positioned by the wrapper (a margin centres it, so framer-motion's transform carries only the
+ * drift) and pressed on the button inside it: a scale on the positioned node would fight its
+ * placement.
+ */
+function Seat({
+  seat,
+  width,
+  on,
+  surprise,
+  hinting,
+  wobble,
+  reduce,
+  clock,
+  cx,
+  cy,
+  onToggle,
+  onHintDone,
+}: {
+  seat: (typeof CIRCLE_SEATS)[number]
+  width: number
+  on: boolean
+  surprise: boolean
+  hinting: boolean
+  wobble: number
+  reduce: boolean
+  clock: MotionValue<number>
+  cx: MotionValue<number>
+  cy: MotionValue<number>
+  onToggle: (id: SeatId) => void
+  onHintDone: () => void
+}) {
+  const seed = seedOf(seat.id)
+  const drift = useDrift(clock, seed, !on && !reduce)
+  const baseX = useMotionValue(0)
+  const baseY = useMotionValue((SEAT_POS[seat.id].y / 100) * STAGE_HEIGHT)
+  useEffect(() => {
+    baseX.set((SEAT_POS[seat.id].x / 100) * width)
+  }, [baseX, seat.id, width])
+  const sx = useTransform([baseX, drift.x], ([b, d]: number[]) => b + d)
+  const sy = useTransform([baseY, drift.y], ([b, d]: number[]) => b + d)
+
+  return (
+    <>
+      {width > 0 && (
+        <svg className="pointer-events-none absolute inset-0 overflow-visible" width={width} height={STAGE_HEIGHT} fill="none">
+          <AudienceLink cx={cx} cy={cy} sx={sx} sy={sy} fromEdge={RING_EDGE} toEdge={SEAT_EDGE} on={on} reduce={reduce} seed={seed} />
+        </svg>
+      )}
+      <motion.div
+        className="absolute z-[2]"
+        style={{
+          left: `${SEAT_POS[seat.id].x}%`,
+          top: `${SEAT_POS[seat.id].y}%`,
+          marginLeft: -SEAT_PX / 2,
+          marginTop: -SEAT_PX / 2,
+          x: drift.x,
+          y: drift.y,
+        }}
+      >
+        <motion.button
+          type="button"
+          tabIndex={-1}
+          // Named although the picture is aria-hidden: a pointer target with no name is
+          // still a control nobody can describe, and the scan counts it as one.
+          aria-label={on ? `Remove ${seat.firstName}` : `Add ${seat.firstName}`}
+          onClick={() => onToggle(seat.id)}
+          whileHover={reduce ? undefined : { scale: 1.06 }}
+          whileTap={reduce ? undefined : TAP_PRESS}
+          className={cn(
+            "group relative grid h-12 w-12 cursor-pointer place-items-center rounded-full",
+            // The name below the circle is part of the target: people aim at the word.
+            "after:absolute after:-inset-x-4 after:-bottom-7 after:-top-2 after:content-['']"
+          )}
+        >
+          {hinting && (
+            <motion.span
+              className="pointer-events-none absolute inset-0 rounded-full border-2 border-ink"
+              initial={{ scale: 1, opacity: 0.5 }}
+              animate={{ scale: 1.6, opacity: 0 }}
+              transition={{ duration: 0.9, ease: EASE_OUT_EXPO, repeat: 1, repeatDelay: 0.2 }}
+              onAnimationComplete={onHintDone}
+            />
+          )}
+          {/* The outline breathes and turns slowly while the seat is empty. */}
+          <motion.span
+            style={{ scale: drift.scale, rotate: drift.rotate }}
+            className={cn(
+              "absolute inset-0 rounded-full border-2 border-dashed bg-paper-sunken",
+              "transition-colors duration-fast group-hover:border-solid group-hover:border-ink group-hover:bg-paper",
+              hinting ? "border-ink" : "border-line-strong"
+            )}
+          />
+          <span className="relative grid place-items-center">
+            <Plus
+              className={cn(
+                "h-4 w-4 transition-colors duration-fast group-hover:text-ink",
+                hinting ? "text-ink" : "text-ink-subtle"
+              )}
+            />
+          </span>
+          <AnimatePresence initial={false}>
+            {on && (
+              <motion.span
+                key={surprise ? `seat-${wobble}` : "seat"}
+                className="absolute inset-0"
+                initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
+                animate={
+                  surprise && !reduce
+                    ? { opacity: 1, scale: 1, rotate: [0, -8, 8, 0] }
+                    : { opacity: 1, scale: 1 }
+                }
+                exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
+                transition={
+                  surprise && !reduce
+                    ? { ...SPRING_GENTLE, rotate: { duration: 0.32, ease: "easeOut", delay: 0.12 } }
+                    : SPRING_GENTLE
+                }
+              >
+                <Avatar firstName={seat.firstName} lastName={seat.lastName} size={SEAT_PX} />
+                {/* Pressing a person again lets them out: the minus says so before the press. */}
+                <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-paper-sunken bg-ink text-paper opacity-0 transition-opacity duration-fast group-hover:opacity-100">
+                  <Minus className="h-3 w-3" strokeWidth={3} />
+                </span>
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
+        <span className="pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-caption font-semibold text-ink-muted">
+          {seat.firstName}
+        </span>
+      </motion.div>
+    </>
   )
 }

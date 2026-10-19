@@ -26,17 +26,101 @@ export interface MapPerson {
 export const RING_SIZE = 104
 export const SEAT_SIZE = 44
 export const LABEL_ROOM = 22
-/** How far the first, closest seat sits from the centre. */
-export const FIRST_ORBIT = RING_SIZE / 2 + SEAT_SIZE / 2 + 30
-/**
- * The room each seat is given on the spiral. Every seat gets the same area, so the spiral is as
- * dense at its edge as at its heart, and no two seats come closer than a seat and its name.
- */
-export const SEAT_SPACING = 84
 
-const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
+/**
+ * The most friends one task can be shared with person by person — the server's
+ * `TodoItem.MaxSharedUsers`. "All friends" is not counted against it.
+ */
+export const MAX_SHARED_FRIENDS = 12
+
+/** The innermost circle never comes closer to the ring than a seat and a clear gap. */
+export const FIRST_ORBIT = RING_SIZE / 2 + SEAT_SIZE / 2 + 30
+/** Arc between two neighbouring seats on a circle: a seat and a first name side by side. */
+export const SEAT_PITCH = 72
+/** Between two circles: a seat, the name under it, and air. */
+export const ORBIT_GAP = 80
+
 /** The closest seat sits up and to the left, where the landing's first seat sits. */
-const START_ANGLE = -0.8 * Math.PI
+const START_ANGLE = (-5 / 6) * Math.PI
+const TAU = Math.PI * 2
+
+export interface Orbit {
+  /** px from the centre. */
+  radius: number
+  /** Seats on this circle. */
+  count: number
+}
+
+/**
+ * The circles for `total` people. The first holds the people chosen and, around them, the
+ * closest of the rest — never more than `MAX_SHARED_FRIENDS`, so everyone chosen always fits
+ * on it. Every circle further out is one `ORBIT_GAP` wider and holds as many seats as its
+ * length gives room for, so the structure depends on how many friends there are and nothing
+ * else: choosing someone only changes who sits where.
+ */
+export function orbitLayout(total: number): Orbit[] {
+  let left = Math.max(0, Math.floor(total))
+  if (left === 0) return []
+  const firstCount = Math.min(MAX_SHARED_FRIENDS, left)
+  const orbits: Orbit[] = [{ radius: Math.max(FIRST_ORBIT, (firstCount * SEAT_PITCH) / TAU), count: firstCount }]
+  left -= firstCount
+  while (left > 0) {
+    const radius = orbits[orbits.length - 1].radius + ORBIT_GAP
+    const count = Math.min(left, Math.max(1, Math.floor((TAU * radius) / SEAT_PITCH)))
+    orbits.push({ radius, count })
+    left -= count
+  }
+  return orbits
+}
+
+export interface Slot {
+  /** Which circle, 0 being the first. */
+  orbit: number
+  radius: number
+  /** Radians, clockwise from the right, as screen coordinates have it. */
+  angle: number
+  x: number
+  y: number
+}
+
+/**
+ * Every seat's place, circle by circle, evenly around each one. Every other circle is turned
+ * half a step, so the seats of neighbouring circles sit between each other, not behind.
+ */
+export function orbitSlots(total: number): Slot[] {
+  const slots: Slot[] = []
+  orbitLayout(total).forEach(({ radius, count }, orbit) => {
+    const step = TAU / count
+    const turn = orbit % 2 === 1 ? step / 2 : 0
+    for (let i = 0; i < count; i++) {
+      const angle = START_ANGLE + turn + i * step
+      slots.push({ orbit, radius, angle, x: radius * Math.cos(angle), y: radius * Math.sin(angle) })
+    }
+  })
+  return slots
+}
+
+/**
+ * Who sits on which seat, as indexes into `orbitSlots(ranked.length)`.
+ *
+ * The people chosen go to the first circle, then the closest of the rest fill it, and the rest
+ * fill the circles outward. Within a circle the order is the ranking, so choosing somebody from
+ * far out moves the fewest people: they take the first circle's last place by rank, the least
+ * close friend not chosen there steps out to the next circle, and everyone between shifts by
+ * one seat — the room opening for them.
+ */
+export function assignSeats(ranked: readonly { id: string }[], chosen: ReadonlySet<string>): Map<string, number> {
+  const rank = new Map(ranked.map((p, i) => [p.id, i]))
+  const queue = [...ranked.filter((p) => chosen.has(p.id)), ...ranked.filter((p) => !chosen.has(p.id))]
+  const seats = new Map<string, number>()
+  let index = 0
+  for (const { count } of orbitLayout(ranked.length)) {
+    const circle = queue.slice(index, index + count).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0))
+    circle.forEach((p, i) => seats.set(p.id, index + i))
+    index += count
+  }
+  return seats
+}
 
 export function personName(person: MapPerson): string {
   const full = [person.firstName, person.lastName].filter(Boolean).join(" ").trim()
@@ -66,28 +150,29 @@ export function rankByAffinity<T extends MapPerson>(people: readonly T[], affini
   )
 }
 
-/** The distance of the seat at `rank` from the centre: it only ever grows with the rank. */
-export function orbitRadius(rank: number): number {
-  return Math.sqrt(FIRST_ORBIT ** 2 + (rank * SEAT_SPACING ** 2) / Math.PI)
+/** How far the drawing reaches from the centre: the outermost circle with its names, or the ring. */
+export function mapRadius(count: number): number {
+  const orbits = orbitLayout(count)
+  if (orbits.length === 0) return RING_SIZE / 2
+  return orbits[orbits.length - 1].radius + SEAT_SIZE / 2 + LABEL_ROOM
 }
 
 /**
- * Seat centres for `count` people, closest first, in px from the centre of the ring: a sunflower
- * spiral, each seat a golden angle on from the last. Distance grows with the rank and nothing
- * else, so the order of the list is the order of the distances.
+ * The shortest way round from `from` to `to`: `to`, plus or minus whole turns. A seat moving to
+ * a new place glides along the circle the short way, never the long way round through the ring.
  */
-export function seatPositions(count: number): { x: number; y: number }[] {
-  return Array.from({ length: Math.max(0, count) }, (_, rank) => {
-    const r = orbitRadius(rank)
-    const angle = START_ANGLE + rank * GOLDEN_ANGLE
-    return { x: r * Math.cos(angle), y: r * Math.sin(angle) }
-  })
+export function nearestAngle(from: number, to: number): number {
+  return to + TAU * Math.round((from - to) / TAU)
 }
 
-/** How far the drawing reaches from the centre: the farthest seat with its name, or the ring. */
-export function mapRadius(count: number): number {
-  if (count <= 0) return RING_SIZE / 2
-  return orbitRadius(count - 1) + SEAT_SIZE / 2 + LABEL_ROOM
+/** A stable number in [0, 1) for an id: each seat's own phase, the same on every render. */
+export function seedOf(id: string): number {
+  let h = 2166136261
+  for (let i = 0; i < id.length; i++) {
+    h ^= id.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return (h >>> 0) / 4294967296
 }
 
 export const MIN_ZOOM = 0.3
@@ -99,14 +184,21 @@ export function clampZoom(scale: number, min = MIN_ZOOM): number {
 }
 
 /**
- * The zoom a map opens at: close enough that names can be read and the nearest friends are in
- * view, never further out than needed to show everyone, never blown up past 1. The rest of a long
- * list is a wheel or "show everyone" away.
+ * The zoom a map opens at: everyone, if they fit; otherwise the whole first circle — the people
+ * chosen and the closest of the rest, with their names — and never blown up past 1 or shrunk
+ * below the point where names stop being words. The outer circles are a wheel or "show
+ * everyone" away.
  */
-export const COMFORT_ZOOM = 0.82
+export const COMFORT_ZOOM = 0.6
 
-export function openingZoom(fit: number): number {
-  return Math.min(1, Math.max(fit, COMFORT_ZOOM))
+export function openingZoom(fit: number, firstFit = fit): number {
+  return Math.min(1, Math.max(fit, firstFit, COMFORT_ZOOM))
+}
+
+/** How far the first circle reaches, with its names: what the opening view must show. */
+export function firstOrbitRadius(count: number): number {
+  const [first] = orbitLayout(count)
+  return first ? first.radius + SEAT_SIZE / 2 + LABEL_ROOM : RING_SIZE / 2
 }
 
 /**
@@ -147,6 +239,22 @@ export function clampPan(view: { x: number; y: number; scale: number }, radius: 
     x: Math.min(limitX, Math.max(-limitX, view.x)),
     y: Math.min(limitY, Math.max(-limitY, view.y)),
   }
+}
+
+export type AudienceToggle = { ok: true; ids: string[] } | { ok: false }
+
+/**
+ * Pressing a person: in if they were out, out if they were in — unless that would leave more
+ * than `MAX_SHARED_FRIENDS` people chosen by name. Adding a thirteenth is refused, and so is
+ * letting one person out of All friends when everyone left would still be more than twelve:
+ * that would turn "all friends" into a list the server will not take. Letting people out of an
+ * older, longer list is always allowed — it only moves it towards the limit.
+ */
+export function toggleAudience(inIds: readonly string[], id: string, allFriends: boolean): AudienceToggle {
+  const ids = inIds.includes(id) ? inIds.filter((x) => x !== id) : [...inIds, id]
+  const grows = ids.length > inIds.length
+  if (ids.length > MAX_SHARED_FRIENDS && (grows || allFriends)) return { ok: false }
+  return { ok: true, ids }
 }
 
 /** "You", "You and Ada", "You, Ada and Tom", "You, Ada, Tom and 3 others" — the landing's words. */

@@ -11,6 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react"
 import {
+  animate,
   AnimatePresence,
   useMotionTemplate,
   useMotionValue,
@@ -19,9 +20,10 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion"
-import { Check, Minus, Plus, Scan, UsersRound } from "lucide-react"
+import { Check, Lock, Minus, Plus, Scan, UsersRound } from "lucide-react"
 import { motion } from "@/components/ui/motion"
 import { AudienceRing } from "@/components/ui/audience-ring"
+import { AudienceLink, useClock, useDrift, useOnScreen } from "@/components/ui/audience-motion"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
 import { FriendAvatar } from "@/components/todos/edit-todo-modal/friend-avatar"
 import { useFriendAffinity } from "@/hooks/use-friend-affinity"
@@ -35,19 +37,27 @@ import {
   TAP_PRESS,
 } from "@/lib/animations"
 import {
+  MAX_SHARED_FRIENDS,
   MIN_ZOOM,
   RING_SIZE,
-  openingZoom,
   SEAT_SIZE,
+  assignSeats,
   audienceSentence,
   clampPan,
   firstName,
+  firstOrbitRadius,
   fitZoom,
   mapRadius,
+  nearestAngle,
+  openingZoom,
+  orbitLayout,
+  orbitSlots,
   personName,
   rankByAffinity,
-  seatPositions,
+  seedOf,
+  toggleAudience,
   zoomAround,
+  type Slot,
 } from "@/lib/audience-map"
 import type { FriendDto } from "@/types/auth"
 import { cn } from "@/lib/utils"
@@ -55,31 +65,37 @@ import { cn } from "@/lib/utils"
 /**
  * Who can see a task — the landing page's first block, made real.
  *
- * The landing page teaches the product's one idea with a circle: you in the ring, three seats
- * around you, and a line to everyone you let in. This is that circle with the owner's real
- * friends in the seats, in the task editor and on a task's own page, in place of the old
- * Private/Friends switch and its list of check-boxes.
+ * The landing page teaches the product's one idea with a circle: you in the ring, seats around
+ * you, and a line to everyone you let in. This is that circle with the owner's real friends in
+ * the seats — in the task editor, on a task's own page and in the New task panel.
  *
- * - **The closest friends sit closest.** Seats are laid on a sunflower spiral, ranked by how
- *   much you share with each friend both ways and how recently (`friend-affinity`); the
- *   spiral's distance grows with the rank and nothing else. Until the closeness arrives the
- *   friends sit in name order, and when it does they glide to their seats.
- * - **Nobody chosen shows no face.** An empty seat is the landing's dashed circle with a plus;
- *   choosing someone springs their avatar into it, draws the line to them and opens the ring a
- *   little wider. Pressing them again lets them out.
+ * - **Circles, closest first.** Friends sit on concentric circles around you, evenly spaced on
+ *   each (`orbitSlots`). The first circle holds the people chosen and, around them, the friends
+ *   you share the most with (`friend-affinity`); the rest fill the circles outward in the same
+ *   order. Until the closeness arrives the friends sit in name order, and when it does they glide
+ *   to their seats.
+ * - **Choosing someone brings them in.** A friend chosen from a far circle travels to the first
+ *   one, along the circles rather than through them (each seat is a radius and an angle on
+ *   springs); the least close friend not chosen there steps out to make room, and everyone in
+ *   between shifts by one seat, inner circles first.
+ * - **At most twelve by name** (`MAX_SHARED_FRIENDS`, the server's limit). The first circle has
+ *   exactly that many seats, a counter says how many are taken, and once it is full the friends
+ *   outside it lock — pressing one shakes it and says why. All friends is not counted.
+ * - **Nobody chosen shows no face, and drifts.** An empty seat is the landing's dashed circle with
+ *   a plus, floating on its own slow loop; choosing someone settles it, springs their avatar in
+ *   and draws the line to them (`AudienceLink`). Pressing them again lets them out.
  * - **The map zooms and moves, the page does not.** The wheel zooms around the pointer, a drag
  *   moves the map, two fingers pinch it; − / fit / + do the same for everyone else. The wheel is
- *   taken only over the map (a non-passive listener and `overscroll-behavior: contain`), so the
- *   page and the map never scroll together. Every change of view glides on one smoothing curve,
- *   so a wheel's notches read as one motion, and the point under the pointer stays put.
- * - **The chips are the control.** As on the landing page the picture is `aria-hidden` and its
- *   seats are pointer targets only; the chips under it carry each toggle with its name and
- *   pressed state, so keyboards and screen readers get it once, where it is labelled.
+ *   taken only over the map (a non-passive listener and `overscroll-behavior: contain`).
+ * - **One labelled control per person.** With chips (the editor and the task page) the picture is
+ *   `aria-hidden` and the chips under it carry each toggle with its name and pressed state. Without
+ *   them (the New task panel, where the map is the whole control) the seats themselves are the
+ *   buttons — named, pressed, focusable — and focusing one brings it into view.
  *
- * The audience itself — private, chosen people, all friends — is the editor's, through the same
- * callbacks the old panel used, so what is saved and when is unchanged: choosing the last
- * friend who is not yet in turns the task into All friends, letting someone out of All friends
- * leaves it shared with everyone else, and nobody chosen is private.
+ * The audience itself — private, chosen people, all friends — belongs to the caller, through
+ * `onModeChange` / `onSharedIdsChange`: choosing the last friend who is not yet in turns the task
+ * into All friends, letting someone out of All friends leaves it shared with everyone else, and
+ * nobody chosen is private.
  */
 
 export interface AudienceMapProps {
@@ -96,9 +112,16 @@ export interface AudienceMapProps {
   readOnly?: boolean
   /** The popover's map is a little shorter than the page's. */
   size?: "popover" | "page"
+  /**
+   * The "Share with" chips under the map. Off where the map is the whole control (New task):
+   * the seats then become the buttons, and All friends / Only you sit on the map.
+   */
+  chips?: boolean
 }
 
-const STAGE_HEIGHT = { popover: 248, page: 296 } as const
+const STAGE_HEIGHT = { popover: 288, page: 320 } as const
+/** How long the "why not" line stays after a refused press. */
+const REFUSAL_MS = 3600
 
 export function AudienceMap({
   friends,
@@ -110,6 +133,7 @@ export function AudienceMap({
   onSharedIdsChange,
   readOnly = false,
   size = "popover",
+  chips = true,
 }: AudienceMapProps) {
   const reduce = useReducedMotion() ?? false
   const labelId = useId()
@@ -128,9 +152,26 @@ export function AudienceMap({
   const inSet = useMemo(() => new Set(inIds), [inIds])
   const inPeople = ranked.filter((f) => inSet.has(f.id))
 
+  const chosenByName = allFriends ? 0 : inIds.length
+  const full = !allFriends && chosenByName >= MAX_SHARED_FRIENDS
+
+  /** A press the limit turned down: the counter shakes and the line under the map says why. */
+  const [refusal, setRefusal] = useState<{ n: number; fromAll: boolean } | null>(null)
+  useEffect(() => {
+    if (!refusal) return
+    const timer = setTimeout(() => setRefusal(null), REFUSAL_MS)
+    return () => clearTimeout(timer)
+  }, [refusal])
+
   const toggle = (id: string) => {
     if (readOnly) return
-    const next = inSet.has(id) ? inIds.filter((x) => x !== id) : [...inIds, id]
+    const result = toggleAudience(inIds, id, allFriends)
+    if (!result.ok) {
+      setRefusal((r) => ({ n: (r?.n ?? 0) + 1, fromAll: allFriends }))
+      return
+    }
+    setRefusal(null)
+    const next = result.ids
     if (next.length === 0) {
       onSharedIdsChange([])
       onModeChange("private")
@@ -142,6 +183,7 @@ export function AudienceMap({
 
   const everyone = () => {
     if (readOnly) return
+    setRefusal(null)
     if (allFriends) {
       onSharedIdsChange([])
       onModeChange("private")
@@ -153,6 +195,7 @@ export function AudienceMap({
 
   const onlyYou = () => {
     if (readOnly) return
+    setRefusal(null)
     onSharedIdsChange([])
     onModeChange("private")
   }
@@ -166,6 +209,16 @@ export function AudienceMap({
         : "Only its owner can see this."
     : audienceSentence(inPeople.map((p) => firstName(p)), allFriends)
 
+  const limitNote = readOnly
+    ? null
+    : refusal?.fromAll
+      ? `To choose by name, start from Only you — a task takes up to ${MAX_SHARED_FRIENDS} friends that way.`
+      : full || refusal
+        ? `That’s ${MAX_SHARED_FRIENDS}, the most one task can be shared with by name. All friends shares it with everyone.`
+        : null
+
+  const showCount = !readOnly && friends.length > MAX_SHARED_FRIENDS && chosenByName > 0
+
   return (
     <div>
       <Stage
@@ -173,10 +226,43 @@ export function AudienceMap({
         inSet={inSet}
         audience={audience}
         viewerCount={inIds.length}
+        allFriends={allFriends}
+        full={full}
+        refusals={refusal?.n ?? 0}
         height={STAGE_HEIGHT[size]}
         reduce={reduce}
         readOnly={readOnly}
+        interactive={!chips && !readOnly}
         onToggle={toggle}
+        overlay={
+          !chips && !readOnly && friends.length > 0 ? (
+            <>
+              <div data-map-control="" className="absolute left-2 top-2 flex items-center gap-1.5">
+                <MapPill on={allFriends} onClick={everyone} label="All friends" pressed={allFriends} reduce={reduce}>
+                  <UsersRound className="h-3.5 w-3.5" />
+                </MapPill>
+                <AnimatePresence initial={false}>
+                  {inIds.length > 0 && (
+                    <motion.div
+                      key="only-you"
+                      initial={{ opacity: 0, x: -6 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -6 }}
+                      transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
+                    >
+                      <MapPill onClick={onlyYou} label="Only you" reduce={reduce} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <div data-map-control="" className="absolute right-2 top-2">
+                <AnimatePresence initial={false}>
+                  {showCount && <ShareCount key="count" count={chosenByName} refusals={refusal?.n ?? 0} reduce={reduce} />}
+                </AnimatePresence>
+              </div>
+            </>
+          ) : null
+        }
       />
 
       <p aria-live="polite" className="relative mt-4 min-h-12 text-body font-bold tracking-tight text-ink">
@@ -197,6 +283,25 @@ export function AudienceMap({
         </AnimatePresence>
       </p>
 
+      <AnimatePresence initial={false}>
+        {limitNote && (
+          <motion.p
+            key="limit"
+            role="status"
+            initial={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            animate={reduce ? { opacity: 1 } : { opacity: 1, height: "auto" }}
+            exit={reduce ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
+            className="overflow-hidden"
+          >
+            <span className="flex items-start gap-2 pb-1 text-caption font-semibold text-ink-muted">
+              <Lock className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+              {limitNote}
+            </span>
+          </motion.p>
+        )}
+      </AnimatePresence>
+
       {friends.length === 0 ? (
         <p className="mt-2 text-caption font-semibold text-ink-muted">
           No friends to share with yet. Add them on your{" "}
@@ -208,11 +313,14 @@ export function AudienceMap({
           </Link>
           , then share this task.
         </p>
-      ) : (
+      ) : chips ? (
         <>
           <div className="mt-3 flex items-center justify-between gap-3">
-            <p id={labelId} className={FIELD_LABEL_CLASS}>
+            <p id={labelId} className={cn(FIELD_LABEL_CLASS, "flex items-center gap-2")}>
               Share with
+              <AnimatePresence initial={false}>
+                {showCount && <ShareCount key="count" count={chosenByName} refusals={refusal?.n ?? 0} reduce={reduce} />}
+              </AnimatePresence>
             </p>
             <AnimatePresence initial={false}>
               {!readOnly && inIds.length > 0 && (
@@ -251,21 +359,25 @@ export function AudienceMap({
                 </span>
               }
             />
-            {ranked.map((friend) => (
-              <Chip
-                key={friend.id}
-                label={firstName(friend)}
-                ariaLabel={`Share with ${personName(friend)}`}
-                on={inSet.has(friend.id)}
-                disabled={readOnly}
-                reduce={reduce}
-                onClick={() => toggle(friend.id)}
-                lead={<FriendAvatar friend={friend} size={28} />}
-              />
-            ))}
+            {ranked.map((friend) => {
+              const on = inSet.has(friend.id)
+              return (
+                <Chip
+                  key={friend.id}
+                  label={firstName(friend)}
+                  ariaLabel={`Share with ${personName(friend)}`}
+                  on={on}
+                  locked={full && !on}
+                  disabled={readOnly}
+                  reduce={reduce}
+                  onClick={() => toggle(friend.id)}
+                  lead={<FriendAvatar friend={friend} size={28} />}
+                />
+              )
+            })}
           </div>
         </>
-      )}
+      ) : null}
 
       {readOnly && (
         <p className="mt-3 text-caption text-ink-muted">Only the task&rsquo;s owner can change who sees it.</p>
@@ -274,11 +386,73 @@ export function AudienceMap({
   )
 }
 
+/** "3/12": how many of the twelve seats by name are taken. Shakes when a press is refused. */
+function ShareCount({ count, refusals, reduce }: { count: number; refusals: number; reduce: boolean }) {
+  const full = count >= MAX_SHARED_FRIENDS
+  const ref = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    if (refusals === 0 || reduce || !ref.current) return
+    const controls = animate(ref.current, { x: [0, -5, 5, -3, 3, 0] }, { duration: 0.42, ease: "easeOut" })
+    return () => controls.stop()
+  }, [refusals, reduce])
+  return (
+    <motion.span
+      ref={ref}
+      initial={{ opacity: 0, scale: 0.85 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.85 }}
+      transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
+      aria-label={`${count} of ${MAX_SHARED_FRIENDS} friends chosen`}
+      className={cn(
+        "inline-flex h-6 items-center rounded-full px-2 text-caption font-bold normal-case tabular-nums tracking-normal transition-colors duration-fast",
+        full ? "bg-ink text-paper" : "bg-paper/90 text-ink-muted shadow-sm",
+      )}
+    >
+      {count}
+      <span className={full ? "text-paper/60" : "text-ink-subtle"}>/{MAX_SHARED_FRIENDS}</span>
+    </motion.span>
+  )
+}
+
+/** All friends / Only you, on the map itself, where there are no chips under it. */
+function MapPill({
+  label,
+  on = false,
+  pressed,
+  reduce,
+  onClick,
+  children,
+}: {
+  label: string
+  on?: boolean
+  pressed?: boolean
+  reduce: boolean
+  onClick: () => void
+  children?: React.ReactNode
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      aria-pressed={pressed}
+      whileTap={reduce ? undefined : TAP_PRESS}
+      className={cn(
+        "touch-target inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-caption font-semibold shadow-sm backdrop-blur-sm transition-colors duration-fast",
+        on ? "border-ink bg-ink text-paper" : "border-line/80 bg-paper/90 text-ink-muted hover:bg-paper hover:text-ink",
+      )}
+    >
+      {children}
+      {label}
+    </motion.button>
+  )
+}
+
 /** A person to let in: the landing's chip — avatar, first name, and a plus that turns into a check. */
 function Chip({
   label,
   ariaLabel,
   on,
+  locked = false,
   disabled,
   reduce,
   onClick,
@@ -287,6 +461,8 @@ function Chip({
   label: string
   ariaLabel: string
   on: boolean
+  /** Twelve are chosen: pressing this one is refused, and says why. */
+  locked?: boolean
   disabled: boolean
   reduce: boolean
   onClick: () => void
@@ -298,13 +474,15 @@ function Chip({
       onClick={onClick}
       aria-label={ariaLabel}
       aria-pressed={on}
+      aria-disabled={locked || undefined}
       disabled={disabled}
-      whileTap={reduce || disabled ? undefined : TAP_PRESS}
+      whileTap={reduce || disabled || locked ? undefined : TAP_PRESS}
       className={cn(
         "relative inline-flex min-h-10 max-w-full items-center gap-2 rounded-full border py-1 pl-1 pr-3",
-        "text-body-sm font-semibold transition-colors duration-fast disabled:cursor-default",
+        "text-body-sm font-semibold transition-[color,background-color,border-color,opacity] duration-fast disabled:cursor-default",
         on ? "border-ink bg-ink text-paper" : "border-line-strong bg-paper text-ink enabled:hover:bg-paper-sunken",
         disabled && !on && "opacity-60",
+        locked && "cursor-not-allowed opacity-45 enabled:hover:bg-paper",
       )}
     >
       <span aria-hidden="true" className="inline-flex">
@@ -314,14 +492,14 @@ function Chip({
       <span aria-hidden="true" className="grid h-4 w-4 flex-shrink-0 place-items-center">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
-            key={on ? "on" : "off"}
+            key={on ? "on" : locked ? "locked" : "off"}
             initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: reduce ? 1 : 0.6 }}
             transition={{ duration: DURATION_FAST, ease: EASE_OUT_EXPO }}
             className="grid place-items-center"
           >
-            {on ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {on ? <Check className="h-4 w-4" /> : locked ? <Lock className="h-3.5 w-3.5" /> : <Plus className="h-4 w-4" />}
           </motion.span>
         </AnimatePresence>
       </span>
@@ -337,51 +515,71 @@ const VIEW_SMOOTHING_MS = 70
 const DRAG_THRESHOLD = 4
 
 /**
- * The picture: you in the ring at the centre of an endless dotted sheet, every friend on a seat
- * of the spiral, a line to each person who is in. A world layer carries the drawing and is moved
- * and scaled as one (`x`, `y`, `scale` on the compositor); the dots move with it, so a drag reads
- * as moving the sheet, not the people on it.
+ * The picture: you in the ring at the centre of an endless dotted sheet, the circles the seats
+ * sit on, every friend on a seat, a line to each person who is in. A world layer carries the
+ * drawing and is moved and scaled as one (`x`, `y`, `scale` on the compositor); the dots move
+ * with it, so a drag reads as moving the sheet, not the people on it.
  */
 function Stage({
   people,
   inSet,
   audience,
   viewerCount,
+  allFriends,
+  full,
+  refusals,
   height,
   reduce,
   readOnly,
+  interactive,
   onToggle,
+  overlay,
 }: {
   people: FriendDto[]
   inSet: ReadonlySet<string>
   audience: "private" | "shared" | "public"
   viewerCount: number
+  allFriends: boolean
+  full: boolean
+  refusals: number
   height: number
   reduce: boolean
   readOnly: boolean
+  /** The seats are the buttons (no chips under the map). */
+  interactive: boolean
   onToggle: (id: string) => void
+  overlay: React.ReactNode
 }) {
   const stageRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
-  const positions = useMemo(() => seatPositions(people.length), [people.length])
+  const orbits = useMemo(() => orbitLayout(people.length), [people.length])
+  const slots = useMemo(() => orbitSlots(people.length), [people.length])
+  const seatOf = useMemo(() => assignSeats(people, inSet), [people, inSet])
   const radius = mapRadius(people.length)
   const fit = width > 0 ? fitZoom(width, height, radius) : 1
+  const firstFit = width > 0 ? fitZoom(width, height, firstOrbitRadius(people.length)) : 1
+  const opening = openingZoom(fit, firstFit)
   // A list longer than the floor allows is still shown whole: the floor gives way to the fit.
   const exactFit = width > 0 ? (Math.min(width, height) / 2 - 12) / radius : 1
   const minZoom = width > 0 ? Math.max(0.12, Math.min(MIN_ZOOM, exactFit)) : MIN_ZOOM
-  /** "Show everyone": the whole spiral in view, however long it is. */
+  /** "Show everyone": every circle in view, however many there are. */
   const everyoneZoom = Math.min(1, Math.max(minZoom, exactFit))
-  const overflows = fit < openingZoom(fit)
+  const overflows = fit < opening
 
   const x = useMotionValue(0)
   const y = useMotionValue(0)
   const scale = useMotionValue(1)
+  const centre = useMotionValue(0)
   const target = useRef<View>({ x: 0, y: 0, scale: 1 })
   const current = useRef<View>({ x: 0, y: 0, scale: 1 })
   const frame = useRef<number | null>(null)
   const last = useRef(0)
   const [moved, setMoved] = useState(false)
   const [grabbing, setGrabbing] = useState(false)
+
+  // One clock for every drifting seat, running only while the map is on screen.
+  const inView = useOnScreen(stageRef)
+  const clock = useClock(inView && !reduce)
 
   useEffect(() => {
     const el = stageRef.current
@@ -440,9 +638,9 @@ function Stage({
     if (frame.current !== null) cancelAnimationFrame(frame.current)
   }, [])
 
-  // On arrival, and whenever the number of seats changes, the view opens close enough to read
-  // the nearest names (everyone, if they fit) — until it has been moved by hand, which is then
-  // left where it was put.
+  // On arrival, and whenever the number of seats changes, the view opens on the whole first
+  // circle (everyone, if they fit) — until it has been moved by hand, which is then left
+  // where it was put.
   const fittedFor = useRef<string | null>(null)
   useEffect(() => {
     if (width === 0) return
@@ -450,8 +648,8 @@ function Stage({
     if (moved || fittedFor.current === key) return
     const first = fittedFor.current === null
     fittedFor.current = key
-    goTo({ x: 0, y: 0, scale: openingZoom(fit) }, first)
-  }, [fit, goTo, height, moved, people.length, width])
+    goTo({ x: 0, y: 0, scale: opening }, first)
+  }, [opening, goTo, height, moved, people.length, width])
 
   /* The wheel zooms around the pointer, over the map only: taken from the page (not passive). */
   useEffect(() => {
@@ -540,16 +738,59 @@ function Stage({
     goTo(zoomAround(target.current, factor, 0, 0, minZoom))
   }
 
-  // Names fade out once the map is zoomed far enough out that they would be smaller than legible.
-  const labels = useTransform(scale, [0.5, 0.72], [0, 1])
-  const dotSize = useTransform(scale, (s) => `${16 * s}px ${16 * s}px`)
-  const dots = useMotionTemplate`calc(50% + ${x}px) calc(50% + ${y}px)`
+  /** Whether a point of the drawing is inside the view where the view is heading, a seat clear of its edges. */
+  const inSight = useCallback(
+    (wx: number, wy: number, view: View = target.current) =>
+      Math.abs(view.x + wx * view.scale) <= width / 2 - SEAT_SIZE &&
+      Math.abs(view.y + wy * view.scale) <= height / 2 - SEAT_SIZE,
+    [height, width],
+  )
 
-  const seats = people.map((person, rank) => ({ person, pos: positions[rank], rank, on: inSet.has(person.id) }))
+  /** A seat that took keyboard focus out of sight is brought to the middle of the view. */
+  const reveal = useCallback(
+    (wx: number, wy: number) => {
+      if (inSight(wx, wy)) return
+      const view = target.current
+      setMoved(true)
+      goTo({ scale: view.scale, x: -wx * view.scale, y: -wy * view.scale })
+    },
+    [goTo, inSight],
+  )
+
+  /*
+   * Follow a person in. Chosen from a circle the view had been moved to, they travel to the first
+   * circle — often out of the part being looked at. The view glides along with them: back to the
+   * ring when the first circle fits at this zoom, otherwise to the seat they are taking.
+   */
+  const seenIn = useRef(inSet)
+  useEffect(() => {
+    const before = seenIn.current
+    seenIn.current = inSet
+    if (width === 0 || inSet.size !== before.size + 1) return
+    const added = [...inSet].find((id) => !before.has(id))
+    const slot = added === undefined ? undefined : slots[seatOf.get(added) ?? -1]
+    if (!slot || inSight(slot.x, slot.y)) return
+    const view = target.current
+    const home = { scale: view.scale, x: 0, y: 0 }
+    goTo(inSight(slot.x, slot.y, home) ? home : { scale: view.scale, x: -slot.x * view.scale, y: -slot.y * view.scale })
+  }, [goTo, inSet, inSight, seatOf, slots, width])
+
+  // Names fade out once the map is zoomed far enough out that they would be smaller than legible.
+  const labels = useTransform(scale, [0.42, 0.58], [0, 1])
+  // The sheet's dots scale with the drawing, but never closer than a legible grid: below that
+  // they skip to every other dot, the way a map drops a grid level as it zooms out.
+  const dotSize = useTransform(scale, (s) => {
+    let step = 16 * s
+    while (step < 11) step *= 2
+    return `${step}px ${step}px`
+  })
+  const dots = useMotionTemplate`calc(50% + ${x}px) calc(50% + ${y}px)`
 
   return (
     <div
       ref={stageRef}
+      role={interactive ? "group" : undefined}
+      aria-label={interactive ? "Friends — choose who can see this task" : undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endPointer}
@@ -579,9 +820,11 @@ function Stage({
         style={{ backgroundSize: dotSize, backgroundPosition: dots }}
       />
 
-      <div aria-hidden="true" className="absolute left-1/2 top-1/2 h-0 w-0">
+      <div aria-hidden={interactive ? undefined : true} className="absolute left-1/2 top-1/2 h-0 w-0">
         <motion.div className="absolute left-0 top-0" style={{ x, y, scale, transformOrigin: "0 0" }}>
-          <div className="absolute left-0 top-0 z-[1] -translate-x-1/2 -translate-y-1/2">
+          <Orbits orbits={orbits} full={full} refusals={refusals} reduce={reduce} />
+
+          <div aria-hidden="true" className="absolute left-0 top-0 z-[1] -translate-x-1/2 -translate-y-1/2">
             <AudienceRing audience={audience} viewerCount={viewerCount} size={RING_SIZE} stroke={5} drawIn>
               {/* Not Avatar: it derives initials, and "You" would read "YO". */}
               <span className="grid h-11 w-11 place-items-center rounded-full bg-ink text-caption font-bold text-paper">
@@ -590,20 +833,30 @@ function Stage({
             </AudienceRing>
           </div>
 
-          {seats.map(({ person, pos, rank, on }) => (
-            <Seat
-              key={person.id}
-              person={person}
-              x={pos.x}
-              y={pos.y}
-              rank={rank}
-              on={on}
-              reduce={reduce}
-              readOnly={readOnly}
-              labels={labels}
-              onToggle={onToggle}
-            />
-          ))}
+          {people.map((person, rank) => {
+            const slot = slots[seatOf.get(person.id) ?? rank]
+            if (!slot) return null
+            const on = inSet.has(person.id)
+            return (
+              <Seat
+                key={person.id}
+                person={person}
+                slot={slot}
+                order={rank}
+                on={on}
+                locked={full && !on}
+                faint={allFriends}
+                reduce={reduce}
+                readOnly={readOnly}
+                interactive={interactive}
+                labels={labels}
+                clock={clock}
+                centre={centre}
+                onToggle={onToggle}
+                onReveal={reveal}
+              />
+            )
+          })}
         </motion.div>
       </div>
 
@@ -616,6 +869,8 @@ function Stage({
           <span className="hidden [@media(pointer:coarse)]:inline">Pinch to zoom · drag sideways to move</span>
         </p>
       )}
+
+      {overlay}
 
       {/* Outside the hidden picture: these are real, named controls. */}
       <div
@@ -658,122 +913,220 @@ function MapButton({ label, onClick, children }: { label: string; onClick: () =>
   )
 }
 
-/** The seats' glide: the layout spring, as motion values, so a seat and its line move as one. */
-const SEAT_SPRING = { stiffness: 400, damping: 40 }
+/**
+ * The circles the seats sit on, faint, so the order is visible even where seats are sparse. The
+ * first one is the seats by name: it darkens when all twelve are taken, and flashes when a press
+ * is refused.
+ */
+function Orbits({
+  orbits,
+  full,
+  refusals,
+  reduce,
+}: {
+  orbits: { radius: number; count: number }[]
+  full: boolean
+  refusals: number
+  reduce: boolean
+}) {
+  return (
+    <svg aria-hidden="true" className="pointer-events-none absolute left-0 top-0 z-0 overflow-visible" width={1} height={1} fill="none">
+      {orbits.map(({ radius }, i) => (
+        <motion.circle
+          key={i}
+          cx={0}
+          cy={0}
+          initial={reduce ? false : { r: radius * 0.6, opacity: 0 }}
+          animate={{ r: radius, opacity: 1 }}
+          transition={reduce ? { duration: 0 } : { ...SPRING_LAYOUT, delay: i * 0.06 }}
+          strokeWidth={i === 0 ? 1.25 : 1}
+          strokeDasharray={i === 0 ? undefined : "1.5 7"}
+          strokeLinecap="round"
+          className={cn(
+            "stroke-ink transition-[stroke-opacity] duration-fast",
+            i === 0 ? (full ? "[stroke-opacity:0.25]" : "[stroke-opacity:0.1]") : "[stroke-opacity:0.18]",
+          )}
+        />
+      ))}
+      {/* A refused press: the first circle flashes once. */}
+      {refusals > 0 && !reduce && orbits[0] && (
+        <motion.circle
+          key={refusals}
+          cx={0}
+          cy={0}
+          r={orbits[0].radius}
+          strokeWidth={2}
+          className="stroke-ink"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 0.5, 0] }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        />
+      )}
+    </svg>
+  )
+}
+
+/** A seat travels between places on these springs: unhurried, settling without a bounce. */
+const SEAT_GLIDE = { stiffness: 120, damping: 21, mass: 1 }
 const RING_EDGE = RING_SIZE / 2 + 4
 const SEAT_EDGE = SEAT_SIZE / 2 + 4
 
-const towards = (a: number, b: number) => {
-  const len = Math.hypot(a, b) || 1
-  return { ux: a / len, uy: b / len }
-}
-
 /**
- * One seat, and the line to it. On arrival the seats pour out of the ring, closest first; when
- * the ranking changes they glide to their new places. The seat's place is a pair of springs, and
- * the line is drawn from the same springs — ring edge to seat edge — so it can never point at
- * where the seat used to be. Positioned by the wrapper and pressed on the button inside it, as on
- * the landing page: a scale on the positioned node would fight its placement.
+ * One seat, and the line to it.
+ *
+ * The seat's place is a radius and an angle on springs, not an x and a y: moving to another
+ * place it travels round the circles (the short way, `nearestAngle`) and in or out between them,
+ * so nobody cuts across the ring. On arrival the seats pour out of the ring in ranking order;
+ * after that, when the seating changes, the inner circles move first and the outer ones follow,
+ * and a person just chosen sets off at once. Not chosen, the seat drifts (`useDrift`); chosen, it
+ * settles and the line is drawn to it from the same motion values, so the line never points at
+ * where the seat used to be.
+ *
+ * Positioned by the wrapper and pressed on the button inside it, as on the landing page: a
+ * scale on the positioned node would fight its placement.
  */
 function Seat({
   person,
-  x,
-  y,
-  rank,
+  slot,
+  order,
   on,
+  locked,
+  faint,
   reduce,
   readOnly,
+  interactive,
   labels,
+  clock,
+  centre,
   onToggle,
+  onReveal,
 }: {
   person: FriendDto
-  x: number
-  y: number
-  rank: number
+  slot: Slot
+  /** Place in the ranking: the pour-out's order. */
+  order: number
   on: boolean
+  locked: boolean
+  faint: boolean
   reduce: boolean
   readOnly: boolean
+  interactive: boolean
   labels: MotionValue<number>
+  clock: MotionValue<number>
+  centre: MotionValue<number>
   onToggle: (id: string) => void
+  onReveal: (x: number, y: number) => void
 }) {
-  const sx = useSpring(reduce ? x : x * 0.35, SEAT_SPRING)
-  const sy = useSpring(reduce ? y : y * 0.35, SEAT_SPRING)
+  const seed = useMemo(() => seedOf(person.id), [person.id])
+  const radius = useSpring(reduce ? slot.radius : RING_SIZE / 2, SEAT_GLIDE)
+  const angle = useSpring(slot.angle, SEAT_GLIDE)
   const arrived = useRef(false)
+  const wasOn = useRef(on)
 
   useEffect(() => {
+    const to = nearestAngle(angle.get(), slot.angle)
     if (reduce) {
-      sx.jump(x)
-      sy.jump(y)
+      radius.jump(slot.radius)
+      angle.jump(to)
       arrived.current = true
       return
     }
-    // The first move is the pour-out, staggered by closeness; every later move is a glide.
-    const delay = arrived.current ? 0 : Math.min(rank, 24) * 25
+    // The pour-out, closest first; then inner circles before outer ones, the chosen at once.
+    const justChosen = on && !wasOn.current
+    wasOn.current = on
+    const delay = !arrived.current ? Math.min(order, 24) * 22 : justChosen ? 0 : 60 + slot.orbit * 55 + seed * 40
     const timer = setTimeout(() => {
-      sx.set(x)
-      sy.set(y)
+      radius.set(slot.radius)
+      angle.set(nearestAngle(angle.get(), slot.angle))
       arrived.current = true
     }, delay)
     return () => clearTimeout(timer)
-  }, [x, y, rank, reduce, sx, sy])
+  }, [slot.radius, slot.angle, slot.orbit, on, order, reduce, seed, radius, angle])
 
-  const x1 = useTransform([sx, sy], ([a, b]: number[]) => towards(a, b).ux * RING_EDGE)
-  const y1 = useTransform([sx, sy], ([a, b]: number[]) => towards(a, b).uy * RING_EDGE)
-  const x2 = useTransform([sx, sy], ([a, b]: number[]) => a - towards(a, b).ux * SEAT_EDGE)
-  const y2 = useTransform([sx, sy], ([a, b]: number[]) => b - towards(a, b).uy * SEAT_EDGE)
+  const drift = useDrift(clock, seed, !on && !reduce)
+  const baseX = useTransform([radius, angle], ([r, a]: number[]) => r * Math.cos(a))
+  const baseY = useTransform([radius, angle], ([r, a]: number[]) => r * Math.sin(a))
+  const sx = useTransform([baseX, drift.x], ([b, d]: number[]) => b + d)
+  const sy = useTransform([baseY, drift.y], ([b, d]: number[]) => b + d)
+
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const press = () => {
+    if (readOnly) return
+    if (locked && !reduce && buttonRef.current) {
+      animate(buttonRef.current, { x: [0, -4, 4, -2, 2, 0] }, { duration: 0.4, ease: "easeOut" })
+    }
+    onToggle(person.id)
+  }
+
   const name = firstName(person)
 
   return (
     <>
-      <svg className="pointer-events-none absolute left-0 top-0 z-0 overflow-visible" width={1} height={1} fill="none">
-        <motion.line
-          x1={x1}
-          y1={y1}
-          x2={x2}
-          y2={y2}
-          initial={false}
-          animate={{ pathLength: on ? 1 : 0, opacity: on ? 1 : 0 }}
-          transition={{ duration: reduce ? 0 : DURATION_UI, ease: EASE_OUT_EXPO }}
-          strokeWidth={1.5}
-          className="stroke-ink"
+      <svg aria-hidden="true" className="pointer-events-none absolute left-0 top-0 z-0 overflow-visible" width={1} height={1} fill="none">
+        <AudienceLink
+          cx={centre}
+          cy={centre}
+          sx={sx}
+          sy={sy}
+          fromEdge={RING_EDGE}
+          toEdge={SEAT_EDGE}
+          on={on}
+          reduce={reduce}
+          seed={seed}
+          pulse={!faint && slot.orbit === 0}
+          faint={faint}
         />
       </svg>
       <motion.div
         data-seat=""
-        className="absolute left-0 top-0 z-[2]"
+        className={cn("absolute left-0 top-0", on ? "z-[3]" : "z-[2]")}
         style={{ x: sx, y: sy, width: SEAT_SIZE, height: SEAT_SIZE, marginLeft: -SEAT_SIZE / 2, marginTop: -SEAT_SIZE / 2 }}
         initial={reduce ? false : { opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={reduce ? { duration: 0 } : { ...SPRING_LAYOUT, delay: Math.min(rank, 24) * 0.025 }}
+        transition={reduce ? { duration: 0 } : { ...SPRING_LAYOUT, delay: Math.min(order, 24) * 0.022 }}
       >
         <motion.button
+          ref={buttonRef}
           type="button"
-          tabIndex={-1}
-          aria-label={on ? `Remove ${name}` : `Add ${name}`}
-          onClick={() => onToggle(person.id)}
+          tabIndex={interactive ? 0 : -1}
+          aria-label={interactive ? `Share with ${personName(person)}` : on ? `Remove ${name}` : `Add ${name}`}
+          aria-pressed={interactive ? on : undefined}
+          aria-disabled={locked || undefined}
+          onClick={press}
+          onFocus={interactive ? () => onReveal(sx.get(), sy.get()) : undefined}
           disabled={readOnly}
-          whileHover={reduce || readOnly ? undefined : { scale: 1.06 }}
-          whileTap={reduce || readOnly ? undefined : TAP_PRESS}
+          whileHover={reduce || readOnly || locked ? undefined : { scale: 1.07 }}
+          whileTap={reduce || readOnly || locked ? undefined : TAP_PRESS}
           className={cn(
-            "group relative grid h-full w-full place-items-center rounded-full",
-            readOnly ? "cursor-default" : "cursor-pointer",
+            "group relative grid h-full w-full place-items-center rounded-full outline-none",
+            "focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper-sunken",
+            readOnly ? "cursor-default" : locked ? "cursor-not-allowed" : "cursor-pointer",
             // The name below the circle is part of the target: people aim at the word.
             "after:absolute after:-inset-x-3 after:-bottom-6 after:-top-1 after:content-['']",
           )}
         >
-          <span
+          {/* The outline breathes and turns slowly while the seat drifts; it stands still once chosen. */}
+          <motion.span
+            aria-hidden="true"
+            style={{ scale: drift.scale, rotate: drift.rotate }}
             className={cn(
-              "absolute inset-0 grid place-items-center rounded-full border-2 border-dashed border-line-strong bg-paper-sunken",
-              "transition-colors duration-fast",
-              !readOnly && "group-hover:border-solid group-hover:border-ink group-hover:bg-paper",
+              "absolute inset-0 rounded-full border-2 border-dashed bg-paper-sunken transition-[border-color,background-color,opacity] duration-fast",
+              locked ? "border-line opacity-60" : "border-line-strong",
+              !readOnly && !locked && "group-hover:border-solid group-hover:border-ink group-hover:bg-paper",
             )}
-          >
-            <Plus className={cn("h-4 w-4 text-ink-subtle transition-colors duration-fast", !readOnly && "group-hover:text-ink")} />
+          />
+          <span aria-hidden="true" className="relative grid place-items-center">
+            {locked ? (
+              <Lock className="h-3.5 w-3.5 text-ink-subtle" />
+            ) : (
+              <Plus className={cn("h-4 w-4 text-ink-subtle transition-colors duration-fast", !readOnly && "group-hover:text-ink")} />
+            )}
           </span>
           <AnimatePresence initial={false}>
             {on && (
               <motion.span
                 key="face"
+                aria-hidden="true"
                 className="absolute inset-0"
                 initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -783,7 +1136,7 @@ function Seat({
                 <FriendAvatar friend={person} size={SEAT_SIZE} />
                 {!readOnly && (
                   // Pressing a person again lets them out: the minus says so before the press.
-                  <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-paper-sunken bg-ink text-paper opacity-0 transition-opacity duration-fast group-hover:opacity-100">
+                  <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full border-2 border-paper-sunken bg-ink text-paper opacity-0 transition-opacity duration-fast group-hover:opacity-100 group-focus-visible:opacity-100">
                     <Minus className="h-3 w-3" strokeWidth={3} />
                   </span>
                 )}
@@ -792,10 +1145,11 @@ function Seat({
           </AnimatePresence>
         </motion.button>
         <motion.span
+          aria-hidden="true"
           style={{ opacity: labels }}
           className={cn(
-            "pointer-events-none absolute left-1/2 top-full mt-1 max-w-[5.5rem] -translate-x-1/2 truncate whitespace-nowrap text-caption font-semibold",
-            on ? "text-ink" : "text-ink-muted",
+            "pointer-events-none absolute left-1/2 top-full mt-1 max-w-[4.25rem] -translate-x-1/2 truncate whitespace-nowrap text-caption font-semibold transition-colors duration-fast",
+            on ? "text-ink" : locked ? "text-ink-subtle" : "text-ink-muted",
           )}
         >
           {name}

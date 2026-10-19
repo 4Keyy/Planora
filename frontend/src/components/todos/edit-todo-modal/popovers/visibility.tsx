@@ -6,9 +6,9 @@ import { AudienceMap } from "@/components/todos/audience/audience-map"
 import type { FriendDto } from "@/types/auth"
 
 /**
- * Who can see a task, in the task editor: the audience map (`components/todos/audience`) — the
- * landing page's circle with the owner's friends in its seats — in a popover under the task's
- * visibility token, and always open in the sidebar of a task's own page.
+ * Who can see a task: the audience map (`components/todos/audience`) — the landing page's circle
+ * with the owner's friends in its seats — in a popover under the task editor's visibility token
+ * and under the New task panel's Share plate, and always open in the sidebar of a task's own page.
  *
  * It replaced a Private/Friends switch over a list of check-boxes. The audience it edits, and the
  * callbacks it edits it through, are unchanged.
@@ -32,12 +32,28 @@ interface VisibilityPopoverProps extends AudienceProps {
   open: boolean
   onClose: () => void
   containerRef: RefObject<HTMLElement | null>
+  align?: "left" | "right" | "center"
+  /** Viewport-fixed, for a popover in normal page flow (the New task panel). */
+  portal?: boolean
+  /**
+   * The "Share with" chips under the map. The New task panel leaves them out: the map is the
+   * whole control there, its seats the buttons.
+   */
+  chips?: boolean
 }
 
-export function VisibilityPopover({ open, onClose, containerRef, ...audience }: VisibilityPopoverProps) {
+export function VisibilityPopover({
+  open,
+  onClose,
+  containerRef,
+  align = "right",
+  portal = false,
+  chips = true,
+  ...audience
+}: VisibilityPopoverProps) {
   const count = audience.allFriends ? null : audience.mode === "private" ? 0 : audience.sharedIds.length
   return (
-    <Popover open={open} onClose={onClose} width={368} align="right" containerRef={containerRef}>
+    <Popover open={open} onClose={onClose} width={368} align={align} containerRef={containerRef} portal={portal}>
       <PopoverHeader
         label="Task access"
         sub={
@@ -47,7 +63,7 @@ export function VisibilityPopover({ open, onClose, containerRef, ...audience }: 
         }
       />
       <div className="p-3">
-        <AudienceMap {...toMapProps(audience)} size="popover" />
+        <AudienceMap {...toMapProps(audience)} size="popover" chips={chips} />
       </div>
     </Popover>
   )
