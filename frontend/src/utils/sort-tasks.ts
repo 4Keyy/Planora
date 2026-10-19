@@ -1,11 +1,16 @@
+/**
+ * Active lists sort by urgency/priority/shared/regular band, then open before hidden, then
+ * the smart key within that group. Completed tasks follow every active band.
+ */
+
 import { TodoPriority } from "@/types/todo"
 
-/** Where a task sorts: compared element by element, smaller first. See `sortKey`. */
+/** Where a task sorts: compared element by element, smaller first. See `ownKey`. */
 export type SortKey = readonly number[]
 
 /**
  * The place a card opened from hidden keeps (`keepPlace`): the key it was placed by while it was
- * hidden, and the key its full copy is placed by.
+ * hidden within its band, and the key its full copy is placed by.
  */
 export type HeldPlace = { place: SortKey; open: SortKey }
 
@@ -25,6 +30,9 @@ export type SortableTask = {
    * one sign of urgency a hidden task keeps, its date being withheld.
    */
   isVisuallyUrgent?: boolean | null
+  hasSharedAudience?: boolean | null
+  isPublic?: boolean | null
+  sharedWithUserIds?: readonly string[] | null
   isWorking?: boolean | null
   expectedDate?: string | null
   delay?: string | null
@@ -120,28 +128,25 @@ function dateBucket(due: Date | null, today: Date): number {
 }
 
 // ─── main sort key ─────────────────────────────────────────────────────────────
-// Returns a tuple [statusBucket, dateBucket, dateMs, priorityRank]
-// Tuples are compared element-by-element to produce the final order.
+// Working tasks lead within their band and visibility group; date buckets and priority
+// retain the smart order, with newer creation times breaking otherwise equal keys.
 
 function sortKey(task: SortableTask, today: Date): [number, number, number, number, number] {
-  // Completed — always at the bottom, newest completions first
-  if (taskIsCompleted(task)) return [2, 0, 0, 0, -parseCompleted(task)]
-
   const due       = parseDue(task)
   const db        = dateBucket(due, today)
   const dateMs    = due ? due.getTime() : Infinity
   const createdMs = parseCreated(task)
 
-  // "In work" tasks (owner's InProgress OR non-owner joined) always sort first
+  // "In work" tasks (owner's InProgress OR non-owner joined) lead their group
   if (taskIsWorkingOn(task)) {
     // Same internal sort rules apply within the working group
-    if (db <= 2) return [0, db, priorityRank(task), dateMs, createdMs]
-    return [0, 3, dateMs, priorityRank(task), createdMs]
+    if (db <= 2) return [0, db, priorityRank(task), dateMs, -createdMs]
+    return [0, 3, dateMs, priorityRank(task), -createdMs]
   }
 
   // All other active tasks
-  if (db <= 2) return [1, db, priorityRank(task), dateMs, createdMs]
-  return [1, 3, dateMs, priorityRank(task), createdMs]
+  if (db <= 2) return [1, db, priorityRank(task), dateMs, -createdMs]
+  return [1, 3, dateMs, priorityRank(task), -createdMs]
 }
 
 /**
@@ -154,21 +159,18 @@ function taskIsUrgent(task: SortableTask, today: Date): boolean {
   return priorityRank(task) === 0 || dateBucket(parseDue(task), today) <= 1
 }
 
-// ─── tiers ────────────────────────────────────────────────────────────────────
-// The first element of every place key: open tasks, then hidden ones, then completed ones.
-// Inside a tier the smart sort above decides; a hidden task's key leads with whether it is
-// urgent, so the urgent ones head the hidden tier.
+// ─── bands ────────────────────────────────────────────────────────────────────
+// Urgency wins over High priority, which wins over shared audience. Hidden state only
+// separates tasks within a band, so hidden urgency stays ahead of open High tasks.
 
-const OPEN_TIER = 0
-const HIDDEN_TIER = 1
-const DONE_TIER = 2
-
-/** The key a task's own state places it by — the smart sort's, under its tier. */
+/** A task's own place: band, hidden flag, then smart key; completed tasks form the last band. */
 function ownKey(task: SortableTask, today: Date): SortKey {
-  const key = sortKey(task, today)
-  if (taskIsCompleted(task)) return [DONE_TIER, ...key]
-  if (task.hidden) return [HIDDEN_TIER, taskIsUrgent(task, today) ? 0 : 1, ...key]
-  return [OPEN_TIER, ...key]
+  if (taskIsCompleted(task)) return [4, 0, -parseCompleted(task)]
+  const band = taskIsUrgent(task, today) ? 0
+    : priorityRank(task) <= 1 ? 1
+    : (task.hasSharedAudience ?? (task.isPublic === true || (task.sharedWithUserIds?.length ?? 0) > 0)) ? 2
+    : 3
+  return [band, task.hidden ? 1 : 0, ...sortKey(task, today)]
 }
 
 const sameKey = (a: SortKey, b: SortKey) => a.length === b.length && a.every((value, i) => value === b[i])
@@ -188,15 +190,12 @@ function placeKey(task: SortableTask, today: Date): SortKey {
   return held && sameKey(key, held.open) ? held.place : key
 }
 
-/** Placed among the hidden tasks' urgent ones: hidden (or holding a hidden place) and urgent. */
-const isHiddenUrgent = (key: SortKey) => key[0] === HIDDEN_TIER && key[1] === 0
-
 // ─── public API ───────────────────────────────────────────────────────────────
 
 /**
  * Opening a hidden card never moves it.
  *
- * A hidden card sorts among the hidden ones, after the open tasks (`sortTasks`), and the server
+ * A hidden card sorts after the open tasks in its own band (`sortTasks`), and the server
  * sends it without what would place it among those — no due date, and for a task with an
  * audience not even its status or when it was made. Opening it brings the rest, and the full
  * copy sorts somewhere else: the card opened and then flew off to its date's place, as far as
@@ -252,23 +251,15 @@ export function getTaskWeight(task: SortableTask): number {
 }
 
 /**
- * Smart sort order (front to back):
- *  1. By due-date bucket:
- *       a. Overdue (most overdue first — smallest date first)
- *       b. Due today
- *       c. Due tomorrow
- *       d. Due this week (after tomorrow, within the current Mon–Sun week)
- *       e. Future (beyond this week, soonest first)
- *       f. No due date (sorted by priority only — see step 2)
- *  2. Within the same date bucket: Urgent → High → Medium → Low → VeryLow → None
- *  3. Hidden tasks — after every open task, in the same order among themselves, the urgent
- *     ones (a red frame: `isVisuallyUrgent`) first. While open tasks are urgent, the hidden
- *     urgent ones join them instead: straight after the last open urgent task, so they keep to
- *     the urgent group without going ahead of any open task more urgent than they are, nor of
- *     any open task while nothing open is urgent.
- *  4. Completed tasks — most recently completed first
+ * Task list order (front to back):
+ *  1. URGENT (server urgency flag, else Urgent/overdue/today), PRIORITY (High or higher),
+ *     SHARED (server audience flag, else public/shared users), then REGULAR.
+ *  2. Open tasks before hidden tasks inside each band.
+ *  3. Within each band and visibility group, working tasks first, then the existing smart
+ *     date buckets and priority order; newer creation times break otherwise equal keys.
+ *  4. Completed tasks last, most recently completed first.
  *
- * In-work tasks lead the open ones, as before. A card opened from hidden keeps the place it was
+ * A card opened from hidden keeps the place within its band that it was
  * opened in (`keepPlace`). Never mutates the original array; equal keys keep their input order.
  */
 export function sortTasks<T extends SortableTask>(tasks: T[]): T[] {
@@ -276,14 +267,5 @@ export function sortTasks<T extends SortableTask>(tasks: T[]): T[] {
   const placed = tasks.map((task) => ({ task, key: placeKey(task, today) }))
   placed.sort((a, b) => compareKeys(a.key, b.key))
 
-  // Open tasks come first, so an index among them is their index in the whole list.
-  let lastUrgent = -1
-  for (let i = 0; i < placed.length && placed[i].key[0] === OPEN_TIER; i++) {
-    if (taskIsUrgent(placed[i].task, today)) lastUrgent = i
-  }
-  const hiddenUrgent = lastUrgent < 0 ? [] : placed.filter((p) => isHiddenUrgent(p.key))
-  if (hiddenUrgent.length === 0) return placed.map((p) => p.task)
-
-  const rest = placed.filter((p) => !isHiddenUrgent(p.key))
-  return [...rest.slice(0, lastUrgent + 1), ...hiddenUrgent, ...rest.slice(lastUrgent + 1)].map((p) => p.task)
+  return placed.map((p) => p.task)
 }

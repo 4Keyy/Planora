@@ -677,11 +677,20 @@ case-insensitively with spaces stripped, and an unparseable entry is dropped rat
 `status=nonsense` is the same request as no filter at all.
 
 For the active list (`GET /todos/api/v1/todos?status=Todo,InProgress&isCompleted=false`),
-the server orders rows before pagination: tasks not hidden for the caller come first by
-`CreatedAt DESC`, followed by tasks effectively hidden for that viewer. Among hidden tasks,
-urgent tasks come first, then the others, each by `CreatedAt DESC`. A task is urgent when it
-is not `Done` and either has `Urgent` priority or a `DueDate` on or before today UTC.
-Open tasks keep their creation-time order regardless of urgency. `Id ASC` breaks ties.
+the server applies these ordering keys in SQL before pagination:
+
+1. Band ascending: urgent (0), High priority (1), shared (2), regular (3). Urgent means
+   `Status != Done` and either `Priority == Urgent` or `DueDate < nextUtcDay`, where
+   `nextUtcDay` is the start of tomorrow UTC. A shared task has `IsPublic` or any direct shares;
+   a High-priority shared task belongs to band 1.
+2. Effective hidden state ascending: open before hidden **within each band**.
+3. Working state descending: `Status == InProgress` for the owner; membership in `Workers`
+   for another viewer.
+4. `DueDate ASC`, with `NULL` last.
+5. `Priority DESC`.
+6. `CreatedAt DESC`.
+7. `Id ASC` as the stable tie-breaker.
+
 Effective hidden state uses the owner's `Hidden` flag for their own tasks, plus the caller's
 `HiddenByViewer` preference for tasks with an audience (`IsPublic` or any direct shares);
 another owner's `Hidden` flag does not hide a shared task for the caller.

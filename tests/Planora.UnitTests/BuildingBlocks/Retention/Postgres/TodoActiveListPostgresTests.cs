@@ -1,17 +1,20 @@
+using System.Data.Common;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Enums;
 using Planora.Todo.Infrastructure.Persistence;
 using Planora.Todo.Infrastructure.Persistence.Repositories;
 using Testcontainers.PostgreSql;
+using Xunit.Abstractions;
 using static Planora.UnitTests.BuildingBlocks.Retention.Postgres.RetentionTestKit;
 
 namespace Planora.UnitTests.BuildingBlocks.Retention.Postgres;
 
 /// <summary>Exercises the active list's correlated ordering and paging on PostgreSQL.</summary>
 [Trait("TestType", "Integration")]
-public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fixture)
+public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fixture, ITestOutputHelper output)
     : IClassFixture<TodoActiveListPostgresFixture>
 {
     private static readonly DateTime UtcNow = new(2026, 10, 19, 12, 0, 0, DateTimeKind.Utc);
@@ -46,15 +49,16 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
         var page = await PageAsync(db, todos, viewer);
 
         page.TotalCount.Should().Be(todos.Length);
-        page.Items.Select(t => t.Id).Should().Equal(friendOwnerHidden.Id, privatePreferenceIgnored.Id,
-            otherViewerIgnored.Id, open.Id, ownPrivateHidden.Id, friendViewerHidden.Id,
-            ownSharedHidden.Id, ownPreferenceHidden.Id, friendPublicHidden.Id);
+        // Audience bands precede the effective hidden state, so even hidden shared tasks precede regular tasks.
+        page.Items.Select(t => t.Id).Should().Equal(friendOwnerHidden.Id, otherViewerIgnored.Id,
+            friendViewerHidden.Id, ownSharedHidden.Id, ownPreferenceHidden.Id, friendPublicHidden.Id,
+            privatePreferenceIgnored.Id, open.Id, ownPrivateHidden.Id);
         page.Items.Single(t => t.Id == friendViewerHidden.Id).SharedWith
             .Should().ContainSingle(s => s.SharedWithUserId == viewer);
     }
 
     [Fact]
-    public async Task ActiveList_PrioritizesUrgencyOnlyAmongHiddenTasks_UsingTheUtcDay()
+    public async Task ActiveList_PrioritizesUrgencyBeforeHiddenState_UsingTheUtcDay()
     {
         await using var db = fixture.CreateContext();
         var viewer = Guid.NewGuid();
@@ -80,8 +84,10 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
 
         var page = await PageAsync(db, todos, viewer);
 
-        page.Items.Select(t => t.Id).Should().Equal(openNew.Id, openUrgent.Id, openOverdue.Id,
-            hiddenUrgent.Id, hiddenOverdue.Id, hiddenToday.Id, hiddenNormal.Id, hiddenTomorrow.Id, hiddenDone.Id);
+        // Each band's open tasks precede its hidden tasks; dates then sort ascending with nulls last.
+        page.Items.Select(t => t.Id).Should().Equal(openOverdue.Id, openUrgent.Id,
+            hiddenOverdue.Id, hiddenToday.Id, hiddenUrgent.Id, openNew.Id,
+            hiddenDone.Id, hiddenTomorrow.Id, hiddenNormal.Id);
         page.Items.Single(t => t.Id == hiddenToday.Id).DueDate!.Value.Kind.Should().Be(DateTimeKind.Utc);
     }
 
@@ -113,6 +119,130 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
         allIds.Should().Equal(expected).And.OnlyHaveUniqueItems();
         var repeated = await PageAsync(db, todos, viewer, pageNumber: 1, pageSize: 2);
         repeated.Items.Select(t => t.Id).Should().Equal(expected.Take(2));
+    }
+
+    [Fact]
+    public async Task ActiveList_PagesUrgentPrioritySharedAndRegularBands_WithHiddenLastInEachBand()
+    {
+        await using var db = fixture.CreateContext();
+        var viewer = Guid.NewGuid();
+        var friend = Guid.NewGuid();
+        var now = UtcNow;
+        var urgent = Create(viewer, "urgent", now, priority: TodoPriority.Urgent);
+        var overdue = Create(viewer, "overdue", now, dueDate: now.AddDays(-1));
+        var hiddenUrgent = Create(viewer, "hidden urgent", now, hidden: true, priority: TodoPriority.Urgent);
+        var high = Create(viewer, "high", now, priority: TodoPriority.High);
+        var highShared = Create(viewer, "high shared", now.AddDays(-1), priority: TodoPriority.High, sharedWith: friend);
+        var hiddenHigh = Create(viewer, "hidden high", now, hidden: true, priority: TodoPriority.High);
+        var shared = Create(viewer, "shared", now, sharedWith: friend);
+        var isPublic = Create(viewer, "public", now.AddDays(-1), isPublic: true);
+        var hiddenShared = Create(friend, "hidden shared", now.AddDays(1), sharedWith: viewer);
+        var regular = Create(viewer, "regular", now);
+        var regularOld = Create(viewer, "old regular", now.AddDays(-1));
+        var hiddenRegular = Create(viewer, "hidden regular", now.AddDays(1), hidden: true);
+        var expected = new[] { overdue, urgent, hiddenUrgent, high, highShared, hiddenHigh,
+            shared, isPublic, hiddenShared, regular, regularOld, hiddenRegular };
+        var todos = expected.Reverse().ToArray();
+        await SeedAsync(db, todos, HiddenPreference(viewer, hiddenShared));
+
+        var first = await PageAsync(db, todos, viewer, pageNumber: 1, pageSize: 6);
+        var second = await PageAsync(db, todos, viewer, pageNumber: 2, pageSize: 6);
+
+        first.TotalCount.Should().Be(todos.Length);
+        second.TotalCount.Should().Be(todos.Length);
+        first.Items.Select(t => t.Id).Should().Equal(expected.Take(6).Select(t => t.Id));
+        second.Items.Select(t => t.Id).Should().Equal(expected.Skip(6).Select(t => t.Id));
+        first.Items.Concat(second.Items).Select(t => t.Id).Should().OnlyHaveUniqueItems();
+        first.Items.Single(t => t.Id == highShared.Id).SharedWith.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ActiveList_PrioritizesTheViewersWorkWithinEachBand_UsingOwnerStatusOrWorkerMembership()
+    {
+        await using var db = fixture.CreateContext();
+        var viewer = Guid.NewGuid();
+        var friend = Guid.NewGuid();
+        var urgent = Create(viewer, "urgent above working high", UtcNow.AddDays(-5), priority: TodoPriority.Urgent);
+        var workingHigh = Create(viewer, "working high", UtcNow.AddDays(-4), priority: TodoPriority.High);
+        workingHigh.MarkAsInProgress(viewer);
+        var idleHigh = Create(viewer, "idle high", UtcNow, priority: TodoPriority.High);
+        var friendWorker = Create(friend, "viewer works on friend's task", UtcNow.AddDays(-3), sharedWith: viewer);
+        friendWorker.AddWorker(viewer);
+        var friendInProgress = Create(friend, "only friend works on it", UtcNow, sharedWith: viewer);
+        friendInProgress.MarkAsInProgress(friend);
+        var otherWorker = Create(friend, "someone else works on it", UtcNow.AddDays(-1), sharedWith: viewer);
+        otherWorker.AddWorker(Guid.NewGuid());
+        var workingRegular = Create(viewer, "working regular", UtcNow.AddDays(-2), priority: TodoPriority.Low);
+        workingRegular.MarkAsInProgress(viewer);
+        var idleRegular = Create(viewer, "idle regular", UtcNow);
+        var expected = new[] { urgent, workingHigh, idleHigh, friendWorker, friendInProgress,
+            otherWorker, workingRegular, idleRegular };
+        var todos = expected.Reverse().ToArray();
+        await SeedAsync(db, todos);
+
+        var page = await PageAsync(db, todos, viewer);
+
+        page.Items.Select(t => t.Id).Should().Equal(expected.Select(t => t.Id));
+        page.Items.Single(t => t.Id == friendWorker.Id).Workers.Should().ContainSingle(w => w.UserId == viewer);
+    }
+
+    [Fact]
+    public async Task ActiveList_OrdersDatesNullsLast_ThenPriorityAndNewestCreation()
+    {
+        await using var db = fixture.CreateContext();
+        var viewer = Guid.NewGuid();
+        var tomorrow = UtcNow.Date.AddDays(1);
+        var dated = Create(viewer, "earliest date even with low priority", UtcNow.AddDays(-10),
+            priority: TodoPriority.Low, dueDate: tomorrow);
+        var mediumNew = Create(viewer, "same date medium new", UtcNow, dueDate: tomorrow.AddDays(1));
+        var mediumOld = Create(viewer, "same date medium old", UtcNow.AddDays(-1), dueDate: tomorrow.AddDays(1));
+        var low = Create(viewer, "same date low", UtcNow.AddDays(1),
+            priority: TodoPriority.Low, dueDate: tomorrow.AddDays(1));
+        var undated = Create(viewer, "undated medium", UtcNow.AddDays(2));
+        var undatedLow = Create(viewer, "undated low", UtcNow.AddDays(3), priority: TodoPriority.Low);
+        var expected = new[] { dated, mediumNew, mediumOld, low, undated, undatedLow };
+        var todos = expected.Reverse().ToArray();
+        await SeedAsync(db, todos);
+
+        var page = await PageAsync(db, todos, viewer);
+
+        page.Items.Select(t => t.Id).Should().Equal(expected.Select(t => t.Id));
+    }
+
+    [Fact]
+    public async Task ActiveList_ExecutesTheWholeOrderingBeforePaging_InOneRootSelectWithSplitIncludes()
+    {
+        var capture = new QueryCapture();
+        await using var db = fixture.CreateContext(capture);
+        var viewer = Guid.NewGuid();
+        var high = Create(viewer, "high", UtcNow, priority: TodoPriority.High);
+        var hiddenUrgent = Create(viewer, "hidden urgent", UtcNow.AddDays(-1), hidden: true, priority: TodoPriority.Urgent);
+        var todos = new[] { high, hiddenUrgent };
+        await SeedAsync(db, todos);
+        capture.Commands.Clear();
+
+        var page = await PageAsync(db, todos, viewer, pageNumber: 2, pageSize: 1);
+
+        page.Items.Should().ContainSingle(t => t.Id == high.Id);
+        // Count + one paged root SELECT + three existing split includes (tags, shares, workers).
+        capture.Commands.Should().HaveCount(5);
+        var rootSql = capture.Commands[1];
+        output.WriteLine(rootSql);
+        rootSql.Should().StartWith("SELECT t.")
+            .And.Contain("ORDER BY CASE")
+            .And.Contain("todo_item_shares")
+            .And.Contain("user_todo_view_preferences")
+            .And.Contain("todo_item_workers")
+            .And.Contain("t.\"DueDate\" IS NULL")
+            .And.Contain("t.\"DueDate\",")
+            .And.Contain("t.\"Priority\" DESC")
+            .And.Contain("t.\"CreatedAt\" DESC")
+            .And.Contain("t.\"Id\"")
+            .And.Contain("LIMIT ")
+            .And.Contain("OFFSET ")
+            .And.NotContain("FROM (");
+        rootSql.IndexOf("ORDER BY", StringComparison.Ordinal).Should()
+            .BeLessThan(rootSql.IndexOf("LIMIT ", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -171,6 +301,19 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
     {
         public override DateTimeOffset GetUtcNow() => new(UtcNow);
     }
+
+    private sealed class QueryCapture : DbCommandInterceptor
+    {
+        public List<string> Commands { get; } = [];
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            Commands.Add(command.CommandText);
+            return ValueTask.FromResult(result);
+        }
+    }
 }
 
 public sealed class TodoActiveListPostgresFixture : IAsyncLifetime
@@ -180,9 +323,14 @@ public sealed class TodoActiveListPostgresFixture : IAsyncLifetime
         .WithCommand("-c", "timezone=Pacific/Honolulu")
         .Build();
 
-    public TodoDbContext CreateContext() => new(new DbContextOptionsBuilder<TodoDbContext>()
-        .UseNpgsql(_container.GetConnectionString(), options => options.EnableRetryOnFailure())
-        .Options);
+    public TodoDbContext CreateContext(DbCommandInterceptor? interceptor = null)
+    {
+        var options = new DbContextOptionsBuilder<TodoDbContext>()
+            .UseNpgsql(_container.GetConnectionString(), npgsql => npgsql.EnableRetryOnFailure());
+        if (interceptor is not null)
+            options.AddInterceptors(interceptor);
+        return new TodoDbContext(options.Options);
+    }
 
     public async Task InitializeAsync()
     {

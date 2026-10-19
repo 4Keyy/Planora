@@ -192,10 +192,20 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                                 || ((x.IsPublic || x.SharedWith.Any()) && preferences.Any(p =>
                                     p.ViewerId == activeViewerId && p.TodoItemId == x.Id && p.HiddenByViewer))
                         })
-                        .OrderBy(x => x.IsHidden)
-                        .ThenByDescending(x => x.IsHidden && x.Todo.Status != TodoStatus.Done
+                        .OrderBy(x => x.Todo.Status != TodoStatus.Done
                             && (x.Todo.Priority == TodoPriority.Urgent
-                                || (x.Todo.DueDate.HasValue && x.Todo.DueDate.Value < nextUtcDay)))
+                                || (x.Todo.DueDate.HasValue && x.Todo.DueDate.Value < nextUtcDay))
+                                ? 0
+                                : x.Todo.Priority == TodoPriority.High
+                                    ? 1
+                                    : x.Todo.IsPublic || x.Todo.SharedWith.Any() ? 2 : 3)
+                        .ThenBy(x => x.IsHidden)
+                        .ThenByDescending(x => x.Todo.UserId == activeViewerId
+                            ? x.Todo.Status == TodoStatus.InProgress
+                            : x.Todo.Workers.Any(w => w.UserId == activeViewerId))
+                        .ThenBy(x => x.Todo.DueDate == null)
+                        .ThenBy(x => x.Todo.DueDate)
+                        .ThenByDescending(x => x.Todo.Priority)
                         .ThenByDescending(x => x.Todo.CreatedAt)
                         .ThenBy(x => x.Todo.Id)
                         .Select(x => x.Todo);

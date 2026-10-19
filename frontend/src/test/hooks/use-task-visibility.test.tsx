@@ -204,12 +204,12 @@ describe("useTaskVisibility — the owner's own task", () => {
     const neighbour: Todo = { ...hiddenOwn, id: "neighbour", hidden: false, dueDate: "2026-05-01T00:00:00.000Z" }
     const later: Todo = { ...hiddenOwn, id: "later", hidden: false, priority: "1" }
     const { hook, current } = setup([later, hiddenOwn, neighbour])
-    // Hidden, it sorts after the open tasks; opened, it stays there.
-    expect(sortTasks(current()).map((t) => t.id)).toEqual(["neighbour", "later", "own"])
+    // Hidden High sorts in PRIORITY before REGULAR; opening keeps that band position.
+    expect(sortTasks(current()).map((t) => t.id)).toEqual(["neighbour", "own", "later"])
     await act(async () => {
       await hook.result.current.toggle("own")
     })
-    expect(sortTasks(current()).map((t) => t.id)).toEqual(["neighbour", "later", "own"])
+    expect(sortTasks(current()).map((t) => t.id)).toEqual(["neighbour", "own", "later"])
     // A new priority is a change that places it: now it goes where its date says.
     const moved = current().map((t) => (t.id === "own" ? { ...t, priority: "5" } : t))
     expect(sortTasks(moved).map((t) => t.id)).toEqual(["own", "neighbour", "later"])
