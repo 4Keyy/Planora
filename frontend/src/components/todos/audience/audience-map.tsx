@@ -20,8 +20,9 @@ import {
   useTransform,
   type MotionValue,
 } from "framer-motion"
-import { Check, Lock, Minus, Plus, Scan, UsersRound } from "lucide-react"
+import { Check, ChevronRight, Lock, Minus, Plus, Scan, UsersRound, ZoomIn } from "lucide-react"
 import { motion } from "@/components/ui/motion"
+import { useInert } from "@/hooks/use-inert"
 import { AudienceRing } from "@/components/ui/audience-ring"
 import { AudienceLink, useClock, useDrift, useOnScreen } from "@/components/ui/audience-motion"
 import { FIELD_LABEL_CLASS } from "@/components/ui/field"
@@ -45,11 +46,9 @@ import {
   audienceSentence,
   clampPan,
   firstName,
-  firstOrbitRadius,
-  fitZoom,
   mapRadius,
   nearestAngle,
-  openingZoom,
+  openingView,
   orbitLayout,
   orbitSlots,
   personName,
@@ -85,8 +84,10 @@ import { cn } from "@/lib/utils"
  *   a plus, floating on its own slow loop; choosing someone settles it, springs their avatar in
  *   and draws the line to them (`AudienceLink`). Pressing them again lets them out.
  * - **The map zooms and moves, the page does not.** The wheel zooms around the pointer, a drag
- *   moves the map, two fingers pinch it; − / fit / + do the same for everyone else. The wheel is
- *   taken only over the map (a non-passive listener and `overscroll-behavior: contain`).
+ *   moves the map, two fingers pinch it; − / Show everyone / + do the same for everyone else,
+ *   folded into one button in the corner until asked for (`MapDock`). The wheel is taken only
+ *   over the map (a non-passive listener and `overscroll-behavior: contain`). It opens a touch
+ *   closer than a plain fit, the first circle and its names framed on their middle (`openingView`).
  * - **One labelled control per person.** With chips (the editor and the task page) the picture is
  *   `aria-hidden` and the chips under it carry each toggle with its name and pressed state. Without
  *   them (the New task panel, where the map is the whole control) the seats themselves are the
@@ -556,15 +557,14 @@ function Stage({
   const slots = useMemo(() => orbitSlots(people.length), [people.length])
   const seatOf = useMemo(() => assignSeats(people, inSet), [people, inSet])
   const radius = mapRadius(people.length)
-  const fit = width > 0 ? fitZoom(width, height, radius) : 1
-  const firstFit = width > 0 ? fitZoom(width, height, firstOrbitRadius(people.length)) : 1
-  const opening = openingZoom(fit, firstFit)
+  // The first circle a touch larger than a plain fit, framed on its middle (`openingView`).
+  const opening = useMemo(() => openingView(width, height, people.length), [width, height, people.length])
   // A list longer than the floor allows is still shown whole: the floor gives way to the fit.
   const exactFit = width > 0 ? (Math.min(width, height) / 2 - 12) / radius : 1
   const minZoom = width > 0 ? Math.max(0.12, Math.min(MIN_ZOOM, exactFit)) : MIN_ZOOM
   /** "Show everyone": every circle in view, however many there are. */
   const everyoneZoom = Math.min(1, Math.max(minZoom, exactFit))
-  const overflows = fit < opening
+  const overflows = opening.overflows
 
   const x = useMotionValue(0)
   const y = useMotionValue(0)
@@ -648,7 +648,7 @@ function Stage({
     if (moved || fittedFor.current === key) return
     const first = fittedFor.current === null
     fittedFor.current = key
-    goTo({ x: 0, y: 0, scale: opening }, first)
+    goTo({ x: opening.x, y: opening.y, scale: opening.scale }, first)
   }, [opening, goTo, height, moved, people.length, width])
 
   /* The wheel zooms around the pointer, over the map only: taken from the page (not passive). */
@@ -771,9 +771,10 @@ function Stage({
     const slot = added === undefined ? undefined : slots[seatOf.get(added) ?? -1]
     if (!slot || inSight(slot.x, slot.y)) return
     const view = target.current
-    const home = { scale: view.scale, x: 0, y: 0 }
+    // Home is the ring framed as the map opened: its middle, names included (`openingView`).
+    const home = { scale: view.scale, x: 0, y: opening.scale > 0 ? (opening.y / opening.scale) * view.scale : 0 }
     goTo(inSight(slot.x, slot.y, home) ? home : { scale: view.scale, x: -slot.x * view.scale, y: -slot.y * view.scale })
-  }, [goTo, inSet, inSight, seatOf, slots, width])
+  }, [goTo, inSet, inSight, opening, seatOf, slots, width])
 
   // Names fade out once the map is zoomed far enough out that they would be smaller than legible.
   const labels = useTransform(scale, [0.42, 0.58], [0, 1])
@@ -873,40 +874,155 @@ function Stage({
       {overlay}
 
       {/* Outside the hidden picture: these are real, named controls. */}
-      <div
-        data-map-control=""
-        className="absolute bottom-2 right-2 flex items-center rounded-full border border-line/80 bg-paper/90 p-0.5 shadow-sm backdrop-blur-sm"
-      >
-        <MapButton label="Zoom out" onClick={() => zoomBy(1 / 1.4)}>
-          <Minus className="h-3.5 w-3.5" />
-        </MapButton>
-        <MapButton
-          label="Show everyone"
-          onClick={() => {
-            // A choice of view like any other: the opening view must not take it back.
-            setMoved(true)
-            goTo({ x: 0, y: 0, scale: everyoneZoom })
-          }}
-        >
-          <Scan className="h-3.5 w-3.5" />
-        </MapButton>
-        <MapButton label="Zoom in" onClick={() => zoomBy(1.4)}>
-          <Plus className="h-3.5 w-3.5" />
-        </MapButton>
-      </div>
+      <MapDock
+        reduce={reduce}
+        onZoomOut={() => zoomBy(1 / 1.4)}
+        onEveryone={() => {
+          // A choice of view like any other: the opening view must not take it back.
+          setMoved(true)
+          goTo({ x: 0, y: 0, scale: everyoneZoom })
+        }}
+        onZoomIn={() => zoomBy(1.4)}
+      />
     </div>
   )
 }
 
-function MapButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+/** A dock button's side, and the hairline between the tools and the toggle — in px. */
+const DOCK_BUTTON = 32
+const DOCK_DIVIDER = 5
+/** The tools' strip, open: three buttons and the hairline. */
+const DOCK_TOOLS_WIDTH = 3 * DOCK_BUTTON + DOCK_DIVIDER
+/** The strip opens on a critically damped spring — no overshoot to pull back from — and closes quicker. */
+const DOCK_OPEN = { type: "spring", stiffness: 380, damping: 36, mass: 0.9 } as const
+const DOCK_CLOSE = { type: "spring", stiffness: 520, damping: 44 } as const
+
+/**
+ * The view's controls — zoom out, show everyone, zoom in — folded into one button in the
+ * corner until they are asked for, so the map keeps its corner.
+ *
+ * Closed, the dock is a single round button with a magnifier. Pressed, a strip slides out of
+ * it to the left on one spring and the tools come up into it one after another, the nearest
+ * first; the magnifier turns into a chevron that folds them back. The strip is clipped
+ * sideways only (`overflow-x: clip`), so every button keeps its full 44px target, and a folded
+ * strip is inert: out of the tab order, the accessibility tree and the pointer.
+ */
+function MapDock({
+  reduce,
+  onZoomOut,
+  onEveryone,
+  onZoomIn,
+}: {
+  reduce: boolean
+  onZoomOut: () => void
+  onEveryone: () => void
+  onZoomIn: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const toolsId = useId()
+  const toolsRef = useRef<HTMLDivElement>(null)
+  useInert(toolsRef, !open)
+
+  // Nearest the toggle first: the order they come up in, and the order Tab reaches them in.
+  const tools = [
+    { label: "Zoom in", icon: <Plus className="h-3.5 w-3.5" />, onClick: onZoomIn },
+    { label: "Show everyone", icon: <Scan className="h-3.5 w-3.5" />, onClick: onEveryone },
+    { label: "Zoom out", icon: <Minus className="h-3.5 w-3.5" />, onClick: onZoomOut },
+  ]
+
+  return (
+    // Reversed rows: the toggle comes first to Tab and a screen reader, and sits at the right.
+    <div
+      data-map-control=""
+      className="absolute bottom-2 right-2 flex flex-row-reverse items-center rounded-full border border-line/80 bg-paper/90 p-0.5 shadow-sm backdrop-blur-sm"
+    >
+      <MapButton
+        label={open ? "Hide map controls" : "Map controls"}
+        expanded={open}
+        controls={toolsId}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="relative grid h-3.5 w-3.5 place-items-center">
+          <AnimatePresence initial={false} mode="popLayout">
+            <motion.span
+              key={open ? "fold" : "unfold"}
+              className="grid place-items-center"
+              initial={reduce ? { opacity: 0 } : { opacity: 0, rotate: open ? -90 : 90, scale: 0.6 }}
+              animate={{ opacity: 1, rotate: 0, scale: 1 }}
+              exit={reduce ? { opacity: 0 } : { opacity: 0, rotate: open ? 90 : -90, scale: 0.6 }}
+              transition={{ duration: DURATION_UI, ease: EASE_OUT_EXPO }}
+            >
+              {open ? <ChevronRight className="h-3.5 w-3.5" /> : <ZoomIn className="h-3.5 w-3.5" />}
+            </motion.span>
+          </AnimatePresence>
+        </span>
+      </MapButton>
+      <motion.div
+        ref={toolsRef}
+        id={toolsId}
+        role="group"
+        aria-label="Map view"
+        initial={false}
+        animate={{ width: open ? DOCK_TOOLS_WIDTH : 0 }}
+        transition={reduce ? { duration: 0 } : open ? DOCK_OPEN : DOCK_CLOSE}
+        // Overflowing to the left (`justify-end`): the strip uncovers the tool nearest the toggle first.
+        className="flex flex-shrink-0 items-center justify-end overflow-x-clip"
+      >
+        <div className="flex flex-shrink-0 flex-row-reverse items-center">
+          <span aria-hidden="true" className="mx-0.5 h-4 w-px rounded-full bg-line" />
+          {tools.map((tool, i) => (
+            <motion.span
+              key={tool.label}
+              className="grid"
+              initial={false}
+              animate={open ? { opacity: 1, scale: 1, x: 0 } : { opacity: 0, scale: 0.7, x: 6 }}
+              transition={
+                reduce
+                  ? { duration: 0 }
+                  : open
+                    ? { ...SPRING_GENTLE, delay: 0.04 + i * 0.035 }
+                    : { duration: DURATION_FAST, ease: EASE_EXIT }
+              }
+            >
+              <MapButton label={tool.label} onClick={tool.onClick}>
+                {tool.icon}
+              </MapButton>
+            </motion.span>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+function MapButton({
+  label,
+  expanded,
+  controls,
+  onClick,
+  children,
+}: {
+  label: string
+  /** The dock's toggle: whether the tools it shows are out. */
+  expanded?: boolean
+  controls?: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
   return (
     <motion.button
       type="button"
       aria-label={label}
+      aria-expanded={expanded}
+      aria-controls={controls}
       title={label}
       whileTap={TAP_PRESS}
       onClick={onClick}
-      className="touch-target grid h-8 w-8 place-items-center rounded-full text-ink-muted transition-colors duration-fast hover:bg-ink/5 hover:text-ink"
+      className={cn(
+        // h-8 w-8: `DOCK_BUTTON`.
+        "touch-target grid h-8 w-8 flex-shrink-0 place-items-center rounded-full transition-colors duration-fast hover:bg-ink/5 hover:text-ink",
+        expanded ? "text-ink" : "text-ink-muted",
+      )}
     >
       {children}
     </motion.button>

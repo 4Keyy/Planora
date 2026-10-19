@@ -13,10 +13,14 @@ import {
   clampPan,
   clampZoom,
   firstName,
+  LABEL_ROOM,
+  OPENING_CLOSER,
   firstOrbitRadius,
   fitZoom,
+  framedZoom,
   mapRadius,
   nearestAngle,
+  openingView,
   openingZoom,
   orbitLayout,
   orbitSlots,
@@ -190,6 +194,40 @@ describe("zoom", () => {
     expect(openingZoom(1.4, 1.4)).toBe(1)
     expect(openingZoom(0.2, 0.3)).toBe(COMFORT_ZOOM)
     expect(openingZoom(0.9)).toBe(0.9)
+  })
+
+  it("opens a touch closer, framed on the first circle's middle", () => {
+    // Nine friends sit on the first circle alone. A 400 × 288 popover used to open at its fit.
+    const before = openingZoom(fitZoom(400, 288, mapRadius(9)), fitZoom(400, 288, firstOrbitRadius(9)))
+    const view = openingView(400, 288, 9)
+    expect(view.scale).toBeCloseTo(before * OPENING_CLOSER)
+    // The names hang below the seats: the drawing's middle is half their room below the ring.
+    expect(view.y).toBeCloseTo((-LABEL_ROOM / 2) * view.scale)
+    expect(view.x).toBe(0)
+    expect(view.overflows).toBe(false)
+    // Every seat and name of that circle is still in view at that zoom.
+    expect(framedZoom(400, 288, orbitLayout(9)[0].radius)).toBeGreaterThanOrEqual(view.scale)
+  })
+
+  it("never comes so close that the first circle leaves the view, nor farther than before", () => {
+    // A short, narrow stage: the first circle's frame, not the 10%, sets the zoom.
+    const tight = openingView(260, 240, 12)
+    const before = openingZoom(fitZoom(260, 240, mapRadius(12)), fitZoom(260, 240, firstOrbitRadius(12)))
+    expect(tight.scale).toBeGreaterThanOrEqual(before)
+    expect(tight.scale).toBeLessThanOrEqual(Math.max(before, framedZoom(260, 240, orbitLayout(12)[0].radius)) + 1e-9)
+    // Outer circles are out of sight: the map says it can be zoomed and moved.
+    expect(openingView(400, 288, 40).overflows).toBe(true)
+    // Nobody to frame: the ring at the centre, at its own size.
+    expect(openingView(400, 288, 0)).toEqual({ x: 0, y: 0, scale: 1, overflows: false })
+    expect(openingView(0, 288, 9)).toEqual({ x: 0, y: 0, scale: 1, overflows: false })
+  })
+
+  it("frames a circle of seats by its seats above and its names below and aside", () => {
+    expect(framedZoom(0, 288, 100)).toBe(1)
+    expect(framedZoom(400, 288, 0)).toBe(1)
+    // 2 × (104 + 22) + 22 = 274 tall, 2 × (104 + 34) = 276 wide, 4px clear round it.
+    expect(framedZoom(1000, 288, 104)).toBeCloseTo((288 - 8) / 274)
+    expect(framedZoom(284, 1000, 104)).toBeCloseTo((284 - 8) / 276)
   })
 
   it("clamps any zoom into range", () => {

@@ -245,7 +245,7 @@ describe("the map without chips", () => {
 })
 
 describe("the map's view", () => {
-  const stage = () => screen.getByRole("button", { name: "Zoom in" }).closest("[data-map-control]")!.parentElement as HTMLElement
+  const stage = () => screen.getByRole("button", { name: "Map controls" }).closest("[data-map-control]")!.parentElement as HTMLElement
 
   it("takes the wheel from the page while the pointer is over it", () => {
     render(<Harness />)
@@ -262,8 +262,32 @@ describe("the map's view", () => {
     expect(pinch.defaultPrevented).toBe(true)
   })
 
+  it("keeps its controls folded into one button until they are asked for", () => {
+    render(<Harness />)
+    const toggle = screen.getByRole("button", { name: "Map controls" })
+    const tools = screen.getByRole("group", { name: "Map view" })
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+    expect(toggle).toHaveAttribute("aria-controls", tools.id)
+    // Folded, the tools are out of the tab order, the accessibility tree and the pointer.
+    expect(tools).toHaveAttribute("inert")
+    fireEvent.click(toggle)
+    const fold = screen.getByRole("button", { name: "Hide map controls" })
+    expect(fold).toHaveAttribute("aria-expanded", "true")
+    expect(tools).not.toHaveAttribute("inert")
+    // Nearest the toggle first, to Tab as to the eye reading from the toggle.
+    expect(within(tools).getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Zoom in",
+      "Show everyone",
+      "Zoom out",
+    ])
+    fireEvent.click(fold)
+    expect(screen.getByRole("button", { name: "Map controls" })).toHaveAttribute("aria-expanded", "false")
+    expect(tools).toHaveAttribute("inert")
+  })
+
   it("zooms with its buttons and shows everyone again", () => {
     render(<Harness />)
+    fireEvent.click(screen.getByRole("button", { name: "Map controls" }))
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }))
     fireEvent.click(screen.getByRole("button", { name: "Zoom out" }))
     fireEvent.click(screen.getByRole("button", { name: "Show everyone" }))

@@ -202,6 +202,53 @@ export function firstOrbitRadius(count: number): number {
 }
 
 /**
+ * The map opens this much closer than `openingZoom` — a touch larger, as the owner asked
+ * (2026-10-19) — as far as the first circle and its names still fit (`framedZoom`).
+ */
+export const OPENING_CLOSER = 1.1
+/** Half the widest a seat's name may be (`max-w-[4.25rem]`): names, not seats, reach out sideways. */
+const NAME_HALF_WIDTH = 34
+/** What the opening view leaves clear round the drawing it frames, in px. */
+const FRAME_MARGIN = 4
+
+/**
+ * The zoom at which a circle of seats, with the names under them, fills a `width × height`
+ * view — framed on its own middle rather than on the ring. A name hangs below its seat, so
+ * the drawing reaches `LABEL_ROOM` further down than up; centring on the ring left that much
+ * empty above the first circle and cut the opening zoom by it.
+ */
+export function framedZoom(width: number, height: number, orbitRadius: number): number {
+  // No seats to frame (nobody to share with): the ring alone, at its own size.
+  if (width <= 0 || height <= 0 || orbitRadius <= 0) return 1
+  const tall = 2 * (orbitRadius + SEAT_SIZE / 2) + LABEL_ROOM
+  const wide = 2 * (orbitRadius + Math.max(SEAT_SIZE / 2, NAME_HALF_WIDTH))
+  return clampZoom(Math.min((height - 2 * FRAME_MARGIN) / tall, (width - 2 * FRAME_MARGIN) / wide))
+}
+
+/**
+ * Where a map opens: `OPENING_CLOSER` nearer than it used to, never farther, and never so near
+ * that the first circle's seats or names leave the view. Framed on the drawing's middle, which
+ * is `LABEL_ROOM / 2` below the ring — so the ring sits that much above centre.
+ *
+ * `overflows`: somebody is out of sight at this view (an outer circle), which is when the map
+ * says it can be zoomed and moved.
+ */
+export function openingView(width: number, height: number, count: number) {
+  const orbits = orbitLayout(count)
+  if (width <= 0 || height <= 0) return { x: 0, y: 0, scale: 1, overflows: false }
+  const before = openingZoom(fitZoom(width, height, mapRadius(count)), fitZoom(width, height, firstOrbitRadius(count)))
+  const first = orbits[0]?.radius ?? 0
+  const last = orbits[orbits.length - 1]?.radius ?? 0
+  const scale = Math.max(before, Math.min(before * OPENING_CLOSER, framedZoom(width, height, first)))
+  return {
+    x: 0,
+    y: orbits.length > 0 ? (-LABEL_ROOM / 2) * scale : 0,
+    scale,
+    overflows: framedZoom(width, height, last) < scale - 1e-6,
+  }
+}
+
+/**
  * The zoom that shows everyone at once in a `width × height` view, never above 1 (a few friends
  * are not blown up) and never below the floor (a long list is zoomed into, not shrunk to dots).
  */
