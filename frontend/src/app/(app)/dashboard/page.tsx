@@ -1048,6 +1048,8 @@ export default function DashboardPage() {
                   breakpoints={TASK_GRID_BREAKPOINTS}
                   entranceAt={DASH.cards}
                   deal={lastFetchedPage}
+                  // The HeightGlide round it glides the grid's height; two glides would chase.
+                  glideHeight={false}
                   renderItem={(todo) => (
                     <TodoCard
                       todo={todo}

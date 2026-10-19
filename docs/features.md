@@ -996,6 +996,25 @@ that shared list.
   build, `/dashboard`, `/tasks`, `/tasks/completed` and `/categories` at every viewport now shift by at
   most 0.0012 (the invariant is 0.0014); before, `/dashboard` reached 0.038 at 1280px and `/tasks`
   0.023 at 768px.
+- **The task grid deals in the list's order and glides** (`MasonryColumns`,
+  `components/ui/masonry-columns.tsx`). Every card is a child of one box, placed on it by a transform: a
+  column is a place, not a parent. Each change of the list or of the column count re-deals from scratch
+  on the cards' measured heights (`dealColumns`: in list order, each card to the shortest column, the
+  leftmost of equal ones), so the grid reads left to right and top to bottom in the sort order, its
+  columns are as even as that order allows, and no column is ever empty while one to its right has cards.
+  The grid used to keep each card in the column it was first dealt to (a card changing column remounted
+  under the old column parents); after a quick filter change that left a full column, an empty one and a
+  full one, and a new task at the top of the list landed wherever there was room. Every move now glides on
+  `SPRING_LAYOUT` from the speed the card already has, so filters toggled in quick succession bend one
+  path; a leaving card fades where it stands and one that comes back mid-fade turns round. A card that
+  changes height (opened from hidden, content arriving) pushes the cards below it in step, frame by frame,
+  and the grid re-deals around it 180ms after it holds still. The DOM is the list, so Tab and screen
+  readers meet the cards in sort order. The first paint — the server's included — is a plain CSS grid; the
+  cards are measured and placed before the first client paint. Inside the dashboard's `HeightGlide` the
+  grid leaves its height to it (`glideHeight={false}`). Measured on the production build with a mocked API
+  (2026-10-19, 1440px): nine category toggles 70ms apart left every settled state in order with no empty
+  column or overlap, and no card ever skipped a frame of its path (fastest 9px/ms — the spring's peak on a
+  cross-grid trip — at 17ms frames); 900px and 390px re-deal into two and one column.
 - On the dashboard, the create panel opens with a softened layout transition and staged field reveal. Its primary plus icon becomes a rotated close action while the panel is open, so the same control pattern can open and close the draft surface.
 - **Notices** (`frontend/src/store/toast.ts`, `frontend/src/components/ui/toast.tsx`): Local titles use sentence case, at most 40 characters and no trailing full stop or exclamation mark; errors say "Couldn't …", with the detailed reason in the description. Single-task deletion says "Task deleted". Server-supplied titles keep their producer wording. The ink surface uses 28px corners, a soft border and top highlight, with rounded action/dismiss controls; the positioning list is presentational and each notice retains its status/alert announcement. Every on-screen notice — a success, an error, a deletion that can still be undone — is one ink capsule in one stack at the bottom centre of the screen, above anything docked there (the selection bar). The stack is a deck that fans out under the pointer or keyboard focus and stops every clock while it is read; repeats are counted (`×2`) rather than stacked; notices can be flicked away, closed, or dismissed with Escape. Undo is one of them: its ring drains with the five-second window, which holds while the stack is being read. Durations: success 4s, info 5s, warning 6s, error 7s (+1.5s with a description).
 - **Task card controls** (`frontend/src/components/todos/todo-card.tsx`): the complete / take-it circle remains in a 32px rail on the card's vertical centre (error ≤0.5 CSS px). The eye always sits directly below it on the same x centre, 23px from the left border and 22px from the bottom. An active rail reserves the necessary 118px, making a sparse open card 160px tall with its existing padding and border; taller cards retain their natural content height. The stationary 44px hit areas do not overlap, and the visible circle keeps its 1.06 hover spring and tap animation. Completed cards have no eye or added minimum. Hiding or showing still glides the real height on the existing layout spring while its two shapes cross-fade. The layout algorithm `getTaskWeight`, the skeleton, height-transition hook and other card styling are unchanged by this alignment fix.

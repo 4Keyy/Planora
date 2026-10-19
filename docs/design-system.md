@@ -390,9 +390,11 @@ none of them. Five rules follow.
    a scaleY that stretched everything inside three times over. Long glides use
    `SPRING_LAYOUT`.
 5. **A keyed child cannot move between parents.** React unmounts it from one and mounts a
-   new one in the other. A list split into columns keeps each item in its column
-   (`components/ui/masonry-columns.tsx`) instead of re-dealing — re-dealing remounted every
-   card after the one that changed and replayed its entrance.
+   new one in the other. So the task grid has no column parents: every card is a child of one
+   box and a column is a transform (`components/ui/masonry-columns.tsx`). A fresh deal on every
+   change moves cards by gliding them, never by remounting them. The grid before it kept each
+   card in its first column to avoid the remount, and after a filter showed an empty column
+   between two full ones.
 
 ### Floating surfaces — CSS, not framer-motion
 
@@ -671,7 +673,7 @@ against the few that were not, and it trains people to click through dialogs unr
 | Step | What | Spec |
 |---|---|---|
 | 1 | The card leaves | `opacity → 0`, `exit` |
-| 2 | Its neighbours close the gap | `layout="position"`, `SPRING_LAYOUT` — the card stays in its masonry column, so only the cards below it move |
+| 2 | Its neighbours close the gap | the grid re-deals and every later card glides to its place on `SPRING_LAYOUT` from its current speed; the cards before it never move |
 | 3 | The bar arrives from below | `y 100% → 0`, `base` 220, `emphasized` |
 | 4 | The countdown bar drains over 5s | `scaleX 1 → 0`, linear |
 

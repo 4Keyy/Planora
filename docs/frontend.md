@@ -512,14 +512,17 @@ completed preview uses 20 items and the separate archive paginates at 20.
 The palette loads the first 100 active tasks when opened and filters that set
 locally; it is not a search over every page of the repository's task data.
 
-At a fixed column count, `MasonryColumns` retains each existing card's column
-and assigns new cards to the shortest estimated column. A breakpoint changing
-the column count redistributes the grid. Cards retain source-list order within
-each column; DOM and keyboard order traverse columns, so this does not establish
-a global row-by-row reading order. Removal uses per-column `AnimatePresence`
-and position-only layout motion with `SPRING_LAYOUT`; height changes do not
-stretch the card's contents. The entrance stagger applies to the first paint,
-not later insertions.
+`MasonryColumns` re-deals the whole grid on every change of the list or of the
+column count: in list order, each card to the shortest column, the leftmost of
+equal ones, by measured height (`dealColumns`). Reading the grid left to right
+and top to bottom therefore reads the sorted list, and DOM and keyboard order
+are the list's. Cards are children of one box, placed by `x`/`y` motion values;
+every move glides on `SPRING_LAYOUT` from the card's current speed, a leaving
+card fades in place under one `AnimatePresence`, and a card whose height changes
+pushes the cards below it in step and is re-dealt around 180ms after it settles.
+The first (server) paint is a CSS grid; the cards are measured and placed in a
+layout effect before the first client paint. The entrance stagger applies to the
+first paint and to a new `deal` (a dashboard page), not to later insertions.
 
 HTML motion surfaces import `motion` from `@/components/ui/motion`; hooks, controls,
 types and `AnimatePresence` still come from `framer-motion`. The shared facade gives
