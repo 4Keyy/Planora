@@ -152,7 +152,7 @@ public class RepositoryBehaviorTests
             pageNumber: 0,
             pageSize: 500,
             sortCompletedByCompletionTime: true,
-            completionViewerId: null);
+            viewerId: null);
         Assert.Equal(3, paged.TotalCount);
         Assert.Equal(3, paged.Items.Count);
     }

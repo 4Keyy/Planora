@@ -7,9 +7,12 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
 {
     public sealed class TodoRepository : BaseRepository<TodoItem, Guid, TodoDbContext>, ITodoRepository
     {
-        public TodoRepository(TodoDbContext context)
+        private readonly TimeProvider _timeProvider;
+
+        public TodoRepository(TodoDbContext context, TimeProvider? timeProvider = null)
             : base(context)
         {
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         public async Task<IReadOnlyList<TodoItem>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -163,7 +166,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
             int pageNumber,
             int pageSize,
             bool sortCompletedByCompletionTime,
-            Guid? completionViewerId,
+            Guid? viewerId,
             CancellationToken cancellationToken = default)
         {
             var (safePageNumber, safePageSize) = PaginationParameters.Normalize(pageNumber, pageSize);
@@ -176,9 +179,33 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
 
             if (!sortCompletedByCompletionTime)
             {
-                query = query.OrderByDescending(x => x.CreatedAt);
+                if (viewerId is Guid activeViewerId)
+                {
+                    var preferences = Context.Set<UserTodoViewPreference>();
+                    // Capture a UTC parameter: DueDate is timestamptz, and today's entire UTC day is urgent.
+                    var nextUtcDay = _timeProvider.GetUtcNow().UtcDateTime.Date.AddDays(1);
+                    query = query
+                        .Select(x => new
+                        {
+                            Todo = x,
+                            IsHidden = (x.UserId == activeViewerId && x.Hidden)
+                                || ((x.IsPublic || x.SharedWith.Any()) && preferences.Any(p =>
+                                    p.ViewerId == activeViewerId && p.TodoItemId == x.Id && p.HiddenByViewer))
+                        })
+                        .OrderBy(x => x.IsHidden)
+                        .ThenByDescending(x => x.IsHidden && x.Todo.Status != TodoStatus.Done
+                            && (x.Todo.Priority == TodoPriority.Urgent
+                                || (x.Todo.DueDate.HasValue && x.Todo.DueDate.Value < nextUtcDay)))
+                        .ThenByDescending(x => x.Todo.CreatedAt)
+                        .ThenBy(x => x.Todo.Id)
+                        .Select(x => x.Todo);
+                }
+                else
+                {
+                    query = query.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id);
+                }
             }
-            else if (completionViewerId is Guid viewerId)
+            else if (viewerId is Guid completedViewerId)
             {
                 // A friend's task the viewer completed only for themselves has no CompletedAt (its
                 // owner has not closed it), so it sorts by the viewer's own completion time: a
@@ -187,7 +214,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 query = query
                     .OrderByDescending(x => x.CompletedAt
                         ?? preferences
-                            .Where(p => p.ViewerId == viewerId && p.TodoItemId == x.Id && p.CompletedByViewer)
+                            .Where(p => p.ViewerId == completedViewerId && p.TodoItemId == x.Id && p.CompletedByViewer)
                             .Select(p => p.CompletedByViewerAt)
                             .FirstOrDefault()
                         ?? x.UpdatedAt

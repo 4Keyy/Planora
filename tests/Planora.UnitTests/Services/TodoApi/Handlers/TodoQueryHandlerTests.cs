@@ -470,8 +470,8 @@ public class TodoQueryHandlerTests
         Assert.Equal(
             new[] { ownInWindow.Id, friendInWindow.Id }.OrderBy(id => id),
             windowed.Items.Select(item => item.Id).OrderBy(id => id));
-        // The archive is ordered for this viewer; an active list has no completion order at all.
-        Assert.Equal(new Guid?[] { userId, null }, completionViewers);
+        // Both lists need the viewer: completion times in the archive, hidden ordering when active.
+        Assert.Equal(new Guid?[] { userId, userId }, completionViewers);
         fixture.ViewerPreferences.Verify(
             x => x.GetCompletedTodoIdsByViewerInWindowAsync(It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<CancellationToken>()),
             Times.Once);

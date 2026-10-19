@@ -116,8 +116,7 @@ namespace Planora.Todo.Application.Features.Todos.Queries.GetUserTodos
                 request.PageNumber,
                 request.PageSize,
                 sortCompletedByCompletionTime,
-                // The archive orders a viewer-only completion by when THIS viewer completed it.
-                sortCompletedByCompletionTime ? userId : null,
+                userId,
                 cancellationToken);
 
             var pageTodoIds = paginatedItems.Select(item => item.Id).ToList();

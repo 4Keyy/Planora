@@ -676,6 +676,16 @@ from the middleware, not from those branches.
 case-insensitively with spaces stripped, and an unparseable entry is dropped rather than rejected —
 `status=nonsense` is the same request as no filter at all.
 
+For the active list (`GET /todos/api/v1/todos?status=Todo,InProgress&isCompleted=false`),
+the server orders rows before pagination: tasks not hidden for the caller come first by
+`CreatedAt DESC`, followed by tasks effectively hidden for that viewer. Among hidden tasks,
+urgent tasks come first, then the others, each by `CreatedAt DESC`. A task is urgent when it
+is not `Done` and either has `Urgent` priority or a `DueDate` on or before today UTC.
+Open tasks keep their creation-time order regardless of urgency. `Id ASC` breaks ties.
+Effective hidden state uses the owner's `Hidden` flag for their own tasks, plus the caller's
+`HiddenByViewer` preference for tasks with an audience (`IsPublic` or any direct shares);
+another owner's `Hidden` flag does not hide a shared task for the caller.
+
 `revealHidden` (default `false`) changes only the projection of hidden rows in
 `GET /todos/api/v1/todos`. With `revealHidden=true`, the command palette receives the normal
 `TodoItemDto` with `hidden: true`: real title, description, dates, tags, viewer category and worker

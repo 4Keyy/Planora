@@ -32,8 +32,12 @@ namespace Planora.Todo.Domain.Repositories
             CancellationToken cancellationToken = default);
         /// <summary>
         /// One page of <paramref name="predicate"/>'s matches with tags, shares and workers loaded.
-        /// <paramref name="sortCompletedByCompletionTime"/> orders the page newest-completed first; with a
-        /// <paramref name="completionViewerId"/> a task that viewer completed only for themselves sorts by
+        /// When <paramref name="sortCompletedByCompletionTime"/> is false, open tasks come first by
+        /// CreatedAt descending, then tasks effectively hidden for <paramref name="viewerId"/>, urgent
+        /// ones first (not Done and either Urgent priority or due today UTC or earlier), then CreatedAt descending.
+        /// Id ascending breaks active-list ties; without a viewer only CreatedAt descending and Id apply.
+        /// When true, orders newest-completed first; with a <paramref name="viewerId"/> a task that
+        /// viewer completed only for themselves sorts by
         /// <em>their</em> completion time, because the owner's <c>CompletedAt</c> stays empty until the
         /// owner closes the task.
         /// </summary>
@@ -42,7 +46,7 @@ namespace Planora.Todo.Domain.Repositories
             int pageNumber,
             int pageSize,
             bool sortCompletedByCompletionTime,
-            Guid? completionViewerId,
+            Guid? viewerId,
             CancellationToken cancellationToken = default);
 
         /// <summary>

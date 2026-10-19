@@ -58,7 +58,7 @@ public sealed class TodoArchivePostgresTests
 
             var page = await repository.GetPagedWithIncludesAsync(
                 t => ids.Contains(t.Id), pageNumber: 1, pageSize: 10,
-                sortCompletedByCompletionTime: true, completionViewerId: Viewer);
+                sortCompletedByCompletionTime: true, viewerId: Viewer);
             Assert.Equal(new[] { recentId, ownId, olderId }, page.Items.Select(t => t.Id));
 
             // Without a viewer the friend's tasks have no completion time and fall back to their owner's
@@ -66,7 +66,7 @@ public sealed class TodoArchivePostgresTests
             // ago above one finished ten days ago. That is the order the archive used to show.
             var anonymous = await repository.GetPagedWithIncludesAsync(
                 t => ids.Contains(t.Id), pageNumber: 1, pageSize: 10,
-                sortCompletedByCompletionTime: true, completionViewerId: null);
+                sortCompletedByCompletionTime: true, viewerId: null);
             Assert.Equal(ownId, anonymous.Items[^1].Id);
 
             var preferences = new UserTodoViewPreferenceRepository(db);
