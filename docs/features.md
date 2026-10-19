@@ -554,9 +554,21 @@ open and close without a blink" under the Todos frontend behavior.
 two modes. By default it is an **in-flow absolute** child of its trigger wrapper — used inside the
 scrollable edit modal, where the popover must scroll *with* the modal body. With the `portal` prop it
 instead renders into a `document.body` portal with viewport-**fixed** positioning: it is glued to the
-trigger via `getBoundingClientRect` (repositioning on capture-phase scroll + resize), **flips above**
-the trigger when there isn't room below, and caps its `maxHeight` to the available space (scrolling
-internally). Because a fixed/portaled element never contributes to the document's scroll height,
+trigger via `getBoundingClientRect` (repositioning on capture-phase scroll + resize) and placed
+where **all of it fits** (`useFixedPopoverPosition`): below the trigger, else above it (`.dropdown-above`),
+else — when it fits neither side but fits the screen, like the 522px calendar under a field in the
+middle of a 900px window — laid over the trigger from its near edge, as a native select is, and slid
+only as far as the viewport's margin needs, unfolding from the trigger's height. Only a sheet taller
+than the viewport scrolls. The height it wants is its content's layout height (`offsetHeight`, never a
+rect, which is scaled mid-unfold); it used to take the roomier side and cap itself to it, so the
+calendar kept a scrollbar for good. The sheet is a clipping frame (`.dropdown-frame`) round its own
+scroller (`.dropdown-scroll`): the content's 4px entrance drift — downward for a sheet opening above —
+used to reach past the sheet's edge and show a scrollbar for the 100ms it took, because a drifting
+row is scrollable overflow; now the drift moves the scroller as one piece inside a frame that only
+clips, and a sideways slide inside it (the month grid, the category form) is clipped, never scrolled.
+The completed page's date filter (`DateFilterPopover`) uses the same frame and placement. Measured on
+`/tasks` and the dashboard at 1440×900, 1280×640 and 390×844, all four pickers opening up and down:
+no frame with anything scrollable. Because a fixed/portaled element never contributes to the document's scroll height,
 opening a `portal` popover can **never stretch the page** and closing it can **never snap** it — this
 is what the create-task panel (on `/tasks` and the dashboard) uses for all four selectors, so
 even the tall inline "create category" form stays inside the viewport instead of growing the page.

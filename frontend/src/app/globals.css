@@ -381,6 +381,27 @@
   /* Past the sixth row the wait would outlast the reader: the rest arrive together. */
   [data-cascade] > :nth-child(n + 6) { --cascade-row: 5; }
 
+  /* A capped sheet (`useFixedPopoverPosition`): the frame clips, the scroller inside it
+     scrolls. The sheet used to be its own scroller, and its content's 4px drift on the way
+     in — down, for a sheet opening above its trigger — reached past its bottom edge, so it
+     showed a scrollbar for the 100ms the drift took; a drifting row is scrollable overflow
+     like any other. Now the drift moves the scroller as one piece inside a frame that only
+     clips, and a sideways slide inside it (the month grid, the category form) is clipped
+     rather than scrolled. A list that cascades inside a scroller keeps a bottom padding of
+     at least the drift, so its last row drifts inside its own box. */
+  .dropdown-frame {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .dropdown-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   /* CSS scrims for the command palette and phone menu. Overlay controls its own fade. */
   .backdrop-surface[data-state="open"] {
     animation: surface-fade-in theme("transitionDuration.base") var(--pl-ease-emphasized) both;

@@ -140,7 +140,7 @@ describe("completion-date calendar stays inside the viewport", () => {
     expect(surface.style.maxHeight).toBe("596px")
   })
 
-  it("caps its width and height in a narrow, short viewport", () => {
+  it("caps its width and height in a narrow, short viewport, scrolling inside its frame", () => {
     vi.spyOn(window, "innerWidth", "get").mockReturnValue(280)
     vi.spyOn(window, "innerHeight", "get").mockReturnValue(200)
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(220, 80, 40, 40))
@@ -150,7 +150,38 @@ describe("completion-date calendar stays inside the viewport", () => {
     expect(surface.style.position).toBe("fixed")
     expect(parseFloat(surface.style.left)).toBeGreaterThanOrEqual(16)
     expect(parseFloat(surface.style.left) + parseFloat(surface.style.width)).toBeLessThanOrEqual(264)
-    expect(parseFloat(surface.style.maxHeight)).toBeLessThanOrEqual(56)
-    expect(surface.style.overflowY).toBe("auto")
+    // Taller than the whole screen: it takes all of it, inside the 16px margins, and scrolls.
+    expect(surface.style.top).toBe("16px")
+    expect(surface.style.maxHeight).toBe("168px")
+    expect(surface).toHaveClass("dropdown-frame")
+    expect(surface.firstElementChild).toHaveClass("dropdown-scroll")
+  })
+
+  it("slides a sheet that fits neither side over its trigger, whole, instead of scrolling it", () => {
+    vi.spyOn(window, "innerHeight", "get").mockReturnValue(900)
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(600, 400, 140, 40))
+    // A 520px calendar in a 2px frame: 436px below the field, 376px above it.
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(520)
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(518)
+    render(<DateFilterPopover start="" end="" onChange={vi.fn()} onClear={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button", { name: /By date/i }))
+    const surface = screen.getByRole("dialog")
+    // Its bottom edge meets the 16px margin; it unfolds from the field's middle, 58px down it.
+    expect(surface.style.top).toBe(`${900 - 16 - 522}px`)
+    expect(surface.style.bottom).toBe("")
+    expect(surface).not.toHaveClass("dropdown-above")
+    expect(surface.style.transformOrigin).toBe("right 58px")
+  })
+
+  it("opens below when all of it fits there", () => {
+    vi.spyOn(window, "innerHeight", "get").mockReturnValue(900)
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(600, 100, 140, 40))
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(520)
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(518)
+    render(<DateFilterPopover start="" end="" onChange={vi.fn()} onClear={vi.fn()} />)
+    fireEvent.click(screen.getByRole("button", { name: /By date/i }))
+    const surface = screen.getByRole("dialog")
+    expect(surface.style.top).toBe("148px")
+    expect(surface.style.transformOrigin).toBe("top right")
   })
 })

@@ -21,8 +21,9 @@ interface PopoverProps {
    * absolutely-positioned in-flow child.
    *
    * A fixed/portaled popover never contributes to the document's scroll height, so opening it
-   * can never stretch the page and closing it can never snap it back — and it flips above the
-   * trigger + caps its height to stay within the viewport. Use this in normal page flow (the
+   * can never stretch the page and closing it can never snap it back — and it is placed where
+   * all of it fits: below the trigger, above it, or slid over it (`useFixedPopoverPosition`),
+   * scrolling only when it is taller than the viewport. Use this in normal page flow (the
    * create-task panel on `/tasks` and the dashboard sidebar), where an in-flow popover would
    * otherwise grow the page. The default (`false`) keeps the in-flow absolute popover used
    * inside the scrollable edit modal, where the popover must scroll *with* the modal body.
@@ -48,9 +49,10 @@ const SURFACE_STYLE = {
  */
 export function Popover({ open, onClose, children, width = 300, align = "left", containerRef, portal = false }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const { mounted, presenceProps } = useExitPresence(open)
   useDismissHiddenAnchor(open, containerRef, onClose)
-  const pos = useFixedPopoverPosition(portal && open, containerRef, ref, width, align)
+  const pos = useFixedPopoverPosition(portal && open, containerRef, ref, width, align, 8, contentRef)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [nudge, setNudge] = useState(0)
   const nudgeRef = useRef(0)
@@ -123,7 +125,7 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
     }
   }, [open, onClose, containerRef])
 
-  // ── Portal (viewport-fixed) mode — never grows the document, flips + caps to fit ──
+  // ── Portal (viewport-fixed) mode — never grows the document; placed whole where it fits ──
   if (portal) {
     if (typeof document === "undefined" || !mounted || !pos) return null
     return createPortal(
@@ -131,7 +133,7 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
         ref={ref}
         role="dialog"
         {...presenceProps}
-        className={cn("dropdown-surface", pos.above && "dropdown-above")}
+        className={cn("dropdown-surface dropdown-frame", pos.above && "dropdown-above")}
         style={{
           position: "fixed",
           left: pos.left,
@@ -139,13 +141,14 @@ export function Popover({ open, onClose, children, width = 300, align = "left", 
           bottom: pos.bottom,
           width: pos.width,
           maxHeight: pos.maxHeight,
-          overflowY: "auto",
           zIndex: tokens.layer.popover,
           transformOrigin: pos.transformOrigin,
           ...SURFACE_STYLE,
         }}
       >
-        {children}
+        <div className="dropdown-scroll">
+          <div ref={contentRef}>{children}</div>
+        </div>
       </div>,
       document.body,
     )

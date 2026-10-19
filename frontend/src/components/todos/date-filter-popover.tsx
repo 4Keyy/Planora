@@ -43,7 +43,8 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
   const hasFilter = !!(start || end)
   const { mounted, presenceProps } = useExitPresence(open)
   useDismissHiddenAnchor(open, wrapRef, () => setOpen(false))
-  const pos = useFixedPopoverPosition(open, wrapRef, panelRef, 320, "right", 16)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const pos = useFixedPopoverPosition(open, wrapRef, panelRef, 320, "right", 16, contentRef)
 
   // Dismiss on outside pointer-down and Escape. Capture phase so a click that also lands on another
   // interactive element still closes the popover first. Only wired while open to stay cheap.
@@ -117,29 +118,33 @@ export function DateFilterPopover({ start, end, onChange, onClear }: DateFilterP
           role="dialog"
           aria-label="Filter completed tasks by completion date"
           {...presenceProps}
-          className={cn("dropdown-surface z-popover overflow-hidden rounded-xl border border-line bg-paper shadow-xl shadow-black/10", pos.above && "dropdown-above")}
-          style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight, overflowY: "auto", transformOrigin: pos.transformOrigin }}
+          className={cn("dropdown-surface dropdown-frame z-popover rounded-xl border border-line bg-paper shadow-xl shadow-black/10", pos.above && "dropdown-above")}
+          style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight, transformOrigin: pos.transformOrigin }}
         >
-          <div className="flex items-center justify-between border-b border-line px-3.5 py-2.5">
-            <span className="text-caption font-semibold uppercase tracking-wider text-ink-muted">Completed on</span>
-            {hasFilter && (
-              <button
-                type="button"
-                onClick={onClear}
-                className="text-caption font-semibold uppercase tracking-wider text-ink-muted transition-colors hover:text-ink rounded cursor-pointer"
-              >
-                Clear
-              </button>
-            )}
+          <div className="dropdown-scroll">
+            <div ref={contentRef}>
+              <div className="flex items-center justify-between border-b border-line px-3.5 py-2.5">
+                <span className="text-caption font-semibold uppercase tracking-wider text-ink-muted">Completed on</span>
+                {hasFilter && (
+                  <button
+                    type="button"
+                    onClick={onClear}
+                    className="text-caption font-semibold uppercase tracking-wider text-ink-muted transition-colors hover:text-ink rounded cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <DateCalendar
+                start={start}
+                end={end}
+                onChange={onChange}
+                autoClose={() => setOpen(false)}
+                headless
+                hideQuickPicks
+              />
+            </div>
           </div>
-          <DateCalendar
-            start={start}
-            end={end}
-            onChange={onChange}
-            autoClose={() => setOpen(false)}
-            headless
-            hideQuickPicks
-          />
         </div>,
         document.body,
       )}

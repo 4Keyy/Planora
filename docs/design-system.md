@@ -426,7 +426,14 @@ CSS (`.dropdown-surface` in `globals.css`) and kept mounted through its exit by
    (a row's bubbling one does not count) and falls back to a timer when no animation runs, so
    an invisible surface is never left behind catching clicks. The phone menu's scrim fades on
    the same presence with `.backdrop-surface`.
-5. **Ordinary dialogs follow the same rules.** `Overlay` (and through it "Choose categories"
+5. **A capped sheet never shows a passing scrollbar.** A sheet that can scroll is a clipping
+   frame (`.dropdown-frame`, `overflow: hidden`) round one scroller (`.dropdown-scroll`). Never
+   make the animated surface its own scroller: its content's 4px entrance drift is scrollable
+   overflow, so a sheet opening above its trigger (drift downward) showed a scrollbar for the
+   100ms the drift took. A list that cascades inside a scroller keeps a bottom padding of at least
+   the drift. Placement (`useFixedPopoverPosition`) shows the whole sheet wherever it fits —
+   below, above, or laid over its trigger — and scrolls only a sheet taller than the viewport.
+6. **Ordinary dialogs follow the same rules.** `Overlay` (and through it "Choose categories"
    and the shortcuts sheet) and `ConfirmDialog` fade their scrim with
    `.backdrop-surface` and raise the dialog 8px with `.dialog-surface` — `base` in, `fast` out.
    While a dialog folds away it lets clicks through to the page it is uncovering. The task
