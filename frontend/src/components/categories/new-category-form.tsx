@@ -30,17 +30,20 @@ export type NewCategoryDraft = { name: string; color: string; icon: string | nul
 export function NewCategoryForm({
   onCreate,
   onBack,
+  initialName = "",
 }: {
   /** Makes the category; reject to keep the draft and say it failed. */
   onCreate: (draft: NewCategoryDraft) => Promise<void>
   /** Back to the category list, dropping the draft. */
   onBack: () => void
+  /** The name it starts with — what was searched for and not found ("Create “Groceries”"). */
+  initialName?: string
 }) {
   const reduce = useReducedMotion() ?? false
   const titleId = useId()
   const rootRef = useRef<HTMLDivElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
-  const [name, setName] = useState("")
+  const [name, setName] = useState(initialName.slice(0, NAME_MAX))
   const [color, setColor] = useState(DEFAULT_CATEGORY_COLOR)
   const [icon, setIcon] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
