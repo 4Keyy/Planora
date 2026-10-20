@@ -716,6 +716,25 @@ browser geometry or frame-by-frame motion.
 
 The `use-list-navigation` Shift case is not hypothetical. Shift rewrites the character it produces, so `Shift+j` arrives as `"J"`, not as `"j"` with `shiftKey` set; reading `event.shiftKey` on the `"j"` branch matched nothing and the vim-style extend-selection was dead code that typechecked. `frontend/src/hooks/use-list-navigation.ts` folds `"J"` back to `"j"` before dispatch so `Shift+J` and `Shift+↓` are genuinely one binding.
 
+### Testing in other time zones
+
+A task's dates are calendar days stored as their midnight UTC (`frontend/src/lib/calendar-date.ts`),
+and a date defect shows only in some zones: west of UTC the stored day read in local time is the
+evening before, and east of UTC "today" turns over before the UTC date does. A suite on a UTC
+runner sees neither, so the date tests run as a viewer elsewhere would. They switch
+`process.env.TZ` through `frontend/src/test/time-zone.ts` — `setTimeZone` in the test,
+`restoreTimeZone` after it — and pin the clock with `vi.setSystemTime` at an instant that falls on
+different days in UTC and in the zone under test: 22:30 UTC is already the next day in Moscow,
+02:00 UTC still the previous day in New York.
+
+Restoring the zone by hand is the trap. Node re-reads `TZ` when it is assigned, but
+`process.env.TZ = undefined` stores the string `"undefined"` (the zone becomes `Etc/Unknown`, which
+is UTC) and `delete process.env.TZ` keeps the last zone in force, so a test that restored it by
+hand left every later test in the worker in the wrong zone. The helper assigns the starting zone
+back by name before removing the variable; `frontend/src/test/quality/time-zone-helper.test.ts`
+pins that. Exercised by `frontend/src/test/lib/calendar-date.test.ts` and
+`frontend/src/test/components/task-dates-time-zone.test.tsx`.
+
 ### Vitest 5 and jest-dom 7 conventions
 
 - `frontend/src/test/setup.ts` imports `@testing-library/jest-dom/vitest`. That entry registers

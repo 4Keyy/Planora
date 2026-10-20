@@ -3,14 +3,12 @@ import { addDays, calendarDayOf, daysBetween, endOfWeek, formatDay, localDay } f
 import { daysFromToday, describeDue } from "@/components/command-palette/search"
 import { sortTasks, type SortableTask } from "@/utils/sort-tasks"
 import { TodoPriority } from "@/types/todo"
+import { restoreTimeZone, setTimeZone as inZone } from "@/test/time-zone"
 
 // The editor stores a due day as its midnight UTC. These run the date logic as a viewer in
-// another time zone would: Node re-reads TZ when it changes.
-const originalTz = process.env.TZ
-const inZone = (tz: string) => { process.env.TZ = tz }
-
+// another time zone would (`@/test/time-zone`).
 afterEach(() => {
-  process.env.TZ = originalTz
+  restoreTimeZone()
   vi.useRealTimers()
 })
 

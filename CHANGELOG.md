@@ -113,6 +113,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### test(dates): time-zone tests put the machine's zone back (2026-10-20)
+
+The calendar-day tests switched `process.env.TZ` and put it back with
+`process.env.TZ = originalTz`. With `TZ` unset, as on a developer machine and in CI, that stores
+the string "undefined" — the zone becomes `Etc/Unknown`, which is UTC — so every later test in the
+same worker ran in UTC instead of the machine's zone; deleting the variable would not help, Node
+keeps the last zone. `frontend/src/test/time-zone.ts` now switches the zone for every such test
+and assigns the starting zone back by name before removing the variable, and a test pins it.
+
 ### fix(dates): a task's due day is the same day in every time zone (2026-10-20)
 
 The editor stores a due day as its midnight UTC, but cards, the task sort, the palette and the

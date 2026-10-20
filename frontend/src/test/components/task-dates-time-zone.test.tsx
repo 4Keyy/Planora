@@ -5,9 +5,9 @@ import { DateCalendar } from "@/components/todos/edit-todo-modal/popovers/date"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore } from "@/store/notifications"
 import { TodoPriority, TodoStatus, type Todo } from "@/types/todo"
+import { restoreTimeZone, setTimeZone } from "@/test/time-zone"
 
 // A due day is stored as its midnight UTC; these render as a viewer elsewhere would.
-const originalTz = process.env.TZ
 
 const task: Todo = {
   id: "due-day", userId: "owner", title: "File the report",
@@ -22,13 +22,13 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  process.env.TZ = originalTz
+  restoreTimeZone()
   vi.useRealTimers()
 })
 
 describe("a task card west of UTC", () => {
   it("shows the day the task is due and does not call it overdue on that day", () => {
-    process.env.TZ = "America/New_York"
+    setTimeZone("America/New_York")
     vi.useFakeTimers({ toFake: ["Date"] })
     vi.setSystemTime(new Date("2026-10-21T16:00:00.000Z")) // noon, Oct 21, in New York
 
@@ -40,7 +40,7 @@ describe("a task card west of UTC", () => {
   })
 
   it("calls it overdue from the next day on", () => {
-    process.env.TZ = "America/New_York"
+    setTimeZone("America/New_York")
     vi.useFakeTimers({ toFake: ["Date"] })
     vi.setSystemTime(new Date("2026-10-22T16:00:00.000Z"))
 
@@ -52,7 +52,7 @@ describe("a task card west of UTC", () => {
 
 describe("the date picker's Today east of UTC, after midnight", () => {
   it("picks the viewer's day, not yesterday's UTC date", () => {
-    process.env.TZ = "Europe/Moscow"
+    setTimeZone("Europe/Moscow")
     vi.useFakeTimers({ toFake: ["Date"] })
     vi.setSystemTime(new Date("2026-10-20T22:30:00.000Z")) // 01:30, Oct 21, in Moscow
     const onChange = vi.fn()
