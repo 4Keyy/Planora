@@ -113,6 +113,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(security): patch MessagePack and repair dependency reporting (2026-10-20)
+
+Pinned MessagePack to 2.5.307 within the SignalR-compatible line. Production npm high/critical vulnerabilities block while the full graph is advisory; the nightly NuGet scanner bypasses restore auditing only for its scan and maintains one issue without pushing a branch or creating PRs.
+
 ### feat(observability): failures in the browser reach the service logs (2026-10-20)
 
 Error screens existed, but nobody besides the person in front of the screen learned that

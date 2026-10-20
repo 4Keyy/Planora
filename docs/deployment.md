@@ -114,16 +114,21 @@ connection required). Review and back up affected data before executing them.
 
 ## CI/CD workflow inventory
 
+The nightly NuGet workflow reports every advisory severity through one issue. Scanner
+errors or malformed reports fail without closing it. The legacy
+`security/nuget-vuln-tracking` branch is preserved but no workflow pushes it.
+MessagePack is centrally pinned to 2.5.307, retaining the SignalR-compatible 2.5 line.
+
 | Workflow | Trigger / current behavior |
 |---|---|
 | [`ci.yml`](../.github/workflows/ci.yml) | Push on configured branches and PR to main/develop: Markdown/offline links; .NET restore/build/test; frontend npm ci/lint/types/coverage/build |
 | [`e2e.yml`](../.github/workflows/e2e.yml) | Path-filtered push to main, PR to main/develop, or manual dispatch: Compose stack, production frontend, Playwright API/Chromium UI, isolated Mailpit SMTP; skipped/retried counts in summary, redacted output and failure PNGs only |
-| [`security.yml`](../.github/workflows/security.yml) | Secret/dependency scanning, CodeQL, Trivy, SBOM; frontend SBOM attested on push |
+| [`security.yml`](../.github/workflows/security.yml) | Secret/dependency scanning, CodeQL, Trivy, SBOM; production npm high/critical audit blocks, full npm graph is advisory with summary; frontend SBOM attested on push |
 | [`openapi.yml`](../.github/workflows/openapi.yml) | Path-filtered PR or manual: Swagger + Spectral for all six HTTP services; Testing skips Todo/Collaboration startup migrations |
 | [`migrations.yml`](../.github/workflows/migrations.yml) | Path-filtered PR or manual: SQL artifacts for all six DB-owning services; EF CLI 10.0.8 after restore/Release build |
 | [`perf-smoke.yml`](../.github/workflows/perf-smoke.yml) | Manual k6 login/todo-list scenarios; absolute thresholds, no relative-baseline comparison implementation |
 | [`cd.yml`](../.github/workflows/cd.yml) | `v*` tag or manual ref: preflight, migration runner, service matrix, gateway, public health smoke |
-| [`nuget-vuln-pr.yml`](../.github/workflows/nuget-vuln-pr.yml) | Nightly/manual vulnerability tracking PR; report generation, not package upgrades |
+| [`nuget-vuln-pr.yml`](../.github/workflows/nuget-vuln-pr.yml) | Nightly/manual NuGet scan: restores with `NuGetAudit=false` only here, creates/updates/reopens one tracking issue for advisories and closes it after a successful clean scan; `contents: read`, `issues: write`, no branch/PR writes |
 
 `cd.yml` requires `FLY_API_TOKEN` and serializes production runs with
 `cd-fly-prod`. Its service matrix contains Auth, Category, Todo, Messaging,

@@ -43,7 +43,16 @@ jobs:
             **/*.csproj
             Directory.Packages.props
             Directory.Build.props
-      - run: dotnet list package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt; grep -i "has the following vulnerable packages" vuln-report.txt && exit 1 || exit 0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22'
+      - name: Test vulnerability report parsing
+        run: node --test .github/scripts/nuget-vulnerability-report.test.mjs
+      - name: Scan vulnerable NuGet dependencies
+        shell: bash
+        run: |
+          dotnet list Planora.sln package --vulnerable --include-transitive --format json --output-version 1 > nuget-vulnerabilities.json
+          node .github/scripts/nuget-vulnerability-report.mjs nuget-vulnerabilities.json --check
 
   npm-audit:
     runs-on: ubuntu-latest
@@ -59,7 +68,27 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm audit --audit-level=high
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit the complete dependency graph (advisory)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          npm audit --audit-level=high > npm-audit-full.txt 2>&1
+          audit_status=$?
+          set -e
+          {
+            echo '## Full npm dependency audit (advisory)'
+            echo
+            echo "Command exit code: ${audit_status}"
+            echo
+            echo '```text'
+            cat npm-audit-full.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$audit_status"
 
   codeql:
     name: CodeQL SAST

@@ -6,10 +6,11 @@
     <!-- Central package versions for all projects -->
     <!-- Security override: SignalR's StackExchangeRedis backplane pulls MessagePack 2.5.187, which
          is vulnerable (GHSA-hv8m-jj95-wg3x — LZ4 decompression AccessViolationException, fixed in
-         2.5.301). The affected projects (Realtime.Api) add a direct <PackageReference Include=
+         2.5.301). Pin 2.5.307 to also cover GHSA-qhrr-8q5h-9q3h (fixed in 2.5.303).
+         The affected projects (Realtime.Api) add a direct <PackageReference Include=
          "MessagePack" /> to force this patched 2.5.x (kept on the 2.5 line for SignalR-2.x protocol
          compatibility). Remove both once SignalR ships a patched transitive. -->
-    <PackageVersion Include="MessagePack" Version="2.5.302" />
+    <PackageVersion Include="MessagePack" Version="2.5.307" />
     <!-- Security override: DataProtection 10.0.8 pulls vulnerable XML cryptography.
          Auth.Infrastructure references the patched package directly; keep this override
          until the DataProtection dependency graph resolves to 10.0.13 or newer. -->
