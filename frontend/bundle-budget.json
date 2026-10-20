@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "totalGzipKB": 844.81,
+  "routes": {
+    "/": 227.59,
+    "/_global-error": 133.15,
+    "/_not-found": 157.52,
+    "/auth/forgot-password": 190.76,
+    "/auth/forgot-password/sent": 165.48,
+    "/auth/login": 193.26,
+    "/auth/register": 193.15,
+    "/auth/reset-password": 193.09,
+    "/auth/verify-email": 165.91,
+    "/branch/[id]": 235.93,
+    "/categories": 195.3,
+    "/dashboard": 217.38,
+    "/manifest.webmanifest": 0,
+    "/profile": 211.59,
+    "/tasks": 219.63,
+    "/tasks/completed": 222.74
+  }
+}

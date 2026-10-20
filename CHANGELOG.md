@@ -113,6 +113,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### build(frontend): report route bundles and add advisory budgets (2026-10-20)
+
+A dependency-free Node report measures deduplicated route JavaScript and the complete static JS/CSS total using gzip level 9. Current production measurements seed route and total budgets with 5% headroom; CI checks them after build in advisory mode, and synthetic tests cover parsing, deduplication and failing budgets.
+
 ### build(frontend): remove unused dependency and Next overrides (2026-10-20)
 
 Removed unused tw-animate-css, import-optimization entries for absent Radix packages and the unused Server Actions override. Disabled X-Powered-By; paired production builds on identical sources showed zero byte growth for every route and the static total.

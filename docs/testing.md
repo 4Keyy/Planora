@@ -827,6 +827,49 @@ Remove-Item Env:TZ
 The sorter and maintained feature rules agree. Its older internal comment that
 overdue tasks are ordered by age alone is imprecise: priority precedes due date.
 
+### Bundle size report and budgets
+
+Fresh local production build, 2026-10-20, Next.js 16.4.2. KB means 1024 bytes; gzip
+uses level 9. Client-reference manifests provide the route JS sets, deduplicated
+within each route; shared chunks count once in the static total. Routes do not include
+CSS, fonts, HTML, RSC payloads or the effect of runtime lazy loading.
+
+| Route | JS chunks | Raw KB | Gzip KB |
+|---|---:|---:|---:|
+| `/` | 18 | 643.70 | 216.75 |
+| `/_global-error` | 8 | 367.75 | 126.80 |
+| `/_not-found` | 12 | 447.11 | 150.01 |
+| `/auth/forgot-password` | 17 | 551.47 | 181.67 |
+| `/auth/forgot-password/sent` | 15 | 465.25 | 157.60 |
+| `/auth/login` | 17 | 558.87 | 184.05 |
+| `/auth/register` | 17 | 558.36 | 183.95 |
+| `/auth/reset-password` | 17 | 558.02 | 183.89 |
+| `/auth/verify-email` | 15 | 466.87 | 158.00 |
+| `/branch/[id]` | 19 | 687.79 | 224.69 |
+| `/categories` | 17 | 553.43 | 185.99 |
+| `/dashboard` | 20 | 608.13 | 207.02 |
+| `/manifest.webmanifest` | 0 | 0.00 | 0.00 |
+| `/profile` | 18 | 626.14 | 201.51 |
+| `/tasks` | 21 | 614.95 | 209.17 |
+| `/tasks/completed` | 21 | 625.34 | 212.13 |
+
+Static totals: 81 JS files (2386.00 KB raw, 786.99 KB gzip), 2 CSS files (93.03 KB raw, 17.59 KB gzip); 2479.03 KB raw and 804.58 KB gzip combined; 0 source maps. This replaces the audit snapshot as the measured budget baseline.
+
+```powershell
+Push-Location frontend
+$env:NEXT_DIST_DIR = ".next-codex"
+npm run build
+npm run bundle:report -- --budget bundle-budget.json
+npm run bundle:report -- --json
+node --test e2e/bundle-report.test.mjs
+Pop-Location
+```
+
+`bundle-budget.json` sets each route and the unique static JS/CSS gzip total to this
+baseline plus 5%, rounded up to 0.01 KB. Missing/new routes and exceeded limits exit 1.
+CI runs the check after the frontend build with `continue-on-error: true` during this
+initial advisory stage. Refresh budgets only after reviewing an intentional size change.
+
 ## Performance / Load (k6)
 
 The k6 baseline lives in [`perf/k6/`](../perf/k6/). Two scenarios ship today; both share `lib/api.js` (CSRF bootstrap, register, login) so new scenarios extend the lib instead of duplicating boilerplate.

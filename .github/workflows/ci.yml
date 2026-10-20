@@ -88,6 +88,11 @@ jobs:
       - run: npm run type-check
       - run: npm run test:coverage
       - run: npm run build
+      - name: Bundle budget (advisory)
+        continue-on-error: true
+        run: |
+          node --test e2e/bundle-report.test.mjs
+          npm run bundle:report -- --budget bundle-budget.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: frontend-coverage-report
