@@ -456,6 +456,8 @@ Content-Security-Policy is set **per-request** with a unique nonce by `src/middl
 
 `style-src 'unsafe-inline'` is retained because Tailwind CSS and Next.js SSR emit inline `<style>` tags that cannot be attributed with nonces without forking the framework internals.
 
+Production `img-src` allows `'self'`, `data:` and the gateway origins only. It used to allow any `https:` host, which no image needed — the image optimizer serves from `'self'` and fetches only the API host — and which left an injected `<img>` free to carry data to any server. `next.config.js` sets `poweredByHeader: false`, so responses no longer announce `X-Powered-By: Next.js`.
+
 Code:
 
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/SecurityHeadersMiddleware.cs` — single source of truth for all backend services

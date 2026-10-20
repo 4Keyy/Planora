@@ -77,6 +77,26 @@ describe("CSP middleware", () => {
     expect(csp).toContain("ws://localhost:5132")
   })
 
+  // An <img> from any https host was allowed: a channel for leaking data through an injected
+  // image. Images come from the app itself (next/image's optimizer), data: URIs and the gateway's
+  // avatars — nothing else (FE-14).
+  it("limits production images to the app, data: and the gateway", () => {
+    vi.stubEnv("NODE_ENV", "production")
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.planora.example")
+    const publicCsp = middleware(
+      new NextRequest("https://app.planora.example/", { headers: { host: "app.planora.example" } }),
+    ).headers.get("content-security-policy")
+    expect(publicCsp).toMatch(/img-src 'self' data: https:\/\/api\.planora\.example(?:;|$)/)
+
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://192.168.42.19:5132")
+    const lan = cspFor("/dashboard")
+    expect(lan).toMatch(/img-src 'self' data: [^;]*http:\/\/192\.168\.42\.19:5132/)
+    expect(lan).not.toMatch(/img-src[^;]*\s(?:https?):(?:\s|;|$)/)
+
+    vi.stubEnv("NODE_ENV", "development")
+    expect(cspFor("/")).toMatch(/img-src 'self' data: https: http:/)
+  })
+
   it("adds upgrade-insecure-requests for an https API origin in production", () => {
     vi.stubEnv("NODE_ENV", "production")
     vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.planora.example")

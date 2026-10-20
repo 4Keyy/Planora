@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(security): images load only from the app and the gateway (2026-10-20)
+
+The production Content-Security-Policy allowed images from any HTTPS host. No image needed that —
+`next/image` serves from the app itself and fetches only the API host — but an injected `<img>`
+could use it to send data anywhere. `img-src` is now `'self' data:` plus the gateway origins;
+development keeps its open policy for avatars on local hosts.
+
 ### fix(security): patch MessagePack and repair dependency reporting (2026-10-20)
 
 Pinned MessagePack to 2.5.307 within the SignalR-compatible line. Production npm high/critical vulnerabilities block while the full graph is advisory; the nightly NuGet scanner bypasses restore auditing only for its scan and maintains one issue without pushing a branch or creating PRs.

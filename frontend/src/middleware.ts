@@ -41,9 +41,12 @@ export function middleware(request: NextRequest) {
   // Avatars are served by the gateway. With the local image optimizer bypassed (next.config:
   // imagesUnoptimized), the browser loads them straight from the gateway, so img-src needs the same
   // gateway origins connect-src got (apiOrigin + the same-host gateway for a local/LAN viewer).
+  // Nothing else: next/image's optimizer serves from 'self' and fetches only the API host
+  // (remotePatterns), so a blanket `https:` added no image — only a way to leak data through an
+  // injected <img> (FE-14).
   const imgSrc = isDev
     ? `'self' data: https: http:`
-    : `'self' data: https: ${[...prodConnectOrigins].join(' ')}`
+    : `'self' data: ${[...prodConnectOrigins].join(' ')}`
 
   const cspParts = [
     "default-src 'self'",

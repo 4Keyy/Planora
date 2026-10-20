@@ -180,7 +180,10 @@ Tailwind and Next.js inject critical CSS as inline `<style>` during SSR. In prod
 gateway on the host the page was opened from — which is what `getApiBaseUrl()` will actually
 dial, and is not necessarily the origin baked at build time. `connect-src` additionally carries
 each of those origins in its `ws://`/`wss://` form, because the SignalR hub is reached over a
-WebSocket.
+WebSocket. Production `img-src` is `'self' data:` and those gateway origins and nothing else:
+`next/image`'s optimizer serves from `'self'` and fetches only the API host (`remotePatterns`), so a
+blanket `https:` added no image, only a way to leak data through an injected `<img>`. Development
+keeps `https: http:` for avatars on any local host.
 
 A nonce only works on HTML rendered per request, so `export const dynamic = "force-dynamic"` is
 declared once, in `frontend/src/app/layout.tsx`, and cascades to the whole App Router. It is the
