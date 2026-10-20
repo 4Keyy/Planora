@@ -116,6 +116,7 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   // A second build directory, so a verification build never rewrites the `.next` a running
   // `next start` is serving — rebuilding under a live server tears it into an error page.
   // Unset in every normal run; see docs/development.md.
@@ -166,22 +167,9 @@ const nextConfig = {
     optimizePackageImports: [
       'framer-motion',
       'lucide-react',
-      '@radix-ui/react-dialog',
       '@radix-ui/react-dropdown-menu',
-      '@radix-ui/react-select',
       '@radix-ui/react-popover',
-      '@radix-ui/react-toast',
-      '@radix-ui/react-avatar',
-      '@radix-ui/react-tabs',
-      '@radix-ui/react-switch',
     ],
-    serverActions: {
-      // localhost:3000 is restricted to development only; add the production
-      // FQDN here (e.g. 'app.planora.com') when deploying.
-      allowedOrigins: [
-        ...(isDev ? ['localhost:3000'] : []),
-      ],
-    },
   },
   env: {
     NEXT_PUBLIC_API_URL: safeApiUrl,

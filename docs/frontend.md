@@ -523,6 +523,13 @@ these values as release evidence.
 The earlier audit recorded an 18 KB increase from its low point after the
 palette, counters and undo window. Do not infer the current bundle size from it.
 
+Build configuration keeps import optimization scoped to installed Framer Motion,
+Lucide and Radix Dropdown Menu/Popover packages. It disables `X-Powered-By` and has no
+Server Actions override while there are no `use server` actions. `tw-animate-css` was
+unused and removed; the existing Tailwind animation plugin is retained. A paired
+2026-10-20 build comparison on identical sources showed zero byte growth for every
+route and the static JS/CSS total. See [the bundle report](testing.md#bundle-size-report-and-budgets).
+
 Decisions worth knowing:
 
 - **The WebGL background is raw WebGL, not three.js.** three.js cost 506.7 KB — 23% of

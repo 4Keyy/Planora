@@ -237,6 +237,14 @@ which a rebuild in place would tear. It is deliberately **not** in `.env.example
 shell for a single build, never in an `.env` file. See [`development.md`](development.md) §
 "Building beside a running server".
 
+## Frontend build configuration
+
+`frontend/next.config.js` disables `X-Powered-By` with `poweredByHeader: false`.
+`experimental.optimizePackageImports` lists installed Framer Motion, Lucide, Radix
+Dropdown Menu and Popover packages. There is no `experimental.serverActions` override:
+the frontend currently has no `use server` actions. The unused `tw-animate-css` package
+is absent; the existing Tailwind animation plugin remains.
+
 ## Frontend API URL
 
 `frontend/next.config.js` reads:
