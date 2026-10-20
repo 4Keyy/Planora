@@ -113,6 +113,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(auth): mirror server form validation in the client (2026-10-20)
+
+Registration and profile names, all email-entry fields, password special characters and avatar uploads now mirror Auth API limits. Existing layout, motion and registration minimum length remain; invalid file type/size is caught before upload and HTTP 413/415 show distinct guidance.
+
 ### test(frontend): pin task sorting and masonry golden fixtures (2026-10-20)
 
 Forty-eight local-calendar task fixtures pin the documented bands, groups, stable ties and held places. Literal masonry expectations cover one to five columns, 16px gaps, the 24px row tolerance and empty grids; the golden suites agree across UTC, Moscow and New York without changing runtime sorting.

@@ -26,6 +26,19 @@ describe("PASSWORD_SCHEMA", () => {
   it("rejects past the server's 128 ceiling", () => {
     expect(PASSWORD_SCHEMA.safeParse("Aa1!" + "x".repeat(200)).success).toBe(false)
   })
+
+  it.each([
+    ["Aa1Жp9kz", false],
+    ["Aa1!xxxx", true],
+    ["Aa1_xxxx", true],
+    ["Aa1 xxxx", true],
+    ["Aa1e\u0301p9kz", false],
+    ["Aa1\u203Fp9kz", false],
+    ["Aa1\u0661p9kz", false],
+  ])("uses the server's Unicode special-character rule for %s", (value, expected) => {
+    expect(PASSWORD_SCHEMA.safeParse(value).success).toBe(expected)
+    expect(PASSWORD_RULES.find((rule) => rule.id === "symbol")?.test(value)).toBe(expected)
+  })
 })
 
 describe("PASSWORD_RULES", () => {

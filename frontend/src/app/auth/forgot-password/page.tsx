@@ -30,7 +30,7 @@ import { AUTH_LINK_CLASS, AuthBanner, AuthCard, AuthMark } from "@/components/au
  *
  * No toast: the next screen IS the confirmation.
  */
-const schema = z.object({ email: z.string().trim().email("Enter a valid email address") })
+const schema = z.object({ email: z.string().trim().email("Enter a valid email address").max(255, "At most 255 characters") })
 type FormData = z.infer<typeof schema>
 
 export default function ForgotPasswordPage() {

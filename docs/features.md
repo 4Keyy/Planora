@@ -78,9 +78,10 @@ Let users manage profile data, password/email changes, email verification, sessi
 
 | Area | Behavior |
 |---|---|
-| Profile update | `firstName` and `lastName` required, max 100; profile picture URL max 500, accepting absolute HTTP/HTTPS or the exact content-addressed `/avatars/{userId:N}/{hash}/{size}.webp` storage path (sizes 64/128/512). Null/empty removes the picture. |
+| Profile update | `firstName` and `lastName` are trimmed, required, max 100, accepting Latin/Cyrillic letters, whitespace, hyphens and apostrophes; registration keeps its two-character minimum. Profile picture URL max 500, accepting absolute HTTP/HTTPS or the exact content-addressed `/avatars/{userId:N}/{hash}/{size}.webp` storage path (sizes 64/128/512). Null/empty removes the picture. |
 | Avatar upload | `POST /me/avatar` accepts JPEG/PNG/WEBP up to 5 MB, 64×64..4096×4096. Server validates MIME, magic bytes, and dimensions; re-encodes to WebP (lossy q=85); strips EXIF/ICC/XMP; emits three variants (64/128/512). URLs are content-addressed `/avatars/{userId}/{hash}/{size}.webp` with `Cache-Control: public, max-age=31536000, immutable`. Each upload prunes the user's prior hash directory. `User.ProfilePictureUrl` holds the medium (128) variant. |
-| Password strength | min 8, max 128, uppercase, lowercase, digit, special char; also weak/sequential/repeating checks in infrastructure. |
+| Password strength | min 8, max 128, uppercase, lowercase, digit, special char; the client mirrors the Auth API Unicode special-character rule (a Unicode letter alone is not special; underscore is). Changed-password weak/sequential/repeating checks remain in place. |
+| Client email and avatar validation | Every email-entry form limits trimmed addresses to 255 characters. Both profile photo pickers accept JPEG/PNG/WebP only, rejecting empty files and files over 5 MiB before upload; HTTP 413 and 415 have distinct guidance. |
 | Email verification | registration/change-email create a 24-hour token; `GET /auth/api/v1/users/verify-email?token=...` confirms it; profile `POST /me/verify-email` sends a fresh link for the signed-in user. `Email__Provider=GmailSmtp` sends real Gmail messages; default `Log` provider records only the subject; it never writes recipients or action-link tokens. User DTOs expose `isEmailVerified` and `emailVerifiedAt`. |
 | Compromised password check | HIBP k-anonymity lookup is enabled by config default in `PasswordValidator`; lookup failure logs and does not block. |
 | 2FA enable | returns setup data (secret + QR code URL). |

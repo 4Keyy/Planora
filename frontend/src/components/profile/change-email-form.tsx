@@ -48,7 +48,8 @@ export function ChangeEmailForm({
     setBanner(null)
     const email = newEmail.trim()
     const found: FieldErrors = {}
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) found.newEmail = "Enter a valid email address"
+    if (email.length > 255) found.newEmail = "At most 255 characters"
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) found.newEmail = "Enter a valid email address"
     else if (email.toLowerCase() === (currentEmail ?? "").toLowerCase()) found.newEmail = "That is already your email"
     if (!password) found.password = "Enter your password to confirm"
     setErrors(found)

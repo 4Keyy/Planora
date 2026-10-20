@@ -36,9 +36,11 @@ import { PASSWORD_SCHEMA } from "@/lib/password-policy"
  */
 const schema = z
   .object({
-    firstName: z.string().trim().min(2, "At least 2 characters"),
-    lastName: z.string().trim().min(2, "At least 2 characters"),
-    email: z.string().trim().email("Enter a valid email address"),
+    firstName: z.string().trim().min(2, "At least 2 characters").max(100, "At most 100 characters")
+      .regex(/^[a-zA-Zа-яА-ЯёЁ\s\-']+$/, "Use letters, spaces, hyphens or apostrophes"),
+    lastName: z.string().trim().min(2, "At least 2 characters").max(100, "At most 100 characters")
+      .regex(/^[a-zA-Zа-яА-ЯёЁ\s\-']+$/, "Use letters, spaces, hyphens or apostrophes"),
+    email: z.string().trim().email("Enter a valid email address").max(255, "At most 255 characters"),
     password: PASSWORD_SCHEMA,
     confirmPassword: z.string().min(1, "Repeat your password"),
   })

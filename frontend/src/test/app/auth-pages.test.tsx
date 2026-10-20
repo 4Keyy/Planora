@@ -244,6 +244,64 @@ describe("create account", () => {
     expect(await screen.findByText(/already exists/)).toBeInTheDocument()
     expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true")
   })
+
+  it.each([
+    ["First name", "Alex1", "Use letters, spaces, hyphens or apostrophes"],
+    ["Last name", "Morgan@", "Use letters, spaces, hyphens or apostrophes"],
+    ["First name", "A".repeat(101), "At most 100 characters"],
+    ["Last name", "M".repeat(101), "At most 100 characters"],
+    ["First name", " A ", "At least 2 characters"],
+  ])("validates %s before sending: %s", async (label, value, message) => {
+    render(<RegisterPage />)
+    for (const [field, content] of Object.entries({
+      "First name": "Alex", "Last name": "Morgan", Email: "alex@example.com",
+      Password: "Correct1!horse", "Confirm password": "Correct1!horse",
+    })) fireEvent.change(screen.getByLabelText(field), { target: { value: content } })
+    fireEvent.change(screen.getByLabelText(label), { target: { value } })
+    fireEvent.submit(screen.getByRole("button", { name: "Create account" }).closest("form")!)
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(screen.getByLabelText(label)).toHaveAttribute("aria-invalid", "true")
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ["  Анна-Мария  ", " O'Connor ", "Анна-Мария", "O'Connor"],
+    [`  ${"Ё".repeat(100)}  `, "M".repeat(100), "Ё".repeat(100), "M".repeat(100)],
+  ])("trims and accepts server-valid names at the 100-character boundary", async (firstName, lastName, first, last) => {
+    post.mockResolvedValueOnce(LOGIN_OK)
+    render(<RegisterPage />)
+    for (const [field, value] of Object.entries({
+      "First name": firstName, "Last name": lastName, Email: "alex@example.com",
+      Password: "Correct1!horse", "Confirm password": "Correct1!horse",
+    })) fireEvent.change(screen.getByLabelText(field), { target: { value } })
+    fireEvent.submit(screen.getByRole("button", { name: "Create account" }).closest("form")!)
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/auth/api/v1/auth/register", expect.objectContaining({ firstName: first, lastName: last })))
+  })
+})
+
+describe("email length", () => {
+  const longestEmail = `${"a".repeat(63)}@${"b".repeat(63)}.${"c".repeat(63)}.${"d".repeat(63)}`
+
+  it.each([
+    ["register", RegisterPage, "Create account"],
+    ["login", LoginPage, "Sign in"],
+    ["password recovery", ForgotPasswordPage, "Send the link"],
+  ])("refuses more than 255 characters in %s before a round trip", async (_name, Page, button) => {
+    render(<Page />)
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: `a${longestEmail}` } })
+    fireEvent.submit(screen.getByRole("button", { name: button }).closest("form")!)
+    expect(await screen.findByText("At most 255 characters")).toBeInTheDocument()
+    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true")
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it("accepts a trimmed 255-character address in password recovery", async () => {
+    post.mockResolvedValueOnce({ data: {} })
+    render(<ForgotPasswordPage />)
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: `  ${longestEmail}  ` } })
+    fireEvent.submit(screen.getByRole("button", { name: "Send the link" }).closest("form")!)
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/auth/api/v1/auth/request-password-reset", { email: longestEmail }))
+  })
 })
 
 describe("password recovery", () => {

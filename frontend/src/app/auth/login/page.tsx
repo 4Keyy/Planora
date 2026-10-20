@@ -49,7 +49,7 @@ import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO } from "@/lib/anim
  * match."
  */
 const schema = z.object({
-  email: z.string().trim().email("Enter a valid email address"),
+  email: z.string().trim().email("Enter a valid email address").max(255, "At most 255 characters"),
   password: z.string().min(1, "Enter your password"),
 })
 type FormData = z.infer<typeof schema>

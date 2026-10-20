@@ -15,6 +15,8 @@ import { z } from "zod"
  */
 export const PASSWORD_MIN = 8
 export const PASSWORD_MAX = 128
+// Match .NET's Unicode-aware [\W_] without treating non-ASCII letters as symbols.
+const SPECIAL_CHARACTER = /[^\p{L}\p{Mn}\p{Nd}\p{Pc}]|_/u
 
 export const PASSWORD_SCHEMA = z
   .string()
@@ -23,7 +25,7 @@ export const PASSWORD_SCHEMA = z
   .regex(/[A-Z]/, "Needs an uppercase letter")
   .regex(/[a-z]/, "Needs a lowercase letter")
   .regex(/[0-9]/, "Needs a number")
-  .regex(/[^A-Za-z0-9]/, "Needs a special character")
+  .regex(SPECIAL_CHARACTER, "Needs a special character")
 
 export type PasswordRuleId = "length" | "upper" | "lower" | "number" | "symbol"
 
@@ -45,7 +47,7 @@ export const PASSWORD_RULES: { id: PasswordRuleId; label: string; test: (value: 
   { id: "upper", label: "An uppercase letter", test: (v) => /[A-Z]/.test(v) },
   { id: "lower", label: "A lowercase letter", test: (v) => /[a-z]/.test(v) },
   { id: "number", label: "A number", test: (v) => /[0-9]/.test(v) },
-  { id: "symbol", label: "A symbol", test: (v) => /[^A-Za-z0-9]/.test(v) },
+  { id: "symbol", label: "A symbol", test: (v) => SPECIAL_CHARACTER.test(v) },
 ]
 
 const COMMON_PASSWORDS = new Set([

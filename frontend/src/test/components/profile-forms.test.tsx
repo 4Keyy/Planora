@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ChangePasswordForm } from "@/components/profile/change-password-form"
@@ -99,6 +99,26 @@ describe("ChangeEmailForm", () => {
     expect(await screen.findByText("That is already your email")).toBeInTheDocument()
     expect(screen.getByText("Enter your password to confirm")).toBeInTheDocument()
     expect(post).not.toHaveBeenCalled()
+  })
+
+  it("rejects an address longer than 255 characters before sending", async () => {
+    render(<ChangeEmailForm {...props} onChanged={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText("New email"), { target: { value: `${"a".repeat(244)}@example.com` } })
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "Old1!password" } })
+    fireEvent.submit(screen.getByRole("button", { name: "Change email" }).closest("form")!)
+    expect(await screen.findByText("At most 255 characters")).toBeInTheDocument()
+    expect(screen.getByLabelText("New email")).toHaveAttribute("aria-invalid", "true")
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it("trims and accepts an address of exactly 255 characters", async () => {
+    const email = `${"a".repeat(243)}@example.com`
+    post.mockResolvedValueOnce({ data: {} })
+    render(<ChangeEmailForm {...props} onChanged={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText("New email"), { target: { value: ` ${email} ` } })
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "Old1!password" } })
+    fireEvent.submit(screen.getByRole("button", { name: "Change email" }).closest("form")!)
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/auth/api/v1/users/me/change-email", { newEmail: email, password: "Old1!password" }))
   })
 
   it("puts a taken address on the address field", async () => {

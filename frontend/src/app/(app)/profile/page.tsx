@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { z } from "zod"
 import { useReducedMotion } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import {
@@ -100,6 +101,15 @@ const isGuid = (value: string): boolean =>
 
 const isEmail = (value: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+
+const profileNameSchema = z.string().trim().min(1, "Enter your name")
+  .max(100, "At most 100 characters")
+  .regex(/^[a-zA-Zа-яА-ЯёЁ\s\-']+$/, "Use letters, spaces, hyphens or apostrophes")
+const profileSchema = z.object({ firstName: profileNameSchema, lastName: profileNameSchema })
+const AVATAR_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"]
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024
+const AVATAR_SIZE_MESSAGE = "Choose a photo up to 5 MiB."
+const AVATAR_TYPE_MESSAGE = "Choose a JPEG, PNG or WebP photo."
 
 const personName = (person: {
   firstName?: string | null
@@ -322,8 +332,8 @@ function EmptyState({ icon, title, description }: { icon: LucideIcon; title: str
  * be reported through a toast that a screen-reader user might have already
  * dismissed. `Field` associates the label by id and leaves room for an error.
  */
-function FieldGroup({ label, children }: { label: string; children: (props: FieldControlProps) => ReactNode }) {
-  return <Field label={label}>{children}</Field>
+function FieldGroup({ label, error, children }: { label: string; error?: string; children: (props: FieldControlProps) => ReactNode }) {
+  return <Field label={label} error={error}>{children}</Field>
 }
 
 function Pager({
@@ -455,6 +465,7 @@ export default function ProfilePage() {
   const friendsReady = loaded.has("friends")
 
   const [profileForm, setProfileForm] = useState({ firstName: "", lastName: "" })
+  const [profileErrors, setProfileErrors] = useState<Partial<Record<"firstName" | "lastName", string>>>({})
 
   const [verifyingEmail, setVerifyingEmail] = useState(false)
   const [twoFactorSetup, setTwoFactorSetup] = useState<{ secret: string; qrCodeUrl: string } | null>(null)
@@ -760,6 +771,14 @@ export default function ProfilePage() {
 
   const handleAvatarUpload = async (file: File): Promise<void> => {
     if (avatarUploading) return
+    const description = !AVATAR_CONTENT_TYPES.includes(file.type.toLowerCase())
+      ? AVATAR_TYPE_MESSAGE
+      : file.size === 0 ? "Choose a photo that isn't empty."
+      : file.size > AVATAR_MAX_BYTES ? AVATAR_SIZE_MESSAGE : null
+    if (description) {
+      addToast({ type: "error", title: "Couldn't upload avatar", description })
+      return
+    }
     setAvatarUploading(true)
     setAvatarError(false)
     const formData = new FormData()
@@ -780,8 +799,13 @@ export default function ProfilePage() {
       }
       addToast({ type: "success", title: "Avatar updated" })
       loadProfile()
-    } catch {
-      addToast({ type: "error", title: "Couldn't upload avatar" })
+    } catch (error: unknown) {
+      const status = typeof error === "object" && error !== null && "response" in error
+        ? (error as { response?: { status?: number } }).response?.status : undefined
+      addToast({
+        type: "error", title: "Couldn't upload avatar",
+        description: status === 413 ? AVATAR_SIZE_MESSAGE : status === 415 ? AVATAR_TYPE_MESSAGE : undefined,
+      })
     } finally {
       setAvatarUploading(false)
     }
@@ -812,11 +836,18 @@ export default function ProfilePage() {
 
   const handleProfileSave = async (): Promise<void> => {
     if (savingProfile) return
+    const result = profileSchema.safeParse(profileForm)
+    if (!result.success) {
+      const errors = result.error.flatten().fieldErrors
+      setProfileErrors({ firstName: errors.firstName?.[0], lastName: errors.lastName?.[0] })
+      return
+    }
+    setProfileErrors({})
     setSavingProfile(true)
     try {
       const res = await api.put("/auth/api/v1/users/me", {
-        firstName: profileForm.firstName,
-        lastName: profileForm.lastName,
+        firstName: result.data.firstName,
+        lastName: result.data.lastName,
         profilePictureUrl: user?.profilePictureUrl ?? null,
       })
       const data = parseApiResponse<UserDto>(res.data)
@@ -941,6 +972,10 @@ export default function ProfilePage() {
   const handleSendFriendRequest = async (): Promise<void> => {
     const normalizedEmail = friendEmailInput.trim().toLowerCase()
     if (!normalizedEmail) return
+    if (normalizedEmail.length > 255) {
+      addToast({ type: "error", title: "Invalid email", description: "At most 255 characters" })
+      return
+    }
     if (!isEmail(normalizedEmail)) {
       addToast({ type: "error", title: "Invalid email", description: "Enter your friend's account email." })
       return
@@ -1111,7 +1146,7 @@ export default function ProfilePage() {
                 <input
                   type="file"
                   className="sr-only"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   aria-label="Upload profile photo"
                   disabled={avatarUploading}
                   onChange={(e) => {
@@ -1300,7 +1335,7 @@ export default function ProfilePage() {
                 <SkeletonSwap loading={loadingProfile || !profileReady} skeleton={<LoadingRows count={2} />}>
                   <Enter tier="row" at={CARD_BODY_AT}>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <FieldGroup label="First name">
+                      <FieldGroup label="First name" error={profileErrors.firstName}>
                         {(field) => (
                         <Input
                           {...field}
@@ -1311,7 +1346,7 @@ export default function ProfilePage() {
                         />
                         )}
                       </FieldGroup>
-                      <FieldGroup label="Last name">
+                      <FieldGroup label="Last name" error={profileErrors.lastName}>
                         {(field) => (
                         <Input
                           {...field}
@@ -1391,7 +1426,7 @@ export default function ProfilePage() {
                         <input
                           type="file"
                           className="sr-only"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp"
                           aria-label="Upload profile photo"
                           disabled={avatarUploading}
                           onChange={(e) => {
