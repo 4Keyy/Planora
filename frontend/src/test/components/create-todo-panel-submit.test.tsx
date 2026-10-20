@@ -86,6 +86,13 @@ describe("CreateTodoPanel submission", () => {
     expect(onSubmit.mock.calls.map(([payload]) => payload.title)).toEqual(["First", "Second"])
   })
 
+  it("caps the title and the details at the server's limits", () => {
+    renderPanel(vi.fn().mockResolvedValue(undefined))
+
+    expect(screen.getByPlaceholderText("What needs to be done?")).toHaveAttribute("maxLength", "200")
+    expect(screen.getByPlaceholderText("Add details — optional.")).toHaveAttribute("maxLength", "2000")
+  })
+
   it("lets a failed create be retried", async () => {
     const onSubmit = vi.fn()
       .mockRejectedValueOnce(new Error("network"))

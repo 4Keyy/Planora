@@ -29,10 +29,7 @@ import {
   formatDayLabel,
   formatTimeHHMM,
 } from "./utils"
-
-const COMMENT_MAX = 2000
-const GENESIS_MAX = 5000
-const SUBTASK_MAX = 1500
+import { COMMENT_MAX, SUBTASK_TITLE_MAX, TASK_DESCRIPTION_MAX } from "@/lib/limits"
 
 /** "Ada Lovelace is typing…" — names of others currently typing in this branch. */
 function formatTyping(names: string[]): string {
@@ -1190,7 +1187,7 @@ export function BranchFeed({
                   e.target.style.height = "auto"
                   e.target.style.height = e.target.scrollHeight + "px"
                 }}
-                maxLength={GENESIS_MAX}
+                maxLength={TASK_DESCRIPTION_MAX}
                 onKeyDown={(e) => {
                   // Enter saves; Shift+Enter inserts a newline (project-wide convention).
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleGenesisSave() }
@@ -1863,8 +1860,8 @@ export function BranchFeed({
                   : "Write in branch… ↵ to send · ⇧↵ new line"
             }
             maxLength={
-              composeMode === "description" ? GENESIS_MAX
-                : composeMode === "subtask" ? SUBTASK_MAX
+              composeMode === "description" ? TASK_DESCRIPTION_MAX
+                : composeMode === "subtask" ? SUBTASK_TITLE_MAX
                   : COMMENT_MAX
             }
             disabled={submitting}
@@ -2390,7 +2387,7 @@ function SubtaskCard({
                 if (e.key === "Escape") setEditing(false)
               }}
               onBlur={commitEdit}
-              maxLength={SUBTASK_MAX}
+              maxLength={SUBTASK_TITLE_MAX}
               rows={1}
               className="field-box border-[1.5px] border-accent-surface transition-[border-color,background-color,box-shadow] duration-base ease-emphasized"
               style={{ ...SUBTASK_TITLE_BOX, background: "var(--pl-paper)", color: "var(--pl-ink)", resize: "none", maxHeight: 160, overflowY: "auto" }}

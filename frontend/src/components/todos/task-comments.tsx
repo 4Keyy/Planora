@@ -10,9 +10,7 @@ import { getApiErrorMessage } from "@/lib/api"
 import type { TodoComment } from "@/types/todo"
 import { cn } from "@/lib/utils"
 import { formatDate } from "@/lib/datetime"
-
-const COMMENT_MAX = 2000
-const GENESIS_MAX = 5000
+import { COMMENT_MAX, TASK_DESCRIPTION_MAX } from "@/lib/limits"
 
 function formatRelative(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -187,7 +185,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 className="text-body-sm min-h-[80px] resize-none bg-paper/70 border-line-strong rounded-lg leading-relaxed"
-                maxLength={GENESIS_MAX}
+                maxLength={TASK_DESCRIPTION_MAX}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleEditSave(genesis.id)
@@ -197,9 +195,9 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
               <div className="flex items-center justify-between gap-2">
                 <span className={cn(
                   "text-caption",
-                  editContent.length > GENESIS_MAX * 0.85 ? "text-warn" : "text-ink-subtle"
+                  editContent.length > TASK_DESCRIPTION_MAX * 0.85 ? "text-warn" : "text-ink-subtle"
                 )}>
-                  {editContent.length}/{GENESIS_MAX}
+                  {editContent.length}/{TASK_DESCRIPTION_MAX}
                 </span>
                 <div className="flex gap-1.5">
                   <Button

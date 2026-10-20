@@ -113,6 +113,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(todos): editors stop accepting descriptions the server rejects (2026-10-20)
+
+The New task details and the branch's Author's Note accepted 5000 characters while the create and
+update validators and the column allow 2000, so a long description was typed in full and then
+refused. Every task editor now counts against one set of server limits in `lib/limits.ts` (task
+title 200, description 2000, subtask title 1500, branch message 2000), and a contract test reads
+the FluentValidation rules so the two sides cannot drift apart again. The details counter now reads
+"/2000". The resolved row is gone from configuration's inconsistency table.
+
 ### fix(todos): one Ctrl+Enter creates one task (2026-10-20)
 
 The New task panel blocked a second create only through its disabled buttons, while ⌘/Ctrl+Enter

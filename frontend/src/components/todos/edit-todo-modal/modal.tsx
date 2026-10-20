@@ -19,6 +19,7 @@ import { InlineTokenStrip } from "./inline-token-strip"
 import { PageMetaPanel }    from "./page-meta-panel"
 import { useScrollLock } from "@/hooks/use-scroll-lock"
 import { PresenceRow } from "@/components/ui/presence-row"
+import { TASK_TITLE_MAX } from "@/lib/limits"
 import { Button } from "@/components/ui/button"
 import {
   getPriorityNumber,
@@ -380,7 +381,7 @@ export function TodoEditor({
           if (e.key === "Escape") { setEditingTitle(false); setTitleDraft(title) }
         }}
         onBlur={commitTitle}
-        maxLength={200}
+        maxLength={TASK_TITLE_MAX}
         rows={1}
         // A boxed field while it is being edited: the hover tint it grew out of turns to
         // paper with an ink edge and a soft halo (globals.css "Field focus"), the same frame

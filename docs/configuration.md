@@ -370,7 +370,6 @@ The Realtime service is wired conditionally: when `ConnectionStrings:RealtimeDat
 | Auth local port descriptions | `ocelot.json` routes Auth REST to `5030`; Docker maps Auth to host `5031`; `.env.example` had a reversed local port note before this documentation pass. | Use the gateway for browser/API calls; verify service-specific ports in `appsettings.json` before manual direct calls. |
 | PostgreSQL local port | Docker exposes host `5433`; some launch profile examples mention `5432`. | Use `5433` for host-to-container PostgreSQL. |
 | `CORS_ALLOWED_ORIGINS` | Present in `.env.example`, but services read `Cors:AllowedOrigins` from configuration. | Override with `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, etc. when using environment variables. |
-| Todo description length | validators allow 5000 characters, EF Core column config sets max length 2000. | Treat 2000 as the safe persisted limit until code is reconciled. |
 
 ## Data Retention (automatic cleanup)
 

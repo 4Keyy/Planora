@@ -617,17 +617,17 @@ describe("CreateTodoPanel", () => {
     )
 
     expect(screen.getByText("0/200")).toBeInTheDocument()
-    expect(screen.getByText("0/5000")).toBeInTheDocument()
+    expect(screen.getByText("0/2000")).toBeInTheDocument()
 
     fireEvent.change(screen.getByPlaceholderText("What needs to be done?"), {
       target: { value: "x".repeat(160) },
     })
     fireEvent.change(screen.getByPlaceholderText("Add details — optional."), {
-      target: { value: "x".repeat(4000) },
+      target: { value: "x".repeat(1600) },
     })
 
     expect(screen.getByText("160/200")).toHaveClass("text-alert")
-    expect(screen.getByText("4000/5000")).toHaveClass("text-alert")
+    expect(screen.getByText("1600/2000")).toHaveClass("text-alert")
   })
 
   it("closes on Escape while expanded and not creating", async () => {

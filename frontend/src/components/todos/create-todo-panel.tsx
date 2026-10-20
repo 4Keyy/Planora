@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Category } from "@/types/category"
 import type { CreateTodoPayload } from "@/types/todo"
 import { ICON_MAP } from "@/lib/icon-map"
+import { TASK_DESCRIPTION_MAX, TASK_TITLE_MAX } from "@/lib/limits"
 import { PriorityPopover } from "@/components/todos/edit-todo-modal/popovers/priority"
 import { CategoryPopover } from "@/components/todos/edit-todo-modal/popovers/category"
 import { DatePopover } from "@/components/todos/edit-todo-modal/popovers/date"
@@ -52,8 +53,8 @@ export interface TitleRequest {
   title?: string
 }
 
-const TITLE_MAX_LENGTH = 200
-const DESCRIPTION_MAX_LENGTH = 5000
+const TITLE_MAX_LENGTH = TASK_TITLE_MAX
+const DESCRIPTION_MAX_LENGTH = TASK_DESCRIPTION_MAX
 const LIMIT_WARNING_RATIO = 0.8
 
 type OpenPopover = "priority" | "date" | "category" | "share" | null
