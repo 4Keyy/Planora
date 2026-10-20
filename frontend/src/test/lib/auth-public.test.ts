@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => {
   const post = vi.fn()
-  const create = vi.fn(() => ({ post }))
+  const create = vi.fn<(config: unknown) => { post: typeof post }>(() => ({ post }))
   const getCsrfToken = vi.fn()
   const clearCsrfToken = vi.fn()
   return { post, create, getCsrfToken, clearCsrfToken }
@@ -23,6 +23,10 @@ vi.mock("@/lib/csrf", () => ({
 import { getAuthRetryAfterMs, refreshAccessToken, validateAccessToken } from "@/lib/auth-public"
 import { useAuthStore } from "@/store/auth"
 
+// The client is created once, when the module is imported. Vitest clears mock history before
+// every test (clearMocks), so keep the options axios.create received at import time.
+const createdWith = mocks.create.mock.calls[0]?.[0]
+
 const limited = (header?: string) => new AxiosError("rate limited", undefined, undefined, undefined, {
   status: 429, statusText: "Too Many Requests", headers: header ? { "retry-after": header } : {},
   config: { headers: new axios.AxiosHeaders() }, data: undefined,
@@ -38,7 +42,7 @@ describe("auth public client", () => {
   })
 
   it("creates a cookie-aware public auth client", () => {
-    expect(mocks.create).toHaveBeenCalledWith(
+    expect(createdWith).toEqual(
       expect.objectContaining({
         headers: { "Content-Type": "application/json" },
         timeout: 10000,

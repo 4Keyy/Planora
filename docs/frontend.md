@@ -8,7 +8,7 @@ For every visual value — colour, type, space, motion, elevation — see
 
 | | |
 |---|---|
-| Framework | Next.js 16.3.8 (App Router; lockfile version) |
+| Framework | Next.js 16.4.2 (App Router; lockfile version) |
 | React | React / React DOM 18.3.1 |
 | Language | TypeScript 5.9.3, `strict`, `@/*` → `src/*` |
 | Styling | Tailwind 3.4.19; semantic scales derived from `lib/design-tokens.ts` |

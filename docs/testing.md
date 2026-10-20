@@ -716,6 +716,19 @@ browser geometry or frame-by-frame motion.
 
 The `use-list-navigation` Shift case is not hypothetical. Shift rewrites the character it produces, so `Shift+j` arrives as `"J"`, not as `"j"` with `shiftKey` set; reading `event.shiftKey` on the `"j"` branch matched nothing and the vim-style extend-selection was dead code that typechecked. `frontend/src/hooks/use-list-navigation.ts` folds `"J"` back to `"j"` before dispatch so `Shift+J` and `Shift+↓` are genuinely one binding.
 
+### Vitest 5 and jest-dom 7 conventions
+
+- `frontend/src/test/setup.ts` imports `@testing-library/jest-dom/vitest`. That entry registers
+  the matchers on Vitest's own `expect` and augments the `vitest` `Assertion` type; the package's
+  root entry only augments the global `jest` namespace, which Vitest 5 no longer inherits, so
+  `toBeInTheDocument` and the other matchers would fail type-checking.
+- Vitest 5 enables `clearMocks` by default: every mock's call history is cleared before each
+  test. A call made while a module is imported (for example `axios.create` in
+  `lib/auth-public.ts`) is therefore gone by the time the first test runs. Capture it at module
+  scope right after the import, as `frontend/src/test/lib/auth-public.test.ts` does with
+  `createdWith`, instead of asserting `toHaveBeenCalled` inside a test.
+- Vitest 5 and jest-dom 7 require Node.js 22 or newer; CI runs the frontend jobs on Node 22.
+
 ### What a good test asserts here
 
 Assert what a user or assistive technology can observe: a role, an accessible name, the text that appeared, the callback that was called with which arguments. Do not assert a class name or an internal state field — those change when someone restyles or refactors, which is churn, and they stay unchanged when the behaviour breaks, which is the expensive direction.

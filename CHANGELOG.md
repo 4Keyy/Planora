@@ -113,6 +113,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### build(deps): integrate frontend dependency updates #131, #132, #133 (2026-10-20)
+
+Next.js and eslint-config-next 16.4.2, Radix Dropdown Menu 2.2.1 and Popover 1.3.1,
+react-hook-form 7.90.0, Playwright 1.64.1, user-event 14.6.8, beasties 0.5.5, postcss
+8.5.30, jest-dom 7.0.1, Vitest 5.0.5 and its V8 coverage provider 5.0.5 (Dependabot's
+Vitest PR could not install without it). React 18, Tailwind 3 and framer-motion are
+unchanged. The test setup now imports `@testing-library/jest-dom/vitest`, and one test
+records an import-time mock call at module scope because Vitest 5 clears mock history
+before each test. Lint, types, all 1,881 tests, the 85% coverage gates and the
+production build pass; the runtime npm audit is clean. The
+[integration review](docs/audits/dependabot-2026-10-20.md) records every check.
+
 ### ci: run frontend jobs on Node 22 LTS (2026-10-20)
 
 The CI, E2E and security workflows now install Node 22 instead of Node 20 for every
