@@ -113,6 +113,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(realtime): task lists catch up after the live socket drops (2026-10-20)
+
+Tasks and Dashboard learned about friends' changes only from live signals, which the server does
+not replay: a laptop waking up, a network switch, a proxy blocking WebSockets or a realtime
+restart left the lists stale until a reload. The client now raises a resync when the socket comes
+back from a drop or from a failed connect, and the feeds read their data again — on Tasks through
+the existing update queue, so nothing moves under the pointer. While the socket stays down the
+lists also re-read every 30 seconds in a visible, online tab, and after SignalR's automatic
+reconnect gives up the client keeps reconnecting on its own backoff.
+
 ### fix(todos): removing a category or the Author's Note sticks (2026-10-20)
 
 On a task update the server reads `null` as "unchanged", but the editor sent `null` for both

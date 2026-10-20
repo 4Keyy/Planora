@@ -4,6 +4,8 @@ import { useAuthStore } from "@/store/auth"
 import {
   useRealtimeLifecycle,
   useFeedSync,
+  useRealtimeResync,
+  FEED_RESYNC_POLL_MS,
   useBranchRoom,
   useTyping,
 } from "@/lib/realtime/hooks"
@@ -12,7 +14,16 @@ import {
 // `on` records handlers per event so tests can emit server events synchronously.
 const rt = vi.hoisted(() => {
   const handlers: Record<string, Set<(p: unknown) => void>> = {}
+  const resync = new Set<() => void>()
   return {
+    resync,
+    isConnected: false,
+    onResync: vi.fn((cb: () => void) => {
+      resync.add(cb)
+      return () => {
+        resync.delete(cb)
+      }
+    }),
     handlers,
     on: vi.fn((event: string, cb: (p: unknown) => void) => {
       ;(handlers[event] ??= new Set()).add(cb)
@@ -35,6 +46,8 @@ vi.mock("@/lib/realtime/client", () => ({ realtime: rt }))
 beforeEach(() => {
   vi.clearAllMocks()
   for (const key of Object.keys(rt.handlers)) delete rt.handlers[key]
+  rt.resync.clear()
+  rt.isConnected = false
 })
 
 afterEach(() => {
@@ -198,5 +211,52 @@ describe("useTyping", () => {
     const { unmount } = renderHook(() => useTyping("task-1", true))
     unmount()
     expect(rt.stopTyping).toHaveBeenCalledWith("task-1")
+  })
+})
+
+describe("useRealtimeResync", () => {
+  it("reads again when the socket comes back after missing events", () => {
+    const onResync = vi.fn()
+    renderHook(() => useRealtimeResync(onResync))
+    rt.resync.forEach((cb) => cb())
+    expect(onResync).toHaveBeenCalledTimes(1)
+  })
+
+  it("reads every 30 s while the socket is down, and not while it is up", () => {
+    vi.useFakeTimers()
+    const onResync = vi.fn()
+    renderHook(() => useRealtimeResync(onResync))
+
+    act(() => { vi.advanceTimersByTime(FEED_RESYNC_POLL_MS) })
+    expect(onResync).toHaveBeenCalledTimes(1)
+
+    rt.isConnected = true
+    act(() => { vi.advanceTimersByTime(FEED_RESYNC_POLL_MS * 3) })
+    expect(onResync).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not poll a hidden tab", () => {
+    vi.useFakeTimers()
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden")
+    try {
+      const onResync = vi.fn()
+      renderHook(() => useRealtimeResync(onResync))
+      act(() => { vi.advanceTimersByTime(FEED_RESYNC_POLL_MS * 2) })
+      expect(onResync).not.toHaveBeenCalled()
+    } finally {
+      visibility.mockRestore()
+    }
+  })
+
+  it("stops listening and polling on unmount", () => {
+    vi.useFakeTimers()
+    const onResync = vi.fn()
+    const { unmount } = renderHook(() => useRealtimeResync(onResync))
+    unmount()
+
+    rt.resync.forEach((cb) => cb())
+    act(() => { vi.advanceTimersByTime(FEED_RESYNC_POLL_MS * 2) })
+    expect(onResync).not.toHaveBeenCalled()
+    expect(rt.resync.size).toBe(0)
   })
 })

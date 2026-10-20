@@ -126,6 +126,36 @@ export function useFeedSync(onChange: (payload: TaskFeedChangedPayload) => void)
   }, [])
 }
 
+/** How often a feed reads itself again while the live socket is down. */
+export const FEED_RESYNC_POLL_MS = 30_000
+
+/**
+ * Tells a feed when it may have missed `TaskFeedChanged` signals and should read its data again:
+ * once when the socket comes back from a drop or a failed connect (`realtime.onResync`), and every
+ * {@link FEED_RESYNC_POLL_MS} while it is down and the tab is visible and online — the same backstop
+ * the notification summary has, so a VPN or proxy that blocks WebSockets does not freeze the list.
+ * The sandbox has no socket and answers from memory, so it does not poll.
+ */
+export function useRealtimeResync(onResync: () => void): void {
+  const handlerRef = useRef(onResync)
+  handlerRef.current = onResync
+
+  useEffect(() => {
+    const off = realtime.onResync(() => handlerRef.current())
+    if (isDemoSession()) return off
+    const poll = setInterval(() => {
+      if (realtime.isConnected) return
+      if (document.visibilityState !== "visible") return
+      if (typeof navigator !== "undefined" && navigator.onLine === false) return
+      handlerRef.current()
+    }, FEED_RESYNC_POLL_MS)
+    return () => {
+      off()
+      clearInterval(poll)
+    }
+  }, [])
+}
+
 /**
  * Joins a task's branch room for as long as the component is mounted (a branch page or the edit
  * modal), and invokes `onChange` whenever something in that branch changes. Membership is

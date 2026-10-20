@@ -21,6 +21,15 @@ vi.mock("next/link", () => ({
   ),
 }))
 
+// The live feed's resync signal, captured so a test can fire it (useRealtimeResync below).
+const liveFeed = vi.hoisted(() => ({ resync: undefined as (() => void) | undefined }))
+vi.mock("@/lib/realtime/hooks", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/realtime/hooks")>()),
+  useRealtimeResync: (onResync: () => void) => {
+    liveFeed.resync = onResync
+  },
+}))
+
 vi.mock("@/lib/friend-names", () => ({
   ensureFriendNames: vi.fn().mockResolvedValue(undefined),
 }))
@@ -335,5 +344,28 @@ describe("TodosPage active list paging", () => {
 
     expect(await screen.findByText("Shifted urgent task")).toBeInTheDocument()
     expect(screen.getAllByTestId("todo-t-shifted")).toHaveLength(1)
+  })
+})
+
+describe("TodosPage live feed resync", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetAuth()
+    mockInitialRequests()
+    liveFeed.resync = undefined
+  })
+
+  it("reads the whole list again when the live feed may have missed changes", async () => {
+    render(<TodosPage />)
+    expect(await screen.findByText("Hidden task")).toBeInTheDocument()
+    const reads = () => vi.mocked(api.get).mock.calls.filter(([url, config]) =>
+      url === "/todos/api/v1/todos" && (config as any)?.params?.isCompleted === false).length
+    const before = reads()
+
+    liveFeed.resync?.()
+
+    await waitFor(() => expect(reads()).toBe(before + 1))
+    expect(vi.mocked(api.get).mock.calls.filter(([url, config]) =>
+      url === "/todos/api/v1/todos" && (config as any)?.params?.isCompleted === true).length).toBeGreaterThanOrEqual(2)
   })
 })

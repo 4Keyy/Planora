@@ -1399,7 +1399,7 @@ typing presence.
 - TodoApi command handlers (`CreateTodo`/`UpdateTodo`/`DeleteTodo`/`JoinTodo`/`LeaveTodo`/`CreateSubtask`/`DuplicateTodo`) emit it; feed audience resolved by `Services/TodoApi/Planora.Todo.Application/Common/RealtimeAudience.cs`.
 - CollaborationApi `AddComment`/`UpdateComment`/`DeleteComment` emit the branch-scope event.
 - `Services/RealtimeApi/.../RealtimeSyncEventHandler.cs` + `RealtimeBroadcaster.cs` fan it out; `NotificationHub.cs` hosts the authorized branch rooms + typing relay.
-- Frontend: `frontend/src/lib/realtime/client.ts` (single connection), `hooks.ts` (`useFeedSync` / `useBranchRoom` / `useTyping`), `components/realtime-manager.tsx` (lifecycle), wired into `app/(app)/tasks/page.tsx`, `app/(app)/dashboard/page.tsx`, and `components/todos/edit-todo-modal/branch-feed.tsx`.
+- Frontend: `frontend/src/lib/realtime/client.ts` (single connection), `hooks.ts` (`useFeedSync` / `useRealtimeResync` / `useBranchRoom` / `useTyping`), `components/realtime-manager.tsx` (lifecycle), wired into `app/(app)/tasks/page.tsx`, `app/(app)/dashboard/page.tsx`, and `components/todos/edit-todo-modal/branch-feed.tsx`.
 
 ### Key Rules
 
@@ -1414,6 +1414,13 @@ typing presence.
   normal authorized endpoints, so a stale or forged signal can never leak data a user may not read.
 - A client **ignores its own echoes** so optimistic updates are never clobbered.
 - The branch's 9-second poll remains as a backstop if the socket is temporarily down.
+- **Task lists catch up after a drop.** The server does not replay signals sent while a socket
+  was down, so Tasks and Dashboard read their lists again when the socket comes back from a drop
+  or a failed connect (`realtime.onResync`, never on a session's first connect), and every 30
+  seconds while it stays down and the tab is visible and online (`useRealtimeResync`). On Tasks the
+  re-read joins the friends' edits queue: it applies at once at the top of an idle list and
+  otherwise waits behind the update pill. After SignalR's automatic reconnect gives up, the client
+  keeps reconnecting on its connect backoff instead of waiting for the next token refresh.
 - **Feed-audience resolution is best-effort:** an Auth-gRPC outage during
   `RealtimeAudience.SafeGetFriendIdsAsync` falls back to owner + explicit shares. Authorization,
   share validation, category validation, database saves and outbox inserts can still fail the write.

@@ -95,6 +95,14 @@ class RealtimeClient {
   /** taskId → number of active subscribers (modal + page can overlap). */
   private readonly joinedTasks = new Map<string, number>()
 
+  /**
+   * Set while server events may have gone unheard: the socket dropped (it is reconnecting or has
+   * closed) or a connect attempt failed. The server does not replay what it pushed meanwhile, so
+   * the next successful (re)connect tells the views to read their data again (`onResync`).
+   */
+  private missedEvents = false
+  private readonly resyncListeners = new Set<() => void>()
+
   /** Open the connection (idempotent). Call once the user is authenticated. */
   async start(): Promise<void> {
     this.wantConnected = true
@@ -119,16 +127,18 @@ class RealtimeClient {
 
     this.startPromise = connection
       .start()
-      .then(() => {
+      .then(async () => {
         // A logout may have raced the handshake — honor the latest intent.
         if (!this.wantConnected) return connection.stop()
         this.retryAttempt = 0
-        return this.rejoinAll()
+        await this.rejoinAll()
+        this.resyncIfMissed()
       })
       .catch((error) => {
         if (process.env.NODE_ENV !== "production") {
           console.warn("[realtime] connection failed to start:", error)
         }
+        this.missedEvents = true
         // Self-heal a transient connect failure with backoff instead of waiting for the next
         // auth tick. The lifecycle still owns teardown, so a logout cancels pending retries.
         this.scheduleRetry()
@@ -145,6 +155,7 @@ class RealtimeClient {
     this.wantConnected = false
     this.clearRetry()
     this.retryAttempt = 0
+    this.missedEvents = false
     this.joinedTasks.clear()
     const connection = this.connection
     this.connection = null
@@ -160,6 +171,18 @@ class RealtimeClient {
   /** Whether the live connection is currently established (the WebSocket is up and handshook). */
   get isConnected(): boolean {
     return this.connection?.state === signalR.HubConnectionState.Connected
+  }
+
+  /**
+   * Called when the connection comes back after events may have been missed — from a dropped
+   * socket or a failed connect, never on the first connect of a session. Views read their data
+   * again. Returns an unsubscribe function.
+   */
+  onResync(listener: () => void): () => void {
+    this.resyncListeners.add(listener)
+    return () => {
+      this.resyncListeners.delete(listener)
+    }
   }
 
   /** Subscribe to a server event. Returns an unsubscribe function. */
@@ -240,11 +263,39 @@ class RealtimeClient {
       connection.on(event, (payload: ServerEventMap[ServerEvent]) => this.emit(event, payload))
     }
 
+    connection.onreconnecting(() => {
+      this.missedEvents = true
+    })
+
     connection.onreconnected(() => {
-      void this.rejoinAll()
+      void this.rejoinAll().then(() => this.resyncIfMissed())
+    })
+
+    // The automatic reconnect gives up after its last attempt (about 40 s) and the connection
+    // closes for good. Keep trying on the initial-connect backoff instead of leaving the socket
+    // dead until the next token refresh happens to restart it. A logout (`stop`) has already
+    // dropped this connection and the intent, so it ends here.
+    connection.onclose(() => {
+      if (!this.wantConnected || this.connection !== connection) return
+      this.missedEvents = true
+      this.scheduleRetry()
     })
 
     return connection
+  }
+
+  private resyncIfMissed(): void {
+    if (!this.missedEvents) return
+    this.missedEvents = false
+    for (const listener of this.resyncListeners) {
+      try {
+        listener()
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[realtime] resync listener threw:", error)
+        }
+      }
+    }
   }
 
   private emit<E extends ServerEvent>(event: E, payload: ServerEventMap[E]): void {

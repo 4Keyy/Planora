@@ -14,7 +14,7 @@ import { useAuthStore } from "@/store/auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Todo, isTodoOwner, sameUserId, toApiTodoStatus, type CreateTodoPayload, type UpdateTodoPayload } from "@/types/todo"
-import { useFeedSync } from "@/lib/realtime/hooks"
+import { useFeedSync, useRealtimeResync } from "@/lib/realtime/hooks"
 import { TodoCard } from "@/components/todos/todo-card"
 import { useToastStore } from "@/store/toast"
 import { Category } from "@/types/category"
@@ -319,13 +319,19 @@ export default function DashboardPage() {
   // coalesces bursts (e.g. a friend completing several tasks) into one refresh. Own echoes are
   // skipped — the local optimistic update already reflected them.
   const liveSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useFeedSync(useCallback((signal) => {
-    if (sameUserId(signal.actorId, user?.userId)) return
+  const scheduleLiveSync = useCallback(() => {
     if (liveSyncTimerRef.current) clearTimeout(liveSyncTimerRef.current)
     liveSyncTimerRef.current = setTimeout(() => {
       void Promise.all([fetchTodos(undefined, { silent: true }), fetchStats()])
     }, 400)
-  }, [fetchTodos, fetchStats, user?.userId]))
+  }, [fetchTodos, fetchStats])
+  useFeedSync(useCallback((signal) => {
+    if (sameUserId(signal.actorId, user?.userId)) return
+    scheduleLiveSync()
+  }, [scheduleLiveSync, user?.userId]))
+  // Signals missed while the socket was down are not replayed: read the page again when it comes
+  // back, and every 30 s while it stays down.
+  useRealtimeResync(scheduleLiveSync)
   // Cancel any pending debounced refresh on unmount so it never setStates an unmounted page.
   useEffect(() => () => {
     if (liveSyncTimerRef.current) clearTimeout(liveSyncTimerRef.current)

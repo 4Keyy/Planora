@@ -234,16 +234,19 @@ SignalR, wired through `lib/realtime/`, shares one WebSocket connection to
 factory that reads the current in-memory token. There is no long-polling transport
 fallback in this client. Initial connection failures use 2/5/10/30-second backoff;
 SignalR handles automatic reconnect after a successful connection with its
-installed default delays of 0/2/10/30 seconds, then stops retrying. This client has
-no `onclose` restart handler after that exhaustion; a later auth/token lifecycle
-change can call `start()` again. Reconnected branch memberships are rejoined and
-membership is reference-counted.
+installed default delays of 0/2/10/30 seconds, then stops retrying. When that closes
+the connection, the client's `onclose` handler starts it again on the same 2/5/10/30-second
+backoff (a logout ends it). Reconnected branch memberships are rejoined and membership is
+reference-counted. The server does not replay what it pushed while the socket was down, so
+after a reconnect or a connect that follows a failure the client raises `onResync` (never on
+the first connect of a session), and the task feeds read their data again.
 
 | Hook | Purpose |
 |---|---|
 | `useRealtimeLifecycle()` | Connects and reconnects the hub against auth state |
 | `useNotificationsLifecycle()` | Keeps the bell's counts live |
 | `useFeedSync(onChange)` | A task list changed somewhere else |
+| `useRealtimeResync(onResync)` | The feed may have missed changes: the socket came back, or it has been down another 30 s while the tab is visible and online (not in the sandbox) |
 | `useBranchRoom(...)` | Presence and updates inside one task's branch |
 | `useTyping(taskId, enabled)` | Ephemeral "is typing" presence |
 

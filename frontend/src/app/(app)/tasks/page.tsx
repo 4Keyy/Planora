@@ -39,7 +39,7 @@ const CreateTodoPanel = dynamic(
 )
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
 import { applyCategoryPatch } from "@/utils/todo-utils"
-import { useFeedSync } from "@/lib/realtime/hooks"
+import { useFeedSync, useRealtimeResync } from "@/lib/realtime/hooks"
 import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO, SPRING_STANDARD } from "@/lib/animations"
 import { readFilter, writeFilter } from "@/utils/category-filter"
 import { CategoryFilterModal } from "@/components/todos/category-filter-modal"
@@ -66,6 +66,8 @@ import { UpdatePill, useDeferredUpdates } from "@/components/ui/update-pill"
 const ACTIVE_PAGE_SIZE = 100
 /** Pages read before giving up — 10 000 active tasks, far beyond any real list. */
 const ACTIVE_PAGE_LIMIT = 100
+/** Queued with friends' task ids when the live feed may have missed some: re-read the whole list. */
+const RESYNC_ALL = "*"
 const COMPLETED_PREVIEW_SIZE = 20
 // PERF: the active feed keeps the "all tasks in one scroll" UX, but only mounts
 // a window of cards into the DOM. TodoCard is expensive, so mounting hundreds at
@@ -418,9 +420,24 @@ export default function TasksPage() {
     onApply: useCallback((taskIds: string[]) => {
       // De-duplicated: three edits to one task while the queue was held is still
       // one task to re-read, and three refetches would race each other's writes.
-      for (const id of new Set(taskIds)) void reconcileTaskById(id)
-    }, [reconcileTaskById]),
+      const ids = new Set(taskIds)
+      // A resync covers every queued task: the whole list is read again.
+      if (ids.has(RESYNC_ALL)) {
+        void fetchActiveTodos({ silent: true })
+        void fetchCompletedPreview()
+        return
+      }
+      for (const id of ids) void reconcileTaskById(id)
+    }, [reconcileTaskById, fetchActiveTodos, fetchCompletedPreview]),
   })
+
+  // Signals missed while the socket was down are not replayed. When it comes back (and every 30 s
+  // while it stays down) the whole list is read again — through the same queue as a friend's edit,
+  // so it applies at once at the top of an idle list and otherwise waits behind the pill.
+  useRealtimeResync(useCallback(() => {
+    if (incoming.pending.includes(RESYNC_ALL)) return
+    incoming.push(RESYNC_ALL)
+  }, [incoming]))
 
   useFeedSync(useCallback((signal) => {
     if (sameUserId(signal.actorId, user?.userId)) return

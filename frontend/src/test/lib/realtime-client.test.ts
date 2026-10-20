@@ -7,11 +7,15 @@ const mock = vi.hoisted(() => {
     state = "Disconnected"
     handlers = new Map<string, (p: unknown) => void>()
     reconnected: (() => void) | null = null
+    reconnecting: (() => void) | null = null
+    closed: (() => void) | null = null
     invokes: Array<{ method: string; args: unknown[] }> = []
     /** When > 0, the next start() rejects (simulates a transient connect failure). */
     failNextStarts = 0
     on(event: string, cb: (p: unknown) => void) { this.handlers.set(event, cb) }
     onreconnected(cb: () => void) { this.reconnected = cb }
+    onreconnecting(cb: () => void) { this.reconnecting = cb }
+    onclose(cb: () => void) { this.closed = cb }
     async start() {
       if (this.failNextStarts > 0) {
         this.failNextStarts -= 1
@@ -165,5 +169,96 @@ describe("realtime client", () => {
     // No start() — connection is null. joinTask must not throw and must not queue an invoke.
     await realtime.joinTask("task-1")
     expect(mock.built).toHaveLength(0)
+  })
+})
+
+describe("realtime client resync", () => {
+  beforeEach(async () => {
+    await realtime.stop()
+    mock.built.length = 0
+    mock.state.nextFailStarts = 0
+  })
+
+  it("does not ask views to resync on the first connect of a session", async () => {
+    const resync = vi.fn()
+    const off = realtime.onResync(resync)
+    await realtime.start()
+    expect(resync).not.toHaveBeenCalled()
+    off()
+  })
+
+  it("asks views to resync once the socket comes back from a drop", async () => {
+    const resync = vi.fn()
+    const off = realtime.onResync(resync)
+    await realtime.start()
+
+    const connection = mock.built[0]
+    connection.reconnecting?.()
+    connection.reconnected?.()
+    await vi.waitFor(() => expect(resync).toHaveBeenCalledTimes(1))
+
+    // Nothing was missed since: another reconnected callback alone asks for nothing.
+    connection.reconnected?.()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(resync).toHaveBeenCalledTimes(1)
+    off()
+  })
+
+  it("asks views to resync when a failed connect finally succeeds", async () => {
+    vi.useFakeTimers()
+    try {
+      const resync = vi.fn()
+      const off = realtime.onResync(resync)
+      mock.state.nextFailStarts = 1
+      await realtime.start()
+      expect(resync).not.toHaveBeenCalled()
+
+      mock.state.nextFailStarts = 0
+      await vi.advanceTimersByTimeAsync(2_000)
+
+      expect(mock.built[1].state).toBe("Connected")
+      expect(resync).toHaveBeenCalledTimes(1)
+      off()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("keeps reconnecting after the automatic reconnect gives up, then resyncs", async () => {
+    vi.useFakeTimers()
+    try {
+      const resync = vi.fn()
+      const off = realtime.onResync(resync)
+      await realtime.start()
+      const first = mock.built[0]
+
+      // withAutomaticReconnect ran out of attempts: SignalR closes the connection for good.
+      first.state = "Disconnected"
+      first.closed?.()
+      await vi.advanceTimersByTimeAsync(2_000)
+
+      expect(mock.built).toHaveLength(2)
+      expect(mock.built[1].state).toBe("Connected")
+      expect(resync).toHaveBeenCalledTimes(1)
+      off()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("does not reconnect a connection closed by logout", async () => {
+    vi.useFakeTimers()
+    try {
+      await realtime.start()
+      const first = mock.built[0]
+      await realtime.stop()
+      first.closed?.()
+      await vi.advanceTimersByTimeAsync(60_000)
+
+      expect(mock.built).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
