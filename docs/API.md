@@ -713,12 +713,23 @@ the server applies these ordering keys in SQL before pagination:
    A shared task has `IsPublic` or any direct shares;
    a High-priority shared task belongs to band 1.
 2. Effective hidden state ascending: open before hidden **within each band**.
-3. Working state descending: `Status == InProgress` for the owner; membership in `Workers`
-   for another viewer.
-4. `DueDate ASC`, with `NULL` last.
-5. `Priority DESC`.
-6. `CreatedAt DESC`.
+3. Working state descending — the viewer's own work: `Status == InProgress` for the owner;
+   membership in `Workers` for another viewer. A masked row (below) is never working.
+4. Day ascending, on the viewer's calendar: before today (0), today (1), tomorrow (2), later or
+   undated (3).
+5. Up to tomorrow: `Priority DESC`, then `DueDate ASC`. Later and undated: `DueDate ASC` with
+   `NULL` last, then `Priority DESC`.
+6. Masked rows after the others; `CreatedAt DESC` for the others.
 7. `Id ASC` as the stable tie-breaker.
+
+These are the client's keys (`sortTasks`, `frontend/src/utils/sort-tasks.ts`) applied to what the
+caller is sent. A hidden row is sent without its due date, so it sorts as undated (day 3, by
+priority); a masked row — hidden, and someone else's or with an audience (`HiddenTodoDtoFactory`) —
+is sent without status, work or creation time, so none of those order it, and masked rows that tie
+go by `Id`. A page of the Dashboard therefore holds exactly the tasks Tasks shows in that place, and
+the position of a hidden task tells nothing about its date or when it was made.
+`tests/fixtures/active-list-order.json` holds one list and its expected order; the PostgreSQL suite
+and the client's contract test both reproduce it (`docs/testing.md`).
 
 Effective hidden state uses the owner's `Hidden` flag for their own tasks, plus the caller's
 `HiddenByViewer` preference for tasks with an audience (`IsPublic` or any direct shares);

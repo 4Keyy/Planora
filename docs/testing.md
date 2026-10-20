@@ -497,6 +497,16 @@ sessions run in `Pacific/Honolulu`, so a local-day truncation in translated SQL 
 variable it starts a `postgres:16-alpine` container through Testcontainers, which needs Docker.
 `Fixture_RunsEverySessionOutsideUtc` pins the session zone either way.
 
+Its `ActiveList_MatchesTheSharedGoldenOrder_PageByPage` and the client's
+`frontend/src/test/utils/active-list-order.contract.test.ts` read one fixture,
+`tests/fixtures/active-list-order.json`: a viewer in New York at 23:30 while UTC is already on the
+next day, 34 tasks across the four bands — open, the viewer's own folded tasks, masked tasks, the
+viewer's work and a friend's — and the one order both sides must produce. The server seeds the tasks
+and pages them six at a time; the client projects each one as `GET /todos` sends it (in full, folded
+without its date, or masked) and sorts it with `sortTasks`. No two tasks tie on the client's key, so
+the order depends neither on the input order nor on ids. A change to either side's order fails one
+of the two until both agree again.
+
 Account-purge regressions also cover a locked avatar with all dependent rows retained, successful cleanup
 on the next pass, continued progress across batches when one account fails, and cancellation before a
 physical delete. `Services/AuthApi/Infrastructure/AuthDeletionOutboxTests` uses the same PostgreSQL fixture

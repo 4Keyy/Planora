@@ -1291,8 +1291,12 @@ in this order:
 4. **Regular:** all other active tasks.
 
 Within **each band**, open tasks precede hidden tasks. Each of those groups keeps the smart sort:
-tasks in work first, then overdue, today and tomorrow by priority, then this week and later by date,
-then undated tasks by priority. When the other smart keys tie, newer creation times come first.
+the viewer's own work first — their own task in progress, or someone else's they joined; a friend's
+task the friend is working on is not the viewer's work, just as the card does not glow for it — then
+overdue, today and tomorrow by priority, then this week and later by date, then undated tasks by
+priority. When the other smart keys tie, newer creation times come first. A hidden copy carries no
+date, so hidden tasks sort as undated: by priority, then newest first, a masked one (no creation time
+either) after the rest.
 Being in work never moves a task above an earlier band or above open tasks in its own band.
 Hidden urgent tasks follow open urgent tasks and precede every Priority task, even when there is no
 open urgent task. Hidden High, shared and regular tasks likewise follow the open tasks in their own
@@ -1301,12 +1305,11 @@ band. **Completed tasks come last**, newest completion first.
 On **Tasks**, the whole active list is read and sorted at once: page after page of 100 rows (the
 server's maximum, `docs/API.md`) until the server reports the last page, the total is reached or a
 page comes back short. A task that moves across a page boundary while the pages load is kept once.
-The **Dashboard** reads six tasks per page. Before pagination, the server applies the same bands and effective viewer-hidden groups
-(`GET /todos`, docs/API.md), then working state, due date ascending with undated tasks last, priority
-descending, creation time descending and `Id` ascending. For the owner, working means `InProgress`;
-for another viewer, it means they are a worker on the task. Band boundaries therefore carry across
-pages instead of being rebuilt independently from each page's contents; the client applies its smart
-keys within the returned groups. Hiding a dashboard card folds it and moves it into the hidden group
+The **Dashboard** reads six tasks per page. Before pagination, the server orders the active list
+with these very keys (`GET /todos`, docs/API.md), on the viewer's own day and from what each row
+tells the viewer, so the Dashboard's first page holds the six tasks Tasks shows first and the pages
+run on without a seam; re-sorting a page on the client changes nothing in it. One fixture pins both
+sides (`tests/fixtures/active-list-order.json`). Hiding a dashboard card folds it and moves it into the hidden group
 of its band; after `HIDE_SETTLE_MS` (650ms), the page is read again silently using that server order.
 Opening a hidden card does not re-read the page: `keepPlace` retains its hidden position in its band
 until a sorting key changes or the list loads again.

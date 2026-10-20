@@ -477,7 +477,7 @@ Code:
 
 ## Hidden Shared Todo Privacy
 
-The normal list/detail paths redact hidden shared/public todos server-side, including the owner's own hidden shared view. This is path-specific: the `join` handler returns an unredacted DTO, as recorded in the [coverage findings](security-idor-coverage.md#known-findings-and-missing-regressions). This protects title, description, dates, tags, shared users, completion metadata, and owner user id for non-owners. The redacted DTO still preserves non-content visual state (`Priority`, `IsPublic`, `HasSharedAudience`, and `IsVisuallyUrgent`) so hidden cards can render the same shared/urgent frame after reload.
+The normal list/detail paths redact hidden shared/public todos server-side, including the owner's own hidden shared view. This is path-specific: the `join` handler returns an unredacted DTO, as recorded in the [coverage findings](security-idor-coverage.md#known-findings-and-missing-regressions). This protects title, description, dates, tags, shared users, completion metadata, and owner user id for non-owners. The redacted DTO still preserves non-content visual state (`Priority`, `IsPublic`, `HasSharedAudience`, and `IsVisuallyUrgent`) so hidden cards can render the same shared/urgent frame after reload. The active list's order does not give away what the redaction withholds: `TodoRepository` orders a hidden row as undated and a masked row without its status, work or creation time, so where a hidden task sits says nothing about its date or when it was made (`tests/fixtures/active-list-order.json`).
 
 Code:
 

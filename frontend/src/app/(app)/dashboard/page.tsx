@@ -395,8 +395,8 @@ export default function DashboardPage() {
   // Filter out tasks that are completed by the viewer (for shared/public tasks)
   const activeTodos = useMemo(() => {
     const filtered = todos.filter(t => t.isCompletedByViewer !== true)
-    return sortTasks(filtered)
-  }, [todos])
+    return sortTasks(filtered, user?.userId)
+  }, [todos, user?.userId])
 
   /**
    * The three questions a person actually arrives at a dashboard with: what is

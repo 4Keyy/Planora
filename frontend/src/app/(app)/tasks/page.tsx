@@ -756,10 +756,10 @@ export default function TasksPage() {
 
   const sortedTodos = useMemo(() => {
     const filtered = todos.filter(t => t.isCompletedByViewer !== true)
-    return sortTasks(filtered)
-  }, [todos])
+    return sortTasks(filtered, user?.userId)
+  }, [todos, user?.userId])
 
-  const sortedCompletedPreview = useMemo(() => sortTasks(completedPreview), [completedPreview])
+  const sortedCompletedPreview = useMemo(() => sortTasks(completedPreview, user?.userId), [completedPreview, user?.userId])
   const visibleTodos = useMemo(() => {
     if (filterCategoryIds.length === 0) return sortedTodos
     return sortedTodos.filter(t => filterCategoryIds.includes(t.categoryId ?? ""))

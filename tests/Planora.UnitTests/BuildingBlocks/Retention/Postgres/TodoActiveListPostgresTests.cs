@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -63,10 +64,14 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
         var page = await PageAsync(db, todos, viewer);
 
         page.TotalCount.Should().Be(todos.Length);
-        // Audience bands precede the effective hidden state, so even hidden shared tasks precede regular tasks.
-        page.Items.Select(t => t.Id).Should().Equal(friendOwnerHidden.Id, otherViewerIgnored.Id,
-            friendViewerHidden.Id, ownSharedHidden.Id, ownPreferenceHidden.Id, friendPublicHidden.Id,
-            privatePreferenceIgnored.Id, open.Id, ownPrivateHidden.Id);
+        // Audience bands precede the effective hidden state, so even hidden shared tasks precede regular
+        // tasks. The four hidden shared tasks are masked: the viewer is sent no creation time for them,
+        // so it does not order them either — the id does.
+        var masked = new[] { friendViewerHidden, ownSharedHidden, ownPreferenceHidden, friendPublicHidden }
+            .OrderBy(t => t.Id).Select(t => t.Id);
+        page.Items.Select(t => t.Id).Should().Equal(new[] { friendOwnerHidden.Id, otherViewerIgnored.Id }
+            .Concat(masked)
+            .Concat(new[] { privatePreferenceIgnored.Id, open.Id, ownPrivateHidden.Id }));
         page.Items.Single(t => t.Id == friendViewerHidden.Id).SharedWith
             .Should().ContainSingle(s => s.SharedWithUserId == viewer);
     }
@@ -98,10 +103,11 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
 
         var page = await PageAsync(db, todos, viewer);
 
-        // Each band's open tasks precede its hidden tasks; dates then sort ascending with nulls last.
+        // Each band's open tasks precede its hidden tasks. Open tasks go by day, then date; a hidden
+        // copy carries no date, so hidden tasks go by priority, then newest first.
         page.Items.Select(t => t.Id).Should().Equal(openOverdue.Id, openUrgent.Id,
-            hiddenOverdue.Id, hiddenToday.Id, hiddenUrgent.Id, openNew.Id,
-            hiddenDone.Id, hiddenTomorrow.Id, hiddenNormal.Id);
+            hiddenUrgent.Id, hiddenOverdue.Id, hiddenToday.Id, openNew.Id,
+            hiddenDone.Id, hiddenNormal.Id, hiddenTomorrow.Id);
         page.Items.Single(t => t.Id == hiddenToday.Id).DueDate!.Value.Kind.Should().Be(DateTimeKind.Utc);
     }
 
@@ -122,6 +128,55 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
         // In Kiritimati it is due today: the urgent band, first.
         using (ViewerCalendar.Use(TimeZoneInfo.FindSystemTimeZoneById("Pacific/Kiritimati")))
             (await PageAsync(db, todos, viewer)).Items.Select(t => t.Id).Should().Equal(dueOct20.Id, high.Id);
+    }
+
+    [Fact]
+    public async Task ActiveList_MatchesTheSharedGoldenOrder_PageByPage()
+    {
+        // tests/fixtures/active-list-order.json — the client's sortTasks must produce the same order
+        // (frontend/src/test/utils/active-list-order.contract.test.ts), so a page of the Dashboard
+        // holds the tasks Tasks shows in that place.
+        var golden = GoldenOrder.Load();
+        await using var db = fixture.CreateContext();
+        var viewer = Guid.NewGuid();
+        var friend = Guid.NewGuid();
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(golden.TimeZone);
+        var today = TimeZoneInfo.ConvertTimeFromUtc(golden.Now, zone).Date;
+        var todos = new List<TodoItem>();
+        var preferences = new List<UserTodoViewPreference>();
+        foreach (var task in golden.Tasks)
+        {
+            var owner = task.Owner == "viewer" ? viewer : friend;
+            var other = owner == viewer ? friend : viewer;
+            var todo = TodoItem.Create(owner, task.Label,
+                priority: Enum.Parse<TodoPriority>(task.Priority),
+                dueDate: task.Due is int days ? DateTime.SpecifyKind(today.AddDays(days), DateTimeKind.Utc) : null,
+                isPublic: task.Audience == "public",
+                sharedWithUserIds: task.Audience == "shared" ? new[] { other } : null);
+            if (task.Status == "InProgress")
+                todo.MarkAsInProgress(owner);
+            if (task.Hidden)
+                todo.SetHidden(true, owner);
+            if (task.ViewerWorks)
+                todo.AddWorker(viewer);
+            Set(todo, nameof(TodoItem.CreatedAt), golden.Now.AddHours(-task.CreatedHoursAgo));
+            if (task.HiddenByViewer)
+                preferences.Add(HiddenPreference(viewer, todo));
+            todos.Add(todo);
+        }
+        await SeedAsync(db, todos.ToArray(), preferences.ToArray());
+
+        using (ViewerCalendar.Use(zone))
+        {
+            var whole = await PageAsync(db, todos.ToArray(), viewer, now: golden.Now);
+            whole.Items.Select(t => t.Title).Should().Equal(golden.Expected);
+
+            var paged = new List<string>();
+            for (var pageNumber = 1; paged.Count < golden.Expected.Length; pageNumber++)
+                paged.AddRange((await PageAsync(db, todos.ToArray(), viewer, pageNumber, pageSize: 6, now: golden.Now))
+                    .Items.Select(t => t.Title));
+            paged.Should().Equal(golden.Expected);
+        }
     }
 
     [Fact]
@@ -262,15 +317,17 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
         var rootSql = capture.Commands[1];
         output.WriteLine(rootSql);
         rootSql.Should().StartWith("SELECT t.")
+            .And.Contain("LEFT JOIN (")
+            .And.Contain("user_todo_view_preferences")
             .And.Contain("ORDER BY CASE")
             .And.Contain("todo_item_shares")
-            .And.Contain("user_todo_view_preferences")
             .And.Contain("todo_item_workers")
-            .And.Contain("t.\"DueDate\" IS NULL")
-            .And.Contain("t.\"DueDate\",")
-            .And.Contain("t.\"Priority\" DESC")
-            .And.Contain("t.\"CreatedAt\" DESC")
-            .And.Contain("t.\"Id\"")
+            .And.Contain("t.\"DueDate\"")
+            .And.Contain("t.\"Priority\"")
+            .And.Contain("t.\"CreatedAt\"")
+            // The date and the creation time a hidden or masked row withholds do not order it.
+            .And.Contain("THEN NULL")
+            .And.Contain("END DESC, t.\"Id\"")
             .And.Contain("LIMIT ")
             .And.Contain("OFFSET ")
             .And.NotContain("FROM (");
@@ -323,16 +380,34 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
     }
 
     private static Task<(IReadOnlyList<TodoItem> Items, int TotalCount)> PageAsync(
-        TodoDbContext db, TodoItem[] todos, Guid? viewerId, int pageNumber = 1, int pageSize = 50)
+        TodoDbContext db, TodoItem[] todos, Guid? viewerId, int pageNumber = 1, int pageSize = 50, DateTime? now = null)
     {
         var ids = todos.Select(t => t.Id).ToArray();
-        return new TodoRepository(db, new FixedTimeProvider()).GetPagedWithIncludesAsync(
+        return new TodoRepository(db, new FixedTimeProvider(now ?? UtcNow)).GetPagedWithIncludesAsync(
             t => ids.Contains(t.Id), pageNumber, pageSize, sortCompletedByCompletionTime: false, viewerId);
     }
 
-    private sealed class FixedTimeProvider : TimeProvider
+    private sealed class FixedTimeProvider(DateTime utcNow) : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => new(UtcNow);
+        public override DateTimeOffset GetUtcNow() => new(utcNow);
+    }
+
+    private sealed record GoldenTask(
+        string Label, string Owner, string Priority, string? Status, int? Due, double CreatedHoursAgo,
+        string? Audience, bool Hidden, bool HiddenByViewer, bool ViewerWorks);
+
+    private sealed record GoldenOrder(DateTime Now, string TimeZone, GoldenTask[] Tasks, string[] Expected)
+    {
+        public static GoldenOrder Load()
+        {
+            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Planora.sln")))
+                directory = directory.Parent;
+            var path = Path.Combine(directory?.FullName ?? throw new DirectoryNotFoundException("Planora.sln was not found."),
+                "tests", "fixtures", "active-list-order.json");
+            return JsonSerializer.Deserialize<GoldenOrder>(File.ReadAllText(path),
+                new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        }
     }
 
     private sealed class QueryCapture : DbCommandInterceptor

@@ -183,32 +183,72 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 if (viewerId is Guid activeViewerId)
                 {
                     var preferences = Context.Set<UserTodoViewPreference>();
-                    // Capture a UTC parameter: DueDate is timestamptz holding a calendar day's midnight UTC,
-                    // and every day up to the viewer's own today is urgent (ViewerCalendar).
-                    var nextViewerDay = ViewerCalendar.NextDayAsStoredDueDate(_timeProvider.GetUtcNow().UtcDateTime);
-                    query = query
+                    // Capture UTC parameters: DueDate is timestamptz holding a calendar day's midnight UTC,
+                    // and the days are the viewer's own (ViewerCalendar): every day up to today is urgent,
+                    // and the smart order splits before today, today, tomorrow and later.
+                    var tomorrowStart = ViewerCalendar.NextDayAsStoredDueDate(_timeProvider.GetUtcNow().UtcDateTime);
+                    var todayStart = tomorrowStart.AddDays(-1);
+                    var dayAfterTomorrowStart = tomorrowStart.AddDays(1);
+                    // This is the client's order (sortTasks), so a page holds the tasks the full list
+                    // shows in that place; tests/fixtures/active-list-order.json pins both. The client
+                    // orders what it is sent: a hidden row carries no due date, and a masked one
+                    // (HiddenTodoDtoFactory) no status, work or creation time either — so none of
+                    // those place it here, and none leaks through its place.
+                    //
+                    // The viewer's hide comes from a join that yields at most one row (one preference
+                    // per viewer and task), so the keys read a column; it is tested before the audience,
+                    // whose subquery then only runs for the rows the viewer hid.
+                    var hiddenByViewer = preferences.Where(p => p.ViewerId == activeViewerId && p.HiddenByViewer);
+                    query = (
+                            from x in query
+                            from preference in hiddenByViewer.Where(p => p.TodoItemId == x.Id).DefaultIfEmpty()
+                            select new { Todo = x, HiddenByViewer = preference != null })
                         .Select(x => new
                         {
-                            Todo = x,
-                            IsHidden = (x.UserId == activeViewerId && x.Hidden)
-                                || ((x.IsPublic || x.SharedWith.Any()) && preferences.Any(p =>
-                                    p.ViewerId == activeViewerId && p.TodoItemId == x.Id && p.HiddenByViewer))
+                            x.Todo,
+                            IsHidden = (x.Todo.UserId == activeViewerId && x.Todo.Hidden)
+                                || (x.HiddenByViewer && (x.Todo.IsPublic || x.Todo.SharedWith.Any()))
+                        })
+                        .Select(x => new
+                        {
+                            x.Todo,
+                            x.IsHidden,
+                            IsMasked = x.IsHidden
+                                && (x.Todo.UserId != activeViewerId || x.Todo.IsPublic || x.Todo.SharedWith.Any()),
+                            Due = x.IsHidden ? null : x.Todo.DueDate
+                        })
+                        .Select(x => new
+                        {
+                            x.Todo,
+                            x.IsHidden,
+                            x.IsMasked,
+                            x.Due,
+                            // 0 before today, 1 today, 2 tomorrow, 3 later or undated.
+                            Day = x.Due == null ? 3
+                                : x.Due < todayStart ? 0
+                                : x.Due < tomorrowStart ? 1
+                                : x.Due < dayAfterTomorrowStart ? 2
+                                : 3
                         })
                         .OrderBy(x => x.Todo.Status != TodoStatus.Done
                             && (x.Todo.Priority == TodoPriority.Urgent
-                                || (x.Todo.DueDate.HasValue && x.Todo.DueDate.Value < nextViewerDay))
+                                || (x.Todo.DueDate.HasValue && x.Todo.DueDate.Value < tomorrowStart))
                                 ? 0
                                 : x.Todo.Priority == TodoPriority.High
                                     ? 1
                                     : x.Todo.IsPublic || x.Todo.SharedWith.Any() ? 2 : 3)
                         .ThenBy(x => x.IsHidden)
-                        .ThenByDescending(x => x.Todo.UserId == activeViewerId
+                        .ThenByDescending(x => !x.IsMasked && (x.Todo.UserId == activeViewerId
                             ? x.Todo.Status == TodoStatus.InProgress
-                            : x.Todo.Workers.Any(w => w.UserId == activeViewerId))
-                        .ThenBy(x => x.Todo.DueDate == null)
-                        .ThenBy(x => x.Todo.DueDate)
-                        .ThenByDescending(x => x.Todo.Priority)
-                        .ThenByDescending(x => x.Todo.CreatedAt)
+                            : x.Todo.Workers.Any(w => w.UserId == activeViewerId)))
+                        .ThenBy(x => x.Day)
+                        // Up to tomorrow: priority, then the date; later and undated: the date, then priority.
+                        .ThenByDescending(x => x.Day < 3 ? x.Todo.Priority : (TodoPriority)0)
+                        .ThenBy(x => x.Due == null)
+                        .ThenBy(x => x.Due)
+                        .ThenByDescending(x => x.Day < 3 ? (TodoPriority)0 : x.Todo.Priority)
+                        .ThenBy(x => x.IsMasked)
+                        .ThenByDescending(x => x.IsMasked ? null : (DateTime?)x.Todo.CreatedAt)
                         .ThenBy(x => x.Todo.Id)
                         .Select(x => x.Todo);
                 }

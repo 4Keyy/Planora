@@ -124,7 +124,7 @@ export function useTaskVisibility({
   const opened = (todo: Todo, full: Todo | null): Todo => {
     const name = full ? options.current.authorName?.(full.userId) : null
     const next: Todo = full ? { ...todo, ...full, ...(name ? { authorName: name } : {}), hidden: false } : { ...todo, hidden: false }
-    return { ...next, heldPlace: keepPlace(todo, next) }
+    return { ...next, heldPlace: keepPlace(todo, next, options.current.viewerId) }
   }
 
   const hide = async (todo: Todo, isOwner: boolean) => {

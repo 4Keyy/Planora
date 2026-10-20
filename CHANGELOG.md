@@ -113,6 +113,19 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(todos): the Dashboard pages the order Tasks shows (2026-10-20)
+
+The Dashboard reads six tasks a page in the server's order, while Tasks sorts the whole list on the
+client, and inside a band the two orders differed: the server went by due date before priority even
+for overdue, today's and tomorrow's tasks, ordered hidden tasks by the dates (and, for masked ones,
+the status and creation times) the viewer is never sent, and the client counted a friend's task the
+friend was working on as the viewer's own work. Seven overdue tasks, the least overdue of them
+Urgent, put that one first on Tasks and on the Dashboard's second page. Both sides now use one order — the
+documented smart sort, on the viewer's own day, from what each row tells the viewer — pinned by one
+fixture that both test suites read, and a hidden task's date or creation time can no longer be read
+from where it sits. On PostgreSQL the ordering costs about 4 ms more per query at 2000 active tasks
+(7.1 ms against 3.0 ms).
+
 ### ci(e2e): run on main pushes and summarize skips and retries (2026-10-20)
 
 E2E now runs on main pushes using the same path filter as pull requests. A private JSON report supplies aggregate skipped/retried counts even after test failure; missing reports stay explicit, raw reports are deleted, and published diagnostics retain redaction.

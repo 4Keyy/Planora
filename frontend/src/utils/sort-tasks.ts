@@ -3,11 +3,14 @@
  * the smart key within that group. Completed tasks follow every active band.
  */
 
-import { TodoPriority } from "@/types/todo"
+import { TodoPriority, isTodoOwner } from "@/types/todo"
 import { addDays, calendarDayOf, endOfWeek, localDay, type CalendarDay } from "@/lib/calendar-date"
 
 /** Where a task sorts: compared element by element, smaller first. See `ownKey`. */
 export type SortKey = readonly number[]
+
+/** The signed-in viewer's id, when known. */
+type Viewer = string | null | undefined
 
 /**
  * The place a card opened from hidden keeps (`keepPlace`): the key it was placed by while it was
@@ -17,6 +20,8 @@ export type HeldPlace = { place: SortKey; open: SortKey }
 
 export type SortableTask = {
   id: string
+  /** The owner — whose "in progress" makes a task the viewer's own work (`taskIsWorkingOn`). */
+  userId?: string | null
   title?: string | null
   description?: string | null
   priority?: TodoPriority | string | null
@@ -49,10 +54,16 @@ function taskIsCompleted(task: SortableTask): boolean {
   return s === "done" || s === "completed"
 }
 
-// Owner: status = "inprogress" / "in progress"; non-owner: isWorking flag
-function taskIsWorkingOn(task: SortableTask): boolean {
-  if (task.isWorking) return true
-  return String(task.status ?? "").toLowerCase().replace(/\s/g, "") === "inprogress"
+/**
+ * The viewer's own work, as the card glows for it (`todo-card.tsx`) and as the API orders it:
+ * their own task in progress, or someone else's they joined (`isWorking`). A friend's task the
+ * friend is working on is not the viewer's work. Without a known viewer or owner, either sign
+ * counts.
+ */
+function taskIsWorkingOn(task: SortableTask, viewerId: string | null | undefined): boolean {
+  const inProgress = String(task.status ?? "").toLowerCase().replace(/\s/g, "") === "inprogress"
+  if (!viewerId || !task.userId) return Boolean(task.isWorking) || inProgress
+  return isTodoOwner({ userId: task.userId }, viewerId) ? inProgress : Boolean(task.isWorking)
 }
 
 function priorityRank(task: SortableTask): number {
@@ -111,14 +122,14 @@ function dateBucket(due: Date | null, today: CalendarDay): number {
 // Working tasks lead within their band and visibility group; date buckets and priority
 // retain the smart order, with newer creation times breaking otherwise equal keys.
 
-function sortKey(task: SortableTask, today: CalendarDay): [number, number, number, number, number] {
+function sortKey(task: SortableTask, today: CalendarDay, viewerId: Viewer): [number, number, number, number, number] {
   const due       = parseDue(task)
   const db        = dateBucket(due, today)
   const dateMs    = due ? due.getTime() : Infinity
   const createdMs = parseCreated(task)
 
   // "In work" tasks (owner's InProgress OR non-owner joined) lead their group
-  if (taskIsWorkingOn(task)) {
+  if (taskIsWorkingOn(task, viewerId)) {
     // Same internal sort rules apply within the working group
     if (db <= 2) return [0, db, priorityRank(task), dateMs, -createdMs]
     return [0, 3, dateMs, priorityRank(task), -createdMs]
@@ -144,13 +155,13 @@ function taskIsUrgent(task: SortableTask, today: CalendarDay): boolean {
 // separates tasks within a band, so hidden urgency stays ahead of open High tasks.
 
 /** A task's own place: band, hidden flag, then smart key; completed tasks form the last band. */
-function ownKey(task: SortableTask, today: CalendarDay): SortKey {
+function ownKey(task: SortableTask, today: CalendarDay, viewerId: Viewer): SortKey {
   if (taskIsCompleted(task)) return [4, 0, -parseCompleted(task)]
   const band = taskIsUrgent(task, today) ? 0
     : priorityRank(task) <= 1 ? 1
     : (task.hasSharedAudience ?? (task.isPublic === true || (task.sharedWithUserIds?.length ?? 0) > 0)) ? 2
     : 3
-  return [band, task.hidden ? 1 : 0, ...sortKey(task, today)]
+  return [band, task.hidden ? 1 : 0, ...sortKey(task, today, viewerId)]
 }
 
 const sameKey = (a: SortKey, b: SortKey) => a.length === b.length && a.every((value, i) => value === b[i])
@@ -164,8 +175,8 @@ function compareKeys(a: SortKey, b: SortKey): number {
 }
 
 /** The key a task is placed by: its own, unless it still holds the place it was opened in. */
-function placeKey(task: SortableTask, today: CalendarDay): SortKey {
-  const key = ownKey(task, today)
+function placeKey(task: SortableTask, today: CalendarDay, viewerId: Viewer): SortKey {
+  const key = ownKey(task, today, viewerId)
   const held = task.heldPlace
   return held && sameKey(key, held.open) ? held.place : key
 }
@@ -187,9 +198,9 @@ function placeKey(task: SortableTask, today: CalendarDay): SortKey {
  * key — sends it where it belongs, as it would any card. A copy fresh from the server (the next
  * time the list loads) carries no held place and sorts by its own key.
  */
-export function keepPlace(before: SortableTask, after: SortableTask): HeldPlace {
+export function keepPlace(before: SortableTask, after: SortableTask, viewerId?: Viewer): HeldPlace {
   const today = todayStart()
-  return { place: placeKey(before, today), open: ownKey(after, today) }
+  return { place: placeKey(before, today, viewerId), open: ownKey(after, today, viewerId) }
 }
 
 /** A card's frame: its 1px border and 20px of padding, top and bottom. */
@@ -235,16 +246,21 @@ export function getTaskWeight(task: SortableTask): number {
  *  1. URGENT (server urgency flag, else Urgent/overdue/today), PRIORITY (High or higher),
  *     SHARED (server audience flag, else public/shared users), then REGULAR.
  *  2. Open tasks before hidden tasks inside each band.
- *  3. Within each band and visibility group, working tasks first, then the existing smart
- *     date buckets and priority order; newer creation times break otherwise equal keys.
+ *  3. Within each band and visibility group, the viewer's own work first, then the existing
+ *     smart date buckets and priority order; newer creation times break otherwise equal keys.
+ *     A hidden copy carries no date, so it sorts as undated.
  *  4. Completed tasks last, most recently completed first.
  *
  * A card opened from hidden keeps the place within its band that it was
  * opened in (`keepPlace`). Never mutates the original array; equal keys keep their input order.
+ *
+ * The Todo API orders the active list the same way before it pages it (`TodoRepository`), so
+ * a page of the Dashboard holds the tasks Tasks shows in that place; one fixture pins both
+ * (`tests/fixtures/active-list-order.json`). `viewerId` decides whose work a task in progress is.
  */
-export function sortTasks<T extends SortableTask>(tasks: T[]): T[] {
+export function sortTasks<T extends SortableTask>(tasks: T[], viewerId?: Viewer): T[] {
   const today = todayStart()
-  const placed = tasks.map((task) => ({ task, key: placeKey(task, today) }))
+  const placed = tasks.map((task) => ({ task, key: placeKey(task, today, viewerId) }))
   placed.sort((a, b) => compareKeys(a.key, b.key))
 
   return placed.map((p) => p.task)
