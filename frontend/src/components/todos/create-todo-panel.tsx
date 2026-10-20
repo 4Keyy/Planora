@@ -227,6 +227,7 @@ export function CreateTodoPanel({
   const [dueDateStart, setDueDateStart] = useState("")
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined)
   const [creating, setCreating] = useState(false)
+  const creatingRef = useRef(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [isPublic, setIsPublic] = useState(false)
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([])
@@ -383,11 +384,15 @@ export function CreateTodoPanel({
   }, [isOpen, openPopover])
 
   const handleSubmit = async () => {
+    // A ref, set before the first await: the `creating` state reaches the keyboard handler
+    // only after a re-render, so a second Ctrl+Enter in between would create the task twice.
+    if (creatingRef.current) return
     if (!title.trim()) {
       setFormError("Title is required")
       titleRef.current?.focus()
       return
     }
+    creatingRef.current = true
     setFormError(null)
     setCreating(true)
 
@@ -411,6 +416,7 @@ export function CreateTodoPanel({
     } catch {
       setFormError("Failed to create task. Please try again.")
     } finally {
+      creatingRef.current = false
       setCreating(false)
     }
   }
@@ -424,6 +430,8 @@ export function CreateTodoPanel({
       const meta = e.metaKey || e.ctrlKey
       if (meta && e.key === "Enter") {
         e.preventDefault()
+        // Holding the keys repeats the event; one press is one task.
+        if (e.repeat) return
         handleSubmit()
       } else if (e.key === "Escape" && !creating) {
         if (openPopover) return

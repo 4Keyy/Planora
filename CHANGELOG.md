@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(todos): one Ctrl+Enter creates one task (2026-10-20)
+
+The New task panel blocked a second create only through its disabled buttons, while ⌘/Ctrl+Enter
+called the submit handler directly: a second press, or the repeats of held keys, before the first
+create returned made the same task twice. A ref set before the first await now refuses a submit
+while one is in flight, key repeats are ignored, and a failed create can still be retried.
+`components/todos/create-todo-panel.tsx`.
+
 ### fix(tasks): load every active task, not only the first hundred (2026-10-20)
 
 The Tasks page asked for 200 active tasks a page, the server clamps every page to 100, and the

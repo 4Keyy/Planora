@@ -958,7 +958,9 @@ that shared list.
   in `globals.css`), and no outline boxes the fields. On `/tasks` the `F` filter shortcut stands down
   while the panel is open, so a title can start with F. Collapsed, the form is `inert` as well as
   `aria-hidden`, so Tab never walks through its invisible fields; closing it with focus inside (Escape
-  in the title, Cancel) hands focus back to the header. Then comes a row of four compact
+  in the title, Cancel) hands focus back to the header. `⌘/Ctrl+Enter` creates the task once per
+  press: the repeats of held keys are ignored, and a second press while the first create is still on
+  its way does nothing (a failed create can be retried). Then comes a row of four compact
   **selector plates** — Priority,
   Due date, Category, Share — each opening an anchored popover (the shared `PriorityPopover`,
   `DatePopover` with its Today/Tomorrow/+3/Next-week quick-picks, `CategoryPopover`, and the
