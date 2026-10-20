@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(analytics): failed token refreshes reach the metric (2026-10-20)
+
+`TOKEN_REFRESH_FAILED` was sent with the token whose refresh had just failed, so the API answered
+401 and the event was lost — and after a reload, with no token at all, a failed restore never sent
+it. Refresh failures were systematically under-counted. Such an event now waits in the tab's
+`sessionStorage` and goes out with the next session's token, stamped with when it happened; an
+event left by another account is dropped rather than recorded under the wrong user.
+
 ### fix(autosave): an edit made just before closing the tab is saved (2026-10-20)
 
 The task editor and the category sheet save 600 ms after the last change, and flush when they

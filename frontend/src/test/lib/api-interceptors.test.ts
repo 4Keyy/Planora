@@ -230,8 +230,10 @@ describe("api interceptors", () => {
       accessToken: "expired-token",
       isAuthenticated: true,
       roles: ["User"],
+      user: { userId: "user-1", email: "u@e.x", firstName: "F", lastName: "L" },
     })
     vi.mocked(refreshAccessToken).mockRejectedValue(new Error("expired cookie"))
+    const fetchSpy = vi.spyOn(globalThis, "fetch")
 
     const error = {
       response: { status: 401 },
@@ -242,6 +244,16 @@ describe("api interceptors", () => {
 
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
     expect(clearCsrfToken).toHaveBeenCalledOnce()
+    // The rejected token cannot report its own failure: the event waits for the next session (FE-17).
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(JSON.parse(sessionStorage.getItem("planora:pending-product-events") ?? "[]")).toEqual([
+      expect.objectContaining({
+        eventName: "TOKEN_REFRESH_FAILED",
+        properties: { surface: "api_interceptor", url: "/todos/api/v1/todos" },
+        userId: "user-1",
+      }),
+    ])
+    sessionStorage.clear()
   })
 
   it("surfaces a genuine 403 at once: no retry, and the CSRF token stays", async () => {

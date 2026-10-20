@@ -366,7 +366,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 
 | File | What it is |
 |---|---|
-| `analytics.ts` | `PRODUCT_EVENTS` and `trackProductEvent` |
+| `analytics.ts` | `PRODUCT_EVENTS`, `trackProductEvent`, and the queue for an ended session's events (`queueProductEvent`, `flushQueuedProductEvents`) |
 | `animations.ts` | motion presets; the numbers come from `design-tokens.ts`, never from here |
 | `api.ts` | the axios instance, every endpoint wrapper, the refresh/backoff interceptors |
 | `auth-broadcast.ts` | cross-tab logout over `BroadcastChannel` |

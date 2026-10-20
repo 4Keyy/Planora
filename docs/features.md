@@ -1463,6 +1463,7 @@ Accept a small allowlist of frontend product events and log them through structu
 - `properties` must be a JSON object and max 4096 bytes.
 - Returns `202 Accepted` on success.
 - Frontend dispatch requires an access token; unauthenticated restore/login screens do not post analytics.
+- A refresh that fails has ended the session whose token would report it, so `TOKEN_REFRESH_FAILED` from the API client's 401 path and from a failed restore is kept in the tab's `sessionStorage` (the ten latest, with when it happened and whose session it was; `queueProductEvent` in `frontend/src/lib/analytics.ts`) and sent with the next session's token when a session starts or renews (`flushQueuedProductEvents`). Another account's events are dropped rather than recorded under the wrong user; the demo sandbox never sends them. A failed scheduled refresh still reports at once, because its token is still valid.
 - Frontend analytics failures are swallowed.
 
 Allowlisted product event names:

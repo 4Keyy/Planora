@@ -298,6 +298,64 @@ describe("auth store", () => {
     expect(useAuthStore.getState().hasRestoredSession).toBe(true)
   })
 
+  // There is no working token to report a failed restore with, so the event waits for the next
+  // session — the same person's (FE-17).
+  describe("a failed restore, reported by the next session", () => {
+    const pending = () => JSON.parse(sessionStorage.getItem("planora:pending-product-events") ?? "[]")
+
+    beforeEach(() => {
+      document.cookie = "XSRF-TOKEN=csrf; path=/"
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 202 })))
+    })
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+      sessionStorage.clear()
+      setDemoSession(false)
+    })
+
+    const failRestore = async () => {
+      useAuthStore.getState().setAuth({ accessToken: authToken({ exp: pastEpoch() }) })
+      vi.mocked(refreshAccessToken).mockRejectedValue(new Error("cookie expired"))
+      await useAuthStore.getState().restoreSession()
+    }
+
+    it("keeps the event, then sends it with the same user's next token", async () => {
+      await failRestore()
+      expect(pending()).toEqual([expect.objectContaining({ properties: { surface: "restore_session" }, userId: "user-1" })])
+      expect(fetch).not.toHaveBeenCalled()
+
+      const fresh = authToken()
+      useAuthStore.getState().setAuth({ accessToken: fresh })
+
+      await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce())
+      const [url, init] = vi.mocked(fetch).mock.calls[0]
+      expect(url).toContain("/auth/api/v1/analytics/events")
+      expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${fresh}`)
+      expect(JSON.parse(String(init?.body))).toMatchObject({ eventName: "TOKEN_REFRESH_FAILED" })
+      expect(pending()).toEqual([])
+    })
+
+    it("does not report it under someone else's account", async () => {
+      await failRestore()
+      useAuthStore.getState().setAuth({ accessToken: authToken({ sub: "user-2" }) })
+
+      await Promise.resolve()
+      expect(fetch).not.toHaveBeenCalled()
+      expect(pending()).toEqual([])
+    })
+
+    it("leaves it alone in the demo sandbox, which never reaches the network", async () => {
+      await failRestore()
+      setDemoSession(true)
+      useAuthStore.getState().setAuth({ accessToken: authToken() })
+
+      await Promise.resolve()
+      expect(fetch).not.toHaveBeenCalled()
+      expect(pending()).toHaveLength(1)
+    })
+  })
+
   it("preserves the session when silent refresh is rate-limited (429)", async () => {
     useAuthStore.getState().setAuth({
       accessToken: authToken({ exp: pastEpoch() }),

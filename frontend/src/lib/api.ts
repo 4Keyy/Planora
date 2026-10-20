@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosError } from "axios"
 import { useAuthStore } from "@/store/auth"
 import { getCsrfToken, shouldIncludeCsrfToken, clearCsrfToken, isCsrfRejection, CSRF_HEADER_NAME } from "@/lib/csrf"
 import { refreshAccessToken } from "@/lib/auth-public"
-import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
+import { PRODUCT_EVENTS, queueProductEvent } from "@/lib/analytics"
 import { getApiBaseUrl } from "@/lib/config"
 import { newTraceparent, extractTraceId, traceparentForExistingTrace } from "@/lib/trace"
 import { TIME_ZONE_HEADER, viewerTimeZone } from "@/lib/calendar-date"
@@ -333,10 +333,11 @@ api.interceptors.response.use(
               return Promise.reject(error)
             }
             console.warn("[API] Token refresh failed, clearing auth")
-            trackProductEvent(
+            // The session's token is the one just rejected: the event waits for the next session.
+            queueProductEvent(
               PRODUCT_EVENTS.tokenRefreshFailed,
               { surface: "api_interceptor", url: requestUrl },
-              useAuthStore.getState().accessToken,
+              useAuthStore.getState().user?.userId,
             )
             useAuthStore.getState().clearAuth()
             clearCsrfToken()

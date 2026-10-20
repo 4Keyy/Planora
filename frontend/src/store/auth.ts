@@ -2,7 +2,7 @@ import { create } from "zustand"
 import { persist, createJSONStorage } from "zustand/middleware"
 import { decodeJwt, getJwtEmailVerified, getJwtRoles } from "@/lib/jwt"
 import { refreshAccessToken, validateAccessToken } from "@/lib/auth-public"
-import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
+import { PRODUCT_EVENTS, flushQueuedProductEvents, queueProductEvent, trackProductEvent } from "@/lib/analytics"
 import { broadcastLogout } from "@/lib/auth-broadcast"
 import { isDemoSession } from "@/lib/demo/flag"
 import type { AuthTokenDto } from "@/types/auth"
@@ -98,6 +98,15 @@ const noopStorage = {
   removeItem: (_name: string) => { },
 }
 
+/**
+ * A session has started or renewed: send the events an ended one could not (FE-17,
+ * `flushQueuedProductEvents`). The demo sandbox never reaches the network.
+ */
+function sendWhatEndedSessionsLeft(accessToken: string, userId: string | undefined): void {
+  if (isDemoSession()) return
+  flushQueuedProductEvents(accessToken, userId)
+}
+
 const storage = createJSONStorage<Partial<AuthState>>(() => {
   if (typeof window === "undefined") return noopStorage
   try {
@@ -183,6 +192,7 @@ export const useAuthStore = create(
           }
         })
         get().scheduleTokenRefresh()
+        sendWhatEndedSessionsLeft(payload.accessToken, get().user?.userId)
       },
 
       /**
@@ -214,6 +224,7 @@ export const useAuthStore = create(
           }
         })
         get().scheduleTokenRefresh()
+        sendWhatEndedSessionsLeft(payload.accessToken, get().user?.userId)
       },
 
       updateUser: (patch) =>
@@ -314,11 +325,13 @@ export const useAuthStore = create(
           // log-out (and broadcast logout to every open tab) over a transient limit and feed a
           // reload → refresh → 429 loop. Leave the session untouched; the scheduled refresh or the
           // next foreground request renews the token once the window clears.
+          // There is no working token to report this with (after a reload there is none at all), so
+          // the event waits for the next session (FE-17).
           const status = (error as { response?: { status?: number } })?.response?.status
           if (status === 429) {
-            trackProductEvent(PRODUCT_EVENTS.tokenRefreshFailed, { surface: "restore_session_rate_limited" }, state.accessToken)
+            queueProductEvent(PRODUCT_EVENTS.tokenRefreshFailed, { surface: "restore_session_rate_limited" }, state.user?.userId)
           } else {
-            trackProductEvent(PRODUCT_EVENTS.tokenRefreshFailed, { surface: "restore_session" }, state.accessToken)
+            queueProductEvent(PRODUCT_EVENTS.tokenRefreshFailed, { surface: "restore_session" }, state.user?.userId)
             get().clearAuth()
           }
         } finally {
