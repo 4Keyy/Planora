@@ -113,6 +113,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### test(frontend): pin task sorting and masonry golden fixtures (2026-10-20)
+
+Forty-eight local-calendar task fixtures pin the documented bands, groups, stable ties and held places. Literal masonry expectations cover one to five columns, 16px gaps, the 24px row tolerance and empty grids; the golden suites agree across UTC, Moscow and New York without changing runtime sorting.
+
 ### test(frontend): restore globals and use the shared E2E origin (2026-10-20)
 
 Permitted frontend test suites restore browser global descriptors, set hardware capabilities independently, isolate first-visit state and keep toast fake clocks from stranding later dialog frames. The dialog-motion spec derives navigation, cookies and intercepted CORS responses from Playwright baseURL, preserving all assertions and the existing motion checks.

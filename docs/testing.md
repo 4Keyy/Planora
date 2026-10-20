@@ -804,6 +804,29 @@ What this costs when it goes wrong is on record. `useFocusTrap` returns a callba
 
 The hook's own tests passed the whole time, because they mounted it without a portal — the one configuration no caller uses. `frontend/src/test/hooks/use-focus-trap.test.tsx` now ends with a test that mounts the trap inside a real `ModalPortal` and waits for focus to land, so the covered configuration is the shipped one.
 
+### Golden fixtures
+
+`src/test/fixtures/golden-tasks.ts` defines 48 tasks around a fixed local Wednesday.
+`sort-tasks.golden.test.ts` freezes the clock and asserts literal ID order, stable ties
+and held places. `masonry-deal.golden.test.ts` fixes column/top/height results for
+1–5 columns, gap 16, the 24px row tolerance and empty grids. These fixtures are the
+refactoring baseline and the future reference for server-order parity. Update expected
+results only for an intentional rule change, together with `docs/features.md`.
+
+Run both tests under each local calendar time zone from `frontend`:
+
+```powershell
+foreach ($zone in "UTC", "Europe/Moscow", "America/New_York") {
+  $env:TZ = $zone
+  npx vitest run src/test/utils/sort-tasks.golden.test.ts src/test/components/masonry-deal.golden.test.ts
+  if ($LASTEXITCODE -ne 0) { throw "Golden fixtures failed in $zone" }
+}
+Remove-Item Env:TZ
+```
+
+The sorter and maintained feature rules agree. Its older internal comment that
+overdue tasks are ordered by age alone is imprecise: priority precedes due date.
+
 ## Performance / Load (k6)
 
 The k6 baseline lives in [`perf/k6/`](../perf/k6/). Two scenarios ship today; both share `lib/api.js` (CSRF bootstrap, register, login) so new scenarios extend the lib instead of duplicating boilerplate.
