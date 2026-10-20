@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import axios from "axios"
 import { api, fetchTaskById, setViewerPreference, parseApiResponse, type ApiResponse, joinTodo, leaveTodo, duplicateTodo } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
-import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
+import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST, describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
 import { Todo, PagedTodosResponse, type CreateTodoPayload, type UpdateTodoPayload, isCompletedTodoStatus, isTodoOwner, sameUserId, toApiTodoStatus } from "@/types/todo"
@@ -239,7 +239,7 @@ export default function TasksPage() {
       setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
     } catch (error) {
       if (axios.isCancel(error) || signal?.aborted) return
-      console.error("Failed to fetch categories:", error)
+      console.error("Failed to fetch categories:", describeError(error))
     }
   }, [])
 
@@ -309,7 +309,7 @@ export default function TasksPage() {
       setTodos(enriched)
     } catch (error) {
       if (axios.isCancel(error) || signal?.aborted) return
-      console.error("Failed to fetch active todos:", error)
+      console.error("Failed to fetch active todos:", describeError(error))
       // A silent background reconcile must not surface a toast — the cards already
       // on screen stay valid; only an interactive (non-silent) load reports failure.
       if (!silent) addToast({ type: "error", title: "Couldn't load tasks" })
@@ -334,7 +334,7 @@ export default function TasksPage() {
       setCompletedTotalCount(res.data.totalCount ?? enriched.length)
     } catch (error) {
       if (axios.isCancel(error) || signal?.aborted) return
-      console.error("Failed to fetch completed preview:", error)
+      console.error("Failed to fetch completed preview:", describeError(error))
       setCompletedPreview([])
       setCompletedTotalCount(0)
     } finally {
@@ -485,7 +485,7 @@ export default function TasksPage() {
         }
         addToast({ type: "success", title: wasCompleted ? "Task reopened" : "Task completed" })
       } catch (error) {
-        console.error("Failed to update viewer completion:", error)
+        console.error("Failed to update viewer completion:", describeError(error))
         if (isAuthorAlreadyCompletedError(error)) {
           addToast(AUTHOR_COMPLETED_TOAST)
         } else {
@@ -513,7 +513,7 @@ export default function TasksPage() {
         title: isCompleted ? "Task reopened" : "Task completed",
       })
     } catch (error) {
-      console.error("Failed to update todo:", error)
+      console.error("Failed to update todo:", describeError(error))
       addToast({ type: "error", title: "Couldn't update task" })
     }
   }
@@ -524,7 +524,7 @@ export default function TasksPage() {
       await fetchActiveTodos({ silent: true })
       addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
     } catch (error) {
-      console.error("Failed to duplicate todo:", error)
+      console.error("Failed to duplicate todo:", describeError(error))
       addToast({ type: "error", title: "Couldn't duplicate task" })
       throw error
     }
@@ -552,7 +552,7 @@ export default function TasksPage() {
           await api.delete(`/todos/api/v1/todos/${todo.id}`)
           if (wasCompleted) await fetchCompletedPreview()
         } catch (error) {
-          console.error("Failed to delete todo:", error)
+          console.error("Failed to delete todo:", describeError(error))
           addToast({ type: "error", title: "Couldn't delete task" })
           // The server refused, so put the card back rather than leave the user
           // believing a task is gone when it is not.
@@ -606,7 +606,7 @@ export default function TasksPage() {
       // reports success. We intentionally do not refresh `editingTodo` so the open modal's
       // local field state (the source of truth while editing) is never clobbered mid-edit.
     } catch (error) {
-      console.error("Failed to update todo:", error)
+      console.error("Failed to update todo:", describeError(error))
       addToast({ type: "error", title: "Couldn't save changes" })
       // Re-throw so the modal's autosave surfaces the error state and retries on next edit.
       throw error
@@ -635,7 +635,7 @@ export default function TasksPage() {
 
       // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
     } catch (error) {
-      console.error("Failed to update viewer preference:", error)
+      console.error("Failed to update viewer preference:", describeError(error))
       addToast({ type: "error", title: "Couldn't save your category" })
       throw error // surface error state in the modal's autosave indicator
     }
@@ -656,7 +656,7 @@ export default function TasksPage() {
       // Reconcile in the background — don't block the create panel's field reset on the refetch.
       void fetchActiveTodos({ silent: true })
     } catch (error) {
-      console.error("Failed to create todo:", error)
+      console.error("Failed to create todo:", describeError(error))
       addToast({ type: "error", title: "Couldn't create task" })
     }
   }

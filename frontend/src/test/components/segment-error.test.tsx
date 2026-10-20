@@ -35,7 +35,12 @@ describe("SegmentError", () => {
     const error = new Error("internal detail")
     render(<SegmentError error={error} reset={vi.fn()} segmentLabel="profile" />)
 
-    expect(console.error).toHaveBeenCalledWith("[profile] segment-level error", error)
+    // Logged as a description (name, message, stack), never as the raw object: an Axios error
+    // reaching a boundary would carry its bearer token in `config`.
+    expect(console.error).toHaveBeenCalledWith(
+      "[profile] segment-level error",
+      expect.objectContaining({ name: "Error", message: "internal detail", stack: expect.any(String) }),
+    )
   })
 
   it("shows the digest reference id only when present", () => {

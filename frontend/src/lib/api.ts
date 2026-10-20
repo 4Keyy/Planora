@@ -7,6 +7,7 @@ import { getApiBaseUrl } from "@/lib/config"
 import { newTraceparent, extractTraceId, traceparentForExistingTrace } from "@/lib/trace"
 import type { ReplyTargetType, Todo, TodoComment } from "@/types/todo"
 import type { AuthTokenDto } from "@/types/auth"
+import { describeError } from "@/lib/errors"
 
 const BASE_URL = getApiBaseUrl()
 let refreshPromise: Promise<AuthTokenDto> | null = null
@@ -188,7 +189,7 @@ api.interceptors.request.use(async (config) => {
     } catch (error) {
       // A limited token fetch must not turn into a second mutation lacking its CSRF header.
       if (axios.isAxiosError(error) && error.response?.status === 429) throw error
-      console.error('[API] Failed to add CSRF token:', error)
+      console.error('[API] Failed to add CSRF token:', describeError(error))
       // Continue anyway - server will reject if CSRF is required
     }
   }

@@ -254,3 +254,53 @@ export function getAccountChangeErrorKind(err: unknown): AccountChangeErrorKind 
   }
   return getResponseStatus(err) === 429 ? "rate-limited" : "unknown"
 }
+
+/** A token in a URL or header text — redacted before anything is logged. */
+const SECRET_IN_TEXT = [
+  { pattern: /(access_token=)[^&\s"']+/gi, keep: "$1[redacted]" },
+  { pattern: /(Bearer\s+)[A-Za-z0-9\-._~+/]+=*/g, keep: "$1[redacted]" },
+]
+
+const scrub = (text: string): string =>
+  SECRET_IN_TEXT.reduce((out, { pattern, keep }) => out.replace(pattern, keep), text)
+
+/** What `describeError` keeps from a failure. */
+export type ErrorDescription = {
+  name?: string
+  message: string
+  code?: string
+  status?: number
+  method?: string
+  url?: string
+  stack?: string
+}
+
+/**
+ * What may be logged about a failure. An Axios error carries its request config — headers with
+ * the bearer token, and the body — so only its status, method, URL and code are kept. Any text
+ * that could hold a token (an `access_token=` query, a `Bearer` header) is redacted. A plain
+ * `Error` keeps its name, message and stack; anything else is reduced to text.
+ */
+export function describeError(error: unknown): ErrorDescription {
+  if (error && typeof error === "object" && (error as { isAxiosError?: unknown }).isAxiosError === true) {
+    const axiosError = error as {
+      name?: string
+      message?: string
+      code?: string
+      response?: { status?: number }
+      config?: { method?: string; url?: string }
+    }
+    return {
+      name: axiosError.name,
+      message: scrub(String(axiosError.message ?? "Request failed")),
+      code: axiosError.code,
+      status: axiosError.response?.status,
+      method: axiosError.config?.method?.toUpperCase(),
+      url: axiosError.config?.url ? scrub(axiosError.config.url) : undefined,
+    }
+  }
+  if (error instanceof Error) {
+    return { name: error.name, message: scrub(error.message), stack: error.stack ? scrub(error.stack) : undefined }
+  }
+  return { message: scrub(typeof error === "string" ? error : String(error)) }
+}

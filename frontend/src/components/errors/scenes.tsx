@@ -15,6 +15,7 @@ import {
   SnagMark,
   type Destination,
 } from "@/components/errors/error-scene"
+import { describeError } from "@/lib/errors"
 
 /** "Go back", when there is somewhere to go back to — decided after mount, never on the server. */
 function useBack(): Destination | null {
@@ -92,8 +93,8 @@ export function CrashScene({
   useEffect(() => {
     // The raw message is never shown — it can carry a stack trace or someone else's data —
     // but it is reported, for whatever collects console errors.
-    if (segmentLabel) console.error(`[${segmentLabel}] segment-level error`, error)
-    else console.error("[app] route-level error", error)
+    if (segmentLabel) console.error(`[${segmentLabel}] segment-level error`, describeError(error))
+    else console.error("[app] route-level error", describeError(error))
   }, [error, segmentLabel])
 
   useEffect(() => {

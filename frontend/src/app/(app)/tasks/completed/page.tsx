@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, History, CalendarSearch, AlertTriangle } from "lucide-react"
 import { api, fetchTaskById, setViewerPreference, duplicateTodo, parseApiResponse, type ApiResponse } from "@/lib/api"
-import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
+import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST, describeError } from "@/lib/errors"
 import { ensureFriendNames } from "@/lib/friend-names"
 import { useAuthStore } from "@/store/auth"
 import { Button } from "@/components/ui/button"
@@ -168,7 +168,7 @@ export default function CompletedTasksPage() {
       setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(res.data)))
     } catch (error) {
       if (signal?.aborted) return
-      console.error("Failed to fetch categories:", error)
+      console.error("Failed to fetch categories:", describeError(error))
     }
   }, [])
 
@@ -238,7 +238,7 @@ export default function CompletedTasksPage() {
       setLoadedUserId(requestUserId ?? null)
     } catch (err) {
       if (!isCurrent()) return
-      console.error("Failed to fetch completed todos:", err)
+      console.error("Failed to fetch completed todos:", describeError(err))
       const message = err instanceof Error ? err.message : "Failed to load completed tasks"
       const previous = loadedCriteria.current
       // Keep a failed reconciliation's current results, but never label old results
@@ -314,7 +314,7 @@ export default function CompletedTasksPage() {
         await fetchCompletedTodos()
         addToast({ type: "success", title: "Task reopened" })
       } catch (error) {
-        console.error("Failed to reopen viewer completion:", error)
+        console.error("Failed to reopen viewer completion:", describeError(error))
         if (isAuthorAlreadyCompletedError(error)) {
           addToast(AUTHOR_COMPLETED_TOAST)
         } else {
@@ -329,7 +329,7 @@ export default function CompletedTasksPage() {
       await fetchCompletedTodos()
       addToast({ type: "success", title: "Task reopened" })
     } catch (error) {
-      console.error("Failed to reopen todo:", error)
+      console.error("Failed to reopen todo:", describeError(error))
       addToast({ type: "error", title: "Couldn't update task" })
     }
   }
@@ -339,7 +339,7 @@ export default function CompletedTasksPage() {
       await duplicateTodo(todoId)
       addToast({ type: "success", title: "Task duplicated", description: "A fresh copy was added to your active tasks." })
     } catch (error) {
-      console.error("Failed to duplicate todo:", error)
+      console.error("Failed to duplicate todo:", describeError(error))
       addToast({ type: "error", title: "Couldn't duplicate task" })
       throw error
     }
@@ -353,7 +353,7 @@ export default function CompletedTasksPage() {
       await fetchCompletedTodos()
       addToast({ type: "success", title: "Task deleted" })
     } catch (error) {
-      console.error("Failed to delete todo:", error)
+      console.error("Failed to delete todo:", describeError(error))
       addToast({ type: "error", title: "Couldn't delete task" })
     } finally {
       setDeletingTodo(null)
@@ -375,7 +375,7 @@ export default function CompletedTasksPage() {
       setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...updated, authorName } : t)))
       // Autosave path: keep the modal open and quiet; the in-modal indicator confirms the save.
     } catch (error) {
-      console.error("Failed to update todo:", error)
+      console.error("Failed to update todo:", describeError(error))
       addToast({ type: "error", title: "Couldn't save changes" })
       throw error // surface the error state in the modal's autosave indicator
     }
@@ -398,7 +398,7 @@ export default function CompletedTasksPage() {
       setTodos((prev) => prev.map((t) => (t.id === todoId ? { ...t, ...enriched } : t)))
       // Autosave path: stay open and quiet; the modal's AutosaveIndicator confirms the save.
     } catch (error) {
-      console.error("Failed to update viewer preference:", error)
+      console.error("Failed to update viewer preference:", describeError(error))
       addToast({ type: "error", title: "Couldn't save your category" })
       throw error // surface the error state in the modal's autosave indicator
     }

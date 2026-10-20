@@ -18,6 +18,7 @@ import { CategoryDialog, type CategoryFormData } from "@/components/categories/c
 import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { forgetOrigin, rememberOrigin } from "@/lib/shared-origin"
 import { canHandleCreateShortcut } from "@/lib/create-task-request"
+import { describeError } from "@/lib/errors"
 
 /**
  * When the page's parts arrive, in ms after it starts: the header line by line, then the
@@ -79,7 +80,7 @@ export default function CategoriesPage() {
       setCategories(toCategoryList(parseApiResponse<CategoryListResponse>(response.data)))
       setOpenCounts(counts)
     } catch (error) {
-      console.error("Failed to fetch categories:", error)
+      console.error("Failed to fetch categories:", describeError(error))
       addToast({ type: "error", title: "Couldn't load categories" })
     } finally {
       setLoading(false)
@@ -127,7 +128,7 @@ export default function CategoriesPage() {
         displayOrder: 0,
       })
     } catch (error) {
-      console.error("Failed to create category:", error)
+      console.error("Failed to create category:", describeError(error))
       addToast({ type: "error", title: "Couldn't create category" })
       // The sheet stays open with what was typed, and says so.
       throw error
@@ -164,7 +165,7 @@ export default function CategoriesPage() {
         )
       )
     } catch (error) {
-      console.error("Failed to update category:", error)
+      console.error("Failed to update category:", describeError(error))
       addToast({ type: "error", title: "Couldn't save category" })
       throw error
     }
@@ -190,7 +191,7 @@ export default function CategoriesPage() {
       // Force reload to update todo items (since they might have lost their category)
       router.refresh()
     } catch (error) {
-      console.error("Failed to delete category:", error)
+      console.error("Failed to delete category:", describeError(error))
       addToast({ type: "error", title: "Couldn't delete category" })
     } finally {
       setDeletingCategory(null)

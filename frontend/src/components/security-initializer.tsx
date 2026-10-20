@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/auth"
 import { api, parseApiResponse } from "@/lib/api"
 import { AUTH_BROADCAST_CHANNEL, AUTH_BROADCAST_LOGOUT } from "@/lib/auth-broadcast"
 import type { UserDto } from "@/types/auth"
+import { describeError } from "@/lib/errors"
 
 export function SecurityInitializer() {
   const hasHydrated    = useAuthStore((s) => s.hasHydrated)
@@ -14,7 +15,7 @@ export function SecurityInitializer() {
   // Phase 1: Fetch CSRF token immediately (does not depend on hydration)
   useEffect(() => {
     getCsrfToken().catch((err) => {
-      console.warn("[Security] CSRF token initialization failed:", err)
+      console.warn("[Security] CSRF token initialization failed:", describeError(err))
     })
   }, [])
 

@@ -369,3 +369,40 @@ describe("TodosPage live feed resync", () => {
       url === "/todos/api/v1/todos" && (config as any)?.params?.isCompleted === true).length).toBeGreaterThanOrEqual(2)
   })
 })
+
+describe("TodosPage failure logging", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetAuth()
+  })
+
+  it("logs a failed load without the request's bearer token", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    try {
+      vi.mocked(api.get).mockImplementation((url: string, config?: any) => {
+        if (url === "/todos/api/v1/todos" && config?.params?.isCompleted === false) {
+          return Promise.reject({
+            isAxiosError: true,
+            name: "AxiosError",
+            message: "Request failed with status code 503",
+            response: { status: 503 },
+            config: { method: "get", url, headers: { Authorization: "Bearer page-secret-token" } },
+          })
+        }
+        if (url === "/todos/api/v1/todos") return Promise.resolve({ data: { items: [], totalCount: 0 } })
+        if (url === "/categories/api/v1/categories") return Promise.resolve({ data: [] })
+        return Promise.reject(new Error(`unexpected GET ${url}`))
+      })
+
+      render(<TodosPage />)
+
+      await waitFor(() => expect(consoleError).toHaveBeenCalledWith(
+        "Failed to fetch active todos:",
+        expect.objectContaining({ status: 503, method: "GET", url: "/todos/api/v1/todos" }),
+      ))
+      expect(JSON.stringify(consoleError.mock.calls)).not.toContain("page-secret-token")
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+})

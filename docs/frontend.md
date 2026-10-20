@@ -202,6 +202,15 @@ actionable empty state. Skeletons cover loading; `StatusPanel` covers many empty
 panels. This is not universal: the branch page uses its own loading/not-found markup,
 while optional enrichment and some background polls retain old data or fail silently.
 
+### Logging a failure
+
+Never pass a caught error to `console.*` as it is: an Axios error carries its request
+config — the `Authorization` bearer token, the CSRF header and the body. Log
+`describeError(error)` (`lib/errors.ts`) instead. It keeps an Axios error's status, method,
+URL and code, keeps an `Error`'s name, message and stack, reduces anything else to text, and
+redacts `access_token=` values and `Bearer` tokens in whatever text it keeps. `lib/api.ts`
+logs HTTP failures the same way (`logApiHttpError`: status, method, URL).
+
 ---
 
 ## 5. State

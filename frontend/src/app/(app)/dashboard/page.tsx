@@ -9,7 +9,7 @@ import { Plus, CheckCircle2, AlertTriangle, CalendarClock, Users, ArrowRight } f
 import axios from "axios"
 import { api, parseApiResponse, fetchTaskById, setViewerPreference, joinTodo, leaveTodo, duplicateTodo, type ApiResponse } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
-import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST } from "@/lib/errors"
+import { isAuthorAlreadyCompletedError, AUTHOR_COMPLETED_TOAST, describeError } from "@/lib/errors"
 import { useAuthStore } from "@/store/auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -238,7 +238,7 @@ export default function DashboardPage() {
       setStatsTodos(enriched)
     } catch (err) {
       if (axios.isCancel(err) || signal?.aborted) return
-      console.error("Failed to fetch stats:", err)
+      console.error("Failed to fetch stats:", describeError(err))
     } finally {
       if (!signal?.aborted) setStatsLoaded(true)
     }

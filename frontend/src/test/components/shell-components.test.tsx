@@ -74,7 +74,7 @@ describe("shell components", () => {
 
     await waitFor(() => expect(warn).toHaveBeenCalledWith(
       "[Security] CSRF token initialization failed:",
-      expect.any(Error),
+      expect.objectContaining({ message: "offline" }),
     ))
   })
 })

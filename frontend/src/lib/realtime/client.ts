@@ -1,6 +1,7 @@
 import * as signalR from "@microsoft/signalr"
 import { useAuthStore } from "@/store/auth"
 import { getApiBaseUrl } from "@/lib/config"
+import { describeError } from "@/lib/errors"
 
 /** A task-list / dashboard card changed for the current user. */
 export interface TaskFeedChangedPayload {
@@ -136,7 +137,7 @@ class RealtimeClient {
       })
       .catch((error) => {
         if (process.env.NODE_ENV !== "production") {
-          console.warn("[realtime] connection failed to start:", error)
+          console.warn("[realtime] connection failed to start:", describeError(error))
         }
         this.missedEvents = true
         // Self-heal a transient connect failure with backoff instead of waiting for the next
@@ -292,7 +293,7 @@ class RealtimeClient {
         listener()
       } catch (error) {
         if (process.env.NODE_ENV !== "production") {
-          console.warn("[realtime] resync listener threw:", error)
+          console.warn("[realtime] resync listener threw:", describeError(error))
         }
       }
     }
@@ -306,7 +307,7 @@ class RealtimeClient {
         ;(listener as Listener<E>)(payload)
       } catch (error) {
         if (process.env.NODE_ENV !== "production") {
-          console.warn(`[realtime] listener for ${event} threw:`, error)
+          console.warn(`[realtime] listener for ${event} threw:`, describeError(error))
         }
       }
     }
@@ -329,7 +330,7 @@ class RealtimeClient {
       await connection.invoke(method, ...args)
     } catch (error) {
       if (process.env.NODE_ENV !== "production") {
-        console.warn(`[realtime] invoke ${method} failed:`, error)
+        console.warn(`[realtime] invoke ${method} failed:`, describeError(error))
       }
     }
   }

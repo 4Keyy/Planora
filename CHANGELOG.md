@@ -113,6 +113,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(security): log failures without the request's bearer token (2026-10-20)
+
+Pages and libraries passed caught errors to `console.*` as they were, and an Axios error
+carries its request config: the `Authorization` bearer token, the CSRF header and the request
+body ended up in the console, and would have ended up in any log a future error reporter
+collects. Every such call — the task, completed, dashboard and category pages, the error
+scenes, the security initializer, the API client and the realtime client — now logs
+`describeError(error)`: status, method, URL and code for a request, name, message and stack
+for an `Error`, with `access_token=` values and `Bearer` tokens redacted from all text.
+
 ### fix(api): retry a 403 only when the CSRF token was rejected (2026-10-20)
 
 Every 403 on a mutation was retried once with a fresh CSRF token, including genuine refusals: a

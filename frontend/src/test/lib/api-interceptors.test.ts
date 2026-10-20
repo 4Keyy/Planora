@@ -94,7 +94,7 @@ describe("api interceptors", () => {
     const config = await requestFulfilled()({ method: "delete", headers: {} })
 
     expect(config.method).toBe("delete")
-    expect(errorSpy).toHaveBeenCalledWith("[API] Failed to add CSRF token:", expect.any(Error))
+    expect(errorSpy).toHaveBeenCalledWith("[API] Failed to add CSRF token:", expect.objectContaining({ message: "csrf unavailable" }))
   })
 
   it("does not send a mutation without CSRF after the token endpoint returns 429", async () => {
