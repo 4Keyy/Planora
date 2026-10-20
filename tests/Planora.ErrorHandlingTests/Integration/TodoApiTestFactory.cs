@@ -40,6 +40,11 @@ public class TodoApiTestFactory : WebApplicationFactory<Program>
     private const string JwtAudience = "planora-test";
     private static readonly Guid TestUserId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
+    // A database of this host's own: Dispose deletes it, and xUnit runs test classes that each
+    // take this factory as a class fixture in parallel, so a shared name let one class wipe the
+    // rows another was in the middle of using.
+    private readonly string _databaseName = $"todo-api-tests-{Guid.NewGuid():N}";
+
     private bool _databaseFailure;
     private bool _grpcTimeout;
     private bool _unhandledException;
@@ -90,7 +95,7 @@ public class TodoApiTestFactory : WebApplicationFactory<Program>
 
             services.AddDbContext<TodoDbContext>(options =>
             {
-                options.UseInMemoryDatabase("TodoApiTestDb");
+                options.UseInMemoryDatabase(_databaseName);
             });
 
             // Mock external gRPC clients

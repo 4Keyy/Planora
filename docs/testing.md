@@ -853,7 +853,10 @@ Frontend coverage:
   `HEAD` too). A test that genuinely hangs still fails, at 15 s.
 
 `TodoApiTestFactory` runs Todo API in ASP.NET Core TestServer, replaces persistence
-with EF InMemory and substitutes gRPC/RabbitMQ/Redis dependencies. These tests
+with EF InMemory and substitutes gRPC/RabbitMQ/Redis dependencies. Each factory instance has an
+in-memory database of its own, deleted when the factory is disposed: xUnit runs test classes that
+take the factory as a class fixture in parallel, and with one shared name the first class to
+finish wiped the rows the others were still using. These tests
 exercise middleware and HTTP behavior but do not establish PostgreSQL transaction,
 query-translation, production Redis stamp-check or real-gateway correctness. Its
 `CreateGatewayClient()` is a simulated client, not a running Ocelot gateway.

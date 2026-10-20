@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### test(api): each Todo API test host gets a database of its own (2026-10-20)
+
+`TodoApiTestFactory` gave every instance the in-memory database `TodoApiTestDb` and deleted it on
+dispose. xUnit runs test classes in parallel, so a second class taking the factory as a class
+fixture wiped the rows the first was using: `UpdateTodo_WithExistingTodo_ReturnsUpdatedTodo`
+failed with 404 on every run. Each factory now names its own database, as every other in-memory
+test in the repository already does.
+
 ### test(dates): time-zone tests put the machine's zone back (2026-10-20)
 
 The calendar-day tests switched `process.env.TZ` and put it back with
