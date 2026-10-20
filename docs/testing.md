@@ -491,6 +491,12 @@ code housekeeping, the opt-in vectors, the outbox/inbox purge, what a deleted ac
 people's tasks, and the lock itself. Each test creates and drops its own database; without the variable
 they are skipped.
 
+`TodoActiveListPostgresTests` checks the active list's ordering and paging — bands, hidden state, work,
+dates, the viewer's day — on the same server when the variable is set, in a database of its own whose
+sessions run in `Pacific/Honolulu`, so a local-day truncation in translated SQL shows. Without the
+variable it starts a `postgres:16-alpine` container through Testcontainers, which needs Docker.
+`Fixture_RunsEverySessionOutsideUtc` pins the session zone either way.
+
 Account-purge regressions also cover a locked avatar with all dependent rows retained, successful cleanup
 on the next pass, continued progress across batches when one account fails, and cancellation before a
 physical delete. `Services/AuthApi/Infrastructure/AuthDeletionOutboxTests` uses the same PostgreSQL fixture
@@ -503,6 +509,19 @@ docker run -d --name planora-retention-test -e POSTGRES_PASSWORD=retention-test 
 $env:PLANORA_TEST_POSTGRES = "Host=127.0.0.1;Port=55433;Username=postgres;Password=retention-test"
 dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --filter "FullyQualifiedName~Retention.Postgres"
 docker rm -f planora-retention-test
+```
+
+Without Docker any PostgreSQL 16 does — for example a throwaway cluster of a local installation, with
+trust authentication on `127.0.0.1` only, removed afterwards:
+
+```powershell
+$pg = "C:\Program Files\PostgreSQL\16\bin"
+& "$pg\initdb.exe" -D "$env:TEMP\planora-pg" -U postgres -A trust -E UTF8 --locale=C
+& "$pg\pg_ctl.exe" -D "$env:TEMP\planora-pg" -o "-p 55433 -c listen_addresses=127.0.0.1" -l "$env:TEMP\planora-pg.log" -w start
+$env:PLANORA_TEST_POSTGRES = "Host=127.0.0.1;Port=55433;Username=postgres;Password=unused"
+dotnet test tests/Planora.UnitTests/Planora.UnitTests.csproj --filter "FullyQualifiedName~Retention.Postgres"
+& "$pg\pg_ctl.exe" -D "$env:TEMP\planora-pg" -m fast stop
+Remove-Item -Recurse -Force "$env:TEMP\planora-pg"
 ```
 
 CI's backend job runs them on every push against a `postgres:16-alpine` service container.

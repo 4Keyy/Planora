@@ -2,6 +2,7 @@ using System.Data.Common;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Npgsql;
 using Planora.Todo.Application.Common;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Enums;
@@ -19,6 +20,18 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
     : IClassFixture<TodoActiveListPostgresFixture>
 {
     private static readonly DateTime UtcNow = new(2026, 10, 19, 12, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public async Task Fixture_RunsEverySessionOutsideUtc()
+    {
+        // The point of the fixture: a local-day truncation in translated SQL shows up only when the
+        // session's zone is not UTC, on the shared server as in a container.
+        await using var db = fixture.CreateContext();
+
+        var zone = await db.Database.SqlQueryRaw<string>("SELECT current_setting('TimeZone') AS \"Value\"").SingleAsync();
+
+        zone.Should().Be("Pacific/Honolulu");
+    }
 
     [Fact]
     public async Task ActiveList_UsesTheViewersEffectiveHiddenState()
@@ -338,15 +351,17 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
 
 public sealed class TodoActiveListPostgresFixture : IAsyncLifetime
 {
-    // A non-UTC server timezone catches accidental local-day truncation in translated SQL.
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:16-alpine")
-        .WithCommand("-c", "timezone=Pacific/Honolulu")
-        .Build();
+    // A non-UTC timezone catches accidental local-day truncation in translated SQL.
+    private const string SessionTimeZone = "Pacific/Honolulu";
+
+    private PostgreSqlContainer? _container;
+    private TemporaryDatabase? _database;
+    private string _connectionString = string.Empty;
 
     public TodoDbContext CreateContext(DbCommandInterceptor? interceptor = null)
     {
         var options = new DbContextOptionsBuilder<TodoDbContext>()
-            .UseNpgsql(_container.GetConnectionString(), npgsql => npgsql.EnableRetryOnFailure());
+            .UseNpgsql(_connectionString, npgsql => npgsql.EnableRetryOnFailure());
         if (interceptor is not null)
             options.AddInterceptors(interceptor);
         return new TodoDbContext(options.Options);
@@ -354,10 +369,38 @@ public sealed class TodoActiveListPostgresFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await _container.StartAsync();
+        // The server PLANORA_TEST_POSTGRES names when it is set — CI's service, or a local one —
+        // in a database of its own; otherwise a throwaway container.
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(PostgresFactAttribute.Variable)))
+        {
+            _container = new PostgreSqlBuilder("postgres:16-alpine")
+                .WithCommand("-c", $"timezone={SessionTimeZone}")
+                .Build();
+            await _container.StartAsync();
+            _connectionString = _container.GetConnectionString();
+        }
+        else
+        {
+            _database = await TemporaryDatabase.CreateAsync();
+            await using (var connection = new NpgsqlConnection(_database.ConnectionString))
+            {
+                await connection.OpenAsync();
+                await using var command = new NpgsqlCommand(
+                    $"ALTER DATABASE \"{_database.Name}\" SET timezone TO '{SessionTimeZone}'", connection);
+                await command.ExecuteNonQueryAsync();
+            }
+            _connectionString = _database.ConnectionString;
+        }
+
         await using var db = CreateContext();
         await db.Database.EnsureCreatedAsync();
     }
 
-    public Task DisposeAsync() => _container.DisposeAsync().AsTask();
+    public async Task DisposeAsync()
+    {
+        if (_container is not null)
+            await _container.DisposeAsync();
+        if (_database is not null)
+            await _database.DisposeAsync();
+    }
 }

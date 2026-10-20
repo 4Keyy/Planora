@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### test(todos): run the active-list PostgreSQL suite without Docker (2026-10-20)
+
+`TodoActiveListPostgresTests` started its own `postgres:16-alpine` container through Testcontainers,
+so without Docker every one of its tests failed in the fixture — the only PostgreSQL suite that
+ignored `PLANORA_TEST_POSTGRES`. When the variable is set (CI's service, or any local PostgreSQL 16)
+the suite now runs in a database of its own on that server, with the `Pacific/Honolulu` session zone
+the container had, and a test pins that zone. Without the variable it still uses a container.
+
 ### fix(dates): urgency follows the viewer's own day on the server too (2026-10-20)
 
 A task due Oct 21 is urgent on Oct 21, but the server judged "today" by the UTC date: from 00:00

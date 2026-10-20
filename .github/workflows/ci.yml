@@ -33,7 +33,8 @@ jobs:
     timeout-minutes: 20
     # A real PostgreSQL for the retention suites (tests/Planora.UnitTests/BuildingBlocks/Retention/Postgres):
     # ExecuteDelete, ExecuteUpdate and the advisory lock are PostgreSQL-only, so the policies that delete
-    # data are run live here. Every test creates and drops its own database on this server.
+    # data are run live here. Every test creates and drops its own database on this server. The active
+    # list's ordering suite (TodoActiveListPostgresTests) runs here too, its sessions in Pacific/Honolulu.
     services:
       postgres:
         image: postgres:16-alpine
