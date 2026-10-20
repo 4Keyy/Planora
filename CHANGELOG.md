@@ -113,6 +113,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(dates): urgency follows the viewer's own day on the server too (2026-10-20)
+
+A task due Oct 21 is urgent on Oct 21, but the server judged "today" by the UTC date: from 00:00
+to 03:00 in Moscow a task due that day had no red frame and sat outside the urgent band, and from
+20:00 in New York (19:00 in winter) tomorrow's task was already red and sorted first. The web
+client now sends its time zone in `X-Time-Zone`; the Todo API judges `isVisuallyUrgent` and the
+active list's urgent band against the viewer's calendar day there (`ViewerCalendar`) and keeps the
+UTC day for a request without a valid zone. A priority key's instant repaint, which mirrored the
+old UTC rule, uses the viewer's day as well, so it agrees with the card and the sort.
+
 ### test(api): each Todo API test host gets a database of its own (2026-10-20)
 
 `TodoApiTestFactory` gave every instance the in-memory database `TodoApiTestDb` and deleted it on

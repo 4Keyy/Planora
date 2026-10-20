@@ -1277,7 +1277,12 @@ Every task list uses `sortTasks` (`frontend/src/utils/sort-tasks.ts`). Active ta
 in this order:
 
 1. **Urgent:** the server's `isVisuallyUrgent` is authoritative when present; otherwise Urgent priority,
-   overdue or due today. This is the same urgency rule as the card's red frame.
+   overdue or due today. This is the same urgency rule as the card's red frame. "Today" is the
+   viewer's own calendar day on both sides: the web client sends its time zone in `X-Time-Zone`,
+   and the server judges the flag and the urgent band against that day (`ViewerCalendar`,
+   [API](API.md#viewer-time-zone)) — a task due tomorrow is not red at 22:00 in New York, and a
+   task due today is red from 00:00 in Moscow. A priority key's instant repaint uses the same
+   calendar comparison (`priorityFields` in `frontend/src/hooks/use-priority-writer.ts`).
 2. **Priority:** remaining High-priority tasks, plus an Urgent-priority task whose server urgency flag
    is explicitly false. A task that is both High and shared belongs here.
 3. **Shared:** remaining tasks with an audience, using `hasSharedAudience` when present and otherwise

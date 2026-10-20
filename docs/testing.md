@@ -732,8 +732,16 @@ Restoring the zone by hand is the trap. Node re-reads `TZ` when it is assigned, 
 is UTC) and `delete process.env.TZ` keeps the last zone in force, so a test that restored it by
 hand left every later test in the worker in the wrong zone. The helper assigns the starting zone
 back by name before removing the variable; `frontend/src/test/quality/time-zone-helper.test.ts`
-pins that. Exercised by `frontend/src/test/lib/calendar-date.test.ts` and
-`frontend/src/test/components/task-dates-time-zone.test.tsx`.
+pins that. Exercised by `frontend/src/test/lib/calendar-date.test.ts`,
+`frontend/src/test/components/task-dates-time-zone.test.tsx` and
+`frontend/src/test/hooks/priority-fields-time-zone.test.ts`. On the server the viewer's zone
+belongs to the request rather than the process: `ViewerCalendarTests`
+(`tests/Planora.UnitTests/Services/TodoApi/Domain/ViewerCalendarTests.cs`) scopes it with
+`ViewerCalendar.Use` and checks the same instants,
+`TodoActiveListPostgresTests.ActiveList_JudgesTheUrgentBandOnTheViewersOwnDay` checks the urgent
+band on PostgreSQL, and `tests/Planora.ErrorHandlingTests/Integration/ViewerTimeZoneIntegrationTests.cs`
+sends `X-Time-Zone` to the in-memory Todo API host. That last one runs on the real clock, so it
+compares Kiritimati (UTC+14) with UTC-12, whose calendar days are always at least one apart.
 
 ### Vitest 5 and jest-dom 7 conventions
 

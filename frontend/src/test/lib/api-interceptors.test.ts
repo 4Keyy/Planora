@@ -80,6 +80,16 @@ describe("api interceptors", () => {
     expect(getCsrfToken).toHaveBeenCalledOnce()
   })
 
+  it("tells the API the viewer's time zone, without overriding one already set", async () => {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+    const config = await requestFulfilled()({ method: "get", headers: {} })
+    expect(config.headers["X-Time-Zone"]).toBe(zone)
+
+    const preset = await requestFulfilled()({ method: "get", headers: { "X-Time-Zone": "Asia/Tokyo" } })
+    expect(preset.headers["X-Time-Zone"]).toBe("Asia/Tokyo")
+  })
+
   it("does not request a CSRF token for safe methods", async () => {
     const config = await requestFulfilled()({ method: "get", headers: {} })
 

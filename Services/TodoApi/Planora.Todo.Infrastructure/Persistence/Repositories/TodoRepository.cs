@@ -1,6 +1,7 @@
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.Todo.Domain.Enums;
 using Planora.BuildingBlocks.Application.Pagination;
+using Planora.Todo.Application.Common;
 using System.Linq.Expressions;
 
 namespace Planora.Todo.Infrastructure.Persistence.Repositories
@@ -182,8 +183,9 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                 if (viewerId is Guid activeViewerId)
                 {
                     var preferences = Context.Set<UserTodoViewPreference>();
-                    // Capture a UTC parameter: DueDate is timestamptz, and today's entire UTC day is urgent.
-                    var nextUtcDay = _timeProvider.GetUtcNow().UtcDateTime.Date.AddDays(1);
+                    // Capture a UTC parameter: DueDate is timestamptz holding a calendar day's midnight UTC,
+                    // and every day up to the viewer's own today is urgent (ViewerCalendar).
+                    var nextViewerDay = ViewerCalendar.NextDayAsStoredDueDate(_timeProvider.GetUtcNow().UtcDateTime);
                     query = query
                         .Select(x => new
                         {
@@ -194,7 +196,7 @@ namespace Planora.Todo.Infrastructure.Persistence.Repositories
                         })
                         .OrderBy(x => x.Todo.Status != TodoStatus.Done
                             && (x.Todo.Priority == TodoPriority.Urgent
-                                || (x.Todo.DueDate.HasValue && x.Todo.DueDate.Value < nextUtcDay))
+                                || (x.Todo.DueDate.HasValue && x.Todo.DueDate.Value < nextViewerDay))
                                 ? 0
                                 : x.Todo.Priority == TodoPriority.High
                                     ? 1

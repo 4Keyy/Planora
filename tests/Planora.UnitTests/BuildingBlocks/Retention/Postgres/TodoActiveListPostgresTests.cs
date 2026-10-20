@@ -2,6 +2,7 @@ using System.Data.Common;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Planora.Todo.Application.Common;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Enums;
 using Planora.Todo.Infrastructure.Persistence;
@@ -89,6 +90,25 @@ public sealed class TodoActiveListPostgresTests(TodoActiveListPostgresFixture fi
             hiddenOverdue.Id, hiddenToday.Id, hiddenUrgent.Id, openNew.Id,
             hiddenDone.Id, hiddenTomorrow.Id, hiddenNormal.Id);
         page.Items.Single(t => t.Id == hiddenToday.Id).DueDate!.Value.Kind.Should().Be(DateTimeKind.Utc);
+    }
+
+    [Fact]
+    public async Task ActiveList_JudgesTheUrgentBandOnTheViewersOwnDay()
+    {
+        await using var db = fixture.CreateContext();
+        var viewer = Guid.NewGuid();
+        // 12:00 UTC on Oct 19 is already 02:00 on Oct 20 in Kiritimati (UTC+14).
+        var dueOct20 = Create(viewer, "due Oct 20", UtcNow.AddHours(-2), dueDate: UtcNow.Date.AddDays(1));
+        var high = Create(viewer, "undated high", UtcNow.AddHours(-1), priority: TodoPriority.High);
+        var todos = new[] { dueOct20, high };
+        await SeedAsync(db, todos);
+
+        // On the UTC day the task is due tomorrow: a regular task, after the High one.
+        (await PageAsync(db, todos, viewer)).Items.Select(t => t.Id).Should().Equal(high.Id, dueOct20.Id);
+
+        // In Kiritimati it is due today: the urgent band, first.
+        using (ViewerCalendar.Use(TimeZoneInfo.FindSystemTimeZoneById("Pacific/Kiritimati")))
+            (await PageAsync(db, todos, viewer)).Items.Select(t => t.Id).Should().Equal(dueOct20.Id, high.Id);
     }
 
     [Fact]

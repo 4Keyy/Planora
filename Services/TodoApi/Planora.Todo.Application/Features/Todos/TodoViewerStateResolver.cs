@@ -1,3 +1,4 @@
+using Planora.Todo.Application.Common;
 using Planora.Todo.Domain.Entities;
 using Planora.Todo.Domain.Enums;
 
@@ -16,7 +17,9 @@ internal static class TodoViewerStateResolver
         if (todo.Priority is TodoPriority.Urgent)
             return true;
 
-        return todo.DueDate.HasValue && todo.DueDate.Value.Date <= (now ?? DateTime.UtcNow).Date;
+        // The due date is a calendar day stored as its midnight UTC; "today" is the viewer's own
+        // calendar day (ViewerCalendar), not the UTC one.
+        return todo.DueDate.HasValue && todo.DueDate.Value.Date <= ViewerCalendar.Today(now ?? DateTime.UtcNow);
     }
 
     public static bool IsSharedWithViewer(TodoItem todo, Guid viewerId) =>

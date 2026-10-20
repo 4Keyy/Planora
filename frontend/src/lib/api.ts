@@ -5,6 +5,7 @@ import { refreshAccessToken } from "@/lib/auth-public"
 import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
 import { getApiBaseUrl } from "@/lib/config"
 import { newTraceparent, extractTraceId, traceparentForExistingTrace } from "@/lib/trace"
+import { TIME_ZONE_HEADER, viewerTimeZone } from "@/lib/calendar-date"
 import type { ReplyTargetType, Todo, TodoComment } from "@/types/todo"
 import type { AuthTokenDto } from "@/types/auth"
 import { describeError } from "@/lib/errors"
@@ -179,6 +180,13 @@ api.interceptors.request.use(async (config) => {
   config.headers = config.headers ?? {}
   if (!config.headers.traceparent) {
     config.headers.traceparent = newTraceparent()
+  }
+
+  // A due date is a calendar day, and "due today" depends on whose today it is: the Todo API
+  // judges urgency and the urgent band against the viewer's own day (ViewerCalendar), not UTC's.
+  const timeZone = viewerTimeZone()
+  if (timeZone && !config.headers[TIME_ZONE_HEADER]) {
+    config.headers[TIME_ZONE_HEADER] = timeZone
   }
 
   // Add CSRF token to state-modifying requests

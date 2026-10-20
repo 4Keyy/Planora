@@ -96,7 +96,10 @@ Two consequences that bite:
   (which formats in UTC); compare it with `localDay()`, the viewer's own day. Read in local
   time the stored instant fell on the evening before west of UTC: cards showed the wrong day
   and called tasks overdue a day early. Real timestamps (created, completed, last login) keep
-  the local formatting of `lib/datetime.ts`.
+  the local formatting of `lib/datetime.ts`. The server answers urgency by the same rule: the
+  client sends its time zone in `X-Time-Zone`, and the Todo API's `isVisuallyUrgent` and urgent
+  band use the viewer's day, so the card's red frame, the sort's urgent band and a priority key's
+  instant repaint (`priorityFields`) agree with what the server returns.
 
 The route layouts own metadata and shared framing. Interactive route pages, controls,
 hooks and stores form explicit client boundaries. Do not infer the rendering model
@@ -191,7 +194,9 @@ Rules and current behavior:
   gateway uses the frontend origin; `NEXT_PUBLIC_API_SAME_ORIGIN=1` explicitly selects
   this proxy path in the browser. Server-side calls still use the configured gateway.
 
-The interceptor attaches a W3C `traceparent`. A foreground 401 may share one
+The interceptor attaches a W3C `traceparent` and the viewer's IANA time zone in `X-Time-Zone`
+(`viewerTimeZone()` in `lib/calendar-date.ts`; a value already on the request wins), so the Todo
+API judges "due today" by the viewer's day. A foreground 401 may share one
 refresh request and retry once, preserving the trace id with a new span id.
 Auth/login/register/logout/refresh/password-reset failures remain with their forms.
 Best-effort calls marked `suppressErrorLog` do not drive the global 401-refresh flow.

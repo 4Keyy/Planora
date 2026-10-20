@@ -8,6 +8,7 @@ using Planora.BuildingBlocks.Infrastructure.Middleware;
 using Planora.BuildingBlocks.Infrastructure.Persistence;
 using Planora.BuildingBlocks.Infrastructure.Resilience;
 using Planora.Todo.Api.Grpc;
+using Planora.Todo.Application.Common;
 using Planora.Todo.Application;
 using Planora.Todo.Infrastructure;
 using Planora.Todo.Infrastructure.Persistence;
@@ -196,6 +197,21 @@ namespace Planora.Todo.Api
 
                 app.UseCorrelationId();
                 app.UseEnhancedGlobalExceptionHandling();
+
+                // The viewer's time zone decides which calendar day is "today" for due dates
+                // (ViewerCalendar). The web client sends it; without a valid one the day is UTC's.
+                app.Use(async (context, next) =>
+                {
+                    if (ViewerCalendar.TryResolve(context.Request.Headers[ViewerCalendar.TimeZoneHeader], out var zone))
+                    {
+                        using (ViewerCalendar.Use(zone))
+                            await next(context);
+                    }
+                    else
+                    {
+                        await next(context);
+                    }
+                });
 
                 app.UseSecurityHeaders();
 

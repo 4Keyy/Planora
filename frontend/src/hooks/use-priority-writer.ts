@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react"
 import { announce } from "@/lib/announce"
 import { TodoPriorityOrder, type Todo } from "@/types/todo"
+import { calendarDayOf, localDay } from "@/lib/calendar-date"
 
 /**
  * Setting a priority from a key: shown at once, saved once, never lost, never wrong.
@@ -37,15 +38,13 @@ export function priorityLevel(priority: Todo["priority"] | number | null | undef
   return TodoPriorityOrder[String(priority)] ?? 3
 }
 
-/** Due today or earlier on the server's UTC calendar (`TodoViewerStateResolver.IsVisuallyUrgent`). */
+/**
+ * Due today or earlier on the viewer's own calendar, as the server now judges it
+ * (`TodoViewerStateResolver.IsVisuallyUrgent` with the `X-Time-Zone` the API client sends).
+ */
 function dueByToday(dueDate: string | null | undefined, today: Date): boolean {
-  if (!dueDate) return false
-  const due = new Date(dueDate)
-  if (Number.isNaN(due.getTime())) return false
-  return (
-    Date.UTC(due.getUTCFullYear(), due.getUTCMonth(), due.getUTCDate()) <=
-    Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
-  )
+  const dueDay = calendarDayOf(dueDate)
+  return dueDay !== null && dueDay <= localDay(today)
 }
 
 /**

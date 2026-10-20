@@ -65,3 +65,15 @@ export function formatDay(
   if (Number.isNaN(date.getTime())) return ""
   return date.toLocaleDateString(UI_LOCALE, { ...options, timeZone: "UTC" })
 }
+
+/** The header that tells the Todo API the viewer's time zone (`ViewerCalendar` on the server). */
+export const TIME_ZONE_HEADER = "X-Time-Zone"
+
+/** The viewer's IANA time zone as the browser resolves it; `undefined` where Intl cannot say. */
+export function viewerTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined
+  } catch {
+    return undefined
+  }
+}

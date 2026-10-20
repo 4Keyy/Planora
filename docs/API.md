@@ -34,6 +34,26 @@ X-CSRF-Token: <value from XSRF-TOKEN cookie>
 
 The frontend sends CSRF headers for state-changing API calls. `UseCsrfProtection()` is registered in Auth, Todo, Category, Messaging and Collaboration; Realtime and the gateway do not register it. The middleware requires the matching cookie/header pair even for a bearer-authenticated caller. It exempts requests whose content type starts with `application/grpc`; `GET`, `HEAD` and `OPTIONS` do not run the comparison. A rejection is `403` with `{ "error": "CSRF_VALIDATION_FAILED", "message": "CSRF token validation failed" }`. See [authentication and security](auth-security.md#csrf-protection) and the implementation divergence recorded in [ADR 0005](DECISIONS/0005-csrf-coverage-bounded-to-auth-api.md#current-implementation-audit-2026-10-06).
 
+### Viewer time zone
+
+Todo requests may name the viewer's IANA time zone:
+
+```http
+X-Time-Zone: Europe/Moscow
+```
+
+A due date is a calendar day stored as its midnight UTC, so whether a task is due today depends on
+whose today it is. The Todo service makes the header's zone the request's viewer zone
+(`ViewerCalendar`, set by middleware in `Services/TodoApi/Planora.Todo.Api/Program.cs`) and judges
+`isVisuallyUrgent` and the active list's urgent band against the viewer's calendar day there. The
+header is optional: without it, or with an id the host cannot resolve — unknown, longer than 64
+characters, or holding anything but ASCII letters, digits, `/`, `_`, `-`, `+` and spaces — the day
+is the UTC day. The web client sends it on every API request (`frontend/src/lib/api.ts`); the
+gateway and every service allow any request header in CORS, so it passes a cross-origin preflight.
+Ids resolve against the host's time-zone database: the Debian-based `mcr.microsoft.com/dotnet/aspnet`
+image the Todo Dockerfile builds on ships `tzdata`, and Windows resolves IANA ids through ICU. On a
+host without either, every id is unknown and the day stays UTC.
+
 ### Response Shapes
 
 Which wrapper you get is decided by one rule: `ResultToActionResultFilter` (registered globally in
@@ -680,8 +700,10 @@ For the active list (`GET /todos/api/v1/todos?status=Todo,InProgress&isCompleted
 the server applies these ordering keys in SQL before pagination:
 
 1. Band ascending: urgent (0), High priority (1), shared (2), regular (3). Urgent means
-   `Status != Done` and either `Priority == Urgent` or `DueDate < nextUtcDay`, where
-   `nextUtcDay` is the start of tomorrow UTC. A shared task has `IsPublic` or any direct shares;
+   `Status != Done` and either `Priority == Urgent` or `DueDate < nextViewerDay`, where
+   `nextViewerDay` is the stored form (midnight UTC) of the day after the viewer's today — see
+   [Viewer time zone](#viewer-time-zone); without the header it is the start of tomorrow UTC.
+   A shared task has `IsPublic` or any direct shares;
    a High-priority shared task belongs to band 1.
 2. Effective hidden state ascending: open before hidden **within each band**.
 3. Working state descending: `Status == InProgress` for the owner; membership in `Workers`
