@@ -1014,11 +1014,14 @@ Branches configured in the workflow:
 
 Pull requests target `main` or `develop`.
 
-`.github/workflows/e2e.yml` runs both Playwright projects on relevant pull
-requests and manual dispatch. It starts the Docker stack using temporary
+`.github/workflows/e2e.yml` runs both Playwright projects on path-filtered pushes to
+main, pull requests to main/develop, and manual dispatch. Push and PR paths match. It starts the Docker stack using temporary
 environment secrets, waits for gateway health, installs Chromium, builds and
 starts Next.js, runs `node e2e/run-ci.cjs`, publishes redacted diagnostics and
-only failure PNGs, and cleans up frontend/containers and `.env.e2e`.
+only failure PNGs, and cleans up frontend/containers and `.env.e2e`. An `always()` step
+summarizes skipped tests, retried tests and retry attempts from private Playwright JSON.
+Only numeric aggregates are published; the raw report is deleted. Missing or invalid
+reports are marked unavailable rather than reported as zero skips/retries.
 The config itself has no `webServer` launcher. The reachability hook fails when
 the required frontend cannot be reached; inspect test totals before calling a run complete.
 See [`frontend/e2e/README.md`](../frontend/e2e/README.md) for full local setup.

@@ -113,6 +113,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### ci(e2e): run on main pushes and summarize skips and retries (2026-10-20)
+
+E2E now runs on main pushes using the same path filter as pull requests. A private JSON report supplies aggregate skipped/retried counts even after test failure; missing reports stay explicit, raw reports are deleted, and published diagnostics retain redaction.
+
 ### build(frontend): report route bundles and add advisory budgets (2026-10-20)
 
 A dependency-free Node report measures deduplicated route JavaScript and the complete static JS/CSS total using gzip level 9. Current production measurements seed route and total budgets with 5% headroom; CI checks them after build in advisory mode, and synthetic tests cover parsing, deduplication and failing budgets.
