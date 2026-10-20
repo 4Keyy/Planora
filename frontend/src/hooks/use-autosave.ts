@@ -43,7 +43,8 @@ const defaultIsEqual = <T,>(a: T, b: T): boolean =>
  *
  * Design guarantees:
  * - **No lost edits** — a change made while a save is in flight re-fires once that
- *   save settles; a pending debounce is flushed on unmount and on explicit `flush()`.
+ *   save settles; a pending debounce is flushed on unmount, on explicit `flush()`, and as the
+ *   page is left (`pagehide`, or the tab going to the background).
  * - **No redundant writes** — every persist is gated by an equality check against the
  *   last successfully saved snapshot, so reverting a field or re-flushing is a no-op.
  * - **No overlap** — at most one request is in flight at a time.
@@ -142,6 +143,28 @@ export function useAutosave<T>({
     },
     [setStatusSafe],
   )
+
+  // Closing or reloading the tab never unmounts the editor, and the debounce would never fire:
+  // send a pending edit as the page is left. A write made while the page is hidden goes out with
+  // `keepalive` (lib/api.ts), so it outlives the page. `run` is a no-op when nothing is pending.
+  useEffect(() => {
+    const saveNow = () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+      void run()
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") saveNow()
+    }
+    window.addEventListener("pagehide", saveNow)
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    return () => {
+      window.removeEventListener("pagehide", saveNow)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
+    }
+  }, [run])
 
   // On unmount, flush a pending edit so nothing is lost when the modal closes. The
   // equality guard inside `run` makes this a no-op when everything is already saved.

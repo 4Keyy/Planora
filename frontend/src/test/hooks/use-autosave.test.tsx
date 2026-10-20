@@ -170,4 +170,43 @@ describe("useAutosave", () => {
     await act(async () => { unmount() })
     expect(onSave).toHaveBeenCalledWith("b")
   })
+
+  // Closing or reloading the tab never unmounts the editor, and the debounce never fires: the
+  // pending edit has to leave while the page is going (FE-19).
+  it("sends a pending change as the page is hidden, without waiting for the debounce", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    const { update } = setup<string>({ value: "a", onSave, delay: 1000 })
+
+    update({ value: "b" })
+    await act(async () => { window.dispatchEvent(new Event("pagehide")) })
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenCalledWith("b")
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(onSave).toHaveBeenCalledTimes(1) // the debounce was disarmed, not doubled
+  })
+
+  it("sends a pending change when the tab goes to the background", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    const { update } = setup<string>({ value: "a", onSave, delay: 1000 })
+    const visibility = vi.spyOn(document, "visibilityState", "get")
+
+    update({ value: "b" })
+    visibility.mockReturnValue("visible")
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")) })
+    expect(onSave).not.toHaveBeenCalled() // coming back is not leaving
+
+    visibility.mockReturnValue("hidden")
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")) })
+    expect(onSave).toHaveBeenCalledWith("b")
+    visibility.mockRestore()
+  })
+
+  it("sends nothing on leaving when everything is saved", async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined)
+    setup<string>({ value: "a", onSave, delay: 1000 })
+
+    await act(async () => { window.dispatchEvent(new Event("pagehide")) })
+    expect(onSave).not.toHaveBeenCalled()
+  })
 })

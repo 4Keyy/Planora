@@ -90,6 +90,33 @@ describe("api interceptors", () => {
     expect(preset.headers["X-Time-Zone"]).toBe("Asia/Tokyo")
   })
 
+  // A write still under way when the tab closes is cut off with an XHR; keepalive lets the
+  // browser finish it after the page is gone (FE-19).
+  it("sends writes with keepalive while the page is hidden, and only then", async () => {
+    vi.mocked(getCsrfToken).mockResolvedValue("csrf-token")
+    window.dispatchEvent(new Event("pagehide"))
+    const hiddenWrite = await requestFulfilled()({ method: "put", headers: {} })
+    const hiddenRead = await requestFulfilled()({ method: "get", headers: {} })
+    expect(hiddenWrite.adapter).toBe("fetch")
+    expect(hiddenWrite.fetchOptions).toEqual({ keepalive: true })
+    expect(hiddenWrite.headers["X-CSRF-Token"]).toBe("csrf-token")
+    expect(hiddenRead.adapter).toBeUndefined()
+    // Axios hands the interceptor a copy of its default adapter list, never the same array.
+    const mergedWrite = await requestFulfilled()({ method: "put", headers: {}, adapter: ["xhr", "http", "fetch"] })
+    expect(mergedWrite.adapter).toBe("fetch")
+
+    // The demo sandbox answers from memory: its writes must not be sent to the network instead.
+    const sandbox = vi.fn()
+    const sandboxWrite = await requestFulfilled()({ method: "put", headers: {}, adapter: sandbox })
+    expect(sandboxWrite.adapter).toBe(sandbox)
+    expect(sandboxWrite.fetchOptions).toBeUndefined()
+
+    window.dispatchEvent(new Event("pageshow"))
+    const shownWrite = await requestFulfilled()({ method: "put", headers: {} })
+    expect(shownWrite.adapter).toBeUndefined()
+    expect(shownWrite.fetchOptions).toBeUndefined()
+  })
+
   it("does not request a CSRF token for safe methods", async () => {
     const config = await requestFulfilled()({ method: "get", headers: {} })
 

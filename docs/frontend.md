@@ -244,8 +244,13 @@ keyed by user id. Lightweight warning preferences use `planora:pref:*`.
 `useAutosave` debounces by 600 ms by default, serializes writes, compares against
 the last saved baseline and sends a newer value after the current save succeeds.
 It exposes `idle`, `saving`, `saved` and `error`; errors retry on a later edit or
-explicit flush. Closing/unmounting attempts a final flush. This is best-effort
-network persistence, not a durable offline queue.
+explicit flush. Closing/unmounting attempts a final flush, and so does leaving the page:
+closing or reloading the tab never unmounts the editor and the debounce never fires, so on
+`pagehide`, or when the tab goes to the background, the pending edit is sent at once. While the page
+is hidden, `lib/api.ts` sends writes through axios's fetch adapter with `keepalive` (same headers,
+`credentials: "include"`), so the browser finishes them after the page is gone; reads, the demo
+sandbox's in-memory adapter and everything once the page is shown again are untouched. This is
+best-effort network persistence, not a durable offline queue.
 
 **Guard every async action against re-entry.** Ten places once fired a mutation with no
 in-flight guard, including *delete account*, so a second click sent a second request.

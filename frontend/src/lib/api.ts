@@ -164,6 +164,25 @@ export const api: AxiosInstance = axios.create({
  * - Authorization header contains JWT token for authentication
  * - CSRF token header prevents cross-site request forgery for state-modifying requests
  */
+/**
+ * Leaving the page (FE-19). A save still on its way when the tab closes or reloads is cut off with
+ * the page: an XHR does not outlive it. While the page is hidden — `pagehide`, or the tab going to
+ * the background, which on a phone may be the last thing it ever does — writes go out through
+ * axios's fetch adapter with `keepalive`, which the browser finishes after the page is gone, with
+ * the same headers as any other request. Reads, and everything once the page is shown again, keep
+ * the default adapter. `useAutosave` sends its pending edit at that moment. Axios names its own
+ * network adapters (`["xhr", "http", "fetch"]`, copied into every request's config); a request on
+ * an adapter function — the demo sandbox's in-memory one (`lib/demo/enable.ts`) — never touches
+ * the network and is left alone.
+ */
+let pageHidden = false
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => { pageHidden = true })
+  window.addEventListener("pageshow", () => { pageHidden = false })
+  document.addEventListener("visibilitychange", () => { pageHidden = document.visibilityState === "hidden" })
+}
+
 api.interceptors.request.use(async (config) => {
   const token = useAuthStore.getState().accessToken
   if (token) {
@@ -199,6 +218,11 @@ api.interceptors.request.use(async (config) => {
       if (axios.isAxiosError(error) && error.response?.status === 429) throw error
       console.error('[API] Failed to add CSRF token:', describeError(error))
       // Continue anyway - server will reject if CSRF is required
+    }
+
+    if (pageHidden && typeof config.adapter !== "function") {
+      config.adapter = "fetch"
+      config.fetchOptions = { ...config.fetchOptions, keepalive: true }
     }
   }
 

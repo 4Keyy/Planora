@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(autosave): an edit made just before closing the tab is saved (2026-10-20)
+
+The task editor and the category sheet save 600 ms after the last change, and flush when they
+close, but closing or reloading the tab closes neither: the debounce never fired and the last edit
+was lost. Leaving the page — `pagehide`, or the tab going to the background — now sends the
+pending edit at once, and while the page is hidden the API client sends writes with `keepalive`,
+which the browser completes after the page is gone, with the usual authorization and CSRF headers.
+
 ### fix(ci): GitHub accepts the E2E workflow again (2026-10-20)
 
 The E2E workflow set `PLAYWRIGHT_JSON_OUTPUT_FILE` from `${{ runner.temp }}` in the job's `env`,
