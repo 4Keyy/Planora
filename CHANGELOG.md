@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(tasks): load every active task, not only the first hundred (2026-10-20)
+
+The Tasks page asked for 200 active tasks a page, the server clamps every page to 100, and the
+loop took that 100-row page for the last one, so a user with more than a hundred active tasks never
+saw the rest. It now reads pages of 100 until the server reports the last page, the total is
+reached or a page comes back short, and keeps a task that moves across a page boundary once.
+Command palette and category previews keep their intentional limits. `app/(app)/tasks/page.tsx`.
+
 ### docs(audit): frontend audit, remediation plan and target state (2026-10-20)
 
 Added the 2026-10-20 frontend audit under `docs/audits/frontend-2026-10-20/`: 35 verified

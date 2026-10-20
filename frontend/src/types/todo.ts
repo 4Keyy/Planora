@@ -143,6 +143,9 @@ export type Todo = {
 export type PagedTodosResponse = {
   items: Todo[]
   totalCount: number
+  /** The page size the server applied — it clamps larger requests (max 100). */
+  pageSize?: number
+  hasNextPage?: boolean
 }
 
 /** What a reply quotes: another comment/reply, or a subtask card in the same branch. */

@@ -60,7 +60,12 @@ import { SelectionBar } from "@/components/ui/selection-bar"
 import { useNewTaskShortcut } from "@/hooks/use-new-task-shortcut"
 import { UpdatePill, useDeferredUpdates } from "@/components/ui/update-pill"
 
-const ACTIVE_PAGE_SIZE = 200
+// The server never returns more than 100 rows a page (PaginationParameters.MaxPageSize) and
+// silently clamps larger requests, so asking for more only hid every task after the first
+// hundred: the loop below took the short page for the last one.
+const ACTIVE_PAGE_SIZE = 100
+/** Pages read before giving up — 10 000 active tasks, far beyond any real list. */
+const ACTIVE_PAGE_LIMIT = 100
 const COMPLETED_PREVIEW_SIZE = 20
 // PERF: the active feed keeps the "all tasks in one scroll" UX, but only mounts
 // a window of cards into the DOM. TodoCard is expensive, so mounting hundreds at
@@ -270,31 +275,31 @@ export default function TasksPage() {
     // background without flashing the skeleton grid over cards already on screen.
     if (!silent) setLoading(true)
     try {
-      const all: Todo[] = []
+      // Keyed by id: a task created or re-sorted while the pages are being read can shift
+      // across a page boundary and arrive twice. The first copy keeps its place.
+      const byId = new Map<string, Todo>()
       let page = 1
-      let totalCount: number | null = null
 
-      while (true) {
+      while (page <= ACTIVE_PAGE_LIMIT) {
         if (signal?.aborted) return
         const res = await api.get<PagedTodosResponse>("/todos/api/v1/todos", {
           params: { pageNumber: page, pageSize: ACTIVE_PAGE_SIZE, isCompleted: false },
           signal,
         })
         const items = res.data.items ?? []
-        const nextTotal = res.data.totalCount
-
-        all.push(...items)
-        if (typeof nextTotal === "number") {
-          totalCount = nextTotal
+        for (const item of items) {
+          if (!byId.has(item.id)) byId.set(item.id, item)
         }
 
+        // The last page is the one the server says is last; failing that, one that reaches
+        // the total, or one shorter than the page size the server actually used.
         if (items.length === 0) break
-        if (totalCount !== null && all.length >= totalCount) break
-        if (items.length < ACTIVE_PAGE_SIZE) break
-
+        if (res.data.hasNextPage === false) break
+        if (typeof res.data.totalCount === "number" && byId.size >= res.data.totalCount) break
+        if (items.length < (res.data.pageSize ?? ACTIVE_PAGE_SIZE)) break
         page += 1
-        if (page > 100) break
       }
+      const all = [...byId.values()]
 
       if (signal?.aborted) return
       const enriched = await enrichTodosWithAuthorNames(all)

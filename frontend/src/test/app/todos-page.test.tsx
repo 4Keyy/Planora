@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import TodosPage from "@/app/(app)/tasks/page"
 import { api, fetchTaskById, setViewerPreference } from "@/lib/api"
 import { ensureFriendNames } from "@/lib/friend-names"
@@ -241,5 +241,99 @@ describe("TodosPage hidden shared task privacy", () => {
       expect(screen.getByText("Shared project plan")).toBeInTheDocument()
       expect(screen.getByRole("button", { name: "Hide" })).toBeInTheDocument()
     })
+  })
+})
+
+describe("TodosPage active list paging", () => {
+  const task = (id: string, overrides: Partial<Todo> = {}): Todo => ({
+    ...fullTodo,
+    id,
+    userId: "viewer-1",
+    title: `Task ${id}`,
+    priority: "Low",
+    isPublic: false,
+    sharedWithUserIds: [],
+    tags: [],
+    ...overrides,
+  })
+  const pageOf = (from: number, count: number) =>
+    Array.from({ length: count }, (_, i) => task(`t-${from + i}`))
+
+  type ActivePage = { items: Todo[]; totalCount: number; pageSize?: number; hasNextPage?: boolean }
+  const serveActivePages = (pages: Record<number, ActivePage>) => {
+    vi.mocked(api.get).mockImplementation((url: string, config?: any) => {
+      if (url === "/todos/api/v1/todos" && config?.params?.isCompleted === false) {
+        const page = pages[config.params.pageNumber as number]
+        return Promise.resolve({ data: page ?? { items: [], totalCount: 0 } })
+      }
+      if (url === "/todos/api/v1/todos" && config?.params?.isCompleted === true) {
+        return Promise.resolve({ data: { items: [], totalCount: 0 } })
+      }
+      if (url === "/categories/api/v1/categories") {
+        return Promise.resolve({ data: [] })
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`))
+    })
+  }
+  const activeRequests = () =>
+    vi.mocked(api.get).mock.calls
+      .filter(([url, config]) => url === "/todos/api/v1/todos" && (config as any)?.params?.isCompleted === false)
+      .map(([, config]) => (config as any).params as { pageNumber: number; pageSize: number })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetAuth()
+    // A list this long mounts its cards in windows grown by an IntersectionObserver sentinel,
+    // which jsdom does not have. The window itself is not under test here.
+    vi.stubGlobal("IntersectionObserver", class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() { return [] }
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("reads past the server's 100-row page cap until the last page", async () => {
+    serveActivePages({
+      1: { items: pageOf(1, 100), totalCount: 150, pageSize: 100, hasNextPage: true },
+      2: { items: [...pageOf(101, 49), task("t-last", { title: "Last page urgent task", priority: "Urgent" })], totalCount: 150, pageSize: 100, hasNextPage: false },
+    })
+
+    render(<TodosPage />)
+
+    expect(await screen.findByText("Last page urgent task")).toBeInTheDocument()
+    expect(activeRequests()).toEqual([
+      { pageNumber: 1, pageSize: 100, isCompleted: false },
+      { pageNumber: 2, pageSize: 100, isCompleted: false },
+    ])
+  })
+
+  it("stops at the total when the server sends no page metadata", async () => {
+    serveActivePages({
+      1: { items: pageOf(1, 100), totalCount: 130 },
+      2: { items: [...pageOf(101, 29), task("t-tail", { title: "Tail task", priority: "Urgent" })], totalCount: 130 },
+    })
+
+    render(<TodosPage />)
+
+    expect(await screen.findByText("Tail task")).toBeInTheDocument()
+    expect(activeRequests().map((params) => params.pageNumber)).toEqual([1, 2])
+  })
+
+  it("shows a task once when it shifts across a page boundary while paging", async () => {
+    const shifted = task("t-shifted", { title: "Shifted urgent task", priority: "Urgent" })
+    serveActivePages({
+      1: { items: [...pageOf(1, 99), shifted], totalCount: 120, pageSize: 100, hasNextPage: true },
+      2: { items: [shifted, ...pageOf(100, 19)], totalCount: 120, pageSize: 100, hasNextPage: false },
+    })
+
+    render(<TodosPage />)
+
+    expect(await screen.findByText("Shifted urgent task")).toBeInTheDocument()
+    expect(screen.getAllByTestId("todo-t-shifted")).toHaveLength(1)
   })
 })

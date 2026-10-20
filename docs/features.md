@@ -1287,8 +1287,10 @@ Hidden urgent tasks follow open urgent tasks and precede every Priority task, ev
 open urgent task. Hidden High, shared and regular tasks likewise follow the open tasks in their own
 band. **Completed tasks come last**, newest completion first.
 
-On **Tasks**, the whole active list is read and sorted at once. The **Dashboard** reads six tasks per
-page. Before pagination, the server applies the same bands and effective viewer-hidden groups
+On **Tasks**, the whole active list is read and sorted at once: page after page of 100 rows (the
+server's maximum, `docs/API.md`) until the server reports the last page, the total is reached or a
+page comes back short. A task that moves across a page boundary while the pages load is kept once.
+The **Dashboard** reads six tasks per page. Before pagination, the server applies the same bands and effective viewer-hidden groups
 (`GET /todos`, docs/API.md), then working state, due date ascending with undated tasks last, priority
 descending, creation time descending and `Id` ascending. For the owner, working means `InProgress`;
 for another viewer, it means they are a worker on the task. Band boundaries therefore carry across
