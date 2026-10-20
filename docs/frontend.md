@@ -223,6 +223,18 @@ URL and code, keeps an `Error`'s name, message and stack, reduces anything else 
 redacts `access_token=` values and `Bearer` tokens in whatever text it keeps. `lib/api.ts`
 logs HTTP failures the same way (`logApiHttpError`: status, method, URL).
 
+### Reporting a failure
+
+What the console sees, the service logs see too (`lib/client-errors.ts`). `ClientErrorReporter`,
+mounted once in the root layout, reports uncaught errors and unhandled rejections; `CrashScene`
+(every route and segment error screen, with the digest it shows) and the root `ErrorBoundary`
+report the crashes they catch. A report is `describeError`'s name, message and stack, a failed
+request's method, path and status, the digest, and the page's path without its query, sent to
+`POST /auth/api/v1/client-errors` (`docs/API.md`) without credentials, with CSRF and a fresh
+`traceparent`, as a `keepalive` request. The same failure goes once and at most ten a page load;
+"Script error." from another origin and the ResizeObserver loop notice are ignored; the demo
+sandbox sends nothing, and a report that cannot be sent is dropped silently.
+
 ---
 
 ## 5. State

@@ -164,6 +164,7 @@ Rejection is `429 Too Many Requests` with `Retry-After: 60` and the body
 | `/auth/api/v1/friendships*` | Auth `FriendshipsController` | bearer |
 | `/friendships*` | Auth `FriendshipsController` legacy route | bearer |
 | `/auth/api/v1/analytics/{everything}` | Auth `AnalyticsController` | bearer |
+| `POST /auth/api/v1/client-errors` | Auth `ClientErrorsController` | public — anonymous, CSRF, rate-limited |
 | `/todos/api/v1/{everything}` | Todo API | bearer |
 | `/categories/api/v1/{everything}` | Category API | bearer |
 | `/messaging/api/v1/{everything}` | Messaging API | bearer |
@@ -564,6 +565,46 @@ Errors:
 - `400 UNKNOWN_ANALYTICS_EVENT`
 - `400 INVALID_PROPERTIES`
 - `400 PROPERTIES_TOO_LARGE`
+
+### `POST /auth/api/v1/client-errors`
+
+Anonymous + CSRF. Rate-limited per caller (`client-errors`, 20 a minute). The web client reports a
+failure the person saw — an uncaught error, an unhandled rejection, or a crash an error boundary
+caught (`frontend/src/lib/client-errors.ts`) — and the Auth service writes it to its log as one
+warning line (`ClientErrorsController`). No credentials are sent: errors happen before sign-in too,
+and a report must never carry a token.
+
+Body:
+
+```json
+{
+  "kind": "unhandledrejection",
+  "name": "TypeError",
+  "message": "Cannot read properties of undefined (reading 'title')",
+  "stack": "TypeError: Cannot read properties of undefined\n    at TodoCard (…)",
+  "digest": "1742815393",
+  "route": "/dashboard",
+  "occurredAt": "2026-10-20T21:30:00Z"
+}
+```
+
+Rules (`ClientErrorReportValidator`):
+
+- `kind` is `error`, `unhandledrejection`, `boundary` or `segment`;
+- `message` is required, at most 1000 characters; `name` at most 120; `stack` at most 8000;
+- `digest`, when present, is letters, digits, `_` and `-`, at most 120 characters;
+- `route` is a path starting with `/`, without a query or fragment, at most 300 characters.
+
+Control characters in the reported text are replaced before logging and the stack's line breaks
+become ` | `, so a report cannot forge another log entry.
+
+Success: `202 Accepted`.
+
+Errors:
+
+- `400 INVALID_CLIENT_ERROR_REPORT`
+- `403 CSRF_VALIDATION_FAILED`
+- `429` when the caller's `client-errors` limit is spent
 
 ## Categories
 

@@ -358,6 +358,7 @@ A `GlobalLimiter` applies a default cap of 100 requests/minute per IP to every e
 | `auth` | 10/minute/partition | refresh, logout, token validation, reset operations; CSRF GET disables service limiting |
 | `avatar-upload` | 5/hour/partition | `POST /users/me/avatar` |
 | `data` | 50/minute/partition | reserved for data-heavy endpoints |
+| `client-errors` | 20/minute/partition | `POST /client-errors` (anonymous client error reports) |
 
 The partition function prefers authenticated user id (`sub` / `NameIdentifier`), then
 `RemoteIpAddress`. **The inspected service pipelines call `UseRateLimiter` before
@@ -511,6 +512,8 @@ Code: [UploadAvatarCommandHandler](../Services/AuthApi/Planora.Auth.Application/
 ## Logging And Sensitive Data
 
 Structured logging uses Serilog and shared logging helpers. API Gateway explicitly avoids logging Authorization token details in JWT events. HTTP logging middleware is used across services and is described in shared infrastructure.
+
+Client error reports (`POST /auth/api/v1/client-errors`) are the one place anyone can write to a service log, so they are bounded at every step. The client builds them from `describeError` (tokens redacted), drops the page's query, sends them without credentials, reports one failure once and at most ten a page load. The endpoint is anonymous but passes CSRF like every write, is limited to 20 reports a minute per caller (`client-errors`), validates kind, lengths, digest and route (`ClientErrorReportValidator`), and logs each report as one warning line with control characters replaced, so a report cannot forge another entry.
 
 Code:
 

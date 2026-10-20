@@ -1,6 +1,8 @@
 'use client'
 
 import { Component, ReactNode } from 'react'
+import { reportClientError } from '@/lib/client-errors'
+import { describeError } from '@/lib/errors'
 
 interface Props {
   children: ReactNode
@@ -23,8 +25,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    // Log to console in development; in production wire to your error tracker
-    console.error('[ErrorBoundary]', error, info.componentStack)
+    // Described, never the raw object (an Axios error carries its bearer token), and reported to
+    // the service logs (lib/client-errors.ts).
+    console.error('[ErrorBoundary]', describeError(error), info.componentStack)
+    reportClientError(error, 'boundary')
   }
 
   render() {

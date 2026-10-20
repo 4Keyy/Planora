@@ -111,6 +111,9 @@ public static class ServiceCollectionExtensions
         // try to spin the storage layer at the generic "auth" rate (10/min). At
         // 5/hour the worst-case write traffic is bounded to ~30 MB/hour/user.
         AddInMemoryPolicy(options, "avatar-upload", 5, TimeSpan.FromHours(1));
+        // Anonymous client error reports (Auth's ClientErrorsController): enough for a burst of
+        // distinct failures from one page, not enough to flood the logs.
+        AddInMemoryPolicy(options, "client-errors", 20, TimeSpan.FromMinutes(1));
     }
 
     private static void ConfigureRedisRateLimits(RateLimiterOptions options)
@@ -127,6 +130,7 @@ public static class ServiceCollectionExtensions
         AddRedisPolicy(options, "register", 3, "planora:rl:register", TimeSpan.FromMinutes(1));
         AddRedisPolicy(options, "data", 50, "planora:rl:data", TimeSpan.FromMinutes(1));
         AddRedisPolicy(options, "avatar-upload", 5, "planora:rl:avatar-upload", TimeSpan.FromHours(1));
+        AddRedisPolicy(options, "client-errors", 20, "planora:rl:client-errors", TimeSpan.FromMinutes(1));
     }
 
     private static void AddInMemoryPolicy(RateLimiterOptions options, string name, int permitLimit, TimeSpan window) =>

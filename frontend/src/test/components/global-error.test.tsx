@@ -5,6 +5,7 @@ import GlobalError from "@/app/global-error"
 import { useAuthStore } from "@/store/auth"
 
 vi.mock("@/components/command-palette", () => ({ requestPalette: vi.fn() }))
+vi.mock("@/lib/client-errors", () => ({ reportClientError: vi.fn() }))
 
 // The root boundary owns a complete document. Static rendering tests its shell
 // without nesting <html>/<body> inside jsdom's existing body.

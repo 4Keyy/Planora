@@ -16,6 +16,7 @@ import {
   type Destination,
 } from "@/components/errors/error-scene"
 import { describeError } from "@/lib/errors"
+import { reportClientError } from "@/lib/client-errors"
 
 /** "Go back", when there is somewhere to go back to — decided after mount, never on the server. */
 function useBack(): Destination | null {
@@ -92,9 +93,10 @@ export function CrashScene({
 
   useEffect(() => {
     // The raw message is never shown — it can carry a stack trace or someone else's data —
-    // but it is reported, for whatever collects console errors.
+    // but it is reported: to the console, and to the service logs with the digest shown here.
     if (segmentLabel) console.error(`[${segmentLabel}] segment-level error`, describeError(error))
     else console.error("[app] route-level error", describeError(error))
+    reportClientError(error, segmentLabel ? "segment" : "boundary", error.digest)
   }, [error, segmentLabel])
 
   useEffect(() => {

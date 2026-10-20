@@ -501,6 +501,7 @@ Services use the shared telemetry extension for OTel registration. Shared Serilo
 - **Resource attributes** — every span and metric carries `service.name`, `service.version` (from the entry-assembly version), `service.instance.id` (machine hostname), `service.namespace=planora`, and `deployment.environment` (from `ASPNETCORE_ENVIRONMENT`).
 - **Configuration keys** — `OpenTelemetry:OtlpEndpoint` (or the standard `OTEL_EXPORTER_OTLP_ENDPOINT` env var), `OpenTelemetry:ServiceName` / `ServiceVersion`, `OpenTelemetry:ConsoleExporter:Enabled` (debug only), `OpenTelemetry:Tracing:Enabled` / `Metrics:Enabled` (kill switches), `OpenTelemetry:Tracing:CaptureDbStatementText` (PII control on EF SQL capture). Full catalogue in [`configuration.md`](configuration.md).
 - **Logs** — Serilog enrichers from `BuildingBlocks.Infrastructure.Logging` populate `CorrelationId`, `SpanId`, `OperationName`, `UserId`, and `ServiceName` on every log line.
+- **Client errors** — the web client reports uncaught errors, unhandled rejections and caught crashes to Auth's `POST /api/v1/client-errors`, which logs each as one warning line with the client's digest and stack; the report's `traceparent` ties it to the request's trace.
 
 ## Health Probe Architecture
 

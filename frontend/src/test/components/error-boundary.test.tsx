@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { reportClientError } from '@/lib/client-errors'
+
+vi.mock('@/lib/client-errors', () => ({ reportClientError: vi.fn() }))
 
 // Silence the expected console.error output from ErrorBoundary.componentDidCatch
 // and React's own error boundary logging during these tests.
@@ -34,6 +37,21 @@ describe('<ErrorBoundary />', () => {
       </ErrorBoundary>
     )
     expect(screen.getByText('All good')).toBeInTheDocument()
+  })
+
+  it('reports what it caught to the service logs, and logs a description, not the raw error', () => {
+    render(
+      <ErrorBoundary>
+        <BrokenChild />
+      </ErrorBoundary>,
+    )
+
+    expect(reportClientError).toHaveBeenCalledWith(expect.objectContaining({ message: 'Test explosion' }), 'boundary')
+    expect(console.error).toHaveBeenCalledWith(
+      '[ErrorBoundary]',
+      expect.objectContaining({ name: 'Error', message: 'Test explosion' }),
+      expect.any(String),
+    )
   })
 
   it('renders the default fallback UI when a child throws', () => {

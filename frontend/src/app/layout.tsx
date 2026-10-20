@@ -25,6 +25,7 @@ import localFont from "next/font/local"
 import { cn } from "@/lib/utils"
 import { Toaster } from "@/components/ui/toast"
 import { SecurityInitializer } from "@/components/security-initializer"
+import { ClientErrorReporter } from "@/components/client-error-reporter"
 import { RealtimeManager } from "@/components/realtime-manager"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { ColorBendsLayer } from "@/components/backgrounds/color-bends-layer"
@@ -156,6 +157,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </a>
         <ColorBendsLayer />
         <SecurityInitializer />
+        <ClientErrorReporter />
         <RealtimeManager />
         {/* T4.10 — global MotionConfig with reducedMotion="user" makes every
             framer-motion component in the tree automatically honour the OS

@@ -113,6 +113,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### feat(observability): failures in the browser reach the service logs (2026-10-20)
+
+Error screens existed, but nobody besides the person in front of the screen learned that
+something broke: an uncaught error, an unhandled rejection or a crash a boundary caught went to the
+browser console and nowhere else. The web client now reports each one to a new anonymous endpoint,
+`POST /auth/api/v1/client-errors`, which writes it to the Auth service log as one warning line: the
+error's name, message and stack with tokens redacted, a failed request's method, path and status,
+the digest the error screen shows, and the page's path without its query. Reports are sent once per
+failure, at most ten a page load, with CSRF and without credentials, and the endpoint validates and
+rate-limits them (20 a minute per caller).
+
 ### fix(analytics): failed token refreshes reach the metric (2026-10-20)
 
 `TOKEN_REFRESH_FAILED` was sent with the token whose refresh had just failed, so the API answered

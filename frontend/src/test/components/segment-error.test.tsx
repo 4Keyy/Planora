@@ -2,6 +2,9 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { SegmentError } from "@/components/ui/segment-error"
 import { MotionPreferencesProvider } from "@/components/motion-preferences-provider"
+import { reportClientError } from "@/lib/client-errors"
+
+vi.mock("@/lib/client-errors", () => ({ reportClientError: vi.fn() }))
 
 // next/link renders a plain anchor in jsdom; mock keeps the test free of the
 // App Router runtime while preserving href/children for assertions.
@@ -41,6 +44,13 @@ describe("SegmentError", () => {
       "[profile] segment-level error",
       expect.objectContaining({ name: "Error", message: "internal detail", stack: expect.any(String) }),
     )
+  })
+
+  it("reports the crash to the service logs with the digest it shows", () => {
+    const error = Object.assign(new Error("internal detail"), { digest: "1742815393" })
+    render(<SegmentError error={error} reset={vi.fn()} segmentLabel="tasks" />)
+
+    expect(reportClientError).toHaveBeenCalledWith(error, "segment", "1742815393")
   })
 
   it("shows the digest reference id only when present", () => {
