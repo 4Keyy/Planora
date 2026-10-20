@@ -113,6 +113,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### build(deps): integrate reviewed GitHub Actions updates (2026-10-20)
+
+Applied the five reviewed action PRs #125, #126, #127, #128 and #129 as direct
+commits on `main`: lychee-action 2.9.0, markdownlint-cli2-action 24.2.0,
+setup-dotnet 6.0.0 in all seven uses, and codeql-action 4.38.3. CodeQL init now
+uses the same 4.38.3 commit as analyze and SARIF upload; on the separate PRs the
+init/analyze version mismatch failed both CodeQL jobs. Every action stays pinned to
+the immutable commit of its upstream release tag.
+
 ### test(ci): await landing branch entry frames (2026-10-06)
 
 The branch-circle regression now waits for newly revealed accessible controls
