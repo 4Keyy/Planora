@@ -113,6 +113,11 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### docs(audit): record which findings are fixed and where (2026-10-20)
+
+The frontend audit's README gains a progress table: every finding fixed so far, what changed and the
+commits that carry it, the test-infrastructure defects found on the way, and what is still open.
+
 ### fix(todos): the Dashboard pages the order Tasks shows (2026-10-20)
 
 The Dashboard reads six tasks a page in the server's order, while Tasks sorts the whole list on the
