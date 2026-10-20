@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Planora.Auth.Application.Features.Users.Commands.UpdateUser;
 
 namespace Planora.Auth.Application.Features.Users.Validators.UpdateUser
@@ -25,6 +26,12 @@ namespace Planora.Auth.Application.Features.Users.Validators.UpdateUser
         private bool BeValidUrl(string? url)
         {
             if (string.IsNullOrEmpty(url))
+                return true;
+
+            // Match the content-addressed WebP variants emitted by LocalAvatarStorage exactly.
+            if (Regex.IsMatch(url,
+                @"\A/avatars/[0-9a-f]{32}/[0-9a-f]{16}/(?:64|128|512)\.webp\z",
+                RegexOptions.CultureInvariant | RegexOptions.NonBacktracking))
                 return true;
 
             return Uri.TryCreate(url, UriKind.Absolute, out var uriResult) &&

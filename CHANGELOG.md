@@ -113,6 +113,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(auth): accept canonical uploaded avatar paths (2026-10-20)
+
+Profile updates now accept the exact content-addressed WebP paths produced by avatar storage, while retaining absolute HTTP/HTTPS URLs and null/empty removal. Anchored validation rejects other relative paths; validator cases and upload → profile PUT → GET coverage protect saving a name after an avatar upload.
+
 ### test(todos): run the active-list PostgreSQL suite without Docker (2026-10-20)
 
 `TodoActiveListPostgresTests` started its own `postgres:16-alpine` container through Testcontainers,

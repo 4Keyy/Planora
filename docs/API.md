@@ -433,6 +433,13 @@ Profile update body:
 }
 ```
 
+`PUT /auth/api/v1/users/me` accepts an absolute HTTP/HTTPS `profilePictureUrl` or
+the canonical relative storage path `/avatars/{userId:N}/{contentHash}/{size}.webp`: the user
+id is 32 lowercase hexadecimal characters, the hash is the first 16 lowercase hexadecimal
+characters of SHA-256, and size is exactly 64, 128 or 512. Relative paths with traversal,
+backslashes, query strings or fragments, protocol-relative URLs and other schemes are rejected.
+Null and the empty string retain their existing meaning: remove the profile picture.
+
 Delete/revoke-all/disable-2FA bodies require `password`. Confirm 2FA body requires `code`.
 
 Confirm 2FA success response shape:

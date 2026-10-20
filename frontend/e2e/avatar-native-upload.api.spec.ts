@@ -30,7 +30,7 @@ function string(value: unknown): string {
   return value;
 }
 
-test('native avatar upload emits three independently decodable WebP variants through the gateway', async ({ browser }) => {
+test('native avatar upload supports profile saves and emits three independently decodable WebP variants through the gateway', async ({ browser }) => {
   const user = await registerVerifiedUser('native-avatar');
   const context = await request.newContext({ baseURL: API_BASE });
   const page = await browser.newPage();
@@ -50,9 +50,23 @@ test('native avatar upload emits three independently decodable WebP variants thr
     }));
     expect(upload.status(), 'native Linux decoder and encoder successfully process a valid upload').toBe(200);
     const profile = await upload.json();
-    const pathname = new URL(string(profile.profilePictureUrl), API_BASE).pathname;
+    const profilePictureUrl = string(profile.profilePictureUrl);
+    const pathname = new URL(profilePictureUrl, API_BASE).pathname;
     const expectedUser = user.userId.replaceAll('-', '').toLowerCase();
-    expect(pathname).toMatch(new RegExp(`/avatars/${expectedUser}/[a-f0-9]{16}/(?:64|128|512)\\.webp$`));
+    expect(profilePictureUrl).toMatch(new RegExp(`^/avatars/${expectedUser}/[a-f0-9]{16}/128\\.webp$`));
+    const updatedFirstName = 'Updated Avatar';
+    const save = await retryRateLimited(() => context.put('/auth/api/v1/users/me', {
+      headers, data: { firstName: updatedFirstName, lastName: user.lastName, profilePictureUrl },
+    }));
+    expect(save.status(), 'a profile save accepts the avatar URL returned by upload').toBe(200);
+    const savedProfile = await save.json();
+    expect(savedProfile.firstName).toBe(updatedFirstName);
+    expect(savedProfile.profilePictureUrl).toBe(profilePictureUrl);
+    const reload = await retryRateLimited(() => context.get('/auth/api/v1/users/me', { headers }));
+    expect(reload.status()).toBe(200);
+    const reloadedProfile = await reload.json();
+    expect(reloadedProfile.firstName).toBe(updatedFirstName);
+    expect(reloadedProfile.profilePictureUrl).toBe(profilePictureUrl);
     // Only use the returned path on our own gateway; never send fixture credentials to another origin.
     const gatewayPath = pathname;
     for (const size of [64, 128, 512]) {
