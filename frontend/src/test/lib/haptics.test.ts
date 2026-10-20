@@ -3,6 +3,7 @@ import { haptic } from "@/lib/haptics"
 
 describe("haptic()", () => {
   let vibrateSpy: ReturnType<typeof vi.fn>
+  const originalVibrate = Object.getOwnPropertyDescriptor(navigator, "vibrate")
 
   beforeEach(() => {
     vibrateSpy = vi.fn(() => true)
@@ -12,22 +13,19 @@ describe("haptic()", () => {
       value: vibrateSpy,
     })
     // Default: motion allowed.
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      writable: true,
-      value: vi.fn((q: string) => ({
-        matches: false,
-        media: q,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      })),
-    })
+    vi.stubGlobal("matchMedia", vi.fn((q: string) => ({
+      matches: false,
+      media: q,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })))
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
-    // @ts-expect-error — clean the stubbed API off navigator between tests.
-    delete navigator.vibrate
+    vi.unstubAllGlobals()
+    if (originalVibrate) Object.defineProperty(navigator, "vibrate", originalVibrate)
+    else Reflect.deleteProperty(navigator, "vibrate")
   })
 
   it("vibrates with the tap pattern by default", () => {
@@ -53,16 +51,12 @@ describe("haptic()", () => {
   })
 
   it("does not vibrate when prefers-reduced-motion is set", () => {
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      writable: true,
-      value: vi.fn((q: string) => ({
-        matches: q.includes("reduce"),
-        media: q,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      })),
-    })
+    vi.stubGlobal("matchMedia", vi.fn((q: string) => ({
+      matches: q.includes("reduce"),
+      media: q,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })))
     haptic("success")
     expect(vibrateSpy).not.toHaveBeenCalled()
   })

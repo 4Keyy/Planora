@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { NumberRoll } from "@/components/ui/number-roll"
 
 const setReducedMotion = (matches: boolean) => {
-  window.matchMedia = vi.fn().mockReturnValue({
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
     matches,
     media: "(prefers-reduced-motion: reduce)",
     addEventListener: vi.fn(),
@@ -11,11 +11,14 @@ const setReducedMotion = (matches: boolean) => {
     addListener: vi.fn(),
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  }) as unknown as typeof window.matchMedia
+  }))
 }
 
 beforeEach(() => setReducedMotion(false))
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 describe("NumberRoll", () => {
   it("exposes the value once to assistive technology", () => {

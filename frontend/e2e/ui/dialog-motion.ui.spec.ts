@@ -1,7 +1,6 @@
 import { expect, test, type BrowserContext, type Page, type TestInfo } from '@playwright/test';
 import { finishFrames, installMotionFrames, markAction, saveEvidence, startFrames, type FrameEvidence } from './_motion-frames';
 
-const FRONTEND = process.env.E2E_FRONTEND_URL ?? 'http://127.0.0.1:3300';
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 const category = { id: '22222222-2222-4222-8222-222222222222', name: 'Work', icon: 'Briefcase' };
 const task = {
@@ -11,11 +10,11 @@ const task = {
 };
 
 /** Disposable browser-only identity; every API request is intercepted, with no real session. */
-async function mockApi(context: BrowserContext) {
+async function mockApi(context: BrowserContext, frontend: string) {
   const claims = { sub: USER_ID, email: 'motion@example.test', firstName: 'Motion', lastName: 'Fixture',
     email_verified: true, exp: Math.floor(Date.now() / 1000) + 3600 };
   const token = `${Buffer.from('{"alg":"none"}').toString('base64url')}.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.fixture`;
-  await context.addCookies([{ name: 'XSRF-TOKEN', value: 'dialog-motion-fixture', url: FRONTEND }]);
+  await context.addCookies([{ name: 'XSRF-TOKEN', value: 'dialog-motion-fixture', url: frontend }]);
   await context.route(/\/(?:auth|todos|categories|collaboration|messaging)\/api\/|\/friendships|\/realtime\//, async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -28,7 +27,7 @@ async function mockApi(context: BrowserContext) {
       body = { items, totalCount: items.length, pageNumber: 1, pageSize: 200, totalPages: 1, hasNextPage: false, hasPreviousPage: false };
     } else if (url.pathname.includes('/friendships')) body = [];
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body), headers: {
-      'Access-Control-Allow-Origin': new URL(FRONTEND).origin, 'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Origin': new URL(frontend).origin, 'Access-Control-Allow-Credentials': 'true',
       'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
     } });
   });
@@ -65,16 +64,17 @@ async function record(page: Page, info: TestInfo, name: string, action: () => Pr
 
 for (const reduce of [false, true]) {
   test.describe(`controlled dialogs (reduced motion: ${reduce})`, () => {
-    test.beforeEach(async ({ context, page }) => {
+    test.beforeEach(async ({ context, page, baseURL }) => {
+      if (!baseURL) throw new Error('The UI project requires a frontend baseURL');
       await page.emulateMedia({ reducedMotion: reduce ? 'reduce' : 'no-preference' });
       await page.setViewportSize({ width: 1280, height: 900 });
-      await mockApi(context);
+      await mockApi(context, baseURL);
       await installMotionFrames(context);
     });
 
     for (const path of ['/tasks', '/tasks/completed']) {
       test(`category filter opens and closes on ${path}`, async ({ page }, info) => {
-        await page.goto(FRONTEND + path);
+        await page.goto(path);
         const trigger = page.getByRole('button', { name: 'Choose categories' });
         await expect(trigger).toBeVisible();
         await record(page, info, 'filter-open', () => trigger.click(), true, reduce);
@@ -84,7 +84,7 @@ for (const reduce of [false, true]) {
     }
 
     test('ConfirmDialog opens and closes without a flash', async ({ page }, info) => {
-      await page.goto(FRONTEND + '/tasks');
+      await page.goto('/tasks');
       const trigger = page.getByRole('button', { name: 'Mark as complete', exact: true });
       await expect(trigger).toBeVisible();
       await record(page, info, 'confirm-open', () => trigger.click(), true, reduce);

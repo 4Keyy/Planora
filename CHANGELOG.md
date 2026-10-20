@@ -113,6 +113,10 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### test(frontend): restore globals and use the shared E2E origin (2026-10-20)
+
+Permitted frontend test suites restore browser global descriptors, set hardware capabilities independently, isolate first-visit state and keep toast fake clocks from stranding later dialog frames. The dialog-motion spec derives navigation, cookies and intercepted CORS responses from Playwright baseURL, preserving all assertions and the existing motion checks.
+
 ### fix(auth): accept canonical uploaded avatar paths (2026-10-20)
 
 Profile updates now accept the exact content-addressed WebP paths produced by avatar storage, while retaining absolute HTTP/HTTPS URLs and null/empty removal. Anchored validation rejects other relative paths; validator cases and upload → profile PUT → GET coverage protect saving a name after an avatar upload.

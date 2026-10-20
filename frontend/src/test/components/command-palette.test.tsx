@@ -72,7 +72,7 @@ function serve({ failTasks = false, open = openTasks(), done = doneTasks(), frie
 }
 
 function mockMotion(reduce = false) {
-  window.matchMedia = vi.fn().mockReturnValue({
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
     matches: reduce,
     media: "",
     addEventListener: vi.fn(),
@@ -80,7 +80,7 @@ function mockMotion(reduce = false) {
     addListener: vi.fn(),
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  }) as unknown as typeof window.matchMedia
+  }))
 }
 
 beforeEach(() => {
@@ -102,6 +102,7 @@ afterEach(() => {
   document.documentElement.style.overflow = ""
   window.localStorage.clear()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

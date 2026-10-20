@@ -2,7 +2,7 @@ import { createRef, useEffect } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { AnimatePresence, MotionConfig, motionValue, useAnimationControls } from "framer-motion"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { motion } from "@/components/ui/motion"
 
 const nativeAnimation = vi.fn(function (this: Element) {
@@ -17,9 +17,17 @@ const nativeAnimation = vi.fn(function (this: Element) {
   }
   return animation as unknown as Animation
 })
-Element.prototype.animate = nativeAnimation
+const originalAnimate = Object.getOwnPropertyDescriptor(Element.prototype, "animate")
 
-afterEach(() => nativeAnimation.mockClear())
+beforeEach(() => {
+  Object.defineProperty(Element.prototype, "animate", { configurable: true, writable: true, value: nativeAnimation })
+})
+
+afterEach(() => {
+  nativeAnimation.mockClear()
+  if (originalAnimate) Object.defineProperty(Element.prototype, "animate", originalAnimate)
+  else Reflect.deleteProperty(Element.prototype, "animate")
+})
 
 describe("stable motion opacity", () => {
   it("completes opacity in the frame renderer instead of reverting a native animation", async () => {

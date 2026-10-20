@@ -50,6 +50,8 @@ function pointAt(todo: Partial<Todo> = {}, props: { variant?: "default" | "compl
   return { ...view, onPriority, press }
 }
 
+const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+
 beforeEach(() => {
   resetPriorityKeysForTests()
   useAuthStore.setState({ user: { userId: "owner", email: "owner@example.test" } } as never)
@@ -58,6 +60,8 @@ beforeEach(() => {
 
 afterEach(() => {
   resetPriorityKeysForTests()
+  if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+  else Reflect.deleteProperty(document, "elementFromPoint")
 })
 
 describe("TodoCard and the number keys under the pointer", () => {

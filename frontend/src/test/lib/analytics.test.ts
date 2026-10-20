@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
   getApiBaseUrl: vi.fn(() => "http://localhost:5132"),
@@ -20,8 +20,10 @@ describe("analytics client", () => {
   beforeEach(() => {
     mocks.getCsrfToken.mockReset()
     mocks.getCsrfToken.mockResolvedValue("csrf-token")
-    global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 202 }))
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 202 })))
   })
+
+  afterEach(() => vi.unstubAllGlobals())
 
   it("does not call authenticated analytics when no access token is available", async () => {
     trackProductEvent(PRODUCT_EVENTS.tokenRefreshFailed, { surface: "restore_session" })
@@ -56,7 +58,6 @@ describe("analytics client", () => {
 
     trackProductEvent(PRODUCT_EVENTS.sessionRestored, {}, "access-token")
 
-    vi.unstubAllGlobals()
     expect(global.fetch).not.toHaveBeenCalled()
     expect(mocks.getCsrfToken).not.toHaveBeenCalled()
   })

@@ -3,7 +3,10 @@ import { render, screen } from "@testing-library/react"
 import { NotificationBadge } from "@/components/notifications/notification-badge"
 
 describe("NotificationBadge", () => {
-  afterEach(() => vi.restoreAllMocks())
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
 
   it("labels a known type", () => {
     render(<NotificationBadge type="comment.added" />)
@@ -52,7 +55,7 @@ describe("NotificationBadge", () => {
   })
 
   it("respects reduced motion", () => {
-    window.matchMedia = vi.fn().mockReturnValue({
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
       matches: true,
       media: "(prefers-reduced-motion: reduce)",
       addEventListener: vi.fn(),
@@ -60,7 +63,7 @@ describe("NotificationBadge", () => {
       addListener: vi.fn(),
       removeListener: vi.fn(),
       dispatchEvent: vi.fn(),
-    }) as unknown as typeof window.matchMedia
+    }))
     render(<NotificationBadge type="comment.added" count={3} showCount />)
     expect(screen.getAllByText("3").length).toBeGreaterThan(0)
     expect(screen.getByRole("status")).toHaveAttribute("aria-label", expect.stringContaining("3 unread"))

@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { RedactionBadge, redactionArc } from "@/components/ui/redaction-badge"
 
 beforeEach(() => {
-  window.matchMedia = vi.fn().mockReturnValue({
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
     matches: false,
     media: "",
     addEventListener: vi.fn(),
@@ -12,8 +12,10 @@ beforeEach(() => {
     addListener: vi.fn(),
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  }) as unknown as typeof window.matchMedia
+  }))
 })
+
+afterEach(() => vi.unstubAllGlobals())
 
 // ─── redactionArc ───────────────────────────────────────────────────────────
 

@@ -692,6 +692,25 @@ up the disposable stack and `.env.e2e` after the run.
 
 The frontend suite runs in jsdom, which has no layout, no compositor and no platform. Every item below is a place where a test can pass while the component it covers is broken, so each one is written as the trap, the fix, and the file that exercises it.
 
+### Global stubs and shuffled order
+
+Use `vi.stubGlobal` with `vi.unstubAllGlobals()` for browser globals. When changing a
+property on `navigator`, `document` or an existing browser object, restore its original
+own descriptor, or delete the test-owned property if it was originally inherited.
+Set hardware capabilities independently in each scenario. Fake only the timer APIs a
+case uses, and initialize module-scoped visit state per scenario. Detect order dependencies
+with three full shuffled runs from `frontend`:
+
+```powershell
+foreach ($seed in 1, 2, 3) {
+  npx vitest run --sequence.shuffle --sequence.seed=$seed
+  if ($LASTEXITCODE -ne 0) { throw "Shuffle seed $seed failed" }
+}
+```
+
+UI specs use the Playwright project `baseURL`, configured by `E2E_FRONTEND_URL`;
+cookies, intercepted CORS responses and page navigation must use the same origin.
+
 ### Testing motion and reduced motion
 
 framer-motion reads `prefers-reduced-motion` once per module instance. `initPrefersReducedMotion()` in `frontend/node_modules/framer-motion/dist/es/utils/reduced-motion/index.mjs` sets a module-level `hasReducedMotionListener.current = true`, then caches the media query result into `prefersReducedMotion.current`. `useReducedMotion` (`.../use-reduced-motion.mjs`) calls that initialiser only while the flag is still false, and reads the cached value into `useState`.

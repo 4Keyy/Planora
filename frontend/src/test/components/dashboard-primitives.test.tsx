@@ -10,7 +10,7 @@ import { Toaster } from "@/components/ui/toast"
 import { useToastStore } from "@/store/toast"
 
 beforeEach(() => {
-  window.matchMedia = vi.fn().mockReturnValue({
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
     matches: false,
     media: "",
     addEventListener: vi.fn(),
@@ -18,12 +18,13 @@ beforeEach(() => {
     addListener: vi.fn(),
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  }) as unknown as typeof window.matchMedia
+  }))
 })
 
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 // ─── StatRow ────────────────────────────────────────────────────────────────

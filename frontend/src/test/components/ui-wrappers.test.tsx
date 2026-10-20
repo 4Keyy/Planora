@@ -247,6 +247,8 @@ describe("dealColumns", () => {
 })
 
 describe("MasonryColumns", () => {
+  const originalInnerWidth = Object.getOwnPropertyDescriptor(window, "innerWidth")
+
   // jsdom lays nothing out: a card's height is its `data-h`, the grid 900px wide.
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
@@ -257,6 +259,8 @@ describe("MasonryColumns", () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    if (originalInnerWidth) Object.defineProperty(window, "innerWidth", originalInnerWidth)
+    else Reflect.deleteProperty(window, "innerWidth")
   })
 
   type Card = { id: string; h: number }
@@ -348,7 +352,8 @@ describe("MasonryColumns", () => {
 
 describe("toast store and toaster", () => {
   beforeEach(() => {
-    vi.useFakeTimers()
+    // Toast expiry needs timeouts only; faking jsdom's frame interval can strand the next dialog's RAF.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
     useToastStore.setState({ toasts: [] })
   })
 

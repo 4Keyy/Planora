@@ -32,7 +32,7 @@ vi.mock("framer-motion", async (importOriginal) => {
 
 function mockMatchMedia(prefersReducedMotion: boolean) {
   reduceMotion.current = prefersReducedMotion
-  window.matchMedia = vi.fn().mockReturnValue({
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
     matches: prefersReducedMotion,
     media: "",
     addEventListener: vi.fn(),
@@ -40,7 +40,7 @@ function mockMatchMedia(prefersReducedMotion: boolean) {
     addListener: vi.fn(),
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  }) as unknown as typeof window.matchMedia
+  }))
 }
 
 beforeEach(() => {
@@ -49,6 +49,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 const ada: PresenceMember = { id: "a", name: "Ada Lovelace" }

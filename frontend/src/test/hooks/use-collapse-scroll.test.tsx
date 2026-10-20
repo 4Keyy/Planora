@@ -3,8 +3,20 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { useCollapseScroll } from "@/hooks/use-collapse-scroll"
 
 describe("useCollapseScroll", () => {
+  const originalProperties = ([
+    [window, "scrollY"],
+    [window, "innerHeight"],
+    [document.body, "scrollHeight"],
+    [document.documentElement, "scrollHeight"],
+  ] as const).map(([target, key]) => ({ target, key, descriptor: Object.getOwnPropertyDescriptor(target, key) }))
+
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    for (const { target, key, descriptor } of originalProperties) {
+      if (descriptor) Object.defineProperty(target, key, descriptor)
+      else Reflect.deleteProperty(target, key)
+    }
   })
 
   it("scrolls to top when an open panel closes and the page is scrolled", () => {
@@ -96,10 +108,7 @@ describe("useCollapseScroll", () => {
     Object.defineProperty(window, "scrollY", { value: 300, configurable: true })
     document.body.style.minHeight = ""
     // jsdom has no matchMedia; this one reports the reader's reduced-motion preference.
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: (query: string) => ({ matches: query.includes("reduce"), media: query }) as MediaQueryList,
-    })
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: query.includes("reduce"), media: query }) as MediaQueryList)
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined)
     const raf = vi.spyOn(window, "requestAnimationFrame")
 
@@ -109,7 +118,6 @@ describe("useCollapseScroll", () => {
     expect(scrollTo).toHaveBeenCalledWith(0, 0)
     expect(raf).not.toHaveBeenCalled()
     expect(document.body.style.minHeight).toBe("")
-    Reflect.deleteProperty(window, "matchMedia")
   })
 
   it("hands the page back the moment the reader scrolls, and stops on unmount", () => {

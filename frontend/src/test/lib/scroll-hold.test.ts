@@ -31,6 +31,7 @@ function runFrames(count: number, ms = 16) {
 }
 
 let content: HTMLDivElement
+const originalScrollY = Object.getOwnPropertyDescriptor(window, "scrollY")
 
 beforeEach(() => {
   scrollY = 0
@@ -46,10 +47,10 @@ beforeEach(() => {
       return scrollY
     },
   })
-  Object.defineProperty(window, "innerHeight", { configurable: true, value: VIEW })
-  window.scrollTo = vi.fn((x?: number | ScrollToOptions, y?: number) => {
+  vi.stubGlobal("innerHeight", VIEW)
+  vi.stubGlobal("scrollTo", vi.fn((x?: number | ScrollToOptions, y?: number) => {
     scrollY = typeof x === "number" ? (y ?? 0) : (x?.top ?? 0)
-  }) as typeof window.scrollTo
+  }))
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
     frames.push(callback)
     return frames.length
@@ -58,12 +59,12 @@ beforeEach(() => {
     frames = []
   })
   vi.spyOn(performance, "now").mockImplementation(() => clock)
-  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+  vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
     matches: reduced && query.includes("reduce"),
     media: query,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
-  })) as unknown as typeof window.matchMedia
+  })))
 
   content = document.createElement("div")
   content.getBoundingClientRect = () => ({ top: -scrollY, bottom: contentBottom - scrollY, height: contentBottom } as DOMRect)
@@ -77,6 +78,9 @@ afterEach(() => {
   resetScrollHoldForTests()
   content.remove()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  if (originalScrollY) Object.defineProperty(window, "scrollY", originalScrollY)
+  else Reflect.deleteProperty(window, "scrollY")
 })
 
 /** Starts from `y`, as if the reader had scrolled there. */

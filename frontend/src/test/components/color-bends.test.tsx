@@ -77,6 +77,13 @@ const GLMock = vi.hoisted(() => {
 
 class ObserverStub { observe = vi.fn(); disconnect = vi.fn() }
 
+const originalBrowserProperties = ([
+  [document, "visibilityState"],
+  [navigator, "hardwareConcurrency"],
+  [navigator, "connection"],
+  [navigator, "deviceMemory"],
+] as const).map(([target, key]) => ({ target, key, descriptor: Object.getOwnPropertyDescriptor(target, key) }))
+
 beforeEach(() => {
   vi.clearAllMocks()
   GLMock.contexts.length = 0
@@ -88,17 +95,23 @@ beforeEach(() => {
   vi.stubGlobal("IntersectionObserver", ObserverStub)
   vi.stubGlobal("requestAnimationFrame", vi.fn(() => 1))
   vi.stubGlobal("cancelAnimationFrame", vi.fn())
-  Object.defineProperty(window, "matchMedia", {
-    writable: true, configurable: true,
-    value: vi.fn((q: string) => ({ matches: false, media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
-  })
+  vi.stubGlobal("matchMedia", vi.fn((q: string) => ({ matches: false, media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() })))
   Object.defineProperty(document, "visibilityState", { value: "visible", writable: true, configurable: true })
-  Object.defineProperty(window, "devicePixelRatio", { value: 1, writable: true, configurable: true })
+  vi.stubGlobal("devicePixelRatio", 1)
+  vi.stubGlobal("innerWidth", 1440)
+  // Every scenario starts as a capable desktop, so a fallback cannot pass due to a previous device.
+  Object.defineProperty(navigator, "hardwareConcurrency", { configurable: true, get: () => 16 })
+  Object.defineProperty(navigator, "connection", { configurable: true, value: { saveData: false } })
+  Object.defineProperty(navigator, "deviceMemory", { configurable: true, value: 8 })
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  for (const { target, key, descriptor } of originalBrowserProperties) {
+    if (descriptor) Object.defineProperty(target, key, descriptor)
+    else Reflect.deleteProperty(target, key)
+  }
 })
 
 // ─── hexToVec3 ────────────────────────────────────────────────────────────────
@@ -525,23 +538,13 @@ describe("ColorBendsLayer", () => {
     ["typical laptop", 4],
     ["desktop / workstation", 16],
   ])("renders without throwing on %s (%i cores)", async (_label, cores) => {
-    const originalDescriptor = Object.getOwnPropertyDescriptor(
-      Navigator.prototype,
-      "hardwareConcurrency",
-    )
     Object.defineProperty(navigator, "hardwareConcurrency", {
       configurable: true,
       get: () => cores,
     })
 
-    try {
-      const { container } = render(<ColorBendsLayer />)
-      await waitFor(() => expect(container.querySelector("div")).not.toBeNull())
-    } finally {
-      if (originalDescriptor) {
-        Object.defineProperty(Navigator.prototype, "hardwareConcurrency", originalDescriptor)
-      }
-    }
+    const { container } = render(<ColorBendsLayer />)
+    await waitFor(() => expect(container.querySelector("div")).not.toBeNull())
   })
 
   // ── Lightweight (static gradient) fallback — no three.js / no WebGL loop ──
@@ -557,14 +560,9 @@ describe("ColorBendsLayer", () => {
   }
 
   it("renders the static gradient (no WebGL) on a low-core device", () => {
-    const original = Object.getOwnPropertyDescriptor(Navigator.prototype, "hardwareConcurrency")
     Object.defineProperty(navigator, "hardwareConcurrency", { configurable: true, get: () => 2 })
-    try {
-      const { container } = render(<ColorBendsLayer />)
-      expectStaticGradient(container)
-    } finally {
-      if (original) Object.defineProperty(Navigator.prototype, "hardwareConcurrency", original)
-    }
+    const { container } = render(<ColorBendsLayer />)
+    expectStaticGradient(container)
   })
 
   it("renders the static gradient on a coarse-pointer (touch) device", () => {
@@ -580,35 +578,20 @@ describe("ColorBendsLayer", () => {
   })
 
   it("renders the static gradient on a small viewport", () => {
-    const original = window.innerWidth
-    Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: 375 })
-    try {
-      const { container } = render(<ColorBendsLayer />)
-      expectStaticGradient(container)
-    } finally {
-      Object.defineProperty(window, "innerWidth", { writable: true, configurable: true, value: original })
-    }
+    vi.stubGlobal("innerWidth", 375)
+    const { container } = render(<ColorBendsLayer />)
+    expectStaticGradient(container)
   })
 
   it("renders the static gradient when Save-Data is enabled", () => {
     Object.defineProperty(navigator, "connection", { configurable: true, value: { saveData: true } })
-    try {
-      const { container } = render(<ColorBendsLayer />)
-      expectStaticGradient(container)
-    } finally {
-      // @ts-expect-error — clean the stubbed connection off navigator.
-      delete navigator.connection
-    }
+    const { container } = render(<ColorBendsLayer />)
+    expectStaticGradient(container)
   })
 
   it("renders the static gradient on a low-memory device", () => {
     Object.defineProperty(navigator, "deviceMemory", { configurable: true, value: 2 })
-    try {
-      const { container } = render(<ColorBendsLayer />)
-      expectStaticGradient(container)
-    } finally {
-      // @ts-expect-error — clean the stubbed deviceMemory off navigator.
-      delete navigator.deviceMemory
-    }
+    const { container } = render(<ColorBendsLayer />)
+    expectStaticGradient(container)
   })
 })

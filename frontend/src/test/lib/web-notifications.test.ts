@@ -23,29 +23,34 @@ class MockNotification {
 
 let visState = "hidden"
 let hasFocusVal = false
-const originalLocation = window.location
+const originalVisibilityState = Object.getOwnPropertyDescriptor(document, "visibilityState")
 
 function installNotification() {
   MockNotification.permission = "granted"
   MockNotification.last = null
   MockNotification.shouldThrow = false
   MockNotification.requestPermission.mockClear()
-  ;(window as unknown as { Notification: unknown }).Notification = MockNotification
+  vi.stubGlobal("Notification", MockNotification)
 }
 
 beforeEach(() => {
   visState = "hidden"
   hasFocusVal = false
+  MockNotification.last = null
+  vi.stubGlobal("Notification", undefined)
+  // Support is detected with `in`; an undefined own property would still mean supported.
+  Reflect.deleteProperty(window, "Notification")
   Object.defineProperty(document, "visibilityState", { configurable: true, get: () => visState })
-  document.hasFocus = vi.fn(() => hasFocusVal)
-  window.focus = vi.fn()
-  Object.defineProperty(window, "location", { configurable: true, writable: true, value: { href: "" } })
+  vi.spyOn(document, "hasFocus").mockImplementation(() => hasFocusVal)
+  vi.stubGlobal("focus", vi.fn())
+  vi.stubGlobal("location", { href: "" })
 })
 
 afterEach(() => {
-  delete (window as unknown as { Notification?: unknown }).Notification
-  Object.defineProperty(window, "location", { configurable: true, writable: true, value: originalLocation })
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  if (originalVisibilityState) Object.defineProperty(document, "visibilityState", originalVisibilityState)
+  else Reflect.deleteProperty(document, "visibilityState")
 })
 
 describe("notificationPermission", () => {

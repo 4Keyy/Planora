@@ -10,8 +10,12 @@ import {
 import { KEY_ECHO_EVENT } from "@/lib/key-echo"
 import { registerPriorityTarget, resetPriorityKeysForTests } from "@/lib/priority-keys"
 
+const originalScrollIntoView = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView")
+const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+const pointerCards = new Set<HTMLElement>()
+
 beforeEach(() => {
-  window.matchMedia = vi.fn().mockReturnValue({
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
     matches: false,
     media: "",
     addEventListener: vi.fn(),
@@ -19,14 +23,21 @@ beforeEach(() => {
     addListener: vi.fn(),
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  }) as unknown as typeof window.matchMedia
+  }))
   // jsdom has no layout, so it has no scrollIntoView; the cursor effect calls it
   // on every move and would throw on the first `j` without this.
-  Element.prototype.scrollIntoView = vi.fn()
+  Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, writable: true, value: vi.fn() })
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  if (originalScrollIntoView) Object.defineProperty(Element.prototype, "scrollIntoView", originalScrollIntoView)
+  else Reflect.deleteProperty(Element.prototype, "scrollIntoView")
+  if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+  else Reflect.deleteProperty(document, "elementFromPoint")
+  for (const card of pointerCards) card.remove()
+  pointerCards.clear()
 })
 
 // ─── Harness ────────────────────────────────────────────────────────────────
@@ -900,6 +911,7 @@ describe("the number keys and the card under the pointer", () => {
   function pointAtCard() {
     const node = document.createElement("article")
     document.body.appendChild(node)
+    pointerCards.add(node)
     const accepts = vi.fn(() => true)
     const apply = vi.fn()
     const unregister = registerPriorityTarget(node, { accepts, apply })

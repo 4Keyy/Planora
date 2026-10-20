@@ -13,6 +13,8 @@ import {
   useShortcutsOverlay,
 } from "@/components/ui/shortcuts-overlay"
 
+const originalPlatform = Object.getOwnPropertyDescriptor(navigator, "platform")
+
 /** jsdom reports no platform of its own, so the Ctrl spelling is the default here. */
 function pretendApplePlatform() {
   Object.defineProperty(window.navigator, "platform", { value: "MacIntel", configurable: true })
@@ -24,6 +26,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  if (originalPlatform) Object.defineProperty(navigator, "platform", originalPlatform)
+  else Reflect.deleteProperty(navigator, "platform")
 })
 
 // ─── SHORTCUT_GROUPS ────────────────────────────────────────────────────────

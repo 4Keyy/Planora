@@ -57,6 +57,8 @@ function press(key: string, init: KeyboardEventInit = {}, on: EventTarget = docu
   return event
 }
 
+const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, "elementFromPoint")
+
 beforeEach(() => {
   resetPriorityKeysForTests()
   surface.clear()
@@ -72,6 +74,8 @@ afterEach(() => {
   resetPriorityKeysForTests()
   document.body.replaceChildren()
   vi.restoreAllMocks()
+  if (originalElementFromPoint) Object.defineProperty(document, "elementFromPoint", originalElementFromPoint)
+  else Reflect.deleteProperty(document, "elementFromPoint")
 })
 
 describe("priorityDigit", () => {

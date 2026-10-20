@@ -4,8 +4,11 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { UpdatePill, useDeferredUpdates } from "@/components/ui/update-pill"
 
+const originalElementScrollTo = Object.getOwnPropertyDescriptor(Element.prototype, "scrollTo")
+
 beforeEach(() => {
-  window.matchMedia = vi.fn().mockReturnValue({
+  vi.stubGlobal("scrollY", 0)
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({
     matches: false,
     media: "",
     addEventListener: vi.fn(),
@@ -13,12 +16,15 @@ beforeEach(() => {
     addListener: vi.fn(),
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  }) as unknown as typeof window.matchMedia
+  }))
 })
 
 afterEach(() => {
   scrollWindowTo(0)
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  if (originalElementScrollTo) Object.defineProperty(Element.prototype, "scrollTo", originalElementScrollTo)
+  else Reflect.deleteProperty(Element.prototype, "scrollTo")
 })
 
 /**
@@ -169,7 +175,7 @@ describe("useDeferredUpdates", () => {
   it("flushes the queue in arrival order and returns to the top when shown", () => {
     const onApply = vi.fn()
     const scrollTo = vi.fn()
-    window.scrollTo = scrollTo as unknown as typeof window.scrollTo
+    vi.stubGlobal("scrollTo", scrollTo)
     const { result } = renderHook(() => useDeferredUpdates<string>({ onApply }))
 
     act(() => scrollWindowTo(600))
@@ -188,9 +194,9 @@ describe("useDeferredUpdates", () => {
 
   it("scrolls its own container rather than the window when given one", () => {
     const scrollTo = vi.fn()
-    Element.prototype.scrollTo = scrollTo as unknown as typeof Element.prototype.scrollTo
+    Object.defineProperty(Element.prototype, "scrollTo", { configurable: true, writable: true, value: scrollTo })
     const windowScrollTo = vi.fn()
-    window.scrollTo = windowScrollTo as unknown as typeof window.scrollTo
+    vi.stubGlobal("scrollTo", windowScrollTo)
 
     const ref = createRef<HTMLElement>()
     const container = document.createElement("div")
