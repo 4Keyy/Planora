@@ -1,7 +1,7 @@
 import axios from "axios"
 import type { AuthTokenDto, TokenValidationDto } from "@/types/auth"
 import { getApiBaseUrl } from "@/lib/config"
-import { clearCsrfToken, CSRF_HEADER_NAME, getCsrfToken } from "@/lib/csrf"
+import { clearCsrfToken, CSRF_HEADER_NAME, getCsrfToken, isCsrfRejection } from "@/lib/csrf"
 
 const authPublic = axios.create({
   baseURL: getApiBaseUrl(),
@@ -64,11 +64,6 @@ const csrfHeaders = async (headers: Record<string, string> = {}) => {
   }
 }
 
-const isCsrfForbidden = (error: unknown): boolean => {
-  if (!error || typeof error !== "object") return false
-  const response = (error as { response?: { status?: number } }).response
-  return response?.status === 403
-}
 
 const postWithCsrfRetry = async <T,>(
   url: string,
@@ -80,7 +75,9 @@ const postWithCsrfRetry = async <T,>(
       headers: await csrfHeaders(headers),
     })
   } catch (error) {
-    if (!isCsrfForbidden(error)) {
+    // Only a CSRF 403 is worth a second try: a locked account also answers 403, and repeating
+    // that sign-in would send the password twice.
+    if (!isCsrfRejection(error)) {
       throw error
     }
 

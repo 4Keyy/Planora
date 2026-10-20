@@ -109,3 +109,20 @@ export function clearCsrfToken(): void {
 export function shouldIncludeCsrfToken(method: string): boolean {
   return ["POST", "PUT", "DELETE", "PATCH"].includes(method.toUpperCase())
 }
+
+/** The code `CsrfProtectionMiddleware` (BuildingBlocks) sends with its 403. */
+export const CSRF_FAILURE_CODE = "CSRF_VALIDATION_FAILED"
+
+/**
+ * Whether a request was refused for its CSRF token — the one 403 a fresh token can fix, so the
+ * one worth sending again. Any other 403 (an action the user may not take, a locked account on
+ * sign-in) is final: repeating it only sends the same request — or the same password — twice.
+ */
+export function isCsrfRejection(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false
+  const response = (error as { response?: { status?: number; data?: unknown } }).response
+  if (response?.status !== 403) return false
+  const data = response.data
+  if (typeof data === "string") return data.includes(CSRF_FAILURE_CODE)
+  return typeof data === "object" && data !== null && (data as { error?: unknown }).error === CSRF_FAILURE_CODE
+}

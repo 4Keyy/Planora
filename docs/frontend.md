@@ -189,9 +189,11 @@ refresh request and retry once, preserving the trace id with a new span id.
 Auth/login/register/logout/refresh/password-reset failures remain with their forms.
 Best-effort calls marked `suppressErrorLog` do not drive the global 401-refresh flow.
 A refresh 429 preserves state and backs off using a numeric `Retry-After`, clamped
-to 1–300 seconds, with a 60-second fallback. A mutating 403 gets one retry after
-clearing the readable CSRF cookie; a permission-denied 403 is retried by the same
-rule and is surfaced if it fails again.
+to 1–300 seconds, with a 60-second fallback. Only a CSRF rejection — a 403 carrying
+the middleware's `CSRF_VALIDATION_FAILED` code (`isCsrfRejection` in `lib/csrf.ts`) — clears
+the readable CSRF cookie and gets one retry, on a mutating request or in the public auth
+client's refresh; any other 403 (a denied action, a locked account on sign-in) surfaces at once,
+so a mutation or a password is never sent twice.
 
 ### The error-state contract
 

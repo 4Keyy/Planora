@@ -9,12 +9,16 @@ vi.mock("@/lib/auth-public", () => ({
   validateAccessToken: vi.fn(),
 }))
 
-vi.mock("@/lib/csrf", () => ({
-  CSRF_HEADER_NAME: "X-CSRF-Token",
-  clearCsrfToken: vi.fn(),
-  getCsrfToken: vi.fn(),
-  shouldIncludeCsrfToken: (method: string) => ["POST", "PUT", "DELETE", "PATCH"].includes(method.toUpperCase()),
-}))
+vi.mock("@/lib/csrf", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/csrf")>("@/lib/csrf")
+  return {
+    CSRF_HEADER_NAME: "X-CSRF-Token",
+    clearCsrfToken: vi.fn(),
+    getCsrfToken: vi.fn(),
+    shouldIncludeCsrfToken: (method: string) => ["POST", "PUT", "DELETE", "PATCH"].includes(method.toUpperCase()),
+    isCsrfRejection: actual.isCsrfRejection,
+  }
+})
 
 const base64Url = (value: unknown) =>
   btoa(JSON.stringify(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
@@ -203,7 +207,19 @@ describe("api interceptors", () => {
     expect(clearCsrfToken).toHaveBeenCalledOnce()
   })
 
-  it("clears CSRF token on a state-changing 403 and marks the request for one retry", async () => {
+  it("surfaces a genuine 403 at once: no retry, and the CSRF token stays", async () => {
+    // A denied action (or a locked account on sign-in) is final. Retrying it sent the same
+    // mutation — or the same password — a second time and threw away a valid CSRF token.
+    const config: any = { url: "/auth/api/v1/auth/login", method: "post", headers: {} }
+    const denied = { response: { status: 403, data: { error: "FORBIDDEN", message: "Account is locked" } }, config } as any
+
+    await expect(responseRejected()(denied)).rejects.toBe(denied)
+
+    expect(clearCsrfToken).not.toHaveBeenCalled()
+    expect(config._csrfRetry).toBeUndefined()
+  })
+
+  it("clears CSRF token on a state-changing CSRF 403 and marks the request for one retry", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
 
@@ -213,7 +229,8 @@ describe("api interceptors", () => {
     // axios adapter stub); the interceptor contract under test is "side-effects
     // happen and a non-rejected promise is returned".
     const config: any = { method: "post", headers: {} }
-    const forbiddenFirst = { response: { status: 403 }, config } as any
+    const csrf = { error: "CSRF_VALIDATION_FAILED", message: "CSRF token validation failed" }
+    const forbiddenFirst = { response: { status: 403, data: csrf }, config } as any
 
     const result = responseRejected()(forbiddenFirst)
     expect(clearCsrfToken).toHaveBeenCalled()
@@ -225,7 +242,7 @@ describe("api interceptors", () => {
 
     // Second 403 on the same request (now flagged _csrfRetry=true): interceptor
     // must NOT retry again — the rejection propagates to the caller.
-    const forbiddenSecond = { response: { status: 403 }, config: { method: "post", headers: {}, _csrfRetry: true } } as any
+    const forbiddenSecond = { response: { status: 403, data: csrf }, config: { method: "post", headers: {}, _csrfRetry: true } } as any
     await expect(responseRejected()(forbiddenSecond)).rejects.toBe(forbiddenSecond)
     expect(warnSpy).toHaveBeenCalledWith("[API] 403 — not retried (non-mutating, retry already attempted, or no config)")
 

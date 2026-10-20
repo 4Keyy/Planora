@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from "axios"
 import { useAuthStore } from "@/store/auth"
-import { getCsrfToken, shouldIncludeCsrfToken, clearCsrfToken, CSRF_HEADER_NAME } from "@/lib/csrf"
+import { getCsrfToken, shouldIncludeCsrfToken, clearCsrfToken, isCsrfRejection, CSRF_HEADER_NAME } from "@/lib/csrf"
 import { refreshAccessToken } from "@/lib/auth-public"
 import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
 import { getApiBaseUrl } from "@/lib/config"
@@ -321,12 +321,11 @@ api.interceptors.response.use(
         }
       }
 
-      // Handle 403 Forbidden — could be CSRF expiry (recoverable) or genuine
-      // permission denial. Retry ONCE on state-mutating requests with a fresh
-      // CSRF token; the request interceptor will fetch a new token because the
-      // previous one was cleared. Genuine permission errors fail the second
-      // attempt with a 403 again, at which point we surface the error.
-      if (error.response.status === 403) {
+      // Handle 403 Forbidden. Only a CSRF rejection (the middleware's own code) is recoverable:
+      // retry it ONCE on a state-mutating request with a fresh token — the request interceptor
+      // fetches a new one because the old one was cleared. Any other 403 is a genuine denial and
+      // surfaces at once; retrying it sent the same mutation twice and dropped a good token.
+      if (error.response.status === 403 && isCsrfRejection(error)) {
         clearCsrfToken()
         const originalRequest = error.config as RetriableRequestConfig | undefined
         if (

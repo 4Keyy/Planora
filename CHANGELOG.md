@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(api): retry a 403 only when the CSRF token was rejected (2026-10-20)
+
+Every 403 on a mutation was retried once with a fresh CSRF token, including genuine refusals: a
+denied action ran twice, the valid CSRF token was thrown away, and a sign-in to a locked account
+sent the password a second time. Only the CSRF middleware's own 403 (`CSRF_VALIDATION_FAILED`)
+is retried now, in the API client and in the public auth client's refresh; any other 403
+surfaces at once. `lib/csrf.ts` (`isCsrfRejection`), `lib/api.ts`, `lib/auth-public.ts`.
+
 ### fix(auth): refresh tabs one at a time and keep one refresh timer (2026-10-20)
 
 Each tab refreshed on its own while all tabs share one httpOnly cookie, and the server revokes

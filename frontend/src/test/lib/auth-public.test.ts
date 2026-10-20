@@ -14,11 +14,15 @@ vi.mock("axios", async (importOriginal) => {
   return { ...actual, default: { ...actual.default, create: mocks.create } }
 })
 
-vi.mock("@/lib/csrf", () => ({
-  CSRF_HEADER_NAME: "X-CSRF-Token",
-  clearCsrfToken: mocks.clearCsrfToken,
-  getCsrfToken: mocks.getCsrfToken,
-}))
+vi.mock("@/lib/csrf", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/csrf")>("@/lib/csrf")
+  return {
+    CSRF_HEADER_NAME: "X-CSRF-Token",
+    clearCsrfToken: mocks.clearCsrfToken,
+    getCsrfToken: mocks.getCsrfToken,
+    isCsrfRejection: actual.isCsrfRejection,
+  }
+})
 
 import { getAuthRetryAfterMs, refreshAccessToken, validateAccessToken } from "@/lib/auth-public"
 import { useAuthStore } from "@/store/auth"
@@ -85,6 +89,16 @@ describe("auth public client", () => {
     ])
     expect(mocks.getCsrfToken).toHaveBeenCalledOnce()
     expect(mocks.post).toHaveBeenCalledOnce()
+  })
+
+  it("does not repeat a refresh refused with a non-CSRF 403", async () => {
+    const locked = { response: { status: 403, data: { error: "USER_LOCKED", message: "Account is locked" } } }
+    mocks.post.mockRejectedValueOnce(locked)
+
+    await expect(refreshAccessToken()).rejects.toBe(locked)
+
+    expect(mocks.post).toHaveBeenCalledOnce()
+    expect(mocks.clearCsrfToken).not.toHaveBeenCalled()
   })
 
   it("retries refresh once with a new CSRF token after a CSRF 403", async () => {
