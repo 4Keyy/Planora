@@ -1,3 +1,5 @@
+import { EMPTY_GUID } from "@/types/todo"
+
 // Priority levels. There is deliberately no colour here: five hues collapse under
 // deuteranopia (measured 0.049 apart in OKLab for the two lowest) and read as
 // unordered labels rather than a scale. Magnitude is drawn by PriorityMeter.
@@ -227,7 +229,9 @@ export function todoToOwnerPayload(todo: {
     dueDate,
     dueDateStart,
     clearDueDate: !todo.dueDate,
-    categoryId: todo.categoryId || null,
+    // The same "no category" the editor sends (see buildOwnerPayload), so opening an
+    // uncategorised task does not look like an edit.
+    categoryId: todo.categoryId || EMPTY_GUID,
     isPublic: todo.isPublic,
     sharedWithUserIds: visFriends ? shared : [],
     requiredWorkers: visFriends && !todo.isPublic ? 1 + shared.length : null,

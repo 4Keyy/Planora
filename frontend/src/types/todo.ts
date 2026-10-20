@@ -211,7 +211,11 @@ export type UpdateTodoPayload = {
   clearRequiredWorkers?: boolean
 }
 
-const EMPTY_GUID = "00000000-0000-0000-0000-000000000000"
+/**
+ * The all-zero GUID. On a task update it is the server's "clear this" value for a category (a
+ * plain `null` means "unchanged"); it never names a real user or category.
+ */
+export const EMPTY_GUID = "00000000-0000-0000-0000-000000000000"
 
 export function sameUserId(left: string | null | undefined, right: string | null | undefined): boolean {
   if (!left || !right) return false

@@ -113,6 +113,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(todos): removing a category or the Author's Note sticks (2026-10-20)
+
+On a task update the server reads `null` as "unchanged", but the editor sent `null` for both
+"No category" and an emptied Author's Note, so the server kept the old values while the screen
+showed them cleared, and the next load brought them back. The editor now sends the all-zero GUID
+(the endpoint's explicit category clear) and an empty description; its autosave baseline writes
+"no category" the same way, so opening an uncategorised task still saves nothing. The sandbox's
+demo adapter reads the empty GUID as a clear too. `edit-todo-modal/modal.tsx`, `utils.ts`.
+
 ### fix(todos): editors stop accepting descriptions the server rejects (2026-10-20)
 
 The New task details and the branch's Author's Note accepted 5000 characters while the create and

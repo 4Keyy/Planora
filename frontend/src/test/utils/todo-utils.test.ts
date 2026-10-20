@@ -43,6 +43,14 @@ describe("applyCategoryPatch", () => {
     expect(result.categoryName).toBe("Work")
   })
 
+  it("clears all four category fields when categoryId is the empty GUID the editor sends", () => {
+    const result = applyCategoryPatch({ ...base }, "00000000-0000-0000-0000-000000000000")
+    expect(result.categoryId).toBeNull()
+    expect(result.categoryName).toBeNull()
+    expect(result.categoryColor).toBeNull()
+    expect(result.categoryIcon).toBeNull()
+  })
+
   it("clears all four category fields when categoryId is null", () => {
     const result = applyCategoryPatch({ ...base }, null)
     expect(result.categoryId).toBeNull()

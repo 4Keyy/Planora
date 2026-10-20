@@ -12,7 +12,7 @@ import { useAuthStore }     from "@/store/auth"
 import { useFriends }       from "@/hooks/use-friends"
 import { DURATION_FAST, DURATION_UI, EASE_STANDARD, SPRING_LAYOUT, TWEEN_FAST } from "@/lib/animations"
 import { editorDialogRect, originTransform, takeOrigin } from "@/lib/shared-origin"
-import { Todo, type UpdateTodoPayload, isTodoOwner } from "@/types/todo"
+import { EMPTY_GUID, Todo, type UpdateTodoPayload, isTodoOwner } from "@/types/todo"
 import { Category }         from "@/types/category"
 import { BranchFeed }       from "./branch-feed"
 import { InlineTokenStrip } from "./inline-token-strip"
@@ -304,7 +304,9 @@ export function TodoEditor({
     // No end bound → no date at all: signal an explicit clear (a null dueDate alone reads as
     // "unchanged" server-side). When an end is present this is false and the interval is set.
     clearDueDate: !dueDate,
-    categoryId: categoryId || null,
+    // "No category" is sent as the empty GUID: on an update the server reads `null` as
+    // "unchanged", so a cleared category used to come back on the next load.
+    categoryId: categoryId || EMPTY_GUID,
     // All friends keeps its reach and its unlimited capacity, exactly as the create panel
     // writes it; a named share counts its people; private clears both.
     isPublic: visMode === "friends" && allFriends,
@@ -345,7 +347,9 @@ export function TodoEditor({
   // task (the single source of truth) — no modal close, other fields untouched.
   const handleSaveDescription = async (newDescription: string) => {
     const trimmed = newDescription.trim()
-    await onSave(buildOwnerPayload(trimmed || null))
+    // An empty note is sent as "" — the server reads `null` as "unchanged", so a note cleared
+    // to nothing used to come back on the next load.
+    await onSave(buildOwnerPayload(trimmed))
     setDescription(trimmed)
     onDescriptionChange?.(trimmed)
   }

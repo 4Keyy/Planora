@@ -1,6 +1,6 @@
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from "axios"
 import { demo, DEMO_FRIENDS, DEMO_USER } from "./state"
-import type { Todo } from "@/types/todo"
+import { EMPTY_GUID, type Todo } from "@/types/todo"
 
 /**
  * An axios adapter that answers the product's own HTTP contract from memory.
@@ -306,6 +306,8 @@ export const demoAdapter: AxiosAdapter = async (config: InternalAxiosRequestConf
       }
       if (method === "PUT" || method === "PATCH") {
         const patch = { ...body } as Partial<Todo>
+        // As on the server: the empty GUID clears the category.
+        if (body.categoryId === EMPTY_GUID) patch.categoryId = null
         if (typeof body.status === "string") {
           const s = body.status.toLowerCase()
           patch.status = s === "done" ? "Done" : s === "inprogress" ? "InProgress" : "Todo"
