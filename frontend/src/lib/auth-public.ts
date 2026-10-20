@@ -17,6 +17,25 @@ const authPublic = axios.create({
 
 let refreshRequest: Promise<AuthTokenDto> | null = null
 
+/** The Web Lock every tab of this origin holds while it refreshes — see `withRefreshLock`. */
+export const AUTH_REFRESH_LOCK = "planora:auth-refresh"
+
+/**
+ * Runs `task` holding the origin-wide refresh lock, so the tabs of one browser refresh one after
+ * another. Every refresh rotates the httpOnly cookie, and the server treats a refresh token
+ * presented after its rotation as stolen: it revokes every session of the user and rotates their
+ * security stamp. Two tabs refreshing at the same moment (restored together after a browser
+ * restart, or both meeting an expired token) send the same cookie, and the slower request would
+ * sign the user out everywhere. Under the lock the second request leaves only after the first
+ * response has set the new cookie. Without Web Locks — an insecure origin such as a LAN IP over
+ * plain http, or an older browser — it runs directly, as before.
+ */
+const withRefreshLock = async <T,>(task: () => Promise<T>): Promise<T> => {
+  const locks = typeof navigator === "undefined" ? undefined : navigator.locks
+  if (!locks || typeof locks.request !== "function") return task()
+  return await locks.request(AUTH_REFRESH_LOCK, { mode: "exclusive" }, task)
+}
+
 const unwrap = <T,>(data: unknown): T => {
   if (data && typeof data === "object" && "value" in data) {
     return (data as { value: T }).value
@@ -105,7 +124,8 @@ const requestAccessTokenRefresh = async (): Promise<AuthTokenDto> => {
  * sends the httpOnly refresh-token cookie. The raw token is never accessible to JavaScript.
  */
 export async function refreshAccessToken(): Promise<AuthTokenDto> {
-  refreshRequest = refreshRequest ?? requestAccessTokenRefresh().finally(() => {
+  // One request per tab (single-flight) and one tab at a time (the refresh lock).
+  refreshRequest = refreshRequest ?? withRefreshLock(requestAccessTokenRefresh).finally(() => {
     refreshRequest = null
   })
 

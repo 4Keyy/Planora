@@ -233,3 +233,77 @@ describe("auth public client", () => {
     expect(mocks.post).toHaveBeenCalledOnce()
   })
 })
+
+describe("refresh across tabs", () => {
+  type LockCallback = () => Promise<unknown>
+  /** A first-come-first-served exclusive lock, shared like the browser's Web Locks. */
+  const fifoLocks = () => {
+    let tail: Promise<void> = Promise.resolve()
+    return {
+      request: vi.fn((_name: string, _options: unknown, callback: LockCallback) => {
+        const run = tail.then(() => callback())
+        tail = run.then(() => undefined, () => undefined)
+        return run
+      }),
+    }
+  }
+  const defineLocks = (locks: unknown) =>
+    Object.defineProperty(window.navigator, "locks", { value: locks, configurable: true })
+  const settle = async () => {
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0))
+  }
+
+  beforeEach(() => {
+    mocks.post.mockReset()
+    mocks.getCsrfToken.mockReset()
+    mocks.getCsrfToken.mockResolvedValue("csrf-token")
+  })
+
+  afterEach(() => {
+    delete (window.navigator as { locks?: unknown }).locks
+  })
+
+  it("refreshes while holding the origin-wide refresh lock", async () => {
+    const locks = fifoLocks()
+    defineLocks(locks)
+    mocks.post.mockResolvedValue({ data: { accessToken: "locked-token" } })
+
+    await expect(refreshAccessToken()).resolves.toEqual({ accessToken: "locked-token" })
+
+    expect(locks.request).toHaveBeenCalledWith("planora:auth-refresh", { mode: "exclusive" }, expect.any(Function))
+    expect(mocks.post).toHaveBeenCalledOnce()
+  })
+
+  it("lets a second tab's refresh leave only after the first tab's response", async () => {
+    defineLocks(fifoLocks())
+    let answerFirst!: (value: unknown) => void
+    mocks.post
+      .mockImplementationOnce(() => new Promise((resolve) => { answerFirst = resolve }))
+      .mockResolvedValueOnce({ data: { accessToken: "second-tab-token" } })
+
+    // Two tabs: two copies of the module, each with its own in-tab single-flight.
+    vi.resetModules()
+    const firstTab = await import("@/lib/auth-public")
+    vi.resetModules()
+    const secondTab = await import("@/lib/auth-public")
+
+    const first = firstTab.refreshAccessToken()
+    const second = secondTab.refreshAccessToken()
+    await settle()
+
+    // The second tab waits: had it sent the same cookie now, the server would read it as reuse.
+    expect(mocks.post).toHaveBeenCalledTimes(1)
+
+    answerFirst({ data: { accessToken: "first-tab-token" } })
+    await expect(first).resolves.toEqual({ accessToken: "first-tab-token" })
+    await expect(second).resolves.toEqual({ accessToken: "second-tab-token" })
+    expect(mocks.post).toHaveBeenCalledTimes(2)
+  })
+
+  it("refreshes directly where Web Locks are unavailable", async () => {
+    mocks.post.mockResolvedValue({ data: { accessToken: "unlocked-token" } })
+
+    await expect(refreshAccessToken()).resolves.toEqual({ accessToken: "unlocked-token" })
+    expect(mocks.post).toHaveBeenCalledOnce()
+  })
+})

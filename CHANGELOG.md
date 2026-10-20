@@ -113,6 +113,18 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(auth): refresh tabs one at a time and keep one refresh timer (2026-10-20)
+
+Each tab refreshed on its own while all tabs share one httpOnly cookie, and the server revokes
+every session of a user when a rotated refresh token is presented again: two tabs refreshing at
+the same moment — restored together after a browser restart, or both meeting an expired token —
+could sign the user out everywhere. Refreshes now run under the origin-wide Web Lock
+`planora:auth-refresh`, so a second tab's request leaves only after the first response has set
+the new cookie. The scheduled refresh also kept stray timers: the next refresh and the retry after
+a failure were never cancelled and outlived logout, and a login without a reload scheduled nothing.
+One timer per tab is now re-armed by every login and refresh and cancelled on logout, and the
+landing sandbox's seeded session schedules none.
+
 ### fix(realtime): task lists catch up after the live socket drops (2026-10-20)
 
 Tasks and Dashboard learned about friends' changes only from live signals, which the server does

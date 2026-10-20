@@ -4,6 +4,7 @@ import { decodeJwt, getJwtEmailVerified, getJwtRoles } from "@/lib/jwt"
 import { refreshAccessToken, validateAccessToken } from "@/lib/auth-public"
 import { PRODUCT_EVENTS, trackProductEvent } from "@/lib/analytics"
 import { broadcastLogout } from "@/lib/auth-broadcast"
+import { isDemoSession } from "@/lib/demo/flag"
 import type { AuthTokenDto } from "@/types/auth"
 
 /**
@@ -62,6 +63,24 @@ type AuthState = {
 }
 
 const STORAGE_KEY = "planora-auth"
+
+/** A scheduled refresh runs this long before the access token expires. */
+const REFRESH_LEAD_MS = 5 * 60 * 1000
+/** After a scheduled refresh fails, the next attempt waits this long. */
+const REFRESH_RETRY_MS = 5 * 60 * 1000
+
+/**
+ * This tab's one pending scheduled refresh. Every path that schedules (login, a refresh, the
+ * retry after a failure) replaces it, so a single timer is ever pending and logout cancels it.
+ * It used to be one timer per call: the next refresh and the retry were never handed back,
+ * outlived logout, and a login without a reload scheduled nothing at all.
+ */
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+function cancelScheduledRefresh(): void {
+  if (refreshTimer) clearTimeout(refreshTimer)
+  refreshTimer = null
+}
 
 /**
  * Storage adapter.
@@ -132,7 +151,7 @@ export const useAuthStore = create(
       /**
        * Set authentication state from API payload
        */
-      setAuth: (payload) =>
+      setAuth: (payload) => {
         set((state) => {
           const accessTokenExpiresAt = deriveAccessExpiry(payload.accessToken)
           const decoded = decodeJwt(payload.accessToken)
@@ -162,7 +181,9 @@ export const useAuthStore = create(
             emailVerified,
             isAuthenticated: true,
           }
-        }),
+        })
+        get().scheduleTokenRefresh()
+      },
 
       /**
        * Apply refreshed token payload.
@@ -170,7 +191,7 @@ export const useAuthStore = create(
        * The new refreshToken is set as an httpOnly cookie by the backend on the /refresh response;
        * we do not receive or store it in JavaScript.
        */
-      applyRefresh: (payload) =>
+      applyRefresh: (payload) => {
         set((state) => {
           const accessTokenExpiresAt = deriveAccessExpiry(payload.accessToken)
           const decoded = decodeJwt(payload.accessToken)
@@ -191,7 +212,9 @@ export const useAuthStore = create(
             user,
             isAuthenticated: true,
           }
-        }),
+        })
+        get().scheduleTokenRefresh()
+      },
 
       updateUser: (patch) =>
         set((state) => {
@@ -207,6 +230,7 @@ export const useAuthStore = create(
        * across tabs so other open tabs drop their in-memory access token immediately.
        */
       clearAuth: (silent?: boolean) => {
+        cancelScheduledRefresh()
         set({
           user: undefined,
           accessToken: undefined,
@@ -307,33 +331,37 @@ export const useAuthStore = create(
        * SECURITY: No refresh token string is passed — the httpOnly cookie is sent automatically.
        */
       scheduleTokenRefresh: () => {
+        cancelScheduledRefresh()
         const state = get()
-        if (!state.accessTokenExpiresAt) return undefined
+        // The sandbox's session is seeded locally and has no refresh cookie to renew.
+        if (!state.accessTokenExpiresAt || isDemoSession()) return undefined
 
-        const expiresAt = new Date(state.accessTokenExpiresAt)
-        const now = new Date()
-        const timeUntilExpiry = expiresAt.getTime() - now.getTime()
-
+        const timeUntilExpiry = new Date(state.accessTokenExpiresAt).getTime() - Date.now()
         // Refresh 5 minutes before expiry (or immediately if less than 5 minutes remain)
-        const refreshInMs = Math.max(0, timeUntilExpiry - (5 * 60 * 1000))
+        const refreshInMs = Math.max(0, timeUntilExpiry - REFRESH_LEAD_MS)
 
-        const timeout = setTimeout(async () => {
+        const timer = setTimeout(async () => {
+          if (refreshTimer === timer) refreshTimer = null
           try {
-            // No token argument — backend reads httpOnly cookie
+            // No token argument — backend reads httpOnly cookie. applyRefresh schedules the next one.
             const refreshed = await refreshAccessToken()
             get().applyRefresh(refreshed)
-            // Schedule next refresh
-            get().scheduleTokenRefresh()
           } catch {
             console.warn("Auto-refresh failed")
             trackProductEvent(PRODUCT_EVENTS.tokenRefreshFailed, { surface: "scheduled_refresh" }, get().accessToken)
-            // Retry in 5 minutes
-            setTimeout(() => get().scheduleTokenRefresh(), 5 * 60 * 1000)
+            // Retry later — unless the session ended meanwhile or something else (a request's own
+            // refresh) already scheduled the next one.
+            if (!get().isAuthenticated || refreshTimer) return
+            refreshTimer = setTimeout(() => {
+              refreshTimer = null
+              get().scheduleTokenRefresh()
+            }, REFRESH_RETRY_MS)
           }
         }, refreshInMs)
+        refreshTimer = timer
 
-        // Return cleanup at the outer function level so callers can cancel the timer
-        return () => clearTimeout(timeout)
+        // Stops this tab's scheduled refreshing, whichever timer is pending by then.
+        return cancelScheduledRefresh
       },
     }),
     {

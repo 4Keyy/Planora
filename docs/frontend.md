@@ -146,11 +146,16 @@ to other tabs. `clearAuth()` clears local state and broadcasts; it does not itse
 revoke a server session or expire the cookie. The navbar calls the logout endpoint
 first, then clears local state even when that request fails.
 
-`scheduleTokenRefresh()` plans a refresh five minutes before the access-token
-expiry, retries a failed scheduled refresh after five minutes, and is invoked by
-the initializer after restoration. A login that happens later in that already
-mounted page does not itself start the timer. Foreground API requests also have
-a separate 401-triggered refresh path.
+`scheduleTokenRefresh()` keeps one timer per tab: it plans a refresh five minutes
+before the access-token expiry, and `setAuth` (a login) and `applyRefresh` (any
+refresh) re-arm it, so a login without a reload is covered as well. A failed
+scheduled refresh is retried after five minutes; `clearAuth()` cancels the timer and
+any pending retry, and the landing sandbox's seeded session schedules nothing.
+Foreground API requests also have a separate 401-triggered refresh path. Every
+refresh — scheduled, restore or 401 — runs single-flight inside the tab and under the
+origin-wide Web Lock `planora:auth-refresh` (`lib/auth-public.ts`), so the tabs of one
+browser refresh one after another; where Web Locks are unavailable (an insecure origin
+such as a LAN IP over plain http) it runs directly.
 
 ---
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { refreshAccessToken, validateAccessToken } from "@/lib/auth-public"
 import { useAuthStore, type AuthPayload } from "@/store/auth"
+import { setDemoSession } from "@/lib/demo/flag"
 
 vi.mock("@/lib/auth-public", () => ({
   refreshAccessToken: vi.fn(),
@@ -50,6 +51,8 @@ describe("auth store", () => {
   })
 
   afterEach(() => {
+    // Cancels this tab's scheduled refresh, so no timer outlives its test.
+    useAuthStore.getState().clearAuth(true)
     vi.useRealTimers()
   })
 
@@ -480,5 +483,79 @@ describe("auth store", () => {
     // derivedUser is undefined because required claims are missing;
     // existing user from setAuth should be preserved
     expect(useAuthStore.getState().user?.userId).toBe("user-1")
+  })
+})
+
+describe("scheduled token refresh", () => {
+  const MINUTE = 60 * 1000
+  const inMinutes = (minutes: number) => authToken({ exp: Math.floor(Date.now() / 1000) + minutes * 60 })
+
+  beforeEach(() => {
+    sessionStorage.clear()
+    vi.clearAllMocks()
+    resetAuthState()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    useAuthStore.getState().clearAuth(true)
+    setDemoSession(false)
+    vi.useRealTimers()
+  })
+
+  it("is armed by a login without a reload", async () => {
+    vi.mocked(refreshAccessToken).mockResolvedValue({ accessToken: inMinutes(60) })
+    useAuthStore.getState().setAuth({ accessToken: inMinutes(10) })
+
+    await vi.advanceTimersByTimeAsync(5 * MINUTE)
+
+    expect(refreshAccessToken).toHaveBeenCalledOnce()
+  })
+
+  it("keeps exactly one refresh pending however often it is armed", async () => {
+    vi.mocked(refreshAccessToken).mockResolvedValue({ accessToken: inMinutes(60) })
+    useAuthStore.getState().setAuth({ accessToken: inMinutes(10) })
+    useAuthStore.getState().scheduleTokenRefresh()
+    useAuthStore.getState().scheduleTokenRefresh()
+
+    await vi.advanceTimersByTimeAsync(5 * MINUTE)
+
+    expect(refreshAccessToken).toHaveBeenCalledOnce()
+  })
+
+  it("schedules the next refresh after each successful one", async () => {
+    vi.mocked(refreshAccessToken).mockImplementation(async () => ({ accessToken: inMinutes(10) }))
+    useAuthStore.getState().setAuth({ accessToken: inMinutes(10) })
+
+    await vi.advanceTimersByTimeAsync(5 * MINUTE)
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(5 * MINUTE)
+    expect(refreshAccessToken).toHaveBeenCalledTimes(2)
+  })
+
+  it("stops on logout, including a retry already waiting after a failure", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined)
+    vi.mocked(refreshAccessToken).mockRejectedValue(new Error("refresh failed"))
+    useAuthStore.getState().setAuth({ accessToken: inMinutes(1) })
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(refreshAccessToken).toHaveBeenCalledOnce()
+
+    useAuthStore.getState().clearAuth(true)
+    await vi.advanceTimersByTimeAsync(30 * MINUTE)
+
+    expect(refreshAccessToken).toHaveBeenCalledOnce()
+    warn.mockRestore()
+  })
+
+  it("schedules nothing for the sandbox's seeded session", async () => {
+    setDemoSession(true)
+    useAuthStore.getState().setAuth({ accessToken: inMinutes(10) })
+
+    expect(useAuthStore.getState().scheduleTokenRefresh()).toBeUndefined()
+    await vi.advanceTimersByTimeAsync(60 * MINUTE)
+
+    expect(refreshAccessToken).not.toHaveBeenCalled()
   })
 })
