@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### ci: run frontend jobs on Node 22 LTS (2026-10-20)
+
+The CI, E2E and security workflows now install Node 22 instead of Node 20 for every
+frontend job. Node 20 left maintenance on 2026-04-30, and the reviewed Vitest 5 and
+jest-dom 7 updates declare Node 22 as their minimum. Local development already ran on
+Node 22.18; README and the getting-started guide state Node 22.12+ for development and CI.
+
 ### build(deps): integrate reviewed GitHub Actions updates (2026-10-20)
 
 Applied the five reviewed action PRs #125, #126, #127, #128 and #129 as direct

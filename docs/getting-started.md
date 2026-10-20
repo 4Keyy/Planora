@@ -7,7 +7,7 @@ This guide explains the supported local launch commands and first-user flow. The
 | Requirement | Recommended version | Used by |
 |---|---:|---|
 | .NET SDK | 10.x | backend services and xUnit tests |
-| Node.js | 20.9+ compatible with Next.js 16; CI requests 20 | frontend |
+| Node.js | 22.12+ for development and CI (Vitest 5 and jest-dom 7 require Node 22); the Next.js 16 runtime itself supports 20.9+; CI requests 22 | frontend |
 | npm | bundled with Node | frontend dependencies/scripts |
 | Docker Desktop | recent stable | PostgreSQL, Redis, RabbitMQ, optional backend containers |
 | PowerShell | 7.x recommended; Windows PowerShell can run the scripts when launcher/helper files remain ASCII-compatible | launch scripts |
@@ -15,7 +15,7 @@ This guide explains the supported local launch commands and first-user flow. The
 Evidence:
 
 - `Directory.Build.props` sets `TargetFramework` to `net10.0`.
-- `frontend/package.json` uses `next` `^16.2.9`, React `^18.3.1`, TypeScript `^5.7.2`. There is no `engines` field; CI installs Node 20.
+- `frontend/package.json` uses `next` `^16.2.9`, React `^18.3.1`, TypeScript `^5.7.2`. There is no `engines` field; CI installs Node 22.
 - `docker-compose.yml` defines PostgreSQL 16, Redis 7, RabbitMQ 3.13, and backend containers.
 - `Start-Planora-*.ps1` imports helper modules from `scripts/*.psm1`; those files avoid non-ASCII punctuation so Windows PowerShell can parse them reliably.
 

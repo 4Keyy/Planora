@@ -184,7 +184,7 @@ Backend package versions are managed centrally in
 ### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/) (the Windows launcher auto-installs a local copy if missing)
-- [Node.js 20.9+](https://nodejs.org/) & npm
+- [Node.js 22.12+](https://nodejs.org/) & npm (Vitest 5 and the test toolchain require Node 22)
 - [Docker & Docker Compose](https://docs.docker.com/)
 
 ### 1. Configure secrets
