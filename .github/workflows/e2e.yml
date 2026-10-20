@@ -36,8 +36,6 @@ jobs:
   auth-todos-sharing-hidden:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/planora-playwright-results.json
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -138,11 +136,16 @@ jobs:
           E2E_API_URL: http://127.0.0.1:5132
           E2E_FRONTEND_URL: http://127.0.0.1:3000
           E2E_MAILPIT_URL: http://127.0.0.1:8025
+          # The runner context exists only inside steps, so the report path is set per step:
+          # at job level it made GitHub reject the whole workflow file.
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/planora-playwright-results.json
 
       - name: Summarize Playwright skips and retries
         if: always()
         run: node e2e/_report-summary.cjs
         working-directory: frontend
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: ${{ runner.temp }}/planora-playwright-results.json
 
       - name: Stop frontend
         if: always()

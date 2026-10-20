@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(ci): GitHub accepts the E2E workflow again (2026-10-20)
+
+The E2E workflow set `PLAYWRIGHT_JSON_OUTPUT_FILE` from `${{ runner.temp }}` in the job's `env`,
+where the `runner` context does not exist, so GitHub rejected the whole file and every push to
+`main` showed a failed E2E run with no jobs. The path is now set on the two steps that use it, the
+Playwright run and its summary.
+
 ### docs(audit): record which findings are fixed and where (2026-10-20)
 
 The frontend audit's README gains a progress table: every finding fixed so far, what changed and the
