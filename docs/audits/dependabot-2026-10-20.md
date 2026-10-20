@@ -83,7 +83,7 @@ candidate manifests), on Windows with Node 22.18.0 and npm 10.9.3.
 The build reports two deprecations that do not fail it: React 18 support is
 deprecated in Next.js 16 and will be removed in Next.js 17, and the `middleware`
 file convention is deprecated in favour of `proxy`. Both are tracked in the
-frontend audit (`docs/audits/frontend-2026-10-20/`) rather than changed here.
+[frontend audit](frontend-2026-10-20/README.md) (FE-25, FE-27) rather than changed here.
 
 Not executed: Playwright E2E (needs the Docker stack) and backend tests (backend
 source and packages are untouched by these requests).

@@ -113,6 +113,17 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### docs(audit): frontend audit, remediation plan and target state (2026-10-20)
+
+Added the 2026-10-20 frontend audit under `docs/audits/frontend-2026-10-20/`: 35 verified
+findings with locations, fixes, risks, backend needs and tests; a phased remediation plan that
+keeps the user experience unchanged; measurable target-state criteria with a regression-control
+strategy; and four mechanical appendices prepared by Codex (inventory, API contract matrix,
+documentation accuracy, test catalog). No application code changed. The highest findings: the
+Tasks page loads at most 100 active tasks, saving the profile fails after an avatar upload,
+concurrent refreshes from several tabs can revoke every session, unit tests run React 18 while
+the App Router runs React 19, and E2E never runs automatically on `main`.
+
 ### build(deps): integrate frontend dependency updates #131, #132, #133 (2026-10-20)
 
 Next.js and eslint-config-next 16.4.2, Radix Dropdown Menu 2.2.1 and Popover 1.3.1,

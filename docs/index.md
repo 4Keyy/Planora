@@ -15,6 +15,12 @@ The [2026-10-06 Dependabot integration review](audits/dependabot-2026-10-06.md)
 records the six merged requests, preserved source, dependency versions and
 remaining audit/E2E limits.
 
+The [2026-10-20 frontend audit](audits/frontend-2026-10-20/README.md) (in Russian) rates the
+frontend by area, lists 35 verified findings with fixes, and sets a phased remediation plan and
+measurable target-state criteria; the user experience is treated as frozen. The
+[2026-10-20 Dependabot integration review](audits/dependabot-2026-10-20.md) records the eight
+requests applied to `main`, the Node 22 CI switch and every check that ran.
+
 ## Pick your reading path
 
 | Reader | Start here | Then read |
