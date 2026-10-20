@@ -34,6 +34,7 @@ import { Enter, SkeletonSwap } from "@/components/animated/entrance"
 import { TASK_GRID_BREAKPOINTS, TASK_GRID_COLUMNS } from "@/lib/task-grid"
 import { CreatePlatePlaceholder } from "@/components/todos/plate-placeholder"
 import { sortTasks, getTaskWeight } from "@/utils/sort-tasks"
+import { calendarDayOf, localDay } from "@/lib/calendar-date"
 import { applyCategoryPatch } from "@/utils/todo-utils"
 import { TodoSkeleton } from "@/components/todos/todo-skeleton"
 import { StatusPanel } from "@/components/ui/status-panel"
@@ -406,22 +407,18 @@ export default function DashboardPage() {
    * numbers cannot disagree with the cards underneath them.
    */
   const heroStats = useMemo(() => {
-    const endOfToday = new Date()
-    endOfToday.setHours(23, 59, 59, 999)
-    const startOfToday = new Date()
-    startOfToday.setHours(0, 0, 0, 0)
+    // Due dates are calendar days; "today" is the viewer's own (lib/calendar-date).
+    const today = localDay()
 
     let overdue = 0
     let dueToday = 0
     let shared = 0
 
     for (const t of activeTodos) {
-      if (t.dueDate) {
-        const due = new Date(t.dueDate)
-        if (!Number.isNaN(due.getTime())) {
-          if (due < startOfToday) overdue++
-          else if (due <= endOfToday) dueToday++
-        }
+      const dueDay = calendarDayOf(t.dueDate)
+      if (dueDay) {
+        if (dueDay < today) overdue++
+        else if (dueDay === today) dueToday++
       }
       if (t.isPublic || (t.sharedWithUserIds?.length ?? 0) > 0) shared++
     }

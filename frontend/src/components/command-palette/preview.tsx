@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/avatar"
 import { Kbd } from "@/components/ui/shortcuts-overlay"
 import { PriorityMeter } from "@/components/ui/priority-meter"
 import { formatDateLong } from "@/lib/datetime"
+import { formatDay } from "@/lib/calendar-date"
 import { ICON_MAP } from "@/lib/icon-map"
 import { cn } from "@/lib/utils"
 import { AudienceMark, DUE_TONE, TONE_GLYPH, TaskGlyph, VEIL_BLUR, VIEW_GLYPH, tint } from "./rows"
@@ -49,7 +50,8 @@ function dueSentence(task: PaletteTask, now: Date): ReactNode {
   if (!task.dueDate) return <span className="text-ink-muted">No deadline</span>
   const days = daysFromToday(task.dueDate, now)
   const due = describeDue(task, now)
-  const date = formatDateLong(task.dueDate)
+  // The long form of the day the task is due — the same day in every time zone.
+  const date = formatDay(task.dueDate, { day: "numeric", month: "long", year: "numeric" })
   if (days === null || !due) return date
   const relative =
     days < 0 ? `${-days} ${days === -1 ? "day" : "days"} late`

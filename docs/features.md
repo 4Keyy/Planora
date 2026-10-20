@@ -544,7 +544,10 @@ ghost cap, and the in-range day labels are all gray, so the calendar stays monoc
 using a colored (previously indigo) accent. Quick-picks (Today/Tomorrow/…) always set a single date. The popover/inline calendar
 closes on terminal selections (a quick-pick, a completed interval, or a clear) but stays open after
 the first single pick so the interval can be built in one go. Task cards render an interval as
-`start → deadline`; overdue is judged on the deadline either way.
+`start → deadline`; overdue is judged on the deadline either way. A task's dates are calendar
+days in every time zone: the card, the palette and the dashboard figures show and compare the
+day the person picked, against the viewer's own today, and "Today"/"Tomorrow" in the picker are
+the viewer's local days (`lib/calendar-date.ts`).
 
 The editor seeds its local fields from the task **once per task** (`todo.id`), not on every prop
 update — so on the page (where the parent feeds the saved task back after autosave) the controls

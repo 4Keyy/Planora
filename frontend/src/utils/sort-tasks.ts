@@ -4,6 +4,7 @@
  */
 
 import { TodoPriority } from "@/types/todo"
+import { addDays, calendarDayOf, endOfWeek, localDay, type CalendarDay } from "@/lib/calendar-date"
 
 /** Where a task sorts: compared element by element, smaller first. See `ownKey`. */
 export type SortKey = readonly number[]
@@ -82,10 +83,9 @@ function parseCompleted(task: SortableTask): number {
   return isNaN(d.getTime()) ? 0 : d.getTime()
 }
 
-function todayStart(): Date {
-  const n = new Date()
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate())
-}
+// "Today" is the viewer's local calendar day; a due date is the calendar day it names
+// (lib/calendar-date) — read in local time it fell a day early west of UTC.
+const todayStart = (): CalendarDay => localDay()
 
 // ─── date bucket ──────────────────────────────────────────────────────────────
 // 0 = overdue          (due < today)          → most overdue first
@@ -95,35 +95,15 @@ function todayStart(): Date {
 // 4 = future           (beyond this week)     → soonest first
 // 5 = no due date      → sorted by priority only
 
-function dateBucket(due: Date | null, today: Date): number {
-  if (!due) return 5
-
-  // Normalise the due date to midnight local so we can compare dates only
-  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate())
+function dateBucket(due: Date | null, today: CalendarDay): number {
+  const dueDay = calendarDayOf(due)
+  if (!dueDay) return 5
 
   if (dueDay < today) return 0 // overdue
-
-  // tomorrow = today + 1 day
-  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
-
-  if (dueDay.getTime() === today.getTime()) return 1 // today
-  if (dueDay.getTime() === tomorrow.getTime()) return 2 // tomorrow
-
-  // End of the current calendar week (Sunday), using Mon = start of week.
-  // today.getDay(): 0=Sun,1=Mon,...,6=Sat
-  // Days remaining until (and including) Sunday of this week (Mon–Sun):
-  //   if today is Sunday (0): days until Sunday = 0 → endOfWeek = today
-  //   if today is Monday (1): days until Sunday = 6
-  //   if today is Saturday (6): days until Sunday = 1
-  const daysUntilSunday = (7 - today.getDay()) % 7
-  const endOfWeek = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate() + daysUntilSunday
-  )
-
-  if (dueDay <= endOfWeek) return 3 // this week (after tomorrow, within week)
-
+  if (dueDay === today) return 1 // today
+  if (dueDay === addDays(today, 1)) return 2 // tomorrow
+  // The rest of the current Monday-to-Sunday week, after tomorrow.
+  if (dueDay <= endOfWeek(today)) return 3
   return 4 // future
 }
 
@@ -131,7 +111,7 @@ function dateBucket(due: Date | null, today: Date): number {
 // Working tasks lead within their band and visibility group; date buckets and priority
 // retain the smart order, with newer creation times breaking otherwise equal keys.
 
-function sortKey(task: SortableTask, today: Date): [number, number, number, number, number] {
+function sortKey(task: SortableTask, today: CalendarDay): [number, number, number, number, number] {
   const due       = parseDue(task)
   const db        = dateBucket(due, today)
   const dateMs    = due ? due.getTime() : Infinity
@@ -153,7 +133,7 @@ function sortKey(task: SortableTask, today: Date): [number, number, number, numb
  * Urgent, the way the card draws it: its red frame. The server's flag when there is one (a
  * hidden task has nothing else), otherwise the card's own rule — Urgent, overdue or due today.
  */
-function taskIsUrgent(task: SortableTask, today: Date): boolean {
+function taskIsUrgent(task: SortableTask, today: CalendarDay): boolean {
   if (taskIsCompleted(task)) return false
   if (task.isVisuallyUrgent != null) return task.isVisuallyUrgent
   return priorityRank(task) === 0 || dateBucket(parseDue(task), today) <= 1
@@ -164,7 +144,7 @@ function taskIsUrgent(task: SortableTask, today: Date): boolean {
 // separates tasks within a band, so hidden urgency stays ahead of open High tasks.
 
 /** A task's own place: band, hidden flag, then smart key; completed tasks form the last band. */
-function ownKey(task: SortableTask, today: Date): SortKey {
+function ownKey(task: SortableTask, today: CalendarDay): SortKey {
   if (taskIsCompleted(task)) return [4, 0, -parseCompleted(task)]
   const band = taskIsUrgent(task, today) ? 0
     : priorityRank(task) <= 1 ? 1
@@ -184,7 +164,7 @@ function compareKeys(a: SortKey, b: SortKey): number {
 }
 
 /** The key a task is placed by: its own, unless it still holds the place it was opened in. */
-function placeKey(task: SortableTask, today: Date): SortKey {
+function placeKey(task: SortableTask, today: CalendarDay): SortKey {
   const key = ownKey(task, today)
   const held = task.heldPlace
   return held && sameKey(key, held.open) ? held.place : key

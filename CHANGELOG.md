@@ -113,6 +113,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(dates): a task's due day is the same day in every time zone (2026-10-20)
+
+The editor stores a due day as its midnight UTC, but cards, the task sort, the palette and the
+dashboard figures read that instant in local time. West of UTC the card showed Oct 20 for a task
+due Oct 21 and called it overdue a day early, tomorrow's tasks were sorted as today's, and the
+picker's "Today" used the UTC date, so after midnight in Moscow it picked yesterday. Task dates
+are now calendar days throughout (`lib/calendar-date.ts`): the stored instant's UTC date is the
+day, written in UTC, compared with the viewer's local day. Nothing changes where the two already
+agreed.
+
 ### fix(security): log failures without the request's bearer token (2026-10-20)
 
 Pages and libraries passed caught errors to `console.*` as they were, and an Axios error

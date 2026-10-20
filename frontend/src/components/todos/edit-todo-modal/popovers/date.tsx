@@ -7,6 +7,7 @@ import { motion } from "@/components/ui/motion"
 import { SPRING_STANDARD, TWEEN_FAST, TWEEN_UI } from "@/lib/animations"
 import { Popover, PopoverHeader } from "../popover"
 import { EN_MONTHS_LONG, EN_DAYS_SHORT, computeNextDueRange, type DueRange } from "../utils"
+import { addDays, calendarDayOf, localDay } from "@/lib/calendar-date"
 
 interface DatePopoverProps {
   open: boolean
@@ -34,15 +35,9 @@ interface DatePopoverProps {
 const CELL_GAP = 2
 
 function pad(n: number): string { return String(n).padStart(2, "0") }
-function toISO(d: Date): string { return d.toISOString().split("T")[0] }
-
-function addDays(base: string | null, n: number): string {
-  const d = base ? new Date(base) : new Date()
-  d.setDate(d.getDate() + n)
-  return toISO(d)
-}
-
-function todayISO(): string { return toISO(new Date()) }
+// The viewer's own calendar day. `toISOString` gave the UTC date: from midnight until 03:00 in
+// Moscow "Today" picked yesterday, and late in the evening west of UTC it picked tomorrow.
+function todayISO(): string { return localDay() }
 
 export function DatePopover({ open, onClose, start, end, onChange, containerRef, readOnly, align = "left", portal }: DatePopoverProps) {
   return (
@@ -82,8 +77,10 @@ export function DateCalendar({ start, end, onChange, readOnly, autoClose, headle
   const reduce = useReducedMotion()
   const anchor    = end || start
   const nowDate   = new Date()
-  const initYear  = anchor ? new Date(anchor).getFullYear() : nowDate.getFullYear()
-  const initMonth = anchor ? new Date(anchor).getMonth()    : nowDate.getMonth()
+  // The anchor is a calendar day: read its year and month as written, not in local time.
+  const anchorDay = calendarDayOf(anchor || null)
+  const initYear  = anchorDay ? Number(anchorDay.slice(0, 4)) : nowDate.getFullYear()
+  const initMonth = anchorDay ? Number(anchorDay.slice(5, 7)) - 1 : nowDate.getMonth()
 
   const [viewYear,  setViewYear]  = useState(initYear)
   const [viewMonth, setViewMonth] = useState(initMonth)

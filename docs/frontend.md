@@ -90,6 +90,13 @@ Two consequences that bite:
   shared date-formatting helpers in `lib/datetime.ts` pin `en-US`. They do not pin
   the timezone; an instant near midnight can still format differently on server and
   client. Date pickers and completion windows intentionally use browser-local dates.
+- **A task's dates are calendar days, not instants** (`lib/calendar-date.ts`). The editor
+  stores a due day, an interval start or an expected day as its midnight UTC, so its UTC date
+  is the day the person picked. Read it with `calendarDayOf` and write it with `formatDay`
+  (which formats in UTC); compare it with `localDay()`, the viewer's own day. Read in local
+  time the stored instant fell on the evening before west of UTC: cards showed the wrong day
+  and called tasks overdue a day early. Real timestamps (created, completed, last login) keep
+  the local formatting of `lib/datetime.ts`.
 
 The route layouts own metadata and shared framing. Interactive route pages, controls,
 hooks and stores form explicit client boundaries. Do not infer the rendering model

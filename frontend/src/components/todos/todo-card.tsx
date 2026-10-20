@@ -9,7 +9,8 @@ import {
 import { ICON_MAP } from "@/lib/icon-map"
 import { Card, CardContent } from "@/components/ui/card"
 import { isTodoOwner, type Todo } from "@/types/todo"
-import { formatDate, isPastDate, truncateText, formatPublicName, cn } from "@/lib/utils"
+import { truncateText, formatPublicName, cn } from "@/lib/utils"
+import { calendarDayOf, formatDay, localDay } from "@/lib/calendar-date"
 import { useAuthStore } from "@/store/auth"
 import { useNotificationStore, useTaskUnread } from "@/store/notifications"
 import {
@@ -186,16 +187,11 @@ function TodoCardComponent({
   // An estimated-completion interval (start ≠ end) renders as a "start → deadline" range; a single
   // date renders alone. Overdue is judged on the deadline (dueDate / the later bound) either way.
   const hasDueRange = !!todo.dueDateStart && !!todo.dueDate && todo.dueDateStart !== todo.dueDate
-  const isDueOverdue = !isCompleted && todo.dueDate && isPastDate(todo.dueDate)
-  const isDueToday = !isCompleted && todo.dueDate
-    ? (() => {
-        const due = new Date(todo.dueDate)
-        const today = new Date()
-        due.setHours(0, 0, 0, 0)
-        today.setHours(0, 0, 0, 0)
-        return due.getTime() === today.getTime()
-      })()
-    : false
+  // A due date is a calendar day (lib/calendar-date): its own day against the viewer's today.
+  const dueDay = calendarDayOf(todo.dueDate)
+  const today = localDay()
+  const isDueOverdue = !isCompleted && dueDay !== null && dueDay < today
+  const isDueToday = !isCompleted && dueDay !== null && dueDay === today
   const fallbackIsShared = todo.isPublic || (todo.sharedWithUserIds?.length ?? 0) > 0
   const fallbackIsVisuallyUrgent = isUrgent || (isDueOverdue ?? false) || isDueToday
   const cardCategoryLabel = todo.categoryName?.trim() ? truncateText(todo.categoryName, 18) : "No category"
@@ -1115,10 +1111,10 @@ function TodoCardComponent({
                         {hasDueRange ? (
                           // hasDueRange guarantees both bounds are set, so the assertions are safe.
                           <span className="tabular-nums text-ink">
-                            {formatDate(todo.dueDateStart!)} – {formatDate(todo.dueDate!)}
+                            {formatDay(todo.dueDateStart, SHORT_DAY)} – {formatDay(todo.dueDate, SHORT_DAY)}
                           </span>
                         ) : (
-                          <span className="tabular-nums text-ink">{formatDate(todo.dueDate || "")}</span>
+                          <span className="tabular-nums text-ink">{formatDay(todo.dueDate, SHORT_DAY)}</span>
                         )}
                       </span>
                       {isDueOverdue && <span className="whitespace-nowrap font-semibold text-alert">Overdue</span>}
@@ -1129,7 +1125,7 @@ function TodoCardComponent({
                       {todo.expectedDate && (
                         <span className={CHIP_CLASS}>
                           <Clock className="h-3 w-3" aria-hidden="true" />
-                          <span className="tabular-nums">Expected {formatDate(todo.expectedDate)}</span>
+                          <span className="tabular-nums">Expected {formatDay(todo.expectedDate, SHORT_DAY)}</span>
                         </span>
                       )}
                       {todo.delay && (
@@ -1181,6 +1177,9 @@ function TodoCardComponent({
  * older closure still operates on current data — the closure identity is
  * irrelevant to correctness, and including it would defeat the memo entirely.
  */
+/** "Oct 21" — how a card writes a task date. */
+const SHORT_DAY: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }
+
 export const TodoCard = memo(
   TodoCardComponent,
   /*

@@ -1,6 +1,6 @@
 import { isCompletedTodoStatus, toApiTodoStatus, type Todo } from "@/types/todo"
 import { getPriorityNumber } from "@/components/todos/edit-todo-modal/utils"
-import { UI_LOCALE } from "@/lib/datetime"
+import { calendarDayOf, daysBetween, formatDay, localDay } from "@/lib/calendar-date"
 
 /**
  * The palette's search, as plain functions: folding, fuzzy matching with the
@@ -246,17 +246,13 @@ export function matchTask(task: PaletteTask, tokens: string[]): TaskMatch | null
 
 // ─── Dates ──────────────────────────────────────────────────────────────────
 
-const DAY_MS = 24 * 60 * 60 * 1000
 
-function startOfLocalDay(date: Date): number {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
-}
 
 /** Calendar days from today to `iso` in the reader's time zone: 0 today, -1 yesterday. */
 export function daysFromToday(iso: string, now: Date): number | null {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return null
-  return Math.round((startOfLocalDay(date) - startOfLocalDay(now)) / DAY_MS)
+  // A due date is a calendar day; "today" is the viewer's own (lib/calendar-date).
+  const day = calendarDayOf(iso)
+  return day === null ? null : daysBetween(localDay(now), day)
 }
 
 export type DueTone = "alert" | "warn" | "muted"
@@ -275,9 +271,8 @@ export function describeDue(task: Pick<PaletteTask, "dueDate" | "completed">, no
   if (days === -1) return { label: "Yesterday", tone: "alert" }
   if (days === 0) return { label: "Today", tone: "warn" }
   if (days === 1) return { label: "Tomorrow", tone: "warn" }
-  const date = new Date(task.dueDate)
-  if (days < 7) return { label: date.toLocaleDateString(UI_LOCALE, { weekday: "short" }), tone: "muted" }
-  return { label: date.toLocaleDateString(UI_LOCALE, { month: "short", day: "numeric" }), tone: "muted" }
+  if (days < 7) return { label: formatDay(task.dueDate, { weekday: "short" }), tone: "muted" }
+  return { label: formatDay(task.dueDate, { month: "short", day: "numeric" }), tone: "muted" }
 }
 
 // ─── Smart views ────────────────────────────────────────────────────────────
