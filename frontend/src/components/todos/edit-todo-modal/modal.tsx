@@ -394,6 +394,7 @@ export function TodoEditor({
         style={{ ...box, resize: "none", fontFamily: "inherit", overflow: "hidden" }}
       />
     ) : (
+      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- a pointer shortcut into title editing; from the keyboard, E on a focused task opens the editor in it (openInTitleEdit)
       <h1
         ref={titleH1Ref}
         onClick={() => isOwner && setEditingTitle(true)}
@@ -692,6 +693,7 @@ export function EditTodoModal(props: EditTodoModalProps) {
   return (
     <ModalPortal>
       <div
+        role="presentation"
         className="fixed inset-0 z-modal flex items-center justify-center p-4"
         onClick={props.onClose}
       >

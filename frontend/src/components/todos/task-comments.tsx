@@ -186,6 +186,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                 onChange={(e) => setEditContent(e.target.value)}
                 className="text-body-sm min-h-[80px] resize-none bg-paper/70 border-line-strong rounded-lg leading-relaxed"
                 maxLength={TASK_DESCRIPTION_MAX}
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- the edit box replaces the text the person chose to edit, and focus follows it
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleEditSave(genesis.id)
@@ -292,6 +293,7 @@ export function TaskComments({ todoId, isOwner, canComment, refreshKey }: TaskCo
                       onChange={(e) => setEditContent(e.target.value)}
                       className="text-caption min-h-[60px] resize-none"
                       maxLength={COMMENT_MAX}
+                      // eslint-disable-next-line jsx-a11y/no-autofocus -- the edit box replaces the text the person chose to edit, and focus follows it
                       autoFocus
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleEditSave(c.id)

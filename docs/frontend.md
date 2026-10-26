@@ -496,6 +496,21 @@ component that animates its own arrival must stand down inside one that does
 content of a control needs `aria-label` on the control — `title` is not an accessible
 name, because several screen readers do not announce it and it never appears on touch.
 
+### Accessibility lint
+
+`npm run lint` checks `src/**` with `eslint-plugin-jsx-a11y`'s recommended rules and allows no
+warning (`--max-warnings 0`, which CI runs too). A rule is set aside only on one element, with an
+`eslint-disable-next-line` that names the rule and says why: focus that follows a step or an edit
+box the person just asked for (`autoFocus` on the sign-in code and on comment edits), the command
+palette's options (a combobox keeps focus in its field and points at the row with
+`aria-activedescendant`), keys that bubble up through the category dialog's list from its rows,
+the editor title's pointer shortcut (the keyboard's is E on a focused task), and the Custom colour
+swatch — one of the colour radios that also says whether the wheel is open, which no ARIA role
+covers. A wrapper that only stops a click from reaching the card behind it is
+`role="presentation"`, and a caption over a row of buttons names a `role="group"`, not a
+`<label>`. Tests are linted too, with a lighter profile: hook rules and unused code count; `any` in
+a test double and the markup rules do not.
+
 ---
 
 ## 9. Testing
@@ -503,6 +518,7 @@ name, because several screen readers do not announce it and it never appears on 
 | Suite | Command | Covers |
 |---|---|---|
 | Unit + component | `npm --prefix frontend run test:coverage` | V8 gate: ≥85% statements, branches, functions and lines in the included source scope |
+| Lint | `npm --prefix frontend run lint` | ESLint with jsx-a11y on `src/**` and the light test profile; no warning allowed |
 | Design-system contract | `src/test/quality/design-tokens.contract.test.ts` | The five rules, read from source |
 | Usability contract | `src/test/quality/usability-contract.test.tsx` | Copy and affordances that must not regress |
 | Dead-CSS scan | `node docs/ui-audit/tools/class-audit.mjs` | Classes that emit no rule. **Needs a build first** |
@@ -661,7 +677,7 @@ Two traps this machine has hit before, recorded in
 
 ## 12. The checklist before a frontend commit
 
-1. `npx tsc --noEmit` — clean.
+1. `npx tsc --noEmit` and `npm run lint` — clean, with no warning.
 2. `npm run build` — clean.
 3. `npm run test:coverage` — green across all four configured 85% thresholds.
 4. `node ../docs/ui-audit/tools/class-audit.mjs` — every class emits a rule.

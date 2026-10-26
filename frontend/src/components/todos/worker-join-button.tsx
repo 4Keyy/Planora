@@ -42,6 +42,7 @@ export function WorkerJoinButton({
     return (
       <div
         {...hoverProps}
+        role="presentation"
         className="flex items-center border-t border-accent-surface bg-accent-surface/70 px-4 py-2.5"
         onClick={(e) => e.stopPropagation()}
       >
@@ -65,6 +66,7 @@ export function WorkerJoinButton({
   if (isFull) {
     return (
       <div
+        role="presentation"
         className="flex items-center gap-1.5 border-t border-line bg-paper-sunken/40 px-4 py-2.5 text-ink-subtle"
         onClick={(e) => e.stopPropagation()}
       >

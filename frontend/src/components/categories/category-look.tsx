@@ -112,6 +112,7 @@ export function ColourField({
             </motion.button>
           )
         })}
+        {/* eslint-disable-next-line jsx-a11y/role-supports-aria-props -- this swatch is one of the colour radios and also opens the wheel, and ARIA has no role that is both; giving it another role is a design decision, not a lint fix */}
         <motion.button
           type="button"
           role="radio"

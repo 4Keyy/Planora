@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### chore(lint): accessibility rules in ESLint, and no warning passes (2026-10-27)
+
+ESLint now runs jsx-a11y's recommended rules on the app, lints the tests with a lighter profile and
+fails on any warning. The two filter captions of the advanced search name their button groups
+instead of being labels for nothing, and the rest of what it found is either fixed without a visible
+change or set aside on one element with the reason written next to it.
+
 ### fix(ci): the E2E suite finishes inside its time limit and shows its progress (2026-10-26)
 
 No E2E run on `main` had finished: the single job reached its 30-minute limit about half-way

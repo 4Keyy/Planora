@@ -285,6 +285,7 @@ export default function LoginPage() {
                     onComplete={(full) => void submit(full)}
                     invalid={Boolean(codeError)}
                     aria-describedby={codeError ? codeHintId : undefined}
+                    // eslint-disable-next-line jsx-a11y/no-autofocus -- the code step replaces the form the person just submitted, and focus follows it
                     autoFocus
                   />
                   {codeError ? (
@@ -306,6 +307,7 @@ export default function LoginPage() {
                       autoComplete="one-time-code"
                       autoCapitalize="characters"
                       spellCheck={false}
+                      // eslint-disable-next-line jsx-a11y/no-autofocus -- the code step replaces the form the person just submitted, and focus follows it
                       autoFocus
                     />
                   )}

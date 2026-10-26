@@ -606,6 +606,7 @@ function CategoryTasks({
             hint="Put a task in it from the task's editor or the New task panel, and it shows up here."
           />
         ) : (
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- keys bubble up from the focusable rows inside, which the arrows move between; the list itself never takes focus
           <div
             ref={listRef}
             role="list"

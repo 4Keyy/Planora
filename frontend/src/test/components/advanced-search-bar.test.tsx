@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { AdvancedSearchBar } from "@/components/todos/advanced-search-bar"
 import { TodoPriority, TodoStatus, type Todo } from "@/types/todo"
@@ -103,6 +103,19 @@ describe("AdvancedSearchBar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }))
 
     expect(defaultProps.onChange).toHaveBeenCalledWith("")
+  })
+
+  // FE-28: the captions name their groups of buttons; as <label>s they named no control at all.
+  it("names the priority and category groups by their captions", () => {
+    render(<AdvancedSearchBar {...defaultProps} />)
+
+    fireEvent.click(screen.getByRole("button", { name: /Advanced/ }))
+
+    const priority = screen.getByRole("group", { name: "Priority" })
+    expect(within(priority).getByRole("button", { name: "Urgent" })).toBeInTheDocument()
+    const category = screen.getByRole("group", { name: "Category" })
+    expect(within(category).getByRole("button", { name: /Home/ })).toBeInTheDocument()
+    expect(document.querySelector("label")).toBeNull()
   })
 
   it("loads recent searches defensively from localStorage", () => {

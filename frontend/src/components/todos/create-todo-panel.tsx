@@ -441,6 +441,8 @@ export function CreateTodoPanel({
     }
     window.addEventListener("keydown", handler, true)
     return () => window.removeEventListener("keydown", handler, true)
+    // handleSubmit and onToggle are new on every render; the listed values are the state they
+    // read, so the listener is bound again whenever that state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, title, description, priority, dueDate, dueDateStart, categoryId, isPublic, selectedFriendIds, creating, openPopover])
 

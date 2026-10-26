@@ -3082,6 +3082,7 @@ function MessageItem({
             value={editContent}
             onChange={(e) => onEditContentChange(e.target.value)}
             maxLength={COMMENT_MAX}
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- the edit box replaces the text the person chose to edit, and focus follows it
             autoFocus
             rows={2}
             onKeyDown={(e) => {

@@ -99,6 +99,7 @@ export const OneTimeCodeInput = forwardRef<HTMLInputElement, OneTimeCodeInputPro
         }}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- the caller's choice, passed through: sign-in sets it when the code step appears
         autoFocus={autoFocus}
         inputMode="numeric"
         autoComplete="one-time-code"

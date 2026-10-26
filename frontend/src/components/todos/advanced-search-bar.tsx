@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react"
+import { useState, useCallback, useMemo, useEffect, useId, useRef } from "react"
 import { AnimatePresence } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import { Search, X, Command, Zap, Clock, AlertCircle } from "lucide-react"
@@ -52,6 +52,7 @@ export function AdvancedSearchBar({
   currentCategory,
 }: AdvancedSearchBarProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const filterId = useId()
   const [debouncedSearch, setDebouncedSearch] = useState(value)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -158,8 +159,8 @@ export function AdvancedSearchBar({
           >
             {/* Priority Filter */}
             <div>
-              <label className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Priority</label>
-              <div className="flex flex-wrap gap-2 mt-2">
+              <span id={`${filterId}-priority`} className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Priority</span>
+              <div role="group" aria-labelledby={`${filterId}-priority`} className="flex flex-wrap gap-2 mt-2">
                 {PRIORITY_OPTIONS.map((priority) => (
                   <motion.button
                     key={priority.value}
@@ -181,8 +182,8 @@ export function AdvancedSearchBar({
             {/* Category Filter */}
             {categories.length > 0 && (
               <div>
-                <label className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Category</label>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <span id={`${filterId}-category`} className="text-caption font-semibold text-ink-muted uppercase tracking-wider">Category</span>
+                <div role="group" aria-labelledby={`${filterId}-category`} className="flex flex-wrap gap-2 mt-2">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     onClick={() => onCategoryChange("all")}

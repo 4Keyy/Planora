@@ -228,6 +228,7 @@ const Option = memo(function Option({ item, index, id, active, revealed, now, na
   const opensElsewhere = item.action.type === "open-task" || item.action.type === "navigate"
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- the combobox pattern: focus stays in the search field, which takes the keys and points at this row with aria-activedescendant
     <div
       id={id}
       role="option"

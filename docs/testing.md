@@ -816,6 +816,9 @@ compares Kiritimati (UTC+14) with UTC-12, whose calendar days are always at leas
   zod back into every page's first-load JS, which the advisory bundle budget would only report.
   The interceptor's first contract check waits for the schemas to load, so
   `frontend/src/test/lib/api-interceptors.test.ts` waits for its report with `vi.waitFor`.
+- `npm run lint` covers `frontend/src/test/**` as well, with a lighter profile: hook rules and
+  unused imports or variables count, `@typescript-eslint/no-explicit-any` and the jsx-a11y rules
+  do not. Any warning fails the script (`--max-warnings 0`) and so the CI lint step.
 - The suite runs on React 19 (`react`, `react-dom` 19.3, `@types/react*` 19.3) — the major the App
   Router ships with (Next.js 16 bundles a React 19.3 canary for it). Until 2026-10-26 the tests ran
   on React 18.3 while users got React 19, so a test could pass against behaviour production does

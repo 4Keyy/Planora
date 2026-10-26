@@ -7,7 +7,6 @@ import { EditTodoModal } from "@/components/todos/edit-todo-modal"
 import { TodoCard } from "@/components/todos/todo-card"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
-import type { FriendDto } from "@/types/auth"
 import type { Category } from "@/types/category"
 import { TodoPriority, TodoStatus, type Todo } from "@/types/todo"
 import {
