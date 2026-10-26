@@ -113,6 +113,12 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(todos): the New task request sends only what the server reads (2026-10-26)
+
+Creating a task sent an empty `tags` list that the create command does not have and so silently
+dropped. The field is gone from the request type and the panel, and a contract test now fails when
+the create or update request carries a field its C# command does not bind.
+
 ### fix(gateway): the admin user list is reachable through the gateway (2026-10-26)
 
 The profile page's admin section reads `GET /auth/api/v1/users`, but the gateway only routed

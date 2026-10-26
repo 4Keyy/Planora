@@ -114,6 +114,24 @@ describe("response contracts match the server's DTOs", () => {
     expect(pushed.sort()).toEqual(read.sort())
   })
 
+  // FE-11 (API-11): a field the client writes that the command does not have is dropped by model
+  // binding without a word — the create payload carried `tags`, which nothing ever stored.
+  it.each([
+    { type: "CreateTodoPayload", command: "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/CreateTodo/CreateTodoCommand.cs" },
+    { type: "UpdateTodoPayload", command: "Services/TodoApi/Planora.Todo.Application/Features/Todos/Commands/UpdateTodo/UpdateTodoCommand.cs" },
+  ])("$type writes only fields the command binds", ({ type, command }) => {
+    const types = source("frontend/src/types/todo.ts")
+    const block = types.slice(types.indexOf(`export type ${type} = {`))
+    const written = [...block.slice(0, block.indexOf("\n}")).matchAll(/^ {2}(\w+)\??:/gm)].map((m) => m[1])
+
+    const record = source(command)
+    const parameters = [...record.slice(record.indexOf("record "), record.indexOf(") : ICommand")).matchAll(/^\s*[\w<>?,\s]+?\s(\w+)(?:\s*=[^,\n]*)?,?\s*$/gm)]
+      .map((m) => m[1][0].toLowerCase() + m[1].slice(1))
+
+    expect(written.length).toBeGreaterThan(5)
+    expect(written.filter((field) => !parameters.includes(field))).toEqual([])
+  })
+
   it("the endpoints still return these DTOs", () => {
     const todos = source("Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs")
     expect(todos).toMatch(/\[HttpGet\]\s*(?:\[[^\]]+\]\s*)*public async Task<ActionResult<PagedResult<TodoItemDto>>> GetTodos\(/)

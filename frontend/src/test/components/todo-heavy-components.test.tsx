@@ -596,7 +596,6 @@ describe("CreateTodoPanel", () => {
       priority: 4,
       isPublic: true,
       sharedWithUserIds: [],
-      tags: [],
       requiredWorkers: null,
     })
     await waitFor(() => expect(screen.getByPlaceholderText("What needs to be done?")).toHaveValue(""))

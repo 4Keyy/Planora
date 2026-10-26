@@ -189,7 +189,6 @@ export type CreateTodoPayload = {
   priority?: number
   isPublic?: boolean
   sharedWithUserIds?: string[]
-  tags?: string[]
   requiredWorkers?: number | null
 }
 

@@ -408,7 +408,6 @@ export function CreateTodoPanel({
         priority: getPriorityNumber(priority),
         isPublic,
         sharedWithUserIds: selectedFriendIds,
-        tags: [],
         // Auto-set capacity = author + selected friends; unlimited for public-only tasks
         requiredWorkers: selectedFriendIds.length > 0 ? 1 + selectedFriendIds.length : null,
       })
