@@ -171,7 +171,8 @@ The refresh-cookie path remains scoped to Auth's `/auth/api/v1/auth` path.
 
 ### CSP and per-request rendering
 
-`frontend/src/middleware.ts` mints a fresh nonce per request, sets the CSP on both the
+`frontend/src/proxy.ts` (Next.js 16's proxy, formerly `middleware.ts`) mints a fresh nonce per
+request, sets the CSP on both the
 **request** headers (Next.js reads it there to stamp the nonce onto its own inline bootstrap
 scripts) and the **response** headers (the browser enforces it). Production `script-src` is
 `'self' 'nonce-…'` with no `'unsafe-inline'`; `style-src` keeps `'unsafe-inline'` because

@@ -248,7 +248,7 @@ Critical files:
 | Path | Purpose |
 |---|---|
 | `frontend/src/app` | Next.js App Router routes; `layout.tsx` declares `force-dynamic` for the whole tree |
-| `frontend/src/middleware.ts` | mints the per-request CSP nonce and forwards it as `x-nonce` |
+| `frontend/src/proxy.ts` | the Next.js proxy: mints the per-request CSP nonce and forwards it as `x-nonce` |
 | `frontend/src/components/ui` | the primitives. Nothing here knows what a task is |
 | `frontend/src/components/todos` | the task domain: cards, the create panel, the editor, the branch feed |
 | `frontend/src/components/layout` | `app-shell.tsx` — the signed-in frame (the bar, `<main id="main">`, the column); `droplet.tsx` — `DropletFrame`, the floating capsule every bar is drawn as, with `useDropletScroll` and `useIsPhone`; `navbar.tsx` — the app's droplet bar (tabs, search, notifications, account, the phone menu); `page-header.tsx` — every page's title row |

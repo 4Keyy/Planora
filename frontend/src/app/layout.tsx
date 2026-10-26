@@ -94,8 +94,8 @@ export const viewport: Viewport = {
   themeColor: "var(--pl-paper)",
 }
 
-// Render every route per-request so the CSP middleware's per-request nonce
-// (src/middleware.ts) is applied to Next.js inline scripts. A statically
+// Render every route per-request so the CSP proxy's per-request nonce
+// (src/proxy.ts) is applied to Next.js inline scripts. A statically
 // prerendered page cannot carry a per-request nonce, which would leave the
 // strict script-src blocking the framework's own bootstrap scripts.
 //

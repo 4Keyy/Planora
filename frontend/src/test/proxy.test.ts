@@ -1,15 +1,15 @@
 import { describe, it, expect, afterEach, vi } from "vitest"
 import { NextRequest } from "next/server"
-import { middleware } from "@/middleware"
+import { proxy } from "@/proxy"
 
 function cspFor(path: string): string {
-  const res = middleware(new NextRequest(`http://localhost:3000${path}`))
+  const res = proxy(new NextRequest(`http://localhost:3000${path}`))
   const csp = res.headers.get("content-security-policy")
   expect(csp).toBeTruthy()
   return csp as string
 }
 
-describe("CSP middleware", () => {
+describe("CSP proxy", () => {
   afterEach(() => {
     vi.unstubAllEnvs()
   })
@@ -69,7 +69,7 @@ describe("CSP middleware", () => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "http://192.168.42.19:5132")
     // `next start -H 0.0.0.0`: the server URL is the bind/LAN host, but the browser sent
     // Host: localhost:3000. The CSP must follow the browser's host (where getApiBaseUrl points).
-    const res = middleware(
+    const res = proxy(
       new NextRequest("http://192.168.42.19:3000/auth/login", { headers: { host: "localhost:3000" } }),
     )
     const csp = res.headers.get("content-security-policy") as string
@@ -83,7 +83,7 @@ describe("CSP middleware", () => {
   it("limits production images to the app, data: and the gateway", () => {
     vi.stubEnv("NODE_ENV", "production")
     vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.planora.example")
-    const publicCsp = middleware(
+    const publicCsp = proxy(
       new NextRequest("https://app.planora.example/", { headers: { host: "app.planora.example" } }),
     ).headers.get("content-security-policy")
     expect(publicCsp).toMatch(/img-src 'self' data: https:\/\/api\.planora\.example(?:;|$)/)
@@ -134,7 +134,7 @@ describe("CSP middleware", () => {
   })
 
   it("returns the Content-Security-Policy header on the response", () => {
-    const res = middleware(new NextRequest("http://localhost:3000/tasks"))
+    const res = proxy(new NextRequest("http://localhost:3000/tasks"))
     expect(res.headers.get("content-security-policy")).toContain("script-src")
   })
 })

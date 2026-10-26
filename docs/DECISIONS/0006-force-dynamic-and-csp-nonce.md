@@ -7,7 +7,8 @@
 ## Context
 
 `frontend/src/app/layout.tsx` exports `dynamic = "force-dynamic"` for the App
-Router tree. `frontend/src/middleware.ts` creates a new base64 nonce from a
+Router tree. `frontend/src/proxy.ts` (named `middleware.ts` until Next.js 16 deprecated that
+convention) creates a new base64 nonce from a
 random UUID for each matched request. It places the nonce in `x-nonce` and the
 CSP on the forwarded request headers, and sets that CSP on the response.
 Next.js uses the request CSP when emitting its own inline framework scripts.
@@ -28,7 +29,7 @@ export alone is therefore not a complete migration.
 
 ## Decision
 
-Keep the root dynamic export and middleware's per-request nonce pipeline
+Keep the root dynamic export and the proxy's per-request nonce pipeline
 coupled. Preserve the existing script policy until a replacement is implemented
 and verified against an actual production build.
 
@@ -52,7 +53,7 @@ validation; it does not replace them.
 
 ### Current verification scope
 
-[`frontend/src/test/middleware.test.ts`](../../frontend/src/test/middleware.test.ts)
+[`frontend/src/test/proxy.test.ts`](../../frontend/src/test/proxy.test.ts)
 checks request/response CSP behavior, nonce presence, origin handling and
 production/development differences.
 [`frontend/src/test/app/template.test.tsx`](../../frontend/src/test/app/template.test.tsx)
@@ -95,7 +96,7 @@ then-current implementation and documentation.
 ## References
 
 - [`frontend/src/app/layout.tsx`](../../frontend/src/app/layout.tsx) — root dynamic export and providers.
-- [`frontend/src/middleware.ts`](../../frontend/src/middleware.ts) — nonce and CSP pipeline.
+- [`frontend/src/proxy.ts`](../../frontend/src/proxy.ts) — nonce and CSP pipeline.
 - [`frontend/next.config.js`](../../frontend/next.config.js) — static security headers and proxies.
 - [`docs/frontend.md`](../frontend.md) — current rendering and browser boundaries.
 - [`docs/testing.md`](../testing.md) — suite scopes, coverage exclusions and dated checks.

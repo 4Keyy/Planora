@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### refactor(frontend): the CSP nonce comes from proxy.ts (2026-10-26)
+
+Next.js 16 deprecated the `middleware` file convention in favour of `proxy`, and every build said
+so; Next.js 17 removes it. `src/middleware.ts` is now `src/proxy.ts` and its function `proxy`, with
+the same nonce, Content-Security-Policy and matcher. Proxy runs on the Node.js runtime; the code
+used only `crypto.randomUUID`, `Buffer` and `URL`, which it has. Pages are served exactly as before.
+
 ### fix(api): responses that drift from their contract are reported (2026-10-26)
 
 The client trusted its TypeScript types: a field the server renamed, dropped or retyped surfaced

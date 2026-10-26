@@ -308,7 +308,7 @@ what used to be manual is now automatic:
 - **CORS** — the gateway's development policy already accepts loopback **and** RFC1918 private-LAN
   origins (`Program.cs::IsLoopbackOrPrivateLanOrigin`), so no `Cors__AllowedOrigins__*` entry is
   required for a LAN IP. Production stays an explicit allow-list.
-- **CSP** — in development `connect-src` allows `http:/https:/ws:/wss:` (`src/middleware.ts`), so a
+- **CSP** — in development `connect-src` allows `http:/https:/ws:/wss:` (`src/proxy.ts`), so a
   page served from a LAN IP can reach the same-host gateway. It also omits
   `upgrade-insecure-requests` in dev so the browser does not rewrite the `http://…:5132` API calls
   to HTTPS, which the local gateway does not serve.

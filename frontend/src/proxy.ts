@@ -1,11 +1,14 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
+// The Next.js 16 proxy (formerly the `middleware` file convention, deprecated in Next.js 16 and
+// removed in 17). It runs on the Node.js runtime before every matched request.
+//
 // Generates a per-request CSP nonce, replacing the static CSP in next.config.js.
 // The nonce is forwarded as x-nonce so Server Components can attach it to
 // <Script> and inline <style> elements that legitimately need to run inline.
 // style-src still requires 'unsafe-inline' because Tailwind CSS and
 // Next.js inject critical CSS as inline <style> tags during SSR.
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
   const isDev = process.env.NODE_ENV === 'development'
 
@@ -107,7 +110,7 @@ function sanitizeOrigin(raw: string): string {
 }
 
 // Mirrors config.ts: loopback + RFC1918 private-LAN hosts are the ones for which the client rewrites
-// the gateway to the same host it was opened from. Kept local so middleware stays Edge-self-contained.
+// the gateway to the same host it was opened from. Kept local so the proxy stays self-contained.
 function isLocalNetworkHost(hostname: string): boolean {
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true
   const parts = hostname.split('.').map((p) => Number(p))

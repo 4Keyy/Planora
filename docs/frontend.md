@@ -71,7 +71,7 @@ See the [product mark contract](design-system.md#product-mark) for geometry and 
 The whole App Router is `force-dynamic`, declared once in `app/layout.tsx` and
 cascading to every route. This is deliberate and documented in
 [`DECISIONS/0006-force-dynamic-and-csp-nonce.md`](DECISIONS/0006-force-dynamic-and-csp-nonce.md):
-`middleware.ts` mints a per-request CSP nonce. Reusing cached HTML with a fresh
+`proxy.ts` mints a per-request CSP nonce. Reusing cached HTML with a fresh
 response policy would leave its script nonces mismatched; caching the policy and
 HTML together would reuse a nonce across requests. The current design avoids
 both by rendering dynamically.

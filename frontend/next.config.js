@@ -56,7 +56,7 @@ const isLocalApiHost = (() => {
 })()
 const imagesUnoptimized = isDev || isLocalApiHost
 
-// CSP is set per-request with a unique nonce by src/middleware.ts.
+// CSP is set per-request with a unique nonce by src/proxy.ts.
 // Only static security headers that don't need per-request variability remain here.
 const securityHeaders = [
   { key: 'X-Frame-Options',           value: 'DENY' },

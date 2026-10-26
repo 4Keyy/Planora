@@ -452,7 +452,7 @@ Frontend static headers (set in `next.config.js`):
 > for a fully clean shared experience, serve a production build (`next build` + `next start`), which
 > has no HMR websocket or React-DevTools console notice at all.
 
-Content-Security-Policy is set **per-request** with a unique nonce by `src/middleware.ts` (Next.js Edge Middleware) instead of a static header in `next.config.js`. Each request generates a `crypto.randomUUID()`-based nonce in base64, injected into the CSP `script-src` directive. The middleware sets the CSP on both the response and the forwarded request headers, and the root layout (`src/app/layout.tsx`) opts every route into dynamic rendering (`export const dynamic = "force-dynamic"`), so Next.js reads the nonce and stamps it onto its own inline bootstrap scripts. In development, `'unsafe-eval'` is added to support hot-module replacement.
+Content-Security-Policy is set **per-request** with a unique nonce by `src/proxy.ts` (the Next.js 16 proxy, which replaced the deprecated `middleware.ts` convention and runs on the Node.js runtime) instead of a static header in `next.config.js`. Each request generates a `crypto.randomUUID()`-based nonce in base64, injected into the CSP `script-src` directive. The middleware sets the CSP on both the response and the forwarded request headers, and the root layout (`src/app/layout.tsx`) opts every route into dynamic rendering (`export const dynamic = "force-dynamic"`), so Next.js reads the nonce and stamps it onto its own inline bootstrap scripts. In development, `'unsafe-eval'` is added to support hot-module replacement.
 
 `style-src 'unsafe-inline'` is retained because Tailwind CSS and Next.js SSR emit inline `<style>` tags that cannot be attributed with nonces without forking the framework internals.
 
@@ -461,7 +461,7 @@ Production `img-src` allows `'self'`, `data:` and the gateway origins only. It u
 Code:
 
 - `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Middleware/SecurityHeadersMiddleware.cs` — single source of truth for all backend services
-- `frontend/src/middleware.ts` — per-request nonce CSP for the Next.js app
+- `frontend/src/proxy.ts` — per-request nonce CSP for the Next.js app
 - `frontend/next.config.js` — static security headers only (CSP removed)
 
 ## CORS
