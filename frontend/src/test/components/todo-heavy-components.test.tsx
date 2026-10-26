@@ -9,6 +9,7 @@ import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
 import type { Category } from "@/types/category"
 import { TodoPriority, TodoStatus, type Todo } from "@/types/todo"
+import { localDay } from "@/lib/calendar-date"
 import {
   getBoolPreference,
   setBoolPreference,
@@ -572,7 +573,9 @@ describe("CreateTodoPanel", () => {
     })
     // Due date lives behind the selector plate — open its popover, then pick "Today"
     // via the calendar quick-pick and assert against the same ISO the component derives.
-    const todayDueIso = new Date(new Date().toISOString().split("T")[0]).toISOString()
+    // "Today" is the viewer's own day (lib/calendar-date): between local midnight and the zone's
+    // UTC offset the UTC date is still yesterday, and the expectation used to fail then.
+    const todayDueIso = new Date(localDay()).toISOString()
     fireEvent.click(screen.getByRole("button", { name: "Due date" }))
     fireEvent.click(await screen.findByRole("button", { name: "Today" }))
     // Priority plate → popover option
