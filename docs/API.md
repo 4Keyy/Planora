@@ -1569,6 +1569,15 @@ right card/branch indicator and decides on an OS notification without a follow-u
 }
 ```
 
+Every push has exactly these fields, built in one place (`NotificationService.Wire`). A notification
+that is neither stored nor about a task — the admin `POST /realtime/api/v1/notifications/send` and the
+gRPC broadcast and group sends — carries its text as `title`, an empty `message`, the empty GUID as
+`taskId` and `actorId` (and as `userId` for a broadcast or a group), the time it was sent and
+`isRead: false`. Those sends used to push only `id`, `message`, `type` and `timestamp`, and stored
+notifications named their time `occurredOn`; the client still reads `occurredOn` from an older server.
+`frontend/src/test/quality/api-contract.contract.test.ts` fails when the pushed fields and the
+client's `NotificationPayload` differ.
+
 Notification `type` discriminators (the actor is **always excluded** from recipients):
 
 | `type` | Raised when | Recipients | OS notification |

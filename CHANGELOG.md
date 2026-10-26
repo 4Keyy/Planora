@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(realtime): every notification push has the same fields (2026-10-26)
+
+Notifications sent by an administrator or broadcast to everyone arrived without a title, a task or
+a read state, so the client counted one more unread notification and had nothing to show for it,
+and stored notifications named their time differently from what the API documents. Every push now
+has the same fields; an ad-hoc notification shows its text as the title and belongs to no task.
+
 ### fix(friends): everyone after the hundredth friend appears (2026-10-26)
 
 The friend list behind the audience picker and author names asked the server for 200 friends a

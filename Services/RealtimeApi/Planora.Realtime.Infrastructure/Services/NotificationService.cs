@@ -27,18 +27,7 @@ namespace Planora.Realtime.Infrastructure.Services
                 // recipient connected to a different instance still receives it.
                 await _hubContext.Clients
                     .Group($"user:{payload.UserId}")
-                    .SendAsync("ReceiveNotification", new
-                    {
-                        id = payload.Id,
-                        userId = payload.UserId,
-                        taskId = payload.TaskId,
-                        actorId = payload.ActorId,
-                        type = payload.Type,
-                        title = payload.Title,
-                        message = payload.Message,
-                        occurredOn = payload.OccurredOnUtc,
-                        isRead = payload.IsRead,
-                    }, cancellationToken);
+                    .SendAsync("ReceiveNotification", Wire(payload), cancellationToken);
 
                 _logger.LogInformation(
                     "Notification {NotificationId} ({Type}) pushed to user {UserId}",
@@ -57,13 +46,7 @@ namespace Planora.Realtime.Infrastructure.Services
             {
                 await _hubContext.Clients
                     .Group($"user:{userId}")
-                    .SendAsync("ReceiveNotification", new
-                    {
-                        id = Guid.NewGuid(),
-                        message,
-                        type,
-                        timestamp = DateTime.UtcNow
-                    }, cancellationToken);
+                    .SendAsync("ReceiveNotification", Wire(AdHoc(Guid.TryParse(userId, out var recipient) ? recipient : Guid.Empty, message, type)), cancellationToken);
 
                 _logger.LogInformation("Notification sent to user {UserId}", userId);
             }
@@ -78,13 +61,7 @@ namespace Planora.Realtime.Infrastructure.Services
         {
             try
             {
-                await _hubContext.Clients.All.SendAsync("ReceiveNotification", new
-                {
-                    id = Guid.NewGuid(),
-                    message,
-                    type,
-                    timestamp = DateTime.UtcNow
-                }, cancellationToken);
+                await _hubContext.Clients.All.SendAsync("ReceiveNotification", Wire(AdHoc(Guid.Empty, message, type)), cancellationToken);
 
                 _logger.LogInformation("Broadcast notification sent");
             }
@@ -99,13 +76,7 @@ namespace Planora.Realtime.Infrastructure.Services
         {
             try
             {
-                await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNotification", new
-                {
-                    id = Guid.NewGuid(),
-                    message,
-                    type,
-                    timestamp = DateTime.UtcNow
-                }, cancellationToken);
+                await _hubContext.Clients.Group(groupName).SendAsync("ReceiveNotification", Wire(AdHoc(Guid.Empty, message, type)), cancellationToken);
 
                 _logger.LogInformation("Notification sent to group {Group}", groupName);
             }
@@ -115,5 +86,33 @@ namespace Planora.Realtime.Infrastructure.Services
                 throw;
             }
         }
+
+        /// <summary>
+        /// The one shape <c>ReceiveNotification</c> carries — the client's <c>NotificationPayload</c>
+        /// (<c>frontend/src/lib/realtime/client.ts</c>). Every sender used to build its own: the
+        /// stored notifications named their time <c>occurredOn</c> instead of the canonical
+        /// <c>occurredOnUtc</c>, and the ad-hoc ones sent only an id, a message, a type and a
+        /// <c>timestamp</c>, so the client counted an unread notification with no title to show.
+        /// </summary>
+        private static object Wire(NotificationPayload payload) => new
+        {
+            id = payload.Id,
+            userId = payload.UserId,
+            taskId = payload.TaskId,
+            actorId = payload.ActorId,
+            type = payload.Type,
+            title = payload.Title,
+            message = payload.Message,
+            occurredOnUtc = payload.OccurredOnUtc,
+            isRead = payload.IsRead,
+        };
+
+        /// <summary>
+        /// A notification that is not about a task and was not stored (the admin send endpoint and
+        /// the gRPC broadcast): its text is the title, and the empty GUID stands for "no task" and
+        /// "no actor", as it does everywhere else in the client.
+        /// </summary>
+        private static NotificationPayload AdHoc(Guid userId, string message, string type) =>
+            new(Guid.NewGuid(), userId, Guid.Empty, Guid.Empty, type, message, string.Empty, DateTime.UtcNow, false);
     }
 }

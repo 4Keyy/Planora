@@ -97,6 +97,23 @@ describe("response contracts match the server's DTOs", () => {
     expect(client).toEqual(server)
   })
 
+  // FE-11 (API-10): every ReceiveNotification push is built by NotificationService.Wire, and it
+  // must carry what the client's NotificationPayload reads.
+  it("ReceiveNotification: the pushed fields are the client's NotificationPayload", () => {
+    const service = source("Services/RealtimeApi/Planora.Realtime.Infrastructure/Services/NotificationService.cs")
+    const wire = service.slice(service.indexOf("private static object Wire("))
+    const pushed = [...wire.slice(0, wire.indexOf("};")).matchAll(/^\s*(\w+) = payload\.\w+,?$/gm)].map((m) => m[1])
+    expect(service.match(/SendAsync\("ReceiveNotification", Wire\(/g)).toHaveLength(4)
+
+    const client = source("frontend/src/lib/realtime/client.ts")
+    const block = client.slice(client.indexOf("export interface NotificationPayload {"))
+    const fields = [...block.slice(0, block.indexOf("}")).matchAll(/^\s*(\w+)(\?)?:/gm)]
+    // `occurredOn` is the alias an older realtime service sent; the client still reads it, nothing sends it.
+    const read = fields.filter(([, name]) => name !== "occurredOn").map(([, name]) => name)
+
+    expect(pushed.sort()).toEqual(read.sort())
+  })
+
   it("the endpoints still return these DTOs", () => {
     const todos = source("Services/TodoApi/Planora.Todo.Api/Controllers/TodosController.cs")
     expect(todos).toMatch(/\[HttpGet\]\s*(?:\[[^\]]+\]\s*)*public async Task<ActionResult<PagedResult<TodoItemDto>>> GetTodos\(/)
