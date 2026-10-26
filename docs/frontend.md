@@ -235,6 +235,21 @@ request's method, path and status, the digest, and the page's path without its q
 "Script error." from another origin and the ResizeObserver loop notice are ignored; the demo
 sandbox sends nothing, and a report that cannot be sent is dropped silently.
 
+### Checking what the API sends
+
+TypeScript types on `api.get<T>` are assertions, not checks: a field the server renamed or dropped
+used to arrive as `undefined` and show up only as a broken screen. The bodies of the most-read GETs
+— the task list and a task, the current user, the friend list, the categories — are checked when
+they arrive against zod schemas that mirror the server's DTOs field for field
+(`lib/api-contract.ts`, run by the response interceptor in `lib/api.ts`). A difference is reported
+to the service logs as a `contract` report naming the endpoint and the drifted fields — paths and
+type names, never values, with list indices folded (`items.*.priority`) — and the response is handed
+on unchanged: the check never fails a request or changes what a screen receives. It costs about
+1 ms for a page of 100 tasks. `test/quality/api-contract.contract.test.ts` fails when a schema and its
+C# DTO disagree on a field, its kind or its nullability, and the schemas' `satisfies` checks fail
+type-checking when they stop matching the types the screens use. Unknown extra fields pass, so the
+server can add a field before the client reads it.
+
 ---
 
 ## 5. State

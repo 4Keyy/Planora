@@ -7,7 +7,10 @@ namespace Planora.Auth.Application.Features.ClientErrors;
 /// </summary>
 public sealed record ClientErrorReport
 {
-    /// <summary><c>error</c>, <c>unhandledrejection</c>, <c>boundary</c> or <c>segment</c>.</summary>
+    /// <summary>
+    /// <c>error</c>, <c>unhandledrejection</c>, <c>boundary</c>, <c>segment</c>, or <c>contract</c> —
+    /// a response that did not have the shape the client reads.
+    /// </summary>
     public string Kind { get; init; } = string.Empty;
 
     /// <summary>The error's name, e.g. <c>TypeError</c>.</summary>

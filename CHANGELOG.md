@@ -113,6 +113,16 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(api): responses that drift from their contract are reported (2026-10-26)
+
+The client trusted its TypeScript types: a field the server renamed, dropped or retyped surfaced
+only as a broken screen, and an envelope was guessed from a single key, so a DTO with a `value` or
+`data` field of its own would have been cut down to that field. Envelopes are now recognised by
+their whole key set, and the answers of the most-read endpoints (task list and task, current user,
+friends, categories) are checked against schemas that mirror the server's DTOs; a difference is
+reported to the service logs with the fields that drifted, and the screen gets the response as
+before. A contract test fails the build when a schema and its DTO disagree.
+
 ### perf(frontend): the landing and sign-in pages skip the SignalR client (2026-10-26)
 
 Every page renders the root layout, and with it the realtime client, so the landing page, the

@@ -9,13 +9,13 @@ public sealed class ClientErrorReportValidator : AbstractValidator<ClientErrorRe
     public const int MaxMessageLength = 1000;
     public const int MaxStackLength = 8000;
 
-    private static readonly string[] Kinds = ["error", "unhandledrejection", "boundary", "segment"];
+    private static readonly string[] Kinds = ["error", "unhandledrejection", "boundary", "segment", "contract"];
 
     public ClientErrorReportValidator()
     {
         RuleFor(x => x.Kind)
             .Must(kind => Kinds.Contains(kind))
-            .WithMessage("Kind must be error, unhandledrejection, boundary or segment.");
+            .WithMessage("Kind must be error, unhandledrejection, boundary, segment or contract.");
 
         RuleFor(x => x.Name).MaximumLength(120);
 

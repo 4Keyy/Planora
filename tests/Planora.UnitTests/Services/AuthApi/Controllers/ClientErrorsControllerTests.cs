@@ -107,6 +107,16 @@ public sealed class ClientErrorsControllerTests
 
     [Fact]
     [Trait("TestType", "Unit")]
+    public void Validator_AcceptsEveryKindTheClientSends()
+    {
+        var validator = new ClientErrorReportValidator();
+
+        foreach (var kind in new[] { "error", "unhandledrejection", "boundary", "segment", "contract" })
+            Assert.True(validator.Validate(Valid() with { Kind = kind }).IsValid, kind);
+    }
+
+    [Fact]
+    [Trait("TestType", "Unit")]
     public void Validator_BoundsTheTextAnAnonymousCallerCanLog()
     {
         var validator = new ClientErrorReportValidator();

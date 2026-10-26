@@ -261,6 +261,11 @@ string, the null store performs ephemeral push and no persistence/deduplication.
 - Evidence: `.spectral.yaml`, `BuildingBlocks/Planora.BuildingBlocks.Infrastructure/Configuration/PlanoraSwaggerExtensions.cs` (`SanitizeSchemaId`), `.github/workflows/openapi.yml` "Lint with Spectral" step, `tests/Planora.UnitTests/Services/Infrastructure/PlanoraSwaggerSchemaIdTests.cs`.
 - Rationale: the OpenAPI artifact is a public contract once a TS client is generated from it. Spectral catches breaking-change classes (missing 2xx response, schemas with no valid example, paths with trailing slashes, duplicate or URL-illegal operation ids) before they reach a consuming client. The sanitised schema ids guarantee every artifact passes `oas3-schema` regardless of how exotic the CLR generic-type tree becomes.
 
+**INV-API-5.** The DTOs the client checks at runtime (`TodoItemDto`, `TodoWorkerDto`, `PagedResult<T>`, `UserDto`, `FriendDto`, `CategoryDto`) and the zod schemas in `frontend/src/lib/api-contract.ts` change together: every field, its JSON kind and its nullability. A response that differs is reported (`contract` client error) and used unchanged; the check never fails a request.
+
+- Evidence: `frontend/src/test/quality/api-contract.contract.test.ts` reads the C# DTOs and the controllers' return types; the schemas' `satisfies` checks tie them to the TypeScript types the screens use.
+- Rationale: TypeScript types on `api.get<T>` are assertions only; a renamed or dropped field otherwise reaches a screen as `undefined`.
+
 ---
 
 ## CI Quality Gates

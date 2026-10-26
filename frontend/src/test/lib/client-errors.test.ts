@@ -145,6 +145,23 @@ describe("client error reports", () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
+  it("reports a response that broke its contract as a contract report, once", async () => {
+    const { reportContractMismatch } = await load()
+
+    reportContractMismatch("GET /todos/api/v1/todos", ["items.*.priority invalid_type (expected string, got number)"])
+    reportContractMismatch("GET /todos/api/v1/todos", ["items.*.priority invalid_type (expected string, got number)"])
+    reportContractMismatch("GET /auth/api/v1/users/me", [])
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce())
+    expect(reports()[0].body).toMatchObject({
+      kind: "contract",
+      name: "ContractMismatch",
+      message: "GET /todos/api/v1/todos: items.*.priority invalid_type (expected string, got number)",
+      route: "/dashboard",
+    })
+    expect(reports()[0].body.stack).toBeUndefined()
+  })
+
   it("is installed by the root reporter component while it is mounted", async () => {
     vi.resetModules()
     const { ClientErrorReporter } = await import("@/components/client-error-reporter")

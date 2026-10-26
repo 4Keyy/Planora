@@ -114,7 +114,8 @@ tell from the response that it got 100. This is a shared pagination primitive, n
 
 Frontend unwrapping code:
 
-- `frontend/src/lib/api.ts:parseApiResponse` — accepts a raw body, a `value` wrapper or a `data` wrapper, so it works against all three success shapes
+- `frontend/src/lib/api.ts:parseApiResponse` — accepts a raw body, a `value` wrapper or a `data` wrapper, so it works against all three success shapes. A wrapper is recognised by its whole key set — `value` with nothing but `status`, `message`, `isSuccess`, `isFailure` or `error` beside it, or `data` with `success`, `error` or `meta` and nothing else — so a DTO that has a `value` or `data` field of its own is returned whole, not cut down to that field
+- `frontend/src/lib/api-contract.ts` — after unwrapping, the bodies of `GET /todos/api/v1/todos`, `GET /todos/api/v1/todos/{id}`, `GET /auth/api/v1/users/me`, `GET /auth/api/v1/friendships` (and the legacy `/friendships`) and `GET /categories/api/v1/categories` are checked against the DTOs above (`TodoItemDto`, `PagedResult<T>`, `UserDto`, `FriendDto`, `CategoryDto`); a difference is reported as a `contract` client error (`POST /auth/api/v1/client-errors`) and the response is used unchanged
 - `frontend/src/types/category.ts:toCategoryList`
 
 ### Rate Limits
@@ -590,7 +591,7 @@ Body:
 
 Rules (`ClientErrorReportValidator`):
 
-- `kind` is `error`, `unhandledrejection`, `boundary` or `segment`;
+- `kind` is `error`, `unhandledrejection`, `boundary`, `segment` or `contract` (a response that did not have the shape the client reads, `frontend/src/lib/api-contract.ts`);
 - `message` is required, at most 1000 characters; `name` at most 120; `stack` at most 8000;
 - `digest`, when present, is letters, digits, `_` and `-`, at most 120 characters;
 - `route` is a path starting with `/`, without a query or fragment, at most 300 characters.

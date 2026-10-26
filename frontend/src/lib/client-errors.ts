@@ -15,7 +15,7 @@ import { newTraceparent } from "@/lib/trace"
  * so a report from a page being left still arrives (`POST /auth/api/v1/client-errors`).
  */
 
-export type ClientErrorKind = "error" | "unhandledrejection" | "boundary" | "segment"
+export type ClientErrorKind = "error" | "unhandledrejection" | "boundary" | "segment" | "contract"
 
 const ENDPOINT = "/auth/api/v1/client-errors"
 /** At most this many reports leave one page load, and the same failure is reported once. */
@@ -44,20 +44,37 @@ export function reportClientError(error: unknown, kind: ClientErrorKind, digest?
   const message = `${described.message || "Unknown error"}${request}`.slice(0, MAX_MESSAGE)
   if (IGNORED.some((pattern) => pattern.test(message))) return
 
-  const route = window.location.pathname.slice(0, 300) || "/"
-  const key = `${kind}|${described.name ?? ""}|${message}|${route}`
-  if (reported.has(key) || reported.size >= MAX_REPORTS) return
-  reported.add(key)
-
-  void send({
+  queue({
     kind,
     name: described.name?.slice(0, 120),
     message,
     stack: described.stack?.slice(0, MAX_STACK),
     digest: digest && DIGEST.test(digest) ? digest : undefined,
-    route,
-    occurredAt: new Date().toISOString(),
   })
+}
+
+/**
+ * A response that does not have the shape the client reads (`lib/api-contract.ts`): which
+ * endpoint, and which fields differ — paths and type names only, never values.
+ */
+export function reportContractMismatch(endpoint: string, issues: readonly string[]): void {
+  if (typeof window === "undefined" || isDemoSession() || issues.length === 0) return
+  queue({
+    kind: "contract",
+    name: "ContractMismatch",
+    message: `${endpoint}: ${issues.join("; ")}`.slice(0, MAX_MESSAGE),
+  })
+}
+
+type Report = { kind: ClientErrorKind; name?: string; message: string; stack?: string; digest?: string }
+
+/** Send a report once per page load, at most `MAX_REPORTS` of them, stamped with the page and time. */
+function queue(report: Report): void {
+  const route = window.location.pathname.slice(0, 300) || "/"
+  const key = `${report.kind}|${report.name ?? ""}|${report.message}|${route}`
+  if (reported.has(key) || reported.size >= MAX_REPORTS) return
+  reported.add(key)
+  void send({ ...report, route, occurredAt: new Date().toISOString() })
 }
 
 /** Listen for what nothing else catches: uncaught errors and unhandled rejections. */

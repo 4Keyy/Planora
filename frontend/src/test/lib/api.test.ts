@@ -27,6 +27,22 @@ describe("api response helpers", () => {
     expect(parseApiResponse({ ok: true })).toEqual({ ok: true })
   })
 
+  // FE-09: an envelope is its whole key set. A DTO that happens to have a `value` or a `data`
+  // field of its own used to be "unwrapped" into that one field.
+  it("unwraps the friend-ids wrapper and a serialized Result, but not a DTO with a value field", () => {
+    expect(parseApiResponse({ value: ["a", "b"] })).toEqual(["a", "b"])
+    expect(parseApiResponse({ value: 3, isSuccess: true, isFailure: false, error: null })).toBe(3)
+
+    const metric = { value: 42, label: "Done this week", unit: "tasks" }
+    expect(parseApiResponse(metric)).toBe(metric)
+  })
+
+  it("does not unwrap a DTO that has data and success fields of its own", () => {
+    const upload = { success: true, data: "base64…", fileName: "avatar.webp" }
+    expect(parseApiResponse(upload)).toBe(upload)
+    expect(parseApiResponse([{ value: 1 }])).toEqual([{ value: 1 }])
+  })
+
   it("extracts nested API error messages from shared error envelopes", () => {
     const error = new axios.AxiosError("Request failed")
     error.response = {

@@ -3,6 +3,9 @@ import { refreshAccessToken } from "@/lib/auth-public"
 import { clearCsrfToken, CSRF_HEADER_NAME, getCsrfToken } from "@/lib/csrf"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/store/auth"
+import { reportContractMismatch } from "@/lib/client-errors"
+
+vi.mock("@/lib/client-errors", () => ({ reportContractMismatch: vi.fn() }))
 
 vi.mock("@/lib/auth-public", () => ({
   refreshAccessToken: vi.fn(),
@@ -40,6 +43,9 @@ const requestFulfilled = () =>
 
 const requestRejected = () =>
   (api.interceptors.request as any).handlers.find((handler: any) => handler.rejected)?.rejected
+
+const responseFulfilled = () =>
+  (api.interceptors.response as any).handlers.find((handler: any) => handler.fulfilled)?.fulfilled
 
 const responseRejected = () =>
   (api.interceptors.response as any).handlers.find((handler: any) => handler.rejected)?.rejected
@@ -115,6 +121,34 @@ describe("api interceptors", () => {
     const shownWrite = await requestFulfilled()({ method: "put", headers: {} })
     expect(shownWrite.adapter).toBeUndefined()
     expect(shownWrite.fetchOptions).toBeUndefined()
+  })
+
+  // FE-09: the body of a well-known GET is checked against the shape the client reads, and a
+  // difference is reported — the response itself is handed on untouched either way.
+  it("reports a response that drifted from its contract and hands it on unchanged", () => {
+    const body = { items: [{ id: 1 }], pageNumber: 1, pageSize: 100, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false }
+    const response = { data: body, status: 200, config: { method: "get", url: "/todos/api/v1/todos?pageSize=100" } }
+
+    expect(responseFulfilled()(response)).toBe(response)
+    expect(response.data).toBe(body)
+    expect(reportContractMismatch).toHaveBeenCalledWith(
+      "GET /todos/api/v1/todos",
+      expect.arrayContaining(["items.*.id invalid_type (expected string, got number)"]),
+    )
+  })
+
+  it("stays quiet for a matching response, an unchecked endpoint and a broken body", () => {
+    const user = {
+      id: "u", email: "a@b.c", firstName: "A", lastName: "B", profilePictureUrl: null, status: "Active",
+      isEmailVerified: true, emailVerifiedAt: null, lastLoginAt: null, twoFactorEnabled: false, createdAt: "2026-01-01T00:00:00Z",
+    }
+    responseFulfilled()({ data: user, status: 200, config: { method: "get", url: "/auth/api/v1/users/me" } })
+    responseFulfilled()({ data: { anything: true }, status: 200, config: { method: "get", url: "/todos/api/v1/todos/category-counts" } })
+    vi.mocked(reportContractMismatch).mockImplementationOnce(() => { throw new Error("reporting failed") })
+    const broken = { data: null, status: 200, config: { method: "get", url: "/auth/api/v1/users/me" } }
+
+    expect(responseFulfilled()(broken)).toBe(broken)
+    expect(reportContractMismatch).toHaveBeenCalledTimes(1) // only the null body, and its failure stayed inside
   })
 
   it("does not request a CSRF token for safe methods", async () => {

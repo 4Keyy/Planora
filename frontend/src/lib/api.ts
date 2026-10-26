@@ -9,6 +9,8 @@ import { TIME_ZONE_HEADER, viewerTimeZone } from "@/lib/calendar-date"
 import type { ReplyTargetType, Todo, TodoComment } from "@/types/todo"
 import type { AuthTokenDto } from "@/types/auth"
 import { describeError } from "@/lib/errors"
+import { describeContractMismatch } from "@/lib/api-contract"
+import { reportContractMismatch } from "@/lib/client-errors"
 
 const BASE_URL = getApiBaseUrl()
 let refreshPromise: Promise<AuthTokenDto> | null = null
@@ -63,6 +65,10 @@ type WrappedApiResponse<T> = {
   value?: T
   status?: number
   message?: string
+  /** A serialized `Result<T>` carries these beside its value. */
+  isSuccess?: boolean
+  isFailure?: boolean
+  error?: unknown
 }
 
 type DataApiResponse<T> = {
@@ -74,14 +80,28 @@ type DataApiResponse<T> = {
 
 export type ApiResponse<T> = WrappedApiResponse<T> | DataApiResponse<T> | T
 
+/**
+ * An envelope is recognised by its whole key set, not by one key: a DTO that has a `value` or a
+ * `data` field of its own is a DTO, and unwrapping it handed the screen a fragment (FE-09). The
+ * `{ value }` wrapper (friend-ids, are-friends) and a serialized `Result<T>` use the first set;
+ * `ApiResponse<T>` (`BuildingBlocks/Planora.BuildingBlocks.Domain/ApiResponse.cs`) the second.
+ */
+const VALUE_ENVELOPE_KEYS = new Set(["value", "status", "message", "isSuccess", "isFailure", "error"])
+const DATA_ENVELOPE_KEYS = new Set(["success", "data", "error", "meta"])
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value)
+
 const hasWrappedValue = <T>(response: ApiResponse<T>): response is WrappedApiResponse<T> =>
-  response !== null && typeof response === "object" && "value" in response
+  isPlainObject(response) &&
+  "value" in response &&
+  Object.keys(response).every((key) => VALUE_ENVELOPE_KEYS.has(key))
 
 const hasWrappedData = <T>(response: ApiResponse<T>): response is DataApiResponse<T> =>
-  response !== null &&
-  typeof response === "object" &&
+  isPlainObject(response) &&
   "data" in response &&
-  ("success" in response || "meta" in response || "error" in response)
+  ("success" in response || "meta" in response || "error" in response) &&
+  Object.keys(response).every((key) => DATA_ENVELOPE_KEYS.has(key))
 
 /**
  * Extract data from API response (handles both wrapped and unwrapped responses)
@@ -238,8 +258,25 @@ api.interceptors.request.use(async (config) => {
  * - 401: Token expired or invalid - clear auth and redirect to login
  * - 403: Forbidden - CSRF token failed or insufficient permissions
  */
+/**
+ * FE-09: the body of a well-known GET is compared with the shape the client reads
+ * (`lib/api-contract.ts`), and a difference is reported to the service logs. The response passes
+ * on unchanged either way, and the check can never fail a request.
+ */
+function checkResponseContract(config: { method?: string; url?: string } | undefined, body: unknown): void {
+  try {
+    const mismatch = describeContractMismatch(config?.method, config?.url, parseApiResponse(body))
+    if (mismatch) reportContractMismatch(mismatch.endpoint, mismatch.issues)
+  } catch {
+    // A check of the response must never become a failure of the request.
+  }
+}
+
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    checkResponseContract(response.config, response.data)
+    return response
+  },
   async (error: AxiosError) => {
     // Request cancellation is normal control flow, not an error: React effects
     // abort in-flight requests on unmount/dependency change, and a newer fetch

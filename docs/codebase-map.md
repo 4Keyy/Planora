@@ -409,7 +409,7 @@ a `layout.tsx` only — a gap worth closing rather than a convention.
 | `frontend/src/test/components` | component tests, including `presence-row`, `redaction-badge`, `update-pill`, `selection-bar`, `shortcuts-overlay`, `quick-capture` |
 | `frontend/src/test/hooks` | hook tests, including `use-list-navigation` |
 | `frontend/src/test/lib`, `store`, `types`, `utils`, `app` | the rest of the frontend suite |
-| `frontend/src/test/quality` | the contract tests: `design-tokens.contract.test.ts` and `usability-contract.test.tsx` |
+| `frontend/src/test/quality` | the contract tests: `design-tokens.contract.test.ts`, `usability-contract.test.tsx`, `text-limits.contract.test.ts` and `api-contract.contract.test.ts` (runtime response schemas against the C# DTOs) |
 | `frontend/e2e/auth-todos-sharing-hidden.api.spec.ts` | Docker-backed auth/sharing/hidden flow through the API Gateway |
 | `frontend/e2e/ui` | browser specs for the five auth routes, profile update, and the tasks page |
 
