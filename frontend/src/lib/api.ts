@@ -9,7 +9,7 @@ import { TIME_ZONE_HEADER, viewerTimeZone } from "@/lib/calendar-date"
 import type { ReplyTargetType, Todo, TodoComment } from "@/types/todo"
 import type { AuthTokenDto } from "@/types/auth"
 import { describeError } from "@/lib/errors"
-import { describeContractMismatch } from "@/lib/api-contract"
+import type * as ApiContract from "@/lib/api-contract"
 import { reportContractMismatch } from "@/lib/client-errors"
 
 const BASE_URL = getApiBaseUrl()
@@ -262,14 +262,49 @@ api.interceptors.request.use(async (config) => {
  * FE-09: the body of a well-known GET is compared with the shape the client reads
  * (`lib/api-contract.ts`), and a difference is reported to the service logs. The response passes
  * on unchanged either way, and the check can never fail a request.
+ *
+ * The schemas load with the first GET answer instead of with every page's first-load JS. Until
+ * they arrive a check waits for them; from then on it runs before the response is handed on.
  */
-function checkResponseContract(config: { method?: string; url?: string } | undefined, body: unknown): void {
+let contracts: typeof ApiContract | null = null
+let loadingContracts: Promise<typeof ApiContract> | null = null
+const loadContracts = (): Promise<typeof ApiContract> => {
+  loadingContracts ??= import("@/lib/api-contract").then(
+    (module) => {
+      contracts = module
+      return module
+    },
+    (error: unknown) => {
+      loadingContracts = null
+      throw error
+    },
+  )
+  return loadingContracts
+}
+
+type CheckedRequest = { method?: string; url?: string } | undefined
+
+function compareWithContract(module: typeof ApiContract, config: CheckedRequest, body: unknown): void {
   try {
-    const mismatch = describeContractMismatch(config?.method, config?.url, parseApiResponse(body))
+    const mismatch = module.describeContractMismatch(config?.method, config?.url, parseApiResponse(body))
     if (mismatch) reportContractMismatch(mismatch.endpoint, mismatch.issues)
   } catch {
     // A check of the response must never become a failure of the request.
   }
+}
+
+function checkResponseContract(config: CheckedRequest, body: unknown): void {
+  if ((config?.method ?? "get").toLowerCase() !== "get") return
+  if (contracts) {
+    compareWithContract(contracts, config, body)
+    return
+  }
+  loadContracts().then(
+    (module) => compareWithContract(module, config, body),
+    () => {
+      // Without the schemas there is nothing to compare; the next GET answer loads them again.
+    },
+  )
 }
 
 api.interceptors.response.use(

@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "zod/mini"
 import type { Todo } from "@/types/todo"
 import type { FriendDto, PagedResult, UserDto } from "@/types/auth"
 import type { Category } from "@/types/category"
@@ -14,6 +14,10 @@ import type { Category } from "@/types/category"
  * `src/test/quality/api-contract.contract.test.ts` reads the DTO sources and fails when the two
  * differ, and the `satisfies` checks below fail type-checking when a schema stops matching the
  * TypeScript type the screens use. Unknown fields pass (`z.looseObject`).
+ *
+ * Written with `zod/mini`, whose functions are tree-shaken, and loaded by `lib/api.ts` only when
+ * the first GET answer arrives: bundled with every page, the full zod 4 added about 30 KB gzip to
+ * each route's first-load JS for a check no screen waits on.
  */
 
 const guid = z.string()
@@ -23,62 +27,62 @@ const timeSpan = z.string()
 
 export const TodoWorkerSchema = z.looseObject({
   userId: guid,
-  name: z.string().nullable(),
-  avatarUrl: z.string().nullable(),
+  name: z.nullable(z.string()),
+  avatarUrl: z.nullable(z.string()),
 })
 
 /** `Services/TodoApi/Planora.Todo.Application/DTOs/TodoItemDto.cs` */
 export const TodoSchema = z.looseObject({
   id: guid,
   userId: guid,
-  createdByUserId: guid.nullable(),
+  createdByUserId: z.nullable(guid),
   title: z.string(),
-  description: z.string().nullable(),
+  description: z.nullable(z.string()),
   status: z.string(),
-  categoryId: guid.nullable(),
-  dueDate: instant.nullable(),
-  dueDateStart: instant.nullable(),
-  expectedDate: instant.nullable(),
-  actualDate: instant.nullable(),
+  categoryId: z.nullable(guid),
+  dueDate: z.nullable(instant),
+  dueDateStart: z.nullable(instant),
+  expectedDate: z.nullable(instant),
+  actualDate: z.nullable(instant),
   priority: z.string(),
   isPublic: z.boolean(),
   hidden: z.boolean(),
   isCompleted: z.boolean(),
-  completedAt: instant.nullable(),
-  isOnTime: z.boolean().nullable(),
-  delay: timeSpan.nullable(),
+  completedAt: z.nullable(instant),
+  isOnTime: z.nullable(z.boolean()),
+  delay: z.nullable(timeSpan),
   tags: z.array(z.string()),
   createdAt: instant,
-  updatedAt: instant.nullable(),
-  categoryName: z.string().nullable(),
-  categoryColor: z.string().nullable(),
-  categoryIcon: z.string().nullable(),
-  authorCategoryName: z.string().nullable(),
-  authorCategoryColor: z.string().nullable(),
-  authorCategoryIcon: z.string().nullable(),
+  updatedAt: z.nullable(instant),
+  categoryName: z.nullable(z.string()),
+  categoryColor: z.nullable(z.string()),
+  categoryIcon: z.nullable(z.string()),
+  authorCategoryName: z.nullable(z.string()),
+  authorCategoryColor: z.nullable(z.string()),
+  authorCategoryIcon: z.nullable(z.string()),
   sharedWithUserIds: z.array(guid),
-  hasSharedAudience: z.boolean().nullable(),
-  isVisuallyUrgent: z.boolean().nullable(),
-  requiredWorkers: z.number().int().nullable(),
-  workerCount: z.number().int(),
+  hasSharedAudience: z.nullable(z.boolean()),
+  isVisuallyUrgent: z.nullable(z.boolean()),
+  requiredWorkers: z.nullable(z.int()),
+  workerCount: z.int(),
   isWorking: z.boolean(),
   workerUserIds: z.array(guid),
   workers: z.array(TodoWorkerSchema),
-  isCompletedByViewer: z.boolean().nullable(),
+  isCompletedByViewer: z.nullable(z.boolean()),
   ownerCompleted: z.boolean(),
-  parentTodoId: guid.nullable(),
-  openSubtaskCount: z.number().int(),
-  authorName: z.string().nullable(),
-  authorAvatarUrl: z.string().nullable(),
+  parentTodoId: z.nullable(guid),
+  openSubtaskCount: z.int(),
+  authorName: z.nullable(z.string()),
+  authorAvatarUrl: z.nullable(z.string()),
 })
 
 /** `BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PagedResult.cs` */
-const paged = <T extends z.ZodTypeAny>(item: T) => z.looseObject({
+const paged = <T extends z.ZodMiniType>(item: T) => z.looseObject({
   items: z.array(item),
-  pageNumber: z.number().int(),
-  pageSize: z.number().int(),
-  totalCount: z.number().int(),
-  totalPages: z.number().int(),
+  pageNumber: z.int(),
+  pageSize: z.int(),
+  totalCount: z.int(),
+  totalPages: z.int(),
   hasPreviousPage: z.boolean(),
   hasNextPage: z.boolean(),
 })
@@ -89,11 +93,11 @@ export const UserSchema = z.looseObject({
   email: z.string(),
   firstName: z.string(),
   lastName: z.string(),
-  profilePictureUrl: z.string().nullable(),
+  profilePictureUrl: z.nullable(z.string()),
   status: z.string(),
   isEmailVerified: z.boolean(),
-  emailVerifiedAt: instant.nullable(),
-  lastLoginAt: instant.nullable(),
+  emailVerifiedAt: z.nullable(instant),
+  lastLoginAt: z.nullable(instant),
   twoFactorEnabled: z.boolean(),
   createdAt: instant,
 })
@@ -104,7 +108,7 @@ export const FriendSchema = z.looseObject({
   email: z.string(),
   firstName: z.string(),
   lastName: z.string(),
-  profilePictureUrl: z.string().nullable(),
+  profilePictureUrl: z.nullable(z.string()),
   friendsSince: instant,
 })
 
@@ -113,12 +117,12 @@ export const CategorySchema = z.looseObject({
   id: guid,
   userId: guid,
   name: z.string(),
-  description: z.string().nullable(),
+  description: z.nullable(z.string()),
   color: z.string(),
-  icon: z.string().nullable(),
-  displayOrder: z.number().int(),
+  icon: z.nullable(z.string()),
+  displayOrder: z.int(),
   createdAt: instant,
-  updatedAt: instant.nullable(),
+  updatedAt: z.nullable(instant),
 })
 
 export const PagedTodosSchema = paged(TodoSchema)
@@ -135,7 +139,7 @@ void (accepts<PagedResult<FriendDto>>() satisfies Accepts<z.infer<typeof PagedFr
 void (accepts<Category>() satisfies Accepts<z.infer<typeof CategorySchema>>)
 
 /** The endpoints whose answers are checked: a GET's path (no query) and the shape of its body. */
-export const RESPONSE_CONTRACTS: ReadonlyArray<{ name: string; path: RegExp; schema: z.ZodTypeAny }> = [
+export const RESPONSE_CONTRACTS: ReadonlyArray<{ name: string; path: RegExp; schema: z.ZodMiniType }> = [
   { name: "GET /todos/api/v1/todos", path: /^\/todos\/api\/v1\/todos$/, schema: PagedTodosSchema },
   { name: "GET /todos/api/v1/todos/{id}", path: /^\/todos\/api\/v1\/todos\/[0-9a-fA-F-]{36}$/, schema: TodoSchema },
   { name: "GET /auth/api/v1/users/me", path: /^\/auth\/api\/v1\/users\/me$/, schema: UserSchema },

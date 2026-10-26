@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { z } from "zod/mini"
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { AnimatePresence, useReducedMotion } from "framer-motion"
@@ -49,8 +49,8 @@ import { DURATION_FAST, DURATION_UI, EASE_EXIT, EASE_OUT_EXPO } from "@/lib/anim
  * match."
  */
 const schema = z.object({
-  email: z.string().trim().email("Enter a valid email address").max(255, "At most 255 characters"),
-  password: z.string().min(1, "Enter your password"),
+  email: z.string().check(z.trim(), z.email("Enter a valid email address"), z.maxLength(255, "At most 255 characters")),
+  password: z.string().check(z.minLength(1, "Enter your password")),
 })
 type FormData = z.infer<typeof schema>
 

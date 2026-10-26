@@ -113,6 +113,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### perf(frontend): zod stays out of every page's first-load JS (2026-10-26)
+
+The response contract check put zod into the API client, which every page loads, so each route
+carried about 12.7 KB gzip more first-load JavaScript, and zod 4 would have made it 30 KB. The check
+now loads its schemas with the first GET answer, and the schemas and the forms use `zod/mini`.
+Routes without a form are back to their size before the check (dashboard 207.8 → 195.2 KB gzip,
+landing page 217.6 → 204.9 KB); the four auth forms and the profile are 3.4–3.8 KB larger than with
+zod 3, and every route is inside the bundle budget again.
+
 ### fix(security): zod 4.6.7 closes a memory-exhaustion advisory (2026-10-26)
 
 GHSA-mrhx-c7xc-m3w5 (high) affects every zod release before 4.6.6 and has no fixed 3.x release, so

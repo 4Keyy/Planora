@@ -335,7 +335,7 @@ detail: [`database.md`](database.md).
 | Backend result pattern | `Result<T>` / `Error` |
 | Frontend | Next.js 16 App Router, React 19, TypeScript |
 | Frontend state | Zustand |
-| Frontend validation/forms | Zod, React Hook Form where used |
+| Frontend validation/forms | zod 4 through `zod/mini`; React Hook Form with `@hookform/resolvers` 5 where used |
 | Frontend tests | Vitest + Testing Library |
 | E2E tests | Playwright API through the gateway, Chromium UI and disposable Mailpit SMTP delivery; see [setup](../frontend/e2e/README.md) |
 | Docs checks | markdownlint-cli2 and lychee in CI |

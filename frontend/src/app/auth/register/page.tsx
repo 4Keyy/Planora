@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { z } from "zod/mini"
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { UserPlus } from "lucide-react"
@@ -34,20 +34,24 @@ import { PASSWORD_SCHEMA } from "@/lib/password-policy"
  *
  * The card renders at once, in the server HTML, for the reason the sign-in page gives.
  */
+const personName = z.string().check(
+  z.trim(),
+  z.minLength(2, "At least 2 characters"),
+  z.maxLength(100, "At most 100 characters"),
+  z.regex(/^[a-zA-Zа-яА-ЯёЁ\s\-']+$/, "Use letters, spaces, hyphens or apostrophes"),
+)
 const schema = z
   .object({
-    firstName: z.string().trim().min(2, "At least 2 characters").max(100, "At most 100 characters")
-      .regex(/^[a-zA-Zа-яА-ЯёЁ\s\-']+$/, "Use letters, spaces, hyphens or apostrophes"),
-    lastName: z.string().trim().min(2, "At least 2 characters").max(100, "At most 100 characters")
-      .regex(/^[a-zA-Zа-яА-ЯёЁ\s\-']+$/, "Use letters, spaces, hyphens or apostrophes"),
-    email: z.string().trim().email("Enter a valid email address").max(255, "At most 255 characters"),
+    firstName: personName,
+    lastName: personName,
+    email: z.string().check(z.trim(), z.email("Enter a valid email address"), z.maxLength(255, "At most 255 characters")),
     password: PASSWORD_SCHEMA,
-    confirmPassword: z.string().min(1, "Repeat your password"),
+    confirmPassword: z.string().check(z.minLength(1, "Repeat your password")),
   })
-  .refine((d) => d.password === d.confirmPassword, {
+  .check(z.refine((d) => d.password === d.confirmPassword, {
     message: "The two passwords don't match.",
     path: ["confirmPassword"],
-  })
+  }))
 type FormData = z.infer<typeof schema>
 
 const CHECKLIST_ID = "register-password-rules"

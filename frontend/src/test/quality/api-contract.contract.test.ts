@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
-import { z } from "zod"
+import type { z } from "zod"
 import {
   CategorySchema,
   FriendSchema,
@@ -56,24 +56,19 @@ function csharpProperties(file: string, typeName: string): Record<string, Field>
   return fields
 }
 
-/** The same description, read from a zod schema. */
-function zodFields(schema: z.ZodTypeAny): Record<string, Field> {
-  const shape = (schema as z.ZodObject<z.ZodRawShape>).shape
+const KINDS: readonly Field["kind"][] = ["string", "number", "boolean", "array", "object"]
+
+/** The same description, read from a zod schema's definition (the same in `zod` and `zod/mini`). */
+function zodFields(schema: z.core.$ZodType): Record<string, Field> {
+  const { shape } = schema._zod.def as z.core.$ZodObjectDef
   return Object.fromEntries(Object.entries(shape).map(([name, field]) => {
-    let current: z.core.$ZodType = field
+    let def = field._zod.def
     let nullable = false
-    while (current instanceof z.ZodNullable || current instanceof z.ZodOptional) {
+    while (def.type === "nullable" || def.type === "optional") {
       nullable = true
-      current = current.unwrap()
+      def = (def as z.core.$ZodNullableDef | z.core.$ZodOptionalDef).innerType._zod.def
     }
-    const kind: Field["kind"] =
-      current instanceof z.ZodString ? "string"
-      : current instanceof z.ZodNumber ? "number"
-      : current instanceof z.ZodBoolean ? "boolean"
-      : current instanceof z.ZodArray ? "array"
-      : current instanceof z.ZodObject ? "object"
-      : "any"
-    return [name, { kind, nullable }]
+    return [name, { kind: KINDS.find((kind) => kind === def.type) ?? "any", nullable }]
   }))
 }
 
@@ -130,6 +125,26 @@ describe("response contracts match the server's DTOs", () => {
 
     expect(written.length).toBeGreaterThan(5)
     expect(written.filter((field) => !parameters.includes(field))).toEqual([])
+  })
+
+  // The full zod added about 30 KB gzip to the first-load JS of every page that imported it.
+  // `zod/mini` keeps the forms to a few KB, and `lib/api.ts` loads these schemas only when the
+  // first GET answer arrives.
+  it("the app uses zod/mini and loads the response contracts lazily", () => {
+    const files = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) return entry.name === "test" ? [] : files(full)
+      return /\.(ts|tsx)$/.test(entry.name) ? [full] : []
+    })
+    const fullZod = files(path.join(repoRoot, "frontend", "src"))
+      .filter((file) => /from\s+["']zod(?:\/v4(?:\/classic)?)?["']/.test(fs.readFileSync(file, "utf8")))
+      .map((file) => path.relative(repoRoot, file))
+    expect(fullZod).toEqual([])
+
+    const api = source("frontend/src/lib/api.ts")
+    expect(api).toContain('import type * as ApiContract from "@/lib/api-contract"')
+    expect(api).toContain('import("@/lib/api-contract")')
+    expect(api).not.toMatch(/^import \{[^}]*\} from "@\/lib\/api-contract"/m)
   })
 
   it("the endpoints still return these DTOs", () => {

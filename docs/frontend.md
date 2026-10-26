@@ -241,7 +241,9 @@ TypeScript types on `api.get<T>` are assertions, not checks: a field the server 
 used to arrive as `undefined` and show up only as a broken screen. The bodies of the most-read GETs
 — the task list and a task, the current user, the friend list, the categories — are checked when
 they arrive against zod schemas that mirror the server's DTOs field for field
-(`lib/api-contract.ts`, run by the response interceptor in `lib/api.ts`). A difference is reported
+(`lib/api-contract.ts`, run by the response interceptor in `lib/api.ts`). The schemas load with the
+first GET answer, not with the page, so the check adds nothing to a route's first-load JS; until they
+arrive a check waits for them. A difference is reported
 to the service logs as a `contract` report naming the endpoint and the drifted fields — paths and
 type names, never values, with list indices folded (`items.*.priority`) — and the response is handed
 on unchanged: the check never fails a request or changes what a screen receives. It costs about
@@ -249,6 +251,13 @@ on unchanged: the check never fails a request or changes what a screen receives.
 C# DTO disagree on a field, its kind or its nullability, and the schemas' `satisfies` checks fail
 type-checking when they stop matching the types the screens use. Unknown extra fields pass, so the
 server can add a field before the client reads it.
+
+Validation in the app — these schemas and the forms (`lib/password-policy.ts`, the auth pages, the
+profile name) — uses zod 4 through `zod/mini`, whose checks are plain functions and tree-shake. The
+full `zod` costs about 17 KB gzip more on each form page, and about 30 KB on every route when it sat
+in the API client. Each check carries its own message, so nothing on screen depends on zod's default
+wording, and `test/quality/api-contract.contract.test.ts` fails when app code imports the full
+`zod` or `lib/api.ts` imports the schemas eagerly.
 
 ---
 

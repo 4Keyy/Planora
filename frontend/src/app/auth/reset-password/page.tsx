@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { z } from "zod/mini"
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
 import { LockKeyhole, Unlink } from "lucide-react"
@@ -44,12 +44,12 @@ const schema = z
     // passwords, runs like "1234", repeats like "aaaa"); the schema does too, so a ticked
     // checklist is not followed by an unexplained refusal.
     newPassword: NEW_PASSWORD_SCHEMA,
-    confirmPassword: z.string().min(1, "Repeat your new password"),
+    confirmPassword: z.string().check(z.minLength(1, "Repeat your new password")),
   })
-  .refine((d) => d.newPassword === d.confirmPassword, {
+  .check(z.refine((d) => d.newPassword === d.confirmPassword, {
     message: "The two passwords don't match.",
     path: ["confirmPassword"],
-  })
+  }))
 type FormData = z.infer<typeof schema>
 
 const CHECKLIST_ID = "reset-password-rules"

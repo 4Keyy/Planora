@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { z } from "zod"
+import { z } from "zod/mini"
 import { useReducedMotion } from "framer-motion"
 import { motion } from "@/components/ui/motion"
 import {
@@ -102,9 +102,12 @@ const isGuid = (value: string): boolean =>
 const isEmail = (value: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 
-const profileNameSchema = z.string().trim().min(1, "Enter your name")
-  .max(100, "At most 100 characters")
-  .regex(/^[a-zA-Zа-яА-ЯёЁ\s\-']+$/, "Use letters, spaces, hyphens or apostrophes")
+const profileNameSchema = z.string().check(
+  z.trim(),
+  z.minLength(1, "Enter your name"),
+  z.maxLength(100, "At most 100 characters"),
+  z.regex(/^[a-zA-Zа-яА-ЯёЁ\s\-']+$/, "Use letters, spaces, hyphens or apostrophes"),
+)
 const profileSchema = z.object({ firstName: profileNameSchema, lastName: profileNameSchema })
 const AVATAR_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"]
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
@@ -838,7 +841,7 @@ export default function ProfilePage() {
     if (savingProfile) return
     const result = profileSchema.safeParse(profileForm)
     if (!result.success) {
-      const errors = result.error.flatten().fieldErrors
+      const errors = z.flattenError(result.error).fieldErrors
       setProfileErrors({ firstName: errors.firstName?.[0], lastName: errors.lastName?.[0] })
       return
     }

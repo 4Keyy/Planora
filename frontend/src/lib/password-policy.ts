@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { z } from "zod/mini"
 
 /**
  * The password rule, declared once.
@@ -18,14 +18,14 @@ export const PASSWORD_MAX = 128
 // Match .NET's Unicode-aware [\W_] without treating non-ASCII letters as symbols.
 const SPECIAL_CHARACTER = /[^\p{L}\p{Mn}\p{Nd}\p{Pc}]|_/u
 
-export const PASSWORD_SCHEMA = z
-  .string()
-  .min(PASSWORD_MIN, `At least ${PASSWORD_MIN} characters`)
-  .max(PASSWORD_MAX, `At most ${PASSWORD_MAX} characters`)
-  .regex(/[A-Z]/, "Needs an uppercase letter")
-  .regex(/[a-z]/, "Needs a lowercase letter")
-  .regex(/[0-9]/, "Needs a number")
-  .regex(SPECIAL_CHARACTER, "Needs a special character")
+export const PASSWORD_SCHEMA = z.string().check(
+  z.minLength(PASSWORD_MIN, `At least ${PASSWORD_MIN} characters`),
+  z.maxLength(PASSWORD_MAX, `At most ${PASSWORD_MAX} characters`),
+  z.regex(/[A-Z]/, "Needs an uppercase letter"),
+  z.regex(/[a-z]/, "Needs a lowercase letter"),
+  z.regex(/[0-9]/, "Needs a number"),
+  z.regex(SPECIAL_CHARACTER, "Needs a special character"),
+)
 
 export type PasswordRuleId = "length" | "upper" | "lower" | "number" | "symbol"
 
@@ -79,4 +79,4 @@ export function isEasyToGuess(value: string): boolean {
 export const EASY_TO_GUESS_MESSAGE = "Too easy to guess. Avoid runs like 1234 or abcd, and repeats like aaaa."
 
 /** The rule for a new password on an existing account. */
-export const NEW_PASSWORD_SCHEMA = PASSWORD_SCHEMA.refine((v) => !isEasyToGuess(v), EASY_TO_GUESS_MESSAGE)
+export const NEW_PASSWORD_SCHEMA = PASSWORD_SCHEMA.check(z.refine((v) => !isEasyToGuess(v), EASY_TO_GUESS_MESSAGE))

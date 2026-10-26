@@ -807,6 +807,11 @@ compares Kiritimati (UTC+14) with UTC-12, whose calendar days are always at leas
   `api.get/post/put/patch/delete` literals and `${getApiBaseUrl()}/…` fetches — and fails when
   `ocelot.json` or `ocelot.Docker.json` has no route for one, with its method. Unit tests mock the
   network, so a call without a gateway route otherwise passes every test and answers 404 in use.
+- `frontend/src/test/quality/api-contract.contract.test.ts` also fails when app code imports the full
+  `zod` instead of `zod/mini`, or when `lib/api.ts` imports the contract schemas eagerly: either puts
+  zod back into every page's first-load JS, which the advisory bundle budget would only report.
+  The interceptor's first contract check waits for the schemas to load, so
+  `frontend/src/test/lib/api-interceptors.test.ts` waits for its report with `vi.waitFor`.
 - The suite runs on React 19 (`react`, `react-dom` 19.3, `@types/react*` 19.3) — the major the App
   Router ships with (Next.js 16 bundles a React 19.3 canary for it). Until 2026-10-26 the tests ran
   on React 18.3 while users got React 19, so a test could pass against behaviour production does

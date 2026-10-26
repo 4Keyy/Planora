@@ -125,19 +125,29 @@ describe("api interceptors", () => {
 
   // FE-09: the body of a well-known GET is checked against the shape the client reads, and a
   // difference is reported — the response itself is handed on untouched either way.
-  it("reports a response that drifted from its contract and hands it on unchanged", () => {
+  // The schemas load with the first GET answer (not with the page), so the first check settles
+  // a little later; the response is handed on at once either way.
+  it("reports a response that drifted from its contract and hands it on unchanged", async () => {
     const body = { items: [{ id: 1 }], pageNumber: 1, pageSize: 100, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false }
     const response = { data: body, status: 200, config: { method: "get", url: "/todos/api/v1/todos?pageSize=100" } }
 
     expect(responseFulfilled()(response)).toBe(response)
     expect(response.data).toBe(body)
-    expect(reportContractMismatch).toHaveBeenCalledWith(
+    await vi.waitFor(() => expect(reportContractMismatch).toHaveBeenCalledWith(
       "GET /todos/api/v1/todos",
       expect.arrayContaining(["items.*.id invalid_type (expected string, got number)"]),
-    )
+    ))
   })
 
-  it("stays quiet for a matching response, an unchecked endpoint and a broken body", () => {
+  it("checks only GET answers", async () => {
+    responseFulfilled()({ data: { id: 1 }, status: 200, config: { method: "post", url: "/auth/api/v1/users/me" } })
+    responseFulfilled()({ data: null, status: 200, config: { method: "get", url: "/auth/api/v1/users/me" } })
+
+    await vi.waitFor(() => expect(reportContractMismatch).toHaveBeenCalledTimes(1))
+    expect(reportContractMismatch).toHaveBeenCalledWith("GET /auth/api/v1/users/me", ["(body) invalid_type (expected object, got null)"])
+  })
+
+  it("stays quiet for a matching response, an unchecked endpoint and a broken body", async () => {
     const user = {
       id: "u", email: "a@b.c", firstName: "A", lastName: "B", profilePictureUrl: null, status: "Active",
       isEmailVerified: true, emailVerifiedAt: null, lastLoginAt: null, twoFactorEnabled: false, createdAt: "2026-01-01T00:00:00Z",
@@ -148,7 +158,9 @@ describe("api interceptors", () => {
     const broken = { data: null, status: 200, config: { method: "get", url: "/auth/api/v1/users/me" } }
 
     expect(responseFulfilled()(broken)).toBe(broken)
-    expect(reportContractMismatch).toHaveBeenCalledTimes(1) // only the null body, and its failure stayed inside
+    // Checks settle in the order they were made, so once the null body's report has failed the two
+    // before it have run: only the null body was reported, and its failure stayed inside.
+    await vi.waitFor(() => expect(reportContractMismatch).toHaveBeenCalledTimes(1))
   })
 
   it("does not request a CSRF token for safe methods", async () => {
