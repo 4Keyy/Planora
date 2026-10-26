@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### perf(frontend): the landing and sign-in pages skip the SignalR client (2026-10-26)
+
+Every page renders the root layout, and with it the realtime client, so the landing page, the
+sign-in screens and the error pages downloaded the SignalR library they never use. It is now
+loaded on the first connection, which only a signed-in user makes: every route's first load is
+13.4 KB gzip smaller (the landing page 218.0 → 204.6 KB, sign-in 185.3 → 171.9 KB), and the bundle
+budget is reset to the new sizes so the saving cannot quietly come back.
+
 ### fix(security): images load only from the app and the gateway (2026-10-20)
 
 The production Content-Security-Policy allowed images from any HTTPS host. No image needed that —

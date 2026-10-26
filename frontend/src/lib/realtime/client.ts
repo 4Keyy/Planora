@@ -1,4 +1,4 @@
-import * as signalR from "@microsoft/signalr"
+import type * as SignalR from "@microsoft/signalr"
 import { useAuthStore } from "@/store/auth"
 import { getApiBaseUrl } from "@/lib/config"
 import { describeError } from "@/lib/errors"
@@ -57,6 +57,26 @@ interface ServerEventMap {
 type ServerEvent = keyof ServerEventMap
 type Listener<E extends ServerEvent> = (payload: ServerEventMap[E]) => void
 
+/**
+ * The SignalR client (about 15 KB gzipped) is loaded when a connection is first started, which
+ * happens only for a signed-in user: the landing page, the sign-in screens and the error pages,
+ * which render the root layout and so this module too, no longer download it (FE-21). The module
+ * is fetched once; a failed fetch is retried with the next connect attempt.
+ */
+let signalRModule: Promise<typeof SignalR> | null = null
+const loadSignalR = (): Promise<typeof SignalR> => {
+  signalRModule ??= import("@microsoft/signalr").catch((error: unknown) => {
+    signalRModule = null
+    throw error
+  })
+  return signalRModule
+}
+
+/** A connection's state by name: the enum's values are its names, and the module may not be loaded. */
+type StateName = `${SignalR.HubConnectionState}`
+const stateOf = (connection: SignalR.HubConnection | null): StateName | undefined =>
+  connection ? (connection.state as StateName) : undefined
+
 const SERVER_EVENTS: readonly ServerEvent[] = [
   "TaskFeedChanged",
   "BranchChanged",
@@ -79,7 +99,7 @@ const SERVER_EVENTS: readonly ServerEvent[] = [
  * browser can authenticate a WebSocket).
  */
 class RealtimeClient {
-  private connection: signalR.HubConnection | null = null
+  private connection: SignalR.HubConnection | null = null
   private startPromise: Promise<void> | null = null
   private wantConnected = false
 
@@ -113,22 +133,20 @@ class RealtimeClient {
     // A connection already exists and is up or coming up (initial connect or an automatic
     // reconnect). Never build a second socket — accessTokenFactory re-reads the token on each
     // (re)connect, so a token refresh does not require tearing down a working connection.
-    const state = this.connection?.state
-    if (state === signalR.HubConnectionState.Connected) return
-    if (
-      state === signalR.HubConnectionState.Connecting ||
-      state === signalR.HubConnectionState.Reconnecting
-    ) {
+    const state = stateOf(this.connection)
+    if (state === "Connected") return
+    if (state === "Connecting" || state === "Reconnecting") {
       return this.startPromise ?? Promise.resolve()
     }
     if (this.startPromise) return this.startPromise
 
-    const connection = this.build()
-    this.connection = connection
-
-    this.startPromise = connection
-      .start()
-      .then(async () => {
+    this.startPromise = loadSignalR()
+      .then(async (signalR) => {
+        // A logout may have come while the client was loading.
+        if (!this.wantConnected) return
+        const connection = this.build(signalR)
+        this.connection = connection
+        await connection.start()
         // A logout may have raced the handshake — honor the latest intent.
         if (!this.wantConnected) return connection.stop()
         this.retryAttempt = 0
@@ -171,7 +189,7 @@ class RealtimeClient {
 
   /** Whether the live connection is currently established (the WebSocket is up and handshook). */
   get isConnected(): boolean {
-    return this.connection?.state === signalR.HubConnectionState.Connected
+    return stateOf(this.connection) === "Connected"
   }
 
   /**
@@ -247,7 +265,7 @@ class RealtimeClient {
     }
   }
 
-  private build(): signalR.HubConnection {
+  private build(signalR: typeof SignalR): SignalR.HubConnection {
     const url = `${getApiBaseUrl()}/realtime/hubs/notifications`
 
     const connection = new signalR.HubConnectionBuilder()
@@ -325,7 +343,7 @@ class RealtimeClient {
 
   private async invoke(method: string, ...args: unknown[]): Promise<void> {
     const connection = this.connection
-    if (!connection || connection.state !== signalR.HubConnectionState.Connected) return
+    if (!connection || stateOf(connection) !== "Connected") return
     try {
       await connection.invoke(method, ...args)
     } catch (error) {

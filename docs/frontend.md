@@ -274,7 +274,13 @@ jump.
 
 ## 6. Realtime
 
-SignalR, wired through `lib/realtime/`, shares one WebSocket connection to
+SignalR, wired through `lib/realtime/`, is loaded on demand: the realtime client imports
+`@microsoft/signalr` with `import()` on its first `start()`, which only a signed-in user reaches, so the
+landing page, the sign-in screens and the error pages — all of which render the root layout and the
+realtime module — no longer download it (13.4 KB gzip per route). The module is fetched once per page;
+a failed fetch is retried with the connect backoff below, and a sign-out while it loads builds nothing.
+`next/dynamic` is deliberately not used: it would hold the first render. The connection shares one
+WebSocket connection to
 `/realtime/hubs/notifications`, using `skipNegotiation: true` and an access-token
 factory that reads the current in-memory token. There is no long-polling transport
 fallback in this client. Initial connection failures use 2/5/10/30-second backoff;

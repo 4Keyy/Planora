@@ -1,22 +1,22 @@
 {
   "version": 1,
-  "totalGzipKB": 844.81,
+  "totalGzipKB": 848.41,
   "routes": {
-    "/": 227.59,
-    "/_global-error": 133.15,
-    "/_not-found": 157.52,
-    "/auth/forgot-password": 190.76,
-    "/auth/forgot-password/sent": 165.48,
-    "/auth/login": 193.26,
-    "/auth/register": 193.15,
-    "/auth/reset-password": 193.09,
-    "/auth/verify-email": 165.91,
-    "/branch/[id]": 235.93,
-    "/categories": 195.3,
-    "/dashboard": 217.38,
+    "/": 214.89,
+    "/_global-error": 134.42,
+    "/_not-found": 144.72,
+    "/auth/forgot-password": 177.96,
+    "/auth/forgot-password/sent": 152.69,
+    "/auth/login": 180.46,
+    "/auth/register": 180.35,
+    "/auth/reset-password": 180.29,
+    "/auth/verify-email": 153.11,
+    "/branch/[id]": 223.26,
+    "/categories": 182.6,
+    "/dashboard": 204.65,
     "/manifest.webmanifest": 0,
-    "/profile": 211.59,
-    "/tasks": 219.63,
-    "/tasks/completed": 222.74
+    "/profile": 198.83,
+    "/tasks": 206.9,
+    "/tasks/completed": 210.04
   }
 }

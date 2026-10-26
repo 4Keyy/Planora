@@ -839,31 +839,33 @@ overdue tasks are ordered by age alone is imprecise: priority precedes due date.
 
 ### Bundle size report and budgets
 
-Fresh local production build, 2026-10-20, Next.js 16.4.2. KB means 1024 bytes; gzip
-uses level 9. Client-reference manifests provide the route JS sets, deduplicated
-within each route; shared chunks count once in the static total. Routes do not include
-CSS, fonts, HTML, RSC payloads or the effect of runtime lazy loading.
+Fresh local production build, 2026-10-26, Next.js 16.4.2, after the SignalR client became a chunk of
+its own that only a signed-in connection loads (FE-21): every route's first load dropped by 13.4 KB
+gzip. KB means 1024 bytes; gzip uses level 9. Client-reference manifests provide the route JS sets,
+deduplicated within each route; shared chunks count once in the static total, which therefore still
+includes the SignalR chunk. Routes do not include CSS, fonts, HTML, RSC payloads or chunks loaded
+later at runtime.
 
 | Route | JS chunks | Raw KB | Gzip KB |
 |---|---:|---:|---:|
-| `/` | 18 | 643.70 | 216.75 |
-| `/_global-error` | 8 | 367.75 | 126.80 |
-| `/_not-found` | 12 | 447.11 | 150.01 |
-| `/auth/forgot-password` | 17 | 551.47 | 181.67 |
-| `/auth/forgot-password/sent` | 15 | 465.25 | 157.60 |
-| `/auth/login` | 17 | 558.87 | 184.05 |
-| `/auth/register` | 17 | 558.36 | 183.95 |
-| `/auth/reset-password` | 17 | 558.02 | 183.89 |
-| `/auth/verify-email` | 15 | 466.87 | 158.00 |
-| `/branch/[id]` | 19 | 687.79 | 224.69 |
-| `/categories` | 17 | 553.43 | 185.99 |
-| `/dashboard` | 20 | 608.13 | 207.02 |
+| `/` | 18 | 594.02 | 204.65 |
+| `/_global-error` | 8 | 370.70 | 128.01 |
+| `/_not-found` | 12 | 397.10 | 137.82 |
+| `/auth/forgot-password` | 17 | 501.47 | 169.49 |
+| `/auth/forgot-password/sent` | 15 | 415.25 | 145.41 |
+| `/auth/login` | 17 | 508.86 | 171.86 |
+| `/auth/register` | 17 | 508.36 | 171.76 |
+| `/auth/reset-password` | 17 | 508.02 | 171.70 |
+| `/auth/verify-email` | 15 | 416.87 | 145.81 |
+| `/branch/[id]` | 19 | 638.23 | 212.63 |
+| `/categories` | 17 | 503.81 | 173.90 |
+| `/dashboard` | 20 | 558.30 | 194.90 |
 | `/manifest.webmanifest` | 0 | 0.00 | 0.00 |
-| `/profile` | 18 | 626.14 | 201.51 |
-| `/tasks` | 21 | 614.95 | 209.17 |
-| `/tasks/completed` | 21 | 625.34 | 212.13 |
+| `/profile` | 18 | 576.19 | 189.35 |
+| `/tasks` | 21 | 565.14 | 197.04 |
+| `/tasks/completed` | 21 | 575.55 | 200.04 |
 
-Static totals: 81 JS files (2386.00 KB raw, 786.99 KB gzip), 2 CSS files (93.03 KB raw, 17.59 KB gzip); 2479.03 KB raw and 804.58 KB gzip combined; 0 source maps. This replaces the audit snapshot as the measured budget baseline.
+Static totals: 82 JS files (2394.59 KB raw, 790.42 KB gzip), 2 CSS files (93.03 KB raw, 17.59 KB gzip); 2487.62 KB raw and 808.01 KB gzip combined; 0 source maps. This is the measured budget baseline.
 
 ```powershell
 Push-Location frontend

@@ -42,22 +42,93 @@ const mock = vi.hoisted(() => {
       return c
     }
   }
-  return { built, state, FakeBuilder, FakeConnection }
+  // How many times the module was loaded, and whether the next load fails (a chunk that did not
+  // arrive): the client loads it on the first connect only (FE-21).
+  const loads = { count: 0, failNext: false }
+  const signalRModule = () => {
+    loads.count += 1
+    if (loads.failNext) {
+      loads.failNext = false
+      throw new Error("Loading chunk failed")
+    }
+    return {
+      HubConnectionBuilder: FakeBuilder,
+      HubConnectionState: {
+        Disconnected: "Disconnected",
+        Connecting: "Connecting",
+        Connected: "Connected",
+        Reconnecting: "Reconnecting",
+      },
+      HttpTransportType: { WebSockets: 1 },
+      LogLevel: { Warning: 3 },
+    }
+  }
+  return { built, state, loads, signalRModule, FakeBuilder, FakeConnection }
 })
 
-vi.mock("@microsoft/signalr", () => ({
-  HubConnectionBuilder: mock.FakeBuilder,
-  HubConnectionState: {
-    Disconnected: "Disconnected",
-    Connecting: "Connecting",
-    Connected: "Connected",
-    Reconnecting: "Reconnecting",
-  },
-  HttpTransportType: { WebSockets: 1 },
-  LogLevel: { Warning: 3 },
-}))
+vi.mock("@microsoft/signalr", () => mock.signalRModule())
+
+/**
+ * A fresh realtime module whose SignalR import has not happened yet. `vi.resetModules` keeps a
+ * mocked module's factory result, so the mock is registered again to make the next import load it.
+ */
+async function freshClient() {
+  vi.doMock("@microsoft/signalr", () => mock.signalRModule())
+  vi.resetModules()
+  mock.loads.count = 0
+  mock.built.length = 0
+  return import("@/lib/realtime/client")
+}
 
 import { realtime } from "@/lib/realtime/client"
+
+// Every page renders the root layout and with it this module — the landing page and the sign-in
+// screens too. The SignalR client is only fetched when a signed-in user connects (FE-21).
+describe("loading the SignalR client", () => {
+  it("is not loaded with the realtime module, only by the first connect", async () => {
+    const fresh = await freshClient()
+    expect(mock.loads.count).toBe(0)
+
+    await fresh.realtime.start()
+    expect(mock.loads.count).toBe(1)
+    expect(mock.built).toHaveLength(1)
+    expect(fresh.realtime.isConnected).toBe(true)
+
+    await fresh.realtime.stop()
+    await fresh.realtime.start()
+    expect(mock.loads.count).toBe(1) // loaded once per page
+    await fresh.realtime.stop()
+  })
+
+  it("retries a client that failed to load with the next connect attempt", async () => {
+    vi.useFakeTimers()
+    try {
+      const fresh = await freshClient()
+      mock.loads.failNext = true
+
+      await fresh.realtime.start()
+      expect(mock.built).toHaveLength(0)
+      expect(fresh.realtime.isConnected).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(2_000) // the connect backoff's first step
+      expect(mock.built).toHaveLength(1)
+      expect(fresh.realtime.isConnected).toBe(true)
+      await fresh.realtime.stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("builds nothing when the user signs out while the client is loading", async () => {
+    const fresh = await freshClient()
+
+    const starting = fresh.realtime.start()
+    await fresh.realtime.stop()
+    await starting
+
+    expect(mock.built).toHaveLength(0)
+  })
+})
 
 describe("realtime client", () => {
   beforeEach(async () => {
