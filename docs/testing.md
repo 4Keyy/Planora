@@ -691,9 +691,13 @@ friendship requests require verified active users. An unavailable frontend or a
 response >=500 fails the reachability hook; required services cannot silently skip
 the browser suite. Inspect test totals and the process exit code before claiming success.
 
-CI invokes `node e2e/run-ci.cjs` from `frontend/`. It buffers child stdout/stderr
-in memory and redacts query tokens, JWTs and secret JSON fields before printing
-diagnostics. CI uploads only failure PNGs; HTML reports, traces, video, mail bodies
+CI invokes `node e2e/run-ci.cjs --shard=N/4` from `frontend/`; arguments after the
+script go to Playwright. It streams child stdout/stderr line by line and redacts query
+tokens, JWTs and secret JSON fields in each line before printing it, so a run stopped
+by the job's time limit still shows which tests ran and how the failed ones failed.
+It used to hold the output until Playwright exited, and a cancelled job printed
+nothing. `e2e/run-ci.test.cjs`, run first, fails when a line is printed only after
+the child exits. CI uploads only failure PNGs; HTML reports, traces, video, mail bodies
 and sink data are not published. Local HTML reports are private and may contain
 disposable credentials or action links, so do not upload them. The workflow cleans
 up the disposable stack and `.env.e2e` after the run.
@@ -1056,7 +1060,11 @@ Pull requests target `main` or `develop`.
 main, pull requests to main/develop, and manual dispatch. Push and PR paths match. It starts the Docker stack using temporary
 environment secrets, waits for gateway health, installs Chromium, builds and
 starts Next.js, runs `node e2e/run-ci.cjs`, publishes redacted diagnostics and
-only failure PNGs, and cleans up frontend/containers and `.env.e2e`. An `always()` step
+only failure PNGs, and cleans up frontend/containers and `.env.e2e`. The suite runs in
+four shards — one job each, with its own Docker stack and a 45-minute limit, and whole
+spec files per shard. With one worker it runs for well over 30 minutes: every run on
+`main` until 2026-10-26 hit the former single job's 30-minute limit about half-way
+through the browser specs and was cancelled. An `always()` step
 summarizes skipped tests, retried tests and retry attempts from private Playwright JSON.
 Only numeric aggregates are published; the raw report is deleted. Missing or invalid
 reports are marked unavailable rather than reported as zero skips/retries.

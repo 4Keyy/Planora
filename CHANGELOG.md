@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(ci): the E2E suite finishes inside its time limit and shows its progress (2026-10-26)
+
+No E2E run on `main` had finished: the single job reached its 30-minute limit about half-way
+through the browser specs and was cancelled, and it printed nothing, because the runner held
+Playwright's output until it exited. The suite now runs in four shards with a 45-minute limit
+each, and the runner prints every redacted line as it arrives.
+
 ### perf(frontend): zod stays out of every page's first-load JS (2026-10-26)
 
 The response contract check put zod into the API client, which every page loads, so each route

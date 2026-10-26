@@ -194,10 +194,13 @@ replace real-service end-to-end checks. See
 
 [`.github/workflows/e2e.yml`](../../.github/workflows/e2e.yml) starts Docker, waits
 for configured health endpoints, installs Chromium, builds/starts Next.js and runs
-both projects on relevant pull requests or manual dispatch. From `frontend/`,
-`node e2e/run-ci.cjs` captures child stdout/stderr in memory and redacts action-link
-query tokens, JWTs and secret JSON fields before printing diagnostics. CI generates
-no HTML report, trace or video and uploads only failure PNG screenshots, not
+both projects on relevant pushes to `main`, pull requests or manual dispatch, in four
+shards (one job each, `--shard=N/4`, 45-minute limit): with one worker the whole suite
+runs well over 30 minutes. From `frontend/`, `node e2e/run-ci.cjs` streams child
+stdout/stderr line by line, redacting action-link query tokens, JWTs and secret JSON
+fields in each line, so a job stopped by its time limit still shows the tests it ran.
+CI generates no HTML report, trace or video and uploads only failure PNG screenshots
+(one artifact per shard), not
 mail bodies, Mailpit data or raw output. Cleanup stops the frontend and disposable
 containers and removes `.env.e2e`. The workflow's browser
 cache behavior is defined by its actual steps; npm caching alone does not prove

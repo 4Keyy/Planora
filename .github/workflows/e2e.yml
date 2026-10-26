@@ -34,8 +34,16 @@ concurrency:
 
 jobs:
   auth-todos-sharing-hidden:
+    name: e2e (shard ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # One worker runs the whole suite in well over 30 minutes, so every run hit the old 30-minute
+    # limit and was cancelled half-way. Four shards each start their own stack (about 6 minutes
+    # with the build) and run about a quarter of the tests, whole spec files at a time.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -130,7 +138,7 @@ jobs:
           exit 1
 
       - name: Run Playwright e2e (api + ui projects)
-        run: node e2e/run-ci.cjs
+        run: node e2e/run-ci.cjs --shard=${{ matrix.shard }}/4
         working-directory: frontend
         env:
           E2E_API_URL: http://127.0.0.1:5132
@@ -161,7 +169,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-failure-screenshots
+          name: playwright-failure-screenshots-${{ matrix.shard }}
           path: frontend/test-results/playwright/**/*.png
           if-no-files-found: ignore
           retention-days: 3
