@@ -42,6 +42,13 @@ const selectors = [
   { label: "Category", option: "Work", clearLabel: "Clear category", placeholder: "None" },
 ] as const
 
+/**
+ * A closed picker stays mounted while its exit plays, and jsdom never fires `animationend`, so
+ * it leaves on `useExitPresence`'s fallback timer — a few hundred milliseconds that can stretch
+ * past `waitFor`'s one-second default when the whole suite runs in parallel.
+ */
+const PICKER_GONE = { timeout: 5_000 }
+
 function renderPanel() {
   return render(
     <CreateTodoPanel
@@ -77,7 +84,7 @@ async function selectValue(user: ReturnType<typeof userEvent.setup>, selector: t
     // The outgoing placeholder can remain during the value crossfade; clear tracks selection.
     expect(screen.getByRole("button", { name: selector.clearLabel })).toBeInTheDocument()
     expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument()
-  })
+  }, PICKER_GONE)
 }
 
 beforeEach(() => {
@@ -141,7 +148,7 @@ describe("CreateTodoPanel selector clear controls", { timeout: 15_000 }, () => {
       expect(screen.queryByRole("button", { name: selector.clearLabel })).not.toBeInTheDocument()
       expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument()
       expect(screen.queryByRole("button", { name: selector.option, hidden: true })).not.toBeInTheDocument()
-    })
+    }, PICKER_GONE)
     expectChevron(selector.label)
     expectPersistentChevrons()
   })
@@ -169,7 +176,7 @@ describe("CreateTodoPanel selector clear controls", { timeout: 15_000 }, () => {
       expect(getTrigger(selector.label)).toHaveAttribute("aria-expanded", "false")
       expect(screen.queryByRole("button", { name: selector.clearLabel })).not.toBeInTheDocument()
       expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument()
-    })
+    }, PICKER_GONE)
     expectChevron(selector.label)
     expectPersistentChevrons()
   })

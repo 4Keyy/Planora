@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { cleanup, render, screen } from "@testing-library/react"
 import { NotificationBadge } from "@/components/notifications/notification-badge"
 
 describe("NotificationBadge", () => {
   afterEach(() => {
+    // Unmount before putting globals back: React 19 defers passive effects, and Testing Library's
+    // own cleanup runs after this nested hook, so a last effect would otherwise meet the real
+    // (missing) global. See docs/testing.md, "Vitest 5 and jest-dom 7 conventions".
+    cleanup()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })

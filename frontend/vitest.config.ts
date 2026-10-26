@@ -12,6 +12,12 @@ export default defineConfig({
     // busy, the heaviest of them run past Vitest's default 5 s on an ordinary laptop — not because
     // anything hangs, but because each is a second or two of real rendering slowed several times.
     testTimeout: 15_000,
+    // After-hooks run in the order they were declared, so Testing Library's cleanup — registered
+    // when a test file imports it, before the file's own hooks — unmounts the tree before a file's
+    // afterEach restores what the tree used (stubbed globals, mocks, timers). React 19 defers
+    // passive effects, and the default reverse order let a component's last effect run during
+    // unmount against globals that had already been put back.
+    sequence: { hooks: 'list' },
     exclude: ['e2e/**', 'playwright-report/**', 'test-results/**', 'node_modules/**', 'dist/**', '.next/**', '.next-*/**'],
     coverage: {
       provider: 'v8',

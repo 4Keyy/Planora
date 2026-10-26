@@ -102,7 +102,7 @@ function SelectorCard({
   clearLabel,
   children,
 }: {
-  containerRef: RefObject<HTMLDivElement>
+  containerRef: RefObject<HTMLDivElement | null>
   label: string
   /** Accessible name of the trigger; defaults to the visible label. */
   ariaLabel?: string

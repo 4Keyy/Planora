@@ -333,7 +333,7 @@ detail: [`database.md`](database.md).
 | Backend validation | FluentValidation |
 | Backend request dispatch | MediatR |
 | Backend result pattern | `Result<T>` / `Error` |
-| Frontend | Next.js App Router, React 18, TypeScript |
+| Frontend | Next.js 16 App Router, React 19, TypeScript |
 | Frontend state | Zustand |
 | Frontend validation/forms | Zod, React Hook Form where used |
 | Frontend tests | Vitest + Testing Library |

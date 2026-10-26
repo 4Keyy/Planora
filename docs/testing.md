@@ -803,6 +803,23 @@ compares Kiritimati (UTC+14) with UTC-12, whose calendar days are always at leas
   scope right after the import, as `frontend/src/test/lib/auth-public.test.ts` does with
   `createdWith`, instead of asserting `toHaveBeenCalled` inside a test.
 - Vitest 5 and jest-dom 7 require Node.js 22 or newer; CI runs the frontend jobs on Node 22.
+- The suite runs on React 19 (`react`, `react-dom` 19.3, `@types/react*` 19.3) — the major the App
+  Router ships with (Next.js 16 bundles a React 19.3 canary for it). Until 2026-10-26 the tests ran
+  on React 18.3 while users got React 19, so a test could pass against behaviour production does
+  not have.
+- React 19 defers passive effects that React 18 flushed inside `act`, so a component's last effect
+  can run when Testing Library unmounts it. Restore what a rendered tree uses — a stubbed global, a
+  spied property — only after the tree is gone. `vitest.config.ts` sets `sequence.hooks: 'list'`, so
+  a test file's own `afterEach` runs after Testing Library's cleanup, which the file registered when
+  it imported the library. A nested `describe`'s `afterEach` still runs before that file-level
+  cleanup, so one that restores globals calls `cleanup()` first, as
+  `frontend/src/test/app/todos-page.test.tsx` does for its `IntersectionObserver` stub: without it,
+  the page's sentinel effect met the missing global during unmount, but only when the whole suite ran
+  in parallel.
+- A closed surface on `useExitPresence` leaves on its fallback timer in jsdom, which has no
+  `animationend`; under the parallel suite that can take longer than `waitFor`'s one-second default,
+  so a test waiting for it to be gone gives the wait a longer timeout
+  (`frontend/src/test/components/create-todo-panel-clear.test.tsx`).
 
 ### What a good test asserts here
 

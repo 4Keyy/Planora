@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import TodosPage from "@/app/(app)/tasks/page"
@@ -303,6 +303,10 @@ describe("TodosPage active list paging", () => {
   })
 
   afterEach(() => {
+    // Unmount before putting globals back: React 19 defers passive effects, and Testing Library's
+    // own cleanup runs after this nested hook, so a last effect would otherwise meet the real
+    // (missing) global. See docs/testing.md, "Vitest 5 and jest-dom 7 conventions".
+    cleanup()
     vi.unstubAllGlobals()
   })
 

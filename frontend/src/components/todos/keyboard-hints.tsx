@@ -214,7 +214,7 @@ function HintsPanel({
   onClose,
   reduce,
 }: {
-  panelRef: RefObject<HTMLDivElement>
+  panelRef: RefObject<HTMLDivElement | null>
   onClose: () => void
   reduce: boolean
 }) {

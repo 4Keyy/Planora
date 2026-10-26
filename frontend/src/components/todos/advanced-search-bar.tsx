@@ -53,7 +53,7 @@ export function AdvancedSearchBar({
 }: AdvancedSearchBarProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [debouncedSearch, setDebouncedSearch] = useState(value)
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>()
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Debounce the search input 200ms before filtering
   useEffect(() => {

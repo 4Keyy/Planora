@@ -113,6 +113,15 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### test(frontend): the unit tests run on React 19, like the app (2026-10-26)
+
+The App Router renders with the React 19 that Next.js 16 bundles, but `react` in `package.json`
+was 18.3, so all 2046 unit tests checked the components against a React no user runs, and every
+build warned that Next.js 17 drops React 18. `react`, `react-dom` and their types are now 19.3.
+Three props took nullable refs and one `useRef` needed its argument; two tests that only passed
+on React 18's timing were fixed — a page whose last effect ran after a test had removed the global
+it needs, and a picker whose exit outlived a one-second wait under load.
+
 ### refactor(frontend): the CSP nonce comes from proxy.ts (2026-10-26)
 
 Next.js 16 deprecated the `middleware` file convention in favour of `proxy`, and every build said
