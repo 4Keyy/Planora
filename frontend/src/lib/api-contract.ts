@@ -13,7 +13,7 @@ import type { Category } from "@/types/category"
  * Each schema mirrors one C# DTO field for field, with its nullability;
  * `src/test/quality/api-contract.contract.test.ts` reads the DTO sources and fails when the two
  * differ, and the `satisfies` checks below fail type-checking when a schema stops matching the
- * TypeScript type the screens use. Unknown fields pass (`passthrough`).
+ * TypeScript type the screens use. Unknown fields pass (`z.looseObject`).
  */
 
 const guid = z.string()
@@ -21,14 +21,14 @@ const instant = z.string()
 /** A .NET `TimeSpan`, serialized as `[d.]hh:mm:ss[.fffffff]`. */
 const timeSpan = z.string()
 
-export const TodoWorkerSchema = z.object({
+export const TodoWorkerSchema = z.looseObject({
   userId: guid,
   name: z.string().nullable(),
   avatarUrl: z.string().nullable(),
-}).passthrough()
+})
 
 /** `Services/TodoApi/Planora.Todo.Application/DTOs/TodoItemDto.cs` */
-export const TodoSchema = z.object({
+export const TodoSchema = z.looseObject({
   id: guid,
   userId: guid,
   createdByUserId: guid.nullable(),
@@ -70,10 +70,10 @@ export const TodoSchema = z.object({
   openSubtaskCount: z.number().int(),
   authorName: z.string().nullable(),
   authorAvatarUrl: z.string().nullable(),
-}).passthrough()
+})
 
 /** `BuildingBlocks/Planora.BuildingBlocks.Application/Pagination/PagedResult.cs` */
-const paged = <T extends z.ZodTypeAny>(item: T) => z.object({
+const paged = <T extends z.ZodTypeAny>(item: T) => z.looseObject({
   items: z.array(item),
   pageNumber: z.number().int(),
   pageSize: z.number().int(),
@@ -81,10 +81,10 @@ const paged = <T extends z.ZodTypeAny>(item: T) => z.object({
   totalPages: z.number().int(),
   hasPreviousPage: z.boolean(),
   hasNextPage: z.boolean(),
-}).passthrough()
+})
 
 /** `Services/AuthApi/Planora.Auth.Application/Common/DTOs/UserDto.cs` */
-export const UserSchema = z.object({
+export const UserSchema = z.looseObject({
   id: guid,
   email: z.string(),
   firstName: z.string(),
@@ -96,20 +96,20 @@ export const UserSchema = z.object({
   lastLoginAt: instant.nullable(),
   twoFactorEnabled: z.boolean(),
   createdAt: instant,
-}).passthrough()
+})
 
 /** `Services/AuthApi/Planora.Auth.Application/Features/Friendships/Queries/GetFriends/FriendDto.cs` */
-export const FriendSchema = z.object({
+export const FriendSchema = z.looseObject({
   id: guid,
   email: z.string(),
   firstName: z.string(),
   lastName: z.string(),
   profilePictureUrl: z.string().nullable(),
   friendsSince: instant,
-}).passthrough()
+})
 
 /** `Services/CategoryApi/Planora.Category.Application/DTOs/CategoryDto.cs` */
-export const CategorySchema = z.object({
+export const CategorySchema = z.looseObject({
   id: guid,
   userId: guid,
   name: z.string(),
@@ -119,7 +119,7 @@ export const CategorySchema = z.object({
   displayOrder: z.number().int(),
   createdAt: instant,
   updatedAt: instant.nullable(),
-}).passthrough()
+})
 
 export const PagedTodosSchema = paged(TodoSchema)
 export const PagedFriendsSchema = paged(FriendSchema)
@@ -146,6 +146,23 @@ export const RESPONSE_CONTRACTS: ReadonlyArray<{ name: string; path: RegExp; sch
 /** At most this many differences are described per response. */
 const MAX_ISSUES = 5
 
+/** The value an issue points at: zod 4 reports the expected type, not the one it found. */
+function valueAt(body: unknown, path: ReadonlyArray<PropertyKey>): unknown {
+  let current = body
+  for (const key of path) {
+    if (current === null || typeof current !== "object") return undefined
+    current = (current as Record<PropertyKey, unknown>)[key]
+  }
+  return current
+}
+
+/** A JSON value's type name: `null`, `array`, or what `typeof` says. */
+function kindOf(value: unknown): string {
+  if (value === null) return "null"
+  if (Array.isArray(value)) return "array"
+  return typeof value
+}
+
 /**
  * The differences between a response body (already unwrapped from its envelope) and the contract
  * for `method path`, or `null` when no contract applies or the body matches. Item indices are
@@ -163,8 +180,8 @@ export function describeContractMismatch(method: string | undefined, url: string
 
   const issues = new Set<string>()
   for (const issue of result.error.issues) {
-    const where = issue.path.map((part) => (typeof part === "number" ? "*" : part)).join(".") || "(body)"
-    const detail = issue.code === "invalid_type" ? ` (expected ${issue.expected}, got ${issue.received})` : ""
+    const where = issue.path.map((part) => (typeof part === "number" ? "*" : String(part))).join(".") || "(body)"
+    const detail = issue.code === "invalid_type" ? ` (expected ${issue.expected}, got ${kindOf(valueAt(body, issue.path))})` : ""
     issues.add(`${where} ${issue.code}${detail}`)
     if (issues.size >= MAX_ISSUES) break
   }

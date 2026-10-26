@@ -60,7 +60,7 @@ function csharpProperties(file: string, typeName: string): Record<string, Field>
 function zodFields(schema: z.ZodTypeAny): Record<string, Field> {
   const shape = (schema as z.ZodObject<z.ZodRawShape>).shape
   return Object.fromEntries(Object.entries(shape).map(([name, field]) => {
-    let current = field as z.ZodTypeAny
+    let current: z.core.$ZodType = field
     let nullable = false
     while (current instanceof z.ZodNullable || current instanceof z.ZodOptional) {
       nullable = true

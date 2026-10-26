@@ -579,6 +579,13 @@ scan still reports development-tool vulnerabilities; this is not a claim that
 the entire package graph is clean. The [dated review](../.github/security/frontend-dependencies-2026-10.md)
 lists the remaining advisories and verification boundaries.
 
+zod moved to 4.6.7 and `@hookform/resolvers` to 5.9.2 for
+[GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5), which affects every zod
+release before 4.6.6 and has no fixed 3.x release. zod runs only in the browser — the forms and the
+response contract check — and every form message stays the same. The
+[zod review](../.github/security/zod-2026-10.md) records the exposure, the behaviour checked and the
+verification.
+
 ## Frozen All friends Authorization
 
 `TodoAccessPolicy` applies the same rule to runtime guards and translated list predicates:

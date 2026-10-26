@@ -203,7 +203,7 @@ describe("create account", () => {
     await user.type(screen.getByLabelText("Last name"), "Morgan")
     await user.type(screen.getByLabelText("Email"), "alex@example.com")
     await user.type(screen.getByLabelText("Password"), "Correct1!horse")
-    await user.type(screen.getByLabelText("Confirm password"), confirm)
+    if (confirm) await user.type(screen.getByLabelText("Confirm password"), confirm)
   }
 
   it("ticks the rules and confirms the match while typing, then posts the server-required confirmation", async () => {
@@ -232,6 +232,16 @@ describe("create account", () => {
     await fill(user, "Correct1!horsf")
     await user.click(screen.getByRole("button", { name: "Create account" }))
     expect(await screen.findByText("The two passwords don't match.")).toBeInTheDocument()
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it("asks for the confirmation before comparing it", async () => {
+    const user = userEvent.setup()
+    render(<RegisterPage />)
+    await fill(user, "")
+    await user.click(screen.getByRole("button", { name: "Create account" }))
+    expect(await screen.findByText("Repeat your password")).toBeInTheDocument()
+    expect(screen.queryByText("The two passwords don't match.")).not.toBeInTheDocument()
     expect(post).not.toHaveBeenCalled()
   })
 
@@ -291,6 +301,19 @@ describe("email length", () => {
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: `a${longestEmail}` } })
     fireEvent.submit(screen.getByRole("button", { name: button }).closest("form")!)
     expect(await screen.findByText("At most 255 characters")).toBeInTheDocument()
+    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true")
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ["register", RegisterPage, "Create account"],
+    ["login", LoginPage, "Sign in"],
+    ["password recovery", ForgotPasswordPage, "Send the link"],
+  ])("names a malformed address in %s before a round trip", async (_name, Page, button) => {
+    render(<Page />)
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "alex@example" } })
+    fireEvent.submit(screen.getByRole("button", { name: button }).closest("form")!)
+    expect(await screen.findByText("Enter a valid email address")).toBeInTheDocument()
     expect(screen.getByLabelText("Email")).toHaveAttribute("aria-invalid", "true")
     expect(post).not.toHaveBeenCalled()
   })
@@ -386,6 +409,17 @@ describe("choosing a new password", () => {
       confirmPassword: "Correct1!horse",
     })
     expect(sessionStorage.getItem(RESET_EMAIL_KEY)).toBeNull()
+  })
+
+  it("asks for the confirmation before comparing it", async () => {
+    const user = userEvent.setup()
+    nav.params = new URLSearchParams("token=abc")
+    render(<ResetPasswordPage />)
+    await user.type(screen.getByLabelText("New password"), "Correct1!horse")
+    await user.click(screen.getByRole("button", { name: "Save new password" }))
+    expect(await screen.findByText("Repeat your new password")).toBeInTheDocument()
+    expect(screen.queryByText("The two passwords don't match.")).not.toBeInTheDocument()
+    expect(post).not.toHaveBeenCalled()
   })
 
   it("puts a breached password on the password field, not on the link", async () => {

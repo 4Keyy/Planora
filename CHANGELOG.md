@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(security): zod 4.6.7 closes a memory-exhaustion advisory (2026-10-26)
+
+GHSA-mrhx-c7xc-m3w5 (high) affects every zod release before 4.6.6 and has no fixed 3.x release, so
+the production dependency scan failed. The frontend moves to zod 4.6.7 and `@hookform/resolvers`
+5.9.2. Every form message and its order stay the same, and the response contract report now reads
+the type it received from the body, because zod 4 issues no longer carry it.
+
 ### fix(todos): the New task request sends only what the server reads (2026-10-26)
 
 Creating a task sent an empty `tags` list that the create command does not have and so silently
