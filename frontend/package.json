@@ -31,13 +31,13 @@
     "clsx": "^2.1.1",
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.577.0",
-    "next": "^16.4.2",
+    "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-hook-form": "^7.90.0",
     "tailwind-merge": "^2.6.1",
     "zod": "^4.6.7",
-    "zustand": "^5.0.15"
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
@@ -52,16 +52,16 @@
     "autoprefixer": "^10.6.1",
     "beasties": "^0.5.5",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.4.2",
+    "eslint-config-next": "^16.4.3",
     "jsdom": "^29.1.0",
-    "postcss": "8.5.30",
+    "postcss": "8.5.31",
     "tailwindcss": "^3.4.17",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.7.2",
     "vitest": "^5.0.5"
   },
   "overrides": {
-    "postcss": "8.5.30",
+    "postcss": "8.5.31",
     "undici": "7.30.0"
   }
 }
