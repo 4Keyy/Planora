@@ -803,6 +803,10 @@ compares Kiritimati (UTC+14) with UTC-12, whose calendar days are always at leas
   scope right after the import, as `frontend/src/test/lib/auth-public.test.ts` does with
   `createdWith`, instead of asserting `toHaveBeenCalled` inside a test.
 - Vitest 5 and jest-dom 7 require Node.js 22 or newer; CI runs the frontend jobs on Node 22.
+- `frontend/src/test/quality/gateway-routes.contract.test.ts` collects every path the client calls —
+  `api.get/post/put/patch/delete` literals and `${getApiBaseUrl()}/…` fetches — and fails when
+  `ocelot.json` or `ocelot.Docker.json` has no route for one, with its method. Unit tests mock the
+  network, so a call without a gateway route otherwise passes every test and answers 404 in use.
 - The suite runs on React 19 (`react`, `react-dom` 19.3, `@types/react*` 19.3) — the major the App
   Router ships with (Next.js 16 bundles a React 19.3 canary for it). Until 2026-10-26 the tests ran
   on React 18.3 while users got React 19, so a test could pass against behaviour production does

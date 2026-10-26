@@ -162,6 +162,7 @@ Rejection is `429 Too Many Requests` with `Retry-After: 60` and the body
 | `/auth/api/v1/auth/{everything}` | Auth `AuthenticationController` | mixed |
 | `GET /auth/api/v1/users/verify-email` | Auth `UsersController.VerifyEmailByToken` | public — a dedicated route declared *before* the catch-all below, with no `AuthenticationOptions` |
 | `/auth/api/v1/users/{everything}` | Auth `UsersController` | bearer at gateway |
+| `GET /auth/api/v1/users` | Auth `UsersController.GetUsers` (admin user list) | bearer at gateway — a route of its own, because `{everything}` needs a segment after `users` |
 | `/auth/api/v1/friendships*` | Auth `FriendshipsController` | bearer |
 | `/friendships*` | Auth `FriendshipsController` legacy route | bearer |
 | `/auth/api/v1/analytics/{everything}` | Auth `AnalyticsController` | bearer |
@@ -173,7 +174,7 @@ Rejection is `429 Too Many Requests` with `Retry-After: 60` and the body
 | `/realtime/api/v1/{everything}` | Realtime API HTTP route (notifications + connections REST) | bearer |
 | `GET /realtime/{everything}` | Realtime API websocket route (SignalR hub `/hubs/notifications`) | bearer at gateway and hub |
 
-The local downstream prefix for authentication is `/api/v1/Authentication`; `/auth/api/v1/auth` is the gateway rewrite. Other REST controllers use `/api/v1/<controller>` locally. The refresh cookie is scoped to the **gateway** auth path, so direct service calls do not automatically receive it. The Ocelot user catch-all is `/users/{everything}`: the controller's admin `GET /api/v1/Users` collection route has no explicit root mapping in the checked-in gateway files. Confirm catch-all matching in the deployed Ocelot version before relying on the gateway collection URL.
+The local downstream prefix for authentication is `/api/v1/Authentication`; `/auth/api/v1/auth` is the gateway rewrite. Other REST controllers use `/api/v1/<controller>` locally. The refresh cookie is scoped to the **gateway** auth path, so direct service calls do not automatically receive it. The Ocelot user catch-all is `/users/{everything}`, which needs a segment after `users`; the controller's admin `GET /api/v1/Users` collection has its own `GET /auth/api/v1/users` route in both gateway files, and `frontend/src/test/quality/gateway-routes.contract.test.ts` fails when a path the client calls has no route.
 
 `POST /realtime/hubs/notifications/negotiate` has no matching POST hub route in these Ocelot files. The frontend uses WebSockets with `skipNegotiation: true`; an external client requiring negotiation/long polling needs additional routing.
 

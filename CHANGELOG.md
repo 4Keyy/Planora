@@ -113,6 +113,13 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(gateway): the admin user list is reachable through the gateway (2026-10-26)
+
+The profile page's admin section reads `GET /auth/api/v1/users`, but the gateway only routed
+`/auth/api/v1/users/{everything}`, which needs a segment after `users`, so the list answered 404.
+The gateway now routes the list itself, and a contract test fails whenever the client calls a path
+the gateway does not route.
+
 ### fix(realtime): every notification push has the same fields (2026-10-26)
 
 Notifications sent by an administrator or broadcast to everyone arrived without a title, a task or

@@ -89,6 +89,22 @@
       "RateLimitOptions": { "EnableRateLimiting": false }
     },
     {
+      "DownstreamPathTemplate": "/api/v1/Users",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
+      "UpstreamPathTemplate": "/auth/api/v1/users",
+      "UpstreamHttpMethod": [ "GET" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      },
+      "AddClaims": {
+        "sub": "sub",
+        "email": "email"
+      },
+      "RateLimitOptions": { "EnableRateLimiting": false }
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/Friendships/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [ { "Host": "127.0.0.1", "Port": 5030 } ],
