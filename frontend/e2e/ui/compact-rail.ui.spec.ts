@@ -15,8 +15,10 @@ for (const dpr of [1, 2]) {
         for (const mount of ['first', 'repeat']) {
           await page.goto('/');
           const cards = page.locator('[data-task-card]').filter({ has: page.getByRole('button', { name: 'Collapse task card', exact: true }) });
-          // Session restore may await a 10s request and its CSRF retry before installing the sandbox.
-          await expect(cards).toHaveCount(6, { timeout: 30_000 });
+          // Session restore may await a 10s request and its CSRF retry before installing the sandbox,
+          // and in CI every page load shares one IP: once the auth limiter (10 a minute) answers 429
+          // with Retry-After 60, "Your list" arrives only after that minute.
+          await expect(cards).toHaveCount(6, { timeout: 75_000 });
           await page.evaluate(() => document.fonts.ready);
           await page.waitForTimeout(800);
           for (const card of await cards.all()) {
@@ -159,7 +161,7 @@ test('public hide/show restores focus after rapid toggles', async ({ page }) => 
   expect(await card.evaluate(element => element.getAnimations().length)).toBe(0);
 });
 
-test('public reduced motion changes height without an intermediate shape', async ({ page, browserName }, info) => {
+test('public reduced motion changes height without an intermediate shape', async ({ page }, info) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   const region = page.getByRole('region', { name: 'Your list', exact: true });
@@ -174,8 +176,7 @@ test('public reduced motion changes height without an intermediate shape', async
   expect(Math.abs(frames.at(-1)!.height - 46)).toBeLessThanOrEqual(0.02);
   expect(frames.at(-1)!.animations).toBe(0);
   expect(await card.evaluate(element => (element as HTMLElement).style.height)).toBe('');
-  // Mark only this measured invariant, after setup and final-state checks have passed.
-  // The original build also shows 134 -> 70 -> 46px; see docs/testing.md.
-  test.fail(browserName === 'chromium', 'Existing reduced-motion content transient: 160 -> 70 -> 46px; docs/testing.md');
+  // One step, no intermediate height: the 160 -> 70 -> 46px transient this once had to allow for is
+  // gone since style changes apply at once under reduced motion (d1ee368).
   expect(frames.slice(1).every(frame => Math.abs(frame.height - frames.at(-1)!.height) <= 1)).toBe(true);
 });

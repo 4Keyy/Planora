@@ -110,9 +110,11 @@ the original 180-second matrix budget, so the extended matrix uses the existing
 
 A separate reduced-motion probe found an existing content-transition transient
 in Chromium: 160 → 70 → 46px over the first ~64ms, with no running native height
-animation. The strict instantaneous-height assertion remains unchanged. Its Chromium-only
-expected-failure annotation is applied after successful setup/final-state checks
-and saved frame data; rapid-toggle/focus is tested separately. A Chrome 154 run
+animation. The strict instantaneous-height assertion remains unchanged. It carried a
+Chromium-only expected-failure annotation until 2026-10-27: style changes apply at once under
+reduced motion since `d1ee368` (2026-10-13), and the first complete CI run recorded one-step
+heights on all three attempts, which Playwright reports as "Expected to fail, but passed". The
+annotation is gone; rapid-toggle/focus is tested separately. A Chrome 154 run
 failed its final-focus assertion; the later independent diagnostic passed it.
 Other engines
 retain their normal assertion. Animation logic was not changed. The original Claude build independently reproduced
@@ -137,7 +139,10 @@ origin. A network probe confirmed browser API traffic on port 3110, while direct
 fixture setup uses 15132. The helper now records real Retry-After from both
 origins; service rate limits and response bodies are unchanged. Public demo
 readiness also allows the actual 10-second session request and CSRF retry before
-asserting all six cards. Its strict 44px hit targets and geometry limits remain.
+asserting all six cards, and — because every CI page load shares one IP — the auth limiter's
+60-second Retry-After once it answers 429 (75 seconds in all). Without that minute the
+768px DPR-1 case failed twice in each run and passed on the third attempt. Its strict 44px hit
+targets and geometry limits remain.
 
 The initial complete Chromium UI run used the first versions of the new E2E
 scenarios: 44 passed, 20 failed and 12 did not run in serial groups. It is a
@@ -236,10 +241,9 @@ displacement error was 0px. Those three captures contained no pager samples and
 cannot certify pagination motion.
 
 - `frontend/src/hooks/use-height-transition.ts` and the existing content transition:
-  Chromium reduced motion includes the independently reproduced 70px transient
-  described above. Proposal: investigate how the content swap affects natural
-  height before the reduced-motion final shape; keep the strict instant-height
-  check. The animation code was outside the permitted repair scope.
+  Chromium reduced motion included the independently reproduced 70px transient
+  described above. Resolved by `d1ee368`; the strict instant-height check now
+  runs without an expected-failure annotation.
 - `frontend/src/components/todos/todo-card.tsx`: rapidly collapse/re-expand a
   public card, then wait one second. Chrome 154 restored the open shape but the
   final Collapse-button focus assertion failed. Earlier Chromium 149 probing
