@@ -133,6 +133,7 @@ Establish social relationships required for task sharing and friend-scoped task 
 - Incoming/outgoing requests are controlled with `incoming=true/false`.
 - Internal friend-id and are-friends checks return safe fallback values on exceptions.
 - Gateway exposes both `/auth/api/v1/friendships*` and legacy `/friendships*`.
+- The friend list comes oldest friendship first, a page of at most 100 at a time. `useFriends` (`frontend/src/hooks/use-friends.ts`) reads page after page of 100 while the server reports a next page and the page is full, keeping each friend once; it used to ask for 200 a page and stop at the first page shorter than 200, which a server answering 100 a page made the first one — everyone after the hundredth friend was missing from the audience picker and from name resolution.
 
 ## Categories
 

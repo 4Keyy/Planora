@@ -524,7 +524,9 @@ Send by email:
 
 The by-email response is generic by design. All friendship routes require bearer authentication and their HTTP mutations require CSRF. `friend-ids` requires `userId` to equal the caller; `are-friends` requires `userId1` to equal the caller. Mismatch returns `403` with the bearer forbid response. Lookup exceptions are logged and fail closed to `{ "value": [] }` / `{ "value": false }`.
 
-Success: by-id request `201` with body `{ "incoming": true }`; by-email `200` with its generic message; accept/reject `200` with the `ApiResponse` success envelope; remove `204`; friends `PagedResult<FriendDto>`; request list `FriendRequestDto[]`. Returned handler failures are normally `400` with bare `Error`, independently of the semantic error type.
+Success: by-id request `201` with body `{ "incoming": true }`; by-email `200` with its generic message; accept/reject `200` with the `ApiResponse` success envelope; remove `204`; friends `PagedResult<FriendDto>`; request list `FriendRequestDto[]`.
+
+The friend list is paged with the normalised page size it reports (at most 100) and ordered by when each friendship began — `acceptedAt`, else `createdAt`, as `friendsSince` — oldest first, then by friend id, so pages read one after another neither repeat nor skip a friend. It used to slice by the requested size: `pageSize=200` returned 200 rows under a reported `pageSize` of 100, and the rows came in whatever order the database returned them. Returned handler failures are normally `400` with bare `Error`, independently of the semantic error type.
 
 | DTO | Complete JSON members |
 |---|---|

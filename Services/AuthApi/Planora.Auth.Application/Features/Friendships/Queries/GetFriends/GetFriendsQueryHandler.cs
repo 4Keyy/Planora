@@ -66,16 +66,24 @@ namespace Planora.Auth.Application.Features.Friendships.Queries.GetFriends
                     });
                 }
 
+                // Page with the same normalised size the result reports (at most 100): slicing by the
+                // raw request size returned 200 rows under a pageSize of 100, so page 2 overlapped
+                // page 1 by the result's own arithmetic. The repository returns rows in no particular
+                // order, so the list is ordered first — oldest friendship first, then id — or pages
+                // read at different times could repeat or skip a friend.
+                var (pageNumber, pageSize) = PaginationParameters.Normalize(request.PageNumber, request.PageSize);
                 var totalCount = friends.Count;
                 var pagedFriends = friends
-                    .Skip((request.PageNumber - 1) * request.PageSize)
-                    .Take(request.PageSize)
+                    .OrderBy(f => f.FriendsSince)
+                    .ThenBy(f => f.Id)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .ToList();
 
                 var pagedResult = new PagedResult<FriendDto>(
                     pagedFriends,
-                    request.PageNumber,
-                    request.PageSize,
+                    pageNumber,
+                    pageSize,
                     totalCount);
 
                 return Result.Success(pagedResult);

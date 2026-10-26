@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(friends): everyone after the hundredth friend appears (2026-10-26)
+
+The friend list behind the audience picker and author names asked the server for 200 friends a
+page and stopped at the first page shorter than 200. The server answers at most 100 a page, so a
+person with more than a hundred friends could not share with, or see the names of, the rest. The
+client now reads 100 a page until the server says it is done, and the server pages with the size
+it reports, in one stable order — oldest friendship first — so no friend is repeated or skipped.
+
 ### test(frontend): the unit tests run on React 19, like the app (2026-10-26)
 
 The App Router renders with the React 19 that Next.js 16 bundles, but `react` in `package.json`

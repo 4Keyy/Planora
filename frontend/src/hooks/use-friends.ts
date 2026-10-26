@@ -15,24 +15,31 @@ const TTL_MS = 60_000
 let cache: { value: FriendDto[]; at: number } | null = null
 let inflight: Promise<FriendDto[]> | null = null
 
+/** The server's largest page (`PaginationParameters.MaxPageSize`); it clamps any larger request. */
+const PAGE_SIZE = 100
+/** A backstop against a server that never says it is done: 5,000 friends. */
+const PAGE_LIMIT = 50
+
 async function fetchAllFriends(): Promise<FriendDto[]> {
-  const collected: FriendDto[] = []
+  const byId = new Map<string, FriendDto>()
   let page = 1
-  const pageSize = 200
 
   while (true) {
     const res = await api.get<PagedResult<FriendDto>>("/friendships", {
-      params: { pageNumber: page, pageSize },
+      params: { pageNumber: page, pageSize: PAGE_SIZE },
     })
     const data = res.data
     const items = data?.items ?? []
-    collected.push(...items)
-    if (!data?.hasNextPage || items.length < pageSize) break
+    // A friendship accepted while the pages load can shift a friend across a page boundary; keep
+    // each friend once.
+    for (const friend of items) byId.set(friend.id, friend)
+    // The server says when it is done; a page shorter than the size it applied is the last one too.
+    if (!data?.hasNextPage || items.length < (data.pageSize || PAGE_SIZE)) break
     page++
-    if (page > 50) break
+    if (page > PAGE_LIMIT) break
   }
 
-  return collected
+  return [...byId.values()]
 }
 
 function loadFriends(): Promise<FriendDto[]> {

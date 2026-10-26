@@ -279,6 +279,10 @@ public class FriendshipHandlerTests
         accepted1.Accept(friend1.Id);
         var accepted2 = Friendship.Create(friend2.Id, userId);
         accepted2.Accept(userId);
+        // The list is ordered oldest friendship first; two accepts within one clock tick would tie.
+        var acceptedAt = typeof(Friendship).GetProperty(nameof(Friendship.AcceptedAt))!;
+        acceptedAt.SetValue(accepted1, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        acceptedAt.SetValue(accepted2, new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc));
         var fixture = new FriendshipFixture(userId);
         fixture.Friendships
             .Setup(x => x.GetFriendshipsForUserAsync(userId, FriendshipStatus.Accepted, It.IsAny<CancellationToken>()))
