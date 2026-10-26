@@ -113,6 +113,12 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### fix(dashboard): Try again brings the tasks back (2026-10-27)
+
+When the dashboard could not read your tasks it offered **Try again**, but the retry only read the
+tasks: "Couldn't load your tasks" stayed on screen until the page was reloaded. A page that loads
+now replaces the message.
+
 ### chore(lint): accessibility rules in ESLint, and no warning passes (2026-10-27)
 
 ESLint now runs jsx-a11y's recommended rules on the app, lints the tests with a lighter profile and

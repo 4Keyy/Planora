@@ -283,6 +283,9 @@ export default function DashboardPage() {
       setTodos(enriched)
       setTotalCount(res.data.totalCount ?? 0)
       setLastFetchedPage(page)
+      // A page that loaded answers the failure before it: without this, Try again read the tasks
+      // and still showed "Couldn't load your tasks" until the page was reloaded.
+      setError(null)
     } catch (err) {
       if (axios.isCancel(err) || signal?.aborted) return
       if (paging) {
