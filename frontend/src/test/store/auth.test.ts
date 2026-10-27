@@ -48,12 +48,19 @@ describe("auth store", () => {
     sessionStorage.clear()
     vi.clearAllMocks()
     resetAuthState()
+    // A restore reports itself (`trackProductEvent`), which reads the CSRF token and posts. Without
+    // the cookie and a stubbed fetch that went to a real gateway, and a send still on its way when
+    // the next test stubbed fetch was counted there: the failed-restore tests below saw four
+    // events instead of one whenever a gateway was slow or down.
+    document.cookie = "XSRF-TOKEN=csrf; path=/"
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 202 })))
   })
 
   afterEach(() => {
     // Cancels this tab's scheduled refresh, so no timer outlives its test.
     useAuthStore.getState().clearAuth(true)
     vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it("sets auth from a JWT and never persists raw tokens", () => {

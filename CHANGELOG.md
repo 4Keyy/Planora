@@ -113,6 +113,14 @@ All notable changes to Planora are documented here. Format follows [Keep a Chang
   an FPS gain or resolve the separate reported black pixel, which did not reproduce in 504
   inspected frames.
 
+### test(auth): the failed-restore report no longer counts other tests' events (2026-10-28)
+
+"keeps the event, then sends it with the same user's next token" failed whenever a local gateway
+was slow, down or rate limiting: earlier tests in `auth.test.ts` reported their restores for real —
+the CSRF token was fetched from the gateway — and a report still on its way when the next block
+stubbed `fetch` was counted there, four events instead of one. Every test in the file now has the
+CSRF cookie and a stubbed `fetch`, so nothing leaves the test that started it.
+
 ### fix(palette): search folds back into its button and opens without a stall (2026-10-28)
 
 Closing the palette sent it flying past the search button instead of folding into it: it scaled
